@@ -1,0 +1,15 @@
+id = "adhoc.recovery.syntax.mid-input-token-conservation-near-eof"
+lojban = "mi viska lo .i mi klama le"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [13, 14], source-text = "i", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [
+    { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [13, 14], source-text = "i", message = "unexpected cmavo" },
+    { severity = "error", code = "syntax.incomplete-sumti", byte-span = [26, 26], source-text = "", message = "incomplete sumti" },
+]
+tree = { valid-tokens = ["mi", "víska", "lo"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[13, 14], [15, 17], [18, 23], [24, 26]] }, { kind = "missing", error-index = 0, byte-spans = [[13, 13]] }] }

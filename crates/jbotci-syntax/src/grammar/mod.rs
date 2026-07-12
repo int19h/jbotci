@@ -1442,12 +1442,16 @@ fn recover_after_strict_failure(
     mut trace: Option<TraceReport>,
 ) -> RecoveredSyntaxParseAttempt {
     let cap = options.max_recovery_errors.get();
+    let initial_failure = failure.clone();
+    let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
-    let mut effective_fail_token_indices = Vec::new();
 
     while errors.len() < cap {
         let candidates = select_recovery_directives(&tokens, &failure, options, errors.len() - 1);
+        if errors.len() == 1 {
+            initial_has_anchor_candidates = !candidates.is_empty();
+        }
         let candidates = if candidates.is_empty() {
             select_final_recovery_directives(&tokens, &failure, errors.len() - 1)
         } else {
@@ -1458,6 +1462,7 @@ fn recover_after_strict_failure(
         }
 
         let mut accepted_progress = None;
+        let mut exact_position_success = None;
         'recovery_phases: for natural_stop_enabled in [false, true] {
             let trial_limit = if natural_stop_enabled {
                 MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR
@@ -1516,6 +1521,9 @@ fn recover_after_strict_failure(
                         if !natural_stop_enabled || fired_left_of_declared_failure {
                             return success;
                         }
+                        if !directives.is_empty() && exact_position_success.is_none() {
+                            exact_position_success = Some(success);
+                        }
                     }
                     Ok(_) => {
                         trace = attempt_trace;
@@ -1535,7 +1543,6 @@ fn recover_after_strict_failure(
                         if accepted_progress.is_none() {
                             accepted_progress = Some(new!(RecoveryProgressTrial {
                                 directives: applied_directives,
-                                effective_fail_token_indices: applied_effective_fail_token_indices,
                                 failure: next_failure,
                                 trace: attempt_trace,
                             }));
@@ -1548,29 +1555,41 @@ fn recover_after_strict_failure(
             }
         }
 
+        // The wider phase preserves natural-stop recoveries as its first
+        // priority. After prior progress, if none fires left of the next
+        // declared failure, a late exact-site success is still a complete
+        // recovery and is preferable to degrading the entire parse.
+        if let Some(success) = exact_position_success {
+            return success;
+        }
+
         let Some(progress) = accepted_progress else {
             break;
         };
         let data!(RecoveryProgressTrial {
             directives: trial_directives,
-            effective_fail_token_indices: trial_effective_fail_token_indices,
             failure: next_failure,
             trace: progress_trace,
         }) = progress.into_data();
         directives = trial_directives;
-        effective_fail_token_indices = trial_effective_fail_token_indices;
         errors.push(next_failure.public_error.clone());
         failure = next_failure;
         trace = progress_trace;
     }
 
-    let parse_tree = degraded_recovered_text(
-        &tokens,
-        source,
-        &directives,
-        &effective_fail_token_indices,
-        &errors,
-    );
+    if initial_has_anchor_candidates && errors.len() > 1 {
+        if let Some(recovered) = try_final_recovery_from_initial_failure(
+            &tokens,
+            source,
+            options,
+            &initial_failure,
+            &errors,
+        ) {
+            return recovered;
+        }
+    }
+
+    let parse_tree = degraded_recovered_text(&tokens, source, &errors);
     RecoveredSyntaxParseAttempt {
         result: new!(RecoveredSyntaxParse {
             parse_tree: Box::new(parse_tree),
@@ -1579,6 +1598,44 @@ fn recover_after_strict_failure(
         }),
         trace,
     }
+}
+
+#[requires(!errors.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|attempt| !attempt.result.errors.is_empty()))]
+fn try_final_recovery_from_initial_failure(
+    tokens: &[Token],
+    source: Option<&str>,
+    options: &ParseOptions,
+    initial_failure: &generated::generated_model::GeneratedParseFailure,
+    errors: &[SyntaxError],
+) -> Option<RecoveredSyntaxParseAttempt> {
+    for directive in select_final_recovery_directives(tokens, initial_failure, 0) {
+        let attempt = generated::generated_model::parse_recovered_text_attempt(
+            tokens,
+            source,
+            options,
+            std::slice::from_ref(&directive),
+        );
+        let generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+            result,
+            trace,
+            unconsumed_directives,
+            ..
+        } = attempt;
+        if let Ok(parsed) = result
+            && unconsumed_directives == 0
+        {
+            return Some(RecoveredSyntaxParseAttempt {
+                result: new!(RecoveredSyntaxParse {
+                    parse_tree: Box::new(parsed.text),
+                    errors: errors.to_vec(),
+                    warnings: parsed.warnings,
+                }),
+                trace,
+            });
+        }
+    }
+    None
 }
 
 #[requires(true)]
@@ -1603,10 +1660,8 @@ struct RecoveryClaim {
 }
 
 #[invariant(!directives.is_empty())]
-#[invariant(effective_fail_token_indices.len() <= directives.len())]
 struct RecoveryProgressTrial {
     directives: Vec<RecoveryDirective>,
-    effective_fail_token_indices: Vec<usize>,
     failure: generated::generated_model::GeneratedParseFailure,
     trace: Option<TraceReport>,
 }
@@ -1951,34 +2006,11 @@ fn recovery_anchor_matches(
 fn degraded_recovered_text(
     tokens: &[Token],
     source: Option<&str>,
-    directives: &[RecoveryDirective],
-    effective_fail_token_indices: &[usize],
     errors: &[SyntaxError],
 ) -> generated::generated_model::recovered::TextSyntax {
     let mut tree = empty_recovered_text();
-    let item = if directives.is_empty() {
-        all_tokens_recovery_item(0, tokens)
-            .unwrap_or_else(|| fallback_recovery_item(tokens, source, 0, &errors[0]))
-    } else {
-        directives.first().map_or_else(
-            || fallback_recovery_item(tokens, source, 0, &errors[0]),
-            |directive| {
-                let effective_fail_token_index = effective_fail_token_indices
-                    .first()
-                    .copied()
-                    .unwrap_or(directive.fail_token_index);
-                skipped_recovery_item(
-                    directive.error_index,
-                    tokens,
-                    directive,
-                    effective_fail_token_index,
-                )
-                .unwrap_or_else(|| {
-                    missing_recovery_item(directive.error_index, tokens, source, directive)
-                })
-            },
-        )
-    };
+    let item = all_tokens_recovery_item(0, tokens)
+        .unwrap_or_else(|| fallback_recovery_item(tokens, source, 0, &errors[0]));
     insert_leading_recovery_item(&mut tree, item);
     tree
 }
