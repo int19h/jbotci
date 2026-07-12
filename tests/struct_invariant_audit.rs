@@ -1288,12 +1288,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree macro test fixture intentionally has no extra field invariant",
     ),
     (
+        "crates/jbotci-tree/src/lib.rs:MissingRecoveryMarker",
+        "projection keys accept every source position and diagnostic index",
+    ),
+    (
         "crates/jbotci-tree/src/lib.rs:NodeKindVisitor",
         "tree macro test visitor stores collected labels",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:PairNode",
         "tree macro test fixture intentionally has no extra field invariant",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:ProjectionRecoveryItem",
+        "projection test probes intentionally exercise independent recovery kind, index, and span combinations",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:RecordingVisitor",
@@ -1310,6 +1318,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:RecoveryError",
         "generic recovery error pairs a validated tree path with a typed recovery item",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:RecoveryProjection",
+        "projection state is either empty or stores one validated marker key",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:TreePath",

@@ -11978,6 +11978,7 @@ fn recovered_syntax_tree_expectation(
 struct RecoveredSyntaxTreeExpectationVisitor {
     valid_tokens: Vec<String>,
     recovery_items: Vec<fixtures::RecoveredTreeRecoveryItemExpectation>,
+    recovery_projection: jbotci_tree::RecoveryProjection,
 }
 
 impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSyntaxTreeExpectationVisitor {
@@ -11988,6 +11989,7 @@ impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSyntaxTreeExpectationVi
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         let jbotci_syntax::generated_model::recovered::AtomRef::Token(token) = atom;
+        self.recovery_projection.separate();
         let token = token.core_word().to_string();
         let token = token
             .split_once(':')
@@ -12002,6 +12004,9 @@ impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSyntaxTreeExpectationVi
     where
         E: jbotci_tree::RecoveryItemState + serde::Serialize,
     {
+        if !self.recovery_projection.include(item) {
+            return;
+        }
         let mut byte_spans = Vec::new();
         item.visit_source_spans(&mut |span| {
             byte_spans.push([span.byte_start, span.byte_end]);
