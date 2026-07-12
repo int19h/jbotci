@@ -6274,6 +6274,65 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn composite_morphology_surfaces_in_web_blocks_and_tree_rows() {
+        let quote = parse_success("mi klama zoi gy house gy");
+        let quote_leaves = quote
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && block.role.is_normal())
+            .map(|block| block.display_text.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            quote_leaves,
+            vec!["mi", "kláma", "zoĭ", "gy", "house", "gy"]
+        );
+        assert_eq!(
+            quote.brackets_text.replace('\u{200a}', ""),
+            "(mi [kláma {zoĭ gy house gy}])"
+        );
+        assert_eq!(
+            bracket_fragment_text(&quote.bracket_fragments),
+            quote.brackets_text
+        );
+        for component in ["zoĭ", "gy", "house"] {
+            assert!(quote.tree_rows.iter().any(|row| {
+                row.cells
+                    .iter()
+                    .any(|cell| cell.is_word && cell.text == component)
+            }));
+        }
+
+        let compound = parse_success("mi bakni zei kanla");
+        let compound_leaves = compound
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && block.role.is_normal())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            compound_leaves
+                .iter()
+                .map(|block| block.display_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mi", "bákni", "zeĭ", "kánla"]
+        );
+        for component in ["bákni", "zeĭ", "kánla"] {
+            assert!(compound.tree_rows.iter().any(|row| {
+                row.cells
+                    .iter()
+                    .any(|cell| cell.is_word && cell.text == component)
+            }));
+        }
+        assert_eq!(
+            compound.brackets_text.replace('\u{200a}', ""),
+            "(mi [bákni zeĭ kánla])"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_web_blocks_keep_statements_around_exact_skipped_slot() {
         let success = parse_success("mi ku i do");
         let mi = success
