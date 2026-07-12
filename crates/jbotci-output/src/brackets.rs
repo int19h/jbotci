@@ -1,6 +1,6 @@
-#[allow(unused_imports)]
-use bityzba::ensures;
 use bityzba::{data, new};
+#[allow(unused_imports)]
+use bityzba::{ensures, expensive_ensures};
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Cmavo, LeadingPauseContext, Phonemes, Word, WordLike, WordLikeData};
 use jbotci_orthography::render_latin_word_surface_for_script;
@@ -45,7 +45,8 @@ pub(crate) fn pretty_morphology_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
+#[ensures(ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
 pub(crate) fn pretty_generated_model_brackets_with_options(
     tree: &GeneratedTextSyntax,
     source: &str,
@@ -59,7 +60,8 @@ pub(crate) fn pretty_generated_model_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|fragments| fragments.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
+#[ensures(ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|fragments| fragments.is_empty() == generated_text_is_empty(tree)) || ret.is_err())]
 pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
     tree: &GeneratedTextSyntax,
     source: &str,
