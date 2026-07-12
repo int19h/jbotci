@@ -521,7 +521,7 @@ pub fn pretty_generated_model_raw_tree_with_options(
 
 #[doc(hidden)]
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == brackets::generated_text_is_empty(tree)) || ret.is_err())]
 pub fn pretty_generated_model_brackets_with_options(
     tree: &jbotci_syntax::generated_model::TextSyntax,
     source: &str,
@@ -1142,7 +1142,7 @@ fn is_omitted_compact_value(value: &Value) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|text| text.is_empty() == brackets::generated_text_is_empty(tree)) || ret.is_err())]
 pub fn pretty_brackets_with_options(
     tree: &TextSyntax,
     source: &str,
@@ -1152,7 +1152,7 @@ pub fn pretty_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|fragments| fragments.is_empty() == brackets::generated_text_is_empty(tree)) || ret.is_err())]
 pub fn pretty_bracket_source_fragments_with_options(
     tree: &TextSyntax,
     source: &str,
