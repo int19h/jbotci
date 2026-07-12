@@ -1090,6 +1090,43 @@ fn gentufa_blocks_stdout_defaults_to_svg() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_blocks_svg_renders_composite_morphology_components() {
+    run_on_normal_stack(|| {
+        let quote = run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--format",
+            "blocks",
+            "mi klama zoi gy house gy",
+        ]);
+        let quote = String::from_utf8(quote).expect("SVG is UTF-8");
+        for text in ["mi", "kláma", "zoĭ", "gy", "house", "quote"] {
+            assert!(
+                quote.contains(&format!(">{text}</text>")),
+                "{text}: {quote}"
+            );
+        }
+
+        let compound = run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--format",
+            "blocks",
+            "mi bakni zei kanla",
+        ]);
+        let compound = String::from_utf8(compound).expect("SVG is UTF-8");
+        for text in ["mi", "bákni", "zeĭ", "kánla", "tanru unit"] {
+            assert!(
+                compound.contains(&format!(">{text}</text>")),
+                "{text}: {compound}"
+            );
+        }
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_blocks_output_file_extension_infers_svg_and_png() {
     run_on_normal_stack(|| {
         let svg_path = unique_cli_output_path("gentufa-blocks-inferred-svg", "svg");

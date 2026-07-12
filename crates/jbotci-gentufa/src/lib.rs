@@ -9,9 +9,9 @@ use std::num::NonZeroUsize;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    Cmavo, LeadingPauseContext, LeadingPauseVowelMode, PhonemeRenderOptions, Phonemes, Word,
-    WordKind, WordLike, WordLikeData, segment_words_with_modifiers,
-    word_needs_leading_pause_in_context,
+    Cmavo, LeadingPauseContext, LeadingPauseVowelMode, NodeRef as MorphologyNodeRef,
+    PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Verbatim, Word, WordKind,
+    WordLike, segment_words_with_modifiers, word_needs_leading_pause_in_context,
 };
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
@@ -576,6 +576,122 @@ enum GeneratedBlockFrame {
     Chain(GeneratedBlockPayload),
 }
 
+#[invariant(true)]
+#[invariant(::Word { word, .. } => word.span().char_len() > 0)]
+#[invariant(::Verbatim(verbatim) => verbatim.span.char_len() == verbatim.text.chars().count())]
+#[derive(Debug, Clone, Copy)]
+enum MorphologyBlockLeaf<'tree> {
+    Word {
+        word: &'tree Word,
+        context: LeadingPauseContext,
+    },
+    Verbatim(&'tree Verbatim),
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+enum MorphologyBlockNode {
+    Other,
+    LerfuWord,
+    PlainWord,
+    BuLetterBasePlainWord,
+}
+
+#[invariant(fields.len() <= nodes.len(), "open morphology fields must belong to open nodes")]
+#[derive(Debug, Default)]
+struct MorphologyBlockLeafCollector<'tree> {
+    leaves: Vec<MorphologyBlockLeaf<'tree>>,
+    nodes: Vec<MorphologyBlockNode>,
+    fields: Vec<jbotci_tree::FieldRef>,
+}
+
+impl<'tree> MorphologyBlockLeafCollector<'tree> {
+    #[requires(true)]
+    #[ensures(ret.nodes.is_empty() && ret.fields.is_empty() && ret.leaves.is_empty())]
+    fn new() -> Self {
+        Self::default()
+    }
+
+    #[requires(self.nodes.is_empty() && self.fields.is_empty())]
+    #[ensures(ret.len() == old(self.leaves.len()))]
+    fn finish(self) -> Vec<MorphologyBlockLeaf<'tree>> {
+        self.into_data().leaves
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for MorphologyBlockLeafCollector<'tree> {
+    type Node = MorphologyNodeRef<'tree>;
+    type Atom = jbotci_morphology::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(self.nodes.len() == old(self.nodes.len()) + 1)]
+    fn enter_node(&mut self, node: Self::Node) {
+        let mut data = std::mem::take(self).into_data();
+        let node = match node {
+            MorphologyNodeRef::WordLikeLerfuWord(_) => MorphologyBlockNode::LerfuWord,
+            MorphologyNodeRef::WordLikePlainWord(_)
+                if matches!(data.nodes.last(), Some(MorphologyBlockNode::LerfuWord))
+                    && data
+                        .fields
+                        .last()
+                        .is_some_and(|field| field.name == Some("base")) =>
+            {
+                MorphologyBlockNode::BuLetterBasePlainWord
+            }
+            MorphologyNodeRef::WordLikePlainWord(_) => MorphologyBlockNode::PlainWord,
+            MorphologyNodeRef::WordCmavo(word)
+            | MorphologyNodeRef::WordGismu(word)
+            | MorphologyNodeRef::WordLujvo(word)
+            | MorphologyNodeRef::WordFuhivla(word)
+            | MorphologyNodeRef::WordCmevla(word) => {
+                let context = if matches!(
+                    data.nodes.last(),
+                    Some(MorphologyBlockNode::BuLetterBasePlainWord)
+                ) {
+                    LeadingPauseContext::BuLetterBase
+                } else {
+                    LeadingPauseContext::IndependentWord
+                };
+                data.leaves
+                    .push(new!(MorphologyBlockLeaf::Word { word, context }));
+                MorphologyBlockNode::Other
+            }
+            MorphologyNodeRef::Verbatim(verbatim) => {
+                data.leaves
+                    .push(new!(MorphologyBlockLeaf::Verbatim(verbatim)));
+                MorphologyBlockNode::Other
+            }
+            _ => MorphologyBlockNode::Other,
+        };
+        data.nodes.push(node);
+        *self = Self::from_data(data);
+    }
+
+    #[requires(self.fields.len() < self.nodes.len())]
+    #[ensures(self.nodes.len() + 1 == old(self.nodes.len()))]
+    fn exit_node(&mut self, _node: Self::Node) {
+        let mut data = std::mem::take(self).into_data();
+        data.nodes.pop();
+        *self = Self::from_data(data);
+    }
+
+    #[requires(self.fields.len() < self.nodes.len())]
+    #[ensures(self.fields.len() == old(self.fields.len()) + 1)]
+    fn enter_field(&mut self, field: jbotci_tree::FieldRef) {
+        let mut data = std::mem::take(self).into_data();
+        data.fields.push(field);
+        *self = Self::from_data(data);
+    }
+
+    #[requires(self.fields.last().is_some_and(|entered| *entered == field))]
+    #[ensures(self.fields.len() + 1 == old(self.fields.len()))]
+    fn exit_field(&mut self, field: jbotci_tree::FieldRef) {
+        let mut data = std::mem::take(self).into_data();
+        data.fields.pop();
+        *self = Self::from_data(data);
+    }
+}
+
 impl GeneratedBlockFrame {
     #[requires(true)]
     #[ensures(true)]
@@ -861,26 +977,50 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
     #[requires(true)]
     #[ensures(true)]
     fn push_word_like(&mut self, word_like: &WordLike) {
-        let span_refs = word_like.source_spans();
-        let Some(range) = range_from_spans(span_refs.iter().copied()) else {
+        if let Some(word) = word_like.bare_word() {
+            self.push_word(word);
             return;
-        };
-        self.last_token_end_range = span_refs.iter().copied().last().map(end_range_from_span);
+        }
+        let mut collector = MorphologyBlockLeafCollector::new();
+        word_like.visit_in_order(&mut collector);
+        for leaf in collector.finish() {
+            match leaf.into_data() {
+                data!(MorphologyBlockLeaf::Word { word, context }) => {
+                    self.push_word_in_context(word, context);
+                }
+                data!(MorphologyBlockLeaf::Verbatim(verbatim)) => self.push_verbatim(verbatim),
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_verbatim(&mut self, verbatim: &Verbatim) {
+        let range = range_from_span(&verbatim.span);
+        let raw_text = self
+            .source
+            .get(range.byte_start..range.byte_end)
+            .unwrap_or(&verbatim.text)
+            .to_owned();
+        if raw_text.is_empty() {
+            return;
+        }
+        self.last_token_end_range = Some(end_range_from_span(&verbatim.span));
         let id = self.allocate_id();
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
             role: GentufaBlockRole::Normal,
             error_index: None,
-            token_kind: word_like.bare_word().map(Word::kind),
-            raw_text: source_text_for_range(self.source, Some(range)),
-            display_text: render_word_like(word_like, self.source, self.options),
+            token_kind: None,
+            raw_text: raw_text.clone(),
+            display_text: raw_text,
         }));
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_word(&mut self, word: &Word) {
+    fn push_word_in_context(&mut self, word: &Word, context: LeadingPauseContext) {
         let span = word.span();
         let range = range_from_span(span);
         self.last_token_end_range = Some(end_range_from_span(span));
@@ -892,8 +1032,14 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             error_index: None,
             token_kind: Some(word.kind()),
             raw_text: source_text_for_range(self.source, Some(range)),
-            display_text: render_word(word, self.options),
+            display_text: render_word_in_context(word, self.options, context),
         }));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_word(&mut self, word: &Word) {
+        self.push_word_in_context(word, LeadingPauseContext::IndependentWord);
     }
 
     #[requires(true)]
@@ -2359,96 +2505,6 @@ fn source_text_for_range(source: &str, range: Option<WebSourceRange>) -> String 
 
 #[requires(true)]
 #[ensures(true)]
-fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOptions) -> String {
-    render_word_like_in_context(
-        word_like,
-        source,
-        options,
-        LeadingPauseContext::IndependentWord,
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_word_like_in_context(
-    word_like: &WordLike,
-    source: &str,
-    options: &GentufaBlockOptions,
-    context: LeadingPauseContext,
-) -> String {
-    match word_like.as_data() {
-        WordLikeData::PlainWord(word) => render_word_in_context(word, options, context),
-        WordLikeData::QuotedWord { zo, word } => {
-            format!(
-                "{} {}",
-                render_word(zo, options),
-                render_word(word, options)
-            )
-        }
-        WordLikeData::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        } => format!(
-            "{} {} {} {}",
-            render_word(zoi, options),
-            render_word(opening_delimiter, options),
-            source
-                .get(quoted_text.span.byte_start..quoted_text.span.byte_end)
-                .unwrap_or(&quoted_text.text),
-            render_word(closing_delimiter, options)
-        ),
-        WordLikeData::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        } => {
-            let mut parts = Vec::with_capacity(quoted_words.len() + 2);
-            parts.push(render_word(lohu, options));
-            parts.extend(quoted_words.iter().map(|word| render_word(word, options)));
-            parts.push(render_word(lehu, options));
-            parts.join(" ")
-        }
-        WordLikeData::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        } => format!(
-            "{} {}",
-            render_word(marker, options),
-            source
-                .get(quoted_text.span.byte_start..quoted_text.span.byte_end)
-                .unwrap_or(&quoted_text.text)
-        ),
-        WordLikeData::LerfuWord { base, bu } => {
-            format!(
-                "{} {}",
-                render_word_like_in_context(
-                    base,
-                    source,
-                    options,
-                    LeadingPauseContext::BuLetterBase
-                ),
-                render_word(bu, options)
-            )
-        }
-        WordLikeData::ZeiCompound { left, zei, right } => format!(
-            "{} {} {}",
-            render_word_like(left, source, options),
-            render_word(zei, options),
-            render_word(right, options)
-        ),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_word(word: &Word, options: &GentufaBlockOptions) -> String {
-    render_word_in_context(word, options, LeadingPauseContext::IndependentWord)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn render_word_in_context(
     word: &Word,
     options: &GentufaBlockOptions,
@@ -2580,6 +2636,15 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
 
+    #[invariant(byte_start < byte_end, "expected composite leaves must cover source text")]
+    #[derive(Debug, Clone, Copy)]
+    struct ExpectedCompositeLeaf {
+        raw_text: &'static str,
+        display_text: &'static str,
+        byte_start: usize,
+        byte_end: usize,
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2663,6 +2728,113 @@ mod tests {
                 .blocks
                 .iter()
                 .any(|block| block.label == "tanru unit")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_zoi_quote_blocks_expose_each_morphology_leaf() {
+        assert_composite_layout(
+            "mi klama zoi gy house gy",
+            "quote",
+            &[
+                expected_composite_leaf("mi", "mi", 0, 2),
+                expected_composite_leaf("klama", "kláma", 3, 8),
+                expected_composite_leaf("zoi", "zoĭ", 9, 12),
+                expected_composite_leaf("gy", "gy", 13, 15),
+                expected_composite_leaf("house", "house", 16, 21),
+                expected_composite_leaf("gy", "gy", 22, 24),
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_zo_quote_blocks_expose_each_morphology_leaf() {
+        assert_composite_layout(
+            "mi klama zo coi",
+            "quote",
+            &[
+                expected_composite_leaf("mi", "mi", 0, 2),
+                expected_composite_leaf("klama", "kláma", 3, 8),
+                expected_composite_leaf("zo", "zo", 9, 11),
+                expected_composite_leaf("coi", "coĭ", 12, 15),
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_zei_compound_blocks_expose_each_morphology_leaf() {
+        assert_composite_layout(
+            "mi bakni zei kanla",
+            "tanru unit",
+            &[
+                expected_composite_leaf("mi", "mi", 0, 2),
+                expected_composite_leaf("bakni", "bákni", 3, 8),
+                expected_composite_leaf("zei", "zeĭ", 9, 12),
+                expected_composite_leaf("kanla", "kánla", 13, 18),
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_bu_lerfu_blocks_expose_each_morphology_leaf() {
+        assert_composite_layout(
+            ".abu",
+            "lerfu word",
+            &[
+                expected_composite_leaf("a", ".a", 1, 2),
+                expected_composite_leaf("bu", "bu", 2, 4),
+            ],
+        );
+        assert_composite_layout(
+            "ybu",
+            "lerfu word",
+            &[
+                expected_composite_leaf("y", ".y", 0, 1),
+                expected_composite_leaf("bu", "bu", 1, 3),
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_layout_keeps_composite_leaves_next_to_skipped_region() {
+        let (layout, errors) = recovered_test_blocks_layout("mi bakni zei kanla ku i do");
+        assert_eq!(errors.len(), 1, "{errors:#?}");
+        assert_eq!(
+            generated_leaf_display_texts(&layout),
+            vec!["mi", "bákni", "zeĭ", "kánla", "ku", ".i", "do"]
+        );
+        let error = only_error_block(&layout);
+        assert_eq!(error.raw_text, "ku");
+        assert!(
+            layout
+                .blocks
+                .iter()
+                .any(|block| !block.is_leaf && block.label == "tanru unit")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_layout_keeps_composite_token_inside_error_region() {
+        let (layout, errors) = recovered_test_blocks_layout("mi ku zoi gy house gy i do");
+        assert_eq!(errors.len(), 1, "{errors:#?}");
+        let error = only_error_block(&layout);
+        assert_eq!(error.raw_text, "ku zoi gy house gy");
+        assert_eq!(error.display_text, "ku zoi gy house gy");
+        assert_eq!(block_byte_range(error), (3, 21));
+        assert!(
+            generated_leaf_display_texts(&layout).ends_with(&[".i".to_owned(), "do".to_owned()])
         );
     }
 
@@ -3012,6 +3184,60 @@ mod tests {
             .filter(|block| block.is_leaf && !block.role.is_elided())
             .map(|block| block.display_text.clone())
             .collect()
+    }
+
+    #[requires(!raw_text.is_empty() && !display_text.is_empty())]
+    #[requires(byte_start < byte_end)]
+    #[ensures(ret.raw_text == raw_text && ret.display_text == display_text)]
+    fn expected_composite_leaf(
+        raw_text: &'static str,
+        display_text: &'static str,
+        byte_start: usize,
+        byte_end: usize,
+    ) -> ExpectedCompositeLeaf {
+        new!(ExpectedCompositeLeaf {
+            raw_text,
+            display_text,
+            byte_start,
+            byte_end,
+        })
+    }
+
+    #[requires(!source.is_empty() && !construct_label.is_empty() && !expected.is_empty())]
+    #[ensures(true)]
+    fn assert_composite_layout(
+        source: &str,
+        construct_label: &str,
+        expected: &[ExpectedCompositeLeaf],
+    ) {
+        let layout = generated_test_blocks_layout(source);
+        let mut leaves = layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && block.role.is_normal())
+            .collect::<Vec<_>>();
+        leaves.sort_by_key(|block| (block.col, block.row));
+        assert_eq!(leaves.len(), expected.len(), "{layout:#?}");
+        for (block, expected) in leaves.into_iter().zip(expected) {
+            assert_eq!(block.raw_text, expected.raw_text);
+            assert_eq!(block.display_text, expected.display_text);
+            assert_eq!(
+                block.span,
+                Some(new!(WebSourceRange {
+                    byte_start: expected.byte_start,
+                    byte_end: expected.byte_end,
+                    char_start: expected.byte_start,
+                    char_end: expected.byte_end,
+                }))
+            );
+        }
+        assert!(
+            layout
+                .blocks
+                .iter()
+                .any(|block| !block.is_leaf && block.label == construct_label),
+            "missing composite construct {construct_label:?}: {layout:#?}"
+        );
     }
 
     #[requires(byte_start <= byte_end)]
