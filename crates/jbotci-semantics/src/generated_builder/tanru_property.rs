@@ -478,8 +478,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         if let Some(scalar_unit) = scalar_unit {
             let scalar_negation_scope =
@@ -1296,8 +1295,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return None;
         }
         object
-            .value
-            .as_ref()?
+            .quantity_value()?
             .integer
             .and_then(|integer| usize::try_from(integer).ok())
     }
@@ -1311,13 +1309,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         variable: SemanticObjectId,
     ) -> Option<(SemanticObjectId, Vec<SemanticObjectId>)> {
         let formula_object = self.objects.get(&formula)?;
-        if !matches!(
-            formula_object.operator.as_ref()?.as_data(),
-            SemanticOperatorData::Formula(FormulaOperator::Atom)
-        ) {
+        if formula_object.formula_operator() != Some(FormulaOperator::Atom) {
             return None;
         }
-        let predication = self.objects.get(&formula_object.predication?)?;
+        let predication = self
+            .objects
+            .get(&formula_object.formula_predication()?)?
+            .as_predication()?;
         let has_variable_argument = predication
             .arguments
             .values()
@@ -1340,11 +1338,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Option<Vec<SemanticObjectId>> {
         let object = self.objects.get(&referent)?;
         if object.object_kind() != crate::model::SemanticObjectKind::Referent
-            || object.category != Some(ReferentCategory::Composite)
+            || object.referent_category() != Some(ReferentCategory::Composite)
         {
             return None;
         }
-        let composition = object.composition.as_ref()?;
+        let composition = object.referent_composition()?;
         (composition.operator == CompositionOperator::Respectively
             && !composition.members.is_empty())
         .then(|| composition.members.clone())
@@ -2744,8 +2742,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.relation_metadata = relation_metadata;
+        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, predication_object)?;
         if let Some(scalar_unit) = scalar_unit {
             let scalar_negation_scope =
@@ -2982,11 +2980,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        predication_object.modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event(
+        predication_object.set_predication_modal_arguments(
+            self.build_modal_arguments_for_generated_tagged_terms_for_event(
                 eventuality,
                 &assignments.modal_terms,
-            )?;
+            )?,
+        );
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -4468,8 +4467,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.relation_metadata = relation_metadata;
+        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, predication_object)?;
         if let Some(scalar_negation) = scalar_unit
             .map(|unit| {
@@ -4581,8 +4580,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.relation_metadata = relation_metadata;
+        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, predication_object)?;
         if let Some(scalar_negation) = scalar_unit
             .map(|unit| {
@@ -4788,8 +4787,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.relation_metadata = relation_metadata;
+        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, predication_object)?;
         let scalar_negation = match (scalar_negation, scalar_unit) {
             (Some(scalar_negation), _) => Some(scalar_negation),
@@ -4909,8 +4908,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.relation_metadata = relation_metadata;
+        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, predication_object)?;
         let scalar_negation = match (scalar_negation, scalar_unit) {
             (Some(scalar_negation), _) => Some(scalar_negation),
@@ -5029,8 +5028,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.relation_metadata = relation_metadata;
+        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, predication_object)?;
         if let Some(unit) = scalar_unit {
             self.set_scalar_negation(
@@ -5432,7 +5431,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ))
         })?;
         object
-            .predication
+            .formula_predication()
             .ok_or_else(|| unsupported("property formula without a primary predication"))
     }
 
@@ -5447,20 +5446,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find formula {formula} for predication lookup"
             ))
         })?;
-        if let Some(predication) = object.predication {
+        if let Some(predication) = object.formula_predication() {
             return Ok(predication);
         }
-        for child in &object.children {
+        for child in object.formula_children() {
             if let Ok(predication) = self.primary_predication_for_formula(*child) {
                 return Ok(predication);
             }
         }
-        if let Some(restriction) = object.restriction
+        if let Some(restriction) = object.formula_restriction()
             && let Ok(predication) = self.primary_predication_for_formula(restriction)
         {
             return Ok(predication);
         }
-        if let Some(body) = object.body
+        if let Some(body) = object.formula_body()
             && let Ok(predication) = self.primary_predication_for_formula(body)
         {
             return Ok(predication);
@@ -5479,7 +5478,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let predication = self.primary_predication_for_formula(formula)?;
         self.objects
             .get(&predication)
-            .and_then(|object| object.eventuality)
+            .and_then(SemanticObject::predication_eventuality)
             .ok_or_else(|| {
                 invalid_graph(format!(
                     "formula {formula} primary predication {predication} has no eventuality"
@@ -5716,13 +5715,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
         mode: PredicationMode,
     ) {
-        let Some(object) = self.objects.get(&formula).cloned() else {
+        let Some(object) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+        else {
             return;
         };
+        let object = object.into_data();
         if let Some(predication) = object.predication
             && let Some(object) = self.objects.get_mut(&predication)
         {
-            object.mode = Some(mode);
+            object.set_predication_mode(mode);
         }
         for child in object.children {
             self.set_formula_predication_mode(child, mode);
@@ -5922,11 +5926,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         predication: SemanticObjectId,
         scalar_negation: ScalarNegation,
     ) -> Result<(), SemanticsError> {
-        let Some((modal_arguments, source)) = self
-            .objects
-            .get(&predication)
-            .map(|object| (object.modal_arguments.clone(), object.source.clone()))
-        else {
+        let Some((modal_arguments, source)) = self.objects.get(&predication).and_then(|object| {
+            Some((
+                object.predication_modal_arguments()?.to_vec(),
+                object.source().cloned(),
+            ))
+        }) else {
             return Ok(());
         };
         let scalar_negation = self.scalar_negation_with_scale_for_modal_arguments(
@@ -5935,7 +5940,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
         )?;
         if let Some(object) = self.objects.get_mut(&predication) {
-            object.scalar_negation = Some(scalar_negation);
+            object.set_predication_scalar_negation(scalar_negation);
         }
         Ok(())
     }
@@ -5947,34 +5952,30 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
         scalar_negation: ScalarNegation,
     ) -> Result<bool, SemanticsError> {
-        let Some(object) = self.objects.get(&formula).cloned() else {
+        let Some(object) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+            .map(FormulaTraversal::into_data)
+        else {
             return Ok(false);
         };
-        match object.operator.as_ref().map(|operator| operator.as_data()) {
-            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom))) => {
-                let Some(predication) = object.predication else {
-                    return Ok(false);
-                };
-                if self
-                    .objects
-                    .get(&predication)
-                    .is_some_and(|object| object.tanru_link.is_some())
-                {
-                    self.set_scalar_negation(predication, scalar_negation)?;
-                    return Ok(true);
-                }
-                Ok(false)
+        if let Some(predication) = object.predication {
+            if self
+                .objects
+                .get(&predication)
+                .is_some_and(|object| object.predication_tanru_link().is_some())
+            {
+                self.set_scalar_negation(predication, scalar_negation)?;
+                return Ok(true);
             }
-            Some(data!(SemanticOperator::Formula(_))) => {
-                let mut changed = false;
-                for child in object.children {
-                    changed |=
-                        self.apply_scalar_negation_to_tanru_links(child, scalar_negation.clone())?;
-                }
-                Ok(changed)
-            }
-            Some(data!(SemanticOperator::Math(_))) | None => Ok(false),
+            return Ok(false);
         }
+        let mut changed = false;
+        for child in object.children {
+            changed |= self.apply_scalar_negation_to_tanru_links(child, scalar_negation.clone())?;
+        }
+        Ok(changed)
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -5984,24 +5985,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
         scalar_negation: ScalarNegation,
     ) -> Result<(), SemanticsError> {
-        let Some(object) = self.objects.get(&formula).cloned() else {
+        let Some(object) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+            .map(FormulaTraversal::into_data)
+        else {
             return Ok(());
         };
-        match object.operator.as_ref().map(|operator| operator.as_data()) {
-            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom))) => {
-                if let Some(predication) = object.predication {
-                    self.set_scalar_negation(predication, scalar_negation)?;
-                }
-            }
-            Some(data!(SemanticOperator::Formula(_))) => {
-                for child in object.children {
-                    self.apply_scalar_negation_to_formula_predications(
-                        child,
-                        scalar_negation.clone(),
-                    )?;
-                }
-            }
-            Some(data!(SemanticOperator::Math(_))) | None => {}
+        if let Some(predication) = object.predication {
+            self.set_scalar_negation(predication, scalar_negation)?;
+            return Ok(());
+        }
+        for child in object.children {
+            self.apply_scalar_negation_to_formula_predications(child, scalar_negation.clone())?;
         }
         Ok(())
     }
@@ -6013,15 +6010,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&formula)?;
-        if !matches!(
-            object.operator.as_ref()?.as_data(),
-            data!(SemanticOperator::Formula(FormulaOperator::And))
-        ) || object.children.len() != 2
+        if object.formula_operator() != Some(FormulaOperator::And)
+            || object.formula_children().len() != 2
         {
             return None;
         }
-        let head_formula = object.children[0];
-        let relation_formula = object.children[1];
+        let head_formula = object.formula_children()[0];
+        let relation_formula = object.formula_children()[1];
         self.formula_is_tanru_relation_for_head(relation_formula, head_formula)
             .then_some(relation_formula)
     }
@@ -6033,15 +6028,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&formula)?;
-        if !matches!(
-            object.operator.as_ref()?.as_data(),
-            data!(SemanticOperator::Formula(FormulaOperator::And))
-        ) || object.children.len() != 2
+        if object.formula_operator() != Some(FormulaOperator::And)
+            || object.formula_children().len() != 2
         {
             return None;
         }
-        let head_formula = object.children[0];
-        let relation_formula = object.children[1];
+        let head_formula = object.formula_children()[0];
+        let relation_formula = object.formula_children()[1];
         if !self.formula_is_tanru_relation_for_head(relation_formula, head_formula) {
             return None;
         }
@@ -6061,33 +6054,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(relation) = self.objects.get(&relation_formula) else {
             return false;
         };
-        if !matches!(
-            relation
-                .operator
-                .as_ref()
-                .map(|operator| operator.as_data()),
-            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom)))
-        ) {
+        if relation.formula_operator() != Some(FormulaOperator::Atom) {
             return false;
         }
-        let Some(relation_predication) = relation.predication else {
+        let Some(relation_predication) = relation.formula_predication() else {
             return false;
         };
         let Some(head) = self.objects.get(&head_formula) else {
             return false;
         };
-        if !matches!(
-            head.operator.as_ref().map(|operator| operator.as_data()),
-            Some(data!(SemanticOperator::Formula(FormulaOperator::Atom)))
-        ) {
+        if head.formula_operator() != Some(FormulaOperator::Atom) {
             return false;
         }
-        let Some(head_predication) = head.predication else {
+        let Some(head_predication) = head.formula_predication() else {
             return false;
         };
         self.objects
             .get(&relation_predication)
-            .and_then(|predication| predication.tanru_link.as_ref())
+            .and_then(SemanticObject::predication_tanru_link)
             .is_some_and(|tanru_link| tanru_link.head == head_predication)
     }
 }

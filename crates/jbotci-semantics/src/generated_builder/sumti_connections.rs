@@ -397,7 +397,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     connection_formula_source.clone(),
                     Vec::new(),
                 );
-                predication_object.modal_arguments = modal_arguments;
+                predication_object.set_predication_modal_arguments(modal_arguments);
                 let predication = self.next_predication_id();
                 self.insert(predication, predication_object)?;
                 self.set_scalar_negation(
@@ -472,7 +472,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source_with_construct(source.clone(), "distributed-predication"),
                     Vec::new(),
                 );
-                predication_object.modal_arguments = modal_arguments;
+                predication_object.set_predication_modal_arguments(modal_arguments);
                 let predication = self.next_predication_id();
                 self.insert(predication, predication_object)?;
                 let formula = self.next_formula_id();
@@ -967,7 +967,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source_with_construct(predication_source.clone(), "distributed-predication"),
                 Vec::new(),
             );
-            predication_object.modal_arguments = modal_arguments;
+            predication_object.set_predication_modal_arguments(modal_arguments);
             let predication = self.next_predication_id();
             self.insert(predication, predication_object)?;
             let formula = self.next_formula_id();
@@ -1475,10 +1475,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedIndirectQuestionFocus::from_data(data!(GeneratedIndirectQuestionFocus {
                     focus: parameter,
                     presupposed_answer: None,
-                    slots: vec![QuestionSlot {
+                    slots: vec![new!(QuestionSlot {
                         parameter,
                         role: QuestionSlotRole::Answer,
-                    }],
+                    })],
                     kind: QuestionKind::Connective,
                     domain: SemanticSort::Connective,
                     source: self.source_for_token(&token, "indirect-question"),
@@ -1574,7 +1574,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.modal_arguments = modal_arguments;
+        object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -1702,7 +1702,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.modal_arguments = modal_arguments;
+        object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
