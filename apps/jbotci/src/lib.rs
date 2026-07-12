@@ -892,7 +892,7 @@ pub struct GimfihiInput {
     )]
     pub sources: Vec<GimfihiSourceInput>,
     /// Candidate scorer. `classic` preserves CLL §4.14 behavior; `phonetic`
-    /// uses docs/gismu-phonetic-medoid.md. [default: classic]
+    /// uses docs/gismu-phonetic-medoid.md.
     #[arg(long = "scorer", value_enum, default_value_t = GimfihiCliScorer::Classic)]
     pub scorer: GimfihiCliScorer,
     /// ALINE substitution ceiling from docs/gismu-phonetic-medoid.md.
@@ -910,7 +910,7 @@ pub struct GimfihiInput {
     /// Source prefix/suffix skip rate from docs/gismu-phonetic-medoid.md.
     #[arg(long = "c-flank", default_value_t = AlineParameters::default().c_flank)]
     pub c_flank: f64,
-    /// ALINE normalizer from docs/gismu-phonetic-medoid.md. [default: source-side]
+    /// ALINE normalizer from docs/gismu-phonetic-medoid.md.
     #[arg(
         long = "normalizer",
         value_enum,
