@@ -11177,7 +11177,7 @@ fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 fn tersmu_json_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
-    tersmu_graph_fixture_result(fixture).and_then(|graph| {
+    tersmu_graph_fixture_result(fixture, "tersmu JSON build error").and_then(|graph| {
         graph
             .to_json_string(0)
             .map_err(|error| format!("tersmu JSON render error: {error}"))
@@ -11185,9 +11185,11 @@ fn tersmu_json_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<S
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(!build_error_label.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 fn tersmu_graph_fixture_result(
     fixture: &LoadedTestCase,
+    build_error_label: &str,
 ) -> std::result::Result<SemanticGraph, String> {
     let dialect = fixture
         .test_case
@@ -11221,7 +11223,7 @@ fn tersmu_graph_fixture_result(
         },
         jbotci_dictionary_data::english(),
     )
-    .map_err(|error| format!("tersmu build error: {error}"))
+    .map_err(|error| format!("{build_error_label}: {error}"))
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -11262,7 +11264,7 @@ fn run_tersmu_derived_fixture(
     let Some(expectation) = expectation else {
         return FacetResult::skipped(format!("fixture has no {label} expectation"));
     };
-    match tersmu_graph_fixture_result(fixture).map(|graph| renderer(&graph)) {
+    match tersmu_graph_fixture_result(fixture, "tersmu build error").map(|graph| renderer(&graph)) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             label,
