@@ -65,6 +65,7 @@ pub(super) struct ParserStateFinish {
     pub trace: Option<TraceReport>,
     pub unconsumed_recovery_directives: usize,
     pub recovery_directives: Vec<RecoveryDirective>,
+    pub effective_fail_token_indices: Vec<usize>,
 }
 
 #[invariant(true)]
@@ -145,14 +146,11 @@ impl SyntaxRuleFrame {
 
 #[invariant(!rule.is_empty())]
 #[invariant(fail_token_index <= resume_token_index)]
-#[invariant(effective_fail_token_index.is_none_or(|index| index <= *fail_token_index))]
-#[invariant(effective_fail_token_index.is_none_or(|index| fail_token_index < resume_token_index || index == *fail_token_index))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RecoveryDirective {
     rule: &'static str,
     instance_byte_start: usize,
     fail_token_index: usize,
-    effective_fail_token_index: Option<usize>,
     natural_stop_enabled: bool,
     resume_token_index: usize,
     resume_field: usize,
@@ -160,11 +158,13 @@ pub(super) struct RecoveryDirective {
     error: SyntaxError,
 }
 
-#[invariant(directive.effective_fail_token_index.is_some())]
+#[invariant(*effective_fail_token_index <= directive.fail_token_index)]
+#[invariant(directive.fail_token_index < directive.resume_token_index || *effective_fail_token_index == directive.fail_token_index)]
 #[invariant(*skipped_item_emitted -> directive.error_index < usize::MAX)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ActiveRecoveryDirective {
     directive: RecoveryDirective,
+    effective_fail_token_index: usize,
     skipped_item_emitted: bool,
 }
 
@@ -246,28 +246,12 @@ impl RecoveryDirective {
             rule,
             instance_byte_start,
             fail_token_index,
-            effective_fail_token_index: None,
             natural_stop_enabled: false,
             resume_token_index,
             resume_field,
             error_index,
             error,
         })
-    }
-
-    #[requires(input_location <= self.fail_token_index)]
-    #[ensures(ret.effective_fail_token_index == Some(input_location))]
-    fn with_effective_fail_token_index(self, input_location: usize) -> Self {
-        self.with_data(data! {
-            effective_fail_token_index: Some(input_location),
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(ret <= self.fail_token_index)]
-    fn recovery_start_token_index(&self) -> usize {
-        self.effective_fail_token_index
-            .unwrap_or(self.fail_token_index)
     }
 
     #[requires(true)]
@@ -338,6 +322,11 @@ pub(super) struct ParserState<'tokens> {
     active_syntax_rules: Vec<SyntaxRuleFrame>,
     recovery_directives: Vec<RecoveryDirective>,
     consumed_recovery_directives: usize,
+    // This is a consumption stack parallel to `recovery_directives`; each
+    // entry records where its directive actually fired. Checkpoint rewind can
+    // therefore restore recovery state by truncating instead of cloning and
+    // rewriting every remaining directive.
+    effective_fail_token_indices: Vec<usize>,
     active_recovery_directive: Option<ActiveRecoveryDirective>,
     recovery_tokens: Vec<Token>,
     recovery_source: Option<Arc<str>>,
@@ -351,6 +340,7 @@ pub(super) struct ParserState<'tokens> {
         || self.syntax_location_byte_offsets.len() == self.anchor_byte_starts.len() + 1,
     "syntax location offsets include one EOF offset after token anchors"
 )]
+#[invariant(self.effective_fail_token_indices.len() == self.consumed_recovery_directives)]
 #[expensive_invariant(
     true,
     "syntax memo keys are protected by ParserState's private mutation APIs"
@@ -377,6 +367,7 @@ impl<'tokens> ParserState<'tokens> {
             active_syntax_rules: Vec::new(),
             recovery_directives: Vec::new(),
             consumed_recovery_directives: 0,
+            effective_fail_token_indices: Vec::new(),
             active_recovery_directive: None,
             recovery_tokens: Vec::new(),
             recovery_source: None,
@@ -405,11 +396,7 @@ impl<'tokens> ParserState<'tokens> {
         directives: &[RecoveryDirective],
     ) -> Self {
         let mut state = Self::new_with_recovery_branches(words, options);
-        state.recovery_directives = directives
-            .iter()
-            .cloned()
-            .map(|directive| directive.with_data(data! { effective_fail_token_index: None }))
-            .collect();
+        state.recovery_directives = directives.to_vec();
         state.recovery_tokens = words.to_vec();
         state.recovery_source = source.map(Arc::<str>::from);
         state
@@ -458,6 +445,10 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule_name.is_empty())]
     #[ensures(true)]
+    // This method is called immediately before recursive rule descent. Keeping
+    // recovery memo replay out of the wasm caller bounds every rule frame even
+    // as replay bookkeeping evolves.
+    #[cfg_attr(target_arch = "wasm32", inline(never))]
     pub(super) fn syntax_memo_success<O: Clone + 'static>(
         &mut self,
         rule_name: &'static str,
@@ -465,34 +456,15 @@ impl<'tokens> ParserState<'tokens> {
         recovery_index: usize,
     ) -> Option<(O, usize, Vec<SyntaxWarning>)> {
         if self.recovery_enabled() {
-            let (
-                value,
-                end_location,
-                warnings,
-                consumed_recovery_directives,
-                effective_fail_token_indices,
-            ) = {
-                let memo =
-                    self.syntax_recovery_memo
-                        .get(&(rule_name, start_location, recovery_index))?;
-                let value = memo.value.value.downcast_ref::<O>()?.clone();
-                (
-                    value,
-                    memo.end_location,
-                    memo.warnings.clone(),
-                    memo.consumed_recovery_directives,
-                    memo.effective_fail_token_indices.clone(),
-                )
-            };
-            for (directive, effective_fail_token_index) in self.recovery_directives
-                [recovery_index..consumed_recovery_directives]
-                .iter_mut()
-                .zip(effective_fail_token_indices)
-            {
-                *directive = directive
-                    .clone()
-                    .with_effective_fail_token_index(effective_fail_token_index);
-            }
+            let memo =
+                self.syntax_recovery_memo
+                    .get(&(rule_name, start_location, recovery_index))?;
+            let value = memo.value.value.downcast_ref::<O>()?.clone();
+            let end_location = memo.end_location;
+            let warnings = memo.warnings.clone();
+            let consumed_recovery_directives = memo.consumed_recovery_directives;
+            self.effective_fail_token_indices
+                .extend_from_slice(&memo.effective_fail_token_indices);
             self.consumed_recovery_directives = consumed_recovery_directives;
             return Some((value, end_location, warnings));
         }
@@ -531,6 +503,9 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
     #[ensures(!self.recovery_enabled() || self.syntax_recovery_memo.contains_key(&(rule_name, start_location, recovery_index)))]
+    // Do not fold recovery side-effect snapshots into the recursive wasm rule
+    // wrapper; V8 reserves frame space for inlined locals across the descent.
+    #[cfg_attr(target_arch = "wasm32", inline(never))]
     pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
         &mut self,
         rule_name: &'static str,
@@ -540,11 +515,9 @@ impl<'tokens> ParserState<'tokens> {
         value: O,
         warnings: Vec<SyntaxWarning>,
     ) {
-        let effective_fail_token_indices = self.recovery_directives
+        let effective_fail_token_indices = self.effective_fail_token_indices
             [recovery_index..self.consumed_recovery_directives]
-            .iter()
-            .map(RecoveryDirective::recovery_start_token_index)
-            .collect();
+            .to_vec();
         let success = new!(SyntaxMemoSuccess {
             start_location,
             end_location,
@@ -785,6 +758,9 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule.is_empty())]
     #[ensures(true)]
+    // Natural-stop matching runs only after the repeated item parser has
+    // returned. Keep it out of that parser's live wasm recursion frame.
+    #[cfg_attr(target_arch = "wasm32", inline(never))]
     pub(super) fn recovery_field_action_at_natural_stop(
         &mut self,
         rule: &'static str,
@@ -805,6 +781,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule.is_empty())]
     #[ensures(true)]
+    #[cfg_attr(target_arch = "wasm32", inline(never))]
     fn recovery_field_action_with_match(
         &mut self,
         rule: &'static str,
@@ -836,11 +813,11 @@ impl<'tokens> ParserState<'tokens> {
             {
                 return None;
             }
-            let directive = directive.with_effective_fail_token_index(input_location);
-            self.recovery_directives[directive_index] = directive.clone();
+            self.effective_fail_token_indices.push(input_location);
             self.consumed_recovery_directives += 1;
             self.active_recovery_directive = Some(new!(ActiveRecoveryDirective {
                 directive,
+                effective_fail_token_index: input_location,
                 skipped_item_emitted: false,
             }));
         }
@@ -852,13 +829,14 @@ impl<'tokens> ParserState<'tokens> {
             return None;
         }
         if active.directive.resume_field == usize::MAX
-            && active.directive.recovery_start_token_index() < active.directive.fail_token_index
+            && active.effective_fail_token_index < active.directive.fail_token_index
         {
             let active = self
                 .active_recovery_directive
                 .take()
                 .expect("active directive was just inspected");
-            let item = self.recovery_item_for_directive(&active.directive);
+            let item = self
+                .recovery_item_for_directive(&active.directive, active.effective_fail_token_index);
             return Some(RecoveryFieldAction::resume(
                 Some(item),
                 active.directive.resume_token_index,
@@ -869,6 +847,7 @@ impl<'tokens> ParserState<'tokens> {
                 return Some(RecoveryFieldAction::abandon(None));
             }
             let directive = active.directive.clone();
+            let effective_fail_token_index = active.effective_fail_token_index;
             let skipped_item_emitted = active.skipped_item_emitted;
             if let Some(active) = self.active_recovery_directive.take() {
                 self.active_recovery_directive = Some(active.with_data(data! {
@@ -878,16 +857,17 @@ impl<'tokens> ParserState<'tokens> {
             let item = if skipped_item_emitted {
                 self.missing_recovery_item_for_directive(&directive)
             } else {
-                self.recovery_item_for_directive(&directive)
+                self.recovery_item_for_directive(&directive, effective_fail_token_index)
             };
             return Some(RecoveryFieldAction::abandon(Some(item)));
         }
         if field_index == active.directive.resume_field {
             let directive = active.directive.clone();
+            let effective_fail_token_index = active.effective_fail_token_index;
             let skipped_item_emitted = active.skipped_item_emitted;
             self.active_recovery_directive = None;
-            let item =
-                (!skipped_item_emitted).then(|| self.recovery_item_for_directive(&directive));
+            let item = (!skipped_item_emitted)
+                .then(|| self.recovery_item_for_directive(&directive, effective_fail_token_index));
             return Some(RecoveryFieldAction::resume(
                 item,
                 directive.resume_token_index,
@@ -919,13 +899,18 @@ impl<'tokens> ParserState<'tokens> {
         {
             return None;
         }
-        let directive = directive.with_effective_fail_token_index(input_location);
-        let item = skipped_recovery_item(directive.error_index, &self.recovery_tokens, &directive)?;
-        self.recovery_directives[self.consumed_recovery_directives] = directive.clone();
+        let item = skipped_recovery_item(
+            directive.error_index,
+            &self.recovery_tokens,
+            &directive,
+            input_location,
+        )?;
+        self.effective_fail_token_indices.push(input_location);
         self.consumed_recovery_directives += 1;
         if field_index < directive.resume_field {
             self.active_recovery_directive = Some(new!(ActiveRecoveryDirective {
                 directive: directive.clone(),
+                effective_fail_token_index: input_location,
                 skipped_item_emitted: true,
             }));
         }
@@ -941,20 +926,28 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(directive.fail_token_index <= directive.resume_token_index)]
+    #[requires(effective_fail_token_index <= directive.fail_token_index)]
+    #[requires(directive.fail_token_index < directive.resume_token_index || effective_fail_token_index == directive.fail_token_index)]
     #[ensures(true)]
     pub(super) fn recovery_item_for_directive(
         &self,
         directive: &RecoveryDirective,
+        effective_fail_token_index: usize,
     ) -> SyntaxRecoveryItem {
-        skipped_recovery_item(directive.error_index, &self.recovery_tokens, directive)
-            .unwrap_or_else(|| {
-                missing_recovery_item(
-                    directive.error_index,
-                    &self.recovery_tokens,
-                    self.recovery_source.as_deref(),
-                    directive,
-                )
-            })
+        skipped_recovery_item(
+            directive.error_index,
+            &self.recovery_tokens,
+            directive,
+            effective_fail_token_index,
+        )
+        .unwrap_or_else(|| {
+            missing_recovery_item(
+                directive.error_index,
+                &self.recovery_tokens,
+                self.recovery_source.as_deref(),
+                directive,
+            )
+        })
     }
 
     #[requires(true)]
@@ -1019,8 +1012,11 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(true)]
     #[ensures(ret.trace.as_ref().is_none_or(|report| report.phase == TracePhase::Syntax))]
-    pub(super) fn finish(self) -> ParserStateFinish {
+    #[ensures(ret.effective_fail_token_indices.len() + ret.unconsumed_recovery_directives == ret.recovery_directives.len())]
+    pub(super) fn finish(mut self) -> ParserStateFinish {
         let unconsumed_recovery_directives = self.unconsumed_recovery_directives();
+        let effective_fail_token_indices = std::mem::take(&mut self.effective_fail_token_indices);
+        self.consumed_recovery_directives = 0;
         let trace = self.trace.finish();
         let mut deduped = Vec::new();
         for warning in self.warnings {
@@ -1033,6 +1029,7 @@ impl<'tokens> ParserState<'tokens> {
             trace,
             unconsumed_recovery_directives,
             recovery_directives: self.recovery_directives,
+            effective_fail_token_indices,
         }
     }
 
@@ -1265,14 +1262,9 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
             .truncate(marker.inspector().syntax_rule_count);
         if let Some(recovery) = &marker.inspector().recovery {
             self.consumed_recovery_directives = recovery.consumed_recovery_directives;
+            self.effective_fail_token_indices
+                .truncate(self.consumed_recovery_directives);
             self.active_recovery_directive = recovery.active_recovery_directive.clone();
-            for directive in &mut self.recovery_directives[self.consumed_recovery_directives..] {
-                if directive.effective_fail_token_index.is_some() {
-                    *directive = directive
-                        .clone()
-                        .with_data(data! { effective_fail_token_index: None });
-                }
-            }
         }
     }
 }
@@ -1452,6 +1444,7 @@ fn recover_after_strict_failure(
     let cap = options.max_recovery_errors.get();
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
+    let mut effective_fail_token_indices = Vec::new();
 
     while errors.len() < cap {
         let candidates = select_recovery_directives(&tokens, &failure, options, errors.len() - 1);
@@ -1502,10 +1495,13 @@ fn recover_after_strict_failure(
                     trace: attempt_trace,
                     unconsumed_directives,
                     recovery_directives: applied_directives,
+                    effective_fail_token_indices: applied_effective_fail_token_indices,
                 } = attempt;
-                let fired_left_of_declared_failure =
-                    applied_directives.last().is_some_and(|directive| {
-                        directive.recovery_start_token_index() < directive.fail_token_index
+                let fired_left_of_declared_failure = applied_directives
+                    .last()
+                    .zip(applied_effective_fail_token_indices.last())
+                    .is_some_and(|(directive, effective_fail_token_index)| {
+                        effective_fail_token_index < &directive.fail_token_index
                     });
                 match result {
                     Ok(parsed) if unconsumed_directives == 0 => {
@@ -1539,6 +1535,7 @@ fn recover_after_strict_failure(
                         if accepted_progress.is_none() {
                             accepted_progress = Some(new!(RecoveryProgressTrial {
                                 directives: applied_directives,
+                                effective_fail_token_indices: applied_effective_fail_token_indices,
                                 failure: next_failure,
                                 trace: attempt_trace,
                             }));
@@ -1556,16 +1553,24 @@ fn recover_after_strict_failure(
         };
         let data!(RecoveryProgressTrial {
             directives: trial_directives,
+            effective_fail_token_indices: trial_effective_fail_token_indices,
             failure: next_failure,
             trace: progress_trace,
         }) = progress.into_data();
         directives = trial_directives;
+        effective_fail_token_indices = trial_effective_fail_token_indices;
         errors.push(next_failure.public_error.clone());
         failure = next_failure;
         trace = progress_trace;
     }
 
-    let parse_tree = degraded_recovered_text(&tokens, source, &directives, &errors);
+    let parse_tree = degraded_recovered_text(
+        &tokens,
+        source,
+        &directives,
+        &effective_fail_token_indices,
+        &errors,
+    );
     RecoveredSyntaxParseAttempt {
         result: new!(RecoveredSyntaxParse {
             parse_tree: Box::new(parse_tree),
@@ -1598,8 +1603,10 @@ struct RecoveryClaim {
 }
 
 #[invariant(!directives.is_empty())]
+#[invariant(effective_fail_token_indices.len() <= directives.len())]
 struct RecoveryProgressTrial {
     directives: Vec<RecoveryDirective>,
+    effective_fail_token_indices: Vec<usize>,
     failure: generated::generated_model::GeneratedParseFailure,
     trace: Option<TraceReport>,
 }
@@ -1945,6 +1952,7 @@ fn degraded_recovered_text(
     tokens: &[Token],
     source: Option<&str>,
     directives: &[RecoveryDirective],
+    effective_fail_token_indices: &[usize],
     errors: &[SyntaxError],
 ) -> generated::generated_model::recovered::TextSyntax {
     let mut tree = empty_recovered_text();
@@ -1955,9 +1963,19 @@ fn degraded_recovered_text(
         directives.first().map_or_else(
             || fallback_recovery_item(tokens, source, 0, &errors[0]),
             |directive| {
-                skipped_recovery_item(directive.error_index, tokens, directive).unwrap_or_else(
-                    || missing_recovery_item(directive.error_index, tokens, source, directive),
+                let effective_fail_token_index = effective_fail_token_indices
+                    .first()
+                    .copied()
+                    .unwrap_or(directive.fail_token_index);
+                skipped_recovery_item(
+                    directive.error_index,
+                    tokens,
+                    directive,
+                    effective_fail_token_index,
                 )
+                .unwrap_or_else(|| {
+                    missing_recovery_item(directive.error_index, tokens, source, directive)
+                })
             },
         )
     };
@@ -1996,14 +2014,16 @@ fn fallback_recovery_item(
     missing_recovery_item(error_index, tokens, source, &directive)
 }
 
-#[requires(true)]
+#[requires(effective_fail_token_index <= directive.fail_token_index)]
+#[requires(directive.fail_token_index < directive.resume_token_index || effective_fail_token_index == directive.fail_token_index)]
 #[ensures(true)]
 fn skipped_recovery_item(
     error_index: usize,
     tokens: &[Token],
     directive: &RecoveryDirective,
+    effective_fail_token_index: usize,
 ) -> Option<SyntaxRecoveryItem> {
-    let start = directive.recovery_start_token_index().min(tokens.len());
+    let start = effective_fail_token_index.min(tokens.len());
     let end = directive.resume_token_index.min(tokens.len());
     if start >= end {
         return None;
