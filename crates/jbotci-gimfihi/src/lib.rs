@@ -6,11 +6,15 @@ use std::str::FromStr;
 use std::sync::LazyLock;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, WordType};
 use jbotci_morphology::{
     ConsonantPairClass, GlideMark, PhonemeRenderOptions, StressMark, WordKind,
     consonant_pair_class, is_consonant, is_vowel, segment_words_with_modifiers,
+};
+use jbotci_phonetic::{
+    AlineParameters, AlineScorer, AlineSimilarityScratch, IpaSegmentId,
+    lojban_gismu_letter_to_ipa_segment, tokenize_ipa_text,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -280,6 +284,33 @@ pub enum CollisionScope {
     None,
 }
 
+#[invariant(::Classic => true)]
+#[invariant(::Phonetic => true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GimfihiScorer {
+    #[default]
+    Classic,
+    Phonetic,
+}
+
+impl GimfihiScorer {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Classic => "classic",
+            Self::Phonetic => "phonetic",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (*self == Self::Classic))]
+    fn is_classic(&self) -> bool {
+        *self == Self::Classic
+    }
+}
+
 impl CollisionScope {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
@@ -325,6 +356,8 @@ pub struct GimfihiSourceInput {
     pub language: String,
     pub explicit_weight: Option<u16>,
     pub word: String,
+    #[serde(skip)]
+    pub ipa: Option<String>,
 }
 
 impl GimfihiSourceInput {
@@ -340,6 +373,7 @@ impl GimfihiSourceInput {
             language: normalize_language(language),
             explicit_weight,
             word: normalize_source_word(word),
+            ipa: None,
         }
     }
 
@@ -353,23 +387,33 @@ impl GimfihiSourceInput {
             language: normalize_language(language),
             explicit_weight,
             word: normalize_source_word(&format!("[{ipa}]")),
+            ipa: Some(ipa.trim().to_owned()),
         }
     }
 }
 
-#[invariant(true)]
+#[invariant(!language.is_empty())]
+#[invariant(*weight >= GIMFIHI_MIN_WEIGHT && *weight <= GIMFIHI_MAX_WEIGHT)]
+#[invariant(!word.is_empty())]
+#[invariant(ipa.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ResolvedSource {
     pub language: String,
     pub weight: u16,
     pub word: String,
+    #[serde(skip)]
+    pub ipa: Option<String>,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GimfihiRequest {
+    #[serde(default)]
+    pub scorer: GimfihiScorer,
+    #[serde(default)]
+    pub phonetic_parameters: AlineParameters,
     pub preset: Option<GimfihiPreset>,
     pub sources: Vec<GimfihiSourceInput>,
     pub shapes: Vec<GismuShape>,
@@ -386,6 +430,8 @@ impl Default for GimfihiRequest {
     #[ensures(ret.count == GIMFIHI_DEFAULT_COUNT)]
     fn default() -> Self {
         Self {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
             preset: None,
             sources: Vec::new(),
             shapes: default_shapes(),
@@ -445,15 +491,33 @@ pub struct GismuCollision {
     pub existing_word_type: WordType,
 }
 
-#[invariant(true)]
+#[invariant(!language.is_empty())]
+#[invariant(!word.is_empty())]
+#[invariant(*weight >= GIMFIHI_MIN_WEIGHT && *weight <= GIMFIHI_MAX_WEIGHT)]
+#[invariant(raw_score.is_finite() && *raw_score >= 0.0)]
+#[invariant(weighted_score.is_finite() && *weighted_score >= 0.0)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SourceScore {
     pub language: String,
     pub word: String,
     pub weight: u16,
-    pub raw_score: usize,
+    #[serde(serialize_with = "serialize_numeric_score")]
+    pub raw_score: f64,
     pub weighted_score: f64,
+}
+
+#[requires(value.is_finite() && *value >= 0.0)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn serialize_numeric_score<S>(value: &f64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if value.fract() == 0.0 && *value <= u64::MAX as f64 {
+        serializer.serialize_u64(*value as u64)
+    } else {
+        serializer.serialize_f64(*value)
+    }
 }
 
 #[invariant(true)]
@@ -481,6 +545,10 @@ impl GimfihiCandidate {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GimfihiOutput {
+    #[serde(default, skip_serializing_if = "GimfihiScorer::is_classic")]
+    pub scorer: GimfihiScorer,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phonetic_parameters: Option<AlineParameters>,
     pub resolved_sources: Vec<ResolvedSource>,
     pub candidate_count: usize,
     pub filtered_count: usize,
@@ -498,19 +566,33 @@ struct ScoredGimfihiCandidate {
     rafsi: Option<Vec<RafsiCandidate>>,
 }
 
+#[invariant(::Classic { chars } => !chars.is_empty())]
+#[invariant(::Phonetic { segments, self_similarity } => !segments.is_empty() && self_similarity.is_finite() && *self_similarity > 0.0)]
+#[derive(Debug)]
+enum PreparedScoringKind {
+    Classic {
+        chars: Vec<char>,
+    },
+    Phonetic {
+        segments: Vec<IpaSegmentId>,
+        self_similarity: f64,
+    },
+}
+
 #[invariant(!source.word.is_empty())]
-#[invariant(!chars.is_empty())]
 #[derive(Debug)]
 struct PreparedSource<'source> {
     source: &'source ResolvedSource,
-    chars: Vec<char>,
+    data: PreparedScoringKind,
 }
 
 #[invariant(true)]
 #[derive(Debug, Default)]
 struct GismuScoreScratch {
     candidate_chars: Vec<char>,
+    candidate_segments: Vec<IpaSegmentId>,
     lcs: LcsScratch,
+    aline: AlineSimilarityScratch,
 }
 
 #[invariant(true)]
@@ -532,6 +614,7 @@ struct LcsScratch {
 #[invariant(::MissingExplicitWeight { .. } => true)]
 #[invariant(::InvalidSourceWord { .. } => true)]
 #[invariant(::InvalidIpa { .. } => true)]
+#[invariant(::Phonetic { .. } => true)]
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum GimfihiError {
     #[error("unknown gimfi'i preset `{value}`")]
@@ -558,6 +641,8 @@ pub enum GimfihiError {
     InvalidSourceWord { language: String, word: String },
     #[error("invalid IPA source `{ipa}`: {reason}")]
     InvalidIpa { ipa: String, reason: String },
+    #[error("phonetic scoring failed: {message}")]
+    Phonetic { message: String },
     #[error("at least one source is required")]
     NoSources,
     #[error("at least one shape is required")]
@@ -684,6 +769,7 @@ fn parsed_source_spec(
         language,
         explicit_weight,
         word,
+        ipa: None,
     })
 }
 
@@ -715,23 +801,31 @@ pub fn compose_gismu(
         return Err(GimfihiError::NoShapes);
     }
     let shapes = unique_shapes(&request.shapes);
-    let prepared_sources = prepare_scoring_sources(&resolved_sources);
+    let phonetic_scorer = (request.scorer == GimfihiScorer::Phonetic)
+        .then(|| AlineScorer::new(request.phonetic_parameters.clone()));
+    let prepared_sources =
+        prepare_scoring_sources(&resolved_sources, request.scorer, phonetic_scorer.as_ref())?;
     let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
     let mut scratch = GismuScoreScratch::default();
-    let candidates = generate_candidates(&resolved_sources, &shapes, request.all_letters)
-        .into_iter()
-        .filter(|word| valid_gismu_candidate(word))
-        .map(|word| {
-            score_candidate_for_ranking_with_scratch(
-                dictionary,
-                &collision_index,
-                &prepared_sources,
-                word,
-                request.require_free_short_rafsi,
-                &mut scratch,
-            )
-        })
-        .collect::<Vec<_>>();
+    let candidates = generate_candidates(
+        &resolved_sources,
+        &shapes,
+        request.all_letters || request.scorer == GimfihiScorer::Phonetic,
+    )
+    .into_iter()
+    .filter(|word| valid_gismu_candidate(word))
+    .map(|word| {
+        score_candidate_for_ranking_with_scratch(
+            dictionary,
+            &collision_index,
+            &prepared_sources,
+            word,
+            request.require_free_short_rafsi,
+            phonetic_scorer.as_ref(),
+            &mut scratch,
+        )
+    })
+    .collect::<Vec<_>>();
     let candidate_count = candidates.len();
     let mut filtered = candidates
         .into_iter()
@@ -779,11 +873,16 @@ pub fn compose_gismu(
                 &prepared_sources,
                 candidate,
                 highlighted_word.as_deref(),
+                phonetic_scorer.as_ref(),
                 &mut detail_scratch,
             )
         })
         .collect::<Vec<_>>();
     Ok(GimfihiOutput {
+        scorer: request.scorer,
+        phonetic_parameters: (request.scorer == GimfihiScorer::Phonetic
+            && request.phonetic_parameters != AlineParameters::default())
+        .then(|| request.phonetic_parameters.clone()),
         resolved_sources,
         candidate_count,
         filtered_count,
@@ -826,6 +925,7 @@ fn prepare_source_word(source: &GimfihiSourceInput) -> Result<GimfihiSourceInput
             language: source.language.clone(),
             explicit_weight: source.explicit_weight,
             word: transliterate_ipa_to_lojban(&ipa)?,
+            ipa: Some(ipa),
         }),
         None => Ok(source.clone()),
     }
@@ -914,11 +1014,12 @@ fn resolve_preset_sources(
                 language: entry.language.to_owned(),
             });
         };
-        resolved.push(ResolvedSource {
+        resolved.push(new!(ResolvedSource {
             language: entry.language.to_owned(),
             weight: source.explicit_weight.unwrap_or(entry.weight),
             word: normalize_source_word(&source.word),
-        });
+            ipa: source.ipa.clone(),
+        }));
     }
     Ok(resolved)
 }
@@ -934,11 +1035,12 @@ fn resolve_custom_sources(
         let Some(weight) = source.explicit_weight else {
             return Err(GimfihiError::MissingExplicitWeight { language });
         };
-        resolved.push(ResolvedSource {
+        resolved.push(new!(ResolvedSource {
             language,
             weight,
             word: normalize_source_word(&source.word),
-        });
+            ipa: source.ipa.clone(),
+        }));
     }
     Ok(resolved)
 }
@@ -1081,13 +1183,58 @@ fn rendered_phonemes_without_marks(word: &jbotci_morphology::Word) -> String {
 }
 
 #[requires(!sources.is_empty())]
-#[ensures(ret.len() == sources.len())]
-fn prepare_scoring_sources(sources: &[ResolvedSource]) -> Vec<PreparedSource<'_>> {
+#[ensures(ret.as_ref().is_ok_and(|prepared| prepared.len() == sources.len()) || ret.is_err())]
+fn prepare_scoring_sources<'source>(
+    sources: &'source [ResolvedSource],
+    scorer: GimfihiScorer,
+    phonetic_scorer: Option<&AlineScorer>,
+) -> Result<Vec<PreparedSource<'source>>, GimfihiError> {
+    let mut aline_scratch = AlineSimilarityScratch::default();
     sources
         .iter()
         .map(|source| {
-            let chars = source.word.chars().collect::<Vec<_>>();
-            new!(PreparedSource { source, chars })
+            let data = match scorer {
+                GimfihiScorer::Classic => new!(PreparedScoringKind::Classic {
+                    chars: source.word.chars().collect(),
+                }),
+                GimfihiScorer::Phonetic => {
+                    let Some(phonetic_scorer) = phonetic_scorer else {
+                        return Err(GimfihiError::Phonetic {
+                            message: "phonetic scorer was not prepared".to_owned(),
+                        });
+                    };
+                    let segments = source_ipa_segments(source)?;
+                    let self_similarity =
+                        phonetic_scorer.self_similarity_with_scratch(&segments, &mut aline_scratch);
+                    new!(PreparedScoringKind::Phonetic {
+                        segments,
+                        self_similarity,
+                    })
+                }
+            };
+            Ok(new!(PreparedSource { source, data }))
+        })
+        .collect()
+}
+
+#[requires(!source.word.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|segments| !segments.is_empty()) || ret.is_err())]
+fn source_ipa_segments(source: &ResolvedSource) -> Result<Vec<IpaSegmentId>, GimfihiError> {
+    if let Some(ipa) = &source.ipa {
+        return tokenize_ipa_text(ipa)
+            .map(|sequence| sequence.segments().to_vec())
+            .map_err(|error| GimfihiError::InvalidIpa {
+                ipa: ipa.clone(),
+                reason: error.to_string(),
+            });
+    }
+    source
+        .word
+        .chars()
+        .map(|letter| {
+            lojban_gismu_letter_to_ipa_segment(letter).ok_or_else(|| GimfihiError::Phonetic {
+                message: format!("source letter `{letter}` has no Lojban IPA segment"),
+            })
         })
         .collect()
 }
@@ -1101,13 +1248,13 @@ fn score_candidate_for_ranking_with_scratch(
     sources: &[PreparedSource<'_>],
     word: String,
     include_rafsi: bool,
+    phonetic_scorer: Option<&AlineScorer>,
     scratch: &mut GismuScoreScratch,
 ) -> ScoredGimfihiCandidate {
-    scratch.candidate_chars.clear();
-    scratch.candidate_chars.extend(word.chars());
+    let candidate_self = prepare_candidate_for_scoring(&word, phonetic_scorer, scratch);
     let score = sources
         .iter()
-        .map(|source| score_source_value(&scratch.candidate_chars, source, &mut scratch.lcs))
+        .map(|source| score_source_value(candidate_self, source, phonetic_scorer, scratch))
         .sum::<f64>();
     let collision = collision_index.find(&word);
     let rafsi = include_rafsi.then(|| possible_short_rafsis(dictionary, &word));
@@ -1127,13 +1274,13 @@ fn materialize_candidate_details(
     sources: &[PreparedSource<'_>],
     candidate: ScoredGimfihiCandidate,
     highlighted_word: Option<&str>,
+    phonetic_scorer: Option<&AlineScorer>,
     scratch: &mut GismuScoreScratch,
 ) -> GimfihiCandidate {
-    scratch.candidate_chars.clear();
-    scratch.candidate_chars.extend(candidate.word.chars());
+    let candidate_self = prepare_candidate_for_scoring(&candidate.word, phonetic_scorer, scratch);
     let source_scores = sources
         .iter()
-        .map(|source| materialize_source_score(&scratch.candidate_chars, source, &mut scratch.lcs))
+        .map(|source| materialize_source_score(candidate_self, source, phonetic_scorer, scratch))
         .collect::<Vec<_>>();
     let candidate = candidate.into_data();
     let word = candidate.word;
@@ -1150,37 +1297,103 @@ fn materialize_candidate_details(
     }
 }
 
-#[requires(!candidate_chars.is_empty())]
-#[requires(!source.source.word.is_empty())]
-#[ensures(true)]
-fn score_source_value(
-    candidate_chars: &[char],
-    source: &PreparedSource<'_>,
-    scratch: &mut LcsScratch,
+#[requires(!word.is_empty())]
+#[ensures(ret.is_finite() && ret >= 0.0)]
+fn prepare_candidate_for_scoring(
+    word: &str,
+    phonetic_scorer: Option<&AlineScorer>,
+    scratch: &mut GismuScoreScratch,
 ) -> f64 {
-    let raw_score = gismu_match_score_chars(candidate_chars, &source.chars, scratch);
-    let scaled_weight = f64::from(source.source.weight) / GIMFIHI_WEIGHT_SCALE;
-    raw_score as f64 / source.chars.len() as f64 * scaled_weight
+    match phonetic_scorer {
+        None => {
+            scratch.candidate_chars.clear();
+            scratch.candidate_chars.extend(word.chars());
+            0.0
+        }
+        Some(scorer) => {
+            scratch.candidate_segments.clear();
+            scratch
+                .candidate_segments
+                .extend(word.chars().map(|letter| {
+                    lojban_gismu_letter_to_ipa_segment(letter)
+                        .expect("validated gismu letters have IPA segments")
+                }));
+            scorer.self_similarity_with_scratch(&scratch.candidate_segments, &mut scratch.aline)
+        }
+    }
 }
 
-#[requires(!candidate_chars.is_empty())]
+#[requires(candidate_self.is_finite() && candidate_self >= 0.0)]
+#[requires(!source.source.word.is_empty())]
+#[ensures(ret.is_finite() && ret >= 0.0)]
+fn score_source_value(
+    candidate_self: f64,
+    source: &PreparedSource<'_>,
+    phonetic_scorer: Option<&AlineScorer>,
+    scratch: &mut GismuScoreScratch,
+) -> f64 {
+    let scaled_weight = f64::from(source.source.weight) / GIMFIHI_WEIGHT_SCALE;
+    match source.data.as_data() {
+        data!(PreparedScoringKind::Classic { chars }) => {
+            let raw_score =
+                gismu_match_score_chars(&scratch.candidate_chars, chars, &mut scratch.lcs);
+            raw_score as f64 / chars.len() as f64 * scaled_weight
+        }
+        data!(PreparedScoringKind::Phonetic {
+            segments,
+            self_similarity,
+        }) => {
+            let scorer = phonetic_scorer.expect("phonetic sources have a phonetic scorer");
+            let raw = scorer.raw_similarity_with_scratch(
+                &scratch.candidate_segments,
+                segments,
+                &mut scratch.aline,
+            );
+            scorer.normalize(raw, candidate_self, *self_similarity) * scaled_weight
+        }
+    }
+}
+
+#[requires(candidate_self.is_finite() && candidate_self >= 0.0)]
 #[requires(!source.source.word.is_empty())]
 #[ensures(ret.weight == source.source.weight)]
 fn materialize_source_score(
-    candidate_chars: &[char],
+    candidate_self: f64,
     source: &PreparedSource<'_>,
-    scratch: &mut LcsScratch,
+    phonetic_scorer: Option<&AlineScorer>,
+    scratch: &mut GismuScoreScratch,
 ) -> SourceScore {
-    let raw_score = gismu_match_score_chars(candidate_chars, &source.chars, scratch);
     let scaled_weight = f64::from(source.source.weight) / GIMFIHI_WEIGHT_SCALE;
-    let weighted_score = raw_score as f64 / source.chars.len() as f64 * scaled_weight;
-    SourceScore {
+    let raw_score = match source.data.as_data() {
+        data!(PreparedScoringKind::Classic { chars }) => {
+            gismu_match_score_chars(&scratch.candidate_chars, chars, &mut scratch.lcs) as f64
+        }
+        data!(PreparedScoringKind::Phonetic {
+            segments,
+            self_similarity,
+        }) => {
+            let scorer = phonetic_scorer.expect("phonetic sources have a phonetic scorer");
+            let raw = scorer.raw_similarity_with_scratch(
+                &scratch.candidate_segments,
+                segments,
+                &mut scratch.aline,
+            );
+            scorer.normalize(raw, candidate_self, *self_similarity)
+        }
+    };
+    let weighted_score = match source.data.as_data() {
+        data!(PreparedScoringKind::Classic { chars }) => {
+            raw_score / chars.len() as f64 * scaled_weight
+        }
+        data!(PreparedScoringKind::Phonetic { .. }) => raw_score * scaled_weight,
+    };
+    new!(SourceScore {
         language: source.source.language.clone(),
         word: source.source.word.clone(),
         weight: source.source.weight,
         raw_score,
         weighted_score,
-    }
+    })
 }
 
 #[requires(!candidate.is_empty())]
@@ -1824,6 +2037,8 @@ mod tests {
             }
         }
         Ok(GimfihiOutput {
+            scorer: request.scorer,
+            phonetic_parameters: None,
             resolved_sources,
             candidate_count,
             filtered_count,
@@ -1867,16 +2082,16 @@ mod tests {
     #[requires(!source.word.is_empty())]
     #[ensures(ret.weight == source.weight)]
     fn score_source_eager_for_test(candidate: &str, source: &ResolvedSource) -> SourceScore {
-        let raw_score = gismu_match_score(candidate, &source.word);
+        let raw_score = gismu_match_score(candidate, &source.word) as f64;
         let scaled_weight = f64::from(source.weight) / GIMFIHI_WEIGHT_SCALE;
-        let weighted_score = raw_score as f64 / source.word.chars().count() as f64 * scaled_weight;
-        SourceScore {
+        let weighted_score = raw_score / source.word.chars().count() as f64 * scaled_weight;
+        new!(SourceScore {
             language: source.language.clone(),
             word: source.word.clone(),
             weight: source.weight,
             raw_score,
             weighted_score,
-        }
+        })
     }
 
     #[requires(true)]
@@ -2073,6 +2288,8 @@ mod tests {
             parse_source_spec("ara::mulud").expect("source"),
         ];
         let request = GimfihiRequest {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
             preset: Some(GimfihiPreset::Data1995),
             sources: sources.to_vec(),
             shapes: default_shapes(),
@@ -2113,6 +2330,8 @@ mod tests {
             parse_source_spec("fra::tradision").expect("source"),
         ];
         let request = GimfihiRequest {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
             preset: Some(GimfihiPreset::Ilmen6),
             sources: sources.to_vec(),
             shapes: default_shapes(),
@@ -2157,6 +2376,8 @@ mod tests {
         let dictionary = jbotci_dictionary_data::english();
         let highlighted_sources = [parse_source_spec("eng:100:plini").expect("source")];
         let highlighted_request = GimfihiRequest {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
             preset: None,
             sources: highlighted_sources.to_vec(),
             shapes: vec![GismuShape::Ccvcv],
@@ -2179,6 +2400,8 @@ mod tests {
 
         let compact_collision_sources = [parse_source_spec("eng:100:klama").expect("source")];
         let compact_collision_request = GimfihiRequest {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
             preset: None,
             sources: compact_collision_sources.to_vec(),
             shapes: vec![GismuShape::Ccvcv],
@@ -2208,5 +2431,147 @@ mod tests {
             compose_gismu_eager_for_test(dictionary, &compact_collision_request)
                 .expect("eager compact collision output")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn phonetic_scorer_uses_full_inventory_and_scores_identity_exactly() {
+        let dictionary = jbotci_dictionary_data::english();
+        let request = GimfihiRequest {
+            scorer: GimfihiScorer::Phonetic,
+            phonetic_parameters: AlineParameters::default(),
+            preset: None,
+            sources: vec![GimfihiSourceInput::from_ipa_fields(
+                "eng",
+                "ˈkla.ma",
+                Some(100),
+            )],
+            shapes: default_shapes(),
+            all_letters: false,
+            check_collisions: CollisionScope::None,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            count: 1,
+            highlight: Some("klama".to_owned()),
+        };
+        let resolved = resolve_sources(request.preset, &request.sources).expect("sources");
+        let restricted_count = generate_candidates(&resolved, &request.shapes, false)
+            .into_iter()
+            .filter(|word| valid_gismu_candidate(word))
+            .count();
+        let full_count = generate_candidates(&resolved, &request.shapes, true)
+            .into_iter()
+            .filter(|word| valid_gismu_candidate(word))
+            .count();
+        assert!(full_count > restricted_count);
+
+        let output = compose_gismu(dictionary, &request).expect("phonetic output");
+        assert_eq!(output.scorer, GimfihiScorer::Phonetic);
+        assert_eq!(output.candidate_count, full_count);
+        let identity = output
+            .candidates
+            .iter()
+            .find(|candidate| candidate.word == "klama")
+            .expect("highlighted identity candidate");
+        assert_eq!(identity.source_scores[0].raw_score, 1.0);
+        assert_eq!(identity.source_scores[0].weighted_score, 0.1);
+        assert!(output.candidates.iter().all(|candidate| {
+            candidate
+                .source_scores
+                .iter()
+                .all(|score| (0.0..=1.0).contains(&score.raw_score))
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn phonetic_q_near_miss_ranks_k_above_unrelated_consonant_twin() {
+        let dictionary = jbotci_dictionary_data::english();
+        let request = GimfihiRequest {
+            scorer: GimfihiScorer::Phonetic,
+            phonetic_parameters: AlineParameters::default(),
+            preset: None,
+            sources: vec![
+                GimfihiSourceInput::from_ipa_fields("src", "qalma", Some(700)),
+                GimfihiSourceInput::from_ipa_fields("support", "alma", Some(300)),
+            ],
+            shapes: vec![GismuShape::Cvccv],
+            all_letters: false,
+            check_collisions: CollisionScope::None,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            count: 2,
+            highlight: None,
+        };
+        let resolved = resolve_sources(request.preset, &request.sources).expect("sources");
+        let scorer = AlineScorer::new(request.phonetic_parameters.clone());
+        let prepared = prepare_scoring_sources(&resolved, GimfihiScorer::Phonetic, Some(&scorer))
+            .expect("prepared sources");
+        let collision_index = CollisionIndex::from_dictionary(dictionary, CollisionScope::None);
+        let mut scratch = GismuScoreScratch::default();
+        let mut candidates = ["kalma", "salma"]
+            .into_iter()
+            .map(|word| {
+                assert!(valid_gismu_candidate(word), "{word}");
+                score_candidate_for_ranking_with_scratch(
+                    dictionary,
+                    &collision_index,
+                    &prepared,
+                    word.to_owned(),
+                    false,
+                    Some(&scorer),
+                    &mut scratch,
+                )
+            })
+            .collect::<Vec<_>>();
+        candidates.sort_by(compare_scored_candidates);
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| candidate.word.as_str())
+                .collect::<Vec<_>>(),
+            ["kalma", "salma"]
+        );
+        assert!(candidates[0].score > candidates[1].score);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn allocation_free_gismu_segment_mapping_matches_existing_ipa_renderer() {
+        let sources = [GimfihiSourceInput::from_fields("src", "klama", Some(1))];
+        let resolved = resolve_sources(None, &sources).expect("sources");
+        let candidates = generate_candidates(&resolved, &default_shapes(), true);
+        let mut uncovered = CONSONANTS
+            .iter()
+            .chain(VOWELS.iter())
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for candidate in candidates
+            .iter()
+            .filter(|candidate| valid_gismu_candidate(candidate))
+        {
+            if !candidate.chars().any(|letter| uncovered.contains(&letter)) {
+                continue;
+            }
+            let rendered = jbotci_phonetic::lojban_text_to_tokenized_ipa(candidate)
+                .expect("existing renderer");
+            let mapped = candidate
+                .chars()
+                .map(|letter| {
+                    lojban_gismu_letter_to_ipa_segment(letter).expect("gismu letter segment")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(mapped, rendered.token_sequence.segments(), "{candidate}");
+            for letter in candidate.chars() {
+                uncovered.remove(&letter);
+            }
+            if uncovered.is_empty() {
+                break;
+            }
+        }
+        assert!(uncovered.is_empty(), "uncovered letters: {uncovered:?}");
     }
 }

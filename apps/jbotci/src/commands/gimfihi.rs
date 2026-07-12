@@ -50,6 +50,8 @@ fn gimfihi_request_from_input(input: &GimfihiInput) -> Result<GimfihiRequest> {
             .collect::<Result<Vec<_>>>()?
     };
     Ok(GimfihiRequest {
+        scorer: Default::default(),
+        phonetic_parameters: Default::default(),
         preset,
         sources,
         shapes,

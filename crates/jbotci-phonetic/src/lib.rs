@@ -315,6 +315,128 @@ impl AlineParameters {
     }
 }
 
+#[invariant(pair_feature_differences.len() == IPA_SEGMENT_SYMBOLS.len() * IPA_SEGMENT_SYMBOLS.len())]
+#[invariant(vowel_penalties.len() == IPA_SEGMENT_SYMBOLS.len())]
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlineScorer {
+    parameters: AlineParameters,
+    pair_feature_differences: Vec<f64>,
+    vowel_penalties: Vec<f64>,
+}
+
+impl AlineScorer {
+    #[requires(true)]
+    #[ensures(ret.parameters == parameters)]
+    pub fn new(parameters: AlineParameters) -> Self {
+        let segment_count = IPA_SEGMENT_SYMBOLS.len();
+        let mut pair_feature_differences = Vec::with_capacity(segment_count * segment_count);
+        for left in 0..segment_count {
+            for right in 0..segment_count {
+                pair_feature_differences.push(parameterized_feature_difference(
+                    IpaSegmentId::from_static_index(left as u16),
+                    IpaSegmentId::from_static_index(right as u16),
+                    &parameters.saliences,
+                ));
+            }
+        }
+        let vowel_penalties = IPA_SEGMENT_FEATURES
+            .iter()
+            .map(|features| {
+                if features.is_consonant {
+                    0.0
+                } else {
+                    parameters.c_vwl
+                }
+            })
+            .collect();
+        new!(AlineScorer {
+            parameters: parameters.clone(),
+            pair_feature_differences,
+            vowel_penalties,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == &self.parameters)]
+    pub fn parameters(&self) -> &AlineParameters {
+        &self.parameters
+    }
+
+    #[requires(!candidate.is_empty())]
+    #[requires(!source.is_empty())]
+    #[ensures(ret.is_finite())]
+    pub fn raw_similarity_with_scratch(
+        &self,
+        candidate: &[IpaSegmentId],
+        source: &[IpaSegmentId],
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        semiglobal_raw_similarity_with_scratch(candidate, source, self, scratch)
+    }
+
+    #[requires(!sequence.is_empty())]
+    #[ensures(ret.is_finite() && ret > 0.0)]
+    pub fn self_similarity_with_scratch(
+        &self,
+        sequence: &[IpaSegmentId],
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        self.raw_similarity_with_scratch(sequence, sequence, scratch)
+    }
+
+    #[requires(raw.is_finite())]
+    #[requires(candidate_self.is_finite() && candidate_self > 0.0)]
+    #[requires(source_self.is_finite() && source_self > 0.0)]
+    #[ensures((0.0..=1.0).contains(&ret))]
+    pub fn normalize(&self, raw: f64, candidate_self: f64, source_self: f64) -> f64 {
+        let normalizer = match self.parameters.normalizer {
+            AlineNormalizer::SourceSide => source_self,
+            AlineNormalizer::CandidateSide => candidate_self,
+            AlineNormalizer::Symmetric => (candidate_self + source_self) / 2.0,
+        };
+        (raw / normalizer).clamp(0.0, 1.0)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_finite() && ret >= 0.0)]
+    fn feature_difference(&self, left: IpaSegmentId, right: IpaSegmentId) -> f64 {
+        let segment_count = IPA_SEGMENT_SYMBOLS.len();
+        self.pair_feature_differences[(left.get() as usize) * segment_count + right.get() as usize]
+    }
+
+    #[requires(true)]
+    #[ensures(ret == 0.0 || ret == self.parameters.c_vwl)]
+    fn vowel_penalty(&self, segment: IpaSegmentId) -> f64 {
+        self.vowel_penalties[segment.get() as usize]
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_finite())]
+    fn substitution_score(&self, left: IpaSegmentId, right: IpaSegmentId) -> f64 {
+        self.parameters.c_sub
+            - self.feature_difference(left, right)
+            - self.vowel_penalty(left)
+            - self.vowel_penalty(right)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_finite())]
+    fn expansion_score(
+        &self,
+        single: IpaSegmentId,
+        first_second: IpaSegmentId,
+        second_second: IpaSegmentId,
+    ) -> f64 {
+        self.parameters.c_exp
+            - self.feature_difference(single, first_second)
+            - self.feature_difference(single, second_second)
+            - self.vowel_penalty(single)
+            - self
+                .vowel_penalty(first_second)
+                .max(self.vowel_penalty(second_second))
+    }
+}
+
 #[invariant(::InvalidValue { parameter, reason } => !parameter.is_empty() && !reason.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AlineParameterError {
@@ -633,6 +755,22 @@ static ALINE_VOWEL_PENALTIES: LazyLock<Vec<f64>> = LazyLock::new(|| {
         .collect()
 });
 
+static LOJBAN_GISMU_LETTER_SEGMENTS: LazyLock<[Option<IpaSegmentId>; 128]> = LazyLock::new(|| {
+    let mut segments = [None; 128];
+    for letter in "bcdfgjklmnprstvxzaeiou".chars() {
+        let index = IPA_SEGMENT_SYMBOLS
+            .iter()
+            .position(|symbol| match letter {
+                'c' => *symbol == "ʃ",
+                'j' => *symbol == "ʒ",
+                _ => symbol.chars().eq([letter]),
+            })
+            .expect("every Lojban gismu letter has an IPA segment");
+        segments[letter as usize] = Some(IpaSegmentId::from_static_index(index as u16));
+    }
+    segments
+});
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.segment_count() > 0) || ret.is_err())]
 pub fn sound_query_to_token_sequence(raw_query: &str) -> Result<IpaTokenSequence, PhoneticError> {
@@ -770,8 +908,9 @@ pub fn aline_semiglobal_raw_similarity(
     source: &[IpaSegmentId],
     parameters: &AlineParameters,
 ) -> f64 {
+    let scorer = AlineScorer::new(parameters.clone());
     let mut scratch = AlineSimilarityScratch::default();
-    aline_semiglobal_raw_similarity_with_scratch(candidate, source, parameters, &mut scratch)
+    scorer.raw_similarity_with_scratch(candidate, source, &mut scratch)
 }
 
 /// Scratch-reusing form of [`aline_semiglobal_raw_similarity`].
@@ -784,7 +923,7 @@ pub fn aline_semiglobal_raw_similarity_with_scratch(
     parameters: &AlineParameters,
     scratch: &mut AlineSimilarityScratch,
 ) -> f64 {
-    semiglobal_raw_similarity_with_scratch(candidate, source, parameters, scratch)
+    AlineScorer::new(parameters.clone()).raw_similarity_with_scratch(candidate, source, scratch)
 }
 
 /// Return the semi-global score normalized according to `parameters`.
@@ -796,8 +935,12 @@ pub fn aline_semiglobal_similarity(
     source: &[IpaSegmentId],
     parameters: &AlineParameters,
 ) -> f64 {
+    let scorer = AlineScorer::new(parameters.clone());
     let mut scratch = AlineSimilarityScratch::default();
-    aline_semiglobal_similarity_with_scratch(candidate, source, parameters, &mut scratch)
+    let raw = scorer.raw_similarity_with_scratch(candidate, source, &mut scratch);
+    let candidate_self = scorer.self_similarity_with_scratch(candidate, &mut scratch);
+    let source_self = scorer.self_similarity_with_scratch(source, &mut scratch);
+    scorer.normalize(raw, candidate_self, source_self)
 }
 
 /// Scratch-reusing form of [`aline_semiglobal_similarity`].
@@ -810,20 +953,11 @@ pub fn aline_semiglobal_similarity_with_scratch(
     parameters: &AlineParameters,
     scratch: &mut AlineSimilarityScratch,
 ) -> f64 {
-    let raw = semiglobal_raw_similarity_with_scratch(candidate, source, parameters, scratch);
-    let source_self = semiglobal_raw_similarity_with_scratch(source, source, parameters, scratch);
-    let normalizer = match parameters.normalizer {
-        AlineNormalizer::SourceSide => source_self,
-        AlineNormalizer::CandidateSide => {
-            semiglobal_raw_similarity_with_scratch(candidate, candidate, parameters, scratch)
-        }
-        AlineNormalizer::Symmetric => {
-            let candidate_self =
-                semiglobal_raw_similarity_with_scratch(candidate, candidate, parameters, scratch);
-            (candidate_self + source_self) / 2.0
-        }
-    };
-    (raw / normalizer).clamp(0.0, 1.0)
+    let scorer = AlineScorer::new(parameters.clone());
+    let raw = scorer.raw_similarity_with_scratch(candidate, source, scratch);
+    let candidate_self = scorer.self_similarity_with_scratch(candidate, scratch);
+    let source_self = scorer.self_similarity_with_scratch(source, scratch);
+    scorer.normalize(raw, candidate_self, source_self)
 }
 
 #[requires(true)]
@@ -840,6 +974,18 @@ pub fn compare_similarity_then_index(left: (usize, f64), right: (usize, f64)) ->
 #[ensures(ret.is_some_and(|symbol| !symbol.is_empty()))]
 pub fn ipa_segment_symbol(id: IpaSegmentId) -> Option<&'static str> {
     Some(IPA_SEGMENT_SYMBOLS[id.get() as usize])
+}
+
+/// Map one letter from the gismu consonant/vowel inventory to the segment
+/// emitted by the deterministic Lojban IPA renderer.
+#[requires(true)]
+#[ensures(ret.is_some() == matches!(letter, 'b' | 'c' | 'd' | 'f' | 'g' | 'j' | 'k' | 'l' | 'm' | 'n' | 'p' | 'r' | 's' | 't' | 'v' | 'x' | 'z' | 'a' | 'e' | 'i' | 'o' | 'u'))]
+pub fn lojban_gismu_letter_to_ipa_segment(letter: char) -> Option<IpaSegmentId> {
+    usize::try_from(u32::from(letter))
+        .ok()
+        .and_then(|index| LOJBAN_GISMU_LETTER_SEGMENTS.get(index))
+        .copied()
+        .flatten()
 }
 
 #[requires(true)]
@@ -989,9 +1135,10 @@ fn aline_raw_similarity_with_scratch(
 fn semiglobal_raw_similarity_with_scratch(
     candidate: &[IpaSegmentId],
     source: &[IpaSegmentId],
-    parameters: &AlineParameters,
+    scorer: &AlineScorer,
     scratch: &mut AlineSimilarityScratch,
 ) -> f64 {
+    let parameters = scorer.parameters();
     let row_width = source.len() + 1;
     scratch.previous_previous.resize(row_width, 0.0);
     scratch.previous.resize(row_width, 0.0);
@@ -1004,31 +1151,26 @@ fn semiglobal_raw_similarity_with_scratch(
         scratch.current[0] = candidate_index as f64 * parameters.c_skip;
         for source_index in 1..=source.len() {
             let substitute = scratch.previous[source_index - 1]
-                + parameterized_substitution_score(
-                    candidate[candidate_index - 1],
-                    source[source_index - 1],
-                    parameters,
-                );
+                + scorer
+                    .substitution_score(candidate[candidate_index - 1], source[source_index - 1]);
             let skip_candidate = scratch.previous[source_index] + parameters.c_skip;
             let skip_source = scratch.current[source_index - 1] + parameters.c_skip;
             let expand_source = if source_index >= 2 {
                 scratch.previous[source_index - 2]
-                    + parameterized_expansion_score(
+                    + scorer.expansion_score(
                         candidate[candidate_index - 1],
                         source[source_index - 2],
                         source[source_index - 1],
-                        parameters,
                     )
             } else {
                 f64::NEG_INFINITY
             };
             let expand_candidate = if candidate_index >= 2 {
                 scratch.previous_previous[source_index - 1]
-                    + parameterized_expansion_score(
+                    + scorer.expansion_score(
                         source[source_index - 1],
                         candidate[candidate_index - 2],
                         candidate[candidate_index - 1],
-                        parameters,
                     )
             } else {
                 f64::NEG_INFINITY

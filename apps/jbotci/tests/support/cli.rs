@@ -361,6 +361,7 @@ fn parses_gimfihi_command_and_apostrophe_alias() {
             language: "eng".to_owned(),
             explicit_weight: None,
             word: "ekspekt".to_owned(),
+            ipa: None,
         }]
     );
 
@@ -378,6 +379,7 @@ fn parses_gimfihi_command_and_apostrophe_alias() {
             language: "eng".to_owned(),
             explicit_weight: Some(1),
             word: "ekspekt".to_owned(),
+            ipa: None,
         }]
     );
 }
