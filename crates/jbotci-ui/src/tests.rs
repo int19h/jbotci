@@ -248,6 +248,8 @@ fn gimfihi_load_more_state_doubles_and_clamps_count() {
 #[ensures(true)]
 fn gimfihi_result_summary_reports_candidates_and_shown_count() {
     let output = GimfihiOutput {
+        scorer: Default::default(),
+        phonetic_parameters: None,
         resolved_sources: Vec::new(),
         candidate_count: 20_000,
         filtered_count: 12_222,
@@ -313,6 +315,8 @@ fn gimfihi_result_cache_misses_highlight_outside_cached_rows() {
     let mut state = GimfihiWebState::default();
     state.highlight = Some("nanpe".to_owned());
     let output = GimfihiOutput {
+        scorer: Default::default(),
+        phonetic_parameters: None,
         resolved_sources: Vec::new(),
         candidate_count: 2,
         filtered_count: 2,

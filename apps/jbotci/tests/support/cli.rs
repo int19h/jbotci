@@ -361,6 +361,7 @@ fn parses_gimfihi_command_and_apostrophe_alias() {
             language: "eng".to_owned(),
             explicit_weight: None,
             word: "ekspekt".to_owned(),
+            ipa: None,
         }]
     );
 
@@ -378,6 +379,7 @@ fn parses_gimfihi_command_and_apostrophe_alias() {
             language: "eng".to_owned(),
             explicit_weight: Some(1),
             word: "ekspekt".to_owned(),
+            ipa: None,
         }]
     );
 }
@@ -388,6 +390,194 @@ fn parses_gimfihi_command_and_apostrophe_alias() {
 fn gimfihi_rejects_old_spellings() {
     assert!(Cli::try_parse_from(["jbotci", "gimfihe"]).is_err());
     assert!(Cli::try_parse_from(["jbotci", "gimfi'e"]).is_err());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_parameter_defaults_match_phonetic_crate_and_help_lists_every_knob() {
+    let defaults = jbotci_phonetic::AlineParameters::default();
+    let Command::Gimfihi(input) =
+        Cli::try_parse_from(["jbotci", "gimfihi", "--source", "eng:1:klama"])
+            .expect("gimfihi defaults")
+            .command
+    else {
+        panic!("expected gimfihi command");
+    };
+    assert_eq!(input.scorer, GimfihiCliScorer::Classic);
+    assert_eq!(input.c_sub, defaults.c_sub);
+    assert_eq!(input.c_exp, defaults.c_exp);
+    assert_eq!(input.c_skip, defaults.c_skip);
+    assert_eq!(input.c_vwl, defaults.c_vwl);
+    assert_eq!(input.c_flank, defaults.c_flank);
+    assert_eq!(input.normalizer, GimfihiCliNormalizer::SourceSide);
+    assert!(input.saliences.is_empty());
+
+    let help = Cli::command()
+        .find_subcommand_mut("gimfihi")
+        .expect("gimfihi subcommand")
+        .render_long_help()
+        .to_string();
+    for knob in [
+        "--scorer",
+        "--c-sub",
+        "--c-exp",
+        "--c-skip",
+        "--c-vwl",
+        "--c-flank",
+        "--normalizer",
+        "--salience",
+    ] {
+        assert!(help.contains(knob), "missing {knob} in {help}");
+    }
+    for default_text in [
+        "default: classic",
+        "default: 35",
+        "default: 45",
+        "default: -10",
+        "default: 10",
+        "default: 0",
+        "default: source-side",
+        "manner=50",
+        "long=1",
+    ] {
+        assert!(
+            help.contains(default_text),
+            "missing {default_text} in {help}"
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_rejects_invalid_scorer_salience_and_nonfinite_coefficient_by_name() {
+    let scorer_error = Cli::try_parse_from([
+        "jbotci",
+        "gimfihi",
+        "--scorer",
+        "mystery",
+        "--source",
+        "eng:1:klama",
+    ])
+    .expect_err("unknown scorer");
+    assert!(scorer_error.to_string().contains("scorer"));
+
+    let salience_error = Cli::try_parse_from([
+        "jbotci",
+        "gimfihi",
+        "--salience",
+        "mystery=5",
+        "--source",
+        "eng:1:klama",
+    ])
+    .expect_err("unknown salience");
+    assert!(salience_error.to_string().contains("mystery"));
+
+    let cli = Cli::try_parse_from([
+        "jbotci",
+        "gimfihi",
+        "--c-sub",
+        "NaN",
+        "--source",
+        "eng:1:klama",
+    ])
+    .expect("clap accepts an f64 spelling");
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let error = run_cli(cli, &mut stdout, &mut stderr, false).expect_err("nonfinite c-sub");
+    assert!(error.to_string().contains("c-sub"), "{error}");
+
+    let tool_error = run_tool_gimfihi(
+        ToolGimfihiRequest {
+            sources: vec![ToolGimfihiSource {
+                language: "eng".to_owned(),
+                word: "klama".to_owned(),
+                weight: Some(1),
+            }],
+            scorer: ToolGimfihiScorer::Phonetic,
+            c_sub: f64::INFINITY,
+            ..ToolGimfihiRequest::default()
+        },
+        GimfihiSourceWordKind::Ipa,
+    )
+    .expect_err("typed tool rejects nonfinite c-sub");
+    assert!(tool_error.to_string().contains("c-sub"), "{tool_error}");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_cli_and_mcp_bridge_produce_identical_phonetic_ranking() {
+    let cli = run_cli_capture(
+        &[
+            "jbotci",
+            "gimfihi",
+            "--scorer",
+            "phonetic",
+            "--c-vwl",
+            "8",
+            "--source",
+            "src:700:[qalma]",
+            "--source",
+            "support:300:[alma]",
+            "--shape",
+            "cvccv",
+            "--check-collisions",
+            "none",
+            "--count",
+            "5",
+            "--format",
+            "json",
+        ],
+        false,
+    );
+    assert_eq!(cli.status, CliStatus::Success);
+    let cli_output: GimfihiOutput =
+        serde_json::from_str(&cli.stdout).expect("typed CLI gimfihi output");
+
+    let tool_output = run_tool_gimfihi(
+        ToolGimfihiRequest {
+            sources: vec![
+                ToolGimfihiSource {
+                    language: "src".to_owned(),
+                    word: "qalma".to_owned(),
+                    weight: Some(700),
+                },
+                ToolGimfihiSource {
+                    language: "support".to_owned(),
+                    word: "alma".to_owned(),
+                    weight: Some(300),
+                },
+            ],
+            scorer: ToolGimfihiScorer::Phonetic,
+            c_vwl: 8.0,
+            shapes: vec!["cvccv".to_owned()],
+            check_collisions: ToolCollisionScope::None,
+            count: Some(5),
+            format: ToolGimfihiFormat::Json,
+            ..ToolGimfihiRequest::default()
+        },
+        GimfihiSourceWordKind::Ipa,
+    )
+    .expect("MCP bridge output");
+    assert_eq!(tool_output.status, ToolStatus::Success);
+    let mcp_output: GimfihiOutput =
+        serde_json::from_str(tool_output.stdout_text().expect("MCP bridge UTF-8 output"))
+            .expect("typed MCP gimfihi output");
+
+    assert_eq!(
+        cli_output
+            .candidates
+            .iter()
+            .map(|candidate| candidate.word.as_str())
+            .collect::<Vec<_>>(),
+        mcp_output
+            .candidates
+            .iter()
+            .map(|candidate| candidate.word.as_str())
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]

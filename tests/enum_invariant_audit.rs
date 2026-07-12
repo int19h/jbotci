@@ -64,6 +64,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
     ),
     (
+        "apps/jbotci/src/lib.rs:GimfihiCliNormalizer::CandidateSide",
+        "CLI ALINE normalizer is a closed selector mapped directly to the phonetic parameter set",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:GimfihiCliNormalizer::SourceSide",
+        "CLI ALINE normalizer is a closed selector mapped directly to the phonetic parameter set",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:GimfihiCliNormalizer::Symmetric",
+        "CLI ALINE normalizer is a closed selector mapped directly to the phonetic parameter set",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:GimfihiCliScorer::Classic",
+        "CLI gimfihi scorer is a closed selector mapped directly to the typed scoring mode",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:GimfihiCliScorer::Phonetic",
+        "CLI gimfihi scorer is a closed selector mapped directly to the typed scoring mode",
+    ),
+    (
         "apps/jbotci/src/lib.rs:Command::Cukta",
         "CLI enum delegates validation to clap and command option structs",
     ),
@@ -118,6 +138,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/tool.rs:ToolCollisionScope::Official",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolAlineNormalizer::CandidateSide",
+        "MCP ALINE normalizer is a closed selector mapped directly to the CLI normalizer",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolAlineNormalizer::SourceSide",
+        "MCP ALINE normalizer is a closed selector mapped directly to the CLI normalizer",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolAlineNormalizer::Symmetric",
+        "MCP ALINE normalizer is a closed selector mapped directly to the CLI normalizer",
     ),
     (
         "apps/jbotci/src/tool.rs:ToolCuktaFormat::Html",
@@ -194,6 +226,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/tool.rs:ToolGimfihiFormat::Table",
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolGimfihiScorer::Classic",
+        "MCP gimfihi scorer is a closed selector mapped directly to the CLI scorer",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolGimfihiScorer::Phonetic",
+        "MCP gimfihi scorer is a closed selector mapped directly to the CLI scorer",
     ),
     (
         "apps/jbotci/src/tool.rs:ToolJvozbaMode::Cmevla",
@@ -700,6 +740,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "typed SVG DOM text is escaped during serialization before parser handoff",
     ),
     (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiScorer::Classic",
+        "gimfihi scorer is a closed selector over the classic and phonetic algorithms",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiScorer::Phonetic",
+        "gimfihi scorer is a closed selector over the classic and phonetic algorithms",
+    ),
+    (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::DuplicateSourceLanguage",
         "duplicate source language is produced from normalized source input for diagnostics",
     ),
@@ -730,6 +778,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingPresetLanguage",
         "missing preset language is produced from the validated preset table",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::Phonetic",
+        "phonetic scoring errors preserve the typed lower-layer diagnostic without additional constraints",
     ),
     (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownCollisionScope",
@@ -1198,6 +1250,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Voice",
         "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineNormalizer::CandidateSide",
+        "ALINE normalizer is a closed selector over the three normative denominator modes",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineNormalizer::SourceSide",
+        "ALINE normalizer is a closed selector over the three normative denominator modes",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineNormalizer::Symmetric",
+        "ALINE normalizer is a closed selector over the three normative denominator modes",
     ),
     (
         "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Text",

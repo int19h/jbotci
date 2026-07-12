@@ -2271,6 +2271,8 @@ fn gimfihi_request_from_web_state(state: &GimfihiWebState) -> Result<GimfihiRequ
         .map(gimfihi_source_input_from_web_source)
         .collect::<Result<Vec<_>, _>>()?;
     Ok(GimfihiRequest {
+        scorer: Default::default(),
+        phonetic_parameters: Default::default(),
         preset: state.preset,
         sources,
         shapes: state.shapes.clone(),

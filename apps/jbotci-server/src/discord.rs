@@ -486,6 +486,7 @@ fn parse_discord_gimfihi(options: &[Value]) -> Result<ToolGimfihiRequest, String
         count: optional_integer_option(options, "count"),
         highlight: None,
         format: parse_gimfihi_format(optional_string_option(options, "format").as_deref())?,
+        ..ToolGimfihiRequest::default()
     })
 }
 

@@ -12,8 +12,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding worker jobs pair a typed request with the response channel for that request",
     ),
     (
+        "apps/jbotci-server/src/lib.rs:GimfihiSchemaProjection",
+        "typed schema test projection delegates validity to its invariant-bearing properties payload",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:GimfihiSchemaProperties",
+        "typed schema test aggregate delegates constraints to each typed property projection",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
         "health payload is a fixed transport shape",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:SalienceSchemaProperties",
+        "typed schema test aggregate contains every independently validated numeric salience property",
     ),
     (
         "apps/jbotci-server/src/lib.rs:ToolServices",
@@ -626,14 +638,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
         "short rafsi candidates are generated and classified by possible_short_rafsis",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:ResolvedSource",
-        "resolved gimfihi source rows are produced only after preset and source validation",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:SourceScore",
-        "source score rows are derived from resolved source words and CLL scoring",
     ),
     (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",

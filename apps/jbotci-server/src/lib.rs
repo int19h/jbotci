@@ -25,9 +25,9 @@ use axum::{Json, Router};
 use bityzba::{ensures, invariant, new, requires};
 use dioxus::server::FullstackState;
 use jbotci_cli::{
-    ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext, ToolRenderedOutput,
-    ToolVlackuRequest, run_tool_cukta, run_tool_cukta_with_context, run_tool_vlacku,
-    run_tool_vlacku_with_context,
+    GimfihiSourceWordKind, ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext,
+    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
+    run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
 };
 use jbotci_embeddings::{load_latest_pack, model_spec};
 use jbotci_web_core::{
@@ -452,6 +452,7 @@ pub fn router(config: ServerConfig) -> Router {
         // Deliberately public: #204 keeps `/api/gentufa` for non-model clients
         // and programmatic model use. Full REST tool parity belongs to #284.
         .route("/api/gentufa", post(gentufa))
+        .route("/api/gimfihi", post(gimfihi))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
         .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
@@ -501,6 +502,50 @@ async fn health() -> Json<HealthResponse> {
 #[ensures(true)]
 async fn gentufa(Json(request): Json<GentufaWebRequest>) -> Json<GentufaWebResult> {
     Json(parse_gentufa_for_web_blocking(request).await)
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn gimfihi(Json(request): Json<ToolGimfihiRequest>) -> Response<Body> {
+    match tokio::task::spawn_blocking(move || run_tool_gimfihi(request, GimfihiSourceWordKind::Ipa))
+        .await
+    {
+        Ok(Ok(output)) => rest_tool_output(output),
+        Ok(Err(error)) => plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
+        Err(error) => plain_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &format!("gimfihi task failed: {error}"),
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn rest_tool_output(output: ToolRenderedOutput) -> Response<Body> {
+    let status = match output.status {
+        ToolStatus::Success => StatusCode::OK,
+        ToolStatus::ValidMissing => StatusCode::NOT_FOUND,
+        ToolStatus::InvalidInput => StatusCode::BAD_REQUEST,
+        ToolStatus::Failure => StatusCode::INTERNAL_SERVER_ERROR,
+    };
+    let body = if output.status.is_success() {
+        output.stdout
+    } else {
+        let mut text = output.stderr;
+        if let Ok(stdout) = std::str::from_utf8(&output.stdout)
+            && !stdout.trim().is_empty()
+        {
+            text.push_str(stdout);
+        }
+        text.into_bytes()
+    };
+    let mut builder = Response::builder().status(status);
+    if let Some(content_type) = output.content_type {
+        builder = builder.header(CONTENT_TYPE, content_type);
+    }
+    builder
+        .body(Body::from(body))
+        .expect("REST tool response builder is valid")
 }
 
 #[requires(true)]
@@ -991,10 +1036,83 @@ mod tests {
     use axum::body::to_bytes;
     use axum::http::{Method, Request};
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::{ensures, invariant, requires};
     use ed25519_dalek::{Signer, SigningKey};
+    use jbotci_cli::{
+        ToolAlineSaliences, ToolCollisionScope, ToolGimfihiFormat, ToolGimfihiScorer,
+        ToolGimfihiSource,
+    };
     use std::sync::atomic::{AtomicU64, Ordering};
     use tower::ServiceExt;
+
+    #[invariant(default.is_finite())]
+    #[invariant(!description.is_empty())]
+    #[derive(Debug, serde::Deserialize)]
+    struct NumericSchemaProperty {
+        default: f64,
+        description: String,
+        #[serde(default)]
+        minimum: Option<f64>,
+        #[serde(default)]
+        maximum: Option<f64>,
+    }
+
+    #[invariant(!default.is_empty())]
+    #[invariant(!description.is_empty())]
+    #[derive(Debug, serde::Deserialize)]
+    struct EnumSchemaProperty {
+        default: String,
+        description: String,
+    }
+
+    #[invariant(true)]
+    #[derive(Debug, serde::Deserialize)]
+    struct SalienceSchemaProperties {
+        syllabic: NumericSchemaProperty,
+        place: NumericSchemaProperty,
+        manner: NumericSchemaProperty,
+        voice: NumericSchemaProperty,
+        nasal: NumericSchemaProperty,
+        retroflex: NumericSchemaProperty,
+        lateral: NumericSchemaProperty,
+        aspirated: NumericSchemaProperty,
+        high: NumericSchemaProperty,
+        back: NumericSchemaProperty,
+        round: NumericSchemaProperty,
+        long: NumericSchemaProperty,
+    }
+
+    #[invariant(!description.is_empty())]
+    #[derive(Debug, serde::Deserialize)]
+    struct SaliencesSchemaProperty {
+        default: ToolAlineSaliences,
+        description: String,
+        properties: SalienceSchemaProperties,
+    }
+
+    #[invariant(true)]
+    #[derive(Debug, serde::Deserialize)]
+    struct GimfihiSchemaProperties {
+        scorer: EnumSchemaProperty,
+        #[serde(rename = "c-sub")]
+        c_sub: NumericSchemaProperty,
+        #[serde(rename = "c-exp")]
+        c_exp: NumericSchemaProperty,
+        #[serde(rename = "c-skip")]
+        c_skip: NumericSchemaProperty,
+        #[serde(rename = "c-vwl")]
+        c_vwl: NumericSchemaProperty,
+        #[serde(rename = "c-flank")]
+        c_flank: NumericSchemaProperty,
+        normalizer: EnumSchemaProperty,
+        saliences: SaliencesSchemaProperty,
+    }
+
+    #[invariant(true)]
+    #[derive(Debug, serde::Deserialize)]
+    struct GimfihiSchemaProjection {
+        properties: GimfihiSchemaProperties,
+    }
 
     static TEST_STATIC_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
     static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -1569,6 +1687,87 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn gimfihi_rest_api_matches_typed_tool_surface() {
+        let app = router(test_config(test_static_dir()));
+        let request = ToolGimfihiRequest {
+            sources: vec![ToolGimfihiSource {
+                language: "eng".to_owned(),
+                word: "ˈkla.ma".to_owned(),
+                weight: Some(100),
+            }],
+            scorer: ToolGimfihiScorer::Phonetic,
+            c_vwl: 8.0,
+            shapes: vec!["ccvcv".to_owned()],
+            check_collisions: ToolCollisionScope::None,
+            count: Some(1),
+            highlight: Some("klama".to_owned()),
+            format: ToolGimfihiFormat::Json,
+            ..ToolGimfihiRequest::default()
+        };
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/gimfihi")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::to_vec(&request).expect("request JSON"),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE),
+            Some(&HeaderValue::from_static("application/json; charset=utf-8"))
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let output: jbotci_cli::test_harness::GimfihiOutput =
+            serde_json::from_slice(&bytes).expect("typed gimfihi output");
+        assert_eq!(
+            output.scorer,
+            jbotci_cli::test_harness::GimfihiScorer::Phonetic
+        );
+        assert_eq!(
+            output
+                .phonetic_parameters
+                .as_ref()
+                .map(|parameters| parameters.c_vwl),
+            Some(8.0)
+        );
+        let identity = output
+            .candidates
+            .iter()
+            .find(|candidate| candidate.word == "klama")
+            .expect("highlighted identity");
+        assert_eq!(identity.source_scores[0].raw_score, 1.0);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn gimfihi_rest_rejects_unknown_salience_by_name() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/gimfihi")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"sources":[],"saliences":{"mystery":5}}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(response_text(response).await.contains("mystery"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn missing_api_route_does_not_fall_back_to_spa() {
         let app = router(test_config(test_static_dir()));
         let response = app
@@ -1749,6 +1948,92 @@ mod tests {
         assert!(gimfihi_source["properties"]["language"].is_object());
         assert!(gimfihi_source["properties"]["word"].is_object());
         assert!(gimfihi_source["properties"]["weight"].is_object());
+        let projection: GimfihiSchemaProjection =
+            serde_json::from_value(gimfihi_schema.clone()).expect("typed gimfihi schema");
+        let defaults = jbotci_cli::test_harness::AlineParameters::default();
+        assert_eq!(projection.properties.scorer.default, "classic");
+        assert_eq!(projection.properties.normalizer.default, "source-side");
+        assert_eq!(projection.properties.c_sub.default, defaults.c_sub);
+        assert_eq!(projection.properties.c_exp.default, defaults.c_exp);
+        assert_eq!(projection.properties.c_skip.default, defaults.c_skip);
+        assert_eq!(projection.properties.c_vwl.default, defaults.c_vwl);
+        assert_eq!(projection.properties.c_flank.default, defaults.c_flank);
+        assert_eq!(projection.properties.c_skip.maximum, Some(0.0));
+        assert_eq!(projection.properties.c_vwl.minimum, Some(0.0));
+        assert_eq!(projection.properties.c_flank.maximum, Some(0.0));
+        for description in [
+            &projection.properties.scorer.description,
+            &projection.properties.c_sub.description,
+            &projection.properties.c_exp.description,
+            &projection.properties.c_skip.description,
+            &projection.properties.c_vwl.description,
+            &projection.properties.c_flank.description,
+            &projection.properties.normalizer.description,
+            &projection.properties.saliences.description,
+        ] {
+            assert!(
+                description.contains("docs/gismu-phonetic-medoid.md"),
+                "{description}"
+            );
+        }
+        let salience_defaults = jbotci_cli::test_harness::AlineSaliences::default();
+        assert_eq!(
+            projection.properties.saliences.default,
+            ToolAlineSaliences::default()
+        );
+        for (property, expected) in [
+            (
+                &projection.properties.saliences.properties.syllabic,
+                salience_defaults.syllabic,
+            ),
+            (
+                &projection.properties.saliences.properties.place,
+                salience_defaults.place,
+            ),
+            (
+                &projection.properties.saliences.properties.manner,
+                salience_defaults.manner,
+            ),
+            (
+                &projection.properties.saliences.properties.voice,
+                salience_defaults.voice,
+            ),
+            (
+                &projection.properties.saliences.properties.nasal,
+                salience_defaults.nasal,
+            ),
+            (
+                &projection.properties.saliences.properties.retroflex,
+                salience_defaults.retroflex,
+            ),
+            (
+                &projection.properties.saliences.properties.lateral,
+                salience_defaults.lateral,
+            ),
+            (
+                &projection.properties.saliences.properties.aspirated,
+                salience_defaults.aspirated,
+            ),
+            (
+                &projection.properties.saliences.properties.high,
+                salience_defaults.high,
+            ),
+            (
+                &projection.properties.saliences.properties.back,
+                salience_defaults.back,
+            ),
+            (
+                &projection.properties.saliences.properties.round,
+                salience_defaults.round,
+            ),
+            (
+                &projection.properties.saliences.properties.long,
+                salience_defaults.long,
+            ),
+        ] {
+            assert_eq!(property.default, expected);
+            assert_eq!(property.minimum, Some(0.0));
+        }
 
         let tersmu_schema = tool_input_schema(tools_array, "tersmu");
         assert!(tersmu_schema["properties"]["text"].is_object());
