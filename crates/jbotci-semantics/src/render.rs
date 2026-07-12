@@ -414,7 +414,7 @@ impl<'graph> DerivedTraversal<'graph> {
             }
             data!(FormulaNode::Quantified(node)) => {
                 self.visit_referent(node.variable, location, state, visitor);
-                if quantified_node_has_domain_import(node) {
+                if self.object(id).formula_domain_import().is_some() {
                     visitor.domain_import(
                         id,
                         node,
@@ -994,16 +994,14 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
         node: &'graph UtteranceNode,
         location: TraversalLocation,
     ) {
-        if location.tier != ClaimTier::Displayed {
-            self.line(
-                location.depth,
-                &format!(
-                    "{}utterance {} [{id}]",
-                    tree_role_prefix(location.role),
-                    utterance_force_label(node.force)
-                ),
-            );
-        }
+        self.line(
+            location.depth,
+            &format!(
+                "{}utterance {} [{id}]",
+                tree_role_prefix(location.role),
+                utterance_force_label(node.force)
+            ),
+        );
     }
 
     #[requires(true)]
@@ -1014,12 +1012,10 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
         _node: &'graph SequenceNode,
         location: TraversalLocation,
     ) {
-        if location.tier != ClaimTier::Displayed {
-            self.line(
-                location.depth,
-                &format!("{}sequence [{id}]", tree_role_prefix(location.role)),
-            );
-        }
+        self.line(
+            location.depth,
+            &format!("{}sequence [{id}]", tree_role_prefix(location.role)),
+        );
     }
 
     #[requires(true)]
@@ -1030,16 +1026,14 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
         node: &'graph FormulaNode,
         location: TraversalLocation,
     ) {
-        if location.tier == ClaimTier::Asserted {
-            self.line(
-                location.depth,
-                &format!(
-                    "{}{} [{id}]",
-                    tree_role_prefix(location.role),
-                    formula_tree_label(self.graph, node)
-                ),
-            );
-        }
+        self.line(
+            location.depth,
+            &format!(
+                "{}{} [{id}]",
+                tree_role_prefix(location.role),
+                formula_tree_label(self.graph, id, node)
+            ),
+        );
     }
 
     #[requires(true)]
@@ -1050,9 +1044,7 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
         node: &'graph PredicationNode,
         location: TraversalLocation,
     ) {
-        if location.tier == ClaimTier::Asserted {
-            self.line(location.depth, &format_predication(self.graph, id, node));
-        }
+        self.line(location.depth, &format_predication(self.graph, id, node));
     }
 
     #[requires(true)]
@@ -1076,9 +1068,7 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
     #[requires(true)]
     #[ensures(true)]
     fn cycle(&mut self, id: SemanticObjectId, location: TraversalLocation) {
-        if location.tier == ClaimTier::Asserted {
-            self.line(location.depth, &format!("shared reference [{id}]"));
-        }
+        self.line(location.depth, &format!("shared reference [{id}]"));
     }
 }
 
@@ -1263,9 +1253,10 @@ fn formula_reference_label(graph: &SemanticGraph, formula: SemanticObjectId) -> 
     format_predication(graph, predication_id, predication)
 }
 
-#[requires(true)]
+#[requires(id.object_kind() == SemanticObjectKind::Formula)]
+#[requires(graph.objects.contains_key(&id))]
 #[ensures(!ret.is_empty())]
-fn formula_tree_label(graph: &SemanticGraph, node: &FormulaNode) -> String {
+fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &FormulaNode) -> String {
     match node.as_data() {
         data!(FormulaNode::Atom(_)) => "atom".to_owned(),
         data!(FormulaNode::Connective(node)) => formula_operator_label(node.operator).to_owned(),
@@ -1273,7 +1264,11 @@ fn formula_tree_label(graph: &SemanticGraph, node: &FormulaNode) -> String {
             "{} variable={}{}",
             formula_operator_label(node.operator),
             referent_label(graph, node.variable),
-            if quantified_node_has_domain_import(node) {
+            if graph
+                .objects
+                .get(&id)
+                .is_some_and(|object| object.formula_domain_import().is_some())
+            {
                 " domain-import=projective"
             } else {
                 ""
@@ -1299,17 +1294,8 @@ fn formula_context_label(
     format!(
         "{} {} [{id}]",
         traversal_role_label(role),
-        formula_tree_label(graph, node)
+        formula_tree_label(graph, id, node)
     )
-}
-
-#[requires(true)]
-#[ensures(ret == (matches!(node.operator, FormulaOperator::Forall | FormulaOperator::PluralForall) && node.restriction.is_some()))]
-fn quantified_node_has_domain_import(node: &QuantifiedFormulaNode) -> bool {
-    matches!(
-        node.operator,
-        FormulaOperator::Forall | FormulaOperator::PluralForall
-    ) && node.restriction.is_some()
 }
 
 #[requires(!node.relation.is_empty())]

@@ -61,7 +61,9 @@ connectives, `restriction`, and `body` remain separate nodes. Atomic leaves use
 the same typed predication and referent templates as the ledger. A restricted
 universal is annotated `domain-import=projective` on its quantifier line, while
 the commitment itself remains visible as a ledger entry rather than a fabricated
-formula child. Displayed asides are printed at their utterance attachment.
+formula child. Descriptor bodies and incidental clauses retain their graph edge
+labels as nested formula branches; displayed asides are printed at their
+utterance attachment.
 
 The tree is deterministic in semantic child order: connective children keep
 their stored order, restrictions precede quantifier bodies, sequence connection
