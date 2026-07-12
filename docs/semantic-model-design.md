@@ -20,6 +20,16 @@ This document defines an **object model** — in the programming sense: a set of
 
 **One reading, never disambiguation.** Where a construct is genuinely ambiguous between determinate readings, the model represents **one** reading; it does not enumerate scopings. Where a construct is genuinely *underspecified* by the language (topic-comment place, donkey anaphora, the `to…toi` operand), the model **exposes the gap** rather than fabricating a determinate filling — this is the throughline of the whole design.
 
+**Classical-divergence criterion.** Add an in-band semantic annotation exactly
+when the intended reading diverges from the naive classical reading of the
+graph **and** no faithful structural encoding exists. Leave classically
+derivable facts unannotated, and prefer a correct structural encoding whenever
+one exists. Thus composed connective truth tables and inert `U` operands need
+annotations, the old `veridical:false` flag on structurally desugared `le` does
+not, and restricted-universal domain import needs the projective marker defined
+in 0.E. This criterion prevents both silent non-classical commitments and
+redundant metadata.
+
 ---
 
 # Part 0 — The object model
@@ -140,13 +150,39 @@ The bound `v` is still a global `REF kind=var`; the quantifier node binds it ove
 - **What global uniqueness gives for free:** capture-freedom (no `da` is ever reused, so every mention is unambiguously the same variable) and conditional existential import (a `PRD` mentioning `v` contributes import only where it is asserted-and-undefeated — 0.K). These need **no** explicit annotation.
 - **What must still be stated explicitly:** the **binding edge itself** — `EX(v, ⟨f⟩)` — because its *type* (∃/∀/n), its *scope* (which formula), and its *position relative to other binders and to `not`* are precisely the truth-conditional facts that uniqueness does **not** supply. Dropping the binding edge would make `∀∃`/`∃∀` and "no dog comes"/"some dog doesn't come" unrepresentable, and would leave nowhere to record whether a restriction is an antecedent (∀) or a conjunct (∃).
 - **A prenex** `[v1 v2 …] zo'u body` is the nesting in **surface order**: `Q1(v1, ⟨g1⟩)` with `g1` = `Q2(v2, ⟨g2⟩)`, etc. Surface/left-to-right is the single reading (the CLL default when a prenex is dropped).
-- **Restricted quantification** (`da poi broda`): ∃ restricts via conjunction — `EX(v, ⟨and(broda(v), body)⟩)` (import automatic from the `and`). ∀ restricts via implication **plus** a domain-nonemptiness conjunct: `and(ALL(v, ⟨imp(broda(v), body)⟩), EX(v, ⟨broda(v)⟩))` — because **Lojban universals imply the corresponding existential** (CLL 16.8: `ro da poi klama` *requires* that goers exist). The bare `imp` alone would wrongly drop that import (an `imp` antecedent does not assert `broda(v)`); the conjoined `EX(v, broda(v))` restores it. This is exactly what distinguishes the restricted universal from the genuinely import-free **"any"** of CLL 16.8 — `ro da zo'u da go broda gi brode` (a biconditional with `broda(v)` *in the body's antecedent*, not as a domain restriction), which is `ALL(v, ⟨iff(broda(v), brode(v))⟩)` with no domain conjunct. So a `poi`-restriction on a bound variable is **import-bearing by virtue of being a domain restriction** (refining C-13's formula-positional rule for this case), whereas the same predication sitting in a connective antecedent is not.
+- **Restricted quantification** (`da poi broda`): ∃, plural ∃, and cardinality
+  restrict via ordinary at-issue conjunction — structurally,
+  `EX(v, restriction=broda(v), body)` means
+  `EX(v, ⟨and(broda(v), body)⟩)`. Restricted ∀ uses the distinguished
+  `restriction` as the implication antecedent, but also carries
+  **projective domain import**: the quantifier node has
+  `domainImport=projective`, meaning `EX(v, broda(v))` survives operators such
+  as `not`. It is not an extra at-issue conjunct. CLL 16.8 requires this
+  nonempty domain for `ro da poi klama`.
+
+  The previously prescribed at-issue encoding
+  `and(ALL(v, imp(broda(v), body)), EX(v, broda(v)))` is wrong by `naku`
+  duality. Let `R=mlatu` and `B=klama`. CLL 16.9/16.11 equate
+  `naku ro da poi R cu B` with the quantifier-inverted
+  `su'o da poi R naku cu B`, whose classical content is
+  `EX(v, and(R(v), not(B(v))))` and therefore still entails that an `R`
+  exists. Negating the conjunct encoding instead yields
+  `not(and(ALL(v, imp(R(v), B(v))), EX(v, R(v))))`, equivalent to
+  `or(EX(v, and(R(v), not(B(v)))), not(EX(v, R(v))))`; it is true when no
+  `R` exists and is therefore strictly weaker. Projecting the domain
+  commitment while negating only the at-issue universal gives exactly the
+  `naku`-moved reading.
+
+  This also distinguishes the genuinely import-free **"any"** of CLL 16.8:
+  `ro da zo'u da go broda gi brode` has `broda(v)` inside the body's
+  biconditional and no quantifier `restriction`, so it carries no marker and no
+  restricted-domain import.
 - **Re-quantifying an established da-series variable** (`ci da ... pa da`) introduces a fresh selected variable, not a second quantity on the same bound variable. The selected variable's quantifier records the source variable / witness set, and any source-domain restrictions such as `poi broda` are copied as restrictions on the selected variable. This keeps "one of the three people" distinct from the set of three while still exposing where the selection came from.
 - The **existential "any"** (CLL 16.50, "I need any box bigger than this") is a variable bound in the prenex of a **subordinate** bridi: `nitcu(a1, ⟨nu EX(X, and(tanxe(X), bramau(X, ti), ponse(a1, X)))⟩)` — the `EX` scopes inside the `nu` body (its own formula id), so the box's existence rides only on that (possibly non-occurring) event, not on reality. A variable defaults to the prenex of the **smallest enclosing bridi**; an outer prenex must be explicit to widen its scope (CLL 16.8/16.11).
 - **Inner quantifier** (`lo PA broda`) is **not** logical quantification: it is the `mei`-count of one constant's individuals (0.D).
 - **Outer quantifier** `PA ⟨sumti⟩` = `PA da poi me ⟨sumti⟩`: a restricted bound **singular** variable, **distributive** by default (so `ci lo prenu cu jmaji`, "three gather", is anomalous). `su'oi`/`ro'oi` give bound **plural** variables (`EXP`/`ALLP`). Encode the restriction as a `PRD me(v, x) mode=restrictive`.
 - **Grouping termsets** (`ce'e`, bare `nu'i...nu'u`) make their quantified terms coequal in scope (CLL 16.7). They are not either nested order. Encode them as one coequal quantifier bundle with ordered bindings and one shared body.
-- Negation interacts by graph position: `not(ALL(v,⟨f⟩)) ≡ EX(v, ⟨not(f)⟩)` and `not(EX(v,⟨f⟩)) ≡ ALL(v, ⟨not(f)⟩)`. These are equivalences; the model records the **surface** form, and the two encodings are each faithful (0.K).
+- Negation interacts by graph position: `not(ALL(v,⟨f⟩)) ≡ EX(v, ⟨not(f)⟩)` and `not(EX(v,⟨f⟩)) ≡ ALL(v, ⟨not(f)⟩)`. A distinguished restriction travels with the inverted quantifier. A restricted universal's projective domain import remains outside `not`; after inversion the resulting restricted existential entails the same nonemptiness classically and needs no marker. These are equivalences; the model records the **surface** form, and the two encodings are each faithful (0.K).
 
 ## 0.F Tanru desugar; lujvo do not
 
@@ -275,7 +311,7 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
 - **C-8 (inner quantifier & constant laws).** Inner quantifier = `mei`-count, not logical; individual ≡ `pa mei`; `lo no broda` meaningless; constants carry existential import + the Skolem reading. (Part 0.C–0.E.)
 - **C-9 (outer quantification).** Outer `PA` = a restricted bound **singular** variable (`PA da poi me …`), distributive by default; `su'oi`/`ro'oi` plural. (Part 0.E.)
 - **C-12 (notation, later refined by C-22).** One object per line; uniform `KIND id : attr=val`; modes asserted/incidental/displayed/restrictive; every elided place its own `zo'e`; the `UTT`/`e0` frame always present. (Part 0.A–0.B.)
-- **C-13 (existential import).** Import attaches to a predication-occurrence and propagates through `FRM` as that predication's truth value does; a bare `REF` is inert; `zi'o`/`PAR` exempt; a `var` is governed by its own quantifier; incidental/displayed carry import but project. *Refinement (this pass, CLL 16.8):* a `poi`-restriction on a bound variable is import-bearing **as a domain restriction** — so a restricted universal `ro da poi broda` carries categorical domain-nonemptiness import (`∧ EX(v, broda(v))`), distinct from `broda(v)` sitting in a connective antecedent (no import) as in the import-free "any". (Part 0.K, 0.E.)
+- **C-13 (existential import).** Import attaches to a predication-occurrence and propagates through `FRM` as that predication's truth value does; a bare `REF` is inert; `zi'o`/`PAR` exempt; a `var` is governed by its own quantifier; incidental/displayed carry import but project. *Refinement (CLL 16.8, corrected by C-30):* a `poi`-restriction on `forall`/`pluralForall` carries **projective** domain-nonemptiness import, recorded by `domainImport=projective`; restricted `exists`/`pluralExists`/`cardinality` derive their at-issue import classically from the restriction-as-conjunct reading, while `none` carries no import. A predication in a connective antecedent is not a quantifier restriction and carries no such domain import, as in the import-free "any". (Part 0.K, 0.E.)
 - **C-14 (relative clauses & possession).** `poi` = restrictive (extension-fixing); `noi` = incidental; `voi` = restrictive but non-veridical (`skicu`-style); `pe`/`po`/`po'e` = restrictive `srana`/possession predications; `ne` = incidental; `goi` = shared id; `zi'e` = several clauses on one head; `vu'o` = a clause over a composite referent. (Part 0.A, companion ch. 8.)
 - **C-15 (modals & tenses are sumtcita).** Modal = a shared-eventuality `PRD` + ρ (internal when the tag gismu has an event place, external `R` otherwise); tense = `EV` attributes; `FA` = arg reorder; `JAI` = a raising conversion; `KI` = sticky; causals = an event-relation `PRD` between the connected events. (Part 0.G–0.H.)
 - **C-16 (abstraction).** The `RFY` kinds, `ce'u`/`ke'a` distinction, `du'u` factivity-belongs-to-the-verb, `se du'u` = the sentence-sign, `kau` focus, `tu'a` raising. (Part 0.I.)
@@ -306,3 +342,11 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
   (CLL 14.124), while termset streams may carry complete branch formulas so
   modal/tag content stays paired with the correct index (CLL 14.133). (Part
   0.L.)
+- **C-30 (projective restricted-universal domain import, #279).** Adopted the
+  classical-divergence criterion and replaced 0.E's incorrect at-issue
+  `and(ALL, EX)` encoding with `domainImport=projective` on restricted
+  `ALL`/`ALLP` nodes. The marker records the one fact the structural graph
+  cannot express faithfully: domain nonemptiness survives `not`. The
+  `naku`-duality proof in 0.E shows why an ordinary conjunct is invalid;
+  existential/cardinality restrictions remain unannotated because their import
+  is already classical, and `NO` remains non-importing. (Parts 0.E, 0.K.)
