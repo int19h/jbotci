@@ -10,6 +10,7 @@ use jbotci_morphology::{
     LeadingPauseContext, LeadingPauseVowelMode, Phonemes, Word, WordKind, WordLike, WordLikeData,
     pronunciation_syllables, segment_words_with_modifiers, word_needs_leading_pause_in_context,
 };
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 
@@ -46,6 +47,320 @@ pub enum PhoneticError {
     PartialBracketedQuery,
     #[error("{message}")]
     Syllabification { message: String },
+}
+
+#[invariant(::SourceSide => true)]
+#[invariant(::CandidateSide => true)]
+#[invariant(::Symmetric => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AlineNormalizer {
+    SourceSide,
+    CandidateSide,
+    Symmetric,
+}
+
+impl Default for AlineNormalizer {
+    #[requires(true)]
+    #[ensures(ret == AlineNormalizer::SourceSide)]
+    fn default() -> Self {
+        Self::SourceSide
+    }
+}
+
+#[invariant(::Syllabic => true)]
+#[invariant(::Place => true)]
+#[invariant(::Manner => true)]
+#[invariant(::Voice => true)]
+#[invariant(::Nasal => true)]
+#[invariant(::Retroflex => true)]
+#[invariant(::Lateral => true)]
+#[invariant(::Aspirated => true)]
+#[invariant(::High => true)]
+#[invariant(::Back => true)]
+#[invariant(::Round => true)]
+#[invariant(::Long => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AlineFeature {
+    Syllabic,
+    Place,
+    Manner,
+    Voice,
+    Nasal,
+    Retroflex,
+    Lateral,
+    Aspirated,
+    High,
+    Back,
+    Round,
+    Long,
+}
+
+impl AlineFeature {
+    #[requires(true)]
+    #[ensures(ret.len() == 12)]
+    pub const fn all() -> &'static [Self] {
+        &[
+            Self::Syllabic,
+            Self::Place,
+            Self::Manner,
+            Self::Voice,
+            Self::Nasal,
+            Self::Retroflex,
+            Self::Lateral,
+            Self::Aspirated,
+            Self::High,
+            Self::Back,
+            Self::Round,
+            Self::Long,
+        ]
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Syllabic => "syllabic",
+            Self::Place => "place",
+            Self::Manner => "manner",
+            Self::Voice => "voice",
+            Self::Nasal => "nasal",
+            Self::Retroflex => "retroflex",
+            Self::Lateral => "lateral",
+            Self::Aspirated => "aspirated",
+            Self::High => "high",
+            Self::Back => "back",
+            Self::Round => "round",
+            Self::Long => "long",
+        }
+    }
+}
+
+#[invariant(
+    syllabic.is_finite() && *syllabic >= 0.0
+        && place.is_finite() && *place >= 0.0
+        && manner.is_finite() && *manner >= 0.0
+        && voice.is_finite() && *voice >= 0.0
+        && nasal.is_finite() && *nasal >= 0.0
+        && retroflex.is_finite() && *retroflex >= 0.0
+        && lateral.is_finite() && *lateral >= 0.0
+        && aspirated.is_finite() && *aspirated >= 0.0
+        && high.is_finite() && *high >= 0.0
+        && back.is_finite() && *back >= 0.0
+        && round.is_finite() && *round >= 0.0
+        && long.is_finite() && *long >= 0.0
+)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AlineSaliences {
+    pub syllabic: f64,
+    pub place: f64,
+    pub manner: f64,
+    pub voice: f64,
+    pub nasal: f64,
+    pub retroflex: f64,
+    pub lateral: f64,
+    pub aspirated: f64,
+    pub high: f64,
+    pub back: f64,
+    pub round: f64,
+    pub long: f64,
+}
+
+impl Default for AlineSaliences {
+    #[requires(true)]
+    #[ensures(ret.value(AlineFeature::Manner) == 50.0)]
+    fn default() -> Self {
+        new!(AlineSaliences {
+            syllabic: 5.0,
+            place: 40.0,
+            manner: 50.0,
+            voice: 10.0,
+            nasal: 10.0,
+            retroflex: 10.0,
+            lateral: 10.0,
+            aspirated: 5.0,
+            high: 5.0,
+            back: 5.0,
+            round: 5.0,
+            long: 1.0,
+        })
+    }
+}
+
+impl AlineSaliences {
+    #[requires(true)]
+    #[ensures(ret.is_finite() && ret >= 0.0)]
+    pub fn value(&self, feature: AlineFeature) -> f64 {
+        match feature {
+            AlineFeature::Syllabic => self.syllabic,
+            AlineFeature::Place => self.place,
+            AlineFeature::Manner => self.manner,
+            AlineFeature::Voice => self.voice,
+            AlineFeature::Nasal => self.nasal,
+            AlineFeature::Retroflex => self.retroflex,
+            AlineFeature::Lateral => self.lateral,
+            AlineFeature::Aspirated => self.aspirated,
+            AlineFeature::High => self.high,
+            AlineFeature::Back => self.back,
+            AlineFeature::Round => self.round,
+            AlineFeature::Long => self.long,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|saliences| saliences.value(feature) == value) || ret.is_err())]
+    pub fn with_feature(
+        self,
+        feature: AlineFeature,
+        value: f64,
+    ) -> Result<Self, AlineParameterError> {
+        validate_nonnegative_finite(feature.as_str(), value)?;
+        Ok(match feature {
+            AlineFeature::Syllabic => self.with_data(data! { syllabic: value }),
+            AlineFeature::Place => self.with_data(data! { place: value }),
+            AlineFeature::Manner => self.with_data(data! { manner: value }),
+            AlineFeature::Voice => self.with_data(data! { voice: value }),
+            AlineFeature::Nasal => self.with_data(data! { nasal: value }),
+            AlineFeature::Retroflex => self.with_data(data! { retroflex: value }),
+            AlineFeature::Lateral => self.with_data(data! { lateral: value }),
+            AlineFeature::Aspirated => self.with_data(data! { aspirated: value }),
+            AlineFeature::High => self.with_data(data! { high: value }),
+            AlineFeature::Back => self.with_data(data! { back: value }),
+            AlineFeature::Round => self.with_data(data! { round: value }),
+            AlineFeature::Long => self.with_data(data! { long: value }),
+        })
+    }
+}
+
+#[invariant(c_sub.is_finite() && *c_sub > 2.0 * *c_vwl)]
+#[invariant(c_exp.is_finite())]
+#[invariant(c_skip.is_finite() && *c_skip <= 0.0)]
+#[invariant(c_vwl.is_finite() && *c_vwl >= 0.0)]
+#[invariant(c_flank.is_finite() && *c_flank >= *c_skip && *c_flank <= 0.0)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct AlineParameters {
+    pub saliences: AlineSaliences,
+    pub c_sub: f64,
+    pub c_exp: f64,
+    pub c_skip: f64,
+    pub c_vwl: f64,
+    pub c_flank: f64,
+    pub normalizer: AlineNormalizer,
+}
+
+impl Default for AlineParameters {
+    #[requires(true)]
+    #[ensures(ret.normalizer == AlineNormalizer::SourceSide)]
+    fn default() -> Self {
+        new!(AlineParameters {
+            saliences: AlineSaliences::default(),
+            c_sub: ALINE_SUBSTITUTION_CEILING,
+            c_exp: ALINE_EXPANSION_CEILING,
+            c_skip: ALINE_SKIP_SCORE,
+            c_vwl: ALINE_VOWEL_PENALTY,
+            c_flank: 0.0,
+            normalizer: AlineNormalizer::SourceSide,
+        })
+    }
+}
+
+impl AlineParameters {
+    #[allow(clippy::too_many_arguments)]
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|parameters| parameters.c_sub == c_sub) || ret.is_err())]
+    pub fn try_new(
+        saliences: AlineSaliences,
+        c_sub: f64,
+        c_exp: f64,
+        c_skip: f64,
+        c_vwl: f64,
+        c_flank: f64,
+        normalizer: AlineNormalizer,
+    ) -> Result<Self, AlineParameterError> {
+        validate_finite("c-sub", c_sub)?;
+        validate_finite("c-exp", c_exp)?;
+        validate_finite("c-skip", c_skip)?;
+        validate_finite("c-vwl", c_vwl)?;
+        validate_finite("c-flank", c_flank)?;
+        if c_vwl < 0.0 {
+            return Err(invalid_parameter("c-vwl", "must be nonnegative"));
+        }
+        if c_sub <= 2.0 * c_vwl {
+            return Err(invalid_parameter(
+                "c-sub",
+                "must be greater than twice c-vwl so identity normalization is positive",
+            ));
+        }
+        if c_skip > 0.0 {
+            return Err(invalid_parameter("c-skip", "must be nonpositive"));
+        }
+        if c_flank < c_skip || c_flank > 0.0 {
+            return Err(invalid_parameter(
+                "c-flank",
+                "must lie between c-skip and 0",
+            ));
+        }
+        Ok(new!(AlineParameters {
+            saliences,
+            c_sub,
+            c_exp,
+            c_skip,
+            c_vwl,
+            c_flank,
+            normalizer,
+        }))
+    }
+}
+
+#[invariant(::InvalidValue { parameter, reason } => !parameter.is_empty() && !reason.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AlineParameterError {
+    InvalidValue { parameter: String, reason: String },
+}
+
+impl std::fmt::Display for AlineParameterError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let data!(AlineParameterError::InvalidValue { parameter, reason }) = self.as_data();
+        write!(formatter, "invalid ALINE parameter `{parameter}`: {reason}")
+    }
+}
+
+impl std::error::Error for AlineParameterError {}
+
+#[requires(!parameter.is_empty())]
+#[requires(!reason.is_empty())]
+#[ensures(matches!(ret.as_data(), data!(AlineParameterError::InvalidValue { .. })))]
+fn invalid_parameter(parameter: &str, reason: &str) -> AlineParameterError {
+    new!(AlineParameterError::InvalidValue {
+        parameter: parameter.to_owned(),
+        reason: reason.to_owned(),
+    })
+}
+
+#[requires(!parameter.is_empty())]
+#[ensures(ret.is_ok() -> value.is_finite())]
+fn validate_finite(parameter: &str, value: f64) -> Result<(), AlineParameterError> {
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(invalid_parameter(parameter, "must be finite"))
+    }
+}
+
+#[requires(!parameter.is_empty())]
+#[ensures(ret.is_ok() -> (value.is_finite() && value >= 0.0))]
+fn validate_nonnegative_finite(parameter: &str, value: f64) -> Result<(), AlineParameterError> {
+    validate_finite(parameter, value)?;
+    if value < 0.0 {
+        Err(invalid_parameter(parameter, "must be nonnegative"))
+    } else {
+        Ok(())
+    }
 }
 
 #[invariant((self.as_data().0 as usize) < IPA_SEGMENT_SYMBOLS.len())]
@@ -186,35 +501,6 @@ struct AlineFeatures {
     back_value: f64,
     round_value: f64,
     long_value: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::Syllabic => true)]
-#[invariant(::Place => true)]
-#[invariant(::Manner => true)]
-#[invariant(::Voice => true)]
-#[invariant(::Nasal => true)]
-#[invariant(::Retroflex => true)]
-#[invariant(::Lateral => true)]
-#[invariant(::Aspirated => true)]
-#[invariant(::High => true)]
-#[invariant(::Back => true)]
-#[invariant(::Round => true)]
-#[invariant(::Long => true)]
-enum AlineFeature {
-    Syllabic,
-    Place,
-    Manner,
-    Voice,
-    Nasal,
-    Retroflex,
-    Lateral,
-    Aspirated,
-    High,
-    Back,
-    Round,
-    Long,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -474,6 +760,72 @@ pub fn aline_phonetic_similarity_with_scratch(
     (2.0 * raw_similarity / normalizer).clamp(0.0, 1.0)
 }
 
+/// Score an alignment in which the candidate is consumed in full while source
+/// prefixes and suffixes use the configured flank rate.
+#[requires(!candidate.is_empty())]
+#[requires(!source.is_empty())]
+#[ensures(ret.is_finite())]
+pub fn aline_semiglobal_raw_similarity(
+    candidate: &[IpaSegmentId],
+    source: &[IpaSegmentId],
+    parameters: &AlineParameters,
+) -> f64 {
+    let mut scratch = AlineSimilarityScratch::default();
+    aline_semiglobal_raw_similarity_with_scratch(candidate, source, parameters, &mut scratch)
+}
+
+/// Scratch-reusing form of [`aline_semiglobal_raw_similarity`].
+#[requires(!candidate.is_empty())]
+#[requires(!source.is_empty())]
+#[ensures(ret.is_finite())]
+pub fn aline_semiglobal_raw_similarity_with_scratch(
+    candidate: &[IpaSegmentId],
+    source: &[IpaSegmentId],
+    parameters: &AlineParameters,
+    scratch: &mut AlineSimilarityScratch,
+) -> f64 {
+    semiglobal_raw_similarity_with_scratch(candidate, source, parameters, scratch)
+}
+
+/// Return the semi-global score normalized according to `parameters`.
+#[requires(!candidate.is_empty())]
+#[requires(!source.is_empty())]
+#[ensures((0.0..=1.0).contains(&ret))]
+pub fn aline_semiglobal_similarity(
+    candidate: &[IpaSegmentId],
+    source: &[IpaSegmentId],
+    parameters: &AlineParameters,
+) -> f64 {
+    let mut scratch = AlineSimilarityScratch::default();
+    aline_semiglobal_similarity_with_scratch(candidate, source, parameters, &mut scratch)
+}
+
+/// Scratch-reusing form of [`aline_semiglobal_similarity`].
+#[requires(!candidate.is_empty())]
+#[requires(!source.is_empty())]
+#[ensures((0.0..=1.0).contains(&ret))]
+pub fn aline_semiglobal_similarity_with_scratch(
+    candidate: &[IpaSegmentId],
+    source: &[IpaSegmentId],
+    parameters: &AlineParameters,
+    scratch: &mut AlineSimilarityScratch,
+) -> f64 {
+    let raw = semiglobal_raw_similarity_with_scratch(candidate, source, parameters, scratch);
+    let source_self = semiglobal_raw_similarity_with_scratch(source, source, parameters, scratch);
+    let normalizer = match parameters.normalizer {
+        AlineNormalizer::SourceSide => source_self,
+        AlineNormalizer::CandidateSide => {
+            semiglobal_raw_similarity_with_scratch(candidate, candidate, parameters, scratch)
+        }
+        AlineNormalizer::Symmetric => {
+            let candidate_self =
+                semiglobal_raw_similarity_with_scratch(candidate, candidate, parameters, scratch);
+            (candidate_self + source_self) / 2.0
+        }
+    };
+    (raw / normalizer).clamp(0.0, 1.0)
+}
+
 #[requires(true)]
 #[ensures(matches!(ret, Ordering::Less | Ordering::Equal | Ordering::Greater))]
 pub fn compare_similarity_then_index(left: (usize, f64), right: (usize, f64)) -> Ordering {
@@ -629,6 +981,133 @@ fn aline_raw_similarity_with_scratch(
         has_previous_previous = true;
     }
     best
+}
+
+#[requires(!candidate.is_empty())]
+#[requires(!source.is_empty())]
+#[ensures(ret.is_finite())]
+fn semiglobal_raw_similarity_with_scratch(
+    candidate: &[IpaSegmentId],
+    source: &[IpaSegmentId],
+    parameters: &AlineParameters,
+    scratch: &mut AlineSimilarityScratch,
+) -> f64 {
+    let row_width = source.len() + 1;
+    scratch.previous_previous.resize(row_width, 0.0);
+    scratch.previous.resize(row_width, 0.0);
+    scratch.current.resize(row_width, 0.0);
+    for (source_index, cell) in scratch.previous.iter_mut().enumerate() {
+        *cell = source_index as f64 * parameters.c_flank;
+    }
+
+    for candidate_index in 1..=candidate.len() {
+        scratch.current[0] = candidate_index as f64 * parameters.c_skip;
+        for source_index in 1..=source.len() {
+            let substitute = scratch.previous[source_index - 1]
+                + parameterized_substitution_score(
+                    candidate[candidate_index - 1],
+                    source[source_index - 1],
+                    parameters,
+                );
+            let skip_candidate = scratch.previous[source_index] + parameters.c_skip;
+            let skip_source = scratch.current[source_index - 1] + parameters.c_skip;
+            let expand_source = if source_index >= 2 {
+                scratch.previous[source_index - 2]
+                    + parameterized_expansion_score(
+                        candidate[candidate_index - 1],
+                        source[source_index - 2],
+                        source[source_index - 1],
+                        parameters,
+                    )
+            } else {
+                f64::NEG_INFINITY
+            };
+            let expand_candidate = if candidate_index >= 2 {
+                scratch.previous_previous[source_index - 1]
+                    + parameterized_expansion_score(
+                        source[source_index - 1],
+                        candidate[candidate_index - 2],
+                        candidate[candidate_index - 1],
+                        parameters,
+                    )
+            } else {
+                f64::NEG_INFINITY
+            };
+            scratch.current[source_index] = substitute
+                .max(skip_candidate)
+                .max(skip_source)
+                .max(expand_source)
+                .max(expand_candidate);
+        }
+        std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
+        std::mem::swap(&mut scratch.previous, &mut scratch.current);
+    }
+
+    scratch
+        .previous
+        .iter()
+        .enumerate()
+        .map(|(source_index, score)| {
+            score + (source.len() - source_index) as f64 * parameters.c_flank
+        })
+        .fold(f64::NEG_INFINITY, f64::max)
+}
+
+#[requires(true)]
+#[ensures(ret.is_finite())]
+fn parameterized_substitution_score(
+    left: IpaSegmentId,
+    right: IpaSegmentId,
+    parameters: &AlineParameters,
+) -> f64 {
+    parameters.c_sub
+        - parameterized_feature_difference(left, right, &parameters.saliences)
+        - parameterized_vowel_penalty(left, parameters.c_vwl)
+        - parameterized_vowel_penalty(right, parameters.c_vwl)
+}
+
+#[requires(true)]
+#[ensures(ret.is_finite())]
+fn parameterized_expansion_score(
+    single: IpaSegmentId,
+    first_second: IpaSegmentId,
+    second_second: IpaSegmentId,
+    parameters: &AlineParameters,
+) -> f64 {
+    parameters.c_exp
+        - parameterized_feature_difference(single, first_second, &parameters.saliences)
+        - parameterized_feature_difference(single, second_second, &parameters.saliences)
+        - parameterized_vowel_penalty(single, parameters.c_vwl)
+        - parameterized_vowel_penalty(first_second, parameters.c_vwl)
+            .max(parameterized_vowel_penalty(second_second, parameters.c_vwl))
+}
+
+#[requires(true)]
+#[ensures(ret.is_finite() && ret >= 0.0)]
+fn parameterized_feature_difference(
+    left: IpaSegmentId,
+    right: IpaSegmentId,
+    saliences: &AlineSaliences,
+) -> f64 {
+    let left_features = segment_features(left);
+    let right_features = segment_features(right);
+    relevant_features(left_features, right_features)
+        .iter()
+        .map(|feature| {
+            (feature_value(*feature, left_features) - feature_value(*feature, right_features)).abs()
+                * saliences.value(*feature)
+        })
+        .sum()
+}
+
+#[requires(c_vwl.is_finite() && c_vwl >= 0.0)]
+#[ensures(ret == 0.0 || ret == c_vwl)]
+fn parameterized_vowel_penalty(segment: IpaSegmentId, c_vwl: f64) -> f64 {
+    if segment_features(segment).is_consonant {
+        0.0
+    } else {
+        c_vwl
+    }
 }
 
 #[requires(true)]
@@ -1204,6 +1683,193 @@ fn required_leading_pause_count(word: &Word, context: LeadingPauseContext) -> us
 mod tests {
     use super::*;
     use bityzba::requires;
+
+    #[requires(!candidate.is_empty())]
+    #[requires(!source.is_empty())]
+    #[ensures(ret.is_finite())]
+    fn reference_global_raw_similarity(
+        candidate: &[IpaSegmentId],
+        source: &[IpaSegmentId],
+        parameters: &AlineParameters,
+    ) -> f64 {
+        let mut table = vec![vec![0.0; source.len() + 1]; candidate.len() + 1];
+        for candidate_index in 1..=candidate.len() {
+            table[candidate_index][0] = candidate_index as f64 * parameters.c_skip;
+        }
+        for source_index in 1..=source.len() {
+            table[0][source_index] = source_index as f64 * parameters.c_skip;
+        }
+        for candidate_index in 1..=candidate.len() {
+            for source_index in 1..=source.len() {
+                let mut best = table[candidate_index - 1][source_index - 1]
+                    + parameterized_substitution_score(
+                        candidate[candidate_index - 1],
+                        source[source_index - 1],
+                        parameters,
+                    );
+                best = best.max(table[candidate_index - 1][source_index] + parameters.c_skip);
+                best = best.max(table[candidate_index][source_index - 1] + parameters.c_skip);
+                if source_index >= 2 {
+                    best = best.max(
+                        table[candidate_index - 1][source_index - 2]
+                            + parameterized_expansion_score(
+                                candidate[candidate_index - 1],
+                                source[source_index - 2],
+                                source[source_index - 1],
+                                parameters,
+                            ),
+                    );
+                }
+                if candidate_index >= 2 {
+                    best = best.max(
+                        table[candidate_index - 2][source_index - 1]
+                            + parameterized_expansion_score(
+                                source[source_index - 1],
+                                candidate[candidate_index - 2],
+                                candidate[candidate_index - 1],
+                                parameters,
+                            ),
+                    );
+                }
+                table[candidate_index][source_index] = best;
+            }
+        }
+        table[candidate.len()][source.len()]
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|sequence| sequence.segment_count() > 0))]
+    fn property_corpus() -> Vec<IpaTokenSequence> {
+        [
+            "klama",
+            "blanu",
+            "ʃoj",
+            "qɑt",
+            "d͡ʒa",
+            "ɡʌvərnmənt",
+            "tradisjon",
+        ]
+        .iter()
+        .map(|text| tokenize_ipa_text(text).expect("property corpus tokenizes"))
+        .collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn aline_parameter_defaults_guard_current_kondrak_constants() {
+        let parameters = AlineParameters::default();
+        assert_eq!(parameters.c_sub, ALINE_SUBSTITUTION_CEILING);
+        assert_eq!(parameters.c_exp, ALINE_EXPANSION_CEILING);
+        assert_eq!(parameters.c_skip, ALINE_SKIP_SCORE);
+        assert_eq!(parameters.c_vwl, ALINE_VOWEL_PENALTY);
+        assert_eq!(parameters.c_flank, 0.0);
+        assert_eq!(parameters.normalizer, AlineNormalizer::SourceSide);
+        for feature in AlineFeature::all() {
+            assert_eq!(
+                parameters.saliences.value(*feature),
+                feature_salience(*feature)
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semiglobal_with_skip_rate_flanks_matches_independent_global_reference() {
+        let defaults = AlineParameters::default();
+        let global = AlineParameters::try_new(
+            defaults.saliences.clone(),
+            defaults.c_sub,
+            defaults.c_exp,
+            defaults.c_skip,
+            defaults.c_vwl,
+            defaults.c_skip,
+            defaults.normalizer,
+        )
+        .expect("global parameters");
+        let corpus = property_corpus();
+        for candidate in &corpus {
+            for source in &corpus {
+                let actual = aline_semiglobal_raw_similarity(
+                    candidate.segments(),
+                    source.segments(),
+                    &global,
+                );
+                let expected = reference_global_raw_similarity(
+                    candidate.segments(),
+                    source.segments(),
+                    &global,
+                );
+                assert_eq!(actual, expected);
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_normalized_semiglobal_identity_is_one_over_tokenized_corpus() {
+        let parameters = AlineParameters::default();
+        for sequence in property_corpus() {
+            assert_eq!(
+                aline_semiglobal_similarity(sequence.segments(), sequence.segments(), &parameters,),
+                1.0
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn free_source_flanks_preserve_contiguous_identity_window_score() {
+        let parameters = AlineParameters::default();
+        let candidate = tokenize_ipa_text("klama").expect("candidate");
+        let source = tokenize_ipa_text("xklamah").expect("containing source");
+        let raw =
+            aline_semiglobal_raw_similarity(candidate.segments(), source.segments(), &parameters);
+        let window_self = aline_semiglobal_raw_similarity(
+            candidate.segments(),
+            candidate.segments(),
+            &parameters,
+        );
+        assert_eq!(raw, window_self);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_alignment_regimes_are_nested_over_pair_corpus() {
+        let semiglobal = AlineParameters::default();
+        let global = AlineParameters::try_new(
+            semiglobal.saliences.clone(),
+            semiglobal.c_sub,
+            semiglobal.c_exp,
+            semiglobal.c_skip,
+            semiglobal.c_vwl,
+            semiglobal.c_skip,
+            semiglobal.normalizer,
+        )
+        .expect("global parameters");
+        let corpus = property_corpus();
+        for candidate in &corpus {
+            for source in &corpus {
+                let local = aline_raw_similarity(candidate.segments(), source.segments());
+                let semi = aline_semiglobal_raw_similarity(
+                    candidate.segments(),
+                    source.segments(),
+                    &semiglobal,
+                );
+                let full = aline_semiglobal_raw_similarity(
+                    candidate.segments(),
+                    source.segments(),
+                    &global,
+                );
+                assert!(local >= semi, "local {local} < semi-global {semi}");
+                assert!(semi >= full, "semi-global {semi} < global {full}");
+            }
+        }
+    }
 
     #[test]
     #[requires(true)]
