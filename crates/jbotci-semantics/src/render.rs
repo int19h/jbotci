@@ -181,6 +181,7 @@ struct DerivedTraversal<'graph> {
 struct TraversalState {
     active: BTreeSet<SemanticObjectId>,
     expanded_referents: BTreeSet<SemanticObjectId>,
+    structural_restrictions: BTreeSet<SemanticObjectId>,
     visited_predications: BTreeSet<SemanticObjectId>,
     visited_displayed: BTreeSet<SemanticObjectId>,
 }
@@ -192,6 +193,7 @@ impl TraversalState {
         Self {
             active: BTreeSet::new(),
             expanded_referents: BTreeSet::new(),
+            structural_restrictions: BTreeSet::new(),
             visited_predications: BTreeSet::new(),
             visited_displayed: BTreeSet::new(),
         }
@@ -455,6 +457,11 @@ impl<'graph> DerivedTraversal<'graph> {
                         state,
                         visitor,
                     );
+                    // The same formula is also retained on the scoped argument's
+                    // relative-clause edge. Its quantifier restriction branch is
+                    // the structural owner; do not expand that shared edge again
+                    // from the body or count it as a second projected claim.
+                    state.structural_restrictions.insert(restriction);
                 }
                 self.walk_formula(
                     node.body,
@@ -481,6 +488,7 @@ impl<'graph> DerivedTraversal<'graph> {
                             state,
                             visitor,
                         );
+                        state.structural_restrictions.insert(restriction);
                     }
                 }
                 self.walk_formula(
@@ -527,6 +535,7 @@ impl<'graph> DerivedTraversal<'graph> {
                             state,
                             visitor,
                         );
+                        state.structural_restrictions.insert(restriction);
                     }
                 }
                 self.walk_formula(
@@ -604,6 +613,9 @@ impl<'graph> DerivedTraversal<'graph> {
             self.visit_referent(value, location, state, visitor);
         }
         for clause in &argument.relative_clauses {
+            if state.structural_restrictions.contains(&clause.body) {
+                continue;
+            }
             self.walk_relative_clause(
                 clause,
                 TraversalLocation {
