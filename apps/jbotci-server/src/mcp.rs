@@ -201,7 +201,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Every tool defaults to a readable text (or image) format; request a JSON format only when you specifically need machine-parseable output."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Most tools default to a readable text (or image) format; `tersmu` deliberately continues to default to its canonical JSON graph."
     })
 }
 
