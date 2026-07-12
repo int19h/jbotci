@@ -1407,7 +1407,9 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 #[invariant(::Json => true)]
 #[invariant(::Claims => true)]
 #[invariant(::Tree => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolTersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph and the default.
