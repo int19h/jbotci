@@ -1362,6 +1362,10 @@ fn available_facets_include_tree_expectations() {
                         text: "utterance utterance:1".into(),
                         sha256: None,
                     }),
+                    combined: Some(TextExpectation {
+                        text: "utterance utterance:1\n\nprojected:\n- (none)".into(),
+                        sha256: None,
+                    }),
                     ..TersmuOutputExpectation::default()
                 }),
                 ..OutputExpectations::default()
@@ -1374,6 +1378,7 @@ fn available_facets_include_tree_expectations() {
     assert!(facets.contains(&Facet::TersmuJson));
     assert!(facets.contains(&Facet::TersmuClaims));
     assert!(facets.contains(&Facet::TersmuTree));
+    assert!(facets.contains(&Facet::TersmuCombined));
     assert!(!facets.contains(&Facet::GentufaBrackets));
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
@@ -1390,6 +1395,12 @@ fn available_facets_include_tree_expectations() {
     assert_eq!(
         "tersmu-tree".parse::<Facet>().expect("tersmu tree facet"),
         Facet::TersmuTree
+    );
+    assert_eq!(
+        "tersmu-combined"
+            .parse::<Facet>()
+            .expect("tersmu combined facet"),
+        Facet::TersmuCombined
     );
 }
 

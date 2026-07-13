@@ -189,7 +189,7 @@ use jbotci_search::vlacku::{
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    render_claims, render_tree,
+    render_claims, render_combined, render_tree,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -245,7 +245,11 @@ pub enum Command {
     Gentufa(GentufaInput),
     #[command(name = "mulgau", visible_alias = "completions")]
     Mulgau(TextInput),
-    #[command(name = "tersmu")]
+    #[command(
+        name = "tersmu",
+        about = "Build and render a typed semantic graph",
+        long_about = "Build and render a typed semantic graph. JSON is the canonical interchange graph; claims, tree, and combined are deterministic projections of it.\n\nInterpretation contract: `>` means structural descent. In claims, projected commitments take widest scope and `context=` records their trigger site; `mode=` is graph vocabulary, while the heading is the commitment level. `scope=` lists only at-issue ancestor operators and is `top-level` when there are none. `denotes` states referential identity; `binder-dependence=underspecified` names possible binders, not proven dependence. Generated-bound events co-vary through structural `binds=exists`; referential events use denotation commitments, and `binds=exists` is not a projected claim. Event suffixes always name time, actuality, aspect, recurrence, space, spatial aspect, spatial recurrence, and details; `unspecified` is explicit absence of information, never a negative claim."
+    )]
     Tersmu(TersmuInput),
     #[command(name = "vlacku", visible_alias = "dict")]
     Vlacku(VlackuInput),
@@ -354,6 +358,8 @@ pub enum TersmuFormat {
     Claims,
     /// Derived indented view of utterance and formula nesting.
     Tree,
+    /// Structural tree plus only commitments displaced from their tree site.
+    Combined,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -722,7 +728,7 @@ pub struct TersmuInput {
         long = "format",
         default_value_t = TersmuFormat::Json,
         value_enum,
-        help = "Output canonical JSON, a derived claims ledger, or a derived structural tree"
+        help = "Output canonical JSON or a derived claims, tree, or combined projection"
     )]
     pub format: TersmuFormat,
     #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]

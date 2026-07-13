@@ -1402,11 +1402,12 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 }
 
 /// Output format for a `tersmu` semantic analysis. `json` is the canonical
-/// interchange graph; `claims` and `tree` are deterministic views derived from
-/// that graph.
+/// interchange graph; `claims`, `tree`, and `combined` are deterministic views
+/// derived from that graph.
 #[invariant(::Json => true)]
 #[invariant(::Claims => true)]
 #[invariant(::Tree => true)]
+#[invariant(::Combined => true)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -1421,6 +1422,9 @@ pub enum ToolTersmuFormat {
     /// Indented utterance/formula structure showing quantifier, negation, and
     /// connective nesting with referent ids inlined.
     Tree,
+    /// Structural tree followed by only displaced projective commitments,
+    /// with frame and implicit-constant boilerplate grouped.
+    Combined,
 }
 
 impl Default for ToolTersmuFormat {
@@ -1439,6 +1443,7 @@ impl ToolTersmuFormat {
             Self::Json => TersmuFormat::Json,
             Self::Claims => TersmuFormat::Claims,
             Self::Tree => TersmuFormat::Tree,
+            Self::Combined => TersmuFormat::Combined,
         }
     }
 
@@ -1447,7 +1452,7 @@ impl ToolTersmuFormat {
     fn content_type(self) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Claims | Self::Tree => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Claims | Self::Tree | Self::Combined => TEXT_PLAIN_CONTENT_TYPE,
         }
     }
 }
@@ -1463,7 +1468,10 @@ pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
     /// How to render the graph. Defaults to canonical `json`; use `claims` for
-    /// a tiered validation ledger or `tree` for logical nesting.
+    /// a tiered validation ledger, `tree` for logical nesting, or `combined`
+    /// for that tree plus only commitments displaced from their structural
+    /// site. Human formats obey the tersmu interpretation contract documented
+    /// in the tool description.
     #[serde(default)]
     pub format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,

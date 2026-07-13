@@ -1985,36 +1985,42 @@ mod tests {
     #[ensures(true)]
     async fn tersmu_rest_api_matches_typed_tool_surface() {
         let app = router(test_config(test_static_dir()));
-        let request = ToolTersmuRequest {
-            text: "mi nitcu lo tanxe".to_owned(),
-            format: jbotci_cli::ToolTersmuFormat::Claims,
-            dialect: None,
-            story_time: false,
-            indent: None,
-        };
-        let expected = run_tool_tersmu(request.clone()).expect("direct tersmu output");
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/tersmu")
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(Body::from(
-                        r#"{"text":"mi nitcu lo tanxe","format":"claims"}"#,
-                    ))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.headers().get(CONTENT_TYPE),
-            Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
-        );
-        let bytes = to_bytes(response.into_body(), usize::MAX)
-            .await
-            .expect("body");
-        assert_eq!(bytes.as_ref(), expected.stdout.as_slice());
+        for (format, format_name) in [
+            (jbotci_cli::ToolTersmuFormat::Claims, "claims"),
+            (jbotci_cli::ToolTersmuFormat::Combined, "combined"),
+        ] {
+            let request = ToolTersmuRequest {
+                text: "mi nitcu lo tanxe".to_owned(),
+                format,
+                dialect: None,
+                story_time: false,
+                indent: None,
+            };
+            let expected = run_tool_tersmu(request.clone()).expect("direct tersmu output");
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri("/api/tersmu")
+                        .header(CONTENT_TYPE, "application/json")
+                        .body(Body::from(format!(
+                            r#"{{"text":"mi nitcu lo tanxe","format":"{format_name}"}}"#
+                        )))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.headers().get(CONTENT_TYPE),
+                Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
+            );
+            let bytes = to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("body");
+            assert_eq!(bytes.as_ref(), expected.stdout.as_slice());
+        }
     }
 
     #[tokio::test]
@@ -2312,6 +2318,32 @@ mod tests {
             tersmu_schema["properties"]["format"]["default"],
             serde_json::json!("json")
         );
+        assert!(
+            tersmu_schema["properties"]["format"]
+                .to_string()
+                .contains("combined")
+        );
+        let tersmu_description = tools_array
+            .iter()
+            .find(|tool| tool["name"] == "tersmu")
+            .and_then(|tool| tool["description"].as_str())
+            .expect("tersmu tool description");
+        for marker in [
+            "`>` means structural descent",
+            "projected commitments take widest scope",
+            "`context=` records the trigger site",
+            "`mode=` is graph vocabulary",
+            "`scope=` is the at-issue ancestor-operator skeleton",
+            "`binder-dependence=underspecified`",
+            "Generated-bound events",
+            "`binds=exists` is not itself projected",
+            "`unspecified` means absent information",
+        ] {
+            assert!(
+                tersmu_description.contains(marker),
+                "missing tersmu contract marker {marker:?}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -2651,12 +2683,39 @@ mod tests {
         let claims_text = tersmu_claims_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu claims text");
-        assert!(claims_text.starts_with("asserted:\n"));
+        assert!(claims_text.starts_with("at-issue commitments:\n"));
         assert!(claims_text.contains("presupposed/projected:\n"));
         assert!(claims_text.lines().any(|line| {
             line.starts_with("- denotes lo tanxe[")
                 && line.contains("[binder-dependence=fixed; constant;")
         }));
+
+        let tersmu_combined = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "tersmu-combined",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": {
+                        "text": "mi nitcu lo tanxe",
+                        "format": "combined"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(tersmu_combined.status(), StatusCode::OK);
+        let tersmu_combined_json = response_json(tersmu_combined).await;
+        let combined_text = tersmu_combined_json["result"]["content"][0]["text"]
+            .as_str()
+            .expect("tersmu combined text");
+        assert!(combined_text.starts_with("utterance assert "));
+        assert!(combined_text.contains("\n\nprojected:\n- frame: "));
+        assert!(!combined_text.contains("context="));
+        assert!(!combined_text.contains("at-issue commitments:"));
 
         let unknown = post_json(
             app.clone(),

@@ -175,6 +175,7 @@ fn render_tersmu(
         )?,
         TersmuFormat::Claims => render_claims(&graph),
         TersmuFormat::Tree => render_tree(&graph),
+        TersmuFormat::Combined => render_combined(&graph),
     };
     rendered.push('\n');
     Ok(new!(TersmuRendered {
