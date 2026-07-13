@@ -1,5 +1,19 @@
 use super::super::*;
 
+const EMPTY_TEXT_RENDERING: &str = "Text {}";
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+#[ensures(!rendered.is_empty() -> ret == rendered)]
+#[ensures(rendered.is_empty() -> ret == EMPTY_TEXT_RENDERING)]
+fn visible_bracket_rendering(rendered: &str) -> &str {
+    if rendered.is_empty() {
+        EMPTY_TEXT_RENDERING
+    } else {
+        rendered
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[requires(diagnostic_terminal_width > 0)]
 #[requires(trace.limit > 0)]
@@ -213,7 +227,7 @@ fn render_gentufa(
                     show_elided: false,
                 },
             )?;
-            stdout.push_str(&rendered);
+            stdout.push_str(visible_bracket_rendering(&rendered));
             stdout.push('\n');
         }
         GentufaFormat::Raw => {
@@ -280,7 +294,7 @@ fn render_recovered_gentufa_output(
             );
         }
         GentufaFormat::Brackets => {
-            let mut rendered = pretty_recovered_syntax_brackets_with_options(
+            let rendered = pretty_recovered_syntax_brackets_with_options(
                 recovered,
                 source,
                 BracketRenderOptions {
@@ -293,6 +307,7 @@ fn render_recovered_gentufa_output(
                     show_elided: false,
                 },
             )?;
+            let mut rendered = visible_bracket_rendering(&rendered).to_owned();
             rendered.push('\n');
             rendered
         }

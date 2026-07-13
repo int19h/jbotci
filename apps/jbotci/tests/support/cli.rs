@@ -1,4 +1,5 @@
 use super::*;
+use base64::Engine as _;
 use clap::CommandFactory;
 use clap::error::ErrorKind;
 use jbotci_dialect::DialectFeature;
@@ -1260,6 +1261,113 @@ fn gentufa_default_output_shows_generated_brackets() {
         assert!(error.is_empty());
         let output = String::from_utf8(output).expect("utf8");
         assert_eq!(output.trim_end(), "(mi kláma)");
+    });
+}
+
+const EMPTY_ERASURE_RAW: &str = "RegularText(\n    RegularTextSyntax {\n        leading_nai: [],\n        leading_cmevla: [],\n        leading_indicators: [],\n        leading_free_modifiers: [],\n        leading_connective: None,\n        leading_i_statements: [],\n        paragraphs: None,\n    },\n)\n";
+
+const EMPTY_ERASURE_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="68" height="56" viewBox="0 0 68 56" role="img"><title>jbotci gentufa generated syntax</title><style>
+@font-face {
+  font-family: "Noto Sans";
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans:vf@5.2.10/latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Noto Sans";
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans:vf@5.2.10/latin-wght-italic.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: italic;
+}
+@font-face {
+  font-family: "STIX Two Math";
+  src: url("https://fonts.gstatic.com/s/stixtwomath/v12/pONg1hwwL_6M9EkZySr_yteUi1o.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "STIX Two Text";
+  src: url("https://fonts.gstatic.com/s/stixtwotext/v18/YA9Gr02F12Xkf5whdwKf11l0jbKkeidMTtZ5Yihg2SOY.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "STIX Two Text";
+  src: url("https://fonts.gstatic.com/s/stixtwotext/v18/YA9Gr02F12Xkf5whdwKf11l0jbKkeidMTtZ5YiiH3iOY.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}</style><rect x="0" y="0" width="68" height="56" fill="#ffffff"/></svg>"##;
+
+const EMPTY_ERASURE_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAIgAAABwCAYAAADFezgmAAABCklEQVR4nO3SAQ0AIBAAoZ+zf2W1gJcAMrDPM/CxBoIgJEFIgpAEIQlCEoQkCEkQkiAkQUiCkAQhCUIShCQISRCSICRBSIKQBCEJQhKEJAhJEJIgJEFIgpAEIQlCEoQkCEkQkiAkQUiCkAQhCUIShCQISRCSICRBSIKQBCEJQhKEJAhJEJIgJEFIgpAEIQlCEoQkCEkQkiAkQUiCkAQhCUIShCQISRCSICRBSIKQBCEJQhKEJAhJEJIgJEFIgpAEIQlCEoQkCEkQkiAkQUiCkAQhCUIShCQISRCSICRBSIKQBCEJQhKEJAhJEJIgJEFIgpAEIQlCEoQkCEkQkiAkQUiCkAQhCUIShHQBRQgE3zTiLRgAAAAASUVORK5CYII=";
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_empty_erasure_has_exact_output_in_every_format() {
+    run_on_normal_stack(|| {
+        let source = "le broda sa le si";
+
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", source]),
+            b"Text {}\n"
+        );
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "--turtai", "brackets", source]),
+            b"Text {}\n"
+        );
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "--turtai", "tree", source]),
+            b"Text {}\n"
+        );
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "--turtai", "raw", source]),
+            EMPTY_ERASURE_RAW.as_bytes()
+        );
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "--turtai", "json", source]),
+            b"{\"RegularText\": {}}\n"
+        );
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "--turtai", "blocks", source]),
+            EMPTY_ERASURE_SVG.as_bytes()
+        );
+        assert_eq!(
+            run_success_bytes(&[
+                "jbotci",
+                "gentufa",
+                "--turtai",
+                "blocks",
+                "--output-type",
+                "png",
+                source,
+            ]),
+            base64::engine::general_purpose::STANDARD
+                .decode(EMPTY_ERASURE_PNG_BASE64)
+                .expect("empty-text PNG expectation is valid base64")
+        );
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_adjacent_empty_derivations_use_the_explicit_representation() {
+    run_on_normal_stack(|| {
+        for source in [
+            "si",
+            "sa",
+            "su",
+            "si si",
+            "sa si",
+            "le si   ",
+            "le broda su",
+        ] {
+            assert_eq!(
+                run_success_bytes(&["jbotci", "gentufa", source]),
+                b"Text {}\n",
+                "{source:?}"
+            );
+        }
     });
 }
 
