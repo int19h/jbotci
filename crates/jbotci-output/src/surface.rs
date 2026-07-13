@@ -166,6 +166,10 @@ fn collect_word_like_display_spans(word_like: &WordLike, spans: &mut Vec<Display
             push_word_display_span(spans, zo);
             push_word_display_span(spans, word);
         }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            push_word_display_span(spans, mahoi);
+            push_word_display_span(spans, word);
+        }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
