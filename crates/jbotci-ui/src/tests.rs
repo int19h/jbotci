@@ -1182,9 +1182,23 @@ fn recovered_error_blocks_have_light_and_dark_theme_styles() {
     let css = include_str!("../assets/main.css");
     let error_rule = css_rule(css, ".parse-page .block-error");
 
-    assert!(error_rule.contains("var(--blocks-error-bg)"));
-    assert!(error_rule.contains("var(--blocks-error-border)"));
-    assert!(error_rule.contains("var(--blocks-error-text)"));
+    assert!(error_rule.contains(".theme-night .parse-page .block.block-error"));
+    assert!(error_rule.contains(".theme-auto .parse-page .block.block-error"));
+    assert!(error_rule.contains("var(--blocks-error-emphasis-bg)"));
+    assert!(error_rule.contains("var(--blocks-error-emphasis-border)"));
+    assert!(error_rule.contains("var(--blocks-error-emphasis-text)"));
+    assert_eq!(
+        css.matches("--blocks-error-emphasis-bg: #d92d20;").count(),
+        1
+    );
+    assert_eq!(
+        css.matches("--blocks-error-emphasis-border: #fff;").count(),
+        1
+    );
+    assert_eq!(
+        css.matches("--blocks-error-emphasis-text: #fff;").count(),
+        1
+    );
     assert_eq!(css.matches("--blocks-error-bg:").count(), 3);
     assert_eq!(css.matches("--blocks-error-border:").count(), 3);
     assert_eq!(css.matches("--blocks-error-text:").count(), 3);

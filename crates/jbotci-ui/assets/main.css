@@ -151,6 +151,9 @@ input:disabled {
   --blocks-error-bg: #fff4f2;
   --blocks-error-border: #d92d20;
   --blocks-error-text: #8b2018;
+  --blocks-error-emphasis-bg: #d92d20;
+  --blocks-error-emphasis-border: #fff;
+  --blocks-error-emphasis-text: #fff;
   --reference-place-highlight-bg: color-mix(in srgb, #f2c36b 42%, transparent);
   --reference-place-highlight-underline: color-mix(in srgb, #9f581e 64%, transparent);
   --reference-place-highlight-text: #5c3215;
@@ -1868,15 +1871,17 @@ body::-webkit-scrollbar-thumb:hover,
   text-decoration-thickness: 0.12em;
 }
 
-.parse-page .block-error {
-  color: var(--blocks-error-text);
-  background-color: var(--blocks-error-bg) !important;
-  box-shadow: inset 0 0 0 3px var(--blocks-error-border);
+.parse-page .block-error,
+.theme-night .parse-page .block.block-error,
+.theme-auto .parse-page .block.block-error {
+  color: var(--blocks-error-emphasis-text);
+  background-color: var(--blocks-error-emphasis-bg) !important;
+  box-shadow: inset 0 0 0 3px var(--blocks-error-emphasis-border);
 }
 
 .parse-page .block-error .block-label,
 .parse-page .block-error .block-label-link {
-  color: var(--blocks-error-text);
+  color: var(--blocks-error-emphasis-text);
 }
 
 .parse-page .bracket-error,
