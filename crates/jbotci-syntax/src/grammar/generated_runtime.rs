@@ -1680,6 +1680,7 @@ fn token_is_compound_quote(token: &Token) -> bool {
     matches!(
         token.core_word().as_data(),
         bityzba::data!(jbotci_morphology::WordLike::QuotedWord { .. })
+            | bityzba::data!(jbotci_morphology::WordLike::SelmahoQuotedWord { .. })
             | bityzba::data!(jbotci_morphology::WordLike::DelimitedWordQuote { .. })
             | bityzba::data!(jbotci_morphology::WordLike::DelimitedNonLojbanQuote { .. })
             | bityzba::data!(jbotci_morphology::WordLike::QuotedWords { .. })

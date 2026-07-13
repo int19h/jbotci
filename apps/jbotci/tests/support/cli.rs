@@ -1374,6 +1374,36 @@ fn gentufa_adjacent_empty_derivations_use_the_explicit_representation() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_mahoi_quotes_have_exact_bracket_output() {
+    run_on_normal_stack(|| {
+        for (args, expected_stdout) in [
+            (
+                ["jbotci", "gentufa", "--turtai", "brackets", "ma'oi", "ba"].as_slice(),
+                "(ma'oĭ ba)\n",
+            ),
+            (
+                ["jbotci", "gentufa", "--turtai", "brackets", "ma'oi", "pu"].as_slice(),
+                "(ma'oĭ pu)\n",
+            ),
+            (
+                [
+                    "jbotci", "gentufa", "--turtai", "brackets", "mi", "cusku", "ma'oi", "ba",
+                ]
+                .as_slice(),
+                "(mi [cúsku {ma'oĭ ba}])\n",
+            ),
+        ] {
+            let run = run_cli_capture(args, false);
+            assert_eq!(run.status, CliStatus::Success, "{args:?}");
+            assert_eq!(run.stdout, expected_stdout, "{args:?}");
+            assert!(run.stderr.is_empty(), "{args:?}: {}", run.stderr);
+        }
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_blocks_stdout_defaults_to_svg() {
     run_on_normal_stack(|| {
         let output = run_success_bytes(&["jbotci", "gentufa", "--format", "blocks", "mi", "klama"]);

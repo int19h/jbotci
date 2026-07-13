@@ -702,6 +702,10 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
             push_word_lookup_target(zo, targets);
             push_word_lookup_target(word, targets);
         }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            push_word_lookup_target(mahoi, targets);
+            push_word_lookup_target(word, targets);
+        }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
@@ -785,6 +789,7 @@ fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
             word_lookup_text(right)
         )),
         data!(WordLike::QuotedWord { .. })
+        | data!(WordLike::SelmahoQuotedWord { .. })
         | data!(WordLike::DelimitedNonLojbanQuote { .. })
         | data!(WordLike::QuotedWords { .. })
         | data!(WordLike::DelimitedWordQuote { .. }) => None,
@@ -1419,6 +1424,13 @@ fn append_word_like_phonemes(word_like: &WordLike, output: &mut String) {
         data!(WordLike::PlainWord(word)) => append_word_phonemes(word, output),
         data!(WordLike::QuotedWord { zo, word }) => {
             append_word_phonemes(zo, output);
+            append_surface_chunk(
+                output,
+                &quoted_words_phonemes(std::iter::once(word.as_ref())),
+            );
+        }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            append_word_phonemes(mahoi, output);
             append_surface_chunk(
                 output,
                 &quoted_words_phonemes(std::iter::once(word.as_ref())),

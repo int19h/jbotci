@@ -1558,6 +1558,10 @@ mod tests {
                 plain.push(zo);
                 plain.push(word);
             }
+            data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                plain.push(mahoi);
+                plain.push(word);
+            }
             data!(WordLike::DelimitedNonLojbanQuote {
                 zoi,
                 opening_delimiter,

@@ -3338,6 +3338,23 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mahoi_quote_warns_on_the_experimental_marker() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("ma'oi ba", &ParseOptions::default());
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalCmavo)
+                .expect("experimental MAhOI warning");
+
+            assert_eq!(warning_span(warning), [0, 5]);
+            assert!(warning.anchor.is_cmavo(Cmavo::Mahoi));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn mehoi_quote_warning_is_distinct_from_selbri_unit_warning() {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi me'oi broda", &ParseOptions::default());

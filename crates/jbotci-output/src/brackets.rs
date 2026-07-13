@@ -302,6 +302,9 @@ fn word_like_brackets_in_context(
         data!(WordLike::QuotedWord { zo, word }) => {
             sexpr::node(vec![word_leaf(zo, source), word_leaf(word, source)])
         }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            sexpr::node(vec![word_leaf(mahoi, source), word_leaf(word, source)])
+        }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
