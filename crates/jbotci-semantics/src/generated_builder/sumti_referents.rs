@@ -1835,7 +1835,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'tree TaggedOrElidedSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_eventuality_id();
-        let mut event = SemanticObject::eventuality(
+        let mut event = SemanticObject::referential_eventuality(
             EventualityClass::Event,
             None,
             self.source_for_node(tense_modal, "tense-modal-fragment"),
@@ -8911,7 +8911,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let existing_id = self.single_generated_formula_eventuality(body);
             let mut object = existing_id
                 .and_then(|id| self.objects.remove(&id))
-                .unwrap_or_else(|| SemanticObject::eventuality(class, None, source.clone()));
+                .unwrap_or_else(|| {
+                    SemanticObject::referential_eventuality(class, None, source.clone())
+                });
             let id = match existing_id {
                 Some(id) if id.referent_sort() == Some(sort) => id,
                 Some(id) => {

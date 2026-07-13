@@ -1585,9 +1585,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         template: Option<&SemanticObject>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut object = template
-            .cloned()
-            .unwrap_or_else(|| SemanticObject::eventuality(EventualityClass::Event, None, None));
+        let mut object = template.cloned().unwrap_or_else(|| {
+            SemanticObject::generated_eventuality(EventualityClass::Event, None, None)
+        });
         if object.object_kind() != crate::model::SemanticObjectKind::Referent
             || !object
                 .sort()
@@ -1627,7 +1627,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.next_eventuality_id();
-        let mut object = SemanticObject::eventuality(EventualityClass::Event, None, source);
+        let mut object =
+            SemanticObject::generated_eventuality(EventualityClass::Event, None, source);
         self.apply_generated_inherited_sticky_paths_to_event(&mut object);
         self.insert(eventuality, object)?;
         if self.pending_after_eventuality_reservations > 0 {
@@ -7642,7 +7643,7 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{DomainImport, ScopeDependence, ScopeDependenceData};
+    use crate::model::{ActualityKind, DomainImport, ScopeDependence, ScopeDependenceData};
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
 
@@ -7732,6 +7733,211 @@ mod tests {
                 "kind": "underspecified",
                 "mayDependOn": binders.iter().map(ToString::to_string).collect::<Vec<_>>(),
             })
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(graph.objects.get(&ret).is_some_and(SemanticObject::is_generated_eventuality))]
+    fn generated_event_for_relation(graph: &SemanticGraph, relation: &str) -> SemanticObjectId {
+        graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .filter(|eventuality| {
+                graph
+                    .objects
+                    .get(eventuality)
+                    .is_some_and(SemanticObject::is_generated_eventuality)
+            })
+            .expect("precondition guarantees a generated predication eventuality")
+    }
+
+    #[requires(graph.objects.get(&eventuality).is_some_and(SemanticObject::is_generated_eventuality))]
+    #[ensures(matches!(ret.object_kind(), crate::model::SemanticObjectKind::Formula | crate::model::SemanticObjectKind::Sequence))]
+    fn event_binding_owner(
+        graph: &SemanticGraph,
+        eventuality: SemanticObjectId,
+    ) -> SemanticObjectId {
+        let owners = graph
+            .objects
+            .iter()
+            .filter_map(|(&id, object)| {
+                object
+                    .bound_eventualities()
+                    .iter()
+                    .any(|bound| bound.object_id() == eventuality)
+                    .then_some(id)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(owners.len(), 1, "generated events have exactly one owner");
+        owners[0]
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_atom_event_is_typed_bound_and_not_projected() {
+        let graph = semantic_graph_for("mi klama");
+        let event = generated_event_for_relation(&graph, "klama");
+        let object = graph.objects.get(&event).expect("event exists");
+        let owner = event_binding_owner(&graph, event);
+
+        assert_eq!(object.referent_category(), None);
+        assert_eq!(object.scope_dependence(), None);
+        assert_eq!(
+            graph
+                .objects
+                .get(&owner)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::Atom)
+        );
+        let json = serde_json::to_value(object).expect("event serializes");
+        assert_eq!(json["denotation"], serde_json::json!("generated-bound"));
+        assert!(json.get("category").is_none());
+        assert!(json.get("scopeDependence").is_none());
+        let claims = crate::render::render_claims(&graph);
+        assert!(claims.contains(&format!("binds=exists eventuality[{event}]")));
+        assert!(claims.contains(&format!("event=eventuality[{event}]")));
+        assert!(!claims.contains(&format!("denotes eventuality[{event}]")));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn negated_generated_event_binds_inside_not() {
+        let graph = semantic_graph_for("mi na klama");
+        let event = generated_event_for_relation(&graph, "klama");
+        let owner = event_binding_owner(&graph, event);
+        assert_eq!(
+            graph
+                .objects
+                .get(&owner)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::Atom)
+        );
+        assert!(graph.objects.values().any(|object| {
+            object.formula_operator() == Some(FormulaOperator::Not)
+                && object.formula_children().contains(&owner)
+        }));
+        let claims = crate::render::render_claims(&graph);
+        assert!(claims.contains(&format!("child atom binds=exists eventuality[{event}]")));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_head_event_binds_at_shared_conjunction() {
+        let graph = semantic_graph_for("barda xunre gerku");
+        let event = generated_event_for_relation(&graph, "gerku");
+        let owner = event_binding_owner(&graph, event);
+        assert_eq!(
+            graph
+                .objects
+                .get(&owner)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+        assert!(
+            crate::render::render_tree(&graph)
+                .contains(&format!("and binds=exists eventuality[{event}]"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discourse_connection_events_bind_on_sequence_owner() {
+        let graph = semantic_graph_for("do nelci mi .ibabo mi nelci do");
+        let sequence = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| object.as_sequence().is_some().then_some(id))
+            .expect("statement connection creates a sequence");
+        let item_events = graph
+            .objects
+            .values()
+            .filter_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "nelci")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(item_events.len(), 2);
+        for event in item_events {
+            assert_eq!(event_binding_owner(&graph, event), sequence);
+        }
+        assert_eq!(
+            graph
+                .objects
+                .get(&sequence)
+                .expect("sequence exists")
+                .bound_eventualities()
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn promoted_nu_event_is_referential_and_never_bound() {
+        let graph = semantic_graph_for("mi nelci do mu'i le nu do nelci mi");
+        let abstraction = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object.as_eventuality().and_then(|eventuality| {
+                    (eventuality.content.is_some()
+                        && eventuality
+                            .descriptor
+                            .as_ref()
+                            .is_some_and(|descriptor| descriptor.word == "le"))
+                    .then_some(id)
+                })
+            })
+            .expect("le nu denotes an eventuality");
+        let object = graph.objects.get(&abstraction).expect("abstraction exists");
+        assert_eq!(object.referent_category(), Some(ReferentCategory::Constant));
+        assert!(!object.is_generated_eventuality());
+        assert!(graph.objects.values().all(|owner| {
+            owner
+                .bound_eventualities()
+                .iter()
+                .all(|bound| bound.object_id() != abstraction)
+        }));
+        assert_eq!(
+            serde_json::to_value(object).expect("abstraction serializes")["denotation"],
+            serde_json::json!("referential")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_actuality_constrains_locally_bound_event() {
+        let graph = semantic_graph_for("mi ca'a klama");
+        let event = generated_event_for_relation(&graph, "klama");
+        let eventuality = graph
+            .objects
+            .get(&event)
+            .and_then(SemanticObject::as_eventuality)
+            .expect("generated event exists");
+        assert_eq!(
+            eventuality.actuality.map(|actuality| actuality.kind),
+            Some(ActualityKind::Actual)
+        );
+        assert_eq!(
+            graph
+                .objects
+                .get(&event_binding_owner(&graph, event))
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::Atom)
         );
     }
 
