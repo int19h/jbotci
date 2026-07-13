@@ -1,0 +1,30 @@
+id = "adhoc.output.tersmu-derived-attitudinal"
+lojban = ".ui mi klama"
+tags = ["output", "tersmu", "claims", "tree", "issue-278", "displayed"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #278 displayed tier: attitudinal experiencer and target remain explicit."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11] [mode=asserted; context=utterance:5 assert > content atom [formula:12]]
+presupposed/projected:
+- exists speaker[entity:1] [constant; context=utterance:5 assert]
+- exists audience[entity:2] [constant; context=utterance:5 assert]
+- exists eventuality/locution[eventuality/locution:13] [constant; context=utterance:5 assert]
+- exists now[eventuality:3] [constant; context=utterance:5 assert]
+- exists here[entity:4] [constant; context=utterance:5 assert]
+- exists eventuality[eventuality:6] [constant; context=utterance:5 assert > content atom [formula:12]]
+- exists zo'e[entity:7] [constant; context=utterance:5 assert > content atom [formula:12]]
+- exists zo'e[entity:8] [constant; context=utterance:5 assert > content atom [formula:12]]
+- exists zo'e[entity:9] [constant; context=utterance:5 assert > content atom [formula:12]]
+- exists zo'e[entity:10] [constant; context=utterance:5 assert > content atom [formula:12]]
+displayed:
+- happiness [display=display:14; family=emotion; polarity=positive; assertion-effect=none; experiencer=speaker[entity:1]; target=formula[formula:12]]"""
+tree = """
+utterance assert [utterance:5]
+  content: atom [formula:12]
+    klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11]
+  aside: happiness [display=display:14; family=emotion; polarity=positive; assertion-effect=none; experiencer=speaker[entity:1]; target=formula[formula:12]]"""

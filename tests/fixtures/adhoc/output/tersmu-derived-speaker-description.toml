@@ -1,0 +1,36 @@
+id = "adhoc.output.tersmu-derived-speaker-description"
+lojban = "le mlatu cu klama"
+tags = ["output", "tersmu", "claims", "tree", "issue-278", "relation-body"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #278 review: le labels and trees expose the typed speaker-description property body without claiming mlatu."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- klama(x1=le mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) [predication:19] [mode=asserted; context=utterance:5 assert > content atom [formula:20]]
+presupposed/projected:
+- exists speaker[entity:1] [constant; context=utterance:5 assert]
+- exists audience[entity:2] [constant; context=utterance:5 assert]
+- exists eventuality/locution[eventuality/locution:21] [constant; context=utterance:5 assert]
+- exists now[eventuality:3] [constant; context=utterance:5 assert]
+- exists here[entity:4] [constant; context=utterance:5 assert]
+- exists eventuality[eventuality:6] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists le mlatu[entity:7] [constant; context=utterance:5 assert > content atom [formula:20]]
+- skicu(x1=speaker[entity:1], x2=le mlatu[entity:7], x3=audience[entity:2], x4=relation mlatu[relation:12]) [predication:13] [mode=incidental; context=utterance:5 assert > content atom [formula:20] > descriptor-body atom [formula:14]]
+- exists relation mlatu[relation:12] [constant; relation-body=mlatu(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9]) [predication:10]; context=utterance:5 assert > content atom [formula:20] > descriptor-body atom [formula:14]]
+- exists zo'e[entity:15] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists zo'e[entity:16] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists zo'e[entity:17] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists zo'e[entity:18] [constant; context=utterance:5 assert > content atom [formula:20]]
+displayed:
+- (none)"""
+tree = """
+utterance assert [utterance:5]
+  content: atom [formula:20]
+    klama(x1=le mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) [predication:19]
+      descriptor body: atom [formula:14]
+        skicu(x1=speaker[entity:1], x2=le mlatu[entity:7], x3=audience[entity:2], x4=relation mlatu[relation:12]) [predication:13]
+          relation body: atom [formula:11]
+            mlatu(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9]) [predication:10]"""

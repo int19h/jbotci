@@ -32,11 +32,13 @@ use jbotci_output::{
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
+    SemanticBuildOptions, SemanticGraph,
+    build_generated_semantic_graph_with_dictionary_and_options,
     references::{
         FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
         analyze_generated_references,
     },
+    render_claims, render_tree,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -51,8 +53,9 @@ use walkdir::WalkDir;
 use xtask_common::fixtures::{
     self, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureProfile,
     FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm, Provenance, RunSummary,
-    SyntaxExpectation, TestCase, fixture_matches_selector, fixture_paths, import_export_file,
-    load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree, write_fixture_file,
+    SyntaxExpectation, TestCase, TextExpectation, fixture_matches_selector, fixture_paths,
+    import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
+    write_fixture_file,
 };
 use xtask_common::service_worker::{
     RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
@@ -10678,6 +10681,8 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::GentufaTreeShowElided => run_gentufa_tree_show_elided_fixture(fixture),
             Facet::GentufaJsonShowElided => run_gentufa_json_show_elided_fixture(fixture),
             Facet::TersmuJson => run_tersmu_json_fixture(fixture),
+            Facet::TersmuClaims => run_tersmu_claims_fixture(fixture),
+            Facet::TersmuTree => run_tersmu_tree_fixture(fixture),
         }
     }
 }
@@ -11176,6 +11181,20 @@ fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 fn tersmu_json_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
+    tersmu_graph_fixture_result(fixture, "tersmu JSON build error").and_then(|graph| {
+        graph
+            .to_json_string(0)
+            .map_err(|error| format!("tersmu JSON render error: {error}"))
+    })
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(!build_error_label.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn tersmu_graph_fixture_result(
+    fixture: &LoadedTestCase,
+    build_error_label: &str,
+) -> std::result::Result<SemanticGraph, String> {
     let dialect = fixture
         .test_case
         .dialect_definition()
@@ -11208,12 +11227,56 @@ fn tersmu_json_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<S
         },
         jbotci_dictionary_data::english(),
     )
-    .map_err(|error| format!("tersmu JSON build error: {error}"))
-    .and_then(|graph| {
-        graph
-            .to_json_string(0)
-            .map_err(|error| format!("tersmu JSON render error: {error}"))
-    })
+    .map_err(|error| format!("{build_error_label}: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_tersmu_claims_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let expectation = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.tersmu.as_ref())
+        .and_then(|output| output.claims.as_ref());
+    run_tersmu_derived_fixture(fixture, expectation, "tersmu claims", render_claims)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_tersmu_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let expectation = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.tersmu.as_ref())
+        .and_then(|output| output.tree.as_ref());
+    run_tersmu_derived_fixture(fixture, expectation, "tersmu tree", render_tree)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(!label.is_empty())]
+#[ensures(ret.is_valid())]
+fn run_tersmu_derived_fixture(
+    fixture: &LoadedTestCase,
+    expectation: Option<&TextExpectation>,
+    label: &str,
+    renderer: fn(&SemanticGraph) -> String,
+) -> FacetResult {
+    let Some(expectation) = expectation else {
+        return FacetResult::skipped(format!("fixture has no {label} expectation"));
+    };
+    match tersmu_graph_fixture_result(fixture, "tersmu build error").map(|graph| renderer(&graph)) {
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
+            label,
+            expectation,
+            &actual,
+        )),
+        Err(error) => FacetResult::failed(error),
+    }
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -12363,6 +12426,18 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .and_then(|output| output.tersmu.as_ref())
             .filter(|output| output.json.is_some() || output.error.is_some())
             .map(|output| output.status),
+        Facet::TersmuClaims => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.tersmu.as_ref())
+            .and_then(|output| output.claims.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::TersmuTree => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.tersmu.as_ref())
+            .and_then(|output| output.tree.as_ref())
+            .map(|_| ExpectationStatus::Success),
     }
 }
 

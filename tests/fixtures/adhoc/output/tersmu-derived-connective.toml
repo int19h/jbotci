@@ -1,0 +1,36 @@
+id = "adhoc.output.tersmu-derived-connective"
+lojban = "mi klama gi'e cadzu"
+tags = ["output", "tersmu", "claims", "tree", "issue-278", "connective"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #278 connective tree: ordered formula children and shared speaker id are visible."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11] [mode=asserted; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
+- cadzu(x1=speaker[entity:1], x2=zo'e[entity:14], x3=zo'e[entity:15]) [predication:16] [mode=asserted; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
+presupposed/projected:
+- exists speaker[entity:1] [constant; context=utterance:5 assert]
+- exists audience[entity:2] [constant; context=utterance:5 assert]
+- exists eventuality/locution[eventuality/locution:19] [constant; context=utterance:5 assert]
+- exists now[eventuality:3] [constant; context=utterance:5 assert]
+- exists here[entity:4] [constant; context=utterance:5 assert]
+- exists eventuality[eventuality:6] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
+- exists zo'e[entity:7] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
+- exists zo'e[entity:8] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
+- exists zo'e[entity:9] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
+- exists zo'e[entity:10] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
+- exists eventuality[eventuality:13] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
+- exists zo'e[entity:14] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
+- exists zo'e[entity:15] [constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
+displayed:
+- (none)"""
+tree = """
+utterance assert [utterance:5]
+  content: and [formula:18]
+    child: atom [formula:12]
+      klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11]
+    child: atom [formula:17]
+      cadzu(x1=speaker[entity:1], x2=zo'e[entity:14], x3=zo'e[entity:15]) [predication:16]"""

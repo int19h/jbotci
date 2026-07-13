@@ -189,6 +189,7 @@ use jbotci_search::vlacku::{
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
+    render_claims, render_tree,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -346,8 +347,13 @@ pub enum GentufaFormat {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum TersmuFormat {
+    /// Canonical `lojban-semantics-json-1` flat id-graph.
     #[value(alias = "djeisone")]
     Json,
+    /// Derived tiered ledger of asserted, projected, and displayed claims.
+    Claims,
+    /// Derived indented view of utterance and formula nesting.
+    Tree,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -715,7 +721,8 @@ pub struct TersmuInput {
     #[arg(
         long = "format",
         default_value_t = TersmuFormat::Json,
-        value_enum
+        value_enum,
+        help = "Output canonical JSON, a derived claims ledger, or a derived structural tree"
     )]
     pub format: TersmuFormat,
     #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]

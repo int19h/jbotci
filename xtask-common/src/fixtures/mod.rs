@@ -238,6 +238,20 @@ impl TestCase {
             {
                 facets.insert(Facet::TersmuJson);
             }
+            if output
+                .tersmu
+                .as_ref()
+                .is_some_and(|tersmu| tersmu.claims.is_some())
+            {
+                facets.insert(Facet::TersmuClaims);
+            }
+            if output
+                .tersmu
+                .as_ref()
+                .is_some_and(|tersmu| tersmu.tree.is_some())
+            {
+                facets.insert(Facet::TersmuTree);
+            }
         }
         facets
     }
@@ -367,6 +381,20 @@ impl TestCase {
                 .and_then(|output| output.tersmu.as_ref())
                 .filter(|output| output.json.is_some() || output.error.is_some())
                 .map(|output| output.status),
+            Facet::TersmuClaims => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.tersmu.as_ref())
+                .and_then(|output| output.claims.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::TersmuTree => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.tersmu.as_ref())
+                .and_then(|output| output.tree.as_ref())
+                .map(|_| ExpectationStatus::Success),
         }
     }
 }
@@ -546,6 +574,10 @@ pub struct TersmuOutputExpectation {
     #[serde(default)]
     pub json: Option<TextExpectation>,
     #[serde(default)]
+    pub claims: Option<TextExpectation>,
+    #[serde(default)]
+    pub tree: Option<TextExpectation>,
+    #[serde(default)]
     pub error: Option<TextExpectation>,
 }
 
@@ -557,6 +589,8 @@ impl Default for TersmuOutputExpectation {
             status: ExpectationStatus::Success,
             story_time: false,
             json: None,
+            claims: None,
+            tree: None,
             error: None,
         }
     }
@@ -992,6 +1026,8 @@ pub enum Facet {
     GentufaTreeShowElided,
     GentufaJsonShowElided,
     TersmuJson,
+    TersmuClaims,
+    TersmuTree,
 }
 
 impl Facet {
@@ -1015,6 +1051,8 @@ impl Facet {
             Self::GentufaTreeShowElided,
             Self::GentufaJsonShowElided,
             Self::TersmuJson,
+            Self::TersmuClaims,
+            Self::TersmuTree,
         ]
     }
 }
@@ -1040,6 +1078,8 @@ impl fmt::Display for Facet {
             Self::GentufaTreeShowElided => "gentufa-tree-show-elided",
             Self::GentufaJsonShowElided => "gentufa-json-show-elided",
             Self::TersmuJson => "tersmu-json",
+            Self::TersmuClaims => "tersmu-claims",
+            Self::TersmuTree => "tersmu-tree",
         };
         f.write_str(text)
     }
@@ -1068,6 +1108,8 @@ impl std::str::FromStr for Facet {
             "gentufa-tree-show-elided" => Ok(Self::GentufaTreeShowElided),
             "gentufa-json-show-elided" => Ok(Self::GentufaJsonShowElided),
             "tersmu-json" => Ok(Self::TersmuJson),
+            "tersmu-claims" => Ok(Self::TersmuClaims),
+            "tersmu-tree" => Ok(Self::TersmuTree),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }

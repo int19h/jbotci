@@ -1,0 +1,38 @@
+id = "adhoc.output.tersmu-derived-restrictive-relative"
+lojban = "lo mlatu poi blanu cu klama"
+tags = ["output", "tersmu", "claims", "tree", "issue-278", "relative-clause"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #278 review: a veridical restrictive relative clause is a projected claim and a distinct tree branch."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) [predication:19] [mode=asserted; context=utterance:5 assert > content atom [formula:20]]
+presupposed/projected:
+- exists speaker[entity:1] [constant; context=utterance:5 assert]
+- exists audience[entity:2] [constant; context=utterance:5 assert]
+- exists eventuality/locution[eventuality/locution:21] [constant; context=utterance:5 assert]
+- exists now[eventuality:3] [constant; context=utterance:5 assert]
+- exists here[entity:4] [constant; context=utterance:5 assert]
+- exists eventuality[eventuality:6] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists lo mlatu[entity:7] [constant; context=utterance:5 assert > content atom [formula:20]]
+- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive; context=utterance:5 assert > content atom [formula:20] > descriptor-body atom [formula:10]]
+- exists zo'e[entity:8] [constant; context=utterance:5 assert > content atom [formula:20] > descriptor-body atom [formula:10]]
+- blanu(x1=lo mlatu[entity:7]) [predication:13] [mode=restrictive; context=utterance:5 assert > content atom [formula:20] > restrictive-relative-clause atom [formula:14]]
+- exists eventuality[eventuality:11] [constant; context=utterance:5 assert > content atom [formula:20] > restrictive-relative-clause atom [formula:14]]
+- exists zo'e[entity:15] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists zo'e[entity:16] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists zo'e[entity:17] [constant; context=utterance:5 assert > content atom [formula:20]]
+- exists zo'e[entity:18] [constant; context=utterance:5 assert > content atom [formula:20]]
+displayed:
+- (none)"""
+tree = """
+utterance assert [utterance:5]
+  content: atom [formula:20]
+    klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) [predication:19]
+      descriptor body: atom [formula:10]
+        mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9]
+      restrictive relative clause: atom [formula:14]
+        blanu(x1=lo mlatu[entity:7]) [predication:13]"""
