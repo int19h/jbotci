@@ -1359,14 +1359,13 @@ fn format_eventuality_conditions_to(
         .and_then(SemanticObject::as_eventuality)
         .expect("validated eventuality reference has an eventuality object");
 
+    // Keep this projection aligned with serialize_eventuality's complete
+    // event-condition block: content, actuality, tense-modal, temporal and
+    // spatial placement, intervals, aspect, recurrence, and modifier stacks.
+    // Generic referent identity/body fields retain their established typed
+    // labels and traversal sites instead of being duplicated in this suffix.
     output.push_str("time=");
-    if let Some(time) = &node.time {
-        format_anchor_relation_to(graph, time, output);
-    } else if !node.time_path.is_empty() {
-        format_path_to(graph, &node.time_path, output);
-    } else {
-        output.push_str("unspecified");
-    }
+    format_anchor_dimension_to(graph, node.time.as_ref(), &node.time_path, output);
 
     output.push_str("; actuality=");
     if let Some(actuality) = node.actuality {
@@ -1376,13 +1375,7 @@ fn format_eventuality_conditions_to(
     }
 
     output.push_str("; aspect=");
-    if let Some(aspect) = &node.aspect {
-        format_aspect_to(graph, aspect, output);
-    } else if !node.aspects.is_empty() {
-        format_aspects_to(graph, &node.aspects, output);
-    } else {
-        output.push_str("unspecified");
-    }
+    format_aspect_dimension_to(graph, node.aspect.as_ref(), &node.aspects, output);
 
     output.push_str("; recurrence=");
     if node.recurrence.is_empty() {
@@ -1392,22 +1385,15 @@ fn format_eventuality_conditions_to(
     }
 
     output.push_str("; space=");
-    if let Some(space) = &node.space {
-        format_anchor_relation_to(graph, space, output);
-    } else if !node.space_path.is_empty() {
-        format_path_to(graph, &node.space_path, output);
-    } else {
-        output.push_str("unspecified");
-    }
+    format_anchor_dimension_to(graph, node.space.as_ref(), &node.space_path, output);
 
     output.push_str("; spatial-aspect=");
-    if let Some(aspect) = &node.spatial_aspect {
-        format_aspect_to(graph, aspect, output);
-    } else if !node.spatial_aspects.is_empty() {
-        format_aspects_to(graph, &node.spatial_aspects, output);
-    } else {
-        output.push_str("unspecified");
-    }
+    format_aspect_dimension_to(
+        graph,
+        node.spatial_aspect.as_ref(),
+        &node.spatial_aspects,
+        output,
+    );
 
     output.push_str("; spatial-recurrence=");
     if node.spatial_recurrence.is_empty() {
@@ -1417,6 +1403,52 @@ fn format_eventuality_conditions_to(
     }
 
     format_eventuality_details_to(graph, node, output);
+}
+
+#[requires(primary.is_none_or(|relation| !relation.relation.is_empty()))]
+#[requires(path.iter().all(|step| !step.relation.is_empty()))]
+#[ensures(true)]
+fn format_anchor_dimension_to(
+    graph: &SemanticGraph,
+    primary: Option<&crate::model::AnchorRelation>,
+    path: &[crate::model::TemporalPathStep],
+    output: &mut String,
+) {
+    match (primary, path.is_empty()) {
+        (None, true) => output.push_str("unspecified"),
+        (Some(primary), true) => format_anchor_relation_to(graph, primary, output),
+        (None, false) => format_path_to(graph, path, output),
+        (Some(primary), false) => {
+            output.push_str("combined(primary=");
+            format_anchor_relation_to(graph, primary, output);
+            output.push_str("; path=");
+            format_path_to(graph, path, output);
+            output.push(')');
+        }
+    }
+}
+
+#[requires(primary.is_none_or(|aspect| !aspect.contour.is_empty()))]
+#[requires(aspects.iter().all(|aspect| !aspect.contour.is_empty()))]
+#[ensures(true)]
+fn format_aspect_dimension_to(
+    graph: &SemanticGraph,
+    primary: Option<&crate::model::Aspect>,
+    aspects: &[crate::model::Aspect],
+    output: &mut String,
+) {
+    match (primary, aspects.is_empty()) {
+        (None, true) => output.push_str("unspecified"),
+        (Some(primary), true) => format_aspect_to(graph, primary, output),
+        (None, false) => format_aspects_to(graph, aspects, output),
+        (Some(primary), false) => {
+            output.push_str("combined(primary=");
+            format_aspect_to(graph, primary, output);
+            output.push_str("; aspects=");
+            format_aspects_to(graph, aspects, output);
+            output.push(')');
+        }
+    }
 }
 
 #[requires(true)]
