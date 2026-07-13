@@ -1,0 +1,37 @@
+id = "adhoc.output.tersmu-derived-negated-domain-import"
+lojban = "naku ro da poi mlatu cu klama"
+tags = ["output", "tersmu", "claims", "tree", "issue-278", "domain-import", "negation"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #278 negation: tree preserves naku scope while domainImport remains projected."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- mlatu(x1=da[entity:7], x2=zo'e[entity:10]) [predication:11] [mode=restrictive; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom [formula:12]]
+- klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) [predication:17] [mode=asserted; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+presupposed/projected:
+- exists speaker[entity:1] [constant; context=utterance:5 assert]
+- exists audience[entity:2] [constant; context=utterance:5 assert]
+- exists eventuality/locution[eventuality/locution:22] [constant; context=utterance:5 assert]
+- exists now[eventuality:3] [constant; context=utterance:5 assert]
+- exists here[entity:4] [constant; context=utterance:5 assert]
+- exists da[entity:7] satisfying mlatu(x1=da[entity:7], x2=zo'e[entity:10]) [predication:11] [restriction=formula:12; projective domain import of formula:20]
+- exists eventuality[eventuality:8] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom [formula:12]]
+- exists zo'e[entity:10] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom [formula:12]]
+- exists eventuality[eventuality:6] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+- exists zo'e[entity:13] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+- exists zo'e[entity:14] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+- exists zo'e[entity:15] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+- exists zo'e[entity:16] [constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+displayed:
+- (none)"""
+tree = """
+utterance assert [utterance:5]
+  content: not [formula:21]
+    child: forall variable=da[entity:7] domain-import=projective [formula:20]
+      restriction: atom [formula:12]
+        mlatu(x1=da[entity:7], x2=zo'e[entity:10]) [predication:11]
+      body: atom [formula:18]
+        klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) [predication:17]"""

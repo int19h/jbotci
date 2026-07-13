@@ -1,0 +1,40 @@
+id = "adhoc.output.tersmu-derived-incidental"
+lojban = "le mlatu noi blanu cu klama"
+tags = ["output", "tersmu", "claims", "tree", "issue-278", "incidental"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #278 projective tier: le characterizing skicu, its non-claim property body, and noi incidental claims are explicit."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- klama(x1=le mlatu[entity:7], x2=zo'e[entity:19], x3=zo'e[entity:20], x4=zo'e[entity:21], x5=zo'e[entity:22]) [predication:23] [mode=asserted; context=utterance:5 assert > content atom [formula:24]]
+presupposed/projected:
+- exists speaker[entity:1] [constant; context=utterance:5 assert]
+- exists audience[entity:2] [constant; context=utterance:5 assert]
+- exists eventuality/locution[eventuality/locution:25] [constant; context=utterance:5 assert]
+- exists now[eventuality:3] [constant; context=utterance:5 assert]
+- exists here[entity:4] [constant; context=utterance:5 assert]
+- exists eventuality[eventuality:6] [constant; context=utterance:5 assert > content atom [formula:24]]
+- exists le mlatu[entity:7] [constant; context=utterance:5 assert > content atom [formula:24]]
+- skicu(x1=speaker[entity:1], x2=le mlatu[entity:7], x3=audience[entity:2], x4=relation mlatu[relation:12]) [predication:13] [mode=incidental; context=utterance:5 assert > content atom [formula:24] > descriptor-body atom [formula:14]]
+- exists relation mlatu[relation:12] [constant; relation-body=mlatu(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9]) [predication:10]; context=utterance:5 assert > content atom [formula:24] > descriptor-body atom [formula:14]]
+- blanu(x1=le mlatu[entity:7]) [predication:17] [mode=incidental; context=utterance:5 assert > content atom [formula:24] > incidental-relative-clause atom [formula:18]]
+- exists eventuality[eventuality:15] [constant; context=utterance:5 assert > content atom [formula:24] > incidental-relative-clause atom [formula:18]]
+- exists zo'e[entity:19] [constant; context=utterance:5 assert > content atom [formula:24]]
+- exists zo'e[entity:20] [constant; context=utterance:5 assert > content atom [formula:24]]
+- exists zo'e[entity:21] [constant; context=utterance:5 assert > content atom [formula:24]]
+- exists zo'e[entity:22] [constant; context=utterance:5 assert > content atom [formula:24]]
+displayed:
+- (none)"""
+tree = """
+utterance assert [utterance:5]
+  content: atom [formula:24]
+    klama(x1=le mlatu[entity:7], x2=zo'e[entity:19], x3=zo'e[entity:20], x4=zo'e[entity:21], x5=zo'e[entity:22]) [predication:23]
+      descriptor body: atom [formula:14]
+        skicu(x1=speaker[entity:1], x2=le mlatu[entity:7], x3=audience[entity:2], x4=relation mlatu[relation:12]) [predication:13]
+          relation body: atom [formula:11]
+            mlatu(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9]) [predication:10]
+      incidental relative clause: atom [formula:18]
+        blanu(x1=le mlatu[entity:7]) [predication:17]"""

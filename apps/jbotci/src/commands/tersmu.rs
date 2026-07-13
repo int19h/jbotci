@@ -173,6 +173,8 @@ fn render_tersmu(
                 ..JsonRenderOptions::default()
             },
         )?,
+        TersmuFormat::Claims => render_claims(&graph),
+        TersmuFormat::Tree => render_tree(&graph),
     };
     rendered.push('\n');
     Ok(new!(TersmuRendered {

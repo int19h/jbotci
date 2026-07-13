@@ -1,7 +1,7 @@
 //! Structural renderers for recovered morphology and syntax results.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_morphology::{MorphologyError, RecoveredMorphologySegmentation};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{RecoveredSyntaxParse, SyntaxError};
@@ -492,7 +492,8 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|text| !text.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
 pub fn pretty_recovered_syntax_brackets_with_options(
     recovered: &RecoveredSyntaxParse,
     source: &str,
@@ -511,7 +512,8 @@ pub fn pretty_recovered_syntax_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()) || ret.is_err())]
+#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
 pub fn pretty_recovered_syntax_bracket_source_fragments_with_options(
     recovered: &RecoveredSyntaxParse,
     source: &str,
@@ -706,6 +708,33 @@ mod tests {
             source,
             &ParseOptions::default(),
         )
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_valid_empty_text_has_empty_bracket_renderings() {
+        let source = "le broda sa le si";
+        let recovered = parse_recovered_syntax(source);
+        assert!(recovered.errors.is_empty());
+        assert_eq!(
+            pretty_recovered_syntax_brackets_with_options(
+                &recovered,
+                source,
+                BracketRenderOptions::default(),
+            )
+            .expect("recovered syntax brackets"),
+            ""
+        );
+        assert_eq!(
+            pretty_recovered_syntax_bracket_source_fragments_with_options(
+                &recovered,
+                source,
+                BracketRenderOptions::default(),
+            )
+            .expect("recovered syntax bracket source fragments"),
+            Vec::new()
+        );
     }
 
     #[requires(true)]
