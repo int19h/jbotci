@@ -30,7 +30,7 @@ The claims ledger is a flat list grouped under exactly three headings:
   path summarizing surrounding quantifiers, restrictions, connectives, and
   negation.
 - `presupposed/projected`: veridical descriptor bodies, veridical restrictive
-  and incidental relative clauses, denotation commitments for
+  and incidental relative clauses, explicitly qualified denotation commitments for
   constant/indexical referents, and the projective nonempty-domain commitment
   carried by restricted `forall` and `pluralForall`. A domain-import line names
   both the bound variable and the restriction formula id, so `domainImport` is
@@ -50,8 +50,16 @@ word is present). A speaker-description label follows the typed `skicu` x4
 property edge to the same single-atom relation, so `le mlatu` is not mislabeled
 as `le skicu`.
 
+Constant and indexical denotations use the deterministic template
+`denotes label[id] [binder-dependence=STATE; ...; context=PATH]`. For an
+underspecified constant, the next component is
+`may-depend-on=binder-label[id], ...`; the binder list follows object-id order.
+The line remains in `presupposed/projected` because the ledger tier expresses
+commitment status while binder dependence qualifies the denotation. It is never
+rendered as an unqualified `exists` claim.
+
 An intensional relation/abstraction body is structural content, not an extra
-asserted or projected claim. Its owning constant's existential line includes a
+asserted or projected claim. Its owning constant's denotation line includes a
 `relation-body=` or `abstraction-body=` formula label while traversal of the
 body contributes no bare ledger entries. Likewise, a non-veridical restrictive
 clause (`veridical:false`, such as `voi`) is shown as
@@ -195,6 +203,8 @@ aspect, and spatial information hang off the eventuality.
 
 | Key | Type | Meaning |
 |-----|------|---------|
+| `category` | `ReferentCategory` | eventualities are normally `constant`; abstraction parameters and other bound objects use their typed category |
+| `scopeDependence` | `ScopeDependence` | present exactly when `category = constant`; see §2.4 |
 | `class` | `EventualityClass` | `locution`, `event`, `state`, `process`, `activity`, `achievement`. `locution` is the speech-act event of an utterance |
 | `actuality` | `Actuality` = `{ "kind": ActualityKind }` | `kind` ∈ `actual`, `capable`, `potential`, `demonstrated` (from CAhA: ca'a/ka'e/nu'o/pu'i) |
 | `content` | id | the formula or sequence this eventuality is the occurrence of |
@@ -223,6 +233,7 @@ A thing that can fill an argument place — the semantic value of a sumti.
 | Key | Type | Meaning |
 |-----|------|---------|
 | `category` | `ReferentCategory` | `constant`, `variable`, `indexical`, `composite` |
+| `scopeDependence` | `ScopeDependence` | present exactly for constants: `{ "kind": "fixed" }` or `{ "kind": "underspecified", "mayDependOn": [id, ...] }` |
 | `sort` | `SemanticSort` | semantic sort (see full list below) |
 | `indexical` | `IndexicalKind` | present when `category = indexical`: `speaker`, `audience`, `speechTime`, `here`, `proximalDemonstrative`, `medialDemonstrative`, `distalDemonstrative` |
 | `descriptor` | `Descriptor` | how this referent was described (le/lo/la/pro-sumti/etc.); see §3.1 |
@@ -230,9 +241,27 @@ A thing that can fill an argument place — the semantic value of a sumti.
 | `relativeClauses` | array of `RelativeClause` | poi/noi attached to the referent (see §3.8) |
 | `assignedNames` | array of `AssignedName` | goi/cei name assignments: `{ name, word, introducedBy, source? }` |
 
-**`ReferentCategory`** values: `constant` (a fixed individual, e.g. names, `lo`-descriptions,
-plain pro-sumti), `variable` (bound logical variable da/de/di), `indexical` (mi/do/ti/ta/tu and
-deictic referents), `composite` (built from members via `composition`).
+**`ReferentCategory`** values: `constant` (a constant denotation, e.g. names,
+`lo`-descriptions, plain pro-sumti, and elided `zo'e`), `variable` (bound logical
+variable da/de/di), `indexical` (mi/do/ti/ta/tu and deictic referents), `composite`
+(built from members via `composition`). A constant is not necessarily fixed across
+the values of an enclosing binder.
+
+**`ScopeDependence`** is explicit on every constant and absent on every non-constant.
+`fixed` means no binder is in scope at the constant's introduction site.
+`underspecified` has a nonempty, sorted `mayDependOn` set containing exactly the
+typed formula, abstraction, or question binders in scope there. It means the
+constant **may** co-vary with any named binder; it never claims that dependence
+actually occurs. The builder derives this field from the rooted typed graph. At
+quantifier formulas the variable scopes over the restriction and body; coequal
+bundle/respective binders scope over their restrictions and body; abstraction
+parameters scope over their body; question slots scope over their question body;
+nested utterances reset the binder environment. The introduction site is the first
+reference to the constant in canonical semantic traversal order (including
+restriction-before-body and sequence-connection-claims-before-items order). Shared
+later references preserve that one derived value. Disconnected objects, which normal
+generated graphs prune, are treated as ID-ordered roots at empty scope so validation
+is total.
 
 **`SemanticSort`** (the `sort` field, also used for `domain`): `entity`, `mass`, `set`,
 `sequence`, `eventuality`, `predication`, `truthValue`, `proposition`, `concept`, `amount`,
@@ -369,6 +398,8 @@ single word, or text.
 
 | Key | Type | Meaning |
 |-----|------|---------|
+| `category` | `ReferentCategory` | sign referents may be constants or another non-indexical category |
+| `scopeDependence` | `ScopeDependence` | present exactly when `category = constant`; see §2.4 |
 | `kind` | `SignKind` | serialized from `sign_kind`: `quotation`, `letteral`, `mathExpression`, `connective`, `word`, `text` |
 | `text` | string | literal text for non-quotation signs |
 | `letterals` | array of `LetteralUnit` | for letteral strings (BY etc.); see below |

@@ -1,12 +1,12 @@
 //! Public semantic object graph model serialized by `tersmu --format json`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_source::SourceSpan;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
@@ -546,6 +546,7 @@ impl SemanticObjectKind {
 #[expensive_invariant(semantic_object_compositions_are_valid(objects))]
 #[expensive_invariant(semantic_object_question_slots_are_valid(objects))]
 #[expensive_invariant(semantic_object_domain_imports_are_valid(objects))]
+#[expensive_invariant(semantic_object_scope_dependences_are_derived(*root, objects))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticGraph {
@@ -608,9 +609,10 @@ impl std::error::Error for SemanticGraphError {}
 impl SemanticGraph {
     #[requires(objects.contains_key(&root))]
     #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| semantic_object_scope_dependences_are_derived(graph.root, &graph.objects)))]
     pub fn new(
         root: SemanticObjectId,
-        objects: BTreeMap<SemanticObjectId, SemanticObject>,
+        mut objects: BTreeMap<SemanticObjectId, SemanticObject>,
     ) -> Result<Self, SemanticGraphError> {
         if let Some(mismatch) = first_semantic_object_id_type_mismatch(&objects) {
             return Err(new!(SemanticGraphError::ObjectIdTypeMismatch(mismatch)));
@@ -633,6 +635,7 @@ impl SemanticGraph {
         if !semantic_object_question_slots_are_valid(&objects) {
             return Err(new!(SemanticGraphError::InvalidQuestionSlots));
         }
+        apply_semantic_scope_dependence(root, &mut objects);
         Ok(new!(SemanticGraph {
             version: SEMANTIC_JSON_VERSION,
             root: root,
@@ -679,8 +682,11 @@ fn bool_is_false(value: &bool) -> bool {
     !*value
 }
 
+mod scope_dependence;
 mod semantic_object;
 
+pub(crate) use scope_dependence::apply_semantic_scope_dependence;
+pub use scope_dependence::semantic_object_scope_dependences_are_derived;
 pub use semantic_object::*;
 
 #[requires(true)]
@@ -1452,6 +1458,46 @@ pub enum ReferentCategory {
     Variable,
     Indexical,
     Composite,
+}
+
+/// Whether a constant referent's denotation can co-vary with enclosing binders.
+///
+/// `Underspecified` records only the binders that the denotation may depend on.
+/// It does not assert that any such dependence actually exists.
+#[invariant(::Fixed => true, "the unit fixed state has no invalid representation")]
+#[invariant(::Underspecified { may_depend_on } => !may_depend_on.is_empty() && may_depend_on.iter().all(|binder| quantifier_variable_kind_is_allowed(binder.object_kind())), "underspecified dependence names one or more binder-capable objects")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum ScopeDependence {
+    Fixed,
+    Underspecified {
+        #[serde(rename = "mayDependOn")]
+        may_depend_on: BTreeSet<SemanticObjectId>,
+    },
+}
+
+impl ScopeDependence {
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(ScopeDependence::Fixed)))]
+    pub fn fixed() -> Self {
+        new!(ScopeDependence::Fixed)
+    }
+
+    #[requires(!may_depend_on.is_empty())]
+    #[requires(may_depend_on.iter().all(|binder| quantifier_variable_kind_is_allowed(binder.object_kind())))]
+    #[ensures(ret.may_depend_on().is_some_and(|derived| derived == &old(may_depend_on.clone())))]
+    pub fn underspecified(may_depend_on: BTreeSet<SemanticObjectId>) -> Self {
+        new!(ScopeDependence::Underspecified { may_depend_on })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none() == matches!(self.as_data(), data!(ScopeDependence::Fixed)))]
+    pub fn may_depend_on(&self) -> Option<&BTreeSet<SemanticObjectId>> {
+        match self.as_data() {
+            data!(ScopeDependence::Fixed) => None,
+            data!(ScopeDependence::Underspecified { may_depend_on }) => Some(may_depend_on),
+        }
+    }
 }
 
 #[invariant(::Eventuality(_) => true)]

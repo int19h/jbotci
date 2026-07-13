@@ -74,6 +74,7 @@ pub struct SequenceNode {
 #[invariant(class.is_none_or(|class| class.sort() == SemanticSort::Eventuality(*sort) || (class == EventualityClass::Event && *sort == EventualitySort::Experience)))]
 #[invariant(category != &ReferentCategory::Indexical || indexical.is_some())]
 #[invariant(category == &ReferentCategory::Indexical || indexical.is_none())]
+#[invariant((category == &ReferentCategory::Constant) == scope_dependence.is_some())]
 #[invariant(tense_modal.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
 #[invariant(time_path.iter().all(|step| step.anchor.object_id().is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))))]
 #[invariant(space_path.iter().all(|step| step.anchor.object_id().is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))))]
@@ -87,6 +88,7 @@ pub struct SequenceNode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventualityNode {
     pub category: ReferentCategory,
+    pub scope_dependence: Option<ScopeDependence>,
     pub sort: EventualitySort,
     pub class: Option<EventualityClass>,
     pub indexical: Option<IndexicalKind>,
@@ -129,6 +131,7 @@ pub struct EventualityNode {
 #[invariant(*sort != SemanticSort::Sign)]
 #[invariant(category != &ReferentCategory::Indexical || indexical.is_some())]
 #[invariant(category == &ReferentCategory::Indexical || indexical.is_none())]
+#[invariant((category == &ReferentCategory::Constant) == scope_dependence.is_some())]
 #[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(parameters.iter().all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
 #[invariant(embedded_questions.iter().all(|question| question.object_kind() == SemanticObjectKind::Question))]
@@ -139,6 +142,7 @@ pub struct EventualityNode {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReferentNode {
     pub category: ReferentCategory,
+    pub scope_dependence: Option<ScopeDependence>,
     pub sort: SemanticSort,
     pub indexical: Option<IndexicalKind>,
     pub descriptor: Option<Descriptor>,
@@ -287,12 +291,14 @@ pub struct FormulaTraversal {
 }
 
 #[invariant(*category != ReferentCategory::Indexical, "sign referents have no indexical role field")]
+#[invariant((*category == ReferentCategory::Constant) == scope_dependence.is_some())]
 #[invariant(sign_kind.as_ref().is_some_and(|kind| *kind == SignKind::Quotation) == quotation.is_some())]
 #[invariant(text.as_ref().is_none_or(|text| !text.is_empty()))]
 #[invariant(target.is_none_or(referent_target_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SignNode {
     pub category: ReferentCategory,
+    pub scope_dependence: Option<ScopeDependence>,
     pub sign_kind: Option<SignKind>,
     pub text: Option<String>,
     pub letterals: Vec<LetteralUnit>,
@@ -946,12 +952,15 @@ impl SemanticObject {
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
+        let scope_dependence =
+            (category == ReferentCategory::Constant).then(ScopeDependence::fixed);
         let sort = class
             .sort()
             .eventuality_sort()
             .expect("eventuality classes have eventuality sorts");
         new!(SemanticObject::Eventuality(new!(EventualityNode {
             category,
+            scope_dependence,
             sort,
             class: Some(class),
             indexical,
@@ -1002,9 +1011,12 @@ impl SemanticObject {
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
+        let scope_dependence =
+            (category == ReferentCategory::Constant).then(ScopeDependence::fixed);
         if let Some(eventuality_sort) = sort.eventuality_sort() {
             return new!(SemanticObject::Eventuality(new!(EventualityNode {
                 category,
+                scope_dependence,
                 sort: eventuality_sort,
                 class: None,
                 indexical,
@@ -1046,6 +1058,7 @@ impl SemanticObject {
         if sort == SemanticSort::Sign {
             return new!(SemanticObject::Sign(new!(SignNode {
                 category,
+                scope_dependence,
                 sign_kind: None,
                 text: None,
                 letterals: Vec::new(),
@@ -1059,6 +1072,7 @@ impl SemanticObject {
         }
         new!(SemanticObject::Referent(new!(ReferentNode {
             category,
+            scope_dependence,
             sort,
             indexical,
             descriptor,
@@ -1345,6 +1359,7 @@ impl SemanticObject {
     ) -> Self {
         new!(SemanticObject::Sign(new!(SignNode {
             category: ReferentCategory::Constant,
+            scope_dependence: Some(ScopeDependence::fixed()),
             sign_kind: Some(sign_kind),
             text: None,
             letterals: Vec::new(),
@@ -1746,6 +1761,35 @@ impl SemanticObject {
             data!(SemanticObject::Referent(node)) => Some(node.category),
             data!(SemanticObject::Sign(node)) => Some(node.category),
             _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == (self.referent_category() == Some(ReferentCategory::Constant)))]
+    pub fn scope_dependence(&self) -> Option<&ScopeDependence> {
+        match self.as_data() {
+            data!(SemanticObject::Eventuality(node)) => node.scope_dependence.as_ref(),
+            data!(SemanticObject::Referent(node)) => node.scope_dependence.as_ref(),
+            data!(SemanticObject::Sign(node)) => node.scope_dependence.as_ref(),
+            _ => None,
+        }
+    }
+
+    #[requires(self.referent_category() == Some(ReferentCategory::Constant))]
+    #[ensures(self.scope_dependence().is_some_and(|derived| derived == &old(scope_dependence.clone())))]
+    pub(crate) fn set_scope_dependence(&mut self, scope_dependence: ScopeDependence) {
+        if self.as_eventuality().is_some() {
+            self.update_eventuality(|node| {
+                node.with_data(data! { scope_dependence: Some(scope_dependence) })
+            });
+        } else if self.as_referent().is_some() {
+            self.update_referent(|node| {
+                node.with_data(data! { scope_dependence: Some(scope_dependence) })
+            });
+        } else {
+            self.update_sign(|node| {
+                node.with_data(data! { scope_dependence: Some(scope_dependence) })
+            });
         }
     }
 
@@ -2424,6 +2468,7 @@ fn serialize_eventuality<M: SerializeMap>(
         &node.spatial_interval_modifiers
     );
     map.serialize_entry("category", &node.category)?;
+    optional_entry!(map, "scopeDependence", node.scope_dependence.as_ref());
     map.serialize_entry("sort", &SemanticSort::Eventuality(node.sort))?;
     optional_entry!(map, "indexical", node.indexical.as_ref());
     optional_entry!(map, "descriptor", node.descriptor.as_ref());
@@ -2446,6 +2491,7 @@ fn serialize_eventuality<M: SerializeMap>(
 #[ensures(true)]
 fn serialize_referent<M: SerializeMap>(map: &mut M, node: &ReferentNode) -> Result<(), M::Error> {
     map.serialize_entry("category", &node.category)?;
+    optional_entry!(map, "scopeDependence", node.scope_dependence.as_ref());
     map.serialize_entry("sort", &node.sort)?;
     optional_entry!(map, "indexical", node.indexical.as_ref());
     optional_entry!(map, "descriptor", node.descriptor.as_ref());
@@ -2549,6 +2595,7 @@ fn serialize_formula<M: SerializeMap>(map: &mut M, node: &FormulaNode) -> Result
 #[ensures(true)]
 fn serialize_sign<M: SerializeMap>(map: &mut M, node: &SignNode) -> Result<(), M::Error> {
     map.serialize_entry("category", &node.category)?;
+    optional_entry!(map, "scopeDependence", node.scope_dependence.as_ref());
     map.serialize_entry("sort", &SemanticSort::Sign)?;
     optional_entry!(map, "descriptor", node.descriptor.as_ref());
     optional_entry!(map, "kind", node.sign_kind.as_ref());
