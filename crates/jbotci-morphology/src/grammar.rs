@@ -13,7 +13,7 @@ use crate::{
     MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes,
     RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, Verbatim, Word,
     WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
-    canonical_text_is_all, canonicalize_text, erasure_selmaho, morphology_error_recovery_start,
+    canonical_text_is_all, canonicalize_text, morphology_error_recovery_start,
 };
 
 #[requires(true)]
@@ -1263,7 +1263,7 @@ impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(true)]
     fn handle_su(&self, acc: &mut Vec<WordLike>) {
-        acc.truncate(su_boundary_index(acc));
+        acc.truncate(su_retained_prefix_len(acc));
     }
 
     #[requires(true)]
@@ -2370,13 +2370,24 @@ fn previous_word_skipping_y_index(acc: &[WordLike]) -> Option<usize> {
     last_y_index
 }
 
+// The BPFK proposal defines these as selma'o boundaries, so NIhO deliberately
+// covers both ni'o and no'i. The boundary word itself remains in the prefix.
+const SU_BOUNDARY_SELMAHO: [Selmaho; 4] = [Selmaho::Niho, Selmaho::Lu, Selmaho::Tuhe, Selmaho::To];
+
+#[requires(true)]
+#[ensures(ret == word.is_one_of_selmaho(&SU_BOUNDARY_SELMAHO))]
+fn is_su_boundary(word: &WordLike) -> bool {
+    word.is_one_of_selmaho(&SU_BOUNDARY_SELMAHO)
+}
+
 #[requires(true)]
 #[ensures(ret <= acc.len())]
-fn su_boundary_index(acc: &[WordLike]) -> usize {
+#[ensures(ret == 0 || is_su_boundary(&acc[ret - 1]), "a nonempty retained prefix ends with the preserved SU boundary")]
+#[bityzba::expensive_ensures(ret == acc.iter().rposition(is_su_boundary).map_or(0, |index| index + 1), "SU retains exactly through the nearest structural boundary")]
+fn su_retained_prefix_len(acc: &[WordLike]) -> usize {
     for (index, token) in acc.iter().enumerate().rev() {
-        let selmaho = erasure_selmaho(token);
-        if matches!(selmaho, Some("NIhO" | "LU" | "TUhE" | "TO")) {
-            return index;
+        if is_su_boundary(token) {
+            return index + 1;
         }
     }
     0
@@ -3576,6 +3587,87 @@ mod tests {
             expected: ExpectedWordDetailKind::ZeiOperand,
         });
         assert_eq!(invalid_error_detail(&error), Some(&expected));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn su_preserves_each_nearest_structural_boundary() {
+        let cases: [(&str, &[&str]); 5] = [
+            (
+                "mi klama ni'o do tavla su do cusku",
+                &["mi", "kláma", "ni'o", "do", "cúsku"],
+            ),
+            (
+                "mi klama no'i do tavla su do cusku",
+                &["mi", "kláma", "no'i", "do", "cúsku"],
+            ),
+            (
+                "lu mi klama su do cusku li'u",
+                &["lu", "do", "cúsku", "li'u"],
+            ),
+            (
+                "tu'e mi klama su do cusku tu'u",
+                &["tu'e", "do", "cúsku", "tu'u"],
+            ),
+            (
+                "mi klama to do tavla su do cusku toi",
+                &["mi", "kláma", "to", "do", "cúsku", "toĭ"],
+            ),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .expect("SU should preserve its nearest structural boundary");
+            assert_eq!(bare_phonemes(&words), expected, "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn su_at_start_of_text_still_erases_the_entire_prefix() {
+        let words = segment_words_with_modifiers(
+            "mi tavla su do cusku",
+            &MorphologyOptions::default(),
+            None,
+        )
+        .expect("SU without a structural boundary should erase to the start");
+
+        assert_eq!(bare_phonemes(&words), ["do", "cúsku"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn su_preservation_handles_nested_and_replayed_erasure_cases() {
+        let cases: [(&str, &[&str]); 5] = [
+            (
+                "lu mi klama su do cusku li'u",
+                &["lu", "do", "cúsku", "li'u"],
+            ),
+            (
+                "mi klama ni'o do tavla su su do cusku",
+                &["mi", "kláma", "ni'o", "do", "cúsku"],
+            ),
+            (
+                "mi klama ni'o su do cusku",
+                &["mi", "kláma", "ni'o", "do", "cúsku"],
+            ),
+            (
+                "mi klama ni'o do tavla lu mi cadzu su do cusku li'u",
+                &[
+                    "mi", "kláma", "ni'o", "do", "távla", "lu", "do", "cúsku", "li'u",
+                ],
+            ),
+            ("mi klama ni'o do tavla sa su do cusku", &["do", "cúsku"]),
+        ];
+
+        for (source, expected) in cases {
+            let words = segment_words_with_modifiers(source, &MorphologyOptions::default(), None)
+                .expect("mixed SU erasure should remain valid morphology");
+            assert_eq!(bare_phonemes(&words), expected, "{source}");
+        }
     }
 
     #[test]
