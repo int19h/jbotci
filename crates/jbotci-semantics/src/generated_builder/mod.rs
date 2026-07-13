@@ -7809,6 +7809,64 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn derived_renderings_project_event_conditions_and_explicit_absence() {
+        let tenseless = semantic_graph_for("mi klama");
+        let past = semantic_graph_for("mi pu klama");
+        let actual = semantic_graph_for("mi ca'a klama");
+        let interval = semantic_graph_for("mi pu ze'a klama");
+        let aspect = semantic_graph_for("mi ca'o klama");
+        let spatial = semantic_graph_for("mi vi klama");
+
+        for render in [
+            crate::render::render_claims as fn(&SemanticGraph) -> String,
+            crate::render::render_tree,
+        ] {
+            let tenseless = render(&tenseless);
+            let past = render(&past);
+            assert_ne!(tenseless, past);
+            assert!(tenseless.contains("time=unspecified; actuality=unspecified"));
+            assert!(past.contains("time=before(anchor=now[eventuality:3]"));
+            assert!(render(&actual).contains("actuality=actual"));
+            assert!(render(&interval).contains("time-interval=medium(anchor=unspecified)"));
+            assert!(render(&aspect).contains("aspect=continuative(anchor=unspecified"));
+            assert!(render(&spatial).contains(
+                "space=distanceFrom(anchor=here[entity:4]; sticky=false; details={distance=short"
+            ));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derived_traversal_surfaces_scoped_connective_event() {
+        let graph = semantic_graph_for("mi na pu na ca klama le zarci");
+        let eventuality = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Connective(node)) if node.eventuality.is_some() => {
+                    node.eventuality
+                }
+                _ => None,
+            })
+            .expect("scoped tense formula has its own eventuality");
+        let expected = format!(
+            "scoped {{event=eventuality[{eventuality}]; time=before(anchor=now[eventuality:3]"
+        );
+        for rendering in [
+            crate::render::render_claims(&graph),
+            crate::render::render_tree(&graph),
+        ] {
+            assert!(rendering.contains(&expected));
+            assert!(rendering.contains(&format!(
+                "binds=exists eventuality[{eventuality}] {{time=before(anchor=now[eventuality:3]"
+            )));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn negated_generated_event_binds_inside_not() {
         let graph = semantic_graph_for("mi na klama");
         let event = generated_event_for_relation(&graph, "klama");
