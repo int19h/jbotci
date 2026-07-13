@@ -154,6 +154,32 @@ pub fn generated_model_text_syntax_leaf_spans_match_words(
 
 #[requires(true)]
 #[ensures(true)]
+fn recovered_syntax_tree_conserves_word_spans(
+    words: &[WordLike],
+    parse_tree: &generated_model::recovered::TextSyntax,
+) -> bool {
+    let mut expected_refs = Vec::new();
+    for word in words {
+        word.source_spans_into(&mut expected_refs);
+    }
+    let mut expected: Vec<_> = expected_refs
+        .into_iter()
+        .filter(|span| !span.is_empty())
+        .map(|span| (span.byte_start, span.byte_end))
+        .collect();
+    expected.sort_unstable();
+    let mut actual = Vec::new();
+    parse_tree.visit_source_spans(&mut |span| {
+        if !span.is_empty() {
+            actual.push((span.byte_start, span.byte_end));
+        }
+    });
+    actual.sort_unstable();
+    actual == expected
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn generated_model_recovered_round_trip_matches_valid(
     parse_tree: &generated_model::TextSyntax,
 ) -> bool {
@@ -167,6 +193,31 @@ pub(crate) fn generated_model_recovered_round_trip_matches_valid(
 #[ensures(true)]
 pub(crate) fn syntax_parse_leaf_spans_match_words(words: &[WordLike], parse: &SyntaxParse) -> bool {
     text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_parse_conserves_word_spans(
+    words: &[WordLike],
+    parse: &RecoveredSyntaxParse,
+) -> bool {
+    recovered_syntax_tree_conserves_word_spans(words, &parse.parse_tree)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_recovery_parse_conserves_word_spans(
+    words: &[WordLike],
+    parse: &SyntaxRecoveryParse,
+) -> bool {
+    match parse.as_data() {
+        data!(SyntaxRecoveryParse::Valid { parse }) => {
+            syntax_parse_leaf_spans_match_words(words, parse)
+        }
+        data!(SyntaxRecoveryParse::Recovered { parse }) => {
+            recovered_syntax_parse_conserves_word_spans(words, parse)
+        }
+    }
 }
 
 #[requires(true)]
@@ -2932,6 +2983,7 @@ fn parse_syntax_tree_with_source_and_options_attempt_inner(
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.parse_tree))]
+#[expensive_ensures(recovered_syntax_parse_conserves_word_spans(words, &ret))]
 pub fn parse_syntax_tree_recovered_with_source_and_options(
     words: &[WordLike],
     source: &str,
@@ -2943,6 +2995,7 @@ pub fn parse_syntax_tree_recovered_with_source_and_options(
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.result.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.result.parse_tree))]
+#[expensive_ensures(recovered_syntax_parse_conserves_word_spans(words, &ret.result))]
 pub fn parse_syntax_tree_recovered_with_source_and_options_attempt(
     words: &[WordLike],
     source: &str,
@@ -2957,6 +3010,7 @@ pub fn parse_syntax_tree_recovered_with_source_and_options_attempt(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures(syntax_recovery_parse_conserves_word_spans(words, &ret.result))]
 pub fn parse_syntax_tree_with_recovery_with_source_and_options_attempt(
     words: &[WordLike],
     source: &str,
@@ -3723,6 +3777,45 @@ mod tests {
             "EOF recovery should preserve the valid statement prefix, got {:?}",
             probe.valid_tokens
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_mid_input_errors_conserve_tokens_and_prefix() {
+        for source in [
+            "mi viska lo .i do klama le zarci",
+            "mi viska lo .i mi klama le",
+        ] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+            let recovered = parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default(),
+            );
+
+            assert_eq!(recovered.errors.len(), 2, "{source:?}");
+            assert!(
+                recovered_syntax_parse_conserves_word_spans(&words, &recovered),
+                "recovered syntax must account for every input token exactly once for {source:?}"
+            );
+
+            let mut visitor = RecoveredTokenAndErrorVisitor::default();
+            generated_model::recovered::TreeNode::visit_in_order(
+                recovered.parse_tree.as_ref(),
+                &mut visitor,
+            );
+            assert!(
+                visitor
+                    .valid_tokens
+                    .iter()
+                    .take(3)
+                    .map(String::as_str)
+                    .eq(["mi", "víska", "lo"]),
+                "the valid prefix must retain its normal syntax constructs for {source:?}"
+            );
+        }
     }
 
     #[test]

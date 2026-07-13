@@ -1231,6 +1231,7 @@ fn first_word_label_for_word_like(
     Some(match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => word_label_for_word(word, options),
         data!(WordLike::QuotedWord { zo, .. }) => word_label_for_word(zo, options),
+        data!(WordLike::SelmahoQuotedWord { mahoi, .. }) => word_label_for_word(mahoi, options),
         data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => word_label_for_word(zoi, options),
         data!(WordLike::QuotedWords { lohu, .. }) => word_label_for_word(lohu, options),
         data!(WordLike::DelimitedWordQuote { marker, .. }) => word_label_for_word(marker, options),

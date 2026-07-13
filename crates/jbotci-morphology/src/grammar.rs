@@ -560,8 +560,15 @@ impl<'a> Segmenter<'a> {
             return self.single_word_quote(word);
         }
         if matches!(word_cmavo, Some(Cmavo::Zo | Cmavo::Mahoi)) {
-            self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
-            return self.zo_quote(word);
+            let trace_label = if word_cmavo == Some(Cmavo::Zo) {
+                "ZO quote"
+            } else {
+                "MAhOI quote"
+            };
+            self.trace_step(TraceLevel::Detailed, trace_label, start, self.index, || {
+                None
+            });
+            return self.parsed_word_quote(word);
         }
         if mode.consumes_faho() && word_cmavo == Some(Cmavo::Faho) {
             self.trace_step(TraceLevel::Detailed, "FAhO", start, self.index, || None);
@@ -916,14 +923,16 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn zo_quote(
+    fn parsed_word_quote(
         &mut self,
-        zo_word_with_modifiers: WordLike,
+        marker_word_with_modifiers: WordLike,
     ) -> Result<Vec<WordLike>, MorphologyError> {
         let after_marker = self.index;
         self.skip_y_words();
-        let quote_context =
-            word_like_context(&zo_word_with_modifiers, MorphologyContextKind::QuotedWord);
+        let quote_context = word_like_context(
+            &marker_word_with_modifiers,
+            MorphologyContextKind::QuotedWord,
+        );
         let quoted = match self.next_plain_non_y_word() {
             Ok(quoted) => quoted,
             Err(error) if is_expected_word_error(&error) => {
@@ -939,14 +948,14 @@ impl<'a> Segmenter<'a> {
             }
             Err(error) => return Err(error_with_fallback_context(error, quote_context)),
         };
-        let zo = into_bare_word(zo_word_with_modifiers).ok_or_else(|| {
-            self.invalid_span(
+        let Some(marker) = into_bare_word(marker_word_with_modifiers) else {
+            return Err(self.invalid_span(
                 MorphologyErrorKind::InvalidQuoteMarker,
                 after_marker,
                 after_marker,
                 quote_context,
-            )
-        })?;
+            ));
+        };
         let quoted_context = word_like_context(&quoted, MorphologyContextKind::QuotedWord);
         let word = into_bare_word(quoted).ok_or_else(|| {
             self.invalid_span_with_detail(
@@ -959,7 +968,16 @@ impl<'a> Segmenter<'a> {
                 })),
             )
         })?;
-        Ok(vec![WordLike::zo_quote(zo, word)])
+        match marker.cmavo() {
+            Some(Cmavo::Zo) => Ok(vec![WordLike::zo_quote(marker, word)]),
+            Some(Cmavo::Mahoi) => Ok(vec![WordLike::mahoi_quote(marker, word)]),
+            _ => Err(self.invalid_span(
+                MorphologyErrorKind::InvalidQuoteMarker,
+                after_marker,
+                after_marker,
+                quote_context,
+            )),
+        }
     }
 
     #[requires(true)]
@@ -1234,7 +1252,7 @@ impl<'a> Segmenter<'a> {
             return self.single_word_quote(word);
         }
         if matches!(word_cmavo, Some(Cmavo::Zo | Cmavo::Mahoi)) {
-            return self.zo_quote(word);
+            return self.parsed_word_quote(word);
         }
         if word_cmavo == Some(Cmavo::Faho) {
             self.index = self.chars.len();
@@ -2374,7 +2392,9 @@ fn sa_match_tag(options: &MorphologyOptions, word: &WordLike) -> Option<SAMatchT
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        data!(WordLike::QuotedWord { .. }) => Some(SAMatchTag::Selmaho(Selmaho::Zo)),
+        data!(WordLike::QuotedWord { .. }) | data!(WordLike::SelmahoQuotedWord { .. }) => {
+            Some(SAMatchTag::Selmaho(Selmaho::Zo))
+        }
         data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => {
             zoi.selmaho_kind().map(SAMatchTag::Selmaho)
         }
