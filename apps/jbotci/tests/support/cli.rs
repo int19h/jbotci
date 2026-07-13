@@ -1266,6 +1266,43 @@ fn gentufa_default_output_shows_generated_brackets() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_su_preserves_niho_and_lu_boundaries_in_exact_output() {
+    run_on_normal_stack(|| {
+        for (args, expected_stdout) in [
+            (
+                [
+                    "jbotci", "gentufa", "--format", "brackets", "mi", "klama", "ni'o", "do",
+                    "tavla", "su", "do", "cusku",
+                ]
+                .as_slice(),
+                "([mi kláma] [ni'o {do cúsku}])\n",
+            ),
+            (
+                [
+                    "jbotci", "gentufa", "--format", "brackets", "lu", "mi", "klama", "su", "do",
+                    "cusku", "li'u",
+                ]
+                .as_slice(),
+                "(lu [do cúsku] li'u)\n",
+            ),
+        ] {
+            let cli = Cli::try_parse_from(args).expect("gentufa SU boundary input");
+            let mut output = Vec::new();
+            let mut error = Vec::new();
+            run_cli(cli, &mut output, &mut error, false).expect("gentufa SU boundary run");
+
+            assert!(error.is_empty());
+            assert_eq!(
+                String::from_utf8(output).expect("stdout utf8"),
+                expected_stdout
+            );
+        }
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_mahoi_quotes_have_exact_bracket_output() {
     run_on_normal_stack(|| {
         for (args, expected_stdout) in [
