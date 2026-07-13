@@ -61,10 +61,33 @@ rendered as an unqualified `exists` claim.
 Generated predication events are not denotational constants and never produce a
 `denotes` line. Their existential force is the typed `boundEventualities` edge
 on a formula or sequence owner. Claims contexts and the structural tree render
-that edge explicitly as `binds=exists LABEL[id]`; predication lines render the
-corresponding use as `{event=LABEL[id]}` and, for tanru links,
-`{tanru-head-event=LABEL[id]}`. The binding marker is scope, not an actuality
-claim: only an explicit CAhA adds `actuality` to the event object.
+that edge explicitly as `binds=exists LABEL[id]`; predication and connective
+formula lines render the corresponding use as `{event=LABEL[id]}` and, for
+tanru links, `{tanru-head-event=LABEL[id]}`. The tree's utterance line uses the
+same marker for its locution. The binding marker is scope, not an actuality
+claim: only an explicit CAhA gives the predication event a non-`unspecified`
+actuality value.
+
+Every event site carries the same typed condition suffix in fixed field order:
+`time`, `actuality`, `aspect`, `recurrence`, `space`, `spatial-aspect`,
+`spatial-recurrence`, and `details`. Referential events put that suffix on
+their `denotes` line; generated events repeat it at the use and binding sites so
+each line remains intelligible without consulting another scope line. Missing
+core fields render as `FIELD=unspecified`; omission never means atemporality,
+nonactuality, or the absence of that semantic dimension. Alternative scalar
+and list representations are combined under their dimension (`time` or
+`timePath`, `aspect` or `aspects`, and their spatial counterparts).
+
+`details` is the collective absence envelope for the sparse secondary fields:
+`tenseModal`, `timeInterval`, `timeSpan`, `intervalModifiers`, `spaceInterval`,
+`spatialIntervalModifiers`, and `content`. When none is populated it is
+`details=unspecified`; otherwise populated members appear by name followed by
+`otherwise=unspecified`, which explicitly covers every absent member without a
+long run of empty list-valued fields. Nested projections use the same rule:
+their required fields are always printed, their small core optional surfaces
+are per-field, and larger sparse qualifier sets use
+`details=unspecified`/`otherwise=unspecified`. These are fixed templates over
+the typed model; the renderer does not infer prose.
 
 An intensional relation/abstraction body is structural content, not an extra
 asserted or projected claim. Its owning constant's denotation line includes a
@@ -225,11 +248,13 @@ aspect, and spatial information hang off the eventuality.
 | `timeSpan` | `TimeSpan` = `{ start, end, introducedBy }` | bounded span (each endpoint `{ relation, anchor?, introducedBy, distance?, scalarNegation? }`) |
 | `aspect` / `aspects` | `Aspect` = `{ contour, anchor?, scalarNegation? }` | ZAhO event contour(s) |
 | `recurrence` | array of `Recurrence` | ROI/TAhE/etc. repetition; see §2.x note below |
+| `intervalModifiers` | array of tagged `Aspect`/`Recurrence` | canonical temporal interval-property stack |
 | `space` | `AnchorRelation` | primary spatial placement |
 | `spacePath` | array of `TemporalPathStep` | chained spatial offsets |
 | `spaceInterval` | `SpaceInterval` = `{ extent?, directions[], dimensions[], anchor? }` | VEhA/VIhA |
 | `spatialAspect` / `spatialAspects` | `Aspect` | spatial contour |
 | `spatialRecurrence` | array of `Recurrence` | |
+| `spatialIntervalModifiers` | array of tagged `Aspect`/`Recurrence` | canonical spatial interval-property stack |
 
 Every `generated-bound` event occurs in exactly one owner's
 `boundEventualities`. The owner is the lowest formula dominating every primary,

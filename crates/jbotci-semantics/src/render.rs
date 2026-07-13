@@ -422,6 +422,9 @@ impl<'graph> DerivedTraversal<'graph> {
                 );
             }
             data!(FormulaNode::Connective(node)) => {
+                if let Some(eventuality) = node.eventuality {
+                    self.visit_referent(eventuality, location, state, visitor);
+                }
                 for &child in &node.children {
                     self.walk_formula(
                         child,
@@ -1012,16 +1015,19 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
             } else {
                 "indexical"
             };
-            self.push(
-                ClaimTier::Projected,
-                format!(
-                    "denotes {} [{}; {category};{} context={}]",
-                    referent_label(self.graph, id),
-                    binder_dependence_context(self.graph, object),
-                    nonclaim_context,
-                    self.context_label()
-                ),
+            let mut line = format!("denotes {} [", referent_label(self.graph, id));
+            if object.as_eventuality().is_some() {
+                format_eventuality_conditions_to(self.graph, id, &mut line);
+                line.push_str("; ");
+            }
+            let _ = write!(
+                line,
+                "{}; {category};{} context={}]",
+                binder_dependence_context(self.graph, object),
+                nonclaim_context,
+                self.context_label()
             );
+            self.push(ClaimTier::Projected, line);
         }
     }
 
@@ -1153,14 +1159,14 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
         node: &'graph UtteranceNode,
         location: TraversalLocation,
     ) {
-        self.line(
-            location.depth,
-            &format!(
-                "{}utterance {} [{id}]",
-                tree_role_prefix(location.role),
-                utterance_force_label(node.force)
-            ),
+        let mut line = format!(
+            "{}utterance {}",
+            tree_role_prefix(location.role),
+            utterance_force_label(node.force)
         );
+        format_eventuality_site_to(self.graph, node.eventuality, "event", &mut line);
+        let _ = write!(line, " [{id}]");
+        self.line(location.depth, &line);
     }
 
     #[requires(true)]
@@ -1286,7 +1292,7 @@ fn format_predication(
     }
     output.push(')');
     if let Some(eventuality) = node.eventuality {
-        let _ = write!(output, " {{event={}}}", referent_label(graph, eventuality));
+        format_eventuality_site_to(graph, eventuality, "event", &mut output);
     }
     if let Some(tanru_link) = &node.tanru_link
         && let Some(head_eventuality) = graph
@@ -1294,11 +1300,7 @@ fn format_predication(
             .get(&tanru_link.head)
             .and_then(SemanticObject::predication_eventuality)
     {
-        let _ = write!(
-            output,
-            " {{tanru-head-event={}}}",
-            referent_label(graph, head_eventuality)
-        );
+        format_eventuality_site_to(graph, head_eventuality, "tanru-head-event", &mut output);
     }
     if !node.modal_arguments.is_empty() {
         output.push_str(" {modal=");
@@ -1325,6 +1327,603 @@ fn format_predication(
     }
     let _ = write!(output, " [{id}]");
     output
+}
+
+#[requires(eventuality.object_kind() == SemanticObjectKind::Referent)]
+#[requires(graph.objects.get(&eventuality).is_some_and(|object| object.as_eventuality().is_some()))]
+#[requires(!site.is_empty())]
+#[ensures(true)]
+fn format_eventuality_site_to(
+    graph: &SemanticGraph,
+    eventuality: SemanticObjectId,
+    site: &str,
+    output: &mut String,
+) {
+    let _ = write!(output, " {{{site}={}", referent_label(graph, eventuality));
+    output.push_str("; ");
+    format_eventuality_conditions_to(graph, eventuality, output);
+    output.push('}');
+}
+
+#[requires(eventuality.object_kind() == SemanticObjectKind::Referent)]
+#[requires(graph.objects.get(&eventuality).is_some_and(|object| object.as_eventuality().is_some()))]
+#[ensures(true)]
+fn format_eventuality_conditions_to(
+    graph: &SemanticGraph,
+    eventuality: SemanticObjectId,
+    output: &mut String,
+) {
+    let node = graph
+        .objects
+        .get(&eventuality)
+        .and_then(SemanticObject::as_eventuality)
+        .expect("validated eventuality reference has an eventuality object");
+
+    output.push_str("time=");
+    if let Some(time) = &node.time {
+        format_anchor_relation_to(graph, time, output);
+    } else if !node.time_path.is_empty() {
+        format_path_to(graph, &node.time_path, output);
+    } else {
+        output.push_str("unspecified");
+    }
+
+    output.push_str("; actuality=");
+    if let Some(actuality) = node.actuality {
+        output.push_str(actuality_kind_label(actuality.kind));
+    } else {
+        output.push_str("unspecified");
+    }
+
+    output.push_str("; aspect=");
+    if let Some(aspect) = &node.aspect {
+        format_aspect_to(graph, aspect, output);
+    } else if !node.aspects.is_empty() {
+        format_aspects_to(graph, &node.aspects, output);
+    } else {
+        output.push_str("unspecified");
+    }
+
+    output.push_str("; recurrence=");
+    if node.recurrence.is_empty() {
+        output.push_str("unspecified");
+    } else {
+        format_recurrences_to(graph, &node.recurrence, output);
+    }
+
+    output.push_str("; space=");
+    if let Some(space) = &node.space {
+        format_anchor_relation_to(graph, space, output);
+    } else if !node.space_path.is_empty() {
+        format_path_to(graph, &node.space_path, output);
+    } else {
+        output.push_str("unspecified");
+    }
+
+    output.push_str("; spatial-aspect=");
+    if let Some(aspect) = &node.spatial_aspect {
+        format_aspect_to(graph, aspect, output);
+    } else if !node.spatial_aspects.is_empty() {
+        format_aspects_to(graph, &node.spatial_aspects, output);
+    } else {
+        output.push_str("unspecified");
+    }
+
+    output.push_str("; spatial-recurrence=");
+    if node.spatial_recurrence.is_empty() {
+        output.push_str("unspecified");
+    } else {
+        format_recurrences_to(graph, &node.spatial_recurrence, output);
+    }
+
+    format_eventuality_details_to(graph, node, output);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_eventuality_details_to(
+    graph: &SemanticGraph,
+    node: &crate::model::EventualityNode,
+    output: &mut String,
+) {
+    let has_details = node.tense_modal.is_some()
+        || node.time_interval.is_some()
+        || node.time_span.is_some()
+        || !node.interval_modifiers.is_empty()
+        || node.space_interval.is_some()
+        || !node.spatial_interval_modifiers.is_empty()
+        || node.content.is_some();
+    output.push_str("; details=");
+    if !has_details {
+        output.push_str("unspecified");
+        return;
+    }
+
+    output.push('{');
+    let mut first = true;
+    if let Some(tense_modal) = node.tense_modal {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "tense-modal={}", referent_label(graph, tense_modal));
+    }
+    if let Some(interval) = &node.time_interval {
+        format_detail_separator(&mut first, output);
+        output.push_str("time-interval=");
+        format_time_interval_to(graph, interval, output);
+    }
+    if let Some(span) = &node.time_span {
+        format_detail_separator(&mut first, output);
+        output.push_str("time-span=");
+        format_time_span_to(graph, span, output);
+    }
+    if !node.interval_modifiers.is_empty() {
+        format_detail_separator(&mut first, output);
+        output.push_str("interval-modifiers=");
+        format_interval_modifiers_to(graph, &node.interval_modifiers, output);
+    }
+    if let Some(interval) = &node.space_interval {
+        format_detail_separator(&mut first, output);
+        output.push_str("space-interval=");
+        format_space_interval_to(graph, interval, output);
+    }
+    if !node.spatial_interval_modifiers.is_empty() {
+        format_detail_separator(&mut first, output);
+        output.push_str("spatial-interval-modifiers=");
+        format_interval_modifiers_to(graph, &node.spatial_interval_modifiers, output);
+    }
+    if let Some(content) = node.content {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "content={content}");
+    }
+    format_detail_separator(&mut first, output);
+    output.push_str("otherwise=unspecified}");
+}
+
+#[requires(true)]
+#[ensures(!*first)]
+fn format_detail_separator(first: &mut bool, output: &mut String) {
+    if *first {
+        *first = false;
+    } else {
+        output.push_str("; ");
+    }
+}
+
+#[requires(!relation.relation.is_empty())]
+#[ensures(true)]
+fn format_anchor_relation_to(
+    graph: &SemanticGraph,
+    relation: &crate::model::AnchorRelation,
+    output: &mut String,
+) {
+    let _ = write!(
+        output,
+        "{}(anchor={}; sticky={}",
+        relation.relation,
+        referent_label(graph, relation.anchor),
+        relation.sticky
+    );
+    format_relation_details_to(
+        graph,
+        relation.inherited,
+        relation.distance.as_deref(),
+        relation.magnitude.as_ref(),
+        relation.scalar_negation.as_ref(),
+        relation.motion.as_ref(),
+        output,
+    );
+    output.push(')');
+}
+
+#[requires(!magnitude.introduced_by.is_empty())]
+#[ensures(true)]
+fn format_anchor_magnitude_to(
+    graph: &SemanticGraph,
+    magnitude: &crate::model::AnchorMagnitude,
+    output: &mut String,
+) {
+    let _ = write!(
+        output,
+        "{}(introduced-by={})",
+        referent_label(graph, magnitude.value),
+        magnitude.introduced_by
+    );
+}
+
+#[requires(!negation.introduced_by.is_empty())]
+#[ensures(true)]
+fn format_scalar_negation_to(
+    graph: &SemanticGraph,
+    negation: &crate::model::ScalarNegation,
+    output: &mut String,
+) {
+    let _ = write!(
+        output,
+        "{}(introduced-by={}",
+        scalar_negation_label(negation.kind),
+        negation.introduced_by
+    );
+    output.push_str("; scale=");
+    if let Some(scale) = negation.scale {
+        output.push_str(&referent_label(graph, scale));
+    } else {
+        output.push_str("unspecified");
+    }
+    output.push_str("; argument-scope=");
+    if negation.argument_scope.is_empty() {
+        output.push_str("unspecified");
+    } else {
+        output.push('[');
+        for (index, place) in negation.argument_scope.iter().enumerate() {
+            if index > 0 {
+                output.push_str(", ");
+            }
+            let _ = write!(output, "x{}", place.get());
+        }
+        output.push(']');
+    }
+    output.push(')');
+}
+
+#[requires(!path.is_empty())]
+#[ensures(true)]
+fn format_path_to(
+    graph: &SemanticGraph,
+    path: &[crate::model::TemporalPathStep],
+    output: &mut String,
+) {
+    output.push_str("path[");
+    for (index, step) in path.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        format_path_step_to(graph, step, output);
+    }
+    output.push(']');
+}
+
+#[requires(!step.relation.is_empty())]
+#[requires(!step.introduced_by.is_empty())]
+#[ensures(true)]
+fn format_path_step_to(
+    graph: &SemanticGraph,
+    step: &crate::model::TemporalPathStep,
+    output: &mut String,
+) {
+    let _ = write!(output, "{}(anchor=", step.relation);
+    match step.anchor.kind {
+        crate::model::TemporalPathAnchorKind::Object => output.push_str(&referent_label(
+            graph,
+            step.anchor
+                .value
+                .expect("object temporal path anchors have values"),
+        )),
+        crate::model::TemporalPathAnchorKind::Previous => output.push_str("previous"),
+    }
+    let _ = write!(
+        output,
+        "; introduced-by={}; sticky={}",
+        step.introduced_by, step.sticky
+    );
+    format_relation_details_to(
+        graph,
+        step.inherited,
+        step.distance.as_deref(),
+        step.magnitude.as_ref(),
+        step.scalar_negation.as_ref(),
+        step.motion.as_ref(),
+        output,
+    );
+    output.push(')');
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_relation_details_to(
+    graph: &SemanticGraph,
+    inherited: Option<bool>,
+    distance: Option<&str>,
+    magnitude: Option<&crate::model::AnchorMagnitude>,
+    scalar_negation: Option<&crate::model::ScalarNegation>,
+    motion: Option<&crate::model::SpatialMotion>,
+    output: &mut String,
+) {
+    let has_details = inherited.is_some()
+        || distance.is_some()
+        || magnitude.is_some()
+        || scalar_negation.is_some()
+        || motion.is_some();
+    output.push_str("; details=");
+    if !has_details {
+        output.push_str("unspecified");
+        return;
+    }
+    output.push('{');
+    let mut first = true;
+    if let Some(inherited) = inherited {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "inherited={inherited}");
+    }
+    if let Some(distance) = distance {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "distance={distance}");
+    }
+    if let Some(magnitude) = magnitude {
+        format_detail_separator(&mut first, output);
+        output.push_str("magnitude=");
+        format_anchor_magnitude_to(graph, magnitude, output);
+    }
+    if let Some(negation) = scalar_negation {
+        format_detail_separator(&mut first, output);
+        output.push_str("scalar-negation=");
+        format_scalar_negation_to(graph, negation, output);
+    }
+    if let Some(motion) = motion {
+        format_detail_separator(&mut first, output);
+        let _ = write!(
+            output,
+            "motion={}(introduced-by={})",
+            spatial_motion_label(motion.kind),
+            motion.introduced_by
+        );
+    }
+    format_detail_separator(&mut first, output);
+    output.push_str("otherwise=unspecified}");
+}
+
+#[requires(!interval.extent.is_empty())]
+#[ensures(true)]
+fn format_time_interval_to(
+    graph: &SemanticGraph,
+    interval: &crate::model::TimeInterval,
+    output: &mut String,
+) {
+    let _ = write!(output, "{}(anchor=", interval.extent);
+    if let Some(anchor) = interval.anchor {
+        output.push_str(&referent_label(graph, anchor));
+    } else {
+        output.push_str("unspecified");
+    }
+    output.push(')');
+}
+
+#[requires(!span.introduced_by.is_empty())]
+#[ensures(true)]
+fn format_time_span_to(graph: &SemanticGraph, span: &crate::model::TimeSpan, output: &mut String) {
+    let _ = write!(output, "span(introduced-by={}; start=", span.introduced_by);
+    format_time_span_endpoint_to(graph, &span.start, output);
+    output.push_str("; end=");
+    format_time_span_endpoint_to(graph, &span.end, output);
+    output.push(')');
+}
+
+#[requires(!endpoint.relation.is_empty())]
+#[requires(!endpoint.introduced_by.is_empty())]
+#[ensures(true)]
+fn format_time_span_endpoint_to(
+    graph: &SemanticGraph,
+    endpoint: &crate::model::TimeSpanEndpoint,
+    output: &mut String,
+) {
+    let _ = write!(output, "{}(anchor=", endpoint.relation);
+    if let Some(anchor) = endpoint.anchor {
+        output.push_str(&referent_label(graph, anchor));
+    } else {
+        output.push_str("unspecified");
+    }
+    let _ = write!(
+        output,
+        "; introduced-by={}; details=",
+        endpoint.introduced_by
+    );
+    if endpoint.distance.is_none() && endpoint.scalar_negation.is_none() {
+        output.push_str("unspecified)");
+        return;
+    }
+    output.push('{');
+    let mut first = true;
+    if let Some(distance) = &endpoint.distance {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "distance={distance}");
+    }
+    if let Some(negation) = &endpoint.scalar_negation {
+        format_detail_separator(&mut first, output);
+        output.push_str("scalar-negation=");
+        format_scalar_negation_to(graph, negation, output);
+    }
+    format_detail_separator(&mut first, output);
+    output.push_str("otherwise=unspecified})");
+}
+
+#[requires(!aspect.contour.is_empty())]
+#[ensures(true)]
+fn format_aspect_to(graph: &SemanticGraph, aspect: &crate::model::Aspect, output: &mut String) {
+    let _ = write!(output, "{}(anchor=", aspect.contour);
+    if let Some(anchor) = aspect.anchor {
+        output.push_str(&referent_label(graph, anchor));
+    } else {
+        output.push_str("unspecified");
+    }
+    output.push_str("; scalar-negation=");
+    if let Some(negation) = &aspect.scalar_negation {
+        format_scalar_negation_to(graph, negation, output);
+    } else {
+        output.push_str("unspecified");
+    }
+    output.push(')');
+}
+
+#[requires(!aspects.is_empty())]
+#[ensures(true)]
+fn format_aspects_to(graph: &SemanticGraph, aspects: &[crate::model::Aspect], output: &mut String) {
+    output.push('[');
+    for (index, aspect) in aspects.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        format_aspect_to(graph, aspect, output);
+    }
+    output.push(']');
+}
+
+#[requires(!recurrences.is_empty())]
+#[ensures(true)]
+fn format_recurrences_to(
+    graph: &SemanticGraph,
+    recurrences: &[crate::model::Recurrence],
+    output: &mut String,
+) {
+    output.push('[');
+    for (index, recurrence) in recurrences.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        format_recurrence_to(graph, recurrence, output);
+    }
+    output.push(']');
+}
+
+#[requires(!recurrence.introduced_by.is_empty())]
+#[ensures(true)]
+fn format_recurrence_to(
+    graph: &SemanticGraph,
+    recurrence: &crate::model::Recurrence,
+    output: &mut String,
+) {
+    let _ = write!(
+        output,
+        "{}(introduced-by={}; details=",
+        recurrence_kind_label(recurrence.kind),
+        recurrence.introduced_by
+    );
+    let has_details = recurrence.connection.is_some()
+        || recurrence.quantity.is_some()
+        || recurrence.value.is_some()
+        || recurrence.interval.is_some()
+        || recurrence.negation.is_some();
+    if !has_details {
+        output.push_str("unspecified)");
+        return;
+    }
+    output.push('{');
+    let mut first = true;
+    if let Some(connection) = &recurrence.connection {
+        format_detail_separator(&mut first, output);
+        let _ = write!(
+            output,
+            "connection={}(introduced-by={})",
+            recurrence_connection_label(connection.kind),
+            connection.introduced_by
+        );
+    }
+    if let Some(quantity) = recurrence.quantity {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "quantity={quantity}");
+    }
+    if let Some(value) = &recurrence.value {
+        format_detail_separator(&mut first, output);
+        output.push_str("value=");
+        format_quantity_value_to(value, output);
+    }
+    if let Some(interval) = recurrence.interval {
+        format_detail_separator(&mut first, output);
+        let _ = write!(output, "interval={}", referent_label(graph, interval));
+    }
+    if let Some(negation) = &recurrence.negation {
+        format_detail_separator(&mut first, output);
+        let _ = write!(
+            output,
+            "negation={}(introduced-by={})",
+            modal_negation_label(negation.kind),
+            negation.introduced_by
+        );
+    }
+    format_detail_separator(&mut first, output);
+    output.push_str("otherwise=unspecified})");
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_quantity_value_to(value: &crate::model::QuantityValue, output: &mut String) {
+    if let Some(integer) = value.integer {
+        let _ = write!(output, "integer({integer})");
+    } else if let Some(text) = &value.text {
+        let _ = write!(output, "text({text:?})");
+    } else if let Some(expression) = value.math_expression {
+        let _ = write!(output, "math-expression({expression})");
+    } else {
+        unreachable!("quantity values have exactly one representation");
+    }
+}
+
+#[requires(!modifiers.is_empty())]
+#[ensures(true)]
+fn format_interval_modifiers_to(
+    graph: &SemanticGraph,
+    modifiers: &[crate::model::IntervalModifier],
+    output: &mut String,
+) {
+    output.push('[');
+    for (index, modifier) in modifiers.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        match modifier.as_data() {
+            data!(crate::model::IntervalModifier::Aspect(aspect)) => {
+                output.push_str("aspect(");
+                format_aspect_to(graph, aspect, output);
+                output.push(')');
+            }
+            data!(crate::model::IntervalModifier::Recurrence(recurrence)) => {
+                output.push_str("recurrence(");
+                format_recurrence_to(graph, recurrence, output);
+                output.push(')');
+            }
+        }
+    }
+    output.push(']');
+}
+
+#[requires(interval.extent.is_some() || !interval.directions.is_empty() || !interval.dimensions.is_empty())]
+#[ensures(true)]
+fn format_space_interval_to(
+    graph: &SemanticGraph,
+    interval: &crate::model::SpaceInterval,
+    output: &mut String,
+) {
+    output.push_str("interval(extent=");
+    if let Some(extent) = &interval.extent {
+        output.push_str(extent);
+    } else {
+        output.push_str("unspecified");
+    }
+    output.push_str("; directions=");
+    format_string_list_to(&interval.directions, output);
+    output.push_str("; dimensions=");
+    format_string_list_to(&interval.dimensions, output);
+    output.push_str("; anchor=");
+    if let Some(anchor) = interval.anchor {
+        output.push_str(&referent_label(graph, anchor));
+    } else {
+        output.push_str("unspecified");
+    }
+    output.push(')');
+}
+
+#[requires(values.iter().all(|value| !value.is_empty()))]
+#[ensures(true)]
+fn format_string_list_to(values: &[String], output: &mut String) {
+    if values.is_empty() {
+        output.push_str("unspecified");
+        return;
+    }
+    output.push('[');
+    for (index, value) in values.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        output.push_str(value);
+    }
+    output.push(']');
 }
 
 #[requires(true)]
@@ -1550,7 +2149,7 @@ fn formula_reference_label(graph: &SemanticGraph, formula: SemanticObjectId) -> 
 #[requires(graph.objects.contains_key(&id))]
 #[ensures(!ret.is_empty())]
 fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &FormulaNode) -> String {
-    let base = match node.as_data() {
+    let mut base = match node.as_data() {
         data!(FormulaNode::Atom(_)) => "atom".to_owned(),
         data!(FormulaNode::Connective(node)) => formula_operator_label(node.operator).to_owned(),
         data!(FormulaNode::Quantified(node)) => format!(
@@ -1574,6 +2173,11 @@ fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &Formul
             format!("respectively-distribution streams={}", node.streams.len())
         }
     };
+    if let data!(FormulaNode::Connective(node)) = node.as_data()
+        && let Some(eventuality) = node.eventuality
+    {
+        format_eventuality_site_to(graph, eventuality, "event", &mut base);
+    }
     let binding = event_binding_label(
         graph,
         graph
@@ -1597,7 +2201,11 @@ fn event_binding_label(graph: &SemanticGraph, eventualities: &[GeneratedEventual
         if !output.is_empty() {
             output.push_str(", ");
         }
-        output.push_str(&referent_label(graph, eventuality.object_id()));
+        let eventuality = eventuality.object_id();
+        output.push_str(&referent_label(graph, eventuality));
+        output.push_str(" {");
+        format_eventuality_conditions_to(graph, eventuality, &mut output);
+        output.push('}');
     }
     if output.is_empty() {
         output
@@ -1801,5 +2409,54 @@ fn scalar_negation_label(kind: crate::model::ScalarNegationKind) -> &'static str
         crate::model::ScalarNegationKind::Opposite => "opposite",
         crate::model::ScalarNegationKind::Neutral => "neutral",
         crate::model::ScalarNegationKind::Affirmed => "affirmed",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn actuality_kind_label(kind: crate::model::ActualityKind) -> &'static str {
+    match kind {
+        crate::model::ActualityKind::Actual => "actual",
+        crate::model::ActualityKind::Capable => "capable",
+        crate::model::ActualityKind::Potential => "potential",
+        crate::model::ActualityKind::Demonstrated => "demonstrated",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn spatial_motion_label(kind: crate::model::SpatialMotionKind) -> &'static str {
+    match kind {
+        crate::model::SpatialMotionKind::Toward => "toward",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn recurrence_kind_label(kind: crate::model::RecurrenceKind) -> &'static str {
+    match kind {
+        crate::model::RecurrenceKind::OccurrenceCount => "occurrence-count",
+        crate::model::RecurrenceKind::OrdinalOccurrence => "ordinal-occurrence",
+        crate::model::RecurrenceKind::Regular => "regular",
+        crate::model::RecurrenceKind::Typically => "typically",
+        crate::model::RecurrenceKind::Continuously => "continuously",
+        crate::model::RecurrenceKind::Habitually => "habitually",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn recurrence_connection_label(kind: crate::model::RecurrenceConnectionKind) -> &'static str {
+    match kind {
+        crate::model::RecurrenceConnectionKind::Product => "product",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn modal_negation_label(kind: crate::model::ModalNegationKind) -> &'static str {
+    match kind {
+        crate::model::ModalNegationKind::Contradictory => "contradictory",
+        crate::model::ModalNegationKind::OtherThan => "other-than",
     }
 }
