@@ -9,30 +9,29 @@ description = "Issue #278 review: voi content remains visible as typed non-claim
 [expectations.output.tersmu]
 claims = """
 asserted:
-- klama(x1=lo mlatu[entity:7], x2=zo'e[entity:18], x3=zo'e[entity:19], x4=zo'e[entity:20], x5=zo'e[entity:21]) [predication:22] [mode=asserted; context=utterance:5 assert > content atom [formula:23]]
+- klama(x1=lo mlatu[entity:7], x2=zo'e[entity:18], x3=zo'e[entity:19], x4=zo'e[entity:20], x5=zo'e[entity:21]) {event=eventuality[eventuality:6]} [predication:22] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:24] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality[eventuality:6] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:23]]
-- denotes lo mlatu[entity:7] [binder-dependence=fixed; constant; non-claim-restrictive-clause=describedAs(x1=speaker[entity:1], x2=lo mlatu[entity:7], x3=relation blanu[relation:15]) [predication:16]; context=utterance:5 assert > content atom [formula:23]]
-- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive; context=utterance:5 assert > content atom [formula:23] > descriptor-body atom [formula:10]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:23] > descriptor-body atom [formula:10]]
-- denotes zo'e[entity:18] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:23]]
-- denotes zo'e[entity:19] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:23]]
-- denotes zo'e[entity:20] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:23]]
-- denotes zo'e[entity:21] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:23]]
+- denotes lo mlatu[entity:7] [binder-dependence=fixed; constant; non-claim-restrictive-clause=describedAs(x1=speaker[entity:1], x2=lo mlatu[entity:7], x3=relation blanu[relation:15]) [predication:16]; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23]]
+- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23] > descriptor-body atom [formula:10]]
+- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23] > descriptor-body atom [formula:10]]
+- denotes zo'e[entity:18] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23]]
+- denotes zo'e[entity:19] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23]]
+- denotes zo'e[entity:20] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23]]
+- denotes zo'e[entity:21] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:23]]
 displayed:
 - (none)"""
 tree = """
 utterance assert [utterance:5]
-  content: atom [formula:23]
-    klama(x1=lo mlatu[entity:7], x2=zo'e[entity:18], x3=zo'e[entity:19], x4=zo'e[entity:20], x5=zo'e[entity:21]) [predication:22]
+  content: atom binds=exists eventuality[eventuality:6] [formula:23]
+    klama(x1=lo mlatu[entity:7], x2=zo'e[entity:18], x3=zo'e[entity:19], x4=zo'e[entity:20], x5=zo'e[entity:21]) {event=eventuality[eventuality:6]} [predication:22]
       descriptor body: atom [formula:10]
         mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9]
       non-claim restrictive relative clause: atom [formula:17]
         describedAs(x1=speaker[entity:1], x2=lo mlatu[entity:7], x3=relation blanu[relation:15]) [predication:16]
-          relation body: atom [formula:14]
-            blanu(x1=entity?ce'u[parameter:11]) [predication:13]"""
+          relation body: atom binds=exists eventuality[eventuality:12] [formula:14]
+            blanu(x1=entity?ce'u[parameter:11]) {event=eventuality[eventuality:12]} [predication:13]"""

@@ -1381,7 +1381,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(*eventuality);
         }
         let eventuality = self.next_eventuality_id();
-        let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source);
+        let mut event =
+            SemanticObject::generated_eventuality(EventualityClass::Event, None, source);
         event.update_eventuality(|node| node.with_data(data! { content: Some(content) }));
         self.insert(eventuality, event)?;
         self.content_eventualities.insert(content, eventuality);
@@ -1912,7 +1913,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let locution = self.next_locution_id();
         self.insert(
             locution,
-            SemanticObject::eventuality(
+            SemanticObject::referential_eventuality(
                 EventualityClass::Locution,
                 Some(Actuality {
                     kind: ActualityKind::Actual,
@@ -3455,7 +3456,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let locution = self.next_locution_id();
         self.insert(
             locution,
-            SemanticObject::eventuality(
+            SemanticObject::referential_eventuality(
                 EventualityClass::Locution,
                 Some(Actuality {
                     kind: ActualityKind::Actual,
@@ -3491,7 +3492,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let locution = self.next_locution_id();
         self.insert(
             locution,
-            SemanticObject::eventuality(
+            SemanticObject::referential_eventuality(
                 EventualityClass::Locution,
                 Some(Actuality {
                     kind: ActualityKind::Actual,

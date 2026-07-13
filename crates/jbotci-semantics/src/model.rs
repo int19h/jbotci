@@ -461,6 +461,82 @@ impl Serialize for SemanticObjectId {
     }
 }
 
+/// An eventuality whose existential force is supplied by a typed scope-owner edge.
+///
+/// The wrapped ID is intentionally not constructible outside the model implementation.
+/// Callers can therefore inspect a binding without manufacturing one from a referential
+/// eventuality ID.
+#[invariant(id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GeneratedEventualityId {
+    id: SemanticObjectId,
+}
+
+impl GeneratedEventualityId {
+    #[requires(id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[ensures(ret.id == id)]
+    pub(crate) fn new(id: SemanticObjectId) -> Self {
+        new!(GeneratedEventualityId { id })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.id)]
+    pub fn object_id(self) -> SemanticObjectId {
+        self.id
+    }
+}
+
+impl fmt::Display for GeneratedEventualityId {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.id.fmt(formatter)
+    }
+}
+
+impl Serialize for GeneratedEventualityId {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.id.serialize(serializer)
+    }
+}
+
+/// The two semantic object kinds that can own a generated-event binding.
+#[invariant(::Formula { formula } => formula.object_kind() == SemanticObjectKind::Formula)]
+#[invariant(::Sequence { sequence } => sequence.object_kind() == SemanticObjectKind::Sequence)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EventBindingScope {
+    Formula { formula: SemanticObjectId },
+    Sequence { sequence: SemanticObjectId },
+}
+
+impl EventBindingScope {
+    #[requires(formula.object_kind() == SemanticObjectKind::Formula)]
+    #[ensures(ret.owner() == formula)]
+    pub fn formula(formula: SemanticObjectId) -> Self {
+        new!(EventBindingScope::Formula { formula })
+    }
+
+    #[requires(sequence.object_kind() == SemanticObjectKind::Sequence)]
+    #[ensures(ret.owner() == sequence)]
+    pub fn sequence(sequence: SemanticObjectId) -> Self {
+        new!(EventBindingScope::Sequence { sequence })
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.object_kind(), SemanticObjectKind::Formula | SemanticObjectKind::Sequence))]
+    pub fn owner(self) -> SemanticObjectId {
+        match self.as_data() {
+            data!(EventBindingScope::Formula { formula }) => *formula,
+            data!(EventBindingScope::Sequence { sequence }) => *sequence,
+        }
+    }
+}
+
 #[invariant(::Structural(_) => true)]
 #[invariant(::Referent(_) => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -546,6 +622,7 @@ impl SemanticObjectKind {
 #[expensive_invariant(semantic_object_compositions_are_valid(objects))]
 #[expensive_invariant(semantic_object_question_slots_are_valid(objects))]
 #[expensive_invariant(semantic_object_domain_imports_are_valid(objects))]
+#[expensive_invariant(semantic_event_bindings_are_derived(*root, objects))]
 #[expensive_invariant(semantic_object_scope_dependences_are_derived(*root, objects))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -558,6 +635,7 @@ pub struct SemanticGraph {
 
 #[invariant(::ObjectIdTypeMismatch(message) => !message.is_empty())]
 #[invariant(::UndefinedReference { source, missing } => source != missing)]
+#[invariant(::InvalidEventBindings(message) => !message.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SemanticGraphError {
     ObjectIdTypeMismatch(String),
@@ -569,6 +647,7 @@ pub enum SemanticGraphError {
     InvalidArguments,
     InvalidCompositions,
     InvalidQuestionSlots,
+    InvalidEventBindings(String),
 }
 
 impl fmt::Display for SemanticGraphError {
@@ -600,6 +679,12 @@ impl fmt::Display for SemanticGraphError {
             data!(SemanticGraphError::InvalidQuestionSlots) => {
                 formatter.write_str("semantic question slots must use coherent parameters")
             }
+            data!(SemanticGraphError::InvalidEventBindings(message)) => {
+                write!(
+                    formatter,
+                    "generated eventualities require valid scope bindings: {message}"
+                )
+            }
         }
     }
 }
@@ -609,6 +694,7 @@ impl std::error::Error for SemanticGraphError {}
 impl SemanticGraph {
     #[requires(objects.contains_key(&root))]
     #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| semantic_event_bindings_are_derived(graph.root, &graph.objects)))]
     #[expensive_ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| semantic_object_scope_dependences_are_derived(graph.root, &graph.objects)))]
     pub fn new(
         root: SemanticObjectId,
@@ -635,6 +721,8 @@ impl SemanticGraph {
         if !semantic_object_question_slots_are_valid(&objects) {
             return Err(new!(SemanticGraphError::InvalidQuestionSlots));
         }
+        apply_semantic_event_bindings(root, &mut objects)
+            .map_err(|message| new!(SemanticGraphError::InvalidEventBindings(message)))?;
         apply_semantic_scope_dependence(root, &mut objects);
         Ok(new!(SemanticGraph {
             version: SEMANTIC_JSON_VERSION,
@@ -682,9 +770,12 @@ fn bool_is_false(value: &bool) -> bool {
     !*value
 }
 
+mod event_binding;
 mod scope_dependence;
 mod semantic_object;
 
+pub(crate) use event_binding::apply_semantic_event_bindings;
+pub use event_binding::semantic_event_bindings_are_derived;
 pub(crate) use scope_dependence::apply_semantic_scope_dependence;
 pub use scope_dependence::semantic_object_scope_dependences_are_derived;
 pub use semantic_object::*;
@@ -1497,6 +1588,100 @@ impl ScopeDependence {
             data!(ScopeDependence::Fixed) => None,
             data!(ScopeDependence::Underspecified { may_depend_on }) => Some(may_depend_on),
         }
+    }
+}
+
+/// Whether an eventuality is introduced by generated predication semantics or denotes a
+/// referential Lojban sumti/discourse object.
+///
+/// Generated eventualities are bound structurally and therefore carry neither a referent
+/// category nor `ScopeDependence`. Referential eventualities retain the same category and
+/// constant-dependence model as other referents.
+#[invariant(::GeneratedBound => true, "the unit generated-bound identity has no invalid payload")]
+#[invariant(::Referential { category, scope_dependence } => (*category == ReferentCategory::Constant) == scope_dependence.is_some())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EventualityDenotation {
+    GeneratedBound,
+    Referential {
+        category: ReferentCategory,
+        scope_dependence: Option<ScopeDependence>,
+    },
+}
+
+impl EventualityDenotation {
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(EventualityDenotation::GeneratedBound)))]
+    pub fn generated_bound() -> Self {
+        new!(EventualityDenotation::GeneratedBound)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.category() == Some(category))]
+    pub fn referential(category: ReferentCategory) -> Self {
+        let scope_dependence =
+            (category == ReferentCategory::Constant).then(ScopeDependence::fixed);
+        new!(EventualityDenotation::Referential {
+            category,
+            scope_dependence,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(EventualityDenotation::GeneratedBound)))]
+    pub fn is_generated_bound(&self) -> bool {
+        matches!(self.as_data(), data!(EventualityDenotation::GeneratedBound))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none() == self.is_generated_bound())]
+    pub fn category(&self) -> Option<ReferentCategory> {
+        match self.as_data() {
+            data!(EventualityDenotation::GeneratedBound) => None,
+            data!(EventualityDenotation::Referential { category, .. }) => Some(*category),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == (self.category() == Some(ReferentCategory::Constant)))]
+    pub fn scope_dependence(&self) -> Option<&ScopeDependence> {
+        match self.as_data() {
+            data!(EventualityDenotation::GeneratedBound) => None,
+            data!(EventualityDenotation::Referential {
+                scope_dependence,
+                ..
+            }) => scope_dependence.as_ref(),
+        }
+    }
+
+    #[requires(self.category() == Some(ReferentCategory::Constant))]
+    #[ensures(ret.scope_dependence().is_some_and(|stored| stored == &old(scope_dependence.clone())))]
+    pub(crate) fn with_scope_dependence(self, scope_dependence: ScopeDependence) -> Self {
+        match self.into_data() {
+            data!(EventualityDenotation::Referential { category, .. }) => {
+                new!(EventualityDenotation::Referential {
+                    category,
+                    scope_dependence: Some(scope_dependence),
+                })
+            }
+            data!(EventualityDenotation::GeneratedBound) => {
+                unreachable!("precondition excludes generated-bound eventualities")
+            }
+        }
+    }
+}
+
+impl Serialize for EventualityDenotation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(if self.is_generated_bound() {
+            "generated-bound"
+        } else {
+            "referential"
+        })
     }
 }
 
@@ -3784,6 +3969,46 @@ pub fn semantic_graph_references_are_defined(graph: &SemanticGraph) -> bool {
 mod tests {
     use super::*;
 
+    #[requires(true)]
+    #[ensures(semantic_event_bindings_are_derived(ret.root, &ret.objects))]
+    fn graph_with_generated_atom() -> SemanticGraph {
+        let root = SemanticObjectId::formula(1);
+        let atom = SemanticObjectId::formula(2);
+        let predication = SemanticObjectId::predication(3);
+        let eventuality = SemanticObjectId::eventuality(4);
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                vec![atom],
+                None,
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            atom,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        );
+        objects.insert(
+            predication,
+            SemanticObject::predication(
+                "klama".to_owned(),
+                Some(eventuality),
+                BTreeMap::new(),
+                PredicationMode::Asserted,
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            eventuality,
+            SemanticObject::generated_eventuality(EventualityClass::Event, None, None),
+        );
+        SemanticGraph::new(root, objects).expect("generated atom graph is valid")
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -3821,6 +4046,110 @@ mod tests {
 
         let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
         assert!(error.to_string().contains("must not dangle"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_graph_rejects_unbound_generated_eventualities() {
+        let root = SemanticObjectId::formula(1);
+        let predication = SemanticObjectId::predication(2);
+        let eventuality = SemanticObjectId::eventuality(3);
+        let mut objects = BTreeMap::new();
+        objects.insert(
+            root,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        );
+        objects.insert(
+            predication,
+            SemanticObject::predication(
+                "klama".to_owned(),
+                None,
+                BTreeMap::new(),
+                PredicationMode::Asserted,
+                None,
+                Vec::new(),
+            ),
+        );
+        objects.insert(
+            eventuality,
+            SemanticObject::generated_eventuality(EventualityClass::Event, None, None),
+        );
+
+        let error = SemanticGraph::new(root, objects).expect_err("generated event has no use");
+        assert!(error.to_string().contains("no bindable semantic use"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_event_binding_contract_checks_identity_uniqueness_and_lowest_scope() {
+        let graph = graph_with_generated_atom();
+        let root = graph.root;
+        let atom = SemanticObjectId::formula(2);
+        let eventuality = GeneratedEventualityId::new(SemanticObjectId::eventuality(4));
+        assert_eq!(
+            graph
+                .objects
+                .get(&atom)
+                .expect("atom exists")
+                .bound_eventualities(),
+            &[eventuality]
+        );
+
+        let mut unbound = graph.clone().into_data();
+        unbound
+            .objects
+            .get_mut(&atom)
+            .expect("atom exists")
+            .set_bound_eventualities(Vec::new());
+        assert!(!semantic_event_bindings_are_derived(
+            unbound.root,
+            &unbound.objects
+        ));
+
+        let mut duplicated = graph.clone().into_data();
+        duplicated
+            .objects
+            .get_mut(&root)
+            .expect("root exists")
+            .set_bound_eventualities(vec![eventuality]);
+        assert!(!semantic_event_bindings_are_derived(
+            duplicated.root,
+            &duplicated.objects
+        ));
+
+        let mut too_high = graph.clone().into_data();
+        too_high
+            .objects
+            .get_mut(&atom)
+            .expect("atom exists")
+            .set_bound_eventualities(Vec::new());
+        too_high
+            .objects
+            .get_mut(&root)
+            .expect("root exists")
+            .set_bound_eventualities(vec![eventuality]);
+        assert!(!semantic_event_bindings_are_derived(
+            too_high.root,
+            &too_high.objects
+        ));
+
+        let referential_id = SemanticObjectId::eventuality(5);
+        let mut referential = graph.into_data();
+        referential.objects.insert(
+            referential_id,
+            SemanticObject::referential_eventuality(EventualityClass::Event, None, None),
+        );
+        referential
+            .objects
+            .get_mut(&root)
+            .expect("root exists")
+            .set_bound_eventualities(vec![GeneratedEventualityId::new(referential_id)]);
+        assert!(!semantic_event_bindings_are_derived(
+            referential.root,
+            &referential.objects
+        ));
     }
 
     #[test]
@@ -3942,7 +4271,8 @@ mod tests {
     fn semantic_graph_rejects_incoherent_parameter_sort() {
         let root = SemanticObjectId::eventuality(1);
         let parameter = SemanticObjectId::parameter(2);
-        let mut eventuality = SemanticObject::eventuality(EventualityClass::Event, None, None);
+        let mut eventuality =
+            SemanticObject::referential_eventuality(EventualityClass::Event, None, None);
         eventuality
             .update_eventuality(|node| node.with_data(data! { tense_modal: Some(parameter) }));
 

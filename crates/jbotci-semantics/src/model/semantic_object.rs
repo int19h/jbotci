@@ -58,6 +58,7 @@ pub struct UtteranceNode {
 #[invariant(items.iter().all(|item| sequence_item_kind_is_allowed(item.object_kind())))]
 #[invariant(content.is_none_or(|content| content.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(connection_claims.iter().all(|claim| claim.object_kind() == SemanticObjectKind::Formula))]
+#[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[invariant(force.is_none_or(|force| force == UtteranceForce::Subordinated))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SequenceNode {
@@ -65,6 +66,7 @@ pub struct SequenceNode {
     pub items: Vec<SemanticObjectId>,
     pub content: Option<SemanticObjectId>,
     pub connection_claims: Vec<SemanticObjectId>,
+    pub bound_eventualities: Vec<GeneratedEventualityId>,
     pub ordinal_labels: Vec<OrdinalLabel>,
     pub relation: SequenceRelation,
     pub nonlogical_connection: Option<NonlogicalConnection>,
@@ -72,9 +74,8 @@ pub struct SequenceNode {
 }
 
 #[invariant(class.is_none_or(|class| class.sort() == SemanticSort::Eventuality(*sort) || (class == EventualityClass::Event && *sort == EventualitySort::Experience)))]
-#[invariant(category != &ReferentCategory::Indexical || indexical.is_some())]
-#[invariant(category == &ReferentCategory::Indexical || indexical.is_none())]
-#[invariant((category == &ReferentCategory::Constant) == scope_dependence.is_some())]
+#[invariant(denotation.category() != Some(ReferentCategory::Indexical) || indexical.is_some())]
+#[invariant(denotation.category() == Some(ReferentCategory::Indexical) || indexical.is_none())]
 #[invariant(tense_modal.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
 #[invariant(time_path.iter().all(|step| step.anchor.object_id().is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))))]
 #[invariant(space_path.iter().all(|step| step.anchor.object_id().is_none_or(|anchor| argument_object_kind_can_fill(anchor.object_kind()))))]
@@ -87,8 +88,7 @@ pub struct SequenceNode {
 #[invariant(target.is_none_or(referent_target_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventualityNode {
-    pub category: ReferentCategory,
-    pub scope_dependence: Option<ScopeDependence>,
+    pub denotation: EventualityDenotation,
     pub sort: EventualitySort,
     pub class: Option<EventualityClass>,
     pub indexical: Option<IndexicalKind>,
@@ -202,9 +202,11 @@ pub struct PredicationNode {
 }
 
 #[invariant(predication.object_kind() == SemanticObjectKind::Predication)]
+#[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct AtomFormulaNode {
     pub predication: SemanticObjectId,
+    pub bound_eventualities: Vec<GeneratedEventualityId>,
     pub common: SemanticObjectCommon,
 }
 
@@ -212,6 +214,7 @@ pub struct AtomFormulaNode {
 #[invariant(!children.is_empty())]
 #[invariant(children.iter().all(|child| child.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(eventuality.is_none_or(eventuality_is_referent))]
+#[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[invariant(connector.as_ref().is_none_or(|connector| connector.truth_table.is_none() || connector.parameter.is_none()))]
 #[invariant((*operator == FormulaOperator::ConnectiveQuestion) == connector.as_ref().is_some_and(|connector| connector.truth_table.is_none() && connector.parameter.is_some()))]
 #[derive(Debug, Clone, PartialEq)]
@@ -220,6 +223,7 @@ pub struct ConnectiveFormulaNode {
     pub children: Vec<SemanticObjectId>,
     pub connector: Option<Connector>,
     pub eventuality: Option<SemanticObjectId>,
+    pub bound_eventualities: Vec<GeneratedEventualityId>,
     pub common: SemanticObjectCommon,
 }
 
@@ -231,6 +235,7 @@ pub struct ConnectiveFormulaNode {
 #[invariant(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(body.object_kind() == SemanticObjectKind::Formula)]
 #[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
+#[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuantifiedFormulaNode {
     pub operator: FormulaOperator,
@@ -240,27 +245,32 @@ pub struct QuantifiedFormulaNode {
     pub restriction: Option<SemanticObjectId>,
     pub body: SemanticObjectId,
     pub quantity: Option<SemanticObjectId>,
+    pub bound_eventualities: Vec<GeneratedEventualityId>,
     pub common: SemanticObjectCommon,
 }
 
 #[invariant(!bindings.is_empty())]
 #[invariant(bindings.iter().all(quantifier_binding_matches_role))]
 #[invariant(body.object_kind() == SemanticObjectKind::Formula)]
+#[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuantifierBundleFormulaNode {
     pub bindings: Vec<QuantifierBinding>,
     pub body: SemanticObjectId,
+    pub bound_eventualities: Vec<GeneratedEventualityId>,
     pub common: SemanticObjectCommon,
 }
 
 #[invariant(body.object_kind() == SemanticObjectKind::Formula)]
 #[invariant(!streams.is_empty())]
 #[invariant(streams.iter().all(|stream| !stream.items.is_empty()))]
+#[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RespectivelyDistributionFormulaNode {
     pub body: SemanticObjectId,
     pub streams: Vec<RespectivelyStream>,
     pub distinct_partition: Option<bool>,
+    pub bound_eventualities: Vec<GeneratedEventualityId>,
     pub common: SemanticObjectCommon,
 }
 
@@ -438,6 +448,12 @@ fn eventuality_is_referent(id: SemanticObjectId) -> bool {
         && id
             .referent_sort()
             .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
+}
+
+#[requires(true)]
+#[ensures(ret == bindings.windows(2).all(|pair| pair[0] < pair[1]))]
+fn generated_eventuality_bindings_are_sorted(bindings: &[GeneratedEventualityId]) -> bool {
+    bindings.windows(2).all(|pair| pair[0] < pair[1])
 }
 
 #[requires(true)]
@@ -877,6 +893,7 @@ impl SemanticObject {
             items,
             content: None,
             connection_claims: Vec::new(),
+            bound_eventualities: Vec::new(),
             ordinal_labels: Vec::new(),
             relation,
             nonlogical_connection: None,
@@ -922,13 +939,33 @@ impl SemanticObject {
 
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
-    pub fn eventuality(
+    pub fn generated_eventuality(
         class: EventualityClass,
         actuality: Option<Actuality>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::eventuality_with_details(
-            ReferentCategory::Constant,
+            EventualityDenotation::generated_bound(),
+            class,
+            None,
+            None,
+            None,
+            actuality,
+            source,
+            Vec::new(),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_category() == Some(ReferentCategory::Constant))]
+    pub fn referential_eventuality(
+        class: EventualityClass,
+        actuality: Option<Actuality>,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        Self::eventuality_with_details(
+            EventualityDenotation::referential(ReferentCategory::Constant),
             class,
             None,
             None,
@@ -943,7 +980,7 @@ impl SemanticObject {
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     fn eventuality_with_details(
-        category: ReferentCategory,
+        denotation: EventualityDenotation,
         class: EventualityClass,
         indexical: Option<IndexicalKind>,
         descriptor: Option<Descriptor>,
@@ -952,15 +989,12 @@ impl SemanticObject {
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
-        let scope_dependence =
-            (category == ReferentCategory::Constant).then(ScopeDependence::fixed);
         let sort = class
             .sort()
             .eventuality_sort()
             .expect("eventuality classes have eventuality sorts");
         new!(SemanticObject::Eventuality(new!(EventualityNode {
-            category,
-            scope_dependence,
+            denotation,
             sort,
             class: Some(class),
             indexical,
@@ -1015,8 +1049,7 @@ impl SemanticObject {
             (category == ReferentCategory::Constant).then(ScopeDependence::fixed);
         if let Some(eventuality_sort) = sort.eventuality_sort() {
             return new!(SemanticObject::Eventuality(new!(EventualityNode {
-                category,
-                scope_dependence,
+                denotation: EventualityDenotation::referential(category),
                 sort: eventuality_sort,
                 class: None,
                 indexical,
@@ -1211,6 +1244,7 @@ impl SemanticObject {
         new!(SemanticObject::Formula(new!(FormulaNode::Atom(new!(
             AtomFormulaNode {
                 predication,
+                bound_eventualities: Vec::new(),
                 common: SemanticObjectCommon::new(source, diagnostics),
             }
         )))))
@@ -1232,6 +1266,7 @@ impl SemanticObject {
                 children,
                 connector,
                 eventuality: None,
+                bound_eventualities: Vec::new(),
                 common: SemanticObjectCommon::new(source, diagnostics),
             })
         ))))
@@ -1259,6 +1294,7 @@ impl SemanticObject {
                 restriction,
                 body,
                 quantity,
+                bound_eventualities: Vec::new(),
                 common: SemanticObjectCommon::new(source, diagnostics),
             })
         ))))
@@ -1276,6 +1312,7 @@ impl SemanticObject {
             FormulaNode::QuantifierBundle(new!(QuantifierBundleFormulaNode {
                 bindings,
                 body,
+                bound_eventualities: Vec::new(),
                 common: SemanticObjectCommon::new(source, diagnostics),
             }))
         )))
@@ -1295,6 +1332,7 @@ impl SemanticObject {
                 body,
                 streams,
                 distinct_partition,
+                bound_eventualities: Vec::new(),
                 common: SemanticObjectCommon::new(source, diagnostics),
             }))
         )))
@@ -1718,6 +1756,56 @@ impl SemanticObject {
     }
 
     #[requires(true)]
+    #[ensures(ret.iter().all(|eventuality| eventuality.object_id().referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    pub fn bound_eventualities(&self) -> &[GeneratedEventualityId] {
+        match self.as_data() {
+            data!(SemanticObject::Sequence(node)) => &node.bound_eventualities,
+            data!(SemanticObject::Formula(formula)) => match formula.as_data() {
+                data!(FormulaNode::Atom(node)) => &node.bound_eventualities,
+                data!(FormulaNode::Connective(node)) => &node.bound_eventualities,
+                data!(FormulaNode::Quantified(node)) => &node.bound_eventualities,
+                data!(FormulaNode::QuantifierBundle(node)) => &node.bound_eventualities,
+                data!(FormulaNode::RespectivelyDistribution(node)) => &node.bound_eventualities,
+            },
+            _ => &[],
+        }
+    }
+
+    #[requires(matches!(self.object_kind(), SemanticObjectKind::Formula | SemanticObjectKind::Sequence))]
+    #[requires(generated_eventuality_bindings_are_sorted(&bound_eventualities))]
+    #[ensures(self.bound_eventualities() == old(bound_eventualities.clone()).as_slice())]
+    pub(crate) fn set_bound_eventualities(
+        &mut self,
+        bound_eventualities: Vec<GeneratedEventualityId>,
+    ) {
+        if self.as_sequence().is_some() {
+            self.update_sequence(|node| {
+                node.with_data(data! { bound_eventualities: bound_eventualities })
+            });
+            return;
+        }
+        self.update_formula(|formula| match formula.into_data() {
+            data!(FormulaNode::Atom(node)) => new!(FormulaNode::Atom(
+                node.with_data(data! { bound_eventualities: bound_eventualities })
+            )),
+            data!(FormulaNode::Connective(node)) => new!(FormulaNode::Connective(
+                node.with_data(data! { bound_eventualities: bound_eventualities })
+            )),
+            data!(FormulaNode::Quantified(node)) => new!(FormulaNode::Quantified(
+                node.with_data(data! { bound_eventualities: bound_eventualities })
+            )),
+            data!(FormulaNode::QuantifierBundle(node)) => new!(FormulaNode::QuantifierBundle(
+                node.with_data(data! { bound_eventualities: bound_eventualities })
+            )),
+            data!(FormulaNode::RespectivelyDistribution(node)) => {
+                new!(FormulaNode::RespectivelyDistribution(node.with_data(
+                    data! { bound_eventualities: bound_eventualities }
+                )))
+            }
+        });
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     pub fn predication_arguments(&self) -> Option<&BTreeMap<PlaceIndex, ArgumentValue>> {
         Some(&self.as_predication()?.arguments)
@@ -1757,7 +1845,7 @@ impl SemanticObject {
     #[ensures(true)]
     pub fn referent_category(&self) -> Option<ReferentCategory> {
         match self.as_data() {
-            data!(SemanticObject::Eventuality(node)) => Some(node.category),
+            data!(SemanticObject::Eventuality(node)) => node.denotation.category(),
             data!(SemanticObject::Referent(node)) => Some(node.category),
             data!(SemanticObject::Sign(node)) => Some(node.category),
             _ => None,
@@ -1768,7 +1856,7 @@ impl SemanticObject {
     #[ensures(ret.is_some() == (self.referent_category() == Some(ReferentCategory::Constant)))]
     pub fn scope_dependence(&self) -> Option<&ScopeDependence> {
         match self.as_data() {
-            data!(SemanticObject::Eventuality(node)) => node.scope_dependence.as_ref(),
+            data!(SemanticObject::Eventuality(node)) => node.denotation.scope_dependence(),
             data!(SemanticObject::Referent(node)) => node.scope_dependence.as_ref(),
             data!(SemanticObject::Sign(node)) => node.scope_dependence.as_ref(),
             _ => None,
@@ -1780,7 +1868,11 @@ impl SemanticObject {
     pub(crate) fn set_scope_dependence(&mut self, scope_dependence: ScopeDependence) {
         if self.as_eventuality().is_some() {
             self.update_eventuality(|node| {
-                node.with_data(data! { scope_dependence: Some(scope_dependence) })
+                let denotation = node
+                    .denotation
+                    .clone()
+                    .with_scope_dependence(scope_dependence);
+                node.with_data(data! { denotation: denotation })
             });
         } else if self.as_referent().is_some() {
             self.update_referent(|node| {
@@ -1791,6 +1883,13 @@ impl SemanticObject {
                 node.with_data(data! { scope_dependence: Some(scope_dependence) })
             });
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.as_eventuality().is_some_and(|node| node.denotation.is_generated_bound()))]
+    pub fn is_generated_eventuality(&self) -> bool {
+        self.as_eventuality()
+            .is_some_and(|node| node.denotation.is_generated_bound())
     }
 
     #[requires(true)]
@@ -1872,6 +1971,7 @@ impl SemanticObject {
             .expect("precondition requires an eventuality sort");
         self.update_eventuality(|node| {
             node.with_data(data! {
+                denotation: EventualityDenotation::referential(ReferentCategory::Constant),
                 class: Some(class),
                 sort: sort,
                 content: Some(body),
@@ -1935,6 +2035,23 @@ impl SemanticObject {
     #[ensures(true)]
     pub fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         references_into(self, out);
+    }
+
+    /// Collects semantic references while excluding the derived owner edge itself.
+    ///
+    /// Binding derivation and unrelated introduction-order traversals use this view so an
+    /// already-derived edge cannot become evidence for its own scope or reorder referential
+    /// introductions.
+    #[requires(true)]
+    #[ensures(out.len() >= old(out.len()))]
+    pub(crate) fn references_without_event_bindings_into(&self, out: &mut Vec<SemanticObjectId>) {
+        let start = out.len();
+        references_into(self, out);
+        let binding_count = self.bound_eventualities().len();
+        if binding_count > 0 {
+            out.truncate(out.len() - binding_count);
+        }
+        debug_assert!(out.len() >= start);
     }
 
     #[requires(true)]
@@ -2429,6 +2546,7 @@ fn serialize_sequence<M: SerializeMap>(map: &mut M, node: &SequenceNode) -> Resu
     optional_entry!(map, "content", node.content.as_ref());
     nonempty_entry!(map, "items", &node.items);
     nonempty_entry!(map, "connectionClaims", &node.connection_claims);
+    nonempty_entry!(map, "boundEventualities", &node.bound_eventualities);
     nonempty_entry!(map, "ordinalLabels", &node.ordinal_labels);
     map.serialize_entry("relation", &node.relation)?;
     optional_entry!(
@@ -2445,6 +2563,7 @@ fn serialize_eventuality<M: SerializeMap>(
     map: &mut M,
     node: &EventualityNode,
 ) -> Result<(), M::Error> {
+    map.serialize_entry("denotation", &node.denotation)?;
     optional_entry!(map, "content", node.content.as_ref());
     optional_entry!(map, "actuality", node.actuality.as_ref());
     optional_entry!(map, "tenseModal", node.tense_modal.as_ref());
@@ -2467,8 +2586,10 @@ fn serialize_eventuality<M: SerializeMap>(
         "spatialIntervalModifiers",
         &node.spatial_interval_modifiers
     );
-    map.serialize_entry("category", &node.category)?;
-    optional_entry!(map, "scopeDependence", node.scope_dependence.as_ref());
+    if let Some(category) = node.denotation.category() {
+        map.serialize_entry("category", &category)?;
+    }
+    optional_entry!(map, "scopeDependence", node.denotation.scope_dependence());
     map.serialize_entry("sort", &SemanticSort::Eventuality(node.sort))?;
     optional_entry!(map, "indexical", node.indexical.as_ref());
     optional_entry!(map, "descriptor", node.descriptor.as_ref());
@@ -2554,12 +2675,14 @@ fn serialize_formula<M: SerializeMap>(map: &mut M, node: &FormulaNode) -> Result
         data!(FormulaNode::Atom(node)) => {
             map.serialize_entry("operator", &FormulaOperator::Atom)?;
             map.serialize_entry("predication", &node.predication)?;
+            nonempty_entry!(map, "boundEventualities", &node.bound_eventualities);
         }
         data!(FormulaNode::Connective(node)) => {
             optional_entry!(map, "eventuality", node.eventuality.as_ref());
             map.serialize_entry("operator", &node.operator)?;
             nonempty_entry!(map, "children", &node.children);
             optional_entry!(map, "connector", node.connector.as_ref());
+            nonempty_entry!(map, "boundEventualities", &node.bound_eventualities);
         }
         data!(FormulaNode::Quantified(node)) => {
             map.serialize_entry("operator", &node.operator)?;
@@ -2574,18 +2697,21 @@ fn serialize_formula<M: SerializeMap>(map: &mut M, node: &FormulaNode) -> Result
             );
             map.serialize_entry("body", &node.body)?;
             optional_entry!(map, "quantity", node.quantity.as_ref());
+            nonempty_entry!(map, "boundEventualities", &node.bound_eventualities);
         }
         data!(FormulaNode::QuantifierBundle(node)) => {
             map.serialize_entry("operator", &FormulaOperator::QuantifierBundle)?;
             map.serialize_entry("body", &node.body)?;
             nonempty_entry!(map, "bindings", &node.bindings);
             map.serialize_entry("coequalScope", &true)?;
+            nonempty_entry!(map, "boundEventualities", &node.bound_eventualities);
         }
         data!(FormulaNode::RespectivelyDistribution(node)) => {
             map.serialize_entry("operator", &FormulaOperator::RespectivelyDistribution)?;
             map.serialize_entry("body", &node.body)?;
             nonempty_entry!(map, "streams", &node.streams);
             optional_entry!(map, "distinctPartition", node.distinct_partition.as_ref());
+            nonempty_entry!(map, "boundEventualities", &node.bound_eventualities);
         }
     }
     Ok(())
@@ -2720,6 +2846,11 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             if let Some(connection) = &node.nonlogical_connection {
                 connection.references_into(out);
             }
+            out.extend(
+                node.bound_eventualities
+                    .iter()
+                    .map(|eventuality| eventuality.object_id()),
+            );
         }
         data!(SemanticObject::Eventuality(node)) => {
             extend_optional(out, node.tense_modal);
@@ -2976,4 +3107,15 @@ fn collect_formula_references(node: &FormulaNode, out: &mut Vec<SemanticObjectId
             }
         }
     }
+    out.extend(
+        match node.as_data() {
+            data!(FormulaNode::Atom(node)) => &node.bound_eventualities,
+            data!(FormulaNode::Connective(node)) => &node.bound_eventualities,
+            data!(FormulaNode::Quantified(node)) => &node.bound_eventualities,
+            data!(FormulaNode::QuantifierBundle(node)) => &node.bound_eventualities,
+            data!(FormulaNode::RespectivelyDistribution(node)) => &node.bound_eventualities,
+        }
+        .iter()
+        .map(|eventuality| eventuality.object_id()),
+    );
 }

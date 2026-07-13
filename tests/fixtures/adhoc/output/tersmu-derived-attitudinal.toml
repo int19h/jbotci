@@ -9,22 +9,21 @@ description = "Issue #278 displayed tier: attitudinal experiencer and target rem
 [expectations.output.tersmu]
 claims = """
 asserted:
-- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11] [mode=asserted; context=utterance:5 assert > content atom [formula:12]]
+- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:12]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:13] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality[eventuality:6] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:12]]
-- denotes zo'e[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:12]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:12]]
-- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:12]]
-- denotes zo'e[entity:10] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:12]]
+- denotes zo'e[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:10] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:12]]
 displayed:
 - happiness [display=display:14; family=emotion; polarity=positive; assertion-effect=none; experiencer=speaker[entity:1]; target=formula[formula:12]]"""
 tree = """
 utterance assert [utterance:5]
-  content: atom [formula:12]
-    klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11]
+  content: atom binds=exists eventuality[eventuality:6] [formula:12]
+    klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11]
   aside: happiness [display=display:14; family=emotion; polarity=positive; assertion-effect=none; experiencer=speaker[entity:1]; target=formula[formula:12]]"""

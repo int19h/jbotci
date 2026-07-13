@@ -4591,7 +4591,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let template = match explicit_template {
             Some(template) => template,
             None => {
-                let mut template = SemanticObject::eventuality(EventualityClass::Event, None, None);
+                let mut template =
+                    SemanticObject::generated_eventuality(EventualityClass::Event, None, None);
                 self.apply_generated_inherited_sticky_paths_to_event(&mut template);
                 template
             }

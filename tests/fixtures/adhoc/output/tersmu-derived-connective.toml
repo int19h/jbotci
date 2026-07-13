@@ -9,28 +9,26 @@ description = "Issue #278 connective tree: ordered formula children and shared s
 [expectations.output.tersmu]
 claims = """
 asserted:
-- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11] [mode=asserted; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
-- cadzu(x1=speaker[entity:1], x2=zo'e[entity:14], x3=zo'e[entity:15]) [predication:16] [mode=asserted; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
+- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11] [mode=asserted; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:6] [formula:12]]
+- cadzu(x1=speaker[entity:1], x2=zo'e[entity:14], x3=zo'e[entity:15]) {event=eventuality[eventuality:13]} [predication:16] [mode=asserted; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:13] [formula:17]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:19] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality[eventuality:6] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
-- denotes zo'e[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
-- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
-- denotes zo'e[entity:10] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:12]]
-- denotes eventuality[eventuality:13] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
-- denotes zo'e[entity:14] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
-- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom [formula:17]]
+- denotes zo'e[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:10] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:6] [formula:12]]
+- denotes zo'e[entity:14] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:13] [formula:17]]
+- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content and [formula:18] > child atom binds=exists eventuality[eventuality:13] [formula:17]]
 displayed:
 - (none)"""
 tree = """
 utterance assert [utterance:5]
   content: and [formula:18]
-    child: atom [formula:12]
-      klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) [predication:11]
-    child: atom [formula:17]
-      cadzu(x1=speaker[entity:1], x2=zo'e[entity:14], x3=zo'e[entity:15]) [predication:16]"""
+    child: atom binds=exists eventuality[eventuality:6] [formula:12]
+      klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11]
+    child: atom binds=exists eventuality[eventuality:13] [formula:17]
+      cadzu(x1=speaker[entity:1], x2=zo'e[entity:14], x3=zo'e[entity:15]) {event=eventuality[eventuality:13]} [predication:16]"""

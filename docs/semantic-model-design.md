@@ -30,6 +30,12 @@ not, and restricted-universal domain import needs the projective marker defined
 in 0.E. This criterion prevents both silent non-classical commitments and
 redundant metadata.
 
+**Projection invariant.** Projection derives from a typed semantic trigger plus
+its formula scope, never from `category = constant`. Generated predication
+events and referential denotations therefore use different typed identities:
+the former receive existential force from a formula/sequence owner edge, while
+only the latter participate in referent-denotation projection.
+
 ---
 
 # Part 0 — The object model
@@ -45,14 +51,14 @@ KIND id : attr=val, attr=val, …
 | KIND | what it is | principal attributes |
 |---|---|---|
 | `UTT` | an utterance / locution | `force` (assert/ask/command/mention/parenthetical), `content`=⟨FRM-id⟩, `ev`=⟨EV-id⟩, `speaker`=⟨REF-id⟩, `audience`=⟨REF-id⟩, optionally `deictic-ground`, `asides`=[nested ⟨UTT-id⟩ or anchored ⟨DSP-id⟩…] |
-| `EV` | an eventuality (event/state) | `tense`, `caha`; as needed `aspect`(ZAhO), `distrib`(TAhE), `freq`(ROI), `dist`(ZI), `extent`(ZEhA), spatial `place`(FAhA)/`sdist`(VA)/`sextent`(VEhA)/`dims`(VIhA)/`motion`(MOhI) |
+| `EV` | an eventuality (event/state) | `denotation`=generated-bound\|referential; `tense`, explicit `caha`; as needed `aspect`(ZAhO), `distrib`(TAhE), `freq`(ROI), `dist`(ZI), `extent`(ZEhA), spatial `place`(FAhA)/`sdist`(VA)/`sextent`(VEhA)/`dims`(VIhA)/`motion`(MOhI) |
 | `REF` | a referent | `kind`=const\|var; `sort`=Obj\|Ev\|Rel\|Proposition\|TruthValue\|Quantity\|Scale\|Sign; if const: `flavor`=lo\|le\|la\|lo'e\|le'e\|ko'a\|zo'e\|… or `indexical`=⟨role of an UTT⟩; if var: bound by a quantifier FRM-node (0.E); optional `handle`=⟨SGN-id⟩, `subscript`=n |
 | `PAR` | a free variable / gap | `sort`, `role`=ce'u\|ke'a\|ma\|kau; optional `tier`=connective\|displayed\|mekso-var |
 | `PRD` | a predication (atomic proposition) | `rel`, `ev`=⟨EV-id⟩, `args`=[…], `mode`=asserted\|incidental\|displayed\|restrictive\|inert\|performative |
-| `FRM` | a logical formula | an atom ⟨PRD-id⟩, or a connective/quantifier node over **other FRM-ids** (0.E, 0.L) |
+| `FRM` | a logical formula | an atom ⟨PRD-id⟩, or a connective/quantifier node over **other FRM-ids** (0.E, 0.L); optionally owns generated events through `boundEventualities` |
 | `RFY` | a reification (NU-family abstraction) | `kind`(nu/mu'e/pu'u/zu'o/za'i/ka/ni/jei/du'u/si'o/li'i/su'u), `body`=⟨FRM-id⟩, `abstracted`=[⟨PAR/EV-id⟩…], optional `mind`=⟨REF-id⟩, `focus`=[⟨PAR-id⟩…] |
 | `SGN` | a sign / word / quotation / lerfu | `kind`(word/grammatical/error/foreign/quotation/lerfu), `text` or `tokens`=[…]; for lerfu: `source`=⟨GLYPH/REL/QUOTATION⟩, `denotes`; for structured quotation: `utt`=⟨UTT-id⟩ |
-| `SEQ` | a discourse sequence (juxtaposition) | `items`=[⟨FRM/UTT-id, optional ordinal⟩…], `rel`=discourse-juxtaposition (**truth-valueless by construction**) |
+| `SEQ` | a discourse sequence (juxtaposition) | `items`=[⟨FRM/UTT-id, optional ordinal⟩…], `rel`=discourse-juxtaposition (**truth-valueless by construction**); optionally owns generated events through `boundEventualities` when no formula LCA exists |
 | `DSP` | a displayed object (attitudinal/evidential/metalinguistic/emphasis) | `kind`(emotion/prop-attitude/evidential/metalinguistic/emphasis), `rel`, `experiencer`=⟨REF-id⟩, `target`=⟨id⟩, optional `targetFocus`=bridi\|selbri, `anchor`=⟨EV-id⟩, `intensity`, `polarity`, `phase`, `assertionEffect` |
 | `MEX` | a mathematical expression (mekso operand language) | `op`(VUhU), `operands`=[…]; or a literal number / special number |
 | `REL` | relation-level metadata (for lujvo) | `veljvo`, `r`(place-identifications), `places`, `expansion` — **documentation of a `rel`, never part of any `FRM`** |
@@ -66,7 +72,7 @@ sorts are `relation`, `proposition`, `amount`, `abstractNature`, etc.  The JSON
 ID prefix is derived from that sort path, and its numeric suffix is globally
 unique across the graph.
 
-A note on what is *not* a kind: there is **no anaphora node**, **no identity-binder node**, and **no scope node for referent identity**. Coreference is *shared id*. The only binders in the model are the **logical quantifier FRM-nodes** of 0.E, which bind variables over a *formula*, and the **`RFY` abstraction** binders, which bind `PAR`/`EV` over a *body*. These are truth-conditional and irreducible (0.E); identity/anaphora scope is not represented because it is not needed once anaphora is resolved.
+A note on what is *not* a kind: there is **no anaphora node**, **no identity-binder node**, and **no scope node for referent identity**. Coreference is *shared id*. Logical quantifier `FRM` nodes bind variables over formulas, `RFY` abstractions bind parameters over bodies, and the generated-event owner edge below binds an event witness at an existing `FRM` or `SEQ`; none introduces a generic scope object. Identity/anaphora scope is not represented because it is not needed once anaphora is resolved.
 
 ## 0.B Notation conventions
 
@@ -82,7 +88,31 @@ A note on what is *not* a kind: there is **no anaphora node**, **no identity-bin
 - **inert** — present and import-bearing but **truth-functionally vacuous** (the second operand of `U`, "whether or not"; 0.L).
 - **performative** — made true by the act of uttering (the `ca'e` case; 0.J).
 
-**Implicit-value surfacing.** A bare event line `EV e1` carries the standing default **`tense=?`** (a *free contextual temporal reference*, resolved by context — explicitly **not** "present") and **`caha=ca'a`** (actual) for an **asserted main bridi**; inside an abstraction, `caha=?` (no actuality forced). An elided tense is `tense=?`; an elided inner sumti is a `zo'e` `REF`; an elided outer quantifier on a constant is *nothing* (xorlo, 0.C). I write the defaults out in full in the companion encodings.
+**Implicit-value surfacing.** A bare event line `EV e1` carries the standing default **`tense=?`** (a *free contextual temporal reference*, resolved by context — explicitly **not** "present"). Omitted CAhA asserts no actuality status: `ca'a`, `ka'e`, `nu'o`, and `pu'i` constrain the already-bound witness only when explicit. An elided inner sumti is a `zo'e` `REF`; an elided outer quantifier on a constant is *nothing* (xorlo, 0.C). I write the defaults out in full in the companion encodings.
+
+### Generated-event identity and binding
+
+Every eventuality has one of two disjoint typed identities:
+
+- A **generated-bound** eventuality is introduced by predication lowering. It
+  has no referential `category` or `scopeDependence`, and exactly one existing
+  semantic owner lists it in `boundEventualities`. The owner is the lowest `FRM`
+  dominating every primary-field, argument/modal, transitive-tanru,
+  formula-event, and reified-content use. If no formula LCA exists, the lowest
+  containing `SEQ` owns it. Shared events are consequently bound once, outside
+  every use, rather than once per atom.
+- A **referential** eventuality denotes a Lojban/discourse object and retains
+  ordinary referent category and scope dependence. `lo`/`le nu` denotations
+  (including an embedded event promoted as the abstraction result), locution
+  events, event indexicals, and mentioned event fragments remain entirely
+  outside generated-event binding.
+
+The owner edge supplies existential scope, not actuality. In particular, the
+event of `mi na klama` is bound on the inner atom under `not`; `mi ca'a klama`
+has that same binding shape plus an explicit actuality constraint on the
+witness. Co-variation of a generated witness with outer logical binders follows
+from graph nesting, so duplicating that fact as `scopeDependence` would be both
+redundant and liable to disagree with the owner edge.
 
 **The utterance is always present.** Every freestanding example is wrapped in
 ```
@@ -317,7 +347,7 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
 - **C-1, C-3, C-5 — SUPERSEDED by C-G.** (Early gadri treatment: `lo`/`le` as veridical/non-veridical plural constants with plurality-mode *flavors* and a special "description" tag. Replaced wholesale.)
 - **C-2 — SHARPENED to C-9.** (Early "outer quantifier = restricted variable".)
 - **C-G (guskant plural-constant basis).** Gadri = a fresh `const` + an incidental clause, exactly as in Part 0.D; `lo`/`le`/`la` are logically identical; `le` = `zo'e noi …skicu…` (non-veridicality is an ordinary incidental `skicu`, not a tag); `la cmevla` = `zo'e noi …cmene…` (the name a quoted word); mass = a `gunma` referent, set = a `selcmi` referent (strict reading), **not** flavors; distributivity is not encoded by the bare constant. (Part 0.C–0.D.)
-- **C-4 (implicit-value surfacing + utterance framing).** Bare `EV` ≡ `tense=?` (free contextual reference, *not* "present"), `caha=ca'a` for an asserted main bridi (`caha=?` inside abstractions); every elided place is its own `zo'e` `REF`; every example wrapped in the `UTT`/`e0` frame. (Part 0.B.)
+- **C-4 (implicit-value surfacing + utterance framing).** Bare `EV` ≡ `tense=?` (free contextual reference, *not* "present") with no CAhA commitment unless one is explicit; every elided place is its own `zo'e` `REF`; every example wrapped in the `UTT`/`e0` frame. (Part 0.B.)
 - **C-8 (inner quantifier & constant laws).** Inner quantifier = `mei`-count, not logical; individual ≡ `pa mei`; `lo no broda` meaningless; constants carry existential import + the Skolem reading. (Part 0.C–0.E.)
 - **C-9 (outer quantification).** Outer `PA` = a restricted bound **singular** variable (`PA da poi me …`), distributive by default; `su'oi`/`ro'oi` plural. (Part 0.E.)
 - **C-12 (notation, later refined by C-22).** One object per line; uniform `KIND id : attr=val`; modes asserted/incidental/displayed/restrictive; every elided place its own `zo'e`; the `UTT`/`e0` frame always present. (Part 0.A–0.B.)
@@ -367,3 +397,10 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
   dependence. Claims-ledger denotation lines render the state per line and stay
   in the projected tier because dependence is orthogonal to commitment status.
   (Parts 0.C, 0.E.)
+- **C-32 (typed generated-event binding, #353).** Eventualities distinguish
+  generated-bound witnesses from referential denotations. Every generated event
+  is bound exactly once on the lowest dominating formula, or on the lowest
+  containing sequence when formula roots have no LCA; referential events never
+  occur on that edge. The binding supplies existential scope only, and generated
+  events no longer project denotation lines or carry `scopeDependence`. (Parts
+  0.A, 0.B, 0.G, 0.H.)

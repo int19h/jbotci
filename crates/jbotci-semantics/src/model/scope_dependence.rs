@@ -117,7 +117,7 @@ fn visit_scope_object(
                 derived,
             );
             let mut references = Vec::new();
-            object.references_into(&mut references);
+            object.references_without_event_bindings_into(&mut references);
             let suffix_start = node.items.len()
                 + usize::from(node.content.is_some())
                 + node.connection_claims.len();

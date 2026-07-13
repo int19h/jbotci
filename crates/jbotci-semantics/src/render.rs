@@ -13,11 +13,11 @@ use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use crate::model::{
     ArgumentValue, ArgumentValueKind, Descriptor, DescriptorKind, DisplayedContentAssertionEffect,
     DisplayedContentFamily, DisplayedContentNode, DisplayedContentPolarity, FormulaNode,
-    FormulaNodeData, FormulaOperator, IndexicalKind, PlaceIndex, PredicationMode, PredicationNode,
-    PredicationRelationData, QuantifiedFormulaNode, ReferentCategory, RelativeClause,
-    RelativeClauseKind, ScopeDependenceData, SemanticGraph, SemanticObject, SemanticObjectData,
-    SemanticObjectId, SemanticObjectKind, SemanticSort, SequenceNode, UtteranceForce,
-    UtteranceNode,
+    FormulaNodeData, FormulaOperator, GeneratedEventualityId, IndexicalKind, PlaceIndex,
+    PredicationMode, PredicationNode, PredicationRelationData, QuantifiedFormulaNode,
+    ReferentCategory, RelativeClause, RelativeClauseKind, ScopeDependenceData, SemanticGraph,
+    SemanticObject, SemanticObjectData, SemanticObjectId, SemanticObjectKind, SemanticSort,
+    SequenceNode, UtteranceForce, UtteranceNode,
 };
 
 /// Render the graph as a flat, tiered claims ledger.
@@ -931,10 +931,15 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
     fn enter_sequence(
         &mut self,
         id: SemanticObjectId,
-        _node: &'graph SequenceNode,
+        node: &'graph SequenceNode,
         _location: TraversalLocation,
     ) {
-        self.context.push(format!("sequence {id}"));
+        let binding = event_binding_label(self.graph, &node.bound_eventualities);
+        self.context.push(if binding.is_empty() {
+            format!("sequence {id}")
+        } else {
+            format!("sequence {id} {binding}")
+        });
     }
 
     #[requires(true)]
@@ -1163,12 +1168,21 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
     fn enter_sequence(
         &mut self,
         id: SemanticObjectId,
-        _node: &'graph SequenceNode,
+        node: &'graph SequenceNode,
         location: TraversalLocation,
     ) {
+        let binding = event_binding_label(self.graph, &node.bound_eventualities);
         self.line(
             location.depth,
-            &format!("{}sequence [{id}]", tree_role_prefix(location.role)),
+            &format!(
+                "{}sequence{} [{id}]",
+                tree_role_prefix(location.role),
+                if binding.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {binding}")
+                }
+            ),
         );
     }
 
@@ -1271,6 +1285,21 @@ fn format_predication(
         format_argument_to(graph, argument, &mut output);
     }
     output.push(')');
+    if let Some(eventuality) = node.eventuality {
+        let _ = write!(output, " {{event={}}}", referent_label(graph, eventuality));
+    }
+    if let Some(tanru_link) = &node.tanru_link
+        && let Some(head_eventuality) = graph
+            .objects
+            .get(&tanru_link.head)
+            .and_then(SemanticObject::predication_eventuality)
+    {
+        let _ = write!(
+            output,
+            " {{tanru-head-event={}}}",
+            referent_label(graph, head_eventuality)
+        );
+    }
     if !node.modal_arguments.is_empty() {
         output.push_str(" {modal=");
         for (modal_index, modal) in node.modal_arguments.iter().enumerate() {
@@ -1521,7 +1550,7 @@ fn formula_reference_label(graph: &SemanticGraph, formula: SemanticObjectId) -> 
 #[requires(graph.objects.contains_key(&id))]
 #[ensures(!ret.is_empty())]
 fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &FormulaNode) -> String {
-    match node.as_data() {
+    let base = match node.as_data() {
         data!(FormulaNode::Atom(_)) => "atom".to_owned(),
         data!(FormulaNode::Connective(node)) => formula_operator_label(node.operator).to_owned(),
         data!(FormulaNode::Quantified(node)) => format!(
@@ -1544,6 +1573,36 @@ fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &Formul
         data!(FormulaNode::RespectivelyDistribution(node)) => {
             format!("respectively-distribution streams={}", node.streams.len())
         }
+    };
+    let binding = event_binding_label(
+        graph,
+        graph
+            .objects
+            .get(&id)
+            .expect("formula label requires a defined formula")
+            .bound_eventualities(),
+    );
+    if binding.is_empty() {
+        base
+    } else {
+        format!("{base} {binding}")
+    }
+}
+
+#[requires(eventualities.iter().all(|eventuality| graph.objects.get(&eventuality.object_id()).is_some_and(SemanticObject::is_generated_eventuality)))]
+#[ensures(ret.is_empty() == eventualities.is_empty())]
+fn event_binding_label(graph: &SemanticGraph, eventualities: &[GeneratedEventualityId]) -> String {
+    let mut output = String::new();
+    for eventuality in eventualities {
+        if !output.is_empty() {
+            output.push_str(", ");
+        }
+        output.push_str(&referent_label(graph, eventuality.object_id()));
+    }
+    if output.is_empty() {
+        output
+    } else {
+        format!("binds=exists {output}")
     }
 }
 
