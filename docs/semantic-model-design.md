@@ -104,7 +104,17 @@ carry existential import by 0.K/C-13 (Part 0.P).
 A `const` denotes a **plurality** (one or more) with **no inherent quantifier, no inherent distributivity, no inherent set-hood**. Two laws govern it:
 
 - **Existential import.** `C broda` ⟹ `su'oi da broda` — a constant always has a referent. Correspondingly "there is none" (`naku su'oi da`) is *not* expressible by any `lo`-term, and **`lo no broda` is meaningless**.
-- **Skolem reading.** A constant standing in the scope of a bound variable may **co-vary** with it (it is a Skolem function of the variable). This is exactly why every elided `zo'e` is surfaced as its *own* object and need not denote the same thing across a quantifier's range (`ro mlatu cu jbena zo'e zo'e zo'e` — every cat is born to its own parents, at its own time and place).
+- **Skolem reading.** A constant standing in the scope of a bound variable may **co-vary** with it (it is a Skolem function of the variable). This is exactly why every elided `zo'e` is surfaced as its *own* object and need not denote the same thing across a quantifier's range (`ro mlatu cu jbena zo'e zo'e zo'e` — every cat is born to its own parents, at its own time and place). The canonical graph records this on every constant as typed `scopeDependence`: explicit `fixed` when its introduction site has no binders, otherwise `underspecified` with the exact nonempty `mayDependOn` binder-id set. The latter records only possible dependence; it does not assert that the denotation actually varies.
+
+`scopeDependence` is derived mechanically from the rooted typed graph, never from
+source text or labels. Quantifier variables bind their restrictions and bodies;
+coequal bundle/respective variables bind their restrictions and shared body;
+abstraction parameters bind their body; question slots bind their question body;
+and nested utterances reset the binder environment. The first reference to a
+constant in canonical semantic traversal order is its introduction site; later
+shared-id references keep that value. Normal generated graphs are connected after
+pruning; any disconnected component in a hand-built graph is treated as an
+ID-ordered root at empty scope. The graph invariant recomputes this derivation.
 
 Primitives over constants:
 - **`me`** — the among-relation. `me(e; y, X)` = "y is among X". Reflexive and transitive.
@@ -350,3 +360,10 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
   `naku`-duality proof in 0.E shows why an ordinary conjunct is invalid;
   existential/cardinality restrictions remain unannotated because their import
   is already classical, and `NO` remains non-importing. (Parts 0.E, 0.K.)
+- **C-31 (typed constant scope dependence, #352).** Every constant carries an
+  explicit `scopeDependence`: `fixed` at binder-free introduction sites, or
+  `underspecified` with the mechanically derived nonempty `mayDependOn` set.
+  This exposes the existing C-8/C-22 Skolem reading without asserting actual
+  dependence. Claims-ledger denotation lines render the state per line and stay
+  in the projected tier because dependence is orthogonal to commitment status.
+  (Parts 0.C, 0.E.)

@@ -2653,7 +2653,10 @@ mod tests {
             .expect("tersmu claims text");
         assert!(claims_text.starts_with("asserted:\n"));
         assert!(claims_text.contains("presupposed/projected:\n"));
-        assert!(claims_text.contains("exists lo tanxe["));
+        assert!(claims_text.lines().any(|line| {
+            line.starts_with("- denotes lo tanxe[")
+                && line.contains("[binder-dependence=fixed; constant;")
+        }));
 
         let unknown = post_json(
             app.clone(),

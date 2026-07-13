@@ -7642,7 +7642,7 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::DomainImport;
+    use crate::model::{DomainImport, ScopeDependence, ScopeDependenceData};
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
 
@@ -7669,6 +7669,72 @@ mod tests {
         .expect("source should build semantics")
     }
 
+    #[requires(graph.objects.values().any(|object| matches!(object.as_formula().map(FormulaNode::as_data), Some(data!(FormulaNode::Quantified(node))) if node.operator == FormulaOperator::Forall)))]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn forall_variable(graph: &SemanticGraph) -> SemanticObjectId {
+        graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(node))
+                    if node.operator == FormulaOperator::Forall =>
+                {
+                    Some(node.variable)
+                }
+                _ => None,
+            })
+            .expect("precondition guarantees a forall formula")
+    }
+
+    #[requires(graph.objects.values().any(|object| object.as_predication().is_some_and(|predication| matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation))))]
+    #[ensures(!ret.is_empty())]
+    #[ensures(ret.iter().all(|id| graph.objects.get(id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant))))]
+    fn constant_argument_ids(graph: &SemanticGraph, relation: &str) -> Vec<SemanticObjectId> {
+        let predication = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                    .then_some(predication)
+            })
+            .expect("precondition guarantees a matching predication");
+        predication
+            .arguments
+            .values()
+            .filter_map(|argument| argument.value)
+            .filter(|id| {
+                graph.objects.get(id).is_some_and(|object| {
+                    object.referent_category() == Some(ReferentCategory::Constant)
+                })
+            })
+            .collect()
+    }
+
+    #[requires(graph.objects.contains_key(&constant))]
+    #[requires(graph.objects.get(&constant).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant)))]
+    #[requires(binders.iter().all(|binder| graph.objects.contains_key(binder)))]
+    #[ensures(graph.objects.get(&constant).is_some_and(|object| matches!(object.scope_dependence().map(ScopeDependence::as_data), Some(data!(ScopeDependence::Underspecified { may_depend_on })) if may_depend_on.iter().copied().eq(binders.iter().copied()))))]
+    fn assert_underspecified_scope(
+        graph: &SemanticGraph,
+        constant: SemanticObjectId,
+        binders: &[SemanticObjectId],
+    ) {
+        let object = graph.objects.get(&constant).expect("precondition checked");
+        assert!(matches!(
+            object.scope_dependence().map(ScopeDependence::as_data),
+            Some(data!(ScopeDependence::Underspecified { may_depend_on }))
+                if may_depend_on.iter().copied().eq(binders.iter().copied())
+        ));
+        assert_eq!(
+            serde_json::to_value(object).expect("constant should serialize")["scopeDependence"],
+            serde_json::json!({
+                "kind": "underspecified",
+                "mayDependOn": binders.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            })
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -7691,6 +7757,106 @@ mod tests {
             serde_json::to_value(quantified).expect("formula should serialize")["domainImport"],
             serde_json::json!("projective")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restricted_universal_elisions_may_depend_on_the_quantifier() {
+        let graph = semantic_graph_for("ro mlatu cu jbena");
+        let variable = forall_variable(&graph);
+        let constants = constant_argument_ids(&graph, "jbena");
+
+        assert!(
+            constants.len() >= 1,
+            "jbena should have elided constant arguments"
+        );
+        for constant in &constants {
+            assert_underspecified_scope(&graph, *constant, &[variable]);
+        }
+        let claims = crate::render::render_claims(&graph);
+        assert!(claims.contains("binder-dependence=underspecified; may-depend-on="));
+        for constant in constants {
+            assert!(!claims.lines().any(|line| {
+                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn negated_quantified_elisions_keep_the_enclosing_binder() {
+        let graph = semantic_graph_for("naku ro da poi mlatu cu klama");
+        let variable = forall_variable(&graph);
+        let constants = constant_argument_ids(&graph, "klama");
+
+        assert!(
+            constants.len() >= 1,
+            "klama should have elided constant arguments"
+        );
+        for constant in &constants {
+            assert_underspecified_scope(&graph, *constant, &[variable]);
+        }
+        let claims = crate::render::render_claims(&graph);
+        for constant in constants {
+            assert!(!claims.lines().any(|line| {
+                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn top_level_explicit_and_elided_constants_are_explicitly_fixed() {
+        let graph = semantic_graph_for("mi klama zo'e");
+        let constants = constant_argument_ids(&graph, "klama");
+
+        assert!(
+            constants.len() >= 1,
+            "klama should include the explicit zo'e"
+        );
+        for constant in &constants {
+            let object = graph.objects.get(constant).expect("argument exists");
+            assert!(matches!(
+                object.scope_dependence().map(ScopeDependence::as_data),
+                Some(data!(ScopeDependence::Fixed))
+            ));
+            assert_eq!(
+                serde_json::to_value(object).expect("constant should serialize")["scopeDependence"],
+                serde_json::json!({ "kind": "fixed" })
+            );
+        }
+        let claims = crate::render::render_claims(&graph);
+        assert!(claims.contains("binder-dependence=fixed; constant"));
+        for constant in constants {
+            assert!(!claims.lines().any(|line| {
+                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn description_introduced_under_quantifier_may_depend_on_it() {
+        let graph = semantic_graph_for("ro da cu viska lo mlatu");
+        let variable = forall_variable(&graph);
+        let descriptions = graph
+            .objects
+            .iter()
+            .filter_map(|(id, object)| {
+                (object.referent_category() == Some(ReferentCategory::Constant)
+                    && object
+                        .descriptor()
+                        .is_some_and(|descriptor| descriptor.word == "lo"))
+                .then_some(*id)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(descriptions.len(), 1, "the sentence has one lo description");
+        assert_underspecified_scope(&graph, descriptions[0], &[variable]);
     }
 
     #[test]

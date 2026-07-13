@@ -15,8 +15,9 @@ use crate::model::{
     DisplayedContentFamily, DisplayedContentNode, DisplayedContentPolarity, FormulaNode,
     FormulaNodeData, FormulaOperator, IndexicalKind, PlaceIndex, PredicationMode, PredicationNode,
     PredicationRelationData, QuantifiedFormulaNode, ReferentCategory, RelativeClause,
-    RelativeClauseKind, SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId,
-    SemanticObjectKind, SemanticSort, SequenceNode, UtteranceForce, UtteranceNode,
+    RelativeClauseKind, ScopeDependenceData, SemanticGraph, SemanticObject, SemanticObjectData,
+    SemanticObjectId, SemanticObjectKind, SemanticSort, SequenceNode, UtteranceForce,
+    UtteranceNode,
 };
 
 /// Render the graph as a flat, tiered claims ledger.
@@ -1001,11 +1002,17 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
             && self.seen_constants.insert(id)
         {
             let nonclaim_context = referent_nonclaim_context(self.graph, object);
+            let category = if object.referent_category() == Some(ReferentCategory::Constant) {
+                "constant"
+            } else {
+                "indexical"
+            };
             self.push(
                 ClaimTier::Projected,
                 format!(
-                    "exists {} [constant;{} context={}]",
+                    "denotes {} [{}; {category};{} context={}]",
                     referent_label(self.graph, id),
+                    binder_dependence_context(self.graph, object),
                     nonclaim_context,
                     self.context_label()
                 ),
@@ -1065,6 +1072,29 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
                 self.context_label()
             ),
         );
+    }
+}
+
+#[requires(object.referent_category().is_some_and(|category| matches!(category, ReferentCategory::Constant | ReferentCategory::Indexical)))]
+#[ensures(ret.starts_with("binder-dependence="))]
+fn binder_dependence_context(graph: &SemanticGraph, object: &SemanticObject) -> String {
+    let Some(scope_dependence) = object.scope_dependence() else {
+        // Indexicals are rigidly fixed by their category and do not carry the
+        // constant-only wire field.
+        return "binder-dependence=fixed".to_owned();
+    };
+    match scope_dependence.as_data() {
+        data!(ScopeDependence::Fixed) => "binder-dependence=fixed".to_owned(),
+        data!(ScopeDependence::Underspecified { may_depend_on }) => {
+            let mut binders = String::new();
+            for binder in may_depend_on {
+                if !binders.is_empty() {
+                    binders.push_str(", ");
+                }
+                binders.push_str(&referent_label(graph, *binder));
+            }
+            format!("binder-dependence=underspecified; may-depend-on={binders}")
+        }
     }
 }
 

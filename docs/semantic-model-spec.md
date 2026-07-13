@@ -5380,6 +5380,18 @@ implementation gaps are listed separately in “Known Implementation Divergences
     the classical-divergence criterion: annotate only intended semantics that
     a naive classical graph reading cannot derive and structure cannot encode.
 
+42. **Typed scope dependence for constants (#352) — extend.** Every constant
+    referent emits `scopeDependence`. Binder-free introduction sites use the
+    explicit shape `{"kind":"fixed"}`; sites under one or more typed binders use
+    `{"kind":"underspecified","mayDependOn":[...]}` with a nonempty, sorted set
+    of exactly those binder ids. `mayDependOn` states possible Skolem
+    co-variation only; it does not assert actual dependence. Derivation follows
+    typed formula, abstraction, question, and nested-utterance scope edges from
+    the graph root, and the graph invariant recomputes it. Claims render this
+    state on each constant denotation line rather than emitting an unqualified
+    existential line. The lines remain projected annotations, not a fourth
+    commitment tier, because dependence and commitment status are orthogonal.
+
 ## Known Implementation Divergences (2026-06-23)
 
 Where current `tersmu` output departs from this spec (amended above). These are the
