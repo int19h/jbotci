@@ -1,8 +1,9 @@
 //! Human-readable projections of the canonical semantic graph.
 //!
 //! These renderers never construct semantic content. They walk the validated,
-//! typed graph and expose two different views of the same objects: a claims
-//! ledger for validation and a structural tree for scope inspection.
+//! typed graph and expose complementary views of the same objects: a claims
+//! ledger for validation, a structural tree for scope inspection, and their
+//! partitioned combined notation.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -12,9 +13,9 @@ use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 
 use crate::model::{
     ArgumentValue, ArgumentValueKind, Descriptor, DescriptorKind, DisplayedContentAssertionEffect,
-    DisplayedContentFamily, DisplayedContentNode, DisplayedContentPolarity, FormulaNode,
-    FormulaNodeData, FormulaOperator, GeneratedEventualityId, IndexicalKind, PlaceIndex,
-    PredicationMode, PredicationNode, PredicationRelationData, QuantifiedFormulaNode,
+    DisplayedContentFamily, DisplayedContentNode, DisplayedContentPolarity, EventualityClass,
+    FormulaNode, FormulaNodeData, FormulaOperator, GeneratedEventualityId, IndexicalKind,
+    PlaceIndex, PredicationMode, PredicationNode, PredicationRelationData, QuantifiedFormulaNode,
     ReferentCategory, RelativeClause, RelativeClauseKind, ScopeDependenceData, SemanticGraph,
     SemanticObject, SemanticObjectData, SemanticObjectId, SemanticObjectKind, SemanticSort,
     SequenceNode, UtteranceForce, UtteranceNode,
@@ -33,9 +34,23 @@ pub fn render_claims(graph: &SemanticGraph) -> String {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn render_tree(graph: &SemanticGraph) -> String {
-    let mut visitor = TreeVisitor::new(graph);
+    let mut visitor = TreeVisitor::new(graph, TreeEventConditionPolicy::EverySite);
     DerivedTraversal::new(graph).walk(&mut visitor);
     visitor.finish()
+}
+
+/// Render the structural tree followed by only commitments displaced from it.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_combined(graph: &SemanticGraph) -> String {
+    let mut tree_visitor = TreeVisitor::new(graph, TreeEventConditionPolicy::StructuralSiteOnly);
+    DerivedTraversal::new(graph).walk(&mut tree_visitor);
+    let tree = tree_visitor.finish();
+
+    let mut projected_visitor = CombinedProjectedVisitor::new(graph);
+    DerivedTraversal::new(graph).walk(&mut projected_visitor);
+    let projected = projected_visitor.finish();
+    format!("{tree}\n\n{projected}")
 }
 
 #[invariant(true)]
@@ -825,13 +840,20 @@ struct ClaimLine {
     text: String,
 }
 
+#[invariant(!label.is_empty())]
+#[invariant(scope_operator.as_ref().is_none_or(|operator| !operator.is_empty()))]
+struct ClaimsContextFrame {
+    label: String,
+    scope_operator: Option<String>,
+}
+
 #[invariant(true)]
 struct ClaimsVisitor<'graph> {
     graph: &'graph SemanticGraph,
     asserted: Vec<ClaimLine>,
     projected: Vec<ClaimLine>,
     displayed: Vec<ClaimLine>,
-    context: Vec<String>,
+    context: Vec<ClaimsContextFrame>,
     seen_predications: BTreeSet<(ClaimTierKey, SemanticObjectId)>,
     seen_constants: BTreeSet<SemanticObjectId>,
     seen_imports: BTreeSet<SemanticObjectId>,
@@ -879,7 +901,7 @@ impl<'graph> ClaimsVisitor<'graph> {
     #[ensures(!ret.is_empty())]
     fn finish(self) -> String {
         let mut output = String::new();
-        push_claim_tier(&mut output, "asserted", &self.asserted);
+        push_claim_tier(&mut output, "at-issue commitments", &self.asserted);
         output.push('\n');
         push_claim_tier(&mut output, "presupposed/projected", &self.projected);
         output.push('\n');
@@ -904,7 +926,34 @@ impl<'graph> ClaimsVisitor<'graph> {
         if self.context.is_empty() {
             "graph".to_owned()
         } else {
-            self.context.join(" > ")
+            let mut output = String::new();
+            for frame in &self.context {
+                if !output.is_empty() {
+                    output.push_str(" > ");
+                }
+                output.push_str(&frame.label);
+            }
+            output
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn scope_label(&self) -> String {
+        let mut output = String::new();
+        for frame in &self.context {
+            let Some(operator) = &frame.scope_operator else {
+                continue;
+            };
+            if !output.is_empty() {
+                output.push_str(" > ");
+            }
+            output.push_str(operator);
+        }
+        if output.is_empty() {
+            "top-level".to_owned()
+        } else {
+            output
         }
     }
 }
@@ -919,8 +968,10 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         node: &'graph UtteranceNode,
         _location: TraversalLocation,
     ) {
-        self.context
-            .push(format!("{id} {}", utterance_force_label(node.force)));
+        self.context.push(new!(ClaimsContextFrame {
+            label: format!("{id} {}", utterance_force_label(node.force)),
+            scope_operator: None,
+        }));
     }
 
     #[requires(true)]
@@ -938,11 +989,14 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         _location: TraversalLocation,
     ) {
         let binding = event_binding_label(self.graph, &node.bound_eventualities);
-        self.context.push(if binding.is_empty() {
-            format!("sequence {id}")
-        } else {
-            format!("sequence {id} {binding}")
-        });
+        self.context.push(new!(ClaimsContextFrame {
+            label: if binding.is_empty() {
+                format!("sequence {id}")
+            } else {
+                format!("sequence {id} {binding}")
+            },
+            scope_operator: None,
+        }));
     }
 
     #[requires(true)]
@@ -959,8 +1013,10 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         node: &'graph FormulaNode,
         location: TraversalLocation,
     ) {
-        self.context
-            .push(formula_context_label(self.graph, id, node, location.role));
+        self.context.push(new!(ClaimsContextFrame {
+            label: formula_context_label(self.graph, id, node, location.role),
+            scope_operator: formula_scope_operator_label(self.graph, node),
+        }));
     }
 
     #[requires(true)]
@@ -983,14 +1039,21 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         let tier = location.tier;
         if self.seen_predications.insert((tier.into(), id)) {
             let predication = format_predication(self.graph, id, node);
-            self.push(
-                tier,
+            let line = if tier == ClaimTier::Asserted {
+                format!(
+                    "{predication} [mode={}; scope={}; context={}]",
+                    predication_mode_label(node.mode),
+                    self.scope_label(),
+                    self.context_label()
+                )
+            } else {
                 format!(
                     "{predication} [mode={}; context={}]",
                     predication_mode_label(node.mode),
                     self.context_label()
-                ),
-            );
+                )
+            };
+            self.push(tier, line);
         }
     }
 
@@ -1110,18 +1173,355 @@ fn binder_dependence_context(graph: &SemanticGraph, object: &SemanticObject) -> 
 }
 
 #[invariant(true)]
-struct TreeVisitor<'graph> {
-    graph: &'graph SemanticGraph,
-    output: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum CombinedImplicitConstantKind {
+    Elided,
+    TypicalPlaceValue,
 }
 
-impl<'graph> TreeVisitor<'graph> {
+#[invariant(may_depend_on.as_ref().is_none_or(|binders| !binders.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct CombinedScopeDependence {
+    may_depend_on: Option<BTreeSet<SemanticObjectId>>,
+}
+
+#[invariant(scope_dependence.may_depend_on.as_ref().is_none_or(|binders| !binders.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct CombinedImplicitConstantGroupKey {
+    kind: CombinedImplicitConstantKind,
+    scope_dependence: CombinedScopeDependence,
+}
+
+#[invariant(true)]
+struct CombinedProjectedVisitor<'graph> {
+    graph: &'graph SemanticGraph,
+    displaced: Vec<ClaimLine>,
+    frame_indexicals: Vec<SemanticObjectId>,
+    frame_locutions: Vec<SemanticObjectId>,
+    constants: Vec<SemanticObjectId>,
+    implicit_constant_groups: BTreeMap<CombinedImplicitConstantGroupKey, Vec<SemanticObjectId>>,
+    seen_predications: BTreeSet<SemanticObjectId>,
+    seen_constants: BTreeSet<SemanticObjectId>,
+    seen_imports: BTreeSet<SemanticObjectId>,
+}
+
+impl<'graph> CombinedProjectedVisitor<'graph> {
     #[requires(graph.objects.contains_key(&graph.root))]
     #[ensures(ret.graph.root == graph.root)]
     fn new(graph: &'graph SemanticGraph) -> Self {
         Self {
             graph,
+            displaced: Vec::new(),
+            frame_indexicals: Vec::new(),
+            frame_locutions: Vec::new(),
+            constants: Vec::new(),
+            implicit_constant_groups: BTreeMap::new(),
+            seen_predications: BTreeSet::new(),
+            seen_constants: BTreeSet::new(),
+            seen_imports: BTreeSet::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn finish(self) -> String {
+        let mut output = String::from("projected:\n");
+        let mut line_count = 0;
+
+        if !self.frame_indexicals.is_empty() || !self.frame_locutions.is_empty() {
+            push_combined_frame_line(
+                self.graph,
+                &self.frame_indexicals,
+                &self.frame_locutions,
+                &mut output,
+            );
+            line_count += 1;
+        }
+        for line in &self.displaced {
+            push_combined_projected_line(&line.text, &mut output);
+            line_count += 1;
+        }
+        for id in self.constants {
+            let mut line = String::new();
+            format_combined_constant_denotation_to(self.graph, id, &mut line);
+            push_combined_projected_line(&line, &mut output);
+            line_count += 1;
+        }
+        for (key, ids) in self.implicit_constant_groups {
+            let mut line = String::new();
+            format_combined_implicit_group_to(self.graph, &key, &ids, &mut line);
+            push_combined_projected_line(&line, &mut output);
+            line_count += 1;
+        }
+
+        if line_count == 0 {
+            output.push_str("- (none)\n");
+        }
+        output.pop();
+        output
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn push_displaced(&mut self, text: String) {
+        self.displaced.push(new!(ClaimLine { text }));
+    }
+}
+
+#[contract_trait]
+impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn predication(
+        &mut self,
+        id: SemanticObjectId,
+        node: &'graph PredicationNode,
+        location: TraversalLocation,
+    ) {
+        if location.claim_status != ClaimStatus::Commitment
+            || location.tier != ClaimTier::Projected
+            || !self.seen_predications.insert(id)
+        {
+            return;
+        }
+        let predication = format_predication_with_event_conditions(self.graph, id, node, false);
+        self.push_displaced(format!(
+            "{predication} [mode={}]",
+            predication_mode_label(node.mode)
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn referent(
+        &mut self,
+        id: SemanticObjectId,
+        object: &'graph SemanticObject,
+        location: TraversalLocation,
+    ) {
+        if location.claim_status != ClaimStatus::Commitment || !self.seen_constants.insert(id) {
+            return;
+        }
+        match object.referent_category() {
+            Some(ReferentCategory::Indexical) => self.frame_indexicals.push(id),
+            Some(ReferentCategory::Constant) => {
+                if object.as_eventuality().is_some_and(|eventuality| {
+                    eventuality.class == Some(EventualityClass::Locution)
+                }) {
+                    self.frame_locutions.push(id);
+                } else if let Some(kind) = combined_implicit_constant_kind(object) {
+                    let key = new!(CombinedImplicitConstantGroupKey {
+                        kind: kind,
+                        scope_dependence: combined_scope_dependence(object),
+                    });
+                    self.implicit_constant_groups
+                        .entry(key)
+                        .or_default()
+                        .push(id);
+                } else {
+                    self.constants.push(id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn domain_import(
+        &mut self,
+        formula: SemanticObjectId,
+        node: &'graph QuantifiedFormulaNode,
+        location: TraversalLocation,
+    ) {
+        if location.claim_status != ClaimStatus::Commitment || !self.seen_imports.insert(formula) {
+            return;
+        }
+        let restriction = node
+            .restriction
+            .expect("domain import requires a restriction formula");
+        self.push_displaced(format!(
+            "exists {} satisfying {} [restriction={restriction}; projective domain import of {formula}]",
+            referent_label(self.graph, node.variable),
+            formula_reference_label_with_event_conditions(self.graph, restriction, false)
+        ));
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn push_combined_projected_line(text: &str, output: &mut String) {
+    output.push_str("- ");
+    output.push_str(text);
+    output.push('\n');
+}
+
+#[requires(indexicals.iter().all(|id| graph.objects.get(id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Indexical))))]
+#[requires(locutions.iter().all(|id| graph.objects.get(id).is_some_and(|object| object.as_eventuality().is_some_and(|eventuality| eventuality.class == Some(EventualityClass::Locution)))))]
+#[requires(!indexicals.is_empty() || !locutions.is_empty())]
+#[ensures(true)]
+fn push_combined_frame_line(
+    graph: &SemanticGraph,
+    indexicals: &[SemanticObjectId],
+    locutions: &[SemanticObjectId],
+    output: &mut String,
+) {
+    output.push_str("- frame: indexicals=[");
+    for (index, id) in indexicals.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        output.push_str(&referent_label(graph, *id));
+        if graph
+            .objects
+            .get(id)
+            .is_some_and(|object| object.as_eventuality().is_some())
+        {
+            output.push_str(" {");
+            format_eventuality_conditions_to(graph, *id, output);
+            output.push('}');
+        }
+    }
+    output.push_str("] [binder-dependence=fixed]; locutions=[");
+    for (index, id) in locutions.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        output.push_str(&referent_label(graph, *id));
+    }
+    output.push_str("] [binder-dependence=fixed]\n");
+}
+
+#[requires(object.referent_category() == Some(ReferentCategory::Constant))]
+#[ensures(true)]
+fn combined_implicit_constant_kind(
+    object: &SemanticObject,
+) -> Option<CombinedImplicitConstantKind> {
+    match object.descriptor().map(|descriptor| descriptor.kind) {
+        Some(DescriptorKind::Elided) => Some(CombinedImplicitConstantKind::Elided),
+        Some(DescriptorKind::TypicalPlaceValue) => {
+            Some(CombinedImplicitConstantKind::TypicalPlaceValue)
+        }
+        _ => None,
+    }
+}
+
+#[requires(object.referent_category() == Some(ReferentCategory::Constant))]
+#[ensures(true)]
+fn combined_scope_dependence(object: &SemanticObject) -> CombinedScopeDependence {
+    match object
+        .scope_dependence()
+        .expect("constant objects carry scope dependence")
+        .as_data()
+    {
+        data!(ScopeDependence::Fixed) => new!(CombinedScopeDependence {
+            may_depend_on: None,
+        }),
+        data!(ScopeDependence::Underspecified { may_depend_on }) => {
+            new!(CombinedScopeDependence {
+                may_depend_on: Some(may_depend_on.clone()),
+            })
+        }
+    }
+}
+
+#[requires(graph.objects.get(&id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant)))]
+#[ensures(true)]
+fn format_combined_constant_denotation_to(
+    graph: &SemanticGraph,
+    id: SemanticObjectId,
+    output: &mut String,
+) {
+    let object = graph.objects.get(&id).expect("precondition checked");
+    let _ = write!(output, "denotes {} [", referent_label(graph, id));
+    if object.as_eventuality().is_some() {
+        format_eventuality_conditions_to(graph, id, output);
+        output.push_str("; ");
+    }
+    let _ = write!(
+        output,
+        "{}; constant]",
+        binder_dependence_context(graph, object)
+    );
+}
+
+#[requires(!ids.is_empty())]
+#[requires(ids.iter().all(|id| graph.objects.get(id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant))))]
+#[ensures(true)]
+fn format_combined_implicit_group_to(
+    graph: &SemanticGraph,
+    key: &CombinedImplicitConstantGroupKey,
+    ids: &[SemanticObjectId],
+    output: &mut String,
+) {
+    output.push_str("denotes [");
+    for (index, id) in ids.iter().enumerate() {
+        if index > 0 {
+            output.push_str(", ");
+        }
+        output.push_str(&referent_label(graph, *id));
+    }
+    output.push_str("] [");
+    format_combined_scope_dependence_to(graph, &key.scope_dependence, output);
+    let _ = write!(
+        output,
+        "; constant; descriptor-kind={}]",
+        combined_implicit_constant_kind_label(key.kind)
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn format_combined_scope_dependence_to(
+    graph: &SemanticGraph,
+    scope_dependence: &CombinedScopeDependence,
+    output: &mut String,
+) {
+    match &scope_dependence.may_depend_on {
+        None => output.push_str("binder-dependence=fixed"),
+        Some(may_depend_on) => {
+            output.push_str("binder-dependence=underspecified; may-depend-on=");
+            for (index, binder) in may_depend_on.iter().enumerate() {
+                if index > 0 {
+                    output.push_str(", ");
+                }
+                output.push_str(&referent_label(graph, *binder));
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn combined_implicit_constant_kind_label(kind: CombinedImplicitConstantKind) -> &'static str {
+    match kind {
+        CombinedImplicitConstantKind::Elided => "elided",
+        CombinedImplicitConstantKind::TypicalPlaceValue => "typical-place-value",
+    }
+}
+
+#[invariant(true)]
+struct TreeVisitor<'graph> {
+    graph: &'graph SemanticGraph,
+    output: String,
+    event_condition_policy: TreeEventConditionPolicy,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TreeEventConditionPolicy {
+    EverySite,
+    StructuralSiteOnly,
+}
+
+impl<'graph> TreeVisitor<'graph> {
+    #[requires(graph.objects.contains_key(&graph.root))]
+    #[ensures(ret.graph.root == graph.root)]
+    fn new(graph: &'graph SemanticGraph, event_condition_policy: TreeEventConditionPolicy) -> Self {
+        Self {
+            graph,
             output: String::new(),
+            event_condition_policy,
         }
     }
 
@@ -1205,7 +1605,13 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
             &format!(
                 "{}{} [{id}]",
                 tree_role_prefix(location.role),
-                formula_tree_label(self.graph, id, node)
+                formula_tree_label_with_event_conditions(
+                    self.graph,
+                    id,
+                    node,
+                    self.event_condition_policy == TreeEventConditionPolicy::EverySite,
+                    true,
+                )
             ),
         );
     }
@@ -1218,7 +1624,15 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
         node: &'graph PredicationNode,
         location: TraversalLocation,
     ) {
-        self.line(location.depth, &format_predication(self.graph, id, node));
+        self.line(
+            location.depth,
+            &format_predication_with_event_conditions(
+                self.graph,
+                id,
+                node,
+                self.event_condition_policy == TreeEventConditionPolicy::EverySite,
+            ),
+        );
     }
 
     #[requires(true)]
@@ -1271,6 +1685,17 @@ fn format_predication(
     id: SemanticObjectId,
     node: &PredicationNode,
 ) -> String {
+    format_predication_with_event_conditions(graph, id, node, true)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_predication_with_event_conditions(
+    graph: &SemanticGraph,
+    id: SemanticObjectId,
+    node: &PredicationNode,
+    include_event_conditions: bool,
+) -> String {
     let relation = match node.relation.as_data() {
         data!(PredicationRelation::Named { relation }) => relation.clone(),
         data!(PredicationRelation::Parameter { parameter }) => {
@@ -1292,7 +1717,13 @@ fn format_predication(
     }
     output.push(')');
     if let Some(eventuality) = node.eventuality {
-        format_eventuality_site_to(graph, eventuality, "event", &mut output);
+        format_eventuality_site_with_conditions_to(
+            graph,
+            eventuality,
+            "event",
+            include_event_conditions,
+            &mut output,
+        );
     }
     if let Some(tanru_link) = &node.tanru_link
         && let Some(head_eventuality) = graph
@@ -1300,7 +1731,13 @@ fn format_predication(
             .get(&tanru_link.head)
             .and_then(SemanticObject::predication_eventuality)
     {
-        format_eventuality_site_to(graph, head_eventuality, "tanru-head-event", &mut output);
+        format_eventuality_site_with_conditions_to(
+            graph,
+            head_eventuality,
+            "tanru-head-event",
+            include_event_conditions,
+            &mut output,
+        );
     }
     if !node.modal_arguments.is_empty() {
         output.push_str(" {modal=");
@@ -1339,9 +1776,25 @@ fn format_eventuality_site_to(
     site: &str,
     output: &mut String,
 ) {
+    format_eventuality_site_with_conditions_to(graph, eventuality, site, true, output);
+}
+
+#[requires(eventuality.object_kind() == SemanticObjectKind::Referent)]
+#[requires(graph.objects.get(&eventuality).is_some_and(|object| object.as_eventuality().is_some()))]
+#[requires(!site.is_empty())]
+#[ensures(true)]
+fn format_eventuality_site_with_conditions_to(
+    graph: &SemanticGraph,
+    eventuality: SemanticObjectId,
+    site: &str,
+    include_conditions: bool,
+    output: &mut String,
+) {
     let _ = write!(output, " {{{site}={}", referent_label(graph, eventuality));
-    output.push_str("; ");
-    format_eventuality_conditions_to(graph, eventuality, output);
+    if include_conditions {
+        output.push_str("; ");
+        format_eventuality_conditions_to(graph, eventuality, output);
+    }
     output.push('}');
 }
 
@@ -2160,6 +2613,16 @@ fn single_atom_relation(graph: &SemanticGraph, formula: SemanticObjectId) -> Opt
 #[requires(formula.object_kind() == SemanticObjectKind::Formula)]
 #[ensures(!ret.is_empty())]
 fn formula_reference_label(graph: &SemanticGraph, formula: SemanticObjectId) -> String {
+    formula_reference_label_with_event_conditions(graph, formula, true)
+}
+
+#[requires(formula.object_kind() == SemanticObjectKind::Formula)]
+#[ensures(!ret.is_empty())]
+fn formula_reference_label_with_event_conditions(
+    graph: &SemanticGraph,
+    formula: SemanticObjectId,
+    include_event_conditions: bool,
+) -> String {
     let Some(predication_id) = graph
         .objects
         .get(&formula)
@@ -2174,13 +2637,31 @@ fn formula_reference_label(graph: &SemanticGraph, formula: SemanticObjectId) -> 
     else {
         return formula.to_string();
     };
-    format_predication(graph, predication_id, predication)
+    format_predication_with_event_conditions(
+        graph,
+        predication_id,
+        predication,
+        include_event_conditions,
+    )
 }
 
 #[requires(id.object_kind() == SemanticObjectKind::Formula)]
 #[requires(graph.objects.contains_key(&id))]
 #[ensures(!ret.is_empty())]
 fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &FormulaNode) -> String {
+    formula_tree_label_with_event_conditions(graph, id, node, true, true)
+}
+
+#[requires(id.object_kind() == SemanticObjectKind::Formula)]
+#[requires(graph.objects.contains_key(&id))]
+#[ensures(!ret.is_empty())]
+fn formula_tree_label_with_event_conditions(
+    graph: &SemanticGraph,
+    id: SemanticObjectId,
+    node: &FormulaNode,
+    include_event_use_conditions: bool,
+    include_binding_conditions: bool,
+) -> String {
     let mut base = match node.as_data() {
         data!(FormulaNode::Atom(_)) => "atom".to_owned(),
         data!(FormulaNode::Connective(node)) => formula_operator_label(node.operator).to_owned(),
@@ -2208,15 +2689,22 @@ fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &Formul
     if let data!(FormulaNode::Connective(node)) = node.as_data()
         && let Some(eventuality) = node.eventuality
     {
-        format_eventuality_site_to(graph, eventuality, "event", &mut base);
+        format_eventuality_site_with_conditions_to(
+            graph,
+            eventuality,
+            "event",
+            include_event_use_conditions,
+            &mut base,
+        );
     }
-    let binding = event_binding_label(
+    let binding = event_binding_label_with_conditions(
         graph,
         graph
             .objects
             .get(&id)
             .expect("formula label requires a defined formula")
             .bound_eventualities(),
+        include_binding_conditions,
     );
     if binding.is_empty() {
         base
@@ -2228,6 +2716,16 @@ fn formula_tree_label(graph: &SemanticGraph, id: SemanticObjectId, node: &Formul
 #[requires(eventualities.iter().all(|eventuality| graph.objects.get(&eventuality.object_id()).is_some_and(SemanticObject::is_generated_eventuality)))]
 #[ensures(ret.is_empty() == eventualities.is_empty())]
 fn event_binding_label(graph: &SemanticGraph, eventualities: &[GeneratedEventualityId]) -> String {
+    event_binding_label_with_conditions(graph, eventualities, true)
+}
+
+#[requires(eventualities.iter().all(|eventuality| graph.objects.get(&eventuality.object_id()).is_some_and(SemanticObject::is_generated_eventuality)))]
+#[ensures(ret.is_empty() == eventualities.is_empty())]
+fn event_binding_label_with_conditions(
+    graph: &SemanticGraph,
+    eventualities: &[GeneratedEventualityId],
+    include_conditions: bool,
+) -> String {
     let mut output = String::new();
     for eventuality in eventualities {
         if !output.is_empty() {
@@ -2235,9 +2733,11 @@ fn event_binding_label(graph: &SemanticGraph, eventualities: &[GeneratedEventual
         }
         let eventuality = eventuality.object_id();
         output.push_str(&referent_label(graph, eventuality));
-        output.push_str(" {");
-        format_eventuality_conditions_to(graph, eventuality, &mut output);
-        output.push('}');
+        if include_conditions {
+            output.push_str(" {");
+            format_eventuality_conditions_to(graph, eventuality, &mut output);
+            output.push('}');
+        }
     }
     if output.is_empty() {
         output
@@ -2259,6 +2759,46 @@ fn formula_context_label(
         traversal_role_label(role),
         formula_tree_label(graph, id, node)
     )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|label| !label.is_empty()))]
+fn formula_scope_operator_label(graph: &SemanticGraph, node: &FormulaNode) -> Option<String> {
+    match node.as_data() {
+        data!(FormulaNode::Atom(_)) => None,
+        data!(FormulaNode::Connective(node)) => {
+            Some(formula_operator_label(node.operator).to_owned())
+        }
+        data!(FormulaNode::Quantified(node)) => Some(format!(
+            "{} {}",
+            formula_operator_label(node.operator),
+            referent_label(graph, node.variable)
+        )),
+        data!(FormulaNode::QuantifierBundle(node)) => {
+            let mut label = "quantifier-bundle".to_owned();
+            for (index, binding) in node.bindings.iter().enumerate() {
+                if index == 0 {
+                    label.push(' ');
+                } else {
+                    label.push_str(", ");
+                }
+                label.push_str(&referent_label(graph, binding.variable));
+            }
+            Some(label)
+        }
+        data!(FormulaNode::RespectivelyDistribution(node)) => {
+            let mut label = "respectively-distribution".to_owned();
+            for (index, stream) in node.streams.iter().enumerate() {
+                if index == 0 {
+                    label.push(' ');
+                } else {
+                    label.push_str(", ");
+                }
+                label.push_str(&referent_label(graph, stream.slot));
+            }
+            Some(label)
+        }
+    }
 }
 
 #[requires(!node.relation.is_empty())]

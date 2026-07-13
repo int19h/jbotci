@@ -854,6 +854,7 @@ fn parses_tersmu_formats_without_changing_json_default() {
     for (name, expected) in [
         ("claims", TersmuFormat::Claims),
         ("tree", TersmuFormat::Tree),
+        ("combined", TersmuFormat::Combined),
     ] {
         let Command::Tersmu(input) =
             Cli::try_parse_from(["jbotci", "tersmu", "--format", name, "coi"])
@@ -863,6 +864,31 @@ fn parses_tersmu_formats_without_changing_json_default() {
             panic!("expected tersmu command")
         };
         assert_eq!(input.format, expected);
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_help_pins_the_interpretation_contract() {
+    let error = Cli::try_parse_from(["jbotci", "tersmu", "--help"]).expect_err("help");
+    assert_eq!(error.kind(), ErrorKind::DisplayHelp);
+    let help = error.to_string();
+    for marker in [
+        "`>` means structural descent",
+        "projected commitments take widest scope",
+        "`context=` records their trigger site",
+        "`mode=` is graph vocabulary",
+        "`scope=` lists only at-issue ancestor operators",
+        "`binder-dependence=underspecified`",
+        "Generated-bound events",
+        "`binds=exists` is not a projected claim",
+        "`unspecified` is explicit absence of information",
+    ] {
+        assert!(
+            help.contains(marker),
+            "missing help contract marker {marker:?}"
+        );
     }
 }
 

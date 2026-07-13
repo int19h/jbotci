@@ -252,6 +252,13 @@ impl TestCase {
             {
                 facets.insert(Facet::TersmuTree);
             }
+            if output
+                .tersmu
+                .as_ref()
+                .is_some_and(|tersmu| tersmu.combined.is_some())
+            {
+                facets.insert(Facet::TersmuCombined);
+            }
         }
         facets
     }
@@ -394,6 +401,13 @@ impl TestCase {
                 .as_ref()
                 .and_then(|output| output.tersmu.as_ref())
                 .and_then(|output| output.tree.as_ref())
+                .map(|_| ExpectationStatus::Success),
+            Facet::TersmuCombined => self
+                .expectations
+                .output
+                .as_ref()
+                .and_then(|output| output.tersmu.as_ref())
+                .and_then(|output| output.combined.as_ref())
                 .map(|_| ExpectationStatus::Success),
         }
     }
@@ -578,6 +592,8 @@ pub struct TersmuOutputExpectation {
     #[serde(default)]
     pub tree: Option<TextExpectation>,
     #[serde(default)]
+    pub combined: Option<TextExpectation>,
+    #[serde(default)]
     pub error: Option<TextExpectation>,
 }
 
@@ -591,6 +607,7 @@ impl Default for TersmuOutputExpectation {
             json: None,
             claims: None,
             tree: None,
+            combined: None,
             error: None,
         }
     }
@@ -1028,6 +1045,7 @@ pub enum Facet {
     TersmuJson,
     TersmuClaims,
     TersmuTree,
+    TersmuCombined,
 }
 
 impl Facet {
@@ -1053,6 +1071,7 @@ impl Facet {
             Self::TersmuJson,
             Self::TersmuClaims,
             Self::TersmuTree,
+            Self::TersmuCombined,
         ]
     }
 }
@@ -1080,6 +1099,7 @@ impl fmt::Display for Facet {
             Self::TersmuJson => "tersmu-json",
             Self::TersmuClaims => "tersmu-claims",
             Self::TersmuTree => "tersmu-tree",
+            Self::TersmuCombined => "tersmu-combined",
         };
         f.write_str(text)
     }
@@ -1110,6 +1130,7 @@ impl std::str::FromStr for Facet {
             "tersmu-json" => Ok(Self::TersmuJson),
             "tersmu-claims" => Ok(Self::TersmuClaims),
             "tersmu-tree" => Ok(Self::TersmuTree),
+            "tersmu-combined" => Ok(Self::TersmuCombined),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }

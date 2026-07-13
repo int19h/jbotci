@@ -38,7 +38,7 @@ use jbotci_semantics::{
         FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
         analyze_generated_references,
     },
-    render_claims, render_tree,
+    render_claims, render_combined, render_tree,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -10683,6 +10683,7 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::TersmuJson => run_tersmu_json_fixture(fixture),
             Facet::TersmuClaims => run_tersmu_claims_fixture(fixture),
             Facet::TersmuTree => run_tersmu_tree_fixture(fixture),
+            Facet::TersmuCombined => run_tersmu_combined_fixture(fixture),
         }
     }
 }
@@ -11254,6 +11255,19 @@ fn run_tersmu_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
         .and_then(|output| output.tersmu.as_ref())
         .and_then(|output| output.tree.as_ref());
     run_tersmu_derived_fixture(fixture, expectation, "tersmu tree", render_tree)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_tersmu_combined_fixture(fixture: &LoadedTestCase) -> FacetResult {
+    let expectation = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.tersmu.as_ref())
+        .and_then(|output| output.combined.as_ref());
+    run_tersmu_derived_fixture(fixture, expectation, "tersmu combined", render_combined)
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -12437,6 +12451,12 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .as_ref()
             .and_then(|output| output.tersmu.as_ref())
             .and_then(|output| output.tree.as_ref())
+            .map(|_| ExpectationStatus::Success),
+        Facet::TersmuCombined => expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.tersmu.as_ref())
+            .and_then(|output| output.combined.as_ref())
             .map(|_| ExpectationStatus::Success),
     }
 }

@@ -268,7 +268,18 @@ fn mcp_tools() -> Vec<Value> {
             "Compute the deep semantic/logical meaning of Lojban text. The default `json` format is \
              the canonical flat id-graph (referents, predications, eventualities, formulas). \
              `claims` derives a tiered human-readable claims ledger; `tree` derives an indented \
-             scope tree. For grammar use `gentufa`, for morphology use `vlasei`.",
+             scope tree; `combined` gives that tree plus only commitments displaced from their \
+             structural site. Interpretation contract: `>` means structural descent. In claims, \
+             projected commitments take widest scope and `context=` records the trigger site; \
+             `mode=` is graph vocabulary while the heading is commitment level, and `scope=` is \
+             the at-issue ancestor-operator skeleton (`top-level` means no ancestor operator). \
+             `denotes` states referential identity; `binder-dependence=underspecified` names \
+             possible binders, not proven dependence. Generated-bound events co-vary through \
+             structural `binds=exists`; referential events use denotation commitments, and \
+             `binds=exists` is not itself projected. Event suffixes explicitly cover time, \
+             actuality, aspect, recurrence, space, spatial aspect, spatial recurrence, and \
+             details; `unspecified` means absent information, never a negative claim. For grammar \
+             use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),
     ]
