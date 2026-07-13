@@ -7838,6 +7838,81 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn combined_format_partitions_tree_and_displaced_commitments() {
+        let graph = semantic_graph_for("mi nitcu lo tanxe");
+        let combined = crate::render::render_combined(&graph);
+        let (tree, projected) = combined
+            .split_once("\n\nprojected:\n")
+            .expect("combined format has a tree spine and projected section");
+
+        assert!(tree.starts_with("utterance assert "));
+        assert!(tree.contains("descriptor body: atom"));
+        assert!(projected.contains("tanxe("));
+        assert!(projected.contains("[mode=restrictive]"));
+        assert!(!combined.contains("at-issue commitments:"));
+        assert!(!combined.contains("presupposed/projected:"));
+        assert!(!combined.contains("context="));
+
+        let elided = graph
+            .objects
+            .iter()
+            .filter_map(|(&id, object)| {
+                (object.referent_category() == Some(ReferentCategory::Constant)
+                    && object
+                        .descriptor()
+                        .is_some_and(|descriptor| descriptor.kind == DescriptorKind::Elided))
+                .then_some(id)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(elided.len(), 3, "the probe has three implicit places");
+        let grouped = projected
+            .lines()
+            .find(|line| line.contains("descriptor-kind=elided"))
+            .expect("elided constants share one projected line");
+        assert_eq!(
+            projected
+                .lines()
+                .filter(|line| line.contains("descriptor-kind=elided"))
+                .count(),
+            1,
+            "the shared implicit-constant template must not be split"
+        );
+        for id in elided {
+            assert_eq!(
+                grouped.matches(&format!("[{id}]")).count(),
+                1,
+                "each grouped constant must be retained exactly once"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn combined_format_renders_each_event_condition_block_once() {
+        let graph = semantic_graph_for("mi pu klama");
+        let combined = crate::render::render_combined(&graph);
+        let tree = crate::render::render_tree(&graph);
+        let event = generated_event_for_relation(&graph, "klama");
+
+        assert!(tree.matches(&format!("[{event}]; time=")).count() >= 1);
+        assert!(tree.matches(&format!("[{event}] {{time=")).count() >= 1);
+        for (&id, object) in &graph.objects {
+            if object.as_eventuality().is_none() {
+                continue;
+            }
+            let condition_sites = combined.matches(&format!("[{id}]; time=")).count()
+                + combined.matches(&format!("[{id}] {{time=")).count();
+            assert_eq!(
+                condition_sites, 1,
+                "event {id} must have exactly one combined-format condition site"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn derived_traversal_surfaces_scoped_connective_event() {
         let graph = semantic_graph_for("mi na pu na ca klama le zarci");
         let eventuality = graph
@@ -8101,6 +8176,35 @@ mod tests {
                 line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
             }));
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn claims_make_at_issue_scope_and_commitment_level_explicit() {
+        let graph = semantic_graph_for("naku ro da poi mlatu cu klama");
+        let variable = forall_variable(&graph);
+        let claims = crate::render::render_claims(&graph);
+
+        assert!(claims.starts_with("at-issue commitments:\n"));
+        assert!(!claims.starts_with("asserted:\n"));
+        assert!(claims.contains(&format!(
+            "[mode=asserted; scope=not > forall da[{variable}]; context="
+        )));
+        assert!(claims.contains(&format!(
+            "[mode=restrictive; scope=not > forall da[{variable}]; context="
+        )));
+        let projected = claims
+            .split_once("presupposed/projected:\n")
+            .expect("claims have a projected tier")
+            .1
+            .split_once("\ndisplayed:\n")
+            .expect("claims have a displayed tier")
+            .0;
+        assert!(projected.lines().all(|line| !line.contains("scope=")));
+
+        let top_level = crate::render::render_claims(&semantic_graph_for("mi klama"));
+        assert!(top_level.contains("[mode=asserted; scope=top-level; context="));
     }
 
     #[test]
