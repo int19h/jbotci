@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use axum::body::{Body, Bytes};
 use axum::extract::Extension;
-use axum::http::header::{CONTENT_TYPE, HOST, ORIGIN};
-use axum::http::{HeaderMap, Response, StatusCode};
+use axum::http::header::CONTENT_TYPE;
+use axum::http::{Response, StatusCode};
 use base64::Engine;
 use bityzba::{invariant, requires};
 use jbotci_cli::{
@@ -74,12 +74,8 @@ pub(crate) async fn mcp_get() -> Response<Body> {
 #[ensures(true)]
 pub(crate) async fn mcp_post(
     Extension(state): Extension<Arc<AppState>>,
-    headers: HeaderMap,
     body: Bytes,
 ) -> Response<Body> {
-    if !origin_is_allowed(&headers) {
-        return plain_response(StatusCode::FORBIDDEN, "invalid Origin for MCP request");
-    }
     let message = match serde_json::from_slice::<JsonRpcMessage>(&body) {
         Ok(message) => message,
         Err(error) => {
@@ -585,28 +581,6 @@ fn plain_response(status: StatusCode, text: &str) -> Response<Body> {
         .header(CONTENT_TYPE, "text/plain; charset=utf-8")
         .body(Body::from(text.to_owned()))
         .expect("MCP plain response builder is valid")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn origin_is_allowed(headers: &HeaderMap) -> bool {
-    let Some(origin) = headers
-        .get(ORIGIN)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return true;
-    };
-    let Some(host) = headers
-        .get(HOST)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return false;
-    };
-    origin == format!("https://{host}") || origin == format!("http://{host}")
 }
 
 #[cfg(test)]

@@ -9,15 +9,16 @@ use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
 use axum::body::Body;
 use axum::extract::Extension;
 use axum::http::header::{
-    ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HOST, HeaderMap, HeaderValue,
-    LOCATION, VARY,
+    self, ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HOST, HeaderMap,
+    HeaderValue, LOCATION, VARY,
 };
-use axum::http::{Request, Response, StatusCode, Uri};
+use axum::http::{HeaderName, Method, Request, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -41,6 +42,7 @@ use jbotci_web_core::{
 use serde::Serialize;
 use tokio::sync::{mpsc, oneshot};
 use tower::ServiceExt;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
 #[invariant(base_path.starts_with('/'), "server base path must be absolute")]
@@ -448,7 +450,25 @@ async fn shutdown_signal() {
 #[ensures(true)]
 pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState::new(config));
-    Router::<FullstackState>::new()
+    // The MCP spec's Origin-validation MUST protects localhost servers with
+    // ambient authority from DNS rebinding. It does not apply to this public,
+    // stateless endpoint whose tools are nonmutating pure functions, so open
+    // CORS is a deliberate owner-adjudicated deviation. Never enable
+    // credentials or restore a same-origin check here. A self-hosted localhost
+    // instance can be invoked by any website its operator visits; the worst
+    // case for these tools is CPU consumption.
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            HeaderName::from_static("mcp-protocol-version"),
+            HeaderName::from_static("mcp-session-id"),
+            HeaderName::from_static("last-event-id"),
+        ])
+        .max_age(Duration::from_secs(86400));
+    let public_browser_api = Router::<FullstackState>::new()
         .route("/api/health", get(health))
         // Deliberately public: REST tools have the same exposure posture as
         // MCP. #284 tracks completing parity for the remaining CLI tools.
@@ -456,6 +476,9 @@ pub fn router(config: ServerConfig) -> Router {
         .route("/api/gimfihi", post(gimfihi))
         .route("/api/tersmu", post(tersmu))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
+        .layer(cors);
+    Router::<FullstackState>::new()
+        .merge(public_browser_api)
         .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
         .layer(Extension(Arc::clone(&state)))
@@ -1049,6 +1072,11 @@ fn plain_response(status: StatusCode, message: &str) -> Response<Body> {
 mod tests {
     use super::*;
     use axum::body::to_bytes;
+    use axum::http::header::{
+        ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS,
+        ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_MAX_AGE,
+        ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD, ORIGIN,
+    };
     use axum::http::{Method, Request};
     #[allow(unused_imports)]
     use bityzba::{ensures, invariant, requires};
@@ -1167,6 +1195,42 @@ mod tests {
             base_path,
             public_dir,
         )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_public_cors_response(response: &Response<Body>) {
+        assert_eq!(
+            response.headers().get(ACCESS_CONTROL_ALLOW_ORIGIN),
+            Some(&HeaderValue::from_static("*"))
+        );
+        assert!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none()
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_public_cors_preflight(response: &Response<Body>) {
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_public_cors_response(response);
+        assert_eq!(
+            response.headers().get(ACCESS_CONTROL_ALLOW_METHODS),
+            Some(&HeaderValue::from_static("GET,POST"))
+        );
+        assert_eq!(
+            response.headers().get(ACCESS_CONTROL_ALLOW_HEADERS),
+            Some(&HeaderValue::from_static(
+                "content-type,authorization,mcp-protocol-version,mcp-session-id,last-event-id"
+            ))
+        );
+        assert_eq!(
+            response.headers().get(ACCESS_CONTROL_MAX_AGE),
+            Some(&HeaderValue::from_static("86400"))
+        );
     }
 
     #[requires(true)]
@@ -1666,6 +1730,161 @@ mod tests {
             .expect("features response");
         assert_eq!(features.status(), StatusCode::NOT_FOUND);
         assert_eq!(response_text(features).await, "not found");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_preflight_allows_public_browser_protocol_headers() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/mcp")
+                    .header(ORIGIN, "https://example.org")
+                    .header(ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                    .header(
+                        ACCESS_CONTROL_REQUEST_HEADERS,
+                        "content-type, authorization, mcp-protocol-version, mcp-session-id, last-event-id",
+                    )
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_public_cors_preflight(&response);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn api_preflight_allows_public_browser_protocol_headers() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::OPTIONS)
+                    .uri("/api/gentufa")
+                    .header(ORIGIN, "https://example.org")
+                    .header(ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                    .header(
+                        ACCESS_CONTROL_REQUEST_HEADERS,
+                        "content-type, authorization, mcp-protocol-version, mcp-session-id, last-event-id",
+                    )
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_public_cors_preflight(&response);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_post_accepts_public_browser_origin() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/mcp")
+                    .header(ORIGIN, "https://example.org")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": 1,
+                            "method": "tools/list"
+                        })
+                        .to_string(),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_public_cors_response(&response);
+        let json = response_json(response).await;
+        assert!(
+            json["result"]["tools"]
+                .as_array()
+                .is_some_and(|tools| !tools.is_empty())
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_get_405_is_visible_to_public_browser_origins() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/mcp")
+                    .header(ORIGIN, "https://example.org")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+        assert_public_cors_response(&response);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn api_response_allows_public_browser_origin() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/api/health")
+                    .header(ORIGIN, "https://example.org")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_public_cors_response(&response);
+        let json = response_json(response).await;
+        assert_eq!(json["status"], "ok");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_route_remains_outside_public_cors() {
+        let response = router(test_config(test_static_dir()))
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/discord")
+                    .header(ORIGIN, "https://example.org")
+                    .body(Body::from(serde_json::json!({ "type": 1 }).to_string()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_none()
+        );
+        assert!(
+            response
+                .headers()
+                .get(ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_none()
+        );
     }
 
     #[tokio::test]
