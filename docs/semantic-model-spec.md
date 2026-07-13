@@ -241,6 +241,7 @@ truth-functional formula.
   "items": ["utterance:1004", "utterance:1005"],
   "content": "formula:1006",
   "connectionClaims": ["formula:1007"],
+  "boundEventualities": ["eventuality:1010"],
   "ordinalLabels": [
     {
       "target": "utterance:1004",
@@ -252,6 +253,11 @@ truth-functional formula.
   "relation": "same-topic-continuation"
 }
 ```
+
+`boundEventualities`, when present, is the sequence's typed existential-binding
+edge for generated predication events whose formula use roots have no common
+formula owner. Each generated event occurs on exactly one formula or sequence
+edge; referential events never occur here.
 
 Plain discourse sequencing has no truth value.  This intentionally differs
 from a Lean-oriented rendering that can make adjacent propositions appear as a
@@ -318,9 +324,26 @@ that a predication, utterance, or abstraction is about.  Eventualities are not
 a separate public object type; they are `type:"referent"` objects whose `sort`
 is `eventuality` or one of its hierarchical subsorts.
 
+Every eventuality has a required typed `denotation` identity:
+
+- `"generated-bound"` is a generated predication witness. It omits `category`
+  and `scopeDependence`; its existential force comes from exactly one
+  `boundEventualities` edge on the lowest formula dominating all uses, or the
+  lowest containing sequence when there is no formula LCA.
+- `"referential"` is an event denoted by a Lojban or discourse expression. It
+  keeps the ordinary `category` and, for constants, `scopeDependence` fields.
+  This includes `lo`/`le nu` denotations (including promoted embedded events),
+  locution events, indexicals, and mentioned event fragments.
+
+The owner edge binds existence, not actuality. An absent CAhA still omits
+`actuality`; explicit `ca'a`/`ka'e`/`nu'o`/`pu'i` constrains the bound witness.
+Generated-event co-variation is already structural and is not duplicated as
+`scopeDependence`.
+
 ```json
 {
   "type": "referent",
+  "denotation": "referential",
   "sort": "eventuality",
   "category": "constant",
   "actuality": { "kind": "actual" },
@@ -1534,7 +1557,10 @@ than from an explicit abstraction cmavo.
 
 ### predication
 
-A predication applies a relation to arguments under an eventuality.
+A predication applies a relation to arguments under an eventuality. Its
+`eventuality` field is a semantic use considered by generated-event binding;
+modal arguments and every transitive `tanruLink.head` predication are considered
+uses at the same formula site as well.
 
 ```json
 {
@@ -2079,9 +2105,19 @@ Atomic:
 {
   "type": "formula",
   "operator": "atom",
-  "predication": "predication:1048"
+  "predication": "predication:1048",
+  "boundEventualities": ["eventuality:1049"]
 }
 ```
+
+`boundEventualities` is an explicit typed owner edge, not a projected constant
+annotation. A generated event appears on exactly one such edge: the lowest
+formula node dominating its primary predication field, ordinary/modal argument
+uses, transitive tanru-head uses, connective formula event fields, and
+eventuality `content`. If no formula dominates all roots, the lowest containing
+sequence owns it. This makes shared modal/tanru/connection events single
+witnesses and places a negated atom's witness inside `not`. Referential
+eventualities are forbidden on the edge.
 
 Bridi-level `ja'a` affirmation wraps its child formula with
 `operator:"affirmed"`.  This is a formula-layer marker for explicit assertion;
@@ -5391,6 +5427,18 @@ implementation gaps are listed separately in “Known Implementation Divergences
     state on each constant denotation line rather than emitting an unqualified
     existential line. The lines remain projected annotations, not a fourth
     commitment tier, because dependence and commitment status are orthogonal.
+
+43. **Typed generated-event binding (#353) — replace projected event
+    constants.** Eventualities now carry `denotation:"generated-bound"` or
+    `denotation:"referential"`. Every generated event is listed exactly once in
+    `boundEventualities` on the lowest formula dominating all uses, falling back
+    to the lowest containing sequence only when no formula LCA exists.
+    Referential events are forbidden on this edge and retain ordinary category
+    and scope-dependence data. Generated events omit both, no longer emit claims
+    `denotes` lines, and instead render their binding explicitly on the formula
+    or sequence owner. The edge supplies existential scope only; CAhA continues
+    to constrain the witness only when explicit. The wire version remains
+    `lojban-semantics-json-1` because the notation is unreleased.
 
 ## Known Implementation Divergences (2026-06-23)
 

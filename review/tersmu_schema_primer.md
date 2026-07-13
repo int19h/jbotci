@@ -58,6 +58,14 @@ The line remains in `presupposed/projected` because the ledger tier expresses
 commitment status while binder dependence qualifies the denotation. It is never
 rendered as an unqualified `exists` claim.
 
+Generated predication events are not denotational constants and never produce a
+`denotes` line. Their existential force is the typed `boundEventualities` edge
+on a formula or sequence owner. Claims contexts and the structural tree render
+that edge explicitly as `binds=exists LABEL[id]`; predication lines render the
+corresponding use as `{event=LABEL[id]}` and, for tanru links,
+`{tanru-head-event=LABEL[id]}`. The binding marker is scope, not an actuality
+claim: only an explicit CAhA adds `actuality` to the event object.
+
 An intensional relation/abstraction body is structural content, not an extra
 asserted or projected claim. Its owning constant's denotation line includes a
 `relation-body=` or `abstraction-body=` formula label while traversal of the
@@ -195,6 +203,7 @@ text with multiple paragraphs).
 | `relation` | `SequenceRelation` | serialized from `sequence_relation`; currently only `same-topic-continuation` (**kebab-case**) |
 | `connectionClaims` | array of id → `formula` | formulas asserting the logical connection between consecutive items (for `.i je`-style sentence connectives) |
 | `content` | id → `formula` | when the whole sequence carries a single combined claim |
+| `boundEventualities` | array of id → generated eventuality | typed existential-binding edge used when the event's formula roots have no formula LCA |
 
 ### 2.3 `eventuality`
 
@@ -203,8 +212,9 @@ aspect, and spatial information hang off the eventuality.
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `category` | `ReferentCategory` | eventualities are normally `constant`; abstraction parameters and other bound objects use their typed category |
-| `scopeDependence` | `ScopeDependence` | present exactly when `category = constant`; see §2.4 |
+| `denotation` | `EventualityDenotation` | required: `generated-bound` for a generated witness, or `referential` for a denoted event |
+| `category` | `ReferentCategory` | present only for `denotation = referential` |
+| `scopeDependence` | `ScopeDependence` | present exactly for referential constants; generated-bound co-variation is structural |
 | `class` | `EventualityClass` | `locution`, `event`, `state`, `process`, `activity`, `achievement`. `locution` is the speech-act event of an utterance |
 | `actuality` | `Actuality` = `{ "kind": ActualityKind }` | `kind` ∈ `actual`, `capable`, `potential`, `demonstrated` (from CAhA: ca'a/ka'e/nu'o/pu'i) |
 | `content` | id | the formula or sequence this eventuality is the occurrence of |
@@ -220,6 +230,14 @@ aspect, and spatial information hang off the eventuality.
 | `spaceInterval` | `SpaceInterval` = `{ extent?, directions[], dimensions[], anchor? }` | VEhA/VIhA |
 | `spatialAspect` / `spatialAspects` | `Aspect` | spatial contour |
 | `spatialRecurrence` | array of `Recurrence` | |
+
+Every `generated-bound` event occurs in exactly one owner's
+`boundEventualities`. The owner is the lowest formula dominating every primary,
+ordinary/modal-argument, transitive-tanru, formula-event, and `content` use; if
+no formula LCA exists, the lowest containing sequence owns it. Referential
+events—including `lo`/`le nu` denotations and promoted body events, locutions,
+indexicals, and mentioned fragments—never occur on the edge. Generated events
+omit `category` and `scopeDependence` entirely.
 
 `Recurrence` fields: `kind` ∈ `occurrenceCount`, `ordinalOccurrence`, `regular`, `typically`,
 `continuously`, `habitually`; plus `introducedBy`, optional `connection`
@@ -355,6 +373,11 @@ A truth-valued logical formula. Its **`operator`** field selects the shape:
 | `cardinality` | (same as exists) + `quantity`    | numeric quantification (`ci`, `re`, ...) |
 | `pluralExists` | (same as exists)                 | plural existential |
 | `pluralForall` | (same as exists), plus `domainImport` iff restricted | plural universal |
+
+Every formula shape may carry **`boundEventualities`**, a nonempty array of
+generated-event IDs existentially bound at that exact formula. Each generated
+event appears on exactly one formula or sequence owner, and referential events
+are forbidden from the array.
 
 Quantified-formula fields:
 - **`variable`** — id → referent or parameter being bound.
