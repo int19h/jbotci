@@ -1959,6 +1959,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask/src/main.rs:RenderDockerRunArgs",
         "xtask render Docker run args delegate validation to clap defaults and command code",
     ),
+    (
+        "xtask/src/main.rs:ServeWebReleaseArgs",
+        "xtask release web server args delegate validation to clap defaults and command code",
+    ),
 ];
 
 #[test]

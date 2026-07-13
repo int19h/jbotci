@@ -2231,6 +2231,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask/src/main.rs:Command::RenderDockerRun",
         "xtask command enum delegates validation to clap and option structs",
     ),
+    (
+        "xtask/src/main.rs:Command::ServeWebRelease",
+        "xtask command enum delegates validation to clap and option structs",
+    ),
 ];
 
 #[test]

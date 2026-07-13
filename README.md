@@ -11,6 +11,7 @@ cargo xtask fixture-list --profile cargo
 dx serve --web -p jbotci-app --inject-loading-scripts false --port 8080
 cargo xtask build-web-release
 cargo xtask dist-server --out-dir .jbotci-build/jbotci-web --base-path /
+cargo xtask serve-web-release --port 8080
 cargo xtask publish-web-embeddings-r2 --backend fixture --embedding-dtype q4
 cargo xtask build-f2llm-webgpu-model
 cargo xtask build-f2llm-webgpu-vectors
@@ -26,6 +27,8 @@ Use the web release wrappers instead of raw `dx` release commands while Dioxus
 `<out>/server` plus `<out>/public`. The Render Docker path builds that bundle
 inside `deploy/render/Dockerfile` and runs the server with `IP`, `PORT`,
 `DIOXUS_ASSET_ROOT`, and `DIOXUS_PUBLIC_PATH`.
+`serve-web-release` builds the same release bundle with remote browser
+embeddings and runs the bundled server locally.
 `cargo xtask render-docker-build` passes the current Git commit into the Docker
 build automatically. Direct Docker builds must provide either
 `--build-arg RENDER_GIT_COMMIT=$(git rev-parse HEAD)` or

@@ -2,6 +2,8 @@ use std::collections::BTreeSet;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::ErrorKind;
+use std::net::IpAddr;
+use std::num::NonZeroU16;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -27,6 +29,7 @@ const DESKTOP_BUNDLE_WINDOWS_ARTIFACT: &str = "jbotci.msi";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
+const DEFAULT_WEB_EMBEDDINGS_BASE_URL: &str = "https://assets.jbotci.app/embeddings/web/v1";
 const DEFAULT_SERVER_EMBEDDING_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -48,6 +51,7 @@ struct Cli {
 #[invariant(::DesktopBundleLinux => true)]
 #[invariant(::DesktopBundleWindows => true)]
 #[invariant(::DistServer(..) => true)]
+#[invariant(::ServeWebRelease(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
 enum Command {
@@ -64,6 +68,7 @@ enum Command {
     DesktopBundleLinux,
     DesktopBundleWindows,
     DistServer(DistServerArgs),
+    ServeWebRelease(ServeWebReleaseArgs),
     RenderDockerBuild(RenderDockerBuildArgs),
     RenderDockerRun(RenderDockerRunArgs),
 }
@@ -87,6 +92,25 @@ struct DistServerArgs {
 
 #[derive(Debug, Args)]
 #[invariant(true)]
+struct ServeWebReleaseArgs {
+    #[arg(long, default_value = ".jbotci-build/jbotci-web")]
+    out_dir: PathBuf,
+    #[arg(long, default_value = "127.0.0.1")]
+    ip: IpAddr,
+    #[arg(long, default_value = "8080")]
+    port: NonZeroU16,
+    #[arg(long, default_value = "/")]
+    base_path: String,
+    #[arg(long, default_value = DEFAULT_WEB_EMBEDDINGS_BASE_URL)]
+    web_embeddings_base_url: String,
+    #[arg(long, default_value = DEFAULT_SERVER_EMBEDDING_MODEL_KEY)]
+    server_embedding_model_key: String,
+    #[arg(long)]
+    no_build: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
 struct RenderDockerBuildArgs {
     #[arg(long, value_enum, default_value = "auto")]
     engine: ContainerEngineArg,
@@ -94,7 +118,7 @@ struct RenderDockerBuildArgs {
     image: String,
     #[arg(long, default_value = "/")]
     base_path: String,
-    #[arg(long, default_value = "https://assets.jbotci.app/embeddings/web/v1")]
+    #[arg(long, default_value = DEFAULT_WEB_EMBEDDINGS_BASE_URL)]
     web_embeddings_base_url: String,
     #[arg(long, default_value = DEFAULT_SERVER_EMBEDDING_MODEL_KEY)]
     server_embedding_model_key: String,
@@ -115,7 +139,7 @@ struct RenderDockerRunArgs {
     container_port: u16,
     #[arg(long, default_value = "/")]
     base_path: String,
-    #[arg(long, default_value = "https://assets.jbotci.app/embeddings/web/v1")]
+    #[arg(long, default_value = DEFAULT_WEB_EMBEDDINGS_BASE_URL)]
     web_embeddings_base_url: String,
     #[arg(long, default_value = DEFAULT_SERVER_EMBEDDING_MODEL_KEY)]
     server_embedding_model_key: String,
@@ -260,7 +284,7 @@ fn main() -> Result<()> {
 #[requires(!args.is_empty())]
 #[ensures(ret.as_ref().is_none_or(|cli| cli.should_run_light()))]
 fn parse_light_cli(args: &[OsString]) -> Option<Cli> {
-    first_subcommand(args)?;
+    let subcommand = first_subcommand(args)?;
     match Cli::try_parse_from(args) {
         Ok(cli) if cli.should_run_light() => Some(cli),
         Ok(_) => None,
@@ -270,6 +294,9 @@ fn parse_light_cli(args: &[OsString]) -> Option<Cli> {
                 ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
             ) =>
         {
+            error.exit();
+        }
+        Err(error) if is_light_command_name(subcommand) => {
             error.exit();
         }
         Err(_) => None,
@@ -291,6 +318,7 @@ impl Cli {
             | Command::DesktopBundleMacos
             | Command::DesktopBundleLinux
             | Command::DesktopBundleWindows
+            | Command::ServeWebRelease(_)
             | Command::RenderDockerBuild(_)
             | Command::RenderDockerRun(_) => true,
         }
@@ -306,6 +334,27 @@ fn first_subcommand(args: &[OsString]) -> Option<&str> {
     } else {
         Some(command)
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_light_command_name(command: &str) -> bool {
+    matches!(
+        command,
+        "check"
+            | "test"
+            | "clippy"
+            | "fmt"
+            | "desktop-build"
+            | "desktop-serve"
+            | "desktop-bundle-macos"
+            | "desktop-bundle-linux"
+            | "desktop-bundle-windows"
+            | "dist-server"
+            | "serve-web-release"
+            | "render-docker-build"
+            | "render-docker-run"
+    )
 }
 
 impl DistServerArgs {
@@ -360,6 +409,7 @@ fn run_light_command(cli: Cli) -> Result<()> {
         Command::DesktopBundleLinux => dx_desktop_bundle(DesktopBundleTarget::Linux),
         Command::DesktopBundleWindows => dx_desktop_bundle(DesktopBundleTarget::Windows),
         Command::DistServer(args) => dist_server(args),
+        Command::ServeWebRelease(args) => serve_web_release(args),
         Command::RenderDockerBuild(args) => render_docker_build(args),
         Command::RenderDockerRun(args) => render_docker_run(args),
     }
@@ -704,12 +754,69 @@ fn dist_server(args: DistServerArgs) -> Result<()> {
     }
     let _ignored_embedding_options = (&args.embedding_dtypes, &args.embedding_backend);
     let out_dir = absolute_path(&args.out_dir)?;
+    build_release_server_bundle(&out_dir, &args.base_path)
+}
+
+#[requires(out_dir.is_absolute())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_release_server_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     if out_dir.exists() {
         fs::remove_dir_all(&out_dir)
             .with_context(|| format!("removing old web bundle `{}`", out_dir.display()))?;
     }
-    run_dx_bundle(&out_dir, &args.base_path)?;
-    server_bundle_path(&out_dir).map(|_| ())
+    run_dx_bundle(out_dir, base_path)?;
+    server_bundle_path(out_dir).map(|_| ())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn serve_web_release(args: ServeWebReleaseArgs) -> Result<()> {
+    if args.web_embeddings_base_url.trim().is_empty() {
+        bail!("serve-web-release --web-embeddings-base-url must not be empty");
+    }
+    if args.server_embedding_model_key.trim().is_empty() {
+        bail!("serve-web-release --server-embedding-model-key must not be empty");
+    }
+
+    let out_dir = absolute_path(&args.out_dir)?;
+    if !args.no_build {
+        build_release_server_bundle(&out_dir, &args.base_path)?;
+    }
+
+    let server = server_bundle_path(&out_dir)?;
+    let web_dist = web_dist_dir(&out_dir)?;
+    let url = web_release_url(args.ip, args.port, &args.base_path);
+    println!("serving release web app on {url}");
+
+    let status = ProcessCommand::new(&server)
+        .env("IP", args.ip.to_string())
+        .env("PORT", args.port.to_string())
+        .env(
+            "DIOXUS_ASSET_ROOT",
+            dioxus_runtime_asset_root(&args.base_path),
+        )
+        .env("DIOXUS_PUBLIC_PATH", web_dist.as_os_str())
+        .env(
+            "JBOTCI_WEB_EMBEDDINGS_BASE_URL",
+            &args.web_embeddings_base_url,
+        )
+        .env(
+            "JBOTCI_SERVER_EMBEDDING_MODEL_KEY",
+            &args.server_embedding_model_key,
+        )
+        .status()
+        .with_context(|| format!("failed to run release web server `{}`", server.display()))?;
+    check_status(status, &format!("{} release web server", server.display()))
+}
+
+#[requires(port.get() > 0)]
+#[ensures(ret.starts_with("http://"))]
+fn web_release_url(ip: IpAddr, port: NonZeroU16, base_path: &str) -> String {
+    let asset_root = dioxus_runtime_asset_root(base_path);
+    match ip {
+        IpAddr::V4(ip) => format!("http://{ip}:{port}{asset_root}"),
+        IpAddr::V6(ip) => format!("http://[{ip}]:{port}{asset_root}"),
+    }
 }
 
 #[requires(true)]
@@ -1511,6 +1618,35 @@ mod tests {
             rendered = rendered.replace(&format!("{{{{{key}}}}}"), value);
         }
         rendered
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_release_url_formats_root_subpaths_and_ipv6() {
+        let port = NonZeroU16::new(8080).expect("test port must be nonzero");
+
+        assert_eq!(
+            web_release_url("127.0.0.1".parse().expect("IPv4 address"), port, "/"),
+            "http://127.0.0.1:8080/"
+        );
+        assert_eq!(
+            web_release_url("127.0.0.1".parse().expect("IPv4 address"), port, "/jbotci"),
+            "http://127.0.0.1:8080/jbotci"
+        );
+        assert_eq!(
+            web_release_url("::1".parse().expect("IPv6 address"), port, "/"),
+            "http://[::1]:8080/"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn light_command_name_separates_local_commands_from_full_delegates() {
+        assert!(is_light_command_name("serve-web-release"));
+        assert!(is_light_command_name("dist-server"));
+        assert!(!is_light_command_name("build-web-release"));
     }
 
     #[test]
