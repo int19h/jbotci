@@ -1178,14 +1178,10 @@ enum CombinedImplicitConstantKind {
     TypicalPlaceValue,
 }
 
-#[invariant(::Fixed => true)]
-#[invariant(::Underspecified { may_depend_on } => !may_depend_on.is_empty())]
+#[invariant(may_depend_on.as_ref().is_none_or(|binders| !binders.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum CombinedScopeDependence {
-    Fixed,
-    Underspecified {
-        may_depend_on: BTreeSet<SemanticObjectId>,
-    },
+struct CombinedScopeDependence {
+    may_depend_on: Option<BTreeSet<SemanticObjectId>>,
 }
 
 #[invariant(true)]
@@ -1417,10 +1413,12 @@ fn combined_scope_dependence(object: &SemanticObject) -> CombinedScopeDependence
         .expect("constant objects carry scope dependence")
         .as_data()
     {
-        data!(ScopeDependence::Fixed) => new!(CombinedScopeDependence::Fixed),
+        data!(ScopeDependence::Fixed) => new!(CombinedScopeDependence {
+            may_depend_on: None,
+        }),
         data!(ScopeDependence::Underspecified { may_depend_on }) => {
-            new!(CombinedScopeDependence::Underspecified {
-                may_depend_on: may_depend_on.clone(),
+            new!(CombinedScopeDependence {
+                may_depend_on: Some(may_depend_on.clone()),
             })
         }
     }
@@ -1478,9 +1476,9 @@ fn format_combined_scope_dependence_to(
     scope_dependence: &CombinedScopeDependence,
     output: &mut String,
 ) {
-    match scope_dependence.as_data() {
-        data!(CombinedScopeDependence::Fixed) => output.push_str("binder-dependence=fixed"),
-        data!(CombinedScopeDependence::Underspecified { may_depend_on }) => {
+    match &scope_dependence.may_depend_on {
+        None => output.push_str("binder-dependence=fixed"),
+        Some(may_depend_on) => {
             output.push_str("binder-dependence=underspecified; may-depend-on=");
             for (index, binder) in may_depend_on.iter().enumerate() {
                 if index > 0 {
