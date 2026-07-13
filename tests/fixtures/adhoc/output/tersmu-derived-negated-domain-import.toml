@@ -9,29 +9,27 @@ description = "Issue #278 negation: tree preserves naku scope while domainImport
 [expectations.output.tersmu]
 claims = """
 asserted:
-- mlatu(x1=da[entity:7], x2=zo'e[entity:10]) [predication:11] [mode=restrictive; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom [formula:12]]
-- klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) [predication:17] [mode=asserted; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+- mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]} [predication:11] [mode=restrictive; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom binds=exists eventuality[eventuality:8] [formula:12]]
+- klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) {event=eventuality[eventuality:6]} [predication:17] [mode=asserted; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] [formula:18]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:22] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- exists da[entity:7] satisfying mlatu(x1=da[entity:7], x2=zo'e[entity:10]) [predication:11] [restriction=formula:12; projective domain import of formula:20]
-- denotes eventuality[eventuality:8] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom [formula:12]]
-- denotes zo'e[entity:10] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom [formula:12]]
-- denotes eventuality[eventuality:6] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
-- denotes zo'e[entity:13] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
-- denotes zo'e[entity:14] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
-- denotes zo'e[entity:15] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
-- denotes zo'e[entity:16] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom [formula:18]]
+- exists da[entity:7] satisfying mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]} [predication:11] [restriction=formula:12; projective domain import of formula:20]
+- denotes zo'e[entity:10] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom binds=exists eventuality[eventuality:8] [formula:12]]
+- denotes zo'e[entity:13] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] [formula:18]]
+- denotes zo'e[entity:14] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] [formula:18]]
+- denotes zo'e[entity:15] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] [formula:18]]
+- denotes zo'e[entity:16] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content not [formula:21] > child forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] [formula:18]]
 displayed:
 - (none)"""
 tree = """
 utterance assert [utterance:5]
   content: not [formula:21]
     child: forall variable=da[entity:7] domain-import=projective [formula:20]
-      restriction: atom [formula:12]
-        mlatu(x1=da[entity:7], x2=zo'e[entity:10]) [predication:11]
-      body: atom [formula:18]
-        klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) [predication:17]"""
+      restriction: atom binds=exists eventuality[eventuality:8] [formula:12]
+        mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]} [predication:11]
+      body: atom binds=exists eventuality[eventuality:6] [formula:18]
+        klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) {event=eventuality[eventuality:6]} [predication:17]"""

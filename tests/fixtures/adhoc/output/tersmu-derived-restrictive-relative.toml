@@ -9,30 +9,28 @@ description = "Issue #278 review: a veridical restrictive relative clause is a p
 [expectations.output.tersmu]
 claims = """
 asserted:
-- klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) [predication:19] [mode=asserted; context=utterance:5 assert > content atom [formula:20]]
+- klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) {event=eventuality[eventuality:6]} [predication:19] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:21] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality[eventuality:6] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20]]
-- denotes lo mlatu[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20]]
-- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive; context=utterance:5 assert > content atom [formula:20] > descriptor-body atom [formula:10]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20] > descriptor-body atom [formula:10]]
-- blanu(x1=lo mlatu[entity:7]) [predication:13] [mode=restrictive; context=utterance:5 assert > content atom [formula:20] > restrictive-relative-clause atom [formula:14]]
-- denotes eventuality[eventuality:11] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20] > restrictive-relative-clause atom [formula:14]]
-- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20]]
-- denotes zo'e[entity:16] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20]]
-- denotes zo'e[entity:17] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20]]
-- denotes zo'e[entity:18] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:20]]
+- denotes lo mlatu[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20]]
+- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20] > descriptor-body atom [formula:10]]
+- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20] > descriptor-body atom [formula:10]]
+- blanu(x1=lo mlatu[entity:7]) {event=eventuality[eventuality:11]} [predication:13] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20] > restrictive-relative-clause atom binds=exists eventuality[eventuality:11] [formula:14]]
+- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20]]
+- denotes zo'e[entity:16] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20]]
+- denotes zo'e[entity:17] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20]]
+- denotes zo'e[entity:18] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:20]]
 displayed:
 - (none)"""
 tree = """
 utterance assert [utterance:5]
-  content: atom [formula:20]
-    klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) [predication:19]
+  content: atom binds=exists eventuality[eventuality:6] [formula:20]
+    klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) {event=eventuality[eventuality:6]} [predication:19]
       descriptor body: atom [formula:10]
         mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9]
-      restrictive relative clause: atom [formula:14]
-        blanu(x1=lo mlatu[entity:7]) [predication:13]"""
+      restrictive relative clause: atom binds=exists eventuality[eventuality:11] [formula:14]
+        blanu(x1=lo mlatu[entity:7]) {event=eventuality[eventuality:11]} [predication:13]"""

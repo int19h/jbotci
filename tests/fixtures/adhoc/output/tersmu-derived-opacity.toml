@@ -9,24 +9,23 @@ description = "Issue #278 opacity trap: the lo descriptor commitment must be top
 [expectations.output.tersmu]
 claims = """
 asserted:
-- nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) [predication:13] [mode=asserted; context=utterance:5 assert > content atom [formula:14]]
+- nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]} [predication:13] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:14]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:15] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality[eventuality:6] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:14]]
-- denotes lo tanxe[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:14]]
-- tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10] [mode=restrictive; context=utterance:5 assert > content atom [formula:14] > descriptor-body atom [formula:11]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:14] > descriptor-body atom [formula:11]]
-- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:14] > descriptor-body atom [formula:11]]
-- denotes zo'e[entity:12] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:14]]
+- denotes lo tanxe[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:14]]
+- tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:14] > descriptor-body atom [formula:11]]
+- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:14] > descriptor-body atom [formula:11]]
+- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:14] > descriptor-body atom [formula:11]]
+- denotes zo'e[entity:12] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:14]]
 displayed:
 - (none)"""
 tree = """
 utterance assert [utterance:5]
-  content: atom [formula:14]
-    nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) [predication:13]
+  content: atom binds=exists eventuality[eventuality:6] [formula:14]
+    nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]} [predication:13]
       descriptor body: atom [formula:11]
         tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10]"""

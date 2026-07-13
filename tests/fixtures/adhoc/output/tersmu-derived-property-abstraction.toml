@@ -9,21 +9,20 @@ description = "Issue #278 review: a ka relation body is structural/non-claim con
 [expectations.output.tersmu]
 claims = """
 asserted:
-- kakne(x1=speaker[entity:1], x2=lo bajra[relation:14], x3=zo'e[entity:15]) [predication:16] [mode=asserted; context=utterance:5 assert > content atom [formula:17]]
+- kakne(x1=speaker[entity:1], x2=lo bajra[relation:14], x3=zo'e[entity:15]) {event=eventuality[eventuality:6]} [predication:16] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:17]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes eventuality/locution[eventuality/locution:18] [binder-dependence=fixed; constant; context=utterance:5 assert]
 - denotes now[eventuality:3] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality[eventuality:6] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:17]]
-- denotes lo bajra[relation:14] [binder-dependence=fixed; constant; relation-body=bajra(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9], x3=zo'e[entity:10], x4=zo'e[entity:11]) [predication:12]; context=utterance:5 assert > content atom [formula:17]]
-- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom [formula:17]]
+- denotes lo bajra[relation:14] [binder-dependence=fixed; constant; relation-body=bajra(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9], x3=zo'e[entity:10], x4=zo'e[entity:11]) {event=eventuality[eventuality:7]} [predication:12]; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:17]]
+- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] [formula:17]]
 displayed:
 - (none)"""
 tree = """
 utterance assert [utterance:5]
-  content: atom [formula:17]
-    kakne(x1=speaker[entity:1], x2=lo bajra[relation:14], x3=zo'e[entity:15]) [predication:16]
-      relation body: atom [formula:13]
-        bajra(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9], x3=zo'e[entity:10], x4=zo'e[entity:11]) [predication:12]"""
+  content: atom binds=exists eventuality[eventuality:6] [formula:17]
+    kakne(x1=speaker[entity:1], x2=lo bajra[relation:14], x3=zo'e[entity:15]) {event=eventuality[eventuality:6]} [predication:16]
+      relation body: atom binds=exists eventuality[eventuality:7] [formula:13]
+        bajra(x1=entity?ce'u[parameter:8], x2=zo'e[entity:9], x3=zo'e[entity:10], x4=zo'e[entity:11]) {event=eventuality[eventuality:7]} [predication:12]"""
