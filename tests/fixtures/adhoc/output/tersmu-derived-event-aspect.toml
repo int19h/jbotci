@@ -1,0 +1,28 @@
+id = "adhoc.output.tersmu-derived-event-aspect"
+lojban = "mi ca'o klama"
+tags = ["output", "tersmu", "claims", "tree", "issue-351", "eventuality", "aspect"]
+
+[[provenance]]
+kind = "adhoc"
+description = "Issue #351: both derived formats expose ca'o as continuative aspect and in the canonical interval-modifier stack."
+
+[expectations.output.tersmu]
+claims = """
+asserted:
+- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [predication:11] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [formula:12]]
+presupposed/projected:
+- denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
+- denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
+- denotes eventuality/locution[eventuality/locution:13] [time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; constant; context=utterance:5 assert]
+- denotes now[eventuality:3] [time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; indexical; context=utterance:5 assert]
+- denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
+- denotes zo'e[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [formula:12]]
+- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [formula:12]]
+- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [formula:12]]
+- denotes zo'e[entity:10] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [formula:12]]
+displayed:
+- (none)"""
+tree = """
+utterance assert {event=eventuality/locution[eventuality/locution:13]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
+  content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [formula:12]
+    klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=continuative(anchor=unspecified; scalar-negation=unspecified); recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={interval-modifiers=[aspect(continuative(anchor=unspecified; scalar-negation=unspecified))]; otherwise=unspecified}} [predication:11]"""
