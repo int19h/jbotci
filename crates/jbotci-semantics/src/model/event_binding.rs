@@ -119,7 +119,8 @@ fn derive_semantic_event_bindings(
     collect_formula_event_uses(objects, &mut uses);
     collect_event_content_uses(objects, &mut uses);
 
-    let formula_ancestors = derive_formula_ancestors(objects);
+    let formula_ancestors = derive_formula_ancestors(objects, false);
+    let semantic_formula_ancestors = derive_formula_ancestors(objects, true);
     let sequence_reachability = derive_sequence_reachability(objects);
     let mut bindings = BTreeMap::new();
     for (eventuality, event_uses) in uses {
@@ -143,6 +144,14 @@ fn derive_semantic_event_bindings(
                 &sequence_reachability,
             )
             .map(EventBindingScope::sequence)
+        })
+        .or_else(|| {
+            event_uses
+                .sequences
+                .is_empty()
+                .then(|| lowest_common_formula(&event_uses.formulas, &semantic_formula_ancestors))
+                .flatten()
+                .map(EventBindingScope::formula)
         })
         .ok_or_else(|| {
             format!(
@@ -195,6 +204,22 @@ fn collect_predication_event_uses(
     uses: &mut BTreeMap<GeneratedEventualityId, GeneratedEventUses>,
     visited: &mut BTreeSet<SemanticObjectId>,
 ) {
+    let mut eventualities = Vec::new();
+    collect_predication_eventuality_references(predication, objects, &mut eventualities, visited);
+    for eventuality in eventualities {
+        record_generated_formula_use(Some(eventuality), formula, objects, uses);
+    }
+}
+
+#[requires(predication.object_kind() == SemanticObjectKind::Predication)]
+#[ensures(visited.contains(&predication))]
+#[ensures(out.len() >= old(out.len()))]
+fn collect_predication_eventuality_references(
+    predication: SemanticObjectId,
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    out: &mut Vec<SemanticObjectId>,
+    visited: &mut BTreeSet<SemanticObjectId>,
+) {
     if !visited.insert(predication) {
         return;
     }
@@ -204,26 +229,40 @@ fn collect_predication_event_uses(
     else {
         return;
     };
-    record_generated_formula_use(node.eventuality, formula, objects, uses);
+    if let Some(eventuality) = node.eventuality {
+        out.push(eventuality);
+    }
     for argument in node.arguments.values() {
-        record_generated_formula_use(argument.value, formula, objects, uses);
+        extend_if_eventuality(argument.value, out);
     }
     for question in &node.place_questions {
-        record_generated_formula_use(question.argument.value, formula, objects, uses);
+        extend_if_eventuality(question.argument.value, out);
     }
     for modal in &node.modal_arguments {
         for argument in modal.arguments.values() {
-            record_generated_formula_use(argument.value, formula, objects, uses);
+            extend_if_eventuality(argument.value, out);
         }
-        record_generated_formula_use(modal.component, formula, objects, uses);
+        extend_if_eventuality(modal.component, out);
     }
     for exchange in &node.reciprocity {
-        record_generated_formula_use(exchange.left.value, formula, objects, uses);
-        record_generated_formula_use(exchange.right.value, formula, objects, uses);
+        extend_if_eventuality(exchange.left.value, out);
+        extend_if_eventuality(exchange.right.value, out);
     }
     if let Some(tanru_link) = &node.tanru_link {
-        record_generated_formula_use(Some(tanru_link.modifier), formula, objects, uses);
-        collect_predication_event_uses(tanru_link.head, formula, objects, uses, visited);
+        extend_if_eventuality(Some(tanru_link.modifier), out);
+        collect_predication_eventuality_references(tanru_link.head, objects, out, visited);
+    }
+}
+
+#[requires(true)]
+#[ensures(out.len() >= old(out.len()))]
+fn extend_if_eventuality(candidate: Option<SemanticObjectId>, out: &mut Vec<SemanticObjectId>) {
+    if let Some(candidate) = candidate
+        && candidate
+            .referent_sort()
+            .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
+    {
+        out.push(candidate);
     }
 }
 
@@ -287,6 +326,7 @@ fn record_generated_formula_use(
 #[ensures(ret.keys().all(|formula| formula.object_kind() == SemanticObjectKind::Formula))]
 fn derive_formula_ancestors(
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    include_event_content: bool,
 ) -> BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> {
     let mut parents = BTreeMap::<SemanticObjectId, BTreeSet<SemanticObjectId>>::new();
     for (&id, object) in objects {
@@ -296,8 +336,15 @@ fn derive_formula_ancestors(
         parents.entry(id).or_default();
         let mut children = Vec::new();
         direct_formula_children(formula, &mut children);
+        if include_event_content {
+            direct_event_content_formula_children(id, formula, objects, &mut children);
+        }
+        children.sort_unstable();
+        children.dedup();
         for child in children {
-            parents.entry(child).or_default().insert(id);
+            if child != id {
+                parents.entry(child).or_default().insert(id);
+            }
         }
     }
 
@@ -317,6 +364,38 @@ fn derive_formula_ancestors(
             (formula, ancestors)
         })
         .collect()
+}
+
+#[requires(id.object_kind() == SemanticObjectKind::Formula)]
+#[ensures(out.len() >= old(out.len()))]
+fn direct_event_content_formula_children(
+    id: SemanticObjectId,
+    formula: &FormulaNode,
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    out: &mut Vec<SemanticObjectId>,
+) {
+    let mut eventualities = Vec::new();
+    match formula.as_data() {
+        data!(FormulaNode::Atom(atom)) => collect_predication_eventuality_references(
+            atom.predication,
+            objects,
+            &mut eventualities,
+            &mut BTreeSet::new(),
+        ),
+        data!(FormulaNode::Connective(node)) => {
+            extend_if_eventuality(node.eventuality, &mut eventualities);
+        }
+        data!(FormulaNode::Quantified(_))
+        | data!(FormulaNode::QuantifierBundle(_))
+        | data!(FormulaNode::RespectivelyDistribution(_)) => {}
+    }
+    out.extend(eventualities.into_iter().filter_map(|eventuality| {
+        let content = objects
+            .get(&eventuality)
+            .and_then(SemanticObject::as_eventuality)?
+            .content?;
+        (content.object_kind() == SemanticObjectKind::Formula && content != id).then_some(content)
+    }));
 }
 
 #[requires(true)]

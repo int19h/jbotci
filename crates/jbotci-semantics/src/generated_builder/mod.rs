@@ -7886,6 +7886,39 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn reified_formula_connection_events_bind_on_connection_formula() {
+        let graph = semantic_graph_for("mi klama pugi le zarci gi le zdani");
+        let connection_formula = graph
+            .objects
+            .iter()
+            .find_map(|(&formula, object)| {
+                let predication = object
+                    .formula_predication()
+                    .and_then(|predication| graph.objects.get(&predication))?
+                    .as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "before")
+                    .then_some(formula)
+            })
+            .expect("tense connection has an asserted connection formula");
+        let branch_events = graph
+            .objects
+            .values()
+            .filter_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(branch_events.len(), 2);
+        for event in branch_events {
+            assert_eq!(event_binding_owner(&graph, event), connection_formula);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn promoted_nu_event_is_referential_and_never_bound() {
         let graph = semantic_graph_for("mi nelci do mu'i le nu do nelci mi");
         let abstraction = graph
