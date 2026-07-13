@@ -8,8 +8,8 @@ description = "Issue #278 opacity trap: the lo descriptor commitment must be top
 
 [expectations.output.tersmu]
 claims = """
-asserted:
-- nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]]
+at-issue commitments:
+- nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13] [mode=asserted; scope=top-level; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
@@ -29,3 +29,15 @@ utterance assert {event=eventuality/locution[eventuality/locution:15]; time=unsp
     nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13]
       descriptor body: atom [formula:11]
         tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10]"""
+combined = """
+utterance assert {event=eventuality/locution[eventuality/locution:15]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
+  content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]
+    nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]} [predication:13]
+      descriptor body: atom [formula:11]
+        tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10]
+
+projected:
+- frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:15]] [binder-dependence=fixed]
+- tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10] [mode=restrictive]
+- denotes lo tanxe[entity:7] [binder-dependence=fixed; constant]
+- denotes [zo'e[entity:8], zo'e[entity:9], zo'e[entity:12]] [binder-dependence=fixed; constant; descriptor-kind=elided]"""

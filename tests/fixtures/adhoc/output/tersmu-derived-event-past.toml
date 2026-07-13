@@ -8,8 +8,8 @@ description = "Issue #351: both derived formats expose pu as a before relation a
 
 [expectations.output.tersmu]
 claims = """
-asserted:
-- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]; time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:11] [mode=asserted; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]]
+at-issue commitments:
+- klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]; time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:11] [mode=asserted; scope=top-level; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]]
 presupposed/projected:
 - denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
 - denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
@@ -26,3 +26,11 @@ tree = """
 utterance assert {event=eventuality/locution[eventuality/locution:13]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
   content: atom binds=exists eventuality[eventuality:6] {time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]
     klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]; time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:11]"""
+combined = """
+utterance assert {event=eventuality/locution[eventuality/locution:13]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
+  content: atom binds=exists eventuality[eventuality:6] {time=before(anchor=now[eventuality:3]; sticky=false; details=unspecified); actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]
+    klama(x1=speaker[entity:1], x2=zo'e[entity:7], x3=zo'e[entity:8], x4=zo'e[entity:9], x5=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11]
+
+projected:
+- frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:13]] [binder-dependence=fixed]
+- denotes [zo'e[entity:7], zo'e[entity:8], zo'e[entity:9], zo'e[entity:10]] [binder-dependence=fixed; constant; descriptor-kind=elided]"""
