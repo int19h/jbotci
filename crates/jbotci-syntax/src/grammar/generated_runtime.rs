@@ -1,14 +1,14 @@
 //! Generic runtime primitives for declarative generated syntax parsers.
 
 use bityzba::{contract_trait, invariant, new, requires};
-use chumsky::{Parser, input::Input, primitive::custom};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
 use std::cell::Cell;
 
 use super::{
-    BoxedParser, ParseExtra, ParserInput, Span, SyntaxFound, SyntaxFoundData, SyntaxParseError,
+    BoxedParser, ParserInput, Span, SyntaxFound, SyntaxFoundData, SyntaxParseError,
+    parser_core::{InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end},
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
         is_koha_argument, is_letter_word, is_relation_word, token_matching,
@@ -196,9 +196,9 @@ pub(crate) fn rule_wrapper<'tokens, O, P>(
 ) -> BoxedParser<'tokens, O>
 where
     O: Clone + 'static,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
         let checkpoint = input.save();
         let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
         let recovery_index = input.state().syntax_recovery_memo_index();
@@ -320,7 +320,7 @@ where
 #[requires(!construct.is_empty())]
 #[ensures(true)]
 fn trace_rule_exit<'tokens>(
-    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    input: &mut InputRef<'tokens, '_>,
     construct: &'static str,
     kind: TraceEventKind,
     span: Span,
@@ -339,10 +339,7 @@ fn trace_rule_exit<'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-fn advance_to_location<'tokens>(
-    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
-    end_location: usize,
-) {
+fn advance_to_location<'tokens>(input: &mut InputRef<'tokens, '_>, end_location: usize) {
     while ParserInput::cursor_location(input.cursor().inner()) < end_location {
         if input.next().is_none() {
             break;
@@ -353,13 +350,13 @@ fn advance_to_location<'tokens>(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn empty<'tokens>() -> BoxedParser<'tokens, ()> {
-    chumsky::primitive::empty().boxed()
+    parser_empty().boxed()
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn eof<'tokens>() -> BoxedParser<'tokens, ()> {
-    chumsky::primitive::end().boxed()
+    parser_end().boxed()
 }
 
 #[requires(true)]
@@ -370,7 +367,7 @@ pub(crate) fn feature_gate<'tokens, O, P>(
 ) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
     syntax_gate(
         parser,
@@ -387,7 +384,7 @@ pub(crate) fn policy_gate<'tokens, O, P>(
 ) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
     syntax_gate(
         parser,
@@ -406,9 +403,9 @@ fn syntax_gate<'tokens, O, P, E>(
 where
     O: 'tokens,
     E: Fn(SyntaxGrammarEnv) -> bool + Clone + 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let env = input.state().syntax_grammar_env();
         if enabled(env) {
             return input.parse(&parser);
@@ -424,9 +421,9 @@ where
 pub(crate) fn strict_optional<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, Option<O>>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
+    P: Parser<'tokens, O> + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let checkpoint = input.save();
         match input.parse(&parser) {
             Ok(output) => Ok(Some(output)),
@@ -445,7 +442,7 @@ where
 pub(crate) fn strict_greedy_many_parser<'tokens, O: 'tokens>(
     parser: BoxedParser<'tokens, O>,
 ) -> BoxedParser<'tokens, Vec<O>> {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let mut values = Vec::new();
         loop {
             let checkpoint = input.save();
@@ -485,7 +482,7 @@ fn strict_greedy_many_parser_without_diagnostics<'tokens, O: 'tokens>(
 pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
     parser: BoxedParser<'tokens, O>,
 ) -> BoxedParser<'tokens, Vec<O>> {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let first_checkpoint = input.save();
         let first_start_location = ParserInput::cursor_location(first_checkpoint.cursor().inner());
         let first = match input.parse(&parser) {
@@ -541,7 +538,7 @@ pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
 pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
     alternatives: Vec<BoxedParser<'tokens, O>>,
 ) -> BoxedParser<'tokens, O> {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let mut abandoned_error = None;
         for alternative in &alternatives {
             let checkpoint = input.save();
@@ -975,9 +972,9 @@ pub(crate) fn recovered_field_parser<'tokens, O, P>(
 ) -> BoxedParser<'tokens, O>
 where
     O: RecoveredSyntaxSlot + 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let checkpoint = input.save();
         let location = ParserInput::cursor_location(checkpoint.cursor().inner());
         let active_frame = input
@@ -1046,9 +1043,9 @@ pub(crate) fn recovered_greedy_many_field_parser<'tokens, O, P>(
 ) -> BoxedParser<'tokens, Vec<O>>
 where
     O: RecoveredSyntaxSlot + 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let mut values = Vec::new();
         loop {
             let checkpoint = input.save();
@@ -1187,23 +1184,15 @@ where
 {
     strict_greedy_many_parser_without_diagnostics(
         free_modifier
-            .map_with(
-                |free_modifier,
-                 extra: &mut chumsky::input::MapExtra<
-                    'tokens,
-                    '_,
-                    ParserInput<'tokens>,
-                    ParseExtra<'tokens>,
-                >| {
-                    if let Some(anchor) = free_modifier.first_word() {
-                        extra.state().warn(
-                            ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
-                            anchor,
-                        );
-                    }
-                    free_modifier
-                },
-            )
+            .map_with(|free_modifier, extra: &mut MapExtra<'tokens, '_>| {
+                if let Some(anchor) = free_modifier.first_word() {
+                    extra.state().warn(
+                        ExperimentalConstruct::CllProhibitedFreeModifierPlacement,
+                        anchor,
+                    );
+                }
+                free_modifier
+            })
             .boxed(),
     )
 }
@@ -1235,9 +1224,9 @@ pub(crate) fn with_free_modifier_list<'tokens, O, F, P>(
 where
     O: 'tokens,
     F: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let value = input.parse(&inner)?;
         let free_modifiers = input.parse(&free_modifier_list)?;
         Ok(WithFreeModifiers::new(value, free_modifiers))
@@ -1251,10 +1240,7 @@ pub(crate) fn strict_empty_free_modifier_parser<'tokens, F>() -> BoxedParser<'to
 where
     F: 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
-        Err(expected_found_at_current(input, "free modifier"))
-    })
-    .boxed()
+    custom::<_, _>(move |input| Err(expected_found_at_current(input, "free modifier"))).boxed()
 }
 
 #[requires(true)]
@@ -1269,7 +1255,7 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not_next_selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, ()> {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let checkpoint = input.save();
         match input.next() {
             Some(token) if token.is_selmaho(selmaho) => {
@@ -1298,10 +1284,10 @@ pub(crate) fn not_next_rule_after<'tokens, O, GO, G, P>(
 where
     O: 'tokens,
     GO: 'tokens,
-    G: Parser<'tokens, ParserInput<'tokens>, GO, ParseExtra<'tokens>> + Clone + 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    G: Parser<'tokens, GO> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let before = input.save();
         let value = match input.parse(&inner) {
             Ok(value) => value,
@@ -1337,10 +1323,10 @@ pub(crate) fn followed_by<'tokens, O, GO, G, P>(inner: P, guard: G) -> BoxedPars
 where
     O: 'tokens,
     GO: 'tokens,
-    G: Parser<'tokens, ParserInput<'tokens>, GO, ParseExtra<'tokens>> + Clone + 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    G: Parser<'tokens, GO> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let before = input.save();
         let value = match input.parse(&inner) {
             Ok(value) => value,
@@ -1372,7 +1358,7 @@ pub(crate) fn complete_statement_item<'tokens, O, P>(
 ) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
     complete_before_boundary(inner, expected, |token| {
         token.is_none_or(|token| token.is_selmaho(Selmaho::I) || token.is_selmaho(Selmaho::Niho))
@@ -1388,7 +1374,7 @@ pub(crate) fn complete_before_selmaho<'tokens, O, P>(
 ) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
     complete_before_boundary(inner, expected, move |token| {
         token.is_some_and(|token| token.is_selmaho(selmaho))
@@ -1405,9 +1391,9 @@ fn complete_before_boundary<'tokens, O, P, B>(
 where
     O: 'tokens,
     B: Fn(Option<&Token>) -> bool + Clone + 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let before = input.save();
         let start_location = ParserInput::cursor_location(before.cursor().inner());
         let start_byte = input.state().byte_offset_for_location(start_location);
@@ -1450,7 +1436,7 @@ where
 #[requires(!expected.is_empty())]
 #[ensures(true)]
 fn expected_found_at_current<'tokens>(
-    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    input: &mut InputRef<'tokens, '_>,
     expected: &'static str,
 ) -> SyntaxParseError<'tokens> {
     expected_found_named_at_current(input, expected.to_owned())
@@ -1459,7 +1445,7 @@ fn expected_found_at_current<'tokens>(
 #[requires(!expected.is_empty())]
 #[ensures(true)]
 fn expected_found_named_at_current<'tokens>(
-    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    input: &mut InputRef<'tokens, '_>,
     expected: String,
 ) -> SyntaxParseError<'tokens> {
     expected_found_tokens_at_current(input, vec![new!(SyntaxExpectedToken::Named(expected))])
@@ -1468,7 +1454,7 @@ fn expected_found_named_at_current<'tokens>(
 #[requires(!expected.is_empty())]
 #[ensures(true)]
 fn expected_found_tokens_at_current<'tokens>(
-    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    input: &mut InputRef<'tokens, '_>,
     expected: Vec<SyntaxExpectedToken>,
 ) -> SyntaxParseError<'tokens> {
     let checkpoint = input.save();
@@ -1487,9 +1473,9 @@ fn expected_found_tokens_at_current<'tokens>(
 pub(crate) fn lookahead<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, O>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let before = input.save();
         let value = match input.parse(&parser) {
             Ok(value) => value,
@@ -1509,9 +1495,9 @@ where
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>
 where
     O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let before = input.save();
         let cursor = input.cursor();
         match input.parse(&parser) {
@@ -1616,21 +1602,13 @@ pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token>
     );
     let cbm_cmevla = feature_gate(
         SyntaxGrammarFeature::Cbm,
-        cmevla_word().map_with(
-            |word,
-             extra: &mut chumsky::input::MapExtra<
-                'tokens,
-                '_,
-                ParserInput<'tokens>,
-                ParseExtra<'tokens>,
-            >| {
-                extra.state().warn(
-                    ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
-                    &word,
-                );
-                word
-            },
-        ),
+        cmevla_word().map_with(|word, extra: &mut MapExtra<'tokens, '_>| {
+            extra.state().warn(
+                ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
+                &word,
+            );
+            word
+        }),
     );
     brivla.or(cbm_cmevla).boxed()
 }
@@ -1638,7 +1616,7 @@ pub(crate) fn tanru_unit_relation_word<'tokens>() -> BoxedParser<'tokens, Token>
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn text_leading_cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+    custom::<_, _>(move |input| {
         let checkpoint = input.save();
         if input.state().syntax_grammar_env().dialect.cbm_enabled {
             input.rewind(checkpoint);

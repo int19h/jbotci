@@ -4,17 +4,15 @@ use std::sync::Arc;
 
 use crate::{ExperimentalConstruct, Token, WithIndicators, WithIndicatorsData};
 use bityzba::{data, invariant, new, requires};
-use chumsky::error::RichReason;
-use chumsky::prelude::*;
-use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_diagnostics::{
     TraceContext, TraceEventKind, TraceFailureBranch, TraceFailureSummary, TraceLevel,
 };
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
 
 use super::{
-    BoxedParser, ParseExtra, ParserInput, ParserState, SpannedToken, SyntaxFound, SyntaxFoundData,
-    SyntaxParseCustomKind, SyntaxParseError,
+    BoxedParser, ParserState, SpannedToken, SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind,
+    SyntaxParseError,
+    parser_core::{InputRef, Parser, RichReason, SimpleSpan, Spanned, custom},
 };
 use crate::{
     SyntaxConstructContext, SyntaxError, SyntaxErrorKind, SyntaxExpectation, SyntaxExpectedToken,
@@ -110,7 +108,7 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
     bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
     let expected: Arc<[SyntaxExpectedToken]> = Arc::from(expected);
-    custom::<_, ParserInput<'tokens>, Token, ParseExtra<'tokens>>(move |input| {
+    custom::<_, Token>(move |input: &mut InputRef<'tokens, '_>| {
         let checkpoint = input.save();
         let cursor = input.cursor();
         match input.next() {

@@ -884,6 +884,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:MaybeRef::Ref",
+        "borrowed parser error tokens delegate validity to the referenced token type",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:MaybeRef::Val",
+        "owned parser error tokens delegate validity to the token type",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RichPattern::EndOfInput",
+        "end of input is a closed parser expectation with no payload",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RichPattern::Label",
+        "parser labels preserve arbitrary diagnostic text supplied by grammar callers",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RichReason::Custom",
+        "custom parser reasons delegate validity to their typed diagnostic payload",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RichReason::ExpectedFound",
+        "empty expectation sets and absent found tokens are valid parser error states",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/tokens.rs:ExperimentalCmavoContext::Label",
         "experimental cmavo context labels are private static grammar category names",
     ),

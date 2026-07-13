@@ -1,23 +1,16 @@
 //! Declarative generated syntax parser.
 
-use chumsky::span::SimpleSpan;
-use chumsky::{
-    Parser,
-    input::Input,
-    primitive::{custom, end},
-    recursive::Recursive,
-};
 use jbotci_morphology::{Cmavo, Selmaho};
 
 use super::generated_runtime;
+use super::parser_core::{
+    Input, InputRef, MapExtra, Parser, RecursiveFamily, SimpleSpan, custom, end,
+};
 use super::tokens::{
     cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens,
     syntax_error_with_diagnostic_candidate,
 };
-use super::{
-    BoxedParser, ParseExtra, ParserInput, ParserState, RecoveryDirective, SyntaxParseError,
-    SyntaxRuleFrame,
-};
+use super::{BoxedParser, ParserState, RecoveryDirective, SyntaxParseError, SyntaxRuleFrame};
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
 };
@@ -3296,7 +3289,7 @@ pub mod generated_model {
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
     fn strict_generated_text_parser_with_eof<'tokens>() -> BoxedParser<'tokens, TextSyntax> {
-        custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
             let text = input.parse(&strict_generated_text_parser())?;
             input.parse(end()).map(|()| text)
         })
@@ -3308,7 +3301,7 @@ pub mod generated_model {
     fn recovered_generated_text_parser_with_eof<'tokens>(
         recovery_rules: std::sync::Arc<[&'static str]>,
     ) -> BoxedParser<'tokens, recovered::TextSyntax> {
-        custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
             let text = input.parse(&recovered_generated_text_parser(recovery_rules.clone()))?;
             input.parse(end()).map(|()| text)
         })

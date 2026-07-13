@@ -1,12 +1,10 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use chumsky::error::{Error, LabelError, Rich, RichPattern, RichReason};
-use chumsky::input::Input;
-use chumsky::util::MaybeRef;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use super::{ParserInput, Span, SyntaxContextFrame, SyntaxRuleFrame, Token};
+use super::parser_core::{Error, LabelError, MaybeRef, RichPattern, RichReason};
+use super::{Span, SyntaxContextFrame, SyntaxRuleFrame, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
@@ -14,13 +12,13 @@ use crate::{
     syntax_construct_is_root, syntax_construct_parent, syntax_immediate_child_under,
 };
 
-type SyntaxRich<'tokens> = Rich<'tokens, Token, Span, Cow<'static, str>>;
+type SyntaxRichReason<'tokens> = RichReason<'tokens, Token, Cow<'static, str>>;
 
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseError<'tokens> {
     span: Span,
-    inner: SyntaxRich<'tokens>,
+    reason: SyntaxRichReason<'tokens>,
     expected_groups: Vec<ExpectedTokenGroup>,
     context_paths: Vec<Vec<SyntaxConstructContext>>,
     found: Option<SyntaxFound>,
@@ -79,9 +77,9 @@ impl ExpectedTokenGroup {
 }
 
 #[requires(true)]
-#[ensures(matches!(ret.reason(), RichReason::Custom(message) if message == "unexpected input"))]
-fn unexpected_input_error<'tokens>(span: Span) -> SyntaxRich<'tokens> {
-    Rich::custom(span, Cow::Borrowed("unexpected input"))
+#[ensures(matches!(ret, RichReason::Custom(ref message) if message == "unexpected input"))]
+fn unexpected_input_error<'tokens>() -> SyntaxRichReason<'tokens> {
+    RichReason::Custom(Cow::Borrowed("unexpected input"))
 }
 
 impl<'tokens> SyntaxParseError<'tokens> {
@@ -90,7 +88,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn custom(span: Span, message: String) -> Self {
         Self {
             span,
-            inner: Rich::custom(span, Cow::Owned(message)),
+            reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
             found: None,
@@ -111,7 +109,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self {
             span,
-            inner: Rich::custom(span, Cow::Owned(message)),
+            reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
             found: None,
@@ -134,7 +132,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn expected_shared(span: Span, tokens: Arc<[SyntaxExpectedToken]>) -> Self {
         Self {
             span,
-            inner: unexpected_input_error(span),
+            reason: unexpected_input_error(),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
             found: None,
@@ -165,7 +163,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self {
             span,
-            inner: unexpected_input_error(span),
+            reason: unexpected_input_error(),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
             found: Some(found),
@@ -186,16 +184,18 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn reason(&self) -> &RichReason<'tokens, Token, Cow<'static, str>> {
-        self.inner.reason()
+        &self.reason
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn expected_strings(&self) -> Vec<String> {
-        self.inner
-            .expected()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
+        match &self.reason {
+            RichReason::ExpectedFound { expected, .. } => {
+                expected.iter().map(ToString::to_string).collect()
+            }
+            RichReason::Custom(_) => Vec::new(),
+        }
     }
 
     #[requires(true)]
@@ -214,9 +214,12 @@ impl<'tokens> SyntaxParseError<'tokens> {
             }
         }
         if expectations.is_empty() {
-            for token in self
-                .inner
-                .expected()
+            let expected = match &self.reason {
+                RichReason::ExpectedFound { expected, .. } => expected.as_slice(),
+                RichReason::Custom(_) => &[],
+            };
+            for token in expected
+                .iter()
                 .filter_map(syntax_expected_token_from_rich_pattern)
             {
                 let reason = normalize_expectation_reason(
@@ -345,18 +348,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[requires(!construct.is_empty())]
     #[ensures(true)]
     pub(super) fn with_rule_start_label(mut self, construct: &'static str) -> Self {
-        <Self as LabelError<'tokens, ParserInput<'tokens>, &'static str>>::label_with(
-            &mut self, construct,
-        );
+        <Self as LabelError<'tokens, &'static str>>::label_with(&mut self, construct);
         self
     }
 
     #[requires(!construct.is_empty())]
     #[ensures(true)]
     pub(super) fn with_rule_context(mut self, construct: &'static str, span: Span) -> Self {
-        <Self as LabelError<'tokens, ParserInput<'tokens>, &'static str>>::in_context(
-            &mut self, construct, span,
-        );
+        <Self as LabelError<'tokens, &'static str>>::in_context(&mut self, construct, span);
         self
     }
 
@@ -410,11 +409,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
     }
 }
 
-impl<'tokens, I> Error<'tokens, I> for SyntaxParseError<'tokens>
-where
-    I: Input<'tokens, Token = Token, Span = Span>,
-    Token: PartialEq,
-{
+#[bityzba::contract_trait]
+impl<'tokens> Error<'tokens> for SyntaxParseError<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     fn merge(self, other: Self) -> Self {
@@ -422,30 +418,32 @@ where
     }
 }
 
-impl<'tokens, I, L> LabelError<'tokens, I, L> for SyntaxParseError<'tokens>
+#[bityzba::contract_trait]
+impl<'tokens, L> LabelError<'tokens, L> for SyntaxParseError<'tokens>
 where
-    I: Input<'tokens, Token = Token, Span = Span>,
-    Token: PartialEq,
-    L: TryInto<RichPattern<'tokens, Token>> + Clone,
+    L: TryInto<RichPattern<'tokens>> + Clone,
 {
     #[requires(true)]
     #[ensures(true)]
     fn expected_found<E: IntoIterator<Item = L>>(
         expected: E,
-        found: Option<MaybeRef<'tokens, I::Token>>,
-        span: I::Span,
+        found: Option<MaybeRef<'tokens, Token>>,
+        span: Span,
     ) -> Self {
         let expected = expected.into_iter().collect::<Vec<_>>();
         let syntax_found = syntax_found_from_maybe(found.clone());
-        let inner = <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::expected_found(
-            expected.clone(),
+        let reason = RichReason::ExpectedFound {
+            expected: expected
+                .iter()
+                .cloned()
+                .filter_map(|expected| expected.try_into().ok())
+                .collect(),
             found,
-            span,
-        );
+        };
         let expected_groups = expected_token_groups_from_labels(expected);
         Self {
             span,
-            inner,
+            reason,
             expected_groups,
             context_paths: empty_context_paths(),
             found: Some(syntax_found),
@@ -462,11 +460,11 @@ where
     fn merge_expected_found<E: IntoIterator<Item = L>>(
         mut self,
         expected: E,
-        found: Option<MaybeRef<'tokens, I::Token>>,
-        span: I::Span,
+        found: Option<MaybeRef<'tokens, Token>>,
+        _span: Span,
     ) -> Self
     where
-        Self: Error<'tokens, I>,
+        Self: Error<'tokens>,
     {
         if !self.same_position_branches.is_empty() {
             self = self.into_report_error();
@@ -477,11 +475,20 @@ where
             expected_token_groups_from_labels(expected.clone()),
         );
         let syntax_found = syntax_found_from_maybe(found.clone());
-        let inner = std::mem::replace(&mut self.inner, unexpected_input_error(span));
-        self.inner = <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::merge_expected_found(
-            inner, expected, found, span,
-        );
-        self.span = *self.inner.span();
+        if let RichReason::ExpectedFound {
+            expected: current,
+            found: current_found,
+        } = &mut self.reason
+        {
+            for expected in expected {
+                if let Ok(expected) = expected.try_into()
+                    && !current.contains(&expected)
+                {
+                    current.push(expected);
+                }
+            }
+            *current_found = current_found.take().or(found);
+        }
         self.found = merge_optional_equal(self.found, Some(syntax_found));
         self.custom_kind = None;
         self
@@ -492,8 +499,8 @@ where
     fn replace_expected_found<E: IntoIterator<Item = L>>(
         mut self,
         expected: E,
-        found: Option<MaybeRef<'tokens, I::Token>>,
-        span: I::Span,
+        found: Option<MaybeRef<'tokens, Token>>,
+        span: Span,
     ) -> Self {
         if !self.same_position_branches.is_empty() {
             self = self.into_report_error();
@@ -501,11 +508,14 @@ where
         let expected = expected.into_iter().collect::<Vec<_>>();
         self.expected_groups = expected_token_groups_from_labels(expected.clone());
         let syntax_found = syntax_found_from_maybe(found.clone());
-        let inner = std::mem::replace(&mut self.inner, unexpected_input_error(span));
-        self.inner = <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::replace_expected_found(
-            inner, expected, found, span,
-        );
-        self.span = *self.inner.span();
+        self.reason = RichReason::ExpectedFound {
+            expected: expected
+                .into_iter()
+                .filter_map(|expected| expected.try_into().ok())
+                .collect(),
+            found,
+        };
+        self.span = span;
         self.context_paths = empty_context_paths();
         self.found = Some(syntax_found);
         self.custom_kind = None;
@@ -520,19 +530,23 @@ where
     fn label_with(&mut self, label: L) {
         if !self.same_position_branches.is_empty() {
             for branch in &mut self.same_position_branches {
-                <SyntaxParseError<'tokens> as LabelError<'tokens, I, L>>::label_with(
+                <SyntaxParseError<'tokens> as LabelError<'tokens, L>>::label_with(
                     Arc::make_mut(branch),
                     label.clone(),
                 );
             }
             return;
         }
-        <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::label_with(
-            &mut self.inner,
-            label.clone(),
-        );
-        let Some(pattern) = label.try_into().ok() else {
+        let Some(pattern) = label.clone().try_into().ok() else {
             return;
+        };
+        let found = match &mut self.reason {
+            RichReason::ExpectedFound { found, .. } => found.take(),
+            RichReason::Custom(_) => None,
+        };
+        self.reason = RichReason::ExpectedFound {
+            expected: vec![pattern.clone()],
+            found,
         };
         if !self.expected_groups.is_empty() {
             if let Some(construct) = context_from_rich_pattern(&pattern) {
@@ -557,10 +571,10 @@ where
 
     #[requires(true)]
     #[ensures(true)]
-    fn in_context(&mut self, label: L, span: I::Span) {
+    fn in_context(&mut self, label: L, span: Span) {
         if !self.same_position_branches.is_empty() {
             for branch in &mut self.same_position_branches {
-                <SyntaxParseError<'tokens> as LabelError<'tokens, I, L>>::in_context(
+                <SyntaxParseError<'tokens> as LabelError<'tokens, L>>::in_context(
                     Arc::make_mut(branch),
                     label.clone(),
                     span,
@@ -582,11 +596,6 @@ where
                     span.start.max(span.end),
                 )
             });
-        <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::in_context(
-            &mut self.inner,
-            label.clone(),
-            span,
-        );
         if let Some(context) = context {
             for group in &mut self.expected_groups {
                 apply_context_to_group(group, &context.construct);
@@ -600,7 +609,7 @@ where
 #[ensures(ret.iter().all(|group| !group.tokens.is_empty()))]
 fn expected_token_groups_from_labels<'tokens, L>(labels: Vec<L>) -> Vec<ExpectedTokenGroup>
 where
-    L: TryInto<RichPattern<'tokens, Token>>,
+    L: TryInto<RichPattern<'tokens>>,
 {
     labels
         .into_iter()
@@ -617,32 +626,19 @@ where
 #[requires(true)]
 #[ensures(true)]
 fn syntax_expected_token_from_rich_pattern(
-    pattern: &RichPattern<'_, Token>,
+    pattern: &RichPattern<'_>,
 ) -> Option<SyntaxExpectedToken> {
     match pattern {
-        RichPattern::Token(token) => token
-            .core_word()
-            .cmavo()
-            .map(|cmavo| new!(SyntaxExpectedToken::Cmavo(cmavo))),
         RichPattern::Label(label) => Some(new!(SyntaxExpectedToken::Named(label.to_string()))),
-        RichPattern::Identifier(identifier) => {
-            Some(new!(SyntaxExpectedToken::Named(identifier.clone())))
-        }
-        RichPattern::Any => Some(new!(SyntaxExpectedToken::Named("input".to_owned()))),
-        RichPattern::SomethingElse => {
-            Some(new!(SyntaxExpectedToken::Named("other input".to_owned())))
-        }
         RichPattern::EndOfInput => Some(new!(SyntaxExpectedToken::EndOfInput)),
-        _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn context_from_rich_pattern(pattern: &RichPattern<'_, Token>) -> Option<String> {
+fn context_from_rich_pattern(pattern: &RichPattern<'_>) -> Option<String> {
     let construct = match pattern {
         RichPattern::Label(label) => label.to_string(),
-        RichPattern::Identifier(identifier) => identifier.clone(),
         _ => return None,
     };
     syntax_construct_is_known(&construct).then_some(construct)
@@ -1241,8 +1237,6 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
 
-    use crate::grammar::ParserInput;
-
     use super::*;
 
     #[test]
@@ -1438,11 +1432,7 @@ mod tests {
     #[requires(!label.is_empty())]
     #[ensures(true)]
     fn label_with(error: &mut SyntaxParseError<'static>, label: &'static str) {
-        <SyntaxParseError<'static> as LabelError<
-            'static,
-            ParserInput<'static>,
-            &'static str,
-        >>::label_with(error, label);
+        <SyntaxParseError<'static> as LabelError<'static, &'static str>>::label_with(error, label);
     }
 
     #[requires(!label.is_empty())]
@@ -1458,10 +1448,10 @@ mod tests {
         label: &'static str,
         span: std::ops::Range<usize>,
     ) {
-        <SyntaxParseError<'static> as LabelError<
-            'static,
-            ParserInput<'static>,
-            &'static str,
-        >>::in_context(error, label, Span::from(span));
+        <SyntaxParseError<'static> as LabelError<'static, &'static str>>::in_context(
+            error,
+            label,
+            Span::from(span),
+        );
     }
 }
