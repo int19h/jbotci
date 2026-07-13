@@ -1,8 +1,9 @@
 //! Human-readable projections of the canonical semantic graph.
 //!
 //! These renderers never construct semantic content. They walk the validated,
-//! typed graph and expose two different views of the same objects: a claims
-//! ledger for validation and a structural tree for scope inspection.
+//! typed graph and expose complementary views of the same objects: a claims
+//! ledger for validation, a structural tree for scope inspection, and their
+//! partitioned combined notation.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -1184,7 +1185,7 @@ struct CombinedScopeDependence {
     may_depend_on: Option<BTreeSet<SemanticObjectId>>,
 }
 
-#[invariant(true)]
+#[invariant(scope_dependence.may_depend_on.as_ref().is_none_or(|binders| !binders.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct CombinedImplicitConstantGroupKey {
     kind: CombinedImplicitConstantKind,
@@ -1309,10 +1310,10 @@ impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
                 }) {
                     self.frame_locutions.push(id);
                 } else if let Some(kind) = combined_implicit_constant_kind(object) {
-                    let key = CombinedImplicitConstantGroupKey {
-                        kind,
+                    let key = new!(CombinedImplicitConstantGroupKey {
+                        kind: kind,
                         scope_dependence: combined_scope_dependence(object),
-                    };
+                    });
                     self.implicit_constant_groups
                         .entry(key)
                         .or_default()
