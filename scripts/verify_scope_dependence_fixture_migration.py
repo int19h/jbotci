@@ -141,6 +141,8 @@ def verify_fixture(path: Path, base: str, totals: dict[str, int]) -> None:
     if claims_changed:
         if not isinstance(old_claims, str) or not isinstance(new_claims, str):
             raise ValueError("claims expectation was added or removed")
+        if ("claims = \"\"\"\n" in old_text) != ("claims = \"\"\"\n" in new_text):
+            raise ValueError("claims TOML multiline formatting changed")
         normalized_claims, line_count = normalize_claims(new_claims)
         if normalized_claims != old_claims:
             raise ValueError("claims changed beyond formulaic denotation annotations")
