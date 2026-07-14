@@ -91,6 +91,13 @@ const RELATION_LABEL_DU_TEXT: &str = "du";
 #[invariant(::NuhaOperator { operator } => !operator.is_empty())]
 #[invariant(::MeksoMoi { expression, moi } => !expression.is_empty() && !moi.is_empty())]
 #[invariant(::ZeiCompound { text } => !text.is_empty())]
+#[invariant(::StatementConnection { left, connector, right } =>
+    left.is_displayable() && !connector.is_empty() && right.is_displayable())]
+#[invariant(::TextGroup { modifier, opener, relation, closer } =>
+    modifier.as_ref().is_none_or(|modifier| !modifier.is_empty())
+        && !opener.is_empty()
+        && relation.is_displayable()
+        && closer.as_ref().is_none_or(|closer| !closer.is_empty()))]
 #[invariant(::Constructed { text } => !text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelationLabel {
@@ -116,6 +123,17 @@ pub enum RelationLabel {
     },
     ZeiCompound {
         text: String,
+    },
+    StatementConnection {
+        left: Box<RelationLabel>,
+        connector: String,
+        right: Box<RelationLabel>,
+    },
+    TextGroup {
+        modifier: Option<String>,
+        opener: String,
+        relation: Box<RelationLabel>,
+        closer: Option<String>,
     },
     Constructed {
         text: String,
@@ -177,6 +195,37 @@ impl RelationLabel {
         new!(RelationLabel::ZeiCompound { text })
     }
 
+    #[requires(left.is_displayable())]
+    #[requires(!connector.is_empty())]
+    #[requires(right.is_displayable())]
+    #[ensures(ret.is_displayable())]
+    pub fn statement_connection(left: Self, connector: String, right: Self) -> Self {
+        new!(RelationLabel::StatementConnection {
+            left: Box::new(left),
+            connector,
+            right: Box::new(right),
+        })
+    }
+
+    #[requires(modifier.as_ref().is_none_or(|modifier| !modifier.is_empty()))]
+    #[requires(!opener.is_empty())]
+    #[requires(relation.is_displayable())]
+    #[requires(closer.as_ref().is_none_or(|closer| !closer.is_empty()))]
+    #[ensures(ret.is_displayable())]
+    pub fn text_group(
+        modifier: Option<String>,
+        opener: String,
+        relation: Self,
+        closer: Option<String>,
+    ) -> Self {
+        new!(RelationLabel::TextGroup {
+            modifier,
+            opener,
+            relation: Box::new(relation),
+            closer,
+        })
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(ret.is_displayable())]
     pub fn constructed(text: String) -> Self {
@@ -199,6 +248,24 @@ impl RelationLabel {
             data!(RelationLabel::NuhaOperator { operator }) => !operator.is_empty(),
             data!(RelationLabel::MeksoMoi { expression, moi }) => {
                 !expression.is_empty() && !moi.is_empty()
+            }
+            data!(RelationLabel::StatementConnection {
+                left,
+                connector,
+                right,
+            }) => left.is_displayable() && !connector.is_empty() && right.is_displayable(),
+            data!(RelationLabel::TextGroup {
+                modifier,
+                opener,
+                relation,
+                closer,
+            }) => {
+                modifier
+                    .as_ref()
+                    .is_none_or(|modifier| !modifier.is_empty())
+                    && !opener.is_empty()
+                    && relation.is_displayable()
+                    && closer.as_ref().is_none_or(|closer| !closer.is_empty())
             }
             data!(RelationLabel::ZeiCompound { text })
             | data!(RelationLabel::Constructed { text }) => !text.is_empty(),
@@ -223,6 +290,29 @@ impl RelationLabel {
             data!(RelationLabel::NuhaOperator { operator }) => format!("nu'a {operator}"),
             data!(RelationLabel::MeksoMoi { expression, moi }) => {
                 format!("{expression} {moi}")
+            }
+            data!(RelationLabel::StatementConnection {
+                left,
+                connector,
+                right,
+            }) => format!(
+                "({}) {connector} ({})",
+                left.display_text(),
+                right.display_text()
+            ),
+            data!(RelationLabel::TextGroup {
+                modifier,
+                opener,
+                relation,
+                closer,
+            }) => {
+                let modifier = modifier
+                    .as_ref()
+                    .map_or_else(String::new, |modifier| format!("{modifier} "));
+                let closer = closer
+                    .as_ref()
+                    .map_or_else(String::new, |closer| format!(" {closer}"));
+                format!("{modifier}{opener} {}{closer}", relation.display_text())
             }
         }
     }

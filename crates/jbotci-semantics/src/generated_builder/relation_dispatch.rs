@@ -147,7 +147,9 @@ pub(super) fn constructed_relation_place_count(relation: &RelationLabel) -> Opti
         | data!(RelationLabel::ProBridi { .. })
         | data!(RelationLabel::Abstraction { .. })
         | data!(RelationLabel::NuhaOperator { .. })
-        | data!(RelationLabel::ZeiCompound { .. }) => None,
+        | data!(RelationLabel::ZeiCompound { .. })
+        | data!(RelationLabel::StatementConnection { .. })
+        | data!(RelationLabel::TextGroup { .. }) => None,
     }
 }
 

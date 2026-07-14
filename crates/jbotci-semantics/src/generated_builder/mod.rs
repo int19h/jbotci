@@ -487,6 +487,21 @@ struct GeneratedTextPlan<'syntax> {
     items: Vec<GeneratedTextPlanItem<'syntax>>,
 }
 
+#[invariant(!source.is_empty())]
+#[derive(Debug)]
+struct GeneratedRelationLabelConnector {
+    source: String,
+    has_bo: bool,
+}
+
+#[invariant(!connector.is_empty())]
+#[invariant(trailing.is_displayable())]
+#[derive(Debug)]
+struct GeneratedPendingRelationLabelConnection {
+    connector: String,
+    trailing: RelationLabel,
+}
+
 #[invariant(::Root { .. } => true)]
 #[invariant(::StandaloneParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneFreeModifiers(_) => true)]
@@ -3649,13 +3664,82 @@ fn relation_label_from_statement(
 ) -> Result<RelationLabel, SemanticsError> {
     match statement {
         StatementSyntax::StatementBase(statement) => relation_label_from_statement_base(statement),
-        StatementSyntax::IStatementConnection(_) => {
-            Err(unsupported("connected statement relation label"))
+        StatementSyntax::IStatementConnection(connection) => {
+            relation_label_from_i_statement_connection(connection)
         }
-        StatementSyntax::PreposedIStatementConnection(_) => {
-            Err(unsupported("preposed statement connection relation label"))
+        StatementSyntax::PreposedIStatementConnection(connection) => {
+            relation_label_from_preposed_i_statement_connection(connection)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_i_statement_connection(
+    connection: &IStatementConnectionSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let mut statements = vec![relation_label_from_statement_base(
+        &connection.leading_statement,
+    )?];
+    let mut connectors = Vec::with_capacity(connection.continuations.len());
+    for continuation in &connection.continuations {
+        let (pending, _i, connective, trailing_statement) =
+            statement_connection_tail_parts(continuation)?;
+        if !pending.is_empty() {
+            return Err(requires_discourse_context(
+                "the elided operand in a chained pending statement-connection relation label",
+            ));
+        }
+        statements.push(relation_label_from_statement_after_i_connective(
+            trailing_statement,
+        )?);
+        connectors.push(new!(GeneratedRelationLabelConnector {
+            source: generated_i_statement_connective_token_source(connective),
+            has_bo: generated_i_statement_connective_has_bo(connective),
+        }));
+    }
+
+    let mut right = statements
+        .pop()
+        .expect("a statement connection has a trailing statement");
+    let mut pending_non_bo = Vec::new();
+    while let Some(connector) = connectors.pop() {
+        let data!(GeneratedRelationLabelConnector { source, has_bo }) = connector.into_data();
+        let left = statements
+            .pop()
+            .expect("each statement connector has a left operand");
+        if has_bo {
+            right = RelationLabel::statement_connection(left, source, right);
+        } else {
+            pending_non_bo.push(new!(GeneratedPendingRelationLabelConnection {
+                connector: source,
+                trailing: right,
+            }));
+            right = left;
+        }
+    }
+    for pending in pending_non_bo.into_iter().rev() {
+        let data!(GeneratedPendingRelationLabelConnection {
+            connector,
+            trailing,
+        }) = pending.into_data();
+        right = RelationLabel::statement_connection(right, connector, trailing);
+    }
+    Ok(right)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_preposed_i_statement_connection(
+    connection: &PreposedIStatementConnectionSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let left = relation_label_from_statement_base(&connection.leading_statement)?;
+    let right = relation_label_from_statement_after_i_connective(&connection.trailing_statement)?;
+    Ok(RelationLabel::statement_connection(
+        left,
+        generated_statement_connective_core_source(&connection.connective)?,
+        right,
+    ))
 }
 
 #[requires(true)]
@@ -3673,9 +3757,119 @@ fn relation_label_from_statement_base(
         StatementBaseSyntax::PrenexStatement(statement) => {
             relation_label_from_statement(&statement.inner_statement)
         }
-        StatementBaseSyntax::TextGroupStatement(_) => Err(unsupported("text group relation label")),
+        StatementBaseSyntax::TextGroupStatement(statement) => {
+            relation_label_from_text_group_statement(statement)
+        }
         StatementBaseSyntax::ForethoughtStatement(_) => {
             Err(unsupported("forethought statement relation label"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_statement_after_i_connective(
+    statement: &StatementAfterIConnectiveSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    match statement {
+        StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+            if !statement.continuations.is_empty() {
+                return Err(unsupported(
+                    "bridi statement continuation after statement connective relation label",
+                ));
+            }
+            relation_label_from_bridi(&statement.bridi)
+        }
+        StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+            relation_label_from_text_group_statement(statement)
+        }
+        StatementAfterIConnectiveSyntax::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement relation label"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_text_group_statement(
+    statement: &TextGroupStatementSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let plan = generated_text_plan_from_text(&statement.text)?;
+    if !plan.leading_nai.is_empty()
+        || !plan.leading_cmevla.is_empty()
+        || !plan.leading_indicators.is_empty()
+        || !plan.leading_free_modifiers.is_empty()
+        || plan.leading_connective.is_some()
+        || !plan.leading_i_statements.is_empty()
+        || plan.items.len() != 1
+    {
+        return Err(requires_discourse_context(
+            "a text-group relation label containing discourse-level material",
+        ));
+    }
+    let GeneratedTextPlanItem::Root {
+        root,
+        free_modifiers,
+        separator_i,
+    } = &plan.items[0]
+    else {
+        return Err(requires_discourse_context(
+            "a text-group relation label without a single denoting statement",
+        ));
+    };
+    if !free_modifiers.is_empty() || separator_i.is_some() {
+        return Err(requires_discourse_context(
+            "a text-group relation label with statement-level asides",
+        ));
+    }
+    let relation = relation_label_from_generated_text_root(*root)?;
+    Ok(RelationLabel::text_group(
+        statement
+            .tense_modal
+            .as_deref()
+            .map(generated_node_surface_text)
+            .transpose()?,
+        token_text(&statement.tuhe.value),
+        relation,
+        statement.tuhu.as_ref().map(|tuhu| token_text(&tuhu.value)),
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_generated_text_root(
+    root: GeneratedTextRoot<'_>,
+) -> Result<RelationLabel, SemanticsError> {
+    match root {
+        GeneratedTextRoot::Bridi(bridi) => relation_label_from_bridi(bridi),
+        GeneratedTextRoot::Fragment(GeneratedFragmentRoot::Selbri(fragment)) => {
+            relation_label_from_selbri(fragment.0.as_ref())
+        }
+        GeneratedTextRoot::Fragment(_) => Err(requires_discourse_context(
+            "a non-selbri fragment used as a text-group relation label",
+        )),
+        GeneratedTextRoot::StatementConnection(connection) => {
+            relation_label_from_i_statement_connection(connection)
+        }
+        GeneratedTextRoot::PreposedStatementConnection(connection) => {
+            relation_label_from_preposed_i_statement_connection(connection)
+        }
+        GeneratedTextRoot::PrenexStatement(statement) => {
+            relation_label_from_statement(&statement.inner_statement)
+        }
+        GeneratedTextRoot::TextGroupStatement(statement) => {
+            relation_label_from_text_group_statement(statement)
+        }
+        GeneratedTextRoot::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement relation label"))
+        }
+        GeneratedTextRoot::ZantufaStatementTerms(statement) => {
+            if !zantufa_statement_terms_tail_terms(&statement.tail).is_empty() {
+                return Err(requires_discourse_context(
+                    "statement-level terms in a text-group relation label",
+                ));
+            }
+            relation_label_from_statement(&statement.statement)
         }
     }
 }
@@ -7716,6 +7910,15 @@ mod tests {
     #[requires(!source.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn semantic_result_for(source: &str) -> Result<SemanticGraph, SemanticsError> {
+        semantic_result_for_with_parse_options(source, &jbotci_syntax::ParseOptions::default())
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
+    fn semantic_result_for_with_parse_options(
+        source: &str,
+        parse_options: &jbotci_syntax::ParseOptions,
+    ) -> Result<SemanticGraph, SemanticsError> {
         let words = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
             source,
             &jbotci_morphology::MorphologyOptions::default(),
@@ -7725,7 +7928,7 @@ mod tests {
         let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
             &words,
             source,
-            &jbotci_syntax::ParseOptions::default(),
+            parse_options,
         )
         .expect("source should parse");
         build_generated_semantic_graph_with_dictionary(
@@ -8141,6 +8344,103 @@ mod tests {
         assert_eq!(outer_object.formula_operator(), Some(FormulaOperator::Or));
         assert_eq!(outer_object.formula_children().len(), 2);
         assert_eq!(outer_object.formula_children()[0], pending_formula);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn statement_prenex_and_text_group_connections_keep_their_graph_structure() {
+        for source in ["broda i je brode", "broda je i brode"] {
+            let graph = semantic_graph_for(source);
+            let sequence = graph
+                .objects
+                .get(&graph.root)
+                .and_then(SemanticObject::as_sequence)
+                .expect("statement connection is a sequence");
+            assert_eq!(sequence.items.len(), 2);
+            let formula = sequence.content.expect("statement connection has content");
+            let formula = graph.objects.get(&formula).expect("formula exists");
+            assert_eq!(formula.formula_operator(), Some(FormulaOperator::And));
+            assert_eq!(formula.formula_children().len(), 2);
+            for (item, child) in sequence.items.iter().zip(formula.formula_children()) {
+                let utterance = graph
+                    .objects
+                    .get(item)
+                    .and_then(SemanticObject::as_utterance)
+                    .expect("each connection operand is an utterance");
+                assert_eq!(utterance.force, UtteranceForce::Subordinated);
+                assert_eq!(utterance.content, Some(*child));
+            }
+        }
+
+        let prenex = semantic_graph_for("da zo'u broda i je brode");
+        let sequence = prenex
+            .objects
+            .get(&prenex.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("prenex connection remains a sequence");
+        assert_eq!(sequence.items.len(), 2);
+        let quantified = sequence.content.expect("prenex scopes over the connection");
+        let quantified = prenex.objects.get(&quantified).expect("formula exists");
+        assert_eq!(quantified.formula_operator(), Some(FormulaOperator::Exists));
+        let body = quantified.formula_body().expect("quantifier has a body");
+        assert_eq!(
+            prenex
+                .objects
+                .get(&body)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+
+        let grouped = semantic_graph_for("tu'e broda i je brode tu'u");
+        let nested = grouped
+            .objects
+            .get(&grouped.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("text group denotes nested discourse");
+        let nested = grouped
+            .objects
+            .get(&nested)
+            .and_then(SemanticObject::as_sequence)
+            .expect("text group content is a sequence");
+        assert_eq!(nested.items.len(), 2);
+        assert_eq!(
+            nested
+                .content
+                .and_then(|formula| grouped.objects.get(&formula))
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_statement_abstractions_preserve_connection_and_group_labels() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        for (source, relation) in [
+            ("nu broda i je brode kei", "nu (broda) je (brode)"),
+            ("nu broda je i brode kei", "nu (broda) je (brode)"),
+            (
+                "nu tu'e broda i je brode tu'u kei",
+                "nu tu'e (broda) je (brode) tu'u",
+            ),
+        ] {
+            let graph = semantic_result_for_with_parse_options(source, &options)
+                .expect("statement abstraction has semantics");
+            assert!(graph.objects.values().any(|object| {
+                object.as_predication().is_some_and(|predication| {
+                    matches!(
+                        predication.relation.as_data(),
+                        data!(PredicationRelation::Named { relation: candidate })
+                            if candidate == relation
+                    )
+                })
+            }));
+        }
     }
 
     #[test]
