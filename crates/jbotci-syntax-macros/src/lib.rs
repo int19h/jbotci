@@ -1481,21 +1481,22 @@ impl SyntaxGrammar {
             let name = &rule.name;
             quote!(let mut #name = __generated_recursive_family.declare();)
         });
-        let definitions = recursive_rules
-            .iter()
-            .map(|recursive| {
-                let rule = self
-                    .rules
-                    .iter()
-                    .find(|rule| rule.name().to_string() == recursive.name.to_string())
-                    .ok_or_else(|| {
-                        syn::Error::new_spanned(
-                            &recursive.name,
-                            "recursive parser declaration has no matching rule",
-                        )
-                    })?;
-                let parser_name = format_ident!("recovered_{}_parser", rule.name());
-                let parser_arguments = rule
+        let definitions =
+            recursive_rules
+                .iter()
+                .map(|recursive| {
+                    let rule = self
+                        .rules
+                        .iter()
+                        .find(|rule| rule.name().to_string() == recursive.name.to_string())
+                        .ok_or_else(|| {
+                            syn::Error::new_spanned(
+                                &recursive.name,
+                                "recursive parser declaration has no matching rule",
+                            )
+                        })?;
+                    let parser_name = format_ident!("recovered_{}_parser", rule.name());
+                    let parser_arguments = rule
                     .arguments()
                     .iter()
                     .map(|argument| {
@@ -1505,9 +1506,7 @@ impl SyntaxGrammar {
                                 generated_runtime::SharedSyntaxOutput::into_owned
                             )))
                         } else if all_recursive_names.contains(&argument_name) {
-                            Ok(quote!(super::recovered_generated_parser_family(
-                                __generated_recovery_rules.clone()
-                            ).#argument.map(
+                            Ok(quote!(super::recovered_generated_parser_family().#argument.map(
                                 generated_runtime::SharedSyntaxOutput::into_owned
                             )))
                         } else {
@@ -1518,33 +1517,30 @@ impl SyntaxGrammar {
                         }
                     })
                     .collect::<Result<Vec<_>>>()?;
-                let hidden_free_modifier = if local_recursive_names.contains("free_modifier") {
-                    let free_modifier = format_ident!("free_modifier");
-                    quote!(#free_modifier.clone().map(
+                    let hidden_free_modifier = if local_recursive_names.contains("free_modifier") {
+                        let free_modifier = format_ident!("free_modifier");
+                        quote!(#free_modifier.clone().map(
                         generated_runtime::SharedSyntaxOutput::into_owned
                     ).boxed())
-                } else if all_recursive_names.contains("free_modifier") {
-                    quote!(
-                        super::recovered_generated_parser_family(
-                            __generated_recovery_rules.clone()
+                    } else if all_recursive_names.contains("free_modifier") {
+                        quote!(
+                            super::recovered_generated_parser_family()
+                                .free_modifier
+                                .map(generated_runtime::SharedSyntaxOutput::into_owned)
+                                .boxed()
                         )
-                        .free_modifier
-                        .map(generated_runtime::SharedSyntaxOutput::into_owned)
-                        .boxed()
-                    )
-                } else {
-                    quote!(generated_runtime::recovered_empty_free_modifier_parser())
-                };
-                let name = &recursive.name;
-                Ok(quote! {
-                    #name.define(#parser_name(
-                        #(#parser_arguments,)*
-                        #hidden_free_modifier,
-                        __generated_recovery_rules.clone(),
-                    ));
+                    } else {
+                        quote!(generated_runtime::recovered_empty_free_modifier_parser())
+                    };
+                    let name = &recursive.name;
+                    Ok(quote! {
+                        #name.define(#parser_name(
+                            #(#parser_arguments,)*
+                            #hidden_free_modifier,
+                        ));
+                    })
                 })
-            })
-            .collect::<Result<Vec<_>>>()?;
+                .collect::<Result<Vec<_>>>()?;
         let outputs = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
             quote!(#name: __generated_recursive_family.own(#name).boxed())
@@ -1556,20 +1552,16 @@ impl SyntaxGrammar {
             let output = recovered_rule_function_output_tokens(&rule.output, recovered_module);
             quote! {
                 #[allow(dead_code, unused_variables)]
-                pub(crate) fn #shared_function<'tokens>(
-                    __generated_recovery_rules: std::sync::Arc<[&'static str]>,
-                ) -> BoxedParser<
+                pub(crate) fn #shared_function<'tokens>() -> BoxedParser<
                     'tokens,
                     generated_runtime::SharedSyntaxOutput<#output>,
                 > {
-                    recovered_generated_parser_family(__generated_recovery_rules).#root_name
+                    recovered_generated_parser_family().#root_name
                 }
 
                 #[allow(dead_code, unused_variables)]
-                pub(crate) fn #function<'tokens>(
-                    __generated_recovery_rules: std::sync::Arc<[&'static str]>,
-                ) -> BoxedParser<'tokens, #output> {
-                    #shared_function(__generated_recovery_rules)
+                pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
+                    #shared_function()
                         .map(generated_runtime::SharedSyntaxOutput::into_owned)
                         .boxed()
                 }
@@ -1583,9 +1575,7 @@ impl SyntaxGrammar {
             }
 
             #[allow(dead_code)]
-            pub(crate) fn recovered_generated_parser_family<'tokens>(
-                __generated_recovery_rules: std::sync::Arc<[&'static str]>,
-            ) -> #family_ident<'tokens> {
+            pub(crate) fn recovered_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
                 let __generated_recursive_family = RecursiveFamily::new();
                 #(#declarations)*
                 #(#definitions)*
@@ -2290,7 +2280,6 @@ impl AliasRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
-        let hidden_recovery_rules = recovered_rules_param_tokens();
         let rule_name = self.name.to_string();
         let context = self.context.as_ref().map_or_else(
             || quote!(None),
@@ -2304,7 +2293,6 @@ impl AliasRule {
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-                #hidden_recovery_rules
             ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<#output>>
             #argument_where_clause
             {
@@ -2668,7 +2656,6 @@ impl EnumRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
-        let hidden_recovery_rules = recovered_rules_param_tokens();
         let rule_name = self.name.to_string();
         let context = self.context.value();
         Ok(quote! {
@@ -2676,7 +2663,6 @@ impl EnumRule {
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-                #hidden_recovery_rules
             ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<#output_tokens>>
             #argument_where_clause
             {
@@ -3007,6 +2993,12 @@ impl NodeRule {
             RecoveredParserCallMode::Local,
             false,
         )?;
+        if pattern.to_string() != plain_pattern.to_string() {
+            return Err(syn::Error::new_spanned(
+                &self.name,
+                "recovered and plain rule parsers must produce the same sequence shape",
+            ));
+        }
         let name = format_ident!("recovered_{}_parser", self.name);
         let output = &self.output;
         let output_tokens = recovered_rule_function_output_tokens(output, recovered_module);
@@ -3021,7 +3013,6 @@ impl NodeRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
-        let hidden_recovery_rules = recovered_rules_param_tokens();
         let let_bindings = self.fields.iter().filter_map(|field| {
             matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
                 let name = field.name.as_ref().expect("let field items have names");
@@ -3086,17 +3077,27 @@ impl NodeRule {
             ));
         };
         let rule_name = self.name.to_string();
-        // A recovery directive can only act at fields of its owning rule. Keeping
-        // ordinary recovered rules on the uninstrumented typed parser avoids one
-        // dynamic parser frame per field, which is material for deeply nested WASM
-        // parses, without changing the recovered model they produce.
-        let parser_body = quote! {
-            if __generated_recovery_rules.iter().any(|rule| *rule == #rule_name) {
-                #parser.map(|#pattern| #body).boxed()
-            } else {
-                #plain_parser.map(|#plain_pattern| #body).boxed()
-            }
-        };
+        let recovered_factory_argument_clones = self
+            .arguments
+            .iter()
+            .map(|argument| quote!(let #argument = #argument.clone();));
+        // Construct the plain body once with the parser family. Recovery stays
+        // behind a factory so its much larger body occupies no parser-graph
+        // storage until this rule is evaluated on the cold recovery path.
+        let parser_body = quote!({
+            let __generated_recovered_factory = {
+                #(#recovered_factory_argument_clones)*
+                let __generated_free_modifier = __generated_free_modifier.clone();
+                move || #parser
+            };
+            let __generated_plain_parser = #plain_parser;
+            generated_runtime::recovery_rule_parser(
+                #rule_name,
+                __generated_recovered_factory,
+                __generated_plain_parser,
+            )
+            .map(|#pattern| #body)
+        });
         let context = self.context.as_ref().map_or_else(
             || quote!(None),
             |context| {
@@ -3109,7 +3110,6 @@ impl NodeRule {
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-                #hidden_recovery_rules
             ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<#output_tokens>>
             #argument_where_clause
             {
@@ -3263,9 +3263,9 @@ impl RecoveredParserGeneration<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
-        quote!(super::recovered_generated_parser_family(
-            __generated_recovery_rules.clone()
-        ).#name.map(generated_runtime::SharedSyntaxOutput::into_owned))
+        quote!(super::recovered_generated_parser_family().#name.map(
+            generated_runtime::SharedSyntaxOutput::into_owned
+        ))
     }
 
     #[requires(true)]
@@ -3461,12 +3461,6 @@ fn strict_parser_argument_tokens(
 #[ensures(true)]
 fn recovered_free_modifier_param_tokens(recovered_module: &TokenStream2) -> TokenStream2 {
     quote!(__generated_free_modifier: BoxedParser<'tokens, #recovered_module::FreeModifierSyntax>,)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_rules_param_tokens() -> TokenStream2 {
-    quote!(__generated_recovery_rules: std::sync::Arc<[&'static str]>,)
 }
 
 #[requires(true)]
@@ -5835,7 +5829,6 @@ fn recovered_rule_call_tokens(
     let parser = quote!(#parser_name(
         #(#parser_arguments,)*
         #free_modifier,
-        __generated_recovery_rules.clone()
     ).map(generated_runtime::SharedSyntaxOutput::into_owned));
     if wrap_generated_model_output && generation.rule_is_generated_model(function) {
         let recovered_module = generation.recovered_module;

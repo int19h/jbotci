@@ -4,7 +4,7 @@ use bityzba::{contract_trait, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
-use std::cell::Cell;
+use std::{any::Any, cell::Cell, rc::Rc};
 
 pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
@@ -187,6 +187,91 @@ impl Default for SyntaxGrammarPolicy {
     }
 }
 
+#[invariant(!rule.is_empty())]
+#[derive(Clone)]
+struct RecoveryRuleParser<RF, R, P, O> {
+    rule: &'static str,
+    recovered_factory: RF,
+    plain_parser: P,
+    parser_types: std::marker::PhantomData<fn() -> (R, O)>,
+}
+
+#[requires(!rule.is_empty())]
+#[ensures(true)]
+pub(crate) fn recovery_rule_parser<'tokens, O, R, P, RF>(
+    rule: &'static str,
+    recovered_factory: RF,
+    plain_parser: P,
+) -> impl Parser<'tokens, O> + Clone
+where
+    O: Clone,
+    R: Parser<'tokens, O> + Clone,
+    P: Parser<'tokens, O> + Clone,
+    RF: Fn() -> R + Clone,
+{
+    new!(RecoveryRuleParser {
+        rule,
+        recovered_factory,
+        plain_parser,
+        parser_types: std::marker::PhantomData,
+    })
+}
+
+#[contract_trait]
+impl<'tokens, O, R, P, RF> Parser<'tokens, O> for RecoveryRuleParser<RF, R, P, O>
+where
+    R: Parser<'tokens, O>,
+    P: Parser<'tokens, O>,
+    RF: Fn() -> R,
+{
+    #[inline(always)]
+    fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
+        if recovery_rule_evaluation_enabled(input, self.rule) {
+            mark_recovered_rule_path_cold();
+            (self.recovered_factory)().drive_emit(input)
+        } else {
+            self.plain_parser.drive_emit(input)
+        }
+    }
+
+    #[inline(always)]
+    fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
+        if recovery_rule_evaluation_enabled(input, self.rule) {
+            mark_recovered_rule_path_cold();
+            (self.recovered_factory)().drive_check(input)
+        } else {
+            self.plain_parser.drive_check(input)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+#[cold]
+#[inline(never)]
+fn mark_recovered_rule_path_cold() {}
+
+#[requires(!rule.is_empty())]
+#[ensures(true)]
+// Keep the selector out of the generated rule monomorphizations. It returns
+// before either concrete parser descends, so this does not add to the recursive
+// parser stack; `RecoveryRuleParser::drive_*` stays always-inlined to preserve
+// static dispatch into the selected parser body.
+#[inline(never)]
+fn recovery_rule_evaluation_enabled(input: &mut InputRef<'_, '_>, rule: &'static str) -> bool {
+    if let Some(frame) = input
+        .state()
+        .active_syntax_rules()
+        .last()
+        .filter(|frame| frame.rule() == rule)
+    {
+        return frame.recovery_enabled();
+    }
+    let location = ParserInput::cursor_location(input.cursor().inner());
+    let byte_start = input.state().byte_offset_for_location(location);
+    input.state().recovery_rule_parser_enabled(rule, byte_start)
+}
+
 #[requires(!name.is_empty())]
 #[requires(context.is_none_or(|construct| !construct.is_empty()))]
 #[ensures(true)]
@@ -202,32 +287,47 @@ where
     custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
         let checkpoint = input.save();
         let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-        let recovery_index = input.state().syntax_recovery_memo_index();
-        if let Some((output, end_location, warnings)) =
+        let memo_context = input.state().syntax_memo_context();
+        input.state().begin_syntax_memo_rule_frame();
+        if input.state().trace_enabled() {
+            input.state().mark_syntax_memo_rule_recovery_sensitive();
+        }
+        let replay_hit = input
+            .state()
+            .syntax_memo_success(name, start_location, memo_context);
+        if let Some(hit) = replay_hit
+            && let Ok(value) = hit.value().downcast::<O>()
+        {
+            let replay = input.state().apply_syntax_memo_success(hit);
+            advance_to_location(input, replay.end_location);
             input
                 .state()
-                .syntax_memo_success::<O>(name, start_location, recovery_index)
-        {
-            advance_to_location(input, end_location);
-            input.state().extend_warnings(&warnings);
-            return Ok(output);
+                .replay_syntax_memo_side_effects(&replay.side_effects);
+            input.state().finish_syntax_memo_rule_frame();
+            return Ok(SharedSyntaxOutput::from_shared(value));
         }
-        if let Some(error) = input
+        let failure = input
             .state()
-            .syntax_memo_failure(name, start_location, recovery_index)
-        {
+            .syntax_memo_failure(name, start_location, memo_context);
+        if let Some(failure) = failure {
             input.rewind(checkpoint);
-            return Err(error);
+            input
+                .state()
+                .replay_syntax_diagnostic_observations(failure.diagnostic_observations.as_ref());
+            input.state().finish_syntax_memo_rule_frame();
+            return Err(failure.error);
         }
         if !input
             .state()
-            .enter_syntax_memo_rule(name, start_location, recovery_index)
+            .enter_syntax_memo_rule(name, start_location, memo_context)
         {
             input.rewind(checkpoint);
+            input.state().finish_syntax_memo_rule_frame();
             return Err(expected_found_named_at_current(input, name.to_owned()));
         }
         let warning_start = input.state().warning_count();
         let start_byte = input.state().byte_offset_for_location(start_location);
+        input.state().observe_syntax_rule(name, start_byte);
         let track_recovery_branches = input.state().recovery_branch_tracking_enabled();
         if track_recovery_branches {
             input.state().push_syntax_rule(name, start_byte);
@@ -265,12 +365,13 @@ where
                 let end_location = ParserInput::cursor_location(input.cursor().inner());
                 let warnings = input.state().warnings_since(warning_start);
                 let output = SharedSyntaxOutput::new(output);
+                let memo_value: Rc<dyn Any> = output.clone().into_shared();
                 input.state().store_syntax_memo_success(
                     name,
                     start_location,
-                    recovery_index,
+                    memo_context,
                     end_location,
-                    output.clone(),
+                    super::SyntaxMemoValue::from_shared(memo_value),
                     warnings,
                 );
                 if track_recovery_branches {
@@ -278,7 +379,8 @@ where
                 }
                 input
                     .state()
-                    .exit_syntax_memo_rule(name, start_location, recovery_index);
+                    .exit_syntax_memo_rule(name, start_location, memo_context);
+                input.state().finish_syntax_memo_rule_frame();
                 Ok(output)
             }
             Err(error) => {
@@ -306,12 +408,13 @@ where
                 input.state().store_syntax_memo_failure(
                     name,
                     start_location,
-                    recovery_index,
+                    memo_context,
                     error.clone(),
                 );
                 input
                     .state()
-                    .exit_syntax_memo_rule(name, start_location, recovery_index);
+                    .exit_syntax_memo_rule(name, start_location, memo_context);
+                input.state().finish_syntax_memo_rule_frame();
                 Err(error)
             }
         }

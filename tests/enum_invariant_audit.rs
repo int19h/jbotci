@@ -884,6 +884,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservation::Candidate",
+        "diagnostic candidates delegate validity to the private copy-on-write SyntaxParseError payload",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:MaybeRef::Ref",
         "borrowed parser error tokens delegate validity to the referenced token type",
     ),
