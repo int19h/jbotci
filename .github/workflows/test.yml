@@ -128,6 +128,9 @@ jobs:
       - name: Run fixture tests
         run: cargo run -r -p xtask-full -- fixture-test --profile all
 
+      - name: Enforce semantics corpus coverage ratchet
+        run: cargo run -r -p xtask-full -- semantics-coverage
+
       - name: Stamp test target cache
         if: ${{ success() && github.event_name != 'pull_request' }}
         uses: ./.github/actions/cargo-cache-mtimes
