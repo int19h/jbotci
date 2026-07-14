@@ -46,15 +46,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             return Ok(None);
         }
-        let mut has_quantifier =
-            generated_argument_quantifier_source_from_sumti_bound(&afterthought.leading_sumti)?
-                .is_some();
-        for continuation in &afterthought.continuations {
-            has_quantifier |=
-                generated_argument_quantifier_source_from_sumti_bound(&continuation.sumti)?
-                    .is_some();
-        }
-        if !has_quantifier {
+        if !generated_sumti_has_argument_formula_scope(sumti)? {
             return Ok(None);
         }
         let leading = self.build_generated_alternative_argument_for_sumti_bound(

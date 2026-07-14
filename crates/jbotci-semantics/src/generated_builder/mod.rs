@@ -4946,6 +4946,46 @@ fn generated_argument_quantifier_source_from_sumti_bound(
 
 #[requires(true)]
 #[ensures(true)]
+fn generated_sumti_has_argument_formula_scope(sumti: &SumtiSyntax) -> Result<bool, SemanticsError> {
+    if generated_argument_quantifier_source_from_sumti(sumti)?.is_some() {
+        return Ok(true);
+    }
+    if let Some(simple) = generated_simple_sumti_from_sumti(sumti)
+        && let SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::LaheSumti(lahe)) =
+            simple.base_sumti.as_ref()
+    {
+        return generated_sumti_has_argument_formula_scope(&lahe.inner_sumti);
+    }
+    if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
+        return Ok(false);
+    }
+    let afterthought = sumti.base_sumti.leading_sumti.as_ref();
+    if afterthought.continuations.is_empty()
+        || afterthought
+            .continuations
+            .iter()
+            .any(|continuation| generated_argument_connective_is_logical(&continuation.connective))
+    {
+        return Ok(false);
+    }
+    if generated_argument_quantifier_source_from_sumti_bound(&afterthought.leading_sumti)?.is_some()
+    {
+        return Ok(true);
+    }
+    afterthought
+        .continuations
+        .iter()
+        .try_fold(false, |has_scope, continuation| {
+            Ok::<bool, SemanticsError>(
+                has_scope
+                    || generated_argument_quantifier_source_from_sumti_bound(&continuation.sumti)?
+                        .is_some(),
+            )
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn generated_simple_sumti_from_sumti(sumti: &SumtiSyntax) -> Option<&SimpleSumtiSyntax> {
     if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
         return None;

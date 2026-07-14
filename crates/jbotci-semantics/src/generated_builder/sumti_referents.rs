@@ -1843,21 +1843,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         sumti: &'tree SumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut formula_scopes = Vec::new();
-        let argument = self
-            .build_argument_for_generated_sumti_with_formula_scopes(sumti, &mut formula_scopes)?;
-        if !formula_scopes.is_empty() {
-            let text = token_list_text(self.tokens_for_node(sumti).iter());
-            return Err(requires_discourse_context(&format!(
-                "the truth-bearing scope of quantified sumti fragment `{text}`"
-            )));
-        }
-        let argument_object = match argument.value {
-            Some(argument_object) => argument_object,
-            None if argument.kind == ArgumentValueKind::Deleted => {
-                self.build_sumti_referent(sumti)?
+        let argument_object = if generated_sumti_has_argument_formula_scope(sumti)? {
+            let mut formula_scopes = Vec::new();
+            let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
+                sumti,
+                &mut formula_scopes,
+            )?;
+            if !formula_scopes.is_empty() {
+                let text = token_list_text(self.tokens_for_node(sumti).iter());
+                return Err(requires_discourse_context(&format!(
+                    "the truth-bearing scope of quantified sumti fragment `{text}`"
+                )));
             }
-            None => return Err(unsupported("sumti fragment without an argument object")),
+            argument
+                .value
+                .ok_or_else(|| unsupported("sumti fragment without an argument object"))?
+        } else {
+            self.build_sumti_referent(sumti)?
         };
         if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent {
             self.attach_generated_relative_clauses_to_referent(argument_object, sumti)?;
@@ -2674,7 +2676,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if let Some(simple) = generated_simple_sumti_from_sumti(sumti)
                 && let SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::LaheSumti(lahe)) =
                     simple.base_sumti.as_ref()
-                && generated_argument_quantifier_source_from_sumti(&lahe.inner_sumti)?.is_some()
+                && generated_sumti_has_argument_formula_scope(&lahe.inner_sumti)?
             {
                 let mut inner_scopes = Vec::new();
                 let inner_argument = self.build_argument_for_generated_sumti_with_formula_scopes(

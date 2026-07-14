@@ -2062,7 +2062,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 object: self.current_audience(),
                 formula_scopes: Vec::new(),
                 formula: None,
-                audience_is_target: false,
+                audience_is_target: true,
             })
         };
         let data!(GeneratedVocativeTarget {
