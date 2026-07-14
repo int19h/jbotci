@@ -1401,37 +1401,34 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
     }
 }
 
-/// Output format for a `tersmu` semantic analysis. `json` is the canonical
-/// interchange graph; `claims`, `tree`, and `combined` are deterministic views
-/// derived from that graph.
+/// Output format for a `tersmu` semantic analysis. `tree+proj` is the default
+/// human projection, `tree` is its bare structural spine, and `json` is the
+/// canonical interchange graph.
 #[invariant(::Json => true)]
-#[invariant(::Claims => true)]
 #[invariant(::Tree => true)]
-#[invariant(::Combined => true)]
+#[invariant(::TreeProj => true)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolTersmuFormat {
-    /// Canonical `lojban-semantics-json-1` flat id-graph and the default.
+    /// Canonical `lojban-semantics-json-1` flat id-graph.
     Json,
-    /// Flat ledger grouped into asserted, presupposed/projected, and displayed
-    /// tiers. This makes descriptor existence and domain-import commitments
-    /// visible without changing the canonical graph.
-    Claims,
     /// Indented utterance/formula structure showing quantifier, negation, and
     /// connective nesting with referent ids inlined.
     Tree,
-    /// Structural tree followed by only displaced projective commitments,
-    /// with frame and implicit-constant boilerplate grouped.
-    Combined,
+    /// The default: structural tree followed by only displaced projective
+    /// commitments, with frame and implicit-constant boilerplate grouped.
+    /// `+proj` is the format-feature suffix added to the `tree` base format.
+    #[serde(rename = "tree+proj")]
+    TreeProj,
 }
 
 impl Default for ToolTersmuFormat {
     #[requires(true)]
-    #[ensures(ret == ToolTersmuFormat::Json)]
+    #[ensures(ret == ToolTersmuFormat::TreeProj)]
     fn default() -> Self {
-        Self::Json
+        Self::TreeProj
     }
 }
 
@@ -1441,9 +1438,8 @@ impl ToolTersmuFormat {
     fn command_format(self) -> TersmuFormat {
         match self {
             Self::Json => TersmuFormat::Json,
-            Self::Claims => TersmuFormat::Claims,
             Self::Tree => TersmuFormat::Tree,
-            Self::Combined => TersmuFormat::Combined,
+            Self::TreeProj => TersmuFormat::TreeProj,
         }
     }
 
@@ -1452,7 +1448,7 @@ impl ToolTersmuFormat {
     fn content_type(self) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Claims | Self::Tree | Self::Combined => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Tree | Self::TreeProj => TEXT_PLAIN_CONTENT_TYPE,
         }
     }
 }
@@ -1467,11 +1463,12 @@ impl ToolTersmuFormat {
 pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
-    /// How to render the graph. Defaults to canonical `json`; use `claims` for
-    /// a tiered validation ledger, `tree` for logical nesting, or `combined`
-    /// for that tree plus only commitments displaced from their structural
-    /// site. Human formats obey the tersmu interpretation contract documented
-    /// in the tool description.
+    /// How to render the graph. Defaults to `tree+proj`: a logical nesting tree
+    /// plus only commitments displaced from their structural site. Use `tree`
+    /// for the bare spine or `json` for the canonical graph. The `+proj` suffix
+    /// follows the `base+feature` convention for format features. Human formats
+    /// obey the tersmu interpretation contract documented in the tool
+    /// description.
     #[serde(default)]
     pub format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
@@ -1501,7 +1498,7 @@ impl From<ToolTersmuRequest> for Command {
             trace: None,
             dialect: request.dialect,
             story_time: request.story_time,
-            // Default to pretty-printed JSON for readability; `0` opts into compact.
+            // Explicit JSON remains pretty-printed by default; `0` opts into compact.
             indent: Some(request.indent.unwrap_or(2)),
             text: vec![request.text],
         })

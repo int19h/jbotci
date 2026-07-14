@@ -833,14 +833,14 @@ fn parses_gentufa_formats_and_flags() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn parses_tersmu_formats_without_changing_json_default() {
+fn parses_tersmu_formats_with_tree_proj_default() {
     let Command::Tersmu(default_input) = Cli::try_parse_from(["jbotci", "tersmu", "coi"])
         .expect("default tersmu")
         .command
     else {
         panic!("expected tersmu command")
     };
-    assert_eq!(default_input.format, TersmuFormat::Json);
+    assert_eq!(default_input.format, TersmuFormat::TreeProj);
 
     let Command::Tersmu(json_input) =
         Cli::try_parse_from(["jbotci", "tersmu", "--format", "json", "coi"])
@@ -852,9 +852,8 @@ fn parses_tersmu_formats_without_changing_json_default() {
     assert_eq!(json_input.format, TersmuFormat::Json);
 
     for (name, expected) in [
-        ("claims", TersmuFormat::Claims),
         ("tree", TersmuFormat::Tree),
-        ("combined", TersmuFormat::Combined),
+        ("tree+proj", TersmuFormat::TreeProj),
     ] {
         let Command::Tersmu(input) =
             Cli::try_parse_from(["jbotci", "tersmu", "--format", name, "coi"])
@@ -864,6 +863,13 @@ fn parses_tersmu_formats_without_changing_json_default() {
             panic!("expected tersmu command")
         };
         assert_eq!(input.format, expected);
+    }
+
+    for removed in ["claims", "combined"] {
+        assert!(
+            Cli::try_parse_from(["jbotci", "tersmu", "--format", removed, "coi"]).is_err(),
+            "removed format {removed:?} must be rejected"
+        );
     }
 }
 
@@ -875,11 +881,10 @@ fn tersmu_help_pins_the_interpretation_contract() {
     assert_eq!(error.kind(), ErrorKind::DisplayHelp);
     let help = error.to_string();
     for marker in [
-        "`>` means structural descent",
-        "projected commitments take widest scope",
-        "`context=` records their trigger site",
-        "`mode=` is graph vocabulary",
-        "`scope=` lists only at-issue ancestor operators",
+        "default tree+proj format",
+        "indentation and `>` mean structural descent",
+        "entries under `projected:` take widest commitment scope",
+        "`mode=` is exact graph vocabulary",
         "`binder-dependence=underspecified`",
         "Generated-bound events",
         "`binds=exists` is not a projected claim",
@@ -895,22 +900,13 @@ fn tersmu_help_pins_the_interpretation_contract() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_outputs_json_by_default() {
+fn tersmu_outputs_tree_proj_by_default() {
     let run = run_cli_capture(&["jbotci", "tersmu", "mi", "klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty());
-    let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
-    assert_eq!(json["version"], "lojban-semantics-json-1");
-    assert_eq!(json["root"], "utterance:5");
-    assert_eq!(json["objects"]["entity:1"]["indexical"], "speaker");
-    let klama = json["objects"]
-        .as_object()
-        .expect("semantic objects")
-        .values()
-        .find(|object| object["type"] == "predication" && object["relation"] == "klama")
-        .expect("klama predication");
-    assert_eq!(klama["arguments"]["x1"]["kind"], "filled");
-    assert_eq!(klama["arguments"]["x1"]["value"], "entity:1");
+    assert!(run.stdout.starts_with("utterance assert "));
+    assert!(run.stdout.contains("\n\nprojected:\n- frame: "));
+    assert!(run.stdout.contains("klama(x1=speaker[entity:1]"));
 }
 
 #[test]

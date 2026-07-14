@@ -197,7 +197,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Most tools default to a readable text (or image) format; `tersmu` deliberately continues to default to its canonical JSON graph."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to `tree+proj`, its structural scope tree plus displaced projective commitments. Request `json` explicitly for the canonical interchange graph."
     })
 }
 
@@ -265,14 +265,15 @@ fn mcp_tools() -> Vec<Value> {
         tool_definition(
             "tersmu",
             "Lojban semantics",
-            "Compute the deep semantic/logical meaning of Lojban text. The default `json` format is \
-             the canonical flat id-graph (referents, predications, eventualities, formulas). \
-             `claims` derives a tiered human-readable claims ledger; `tree` derives an indented \
-             scope tree; `combined` gives that tree plus only commitments displaced from their \
-             structural site. Interpretation contract: `>` means structural descent. In claims, \
-             projected commitments take widest scope and `context=` records the trigger site; \
-             `mode=` is graph vocabulary while the heading is commitment level, and `scope=` is \
-             the at-issue ancestor-operator skeleton (`top-level` means no ancestor operator). \
+            "Compute the deep semantic/logical meaning of Lojban text. The default `tree+proj` \
+             format is an indented scope tree plus only commitments displaced from their \
+             structural site. `tree` gives the bare spine; request `json` explicitly for the \
+             canonical flat id-graph (referents, predications, eventualities, formulas). In JSON \
+             request bodies, the feature-bearing format is the literal string `tree+proj`; `+proj` \
+             follows the `base+feature` naming convention. Interpretation contract: indentation \
+             and `>` mean structural descent. The tree spine is authoritative where commitment \
+             follows structural position; entries under `projected:` take widest commitment scope. \
+             `mode=` is exact graph vocabulary. \
              `denotes` states referential identity; `binder-dependence=underspecified` names \
              possible binders, not proven dependence. Generated-bound events co-vary through \
              structural `binds=exists`; referential events use denotation commitments, and \

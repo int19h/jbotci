@@ -1985,9 +1985,22 @@ mod tests {
     #[ensures(true)]
     async fn tersmu_rest_api_matches_typed_tool_surface() {
         let app = router(test_config(test_static_dir()));
-        for (format, format_name) in [
-            (jbotci_cli::ToolTersmuFormat::Claims, "claims"),
-            (jbotci_cli::ToolTersmuFormat::Combined, "combined"),
+        for (format, body, content_type) in [
+            (
+                jbotci_cli::ToolTersmuFormat::TreeProj,
+                serde_json::json!({ "text": "mi nitcu lo tanxe" }),
+                "text/plain; charset=utf-8",
+            ),
+            (
+                jbotci_cli::ToolTersmuFormat::Tree,
+                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "tree" }),
+                "text/plain; charset=utf-8",
+            ),
+            (
+                jbotci_cli::ToolTersmuFormat::Json,
+                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "json" }),
+                "application/json; charset=utf-8",
+            ),
         ] {
             let request = ToolTersmuRequest {
                 text: "mi nitcu lo tanxe".to_owned(),
@@ -2004,9 +2017,7 @@ mod tests {
                         .method(Method::POST)
                         .uri("/api/tersmu")
                         .header(CONTENT_TYPE, "application/json")
-                        .body(Body::from(format!(
-                            r#"{{"text":"mi nitcu lo tanxe","format":"{format_name}"}}"#
-                        )))
+                        .body(Body::from(body.to_string()))
                         .expect("request"),
                 )
                 .await
@@ -2014,13 +2025,70 @@ mod tests {
             assert_eq!(response.status(), StatusCode::OK);
             assert_eq!(
                 response.headers().get(CONTENT_TYPE),
-                Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
+                Some(&HeaderValue::from_str(content_type).expect("static content type"))
             );
             let bytes = to_bytes(response.into_body(), usize::MAX)
                 .await
                 .expect("body");
             assert_eq!(bytes.as_ref(), expected.stdout.as_slice());
         }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn tersmu_default_preserves_unsupported_construct_diagnostics() {
+        const INPUT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
+        const EXPECTED_ERROR: &str = "semantic error: generated semantic builder does not yet support scoped connected tanru unit\n";
+
+        let app = router(test_config(test_static_dir()));
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/tersmu")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(serde_json::json!({ "text": INPUT }).to_string()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE),
+            Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
+        );
+        let rest_text = String::from_utf8(
+            to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("body")
+                .to_vec(),
+        )
+        .expect("UTF-8 diagnostics");
+        assert_eq!(rest_text, EXPECTED_ERROR);
+
+        let response = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "tersmu-unsupported-default",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": { "text": INPUT }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let mcp_json = response_json(response).await;
+        assert_eq!(mcp_json["result"]["isError"], true);
+        assert_eq!(
+            mcp_json["result"]["content"][0]["text"],
+            serde_json::Value::String(rest_text)
+        );
     }
 
     #[tokio::test]
@@ -2096,6 +2164,11 @@ mod tests {
         let initialize_json = response_json(initialize).await;
         assert_eq!(initialize_json["result"]["protocolVersion"], "2025-06-18");
         assert!(initialize_json["result"]["capabilities"]["tools"].is_object());
+        let instructions = initialize_json["result"]["instructions"]
+            .as_str()
+            .expect("server instructions");
+        assert!(instructions.contains("`tersmu` defaults to `tree+proj`"));
+        assert!(instructions.contains("Request `json` explicitly"));
 
         let tools = post_json(
             app,
@@ -2316,12 +2389,12 @@ mod tests {
         assert!(tersmu_schema["properties"]["text"].is_object());
         assert_eq!(
             tersmu_schema["properties"]["format"]["default"],
-            serde_json::json!("json")
+            serde_json::json!("tree+proj")
         );
         assert!(
             tersmu_schema["properties"]["format"]
                 .to_string()
-                .contains("combined")
+                .contains("tree+proj")
         );
         let tersmu_description = tools_array
             .iter()
@@ -2329,11 +2402,11 @@ mod tests {
             .and_then(|tool| tool["description"].as_str())
             .expect("tersmu tool description");
         for marker in [
-            "`>` means structural descent",
-            "projected commitments take widest scope",
-            "`context=` records the trigger site",
-            "`mode=` is graph vocabulary",
-            "`scope=` is the at-issue ancestor-operator skeleton",
+            "default `tree+proj`",
+            "literal string `tree+proj`",
+            "indentation and `>` mean structural descent",
+            "entries under `projected:` take widest commitment scope",
+            "`mode=` is exact graph vocabulary",
             "`binder-dependence=underspecified`",
             "Generated-bound events",
             "`binds=exists` is not itself projected",
@@ -2646,76 +2719,68 @@ mod tests {
         assert_eq!(tersmu.status(), StatusCode::OK);
         let tersmu_json = response_json(tersmu).await;
         assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        // tersmu returns indented JSON as text only (no `structuredContent`).
+        // tersmu defaults to readable tree+proj text only.
         assert!(tersmu_json["result"]["structuredContent"].is_null());
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu json text");
-        assert!(
-            tersmu_text.contains('\n'),
-            "tersmu output should be indented"
-        );
-        let tersmu_parsed: serde_json::Value =
-            serde_json::from_str(tersmu_text).expect("tersmu json content parses");
-        assert_eq!(tersmu_parsed["version"], "lojban-semantics-json-1");
-        assert_eq!(tersmu_parsed["root"], "utterance:5");
-        assert_eq!(tersmu_parsed["objects"]["entity:1"]["indexical"], "speaker");
+            .expect("tersmu tree+proj text");
+        assert!(tersmu_text.starts_with("utterance assert "));
+        assert!(tersmu_text.contains("\n\nprojected:\n- frame: "));
 
-        let tersmu_claims = post_json(
+        let tersmu_tree_proj = post_json(
             app.clone(),
             "/mcp",
             serde_json::json!({
                 "jsonrpc": "2.0",
-                "id": "tersmu-claims",
+                "id": "tersmu-tree-proj",
                 "method": "tools/call",
                 "params": {
                     "name": "tersmu",
                     "arguments": {
                         "text": "mi nitcu lo tanxe",
-                        "format": "claims"
+                        "format": "tree+proj"
                     }
                 }
             }),
         )
         .await;
-        assert_eq!(tersmu_claims.status(), StatusCode::OK);
-        let tersmu_claims_json = response_json(tersmu_claims).await;
-        let claims_text = tersmu_claims_json["result"]["content"][0]["text"]
+        assert_eq!(tersmu_tree_proj.status(), StatusCode::OK);
+        let tersmu_tree_proj_json = response_json(tersmu_tree_proj).await;
+        let tree_proj_text = tersmu_tree_proj_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu claims text");
-        assert!(claims_text.starts_with("at-issue commitments:\n"));
-        assert!(claims_text.contains("presupposed/projected:\n"));
-        assert!(claims_text.lines().any(|line| {
-            line.starts_with("- denotes lo tanxe[")
-                && line.contains("[binder-dependence=fixed; constant;")
-        }));
+            .expect("tersmu tree+proj text");
+        assert!(tree_proj_text.starts_with("utterance assert "));
+        assert!(tree_proj_text.contains("\n\nprojected:\n- frame: "));
+        assert!(!tree_proj_text.contains("context="));
+        assert!(!tree_proj_text.contains("at-issue commitments:"));
 
-        let tersmu_combined = post_json(
+        let tersmu_json = post_json(
             app.clone(),
             "/mcp",
             serde_json::json!({
                 "jsonrpc": "2.0",
-                "id": "tersmu-combined",
+                "id": "tersmu-json",
                 "method": "tools/call",
                 "params": {
                     "name": "tersmu",
                     "arguments": {
-                        "text": "mi nitcu lo tanxe",
-                        "format": "combined"
+                        "text": "mi klama",
+                        "format": "json"
                     }
                 }
             }),
         )
         .await;
-        assert_eq!(tersmu_combined.status(), StatusCode::OK);
-        let tersmu_combined_json = response_json(tersmu_combined).await;
-        let combined_text = tersmu_combined_json["result"]["content"][0]["text"]
+        assert_eq!(tersmu_json.status(), StatusCode::OK);
+        let tersmu_json = response_json(tersmu_json).await;
+        let tersmu_json_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu combined text");
-        assert!(combined_text.starts_with("utterance assert "));
-        assert!(combined_text.contains("\n\nprojected:\n- frame: "));
-        assert!(!combined_text.contains("context="));
-        assert!(!combined_text.contains("at-issue commitments:"));
+            .expect("tersmu JSON text");
+        let tersmu_graph: serde_json::Value =
+            serde_json::from_str(tersmu_json_text).expect("tersmu JSON content parses");
+        assert_eq!(tersmu_graph["version"], "lojban-semantics-json-1");
+        assert_eq!(tersmu_graph["root"], "utterance:5");
+        assert_eq!(tersmu_graph["objects"]["entity:1"]["indexical"], "speaker");
 
         let unknown = post_json(
             app.clone(),
