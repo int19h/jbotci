@@ -71,10 +71,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 self.collect_generated_bridi_tail_term_formula_scopes(&bridi.bridi_tail, scopes)?;
             }
+            BridiSyntax::BridiWithPostCuTerms(bridi) => {
+                for term in bridi
+                    .leading_terms
+                    .iter()
+                    .chain(bridi.bridi_tail.terms.iter())
+                {
+                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                }
+                self.collect_generated_bridi_tail_term_formula_scopes(
+                    &bridi.bridi_tail.bridi_tail,
+                    scopes,
+                )?;
+            }
+            BridiSyntax::BareCuBridi(bridi) => {
+                self.collect_generated_bridi_tail_term_formula_scopes(&bridi.bridi_tail, scopes)?;
+            }
+            BridiSyntax::BareCuTermsBridi(bridi) => {
+                for term in &bridi.bridi_tail.terms {
+                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                }
+                self.collect_generated_bridi_tail_term_formula_scopes(
+                    &bridi.bridi_tail.bridi_tail,
+                    scopes,
+                )?;
+            }
             BridiSyntax::RelationOnlyBridi(bridi) => {
                 self.collect_generated_bridi_tail_term_formula_scopes(&bridi.0, scopes)?;
             }
-            _ => return Err(unsupported("bridi shape")),
         }
         Ok(())
     }
@@ -231,13 +255,117 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
                 self.build_bridi_with_leading_terms_formula_with_options(bridi, eventuality, mode)
             }
+            BridiSyntax::BridiWithPostCuTerms(bridi) => {
+                let leading_terms = bridi
+                    .leading_terms
+                    .iter()
+                    .chain(bridi.bridi_tail.terms.iter())
+                    .collect::<Vec<_>>();
+                self.build_bridi_tail_formula_with_prefix_terms(
+                    bridi,
+                    &bridi.bridi_tail.bridi_tail,
+                    &leading_terms,
+                    eventuality,
+                    mode,
+                )
+            }
+            BridiSyntax::BareCuBridi(bridi) => self.build_bridi_tail_formula_with_prefix_terms(
+                bridi,
+                &bridi.bridi_tail,
+                &[],
+                eventuality,
+                mode,
+            ),
+            BridiSyntax::BareCuTermsBridi(bridi) => {
+                let leading_terms = bridi.bridi_tail.terms.iter().collect::<Vec<_>>();
+                self.build_bridi_tail_formula_with_prefix_terms(
+                    bridi,
+                    &bridi.bridi_tail.bridi_tail,
+                    &leading_terms,
+                    eventuality,
+                    mode,
+                )
+            }
             BridiSyntax::RelationOnlyBridi(bridi) => {
                 self.build_relation_only_bridi_formula_with_options(bridi, eventuality, mode)
             }
-            _ => Err(unsupported("bridi shape")),
         };
         self.pro_bridi_scope_stack.pop();
         result
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_bridi_tail_formula_with_prefix_terms<N: TreeNode>(
+        &mut self,
+        source_node: &N,
+        tail: &'tree BridiTailSyntax,
+        prefix_terms: &[&'tree TermSyntax],
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let first_visible_place = if prefix_terms.is_empty() {
+            2
+        } else {
+            generated_bridi_with_leading_terms_first_visible_place(prefix_terms)?
+        };
+        if generated_bridi_tail_is_connected(tail) {
+            return self.build_connected_bridi_tail_formula_with_shared_terms(
+                source_node,
+                tail,
+                prefix_terms,
+                &[],
+                first_visible_place,
+                eventuality,
+                mode,
+                !prefix_terms.is_empty(),
+                true,
+                true,
+            );
+        }
+        if let Some(connection) = forethought_connection_from_bridi_tail(tail)? {
+            return self.build_forethought_bridi_connection_formula_with_shared_terms(
+                connection,
+                prefix_terms,
+                &[],
+                eventuality,
+                mode,
+            );
+        }
+        let simple_tail = simple_tail_from_bridi_tail(tail)?;
+        let terms = prefix_terms
+            .iter()
+            .copied()
+            .chain(simple_tail.terms.iter())
+            .collect::<Vec<_>>();
+        if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
+            source_node,
+            simple_tail,
+            &terms,
+            first_visible_place,
+            eventuality,
+            mode,
+        )? {
+            return Ok(formula);
+        }
+        if let Some(formula) = self.build_generated_pehe_termset_connection_formula(
+            simple_tail,
+            &terms,
+            first_visible_place,
+            eventuality,
+            mode,
+        )? {
+            return Ok(formula);
+        }
+        self.build_selbri_simple_bridi_tail_formula_from_terms(
+            source_node,
+            simple_tail,
+            terms,
+            first_visible_place,
+            eventuality,
+            mode,
+            !prefix_terms.is_empty(),
+        )
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]

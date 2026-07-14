@@ -7792,6 +7792,81 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn bare_cu_bridi_builds_the_relation_formula_with_elided_arguments() {
+        let graph = semantic_graph_for("cu klama");
+        let utterance = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .expect("bare-CU bridi is an utterance");
+        assert_eq!(utterance.force, UtteranceForce::Assert);
+        let formula = utterance.content.expect("bare-CU bridi has content");
+        let predication = graph
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("bare-CU content is an atom");
+        assert!(matches!(
+            predication.relation.as_data(),
+            data!(PredicationRelation::Named { relation }) if relation == "klama"
+        ));
+        assert_eq!(predication.arguments.len(), 5);
+        assert!(
+            predication
+                .arguments
+                .values()
+                .all(|argument| argument.kind == ArgumentValueKind::Elided)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn post_cu_terms_keep_their_stream_order_before_tail_terms() {
+        let graph = semantic_graph_for("mi cu do tavla ti");
+        let formula = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("post-CU bridi has formula content");
+        let predication = graph
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("post-CU content is an atom");
+        assert!(matches!(
+            predication.relation.as_data(),
+            data!(PredicationRelation::Named { relation }) if relation == "tavla"
+        ));
+        for (place, indexical) in [
+            (1, IndexicalKind::Speaker),
+            (2, IndexicalKind::Audience),
+            (3, IndexicalKind::ProximalDemonstrative),
+        ] {
+            let argument = predication
+                .arguments
+                .get(&argument_key(place))
+                .expect("each explicit term has a place");
+            assert_eq!(argument.kind, ArgumentValueKind::Filled);
+            assert_eq!(
+                argument
+                    .value
+                    .and_then(|id| graph.objects.get(&id))
+                    .and_then(SemanticObject::as_referent)
+                    .and_then(|referent| referent.indexical),
+                Some(indexical)
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");
