@@ -184,9 +184,6 @@ pub(super) fn push_generated_paragraph_statement_sequence_items<'syntax>(
     sequence: &'syntax ParagraphStatementSequenceSyntax,
     leading_free_modifiers: &'syntax [FreeModifierSyntax],
 ) -> Result<(), SemanticsError> {
-    if !sequence.trailing.is_empty() {
-        return Err(unsupported("paragraph statement continuations"));
-    }
     items.push(GeneratedTextPlanItem::Root {
         root: semantic_root_from_statement_or_fragment(sequence.initial.0.as_ref())?,
         free_modifiers: leading_free_modifiers.iter().collect(),
@@ -194,6 +191,12 @@ pub(super) fn push_generated_paragraph_statement_sequence_items<'syntax>(
     });
     for following in &sequence.following {
         push_generated_following_paragraph_statement_item(items, following)?;
+    }
+    for trailing in &sequence.trailing {
+        items.push(GeneratedTextPlanItem::PendingStatementConnection {
+            i: &trailing.i,
+            connective: &trailing.connective,
+        });
     }
     Ok(())
 }
@@ -497,6 +500,7 @@ pub(super) fn statement_connection_tail_parts(
     tail: &IStatementConnectionTailSyntax,
 ) -> Result<
     (
+        &[PendingIConnectiveSyntax],
         &Token,
         &IStatementConnectiveSyntax,
         &StatementAfterIConnectiveSyntax,
@@ -504,12 +508,18 @@ pub(super) fn statement_connection_tail_parts(
     SemanticsError,
 > {
     match tail {
-        IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
-            Ok((&tail.i, &tail.connective, tail.trailing_statement.as_ref()))
-        }
-        IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(_) => {
-            Err(unsupported("chained pending statement connective"))
-        }
+        IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => Ok((
+            &[],
+            &tail.i,
+            &tail.connective,
+            tail.trailing_statement.as_ref(),
+        )),
+        IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => Ok((
+            tail.pending.as_slice(),
+            &tail.i,
+            &tail.connective,
+            tail.trailing_statement.as_ref(),
+        )),
     }
 }
 

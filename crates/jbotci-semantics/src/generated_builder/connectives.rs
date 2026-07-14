@@ -1429,6 +1429,26 @@ pub(super) fn generated_i_statement_nonlogical_connection(
     ))
 }
 
+#[requires(!generated_statement_connective_is_logical(connective))]
+#[ensures(ret.as_ref().is_ok_and(|connection| !connection.operator.is_empty() && !connection.connector.source.is_empty()) || ret.is_err())]
+pub(super) fn generated_statement_core_nonlogical_connection(
+    connective: &StatementConnectiveSyntax,
+) -> Result<NonlogicalConnection, SemanticsError> {
+    let source = generated_statement_connective_core_source(connective)?;
+    let operator = generated_nonlogical_statement_composition_operator(connective)?
+        .label()
+        .to_owned();
+    Ok(NonlogicalConnection::new(
+        operator,
+        new!(Connector {
+            source,
+            locus: "statement".to_owned(),
+            truth_table: None,
+            parameter: None,
+        }),
+    ))
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn generated_i_statement_connective_token_source(

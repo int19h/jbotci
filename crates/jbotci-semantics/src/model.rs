@@ -881,6 +881,14 @@ pub enum ParagraphTransition {
     ResumePriorTopic,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ElidedConnectionOperand {
+    PriorDiscourse,
+    FollowingDiscourse,
+}
+
 #[invariant(!operator.is_empty(), "nonlogical sequence operator must be named")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

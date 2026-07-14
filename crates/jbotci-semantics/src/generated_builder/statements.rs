@@ -196,6 +196,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         items.push(item);
                     }
                 }
+                GeneratedTextPlanItem::PendingStatementConnection { i, connective } => {
+                    let Some(item) = items.pop() else {
+                        return Err(invalid_graph(
+                            "pending statement connection has no preceding discourse item"
+                                .to_owned(),
+                        ));
+                    };
+                    items.push(self.wrap_generated_pending_statement_connection_item(
+                        item,
+                        i,
+                        connective,
+                        ElidedConnectionOperand::FollowingDiscourse,
+                    )?);
+                }
                 GeneratedTextPlanItem::TrailingSeparator { i, free_modifiers } => {
                     let asides = self.build_generated_vocative_asides_from_refs(&free_modifiers)?;
                     if let Some(item) = items.last().copied() {
@@ -3505,10 +3519,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.build_generated_statement_bo_connection_group(connection, leading, 0)?;
         while index < connection.continuations.len() {
             let continuation = &connection.continuations[index];
-            let tail = self.build_generated_statement_connection_tail_operand(
-                continuation,
-                current.last_item,
-            )?;
+            let tail =
+                self.build_generated_statement_connection_tail_operand(continuation, current)?;
             index += 1;
             let (right, next_index) = self.build_generated_statement_bo_connection_group(
                 connection,
@@ -3517,7 +3529,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             index = next_index;
             current = self.combine_generated_statement_connection_operands(
-                current,
+                tail.left_operand,
                 tail.i,
                 tail.connective,
                 tail.trailing_statement,
@@ -3540,19 +3552,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok((left, start));
         }
         let continuation = &connection.continuations[start];
-        let (_, connective, _) = statement_connection_tail_parts(continuation)?;
+        let (_, _, connective, _) = statement_connection_tail_parts(continuation)?;
         if !generated_i_statement_connective_has_bo(connective) {
             return Ok((left, start));
         }
-        let tail =
-            self.build_generated_statement_connection_tail_operand(continuation, left.last_item)?;
+        let tail = self.build_generated_statement_connection_tail_operand(continuation, left)?;
         let (right, index) = self.build_generated_statement_bo_connection_group(
             connection,
             tail.operand.clone(),
             start + 1,
         )?;
         let combined = self.combine_generated_statement_connection_operands(
-            left,
+            tail.left_operand,
             tail.i,
             tail.connective,
             tail.trailing_statement,
@@ -3562,19 +3573,36 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok((combined, index))
     }
 
-    #[requires(previous_discourse_item.object_kind() == crate::model::SemanticObjectKind::Utterance || previous_discourse_item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
-    #[ensures(ret.as_ref().is_ok_and(|tail| tail.operand.item.object_kind() == crate::model::SemanticObjectKind::Utterance || tail.operand.item.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    #[requires(left_operand.item.object_kind() == crate::model::SemanticObjectKind::Utterance || left_operand.item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.as_ref().is_ok_and(|tail| (tail.left_operand.item.object_kind() == crate::model::SemanticObjectKind::Utterance || tail.left_operand.item.object_kind() == crate::model::SemanticObjectKind::Sequence) && (tail.operand.item.object_kind() == crate::model::SemanticObjectKind::Utterance || tail.operand.item.object_kind() == crate::model::SemanticObjectKind::Sequence)) || ret.is_err())]
     pub(super) fn build_generated_statement_connection_tail_operand<'syntax: 'tree>(
         &mut self,
         continuation: &'syntax IStatementConnectionTailSyntax,
-        previous_discourse_item: SemanticObjectId,
+        mut left_operand: GeneratedStatementConnectionOperand,
     ) -> Result<GeneratedStatementConnectionTail<'syntax>, SemanticsError> {
-        let (i, connective, trailing_statement) = statement_connection_tail_parts(continuation)?;
+        let (pending, i, connective, trailing_statement) =
+            statement_connection_tail_parts(continuation)?;
+        for pending in pending {
+            let item = self.wrap_generated_pending_statement_connection_item(
+                left_operand.item,
+                &pending.i,
+                &pending.connective,
+                ElidedConnectionOperand::FollowingDiscourse,
+            )?;
+            let formula = self.content_formula_for_generated_discourse_item(item);
+            let left_data = left_operand.into_data();
+            left_operand = new!(GeneratedStatementConnectionOperand {
+                item,
+                formula,
+                last_item: left_data.last_item,
+                spans: left_data.spans,
+            });
+        }
         let mut spans = Vec::new();
         collect_generated_node_spans(continuation, &mut spans);
         let mut trailing_spans = Vec::new();
         collect_generated_node_spans(trailing_statement, &mut trailing_spans);
-        self.previous_utterance = Some(previous_discourse_item);
+        self.previous_utterance = Some(left_operand.item);
         self.next_utterance = None;
         let (trailing_item, trailing_formula) = self
             .build_generated_statement_after_i_connection_item(
@@ -3582,6 +3610,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 UtteranceForce::Assert,
             )?;
         Ok(GeneratedStatementConnectionTail {
+            left_operand,
             i,
             connective,
             trailing_statement,
@@ -4222,6 +4251,141 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         Ok(formula)
+    }
+
+    #[requires(child.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(generated_statement_connective_is_logical(connective))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_unary_formula_for_generated_statement_connective_core(
+        &mut self,
+        connective: &'tree StatementConnectiveSyntax,
+        child: SemanticObjectId,
+        elided_operand: ElidedConnectionOperand,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operator = generated_statement_connective_formula_operator_for_core(connective);
+        let truth_table = generated_statement_connective_core_truth_table(connective)
+            .ok_or_else(|| unsupported("nonlogical generated statement connective formula"))?;
+        let negates_present_operand = match elided_operand {
+            ElidedConnectionOperand::PriorDiscourse => {
+                generated_statement_connective_negates_right(connective)
+            }
+            ElidedConnectionOperand::FollowingDiscourse => {
+                generated_statement_connective_negates_left(connective)
+            }
+        };
+        let child = if negates_present_operand {
+            self.build_unary_formula(FormulaOperator::Not, child, source.clone())?
+        } else {
+            child
+        };
+        let parameter = build_generated_connective_question_parameter_for_statement_connective(
+            self, connective,
+        )?;
+        let connector_source = generated_statement_connective_core_source(connective)?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                vec![child],
+                Some(new!(Connector {
+                    source: connector_source,
+                    locus: "statement".to_owned(),
+                    truth_table: Some(truth_table),
+                    parameter,
+                })),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[requires(formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    pub(super) fn insert_generated_contextual_statement_connection_sequence(
+        &mut self,
+        item: SemanticObjectId,
+        formula: Option<SemanticObjectId>,
+        connective: &'tree StatementConnectiveSyntax,
+        elided_operand: ElidedConnectionOperand,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let logical = generated_statement_connective_is_logical(connective);
+        let mut diagnostics = Vec::new();
+        let content = if logical {
+            match formula {
+                Some(formula) => Some(
+                    self.build_unary_formula_for_generated_statement_connective_core(
+                        connective,
+                        formula,
+                        elided_operand,
+                        source.clone(),
+                    )?,
+                ),
+                None => {
+                    diagnostics.push(diagnostic(
+                        "contextual logical statement connection has no formula-bearing present operand",
+                    ));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let nonlogical_connection = (!logical)
+            .then(|| generated_statement_core_nonlogical_connection(connective))
+            .transpose()?;
+        if content.is_some() {
+            self.mark_generated_discourse_item_subordinated(item);
+        }
+        let sequence = self.next_sequence_id();
+        let mut object = SemanticObject::sequence(
+            vec![item],
+            SequenceRelation::SameTopicContinuation,
+            source,
+            diagnostics,
+        );
+        object.update_sequence(|node| {
+            node.with_data(data! {
+                content: content,
+                nonlogical_connection: nonlogical_connection,
+                elided_connection_operand: Some(elided_operand),
+            })
+        });
+        self.insert(sequence, object)?;
+        Ok(sequence)
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    pub(super) fn wrap_generated_pending_statement_connection_item(
+        &mut self,
+        item: SemanticObjectId,
+        i: &Token,
+        connective: &'tree StatementConnectiveSyntax,
+        elided_operand: ElidedConnectionOperand,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut spans = Vec::new();
+        collect_generated_node_spans(i, &mut spans);
+        collect_generated_node_spans(connective, &mut spans);
+        let source = self.source_for_generated_spans(&spans, "statement-connection");
+        let formula = self.content_formula_for_generated_discourse_item(item);
+        self.attach_generated_statement_separator_indicators_to_discourse_item(
+            item,
+            i,
+            Some(connective),
+            false,
+        )?;
+        self.insert_generated_contextual_statement_connection_sequence(
+            item,
+            formula,
+            connective,
+            elided_operand,
+            source,
+        )
     }
 
     #[requires(true)]

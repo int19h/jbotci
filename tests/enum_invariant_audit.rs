@@ -1564,6 +1564,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::PendingStatementConnection",
+        "pending statement connections borrow their typed separator and connective syntax nodes",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneParagraphBoundary",
         "paragraph boundary markers use Vec1, so the typed plan item is nonempty by construction",
     ),

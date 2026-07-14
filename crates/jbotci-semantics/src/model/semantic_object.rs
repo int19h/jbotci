@@ -58,6 +58,7 @@ pub struct UtteranceNode {
 #[invariant(items.iter().all(|item| sequence_item_kind_is_allowed(item.object_kind())))]
 #[invariant(content.is_none_or(|content| content.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(connection_claims.iter().all(|claim| claim.object_kind() == SemanticObjectKind::Formula))]
+#[invariant(elided_connection_operand.is_none() || content.is_some() || !connection_claims.is_empty() || nonlogical_connection.is_some())]
 #[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
 #[invariant(force.is_none_or(|force| force == UtteranceForce::Subordinated))]
 #[derive(Debug, Clone, PartialEq)]
@@ -70,6 +71,7 @@ pub struct SequenceNode {
     pub ordinal_labels: Vec<OrdinalLabel>,
     pub relation: SequenceRelation,
     pub nonlogical_connection: Option<NonlogicalConnection>,
+    pub elided_connection_operand: Option<ElidedConnectionOperand>,
     pub common: SemanticObjectCommon,
 }
 
@@ -899,6 +901,7 @@ impl SemanticObject {
             ordinal_labels: Vec::new(),
             relation,
             nonlogical_connection: None,
+            elided_connection_operand: None,
             common: SemanticObjectCommon::new(source, diagnostics),
         })))
     }
@@ -2563,6 +2566,11 @@ fn serialize_sequence<M: SerializeMap>(map: &mut M, node: &SequenceNode) -> Resu
         map,
         "nonlogicalConnection",
         node.nonlogical_connection.as_ref()
+    );
+    optional_entry!(
+        map,
+        "elidedConnectionOperand",
+        node.elided_connection_operand.as_ref()
     );
     Ok(())
 }

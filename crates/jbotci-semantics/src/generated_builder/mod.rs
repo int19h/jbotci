@@ -45,17 +45,18 @@ use jbotci_syntax::generated_model::{
     NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
     OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax, ParagraphStatementSequenceSyntax,
     ParagraphSyntax, ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax,
-    PeheTermsetOperandSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
-    PrenexStatementSyntax, PrenexSubbridiSyntax, PreposedIStatementConnectionSyntax,
-    ProBridiTanruUnitSyntax, ProSumtiSyntax, QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax,
-    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
-    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
-    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
-    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
-    RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax,
-    ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
-    ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriMeksoOperandSyntax,
-    SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
+    PeheTermsetOperandSyntax, PendingIConnectiveSyntax, PlainLinkedSumtiSyntax,
+    PlainRelativeSumtiSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
+    PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
+    QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
+    QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
+    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
+    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseListSyntax,
+    RelativeClauseTailSyntax, RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax,
+    ReversePolishMeksoSyntax, ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax,
+    ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
+    ScalarNegatedTanruUnitSyntax, SelbriMeksoOperandSyntax, SelbriSimpleBridiTailSyntax,
+    SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
     SimpleBridiTailWithoutTailTermsSyntax, SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax,
     SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax, SoiFreeModifierSyntax,
     StandardStatementConnectiveSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
@@ -91,26 +92,27 @@ use crate::model::{
     CommandTarget, Composition, CompositionOperator, Connector, Descriptor, DescriptorDefiniteness,
     DescriptorKind, DisplayedContentAssertionEffect, DisplayedContentFamily,
     DisplayedContentModifier, DisplayedContentNode, DisplayedContentPolarity,
-    DisplayedContentTargetFocus, EventualityClass, EventualityNode, EventualityNodeData,
-    EventualitySort, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
-    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
-    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
-    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
-    MixedRadixComponent, ModalArgument, ModalArgumentData, ModalNegation, ModalNegationKind,
-    NonlogicalConnection, ParagraphTransition, ParameterRole, PlaceIndex, PlaceQuestionBinding,
-    PlaceQuestionBindingData, PredicationMode, PredicationNode, PredicationNodeData,
-    PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm,
-    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode, QuestionSlot,
-    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, ReciprocalExchangeData,
-    Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    ReferentNode, RelationExpansion, RelationLabel, RelationLabelData, RelativeClause,
-    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
-    SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId, SemanticSort,
-    SequenceNode, SequenceRelation, SignKind, SignNode, SourceByteSpan, SpaceInterval,
-    SpatialMotion, SpatialMotionKind, Subscript, TanruLink, TanruLinkData, TemporalPathAnchor,
-    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
-    UtteranceForce, UtteranceNode, argument_object_kind_can_fill, diagnostic,
-    displayed_content_target_kind_is_allowed, source_from_spans,
+    DisplayedContentTargetFocus, ElidedConnectionOperand, EventualityClass, EventualityNode,
+    EventualityNodeData, EventualitySort, FormulaNode, FormulaNodeData, FormulaOperator,
+    FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
+    MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
+    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, ModalArgument,
+    ModalArgumentData, ModalNegation, ModalNegationKind, NonlogicalConnection, ParagraphTransition,
+    ParameterRole, PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData, PredicationMode,
+    PredicationNode, PredicationNodeData, PredicationRelationData, QuantifierBinding,
+    QuantifierBundleFormulaNode, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
+    QuestionMode, QuestionNode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
+    ReciprocalExchange, ReciprocalExchangeData, Recurrence, RecurrenceConnection,
+    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion,
+    RelationLabel, RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream,
+    ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject,
+    SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind,
+    SignNode, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
+    TanruLink, TanruLinkData, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData,
+    TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
+    argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
+    source_from_spans,
 };
 
 mod connectives;
@@ -431,6 +433,7 @@ struct GeneratedStatementConnectionOperand {
 #[invariant(true)]
 #[derive(Debug, Clone)]
 struct GeneratedStatementConnectionTail<'syntax> {
+    left_operand: GeneratedStatementConnectionOperand,
     i: &'syntax Token,
     connective: &'syntax IStatementConnectiveSyntax,
     trailing_statement: &'syntax StatementAfterIConnectiveSyntax,
@@ -452,6 +455,7 @@ struct GeneratedTextPlan<'syntax> {
 #[invariant(::Root { .. } => true)]
 #[invariant(::StandaloneParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneFreeModifiers(_) => true)]
+#[invariant(::PendingStatementConnection { .. } => true)]
 #[invariant(::TrailingSeparator { .. } => true)]
 #[derive(Debug)]
 enum GeneratedTextPlanItem<'syntax> {
@@ -465,6 +469,10 @@ enum GeneratedTextPlanItem<'syntax> {
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
     },
     StandaloneFreeModifiers(Vec<&'syntax FreeModifierSyntax>),
+    PendingStatementConnection {
+        i: &'syntax Token,
+        connective: &'syntax StatementConnectiveSyntax,
+    },
     TrailingSeparator {
         i: &'syntax Token,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
@@ -7930,6 +7938,78 @@ mod tests {
                 .and_then(|quotation| quotation.text.as_deref()),
             Some("zo nalslabu")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pending_statement_connections_keep_the_present_operand_and_missing_side() {
+        let trailing = semantic_graph_for("broda i je broda i ja");
+        let pending = trailing
+            .objects
+            .get(&trailing.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("trailing connective builds a sequence");
+        assert_eq!(
+            pending.elided_connection_operand,
+            Some(ElidedConnectionOperand::FollowingDiscourse)
+        );
+        assert_eq!(pending.items.len(), 1);
+        let inner = trailing
+            .objects
+            .get(&pending.items[0])
+            .and_then(SemanticObject::as_sequence)
+            .expect("the completed JE connection remains nested");
+        let inner_formula = inner.content.expect("JE connection has content");
+        assert_eq!(
+            trailing
+                .objects
+                .get(&inner_formula)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+        let pending_formula = pending.content.expect("pending JA has unary content");
+        let pending_object = trailing
+            .objects
+            .get(&pending_formula)
+            .expect("pending formula exists");
+        assert_eq!(pending_object.formula_operator(), Some(FormulaOperator::Or));
+        assert_eq!(pending_object.formula_children(), &[inner_formula]);
+
+        let chained = semantic_graph_for("broda i je i ja broda");
+        let outer = chained
+            .objects
+            .get(&chained.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("outer JA builds a sequence");
+        assert_eq!(outer.items.len(), 2);
+        let pending = chained
+            .objects
+            .get(&outer.items[0])
+            .and_then(SemanticObject::as_sequence)
+            .expect("pending JE remains the left operand");
+        assert_eq!(
+            pending.elided_connection_operand,
+            Some(ElidedConnectionOperand::FollowingDiscourse)
+        );
+        let pending_formula = pending.content.expect("pending JE has unary content");
+        let pending_object = chained
+            .objects
+            .get(&pending_formula)
+            .expect("pending formula exists");
+        assert_eq!(
+            pending_object.formula_operator(),
+            Some(FormulaOperator::And)
+        );
+        assert_eq!(pending_object.formula_children().len(), 1);
+        let outer_formula = outer.content.expect("outer JA has binary content");
+        let outer_object = chained
+            .objects
+            .get(&outer_formula)
+            .expect("outer formula exists");
+        assert_eq!(outer_object.formula_operator(), Some(FormulaOperator::Or));
+        assert_eq!(outer_object.formula_children().len(), 2);
+        assert_eq!(outer_object.formula_children()[0], pending_formula);
     }
 
     #[test]
