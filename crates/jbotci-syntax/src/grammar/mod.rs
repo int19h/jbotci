@@ -6,6 +6,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     marker::PhantomData,
+    rc::Rc,
     sync::Arc,
 };
 
@@ -267,7 +268,7 @@ impl RecoveryDirective {
 #[derive(Clone)]
 #[invariant(true)]
 pub(super) struct SyntaxMemoValue {
-    value: Arc<dyn Any>,
+    value: Rc<dyn Any>,
 }
 
 type StrictSyntaxMemoKey = (&'static str, usize);
@@ -292,7 +293,7 @@ pub(super) struct SyntaxMemoSuccess {
     consumed_recovery_directives: usize,
     effective_fail_token_indices: Vec<usize>,
     value: SyntaxMemoValue,
-    warnings: Vec<SyntaxWarning>,
+    warnings: Rc<[SyntaxWarning]>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -443,19 +444,24 @@ impl<'tokens> ParserState<'tokens> {
     // recovery memo replay out of the wasm caller bounds every rule frame even
     // as replay bookkeeping evolves.
     #[cfg_attr(target_arch = "wasm32", inline(never))]
-    pub(super) fn syntax_memo_success<O: Clone + 'static>(
+    pub(super) fn syntax_memo_success<O: 'static>(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         recovery_index: usize,
-    ) -> Option<(O, usize, Vec<SyntaxWarning>)> {
+    ) -> Option<(
+        parser_core::SharedSyntaxOutput<O>,
+        usize,
+        Rc<[SyntaxWarning]>,
+    )> {
         if self.recovery_enabled() {
             let memo =
                 self.syntax_recovery_memo
                     .get(&(rule_name, start_location, recovery_index))?;
-            let value = memo.value.value.downcast_ref::<O>()?.clone();
+            let value = Rc::clone(&memo.value.value).downcast::<O>().ok()?;
+            let value = parser_core::SharedSyntaxOutput::from_shared(value);
             let end_location = memo.end_location;
-            let warnings = memo.warnings.clone();
+            let warnings = Rc::clone(&memo.warnings);
             let consumed_recovery_directives = memo.consumed_recovery_directives;
             self.effective_fail_token_indices
                 .extend_from_slice(&memo.effective_fail_token_indices);
@@ -464,8 +470,9 @@ impl<'tokens> ParserState<'tokens> {
         }
         let (value, end_location, warnings) = {
             let memo = self.syntax_memo.get(&(rule_name, start_location))?;
-            let value = memo.value.value.downcast_ref::<O>()?.clone();
-            (value, memo.end_location, memo.warnings.clone())
+            let value = Rc::clone(&memo.value.value).downcast::<O>().ok()?;
+            let value = parser_core::SharedSyntaxOutput::from_shared(value);
+            (value, memo.end_location, Rc::clone(&memo.warnings))
         };
         Some((value, end_location, warnings))
     }
@@ -500,28 +507,27 @@ impl<'tokens> ParserState<'tokens> {
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
     // wrapper; V8 reserves frame space for inlined locals across the descent.
     #[cfg_attr(target_arch = "wasm32", inline(never))]
-    pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
+    pub(super) fn store_syntax_memo_success<O: 'static>(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         recovery_index: usize,
         end_location: usize,
-        value: O,
+        value: parser_core::SharedSyntaxOutput<O>,
         warnings: Vec<SyntaxWarning>,
     ) {
         let effective_fail_token_indices = self.effective_fail_token_indices
             [recovery_index..self.consumed_recovery_directives]
             .to_vec();
+        let value: Rc<dyn Any> = value.into_shared();
         let success = new!(SyntaxMemoSuccess {
             start_location,
             end_location,
             recovery_index,
             consumed_recovery_directives: self.consumed_recovery_directives,
             effective_fail_token_indices,
-            value: SyntaxMemoValue {
-                value: Arc::new(value),
-            },
-            warnings,
+            value: SyntaxMemoValue { value },
+            warnings: warnings.into(),
         });
         if self.recovery_enabled() {
             self.syntax_recovery_memo

@@ -20,6 +20,68 @@ use bityzba::{contract_trait, data, invariant, new, requires};
 
 use super::{ParserCheckpoint, ParserState, Token, parse_error::SyntaxParseError};
 
+/// A rule output shared between the active parse and its packrat memo entry.
+///
+/// Generated grammar adapters only materialize an owned value when a parent
+/// parser needs to consume it. Cloning this wrapper for memo store or replay is
+/// therefore constant-time regardless of the output tree's size.
+#[invariant(
+    Rc::strong_count(value) >= 1,
+    "a shared parser output must own a live allocation"
+)]
+pub(crate) struct SharedSyntaxOutput<O> {
+    value: Rc<O>,
+}
+
+impl<O> SharedSyntaxOutput<O> {
+    #[requires(true)]
+    #[ensures(Rc::strong_count(&ret.value) == 1)]
+    pub(crate) fn new(value: O) -> Self {
+        new!(SharedSyntaxOutput {
+            value: Rc::new(value),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(Rc::as_ptr(&ret.value) == old(Rc::as_ptr(&value)))]
+    pub(crate) fn from_shared(value: Rc<O>) -> Self {
+        new!(SharedSyntaxOutput { value })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn into_shared(self) -> Rc<O> {
+        self.into_data().value
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn into_owned(self) -> O
+    where
+        O: Clone,
+    {
+        Rc::try_unwrap(self.into_shared()).unwrap_or_else(|value| (*value).clone())
+    }
+}
+
+impl<O> Clone for SharedSyntaxOutput<O> {
+    #[requires(true)]
+    #[ensures(Rc::ptr_eq(&ret.value, &self.value))]
+    fn clone(&self) -> Self {
+        new!(SharedSyntaxOutput {
+            value: Rc::clone(&self.value),
+        })
+    }
+}
+
+impl<O: fmt::Debug> fmt::Debug for SharedSyntaxOutput<O> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(formatter)
+    }
+}
+
 /// A Chumsky-compatible byte span in the syntax input.
 ///
 /// Empty spans between tokens can have the next token's start offset followed
@@ -1289,10 +1351,22 @@ mod tests {
 
     use bityzba::{invariant, requires};
 
-    use super::{Parser, Recursive, RecursiveFamily};
+    use super::{Parser, Recursive, RecursiveFamily, SharedSyntaxOutput};
 
     #[invariant(true)]
     struct DropProbe;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_syntax_output_clones_share_until_owned_consumption() {
+        let stored = SharedSyntaxOutput::new(vec!["memo payload".to_owned()]);
+        let replayed = stored.clone();
+
+        assert!(Rc::ptr_eq(&stored.value, &replayed.value));
+        assert_eq!(replayed.into_owned(), ["memo payload"]);
+        assert_eq!(stored.into_owned(), ["memo payload"]);
+    }
 
     #[test]
     #[requires(true)]

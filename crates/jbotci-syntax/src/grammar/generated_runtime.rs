@@ -6,6 +6,7 @@ use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
 use std::cell::Cell;
 
+pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
     BoxedParser, ParserInput, Span, SyntaxFound, SyntaxFoundData, SyntaxParseError,
     parser_core::{InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end},
@@ -193,7 +194,7 @@ pub(crate) fn rule_wrapper<'tokens, O, P>(
     name: &'static str,
     context: Option<&'static str>,
     parser: P,
-) -> BoxedParser<'tokens, O>
+) -> BoxedParser<'tokens, SharedSyntaxOutput<O>>
 where
     O: Clone + 'static,
     P: Parser<'tokens, O> + Clone + 'tokens,
@@ -263,6 +264,7 @@ where
                 }
                 let end_location = ParserInput::cursor_location(input.cursor().inner());
                 let warnings = input.state().warnings_since(warning_start);
+                let output = SharedSyntaxOutput::new(output);
                 input.state().store_syntax_memo_success(
                     name,
                     start_location,

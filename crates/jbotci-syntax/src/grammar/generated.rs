@@ -3112,7 +3112,7 @@ pub mod generated_model {
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedParsedText {
-                text,
+                text: text.into_owned(),
                 warnings: finish.warnings,
             }),
             Err(errors) => {
@@ -3173,7 +3173,7 @@ pub mod generated_model {
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedParsedText {
-                text,
+                text: text.into_owned(),
                 warnings: finish.warnings,
             }),
             Err(errors) => {
@@ -3235,7 +3235,7 @@ pub mod generated_model {
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedRecoveredParsedText {
-                text,
+                text: text.into_owned(),
                 warnings: finish.warnings,
             }),
             Err(errors) => {
@@ -3288,9 +3288,10 @@ pub mod generated_model {
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    fn strict_generated_text_parser_with_eof<'tokens>() -> BoxedParser<'tokens, TextSyntax> {
+    fn strict_generated_text_parser_with_eof<'tokens>()
+    -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
         custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-            let text = input.parse(&strict_generated_text_parser())?;
+            let text = input.parse(&strict_generated_text_shared_parser())?;
             input.parse(end()).map(|()| text)
         })
         .boxed()
@@ -3300,9 +3301,11 @@ pub mod generated_model {
     #[bityzba::ensures(true)]
     fn recovered_generated_text_parser_with_eof<'tokens>(
         recovery_rules: std::sync::Arc<[&'static str]>,
-    ) -> BoxedParser<'tokens, recovered::TextSyntax> {
+    ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>> {
         custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-            let text = input.parse(&recovered_generated_text_parser(recovery_rules.clone()))?;
+            let text = input.parse(&recovered_generated_text_shared_parser(
+                recovery_rules.clone(),
+            ))?;
             input.parse(end()).map(|()| text)
         })
         .boxed()
