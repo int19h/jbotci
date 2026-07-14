@@ -2038,8 +2038,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn tersmu_default_preserves_unsupported_construct_diagnostics() {
-        const INPUT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
-        const EXPECTED_ERROR: &str = "semantic error: generated semantic builder does not yet support scoped connected tanru unit\n";
+        const INPUT: &str = "le morsi cmene ca seka'a cadzu";
+        const EXPECTED_ERROR: &str =
+            "semantic error: generated semantic builder does not yet support non-sumti term\n";
 
         let app = router(test_config(test_static_dir()));
         let response = app
