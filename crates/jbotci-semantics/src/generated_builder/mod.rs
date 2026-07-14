@@ -7800,10 +7800,10 @@ mod tests {
         assert_eq!(json["denotation"], serde_json::json!("generated-bound"));
         assert!(json.get("category").is_none());
         assert!(json.get("scopeDependence").is_none());
-        let claims = crate::render::render_claims(&graph);
-        assert!(claims.contains(&format!("binds=exists eventuality[{event}]")));
-        assert!(claims.contains(&format!("event=eventuality[{event}]")));
-        assert!(!claims.contains(&format!("denotes eventuality[{event}]")));
+        let tree_proj = crate::render::render_tree_proj(&graph);
+        assert!(tree_proj.contains(&format!("binds=exists eventuality[{event}]")));
+        assert!(tree_proj.contains(&format!("event=eventuality[{event}]")));
+        assert!(!tree_proj.contains(&format!("denotes eventuality[{event}]")));
     }
 
     #[test]
@@ -7818,7 +7818,7 @@ mod tests {
         let spatial = semantic_graph_for("mi vi klama");
 
         for render in [
-            crate::render::render_claims as fn(&SemanticGraph) -> String,
+            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
             crate::render::render_tree,
         ] {
             let tenseless = render(&tenseless);
@@ -7838,20 +7838,20 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn combined_format_partitions_tree_and_displaced_commitments() {
+    fn tree_proj_format_partitions_tree_and_displaced_commitments() {
         let graph = semantic_graph_for("mi nitcu lo tanxe");
-        let combined = crate::render::render_combined(&graph);
-        let (tree, projected) = combined
+        let tree_proj = crate::render::render_tree_proj(&graph);
+        let (tree, projected) = tree_proj
             .split_once("\n\nprojected:\n")
-            .expect("combined format has a tree spine and projected section");
+            .expect("tree+proj format has a tree spine and projected section");
 
         assert!(tree.starts_with("utterance assert "));
         assert!(tree.contains("descriptor body: atom"));
         assert!(projected.contains("tanxe("));
         assert!(projected.contains("[mode=restrictive]"));
-        assert!(!combined.contains("at-issue commitments:"));
-        assert!(!combined.contains("presupposed/projected:"));
-        assert!(!combined.contains("context="));
+        assert!(!tree_proj.contains("at-issue commitments:"));
+        assert!(!tree_proj.contains("presupposed/projected:"));
+        assert!(!tree_proj.contains("context="));
 
         let elided = graph
             .objects
@@ -7889,9 +7889,9 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn combined_format_renders_each_event_condition_block_once() {
+    fn tree_proj_format_renders_each_event_condition_block_once() {
         let graph = semantic_graph_for("mi pu klama");
-        let combined = crate::render::render_combined(&graph);
+        let tree_proj = crate::render::render_tree_proj(&graph);
         let tree = crate::render::render_tree(&graph);
         let event = generated_event_for_relation(&graph, "klama");
 
@@ -7901,11 +7901,11 @@ mod tests {
             if object.as_eventuality().is_none() {
                 continue;
             }
-            let condition_sites = combined.matches(&format!("[{id}]; time=")).count()
-                + combined.matches(&format!("[{id}] {{time=")).count();
+            let condition_sites = tree_proj.matches(&format!("[{id}]; time=")).count()
+                + tree_proj.matches(&format!("[{id}] {{time=")).count();
             assert_eq!(
                 condition_sites, 1,
-                "event {id} must have exactly one combined-format condition site"
+                "event {id} must have exactly one tree+proj condition site"
             );
         }
     }
@@ -7925,17 +7925,16 @@ mod tests {
                 _ => None,
             })
             .expect("scoped tense formula has its own eventuality");
-        let expected = format!(
-            "scoped {{event=eventuality[{eventuality}]; time=before(anchor=now[eventuality:3]"
+        let expected_use = format!("scoped {{event=eventuality[{eventuality}]");
+        let expected_binding = format!(
+            "binds=exists eventuality[{eventuality}] {{time=before(anchor=now[eventuality:3]"
         );
         for rendering in [
-            crate::render::render_claims(&graph),
+            crate::render::render_tree_proj(&graph),
             crate::render::render_tree(&graph),
         ] {
-            assert!(rendering.contains(&expected));
-            assert!(rendering.contains(&format!(
-                "binds=exists eventuality[{eventuality}] {{time=before(anchor=now[eventuality:3]"
-            )));
+            assert!(rendering.contains(&expected_use));
+            assert!(rendering.contains(&expected_binding));
         }
     }
 
@@ -7957,8 +7956,8 @@ mod tests {
             object.formula_operator() == Some(FormulaOperator::Not)
                 && object.formula_children().contains(&owner)
         }));
-        let claims = crate::render::render_claims(&graph);
-        assert!(claims.contains(&format!("child atom binds=exists eventuality[{event}]")));
+        let tree = crate::render::render_tree(&graph);
+        assert!(tree.contains(&format!("child: atom binds=exists eventuality[{event}]")));
     }
 
     #[test]
@@ -8146,10 +8145,10 @@ mod tests {
         for constant in &constants {
             assert_underspecified_scope(&graph, *constant, &[variable]);
         }
-        let claims = crate::render::render_claims(&graph);
-        assert!(claims.contains("binder-dependence=underspecified; may-depend-on="));
+        let tree_proj = crate::render::render_tree_proj(&graph);
+        assert!(tree_proj.contains("binder-dependence=underspecified; may-depend-on="));
         for constant in constants {
-            assert!(!claims.lines().any(|line| {
+            assert!(!tree_proj.lines().any(|line| {
                 line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
             }));
         }
@@ -8170,41 +8169,12 @@ mod tests {
         for constant in &constants {
             assert_underspecified_scope(&graph, *constant, &[variable]);
         }
-        let claims = crate::render::render_claims(&graph);
+        let tree_proj = crate::render::render_tree_proj(&graph);
         for constant in constants {
-            assert!(!claims.lines().any(|line| {
+            assert!(!tree_proj.lines().any(|line| {
                 line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
             }));
         }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn claims_make_at_issue_scope_and_commitment_level_explicit() {
-        let graph = semantic_graph_for("naku ro da poi mlatu cu klama");
-        let variable = forall_variable(&graph);
-        let claims = crate::render::render_claims(&graph);
-
-        assert!(claims.starts_with("at-issue commitments:\n"));
-        assert!(!claims.starts_with("asserted:\n"));
-        assert!(claims.contains(&format!(
-            "[mode=asserted; scope=not > forall da[{variable}]; context="
-        )));
-        assert!(claims.contains(&format!(
-            "[mode=restrictive; scope=not > forall da[{variable}]; context="
-        )));
-        let projected = claims
-            .split_once("presupposed/projected:\n")
-            .expect("claims have a projected tier")
-            .1
-            .split_once("\ndisplayed:\n")
-            .expect("claims have a displayed tier")
-            .0;
-        assert!(projected.lines().all(|line| !line.contains("scope=")));
-
-        let top_level = crate::render::render_claims(&semantic_graph_for("mi klama"));
-        assert!(top_level.contains("[mode=asserted; scope=top-level; context="));
     }
 
     #[test]
@@ -8229,10 +8199,10 @@ mod tests {
                 serde_json::json!({ "kind": "fixed" })
             );
         }
-        let claims = crate::render::render_claims(&graph);
-        assert!(claims.contains("binder-dependence=fixed; constant"));
+        let tree_proj = crate::render::render_tree_proj(&graph);
+        assert!(tree_proj.contains("binder-dependence=fixed; constant"));
         for constant in constants {
-            assert!(!claims.lines().any(|line| {
+            assert!(!tree_proj.lines().any(|line| {
                 line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
             }));
         }

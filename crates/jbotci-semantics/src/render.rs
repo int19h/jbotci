@@ -1,9 +1,9 @@
 //! Human-readable projections of the canonical semantic graph.
 //!
 //! These renderers never construct semantic content. They walk the validated,
-//! typed graph and expose complementary views of the same objects: a claims
-//! ledger for validation, a structural tree for scope inspection, and their
-//! partitioned combined notation.
+//! typed graph and expose complementary views of the same objects: a structural
+//! tree for scope inspection and that tree with displaced projective
+//! commitments.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -21,15 +21,6 @@ use crate::model::{
     SequenceNode, UtteranceForce, UtteranceNode,
 };
 
-/// Render the graph as a flat, tiered claims ledger.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_claims(graph: &SemanticGraph) -> String {
-    let mut visitor = ClaimsVisitor::new(graph);
-    DerivedTraversal::new(graph).walk(&mut visitor);
-    visitor.finish()
-}
-
 /// Render the graph as an indented formula/utterance tree.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
@@ -42,12 +33,12 @@ pub fn render_tree(graph: &SemanticGraph) -> String {
 /// Render the structural tree followed by only commitments displaced from it.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn render_combined(graph: &SemanticGraph) -> String {
+pub fn render_tree_proj(graph: &SemanticGraph) -> String {
     let mut tree_visitor = TreeVisitor::new(graph, TreeEventConditionPolicy::StructuralSiteOnly);
     DerivedTraversal::new(graph).walk(&mut tree_visitor);
     let tree = tree_visitor.finish();
 
-    let mut projected_visitor = CombinedProjectedVisitor::new(graph);
+    let mut projected_visitor = TreeProjProjectedVisitor::new(graph);
     DerivedTraversal::new(graph).walk(&mut projected_visitor);
     let projected = projected_visitor.finish();
     format!("{tree}\n\n{projected}")
@@ -55,17 +46,11 @@ pub fn render_combined(graph: &SemanticGraph) -> String {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ClaimTier {
-    Asserted,
+enum CommitmentPlacement {
+    Structural,
     Projected,
     Displayed,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ClaimStatus {
-    Commitment,
-    NonClaim,
+    NonCommitment,
 }
 
 #[invariant(true)]
@@ -93,8 +78,7 @@ enum TraversalRole {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 struct TraversalLocation {
-    tier: ClaimTier,
-    claim_status: ClaimStatus,
+    commitment: CommitmentPlacement,
     role: TraversalRole,
     depth: usize,
 }
@@ -230,8 +214,7 @@ impl<'graph> DerivedTraversal<'graph> {
         self.walk_object(
             self.graph.root,
             TraversalLocation {
-                tier: ClaimTier::Asserted,
-                claim_status: ClaimStatus::Commitment,
+                commitment: CommitmentPlacement::Structural,
                 role: TraversalRole::Root,
                 depth: 0,
             },
@@ -257,8 +240,7 @@ impl<'graph> DerivedTraversal<'graph> {
                 continue;
             }
             let location = TraversalLocation {
-                tier: ClaimTier::Projected,
-                claim_status: ClaimStatus::Commitment,
+                commitment: CommitmentPlacement::Projected,
                 role: TraversalRole::DetachedIncidental,
                 depth: 0,
             };
@@ -274,8 +256,7 @@ impl<'graph> DerivedTraversal<'graph> {
                 self.walk_displayed(
                     id,
                     TraversalLocation {
-                        tier: ClaimTier::Displayed,
-                        claim_status: ClaimStatus::Commitment,
+                        commitment: CommitmentPlacement::Displayed,
                         role: TraversalRole::Aside,
                         depth: 0,
                     },
@@ -339,10 +320,13 @@ impl<'graph> DerivedTraversal<'graph> {
                     self.walk_object(
                         aside,
                         TraversalLocation {
-                            tier: if aside.object_kind() == SemanticObjectKind::DisplayedContent {
-                                ClaimTier::Displayed
+                            commitment: if location.commitment == CommitmentPlacement::NonCommitment
+                            {
+                                CommitmentPlacement::NonCommitment
+                            } else if aside.object_kind() == SemanticObjectKind::DisplayedContent {
+                                CommitmentPlacement::Displayed
                             } else {
-                                ClaimTier::Projected
+                                CommitmentPlacement::Projected
                             },
                             role: TraversalRole::Aside,
                             depth: location.depth + 1,
@@ -460,7 +444,12 @@ impl<'graph> DerivedTraversal<'graph> {
                         id,
                         node,
                         TraversalLocation {
-                            tier: ClaimTier::Projected,
+                            commitment: if location.commitment == CommitmentPlacement::NonCommitment
+                            {
+                                CommitmentPlacement::NonCommitment
+                            } else {
+                                CommitmentPlacement::Projected
+                            },
                             ..location
                         },
                     );
@@ -587,12 +576,16 @@ impl<'graph> DerivedTraversal<'graph> {
             .object(id)
             .as_predication()
             .expect("predication id has predication object");
-        let tier = match node.mode {
-            PredicationMode::Incidental => ClaimTier::Projected,
-            PredicationMode::Displayed => ClaimTier::Displayed,
-            _ => location.tier,
+        let commitment = match (location.commitment, node.mode) {
+            (CommitmentPlacement::NonCommitment, _) => CommitmentPlacement::NonCommitment,
+            (_, PredicationMode::Incidental) => CommitmentPlacement::Projected,
+            (_, PredicationMode::Displayed) => CommitmentPlacement::Displayed,
+            (commitment, _) => commitment,
         };
-        let location = TraversalLocation { tier, ..location };
+        let location = TraversalLocation {
+            commitment,
+            ..location
+        };
         visitor.predication(id, node, location);
         if let Some(eventuality) = node.eventuality {
             self.visit_referent(eventuality, location, state, visitor);
@@ -693,7 +686,7 @@ impl<'graph> DerivedTraversal<'graph> {
             self.walk_formula(
                 body,
                 TraversalLocation {
-                    claim_status: ClaimStatus::NonClaim,
+                    commitment: CommitmentPlacement::NonCommitment,
                     role: if object.sort() == Some(SemanticSort::Relation) {
                         TraversalRole::RelationBody
                     } else {
@@ -730,22 +723,17 @@ impl<'graph> DerivedTraversal<'graph> {
         visitor: &mut V,
     ) {
         if let Some(body) = descriptor.body {
-            let claim_status = if location.claim_status == ClaimStatus::NonClaim
+            let commitment = if location.commitment == CommitmentPlacement::NonCommitment
                 || descriptor.veridical == Some(false)
             {
-                ClaimStatus::NonClaim
+                CommitmentPlacement::NonCommitment
             } else {
-                ClaimStatus::Commitment
+                CommitmentPlacement::Projected
             };
             self.walk_formula(
                 body,
                 TraversalLocation {
-                    tier: if claim_status == ClaimStatus::Commitment {
-                        ClaimTier::Projected
-                    } else {
-                        location.tier
-                    },
-                    claim_status,
+                    commitment,
                     role: TraversalRole::DescriptorBody,
                     ..location
                 },
@@ -767,21 +755,17 @@ impl<'graph> DerivedTraversal<'graph> {
         state: &mut TraversalState,
         visitor: &mut V,
     ) {
-        let claim_status =
-            if location.claim_status == ClaimStatus::NonClaim || clause.veridical == Some(false) {
-                ClaimStatus::NonClaim
-            } else {
-                ClaimStatus::Commitment
-            };
+        let commitment = if location.commitment == CommitmentPlacement::NonCommitment
+            || clause.veridical == Some(false)
+        {
+            CommitmentPlacement::NonCommitment
+        } else {
+            CommitmentPlacement::Projected
+        };
         self.walk_formula(
             clause.body,
             TraversalLocation {
-                tier: if claim_status == ClaimStatus::Commitment {
-                    ClaimTier::Projected
-                } else {
-                    location.tier
-                },
-                claim_status,
+                commitment,
                 role: if clause.veridical == Some(false) {
                     TraversalRole::NonveridicalRelativeClause
                 } else {
@@ -812,7 +796,11 @@ impl<'graph> DerivedTraversal<'graph> {
             .as_displayed_content()
             .expect("display id has displayed-content object");
         let location = TraversalLocation {
-            tier: ClaimTier::Displayed,
+            commitment: if location.commitment == CommitmentPlacement::NonCommitment {
+                CommitmentPlacement::NonCommitment
+            } else {
+                CommitmentPlacement::Displayed
+            },
             ..location
         };
         visitor.displayed(id, node, location);
@@ -835,323 +823,9 @@ impl<'graph> DerivedTraversal<'graph> {
     }
 }
 
-#[invariant(!text.is_empty())]
-struct ClaimLine {
-    text: String,
-}
-
-#[invariant(!label.is_empty())]
-#[invariant(scope_operator.as_ref().is_none_or(|operator| !operator.is_empty()))]
-struct ClaimsContextFrame {
-    label: String,
-    scope_operator: Option<String>,
-}
-
-#[invariant(true)]
-struct ClaimsVisitor<'graph> {
-    graph: &'graph SemanticGraph,
-    asserted: Vec<ClaimLine>,
-    projected: Vec<ClaimLine>,
-    displayed: Vec<ClaimLine>,
-    context: Vec<ClaimsContextFrame>,
-    seen_predications: BTreeSet<(ClaimTierKey, SemanticObjectId)>,
-    seen_constants: BTreeSet<SemanticObjectId>,
-    seen_imports: BTreeSet<SemanticObjectId>,
-    seen_displayed: BTreeSet<SemanticObjectId>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum ClaimTierKey {
-    Asserted,
-    Projected,
-    Displayed,
-}
-
-impl From<ClaimTier> for ClaimTierKey {
-    #[requires(true)]
-    #[ensures(true)]
-    fn from(value: ClaimTier) -> Self {
-        match value {
-            ClaimTier::Asserted => Self::Asserted,
-            ClaimTier::Projected => Self::Projected,
-            ClaimTier::Displayed => Self::Displayed,
-        }
-    }
-}
-
-impl<'graph> ClaimsVisitor<'graph> {
-    #[requires(graph.objects.contains_key(&graph.root))]
-    #[ensures(ret.graph.root == graph.root)]
-    fn new(graph: &'graph SemanticGraph) -> Self {
-        Self {
-            graph,
-            asserted: Vec::new(),
-            projected: Vec::new(),
-            displayed: Vec::new(),
-            context: Vec::new(),
-            seen_predications: BTreeSet::new(),
-            seen_constants: BTreeSet::new(),
-            seen_imports: BTreeSet::new(),
-            seen_displayed: BTreeSet::new(),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn finish(self) -> String {
-        let mut output = String::new();
-        push_claim_tier(&mut output, "at-issue commitments", &self.asserted);
-        output.push('\n');
-        push_claim_tier(&mut output, "presupposed/projected", &self.projected);
-        output.push('\n');
-        push_claim_tier(&mut output, "displayed", &self.displayed);
-        output
-    }
-
-    #[requires(!text.is_empty())]
-    #[ensures(true)]
-    fn push(&mut self, tier: ClaimTier, text: String) {
-        let line = new!(ClaimLine { text });
-        match tier {
-            ClaimTier::Asserted => self.asserted.push(line),
-            ClaimTier::Projected => self.projected.push(line),
-            ClaimTier::Displayed => self.displayed.push(line),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn context_label(&self) -> String {
-        if self.context.is_empty() {
-            "graph".to_owned()
-        } else {
-            let mut output = String::new();
-            for frame in &self.context {
-                if !output.is_empty() {
-                    output.push_str(" > ");
-                }
-                output.push_str(&frame.label);
-            }
-            output
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn scope_label(&self) -> String {
-        let mut output = String::new();
-        for frame in &self.context {
-            let Some(operator) = &frame.scope_operator else {
-                continue;
-            };
-            if !output.is_empty() {
-                output.push_str(" > ");
-            }
-            output.push_str(operator);
-        }
-        if output.is_empty() {
-            "top-level".to_owned()
-        } else {
-            output
-        }
-    }
-}
-
-#[contract_trait]
-impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_utterance(
-        &mut self,
-        id: SemanticObjectId,
-        node: &'graph UtteranceNode,
-        _location: TraversalLocation,
-    ) {
-        self.context.push(new!(ClaimsContextFrame {
-            label: format!("{id} {}", utterance_force_label(node.force)),
-            scope_operator: None,
-        }));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_utterance(&mut self, _id: SemanticObjectId, _location: TraversalLocation) {
-        self.context.pop();
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_sequence(
-        &mut self,
-        id: SemanticObjectId,
-        node: &'graph SequenceNode,
-        _location: TraversalLocation,
-    ) {
-        let binding = event_binding_label(self.graph, &node.bound_eventualities);
-        self.context.push(new!(ClaimsContextFrame {
-            label: if binding.is_empty() {
-                format!("sequence {id}")
-            } else {
-                format!("sequence {id} {binding}")
-            },
-            scope_operator: None,
-        }));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_sequence(&mut self, _id: SemanticObjectId, _location: TraversalLocation) {
-        self.context.pop();
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_formula(
-        &mut self,
-        id: SemanticObjectId,
-        node: &'graph FormulaNode,
-        location: TraversalLocation,
-    ) {
-        self.context.push(new!(ClaimsContextFrame {
-            label: formula_context_label(self.graph, id, node, location.role),
-            scope_operator: formula_scope_operator_label(self.graph, node),
-        }));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_formula(&mut self, _id: SemanticObjectId, _location: TraversalLocation) {
-        self.context.pop();
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn predication(
-        &mut self,
-        id: SemanticObjectId,
-        node: &'graph PredicationNode,
-        location: TraversalLocation,
-    ) {
-        if location.claim_status == ClaimStatus::NonClaim {
-            return;
-        }
-        let tier = location.tier;
-        if self.seen_predications.insert((tier.into(), id)) {
-            let predication = format_predication(self.graph, id, node);
-            let line = if tier == ClaimTier::Asserted {
-                format!(
-                    "{predication} [mode={}; scope={}; context={}]",
-                    predication_mode_label(node.mode),
-                    self.scope_label(),
-                    self.context_label()
-                )
-            } else {
-                format!(
-                    "{predication} [mode={}; context={}]",
-                    predication_mode_label(node.mode),
-                    self.context_label()
-                )
-            };
-            self.push(tier, line);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn referent(
-        &mut self,
-        id: SemanticObjectId,
-        object: &'graph SemanticObject,
-        location: TraversalLocation,
-    ) {
-        if location.claim_status == ClaimStatus::NonClaim {
-            return;
-        }
-        if (object.referent_category() == Some(ReferentCategory::Constant)
-            || object.referent_category() == Some(ReferentCategory::Indexical))
-            && self.seen_constants.insert(id)
-        {
-            let nonclaim_context = referent_nonclaim_context(self.graph, object);
-            let category = if object.referent_category() == Some(ReferentCategory::Constant) {
-                "constant"
-            } else {
-                "indexical"
-            };
-            let mut line = format!("denotes {} [", referent_label(self.graph, id));
-            if object.as_eventuality().is_some() {
-                format_eventuality_conditions_to(self.graph, id, &mut line);
-                line.push_str("; ");
-            }
-            let _ = write!(
-                line,
-                "{}; {category};{} context={}]",
-                binder_dependence_context(self.graph, object),
-                nonclaim_context,
-                self.context_label()
-            );
-            self.push(ClaimTier::Projected, line);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn domain_import(
-        &mut self,
-        formula: SemanticObjectId,
-        node: &'graph QuantifiedFormulaNode,
-        location: TraversalLocation,
-    ) {
-        if location.claim_status == ClaimStatus::NonClaim {
-            return;
-        }
-        if self.seen_imports.insert(formula) {
-            let restriction = node
-                .restriction
-                .expect("domain import requires a restriction formula");
-            self.push(
-                ClaimTier::Projected,
-                format!(
-                    "exists {} satisfying {} [restriction={restriction}; projective domain import of {formula}]",
-                    referent_label(self.graph, node.variable),
-                    formula_reference_label(self.graph, restriction)
-                ),
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn displayed(
-        &mut self,
-        id: SemanticObjectId,
-        node: &'graph DisplayedContentNode,
-        _location: TraversalLocation,
-    ) {
-        if self.seen_displayed.insert(id) {
-            self.push(ClaimTier::Displayed, format_displayed(self.graph, id, node));
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn cycle(&mut self, id: SemanticObjectId, location: TraversalLocation) {
-        if location.claim_status == ClaimStatus::NonClaim {
-            return;
-        }
-        self.push(
-            location.tier,
-            format!(
-                "shared/cyclic reference to {id} [context={}]",
-                self.context_label()
-            ),
-        );
-    }
-}
-
 #[requires(object.referent_category().is_some_and(|category| matches!(category, ReferentCategory::Constant | ReferentCategory::Indexical)))]
 #[ensures(ret.starts_with("binder-dependence="))]
-fn binder_dependence_context(graph: &SemanticGraph, object: &SemanticObject) -> String {
+fn binder_dependence_label(graph: &SemanticGraph, object: &SemanticObject) -> String {
     let Some(scope_dependence) = object.scope_dependence() else {
         // Indexicals are rigidly fixed by their category and do not carry the
         // constant-only wire field.
@@ -1174,38 +848,43 @@ fn binder_dependence_context(graph: &SemanticGraph, object: &SemanticObject) -> 
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum CombinedImplicitConstantKind {
+enum TreeProjImplicitConstantKind {
     Elided,
     TypicalPlaceValue,
 }
 
 #[invariant(may_depend_on.as_ref().is_none_or(|binders| !binders.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct CombinedScopeDependence {
+struct TreeProjScopeDependence {
     may_depend_on: Option<BTreeSet<SemanticObjectId>>,
 }
 
 #[invariant(scope_dependence.may_depend_on.as_ref().is_none_or(|binders| !binders.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct CombinedImplicitConstantGroupKey {
-    kind: CombinedImplicitConstantKind,
-    scope_dependence: CombinedScopeDependence,
+struct TreeProjImplicitConstantGroupKey {
+    kind: TreeProjImplicitConstantKind,
+    scope_dependence: TreeProjScopeDependence,
+}
+
+#[invariant(!text.is_empty())]
+struct ProjectedLine {
+    text: String,
 }
 
 #[invariant(true)]
-struct CombinedProjectedVisitor<'graph> {
+struct TreeProjProjectedVisitor<'graph> {
     graph: &'graph SemanticGraph,
-    displaced: Vec<ClaimLine>,
+    displaced: Vec<ProjectedLine>,
     frame_indexicals: Vec<SemanticObjectId>,
     frame_locutions: Vec<SemanticObjectId>,
     constants: Vec<SemanticObjectId>,
-    implicit_constant_groups: BTreeMap<CombinedImplicitConstantGroupKey, Vec<SemanticObjectId>>,
+    implicit_constant_groups: BTreeMap<TreeProjImplicitConstantGroupKey, Vec<SemanticObjectId>>,
     seen_predications: BTreeSet<SemanticObjectId>,
     seen_constants: BTreeSet<SemanticObjectId>,
     seen_imports: BTreeSet<SemanticObjectId>,
 }
 
-impl<'graph> CombinedProjectedVisitor<'graph> {
+impl<'graph> TreeProjProjectedVisitor<'graph> {
     #[requires(graph.objects.contains_key(&graph.root))]
     #[ensures(ret.graph.root == graph.root)]
     fn new(graph: &'graph SemanticGraph) -> Self {
@@ -1229,7 +908,7 @@ impl<'graph> CombinedProjectedVisitor<'graph> {
         let mut line_count = 0;
 
         if !self.frame_indexicals.is_empty() || !self.frame_locutions.is_empty() {
-            push_combined_frame_line(
+            push_tree_proj_frame_line(
                 self.graph,
                 &self.frame_indexicals,
                 &self.frame_locutions,
@@ -1238,19 +917,19 @@ impl<'graph> CombinedProjectedVisitor<'graph> {
             line_count += 1;
         }
         for line in &self.displaced {
-            push_combined_projected_line(&line.text, &mut output);
+            push_tree_proj_projected_line(&line.text, &mut output);
             line_count += 1;
         }
         for id in self.constants {
             let mut line = String::new();
-            format_combined_constant_denotation_to(self.graph, id, &mut line);
-            push_combined_projected_line(&line, &mut output);
+            format_tree_proj_constant_denotation_to(self.graph, id, &mut line);
+            push_tree_proj_projected_line(&line, &mut output);
             line_count += 1;
         }
         for (key, ids) in self.implicit_constant_groups {
             let mut line = String::new();
-            format_combined_implicit_group_to(self.graph, &key, &ids, &mut line);
-            push_combined_projected_line(&line, &mut output);
+            format_tree_proj_implicit_group_to(self.graph, &key, &ids, &mut line);
+            push_tree_proj_projected_line(&line, &mut output);
             line_count += 1;
         }
 
@@ -1264,12 +943,12 @@ impl<'graph> CombinedProjectedVisitor<'graph> {
     #[requires(!text.is_empty())]
     #[ensures(true)]
     fn push_displaced(&mut self, text: String) {
-        self.displaced.push(new!(ClaimLine { text }));
+        self.displaced.push(new!(ProjectedLine { text }));
     }
 }
 
 #[contract_trait]
-impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
+impl<'graph> DerivedVisitor<'graph> for TreeProjProjectedVisitor<'graph> {
     #[requires(true)]
     #[ensures(true)]
     fn predication(
@@ -1278,8 +957,7 @@ impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
         node: &'graph PredicationNode,
         location: TraversalLocation,
     ) {
-        if location.claim_status != ClaimStatus::Commitment
-            || location.tier != ClaimTier::Projected
+        if location.commitment != CommitmentPlacement::Projected
             || !self.seen_predications.insert(id)
         {
             return;
@@ -1299,7 +977,9 @@ impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
         object: &'graph SemanticObject,
         location: TraversalLocation,
     ) {
-        if location.claim_status != ClaimStatus::Commitment || !self.seen_constants.insert(id) {
+        if location.commitment == CommitmentPlacement::NonCommitment
+            || !self.seen_constants.insert(id)
+        {
             return;
         }
         match object.referent_category() {
@@ -1309,10 +989,10 @@ impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
                     eventuality.class == Some(EventualityClass::Locution)
                 }) {
                     self.frame_locutions.push(id);
-                } else if let Some(kind) = combined_implicit_constant_kind(object) {
-                    let key = new!(CombinedImplicitConstantGroupKey {
+                } else if let Some(kind) = tree_proj_implicit_constant_kind(object) {
+                    let key = new!(TreeProjImplicitConstantGroupKey {
                         kind: kind,
-                        scope_dependence: combined_scope_dependence(object),
+                        scope_dependence: tree_proj_scope_dependence(object),
                     });
                     self.implicit_constant_groups
                         .entry(key)
@@ -1334,7 +1014,9 @@ impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
         node: &'graph QuantifiedFormulaNode,
         location: TraversalLocation,
     ) {
-        if location.claim_status != ClaimStatus::Commitment || !self.seen_imports.insert(formula) {
+        if location.commitment == CommitmentPlacement::NonCommitment
+            || !self.seen_imports.insert(formula)
+        {
             return;
         }
         let restriction = node
@@ -1350,7 +1032,7 @@ impl<'graph> DerivedVisitor<'graph> for CombinedProjectedVisitor<'graph> {
 
 #[requires(!text.is_empty())]
 #[ensures(true)]
-fn push_combined_projected_line(text: &str, output: &mut String) {
+fn push_tree_proj_projected_line(text: &str, output: &mut String) {
     output.push_str("- ");
     output.push_str(text);
     output.push('\n');
@@ -1360,7 +1042,7 @@ fn push_combined_projected_line(text: &str, output: &mut String) {
 #[requires(locutions.iter().all(|id| graph.objects.get(id).is_some_and(|object| object.as_eventuality().is_some_and(|eventuality| eventuality.class == Some(EventualityClass::Locution)))))]
 #[requires(!indexicals.is_empty() || !locutions.is_empty())]
 #[ensures(true)]
-fn push_combined_frame_line(
+fn push_tree_proj_frame_line(
     graph: &SemanticGraph,
     indexicals: &[SemanticObjectId],
     locutions: &[SemanticObjectId],
@@ -1394,13 +1076,13 @@ fn push_combined_frame_line(
 
 #[requires(object.referent_category() == Some(ReferentCategory::Constant))]
 #[ensures(true)]
-fn combined_implicit_constant_kind(
+fn tree_proj_implicit_constant_kind(
     object: &SemanticObject,
-) -> Option<CombinedImplicitConstantKind> {
+) -> Option<TreeProjImplicitConstantKind> {
     match object.descriptor().map(|descriptor| descriptor.kind) {
-        Some(DescriptorKind::Elided) => Some(CombinedImplicitConstantKind::Elided),
+        Some(DescriptorKind::Elided) => Some(TreeProjImplicitConstantKind::Elided),
         Some(DescriptorKind::TypicalPlaceValue) => {
-            Some(CombinedImplicitConstantKind::TypicalPlaceValue)
+            Some(TreeProjImplicitConstantKind::TypicalPlaceValue)
         }
         _ => None,
     }
@@ -1408,17 +1090,17 @@ fn combined_implicit_constant_kind(
 
 #[requires(object.referent_category() == Some(ReferentCategory::Constant))]
 #[ensures(true)]
-fn combined_scope_dependence(object: &SemanticObject) -> CombinedScopeDependence {
+fn tree_proj_scope_dependence(object: &SemanticObject) -> TreeProjScopeDependence {
     match object
         .scope_dependence()
         .expect("constant objects carry scope dependence")
         .as_data()
     {
-        data!(ScopeDependence::Fixed) => new!(CombinedScopeDependence {
+        data!(ScopeDependence::Fixed) => new!(TreeProjScopeDependence {
             may_depend_on: None,
         }),
         data!(ScopeDependence::Underspecified { may_depend_on }) => {
-            new!(CombinedScopeDependence {
+            new!(TreeProjScopeDependence {
                 may_depend_on: Some(may_depend_on.clone()),
             })
         }
@@ -1427,7 +1109,7 @@ fn combined_scope_dependence(object: &SemanticObject) -> CombinedScopeDependence
 
 #[requires(graph.objects.get(&id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant)))]
 #[ensures(true)]
-fn format_combined_constant_denotation_to(
+fn format_tree_proj_constant_denotation_to(
     graph: &SemanticGraph,
     id: SemanticObjectId,
     output: &mut String,
@@ -1441,16 +1123,16 @@ fn format_combined_constant_denotation_to(
     let _ = write!(
         output,
         "{}; constant]",
-        binder_dependence_context(graph, object)
+        binder_dependence_label(graph, object)
     );
 }
 
 #[requires(!ids.is_empty())]
 #[requires(ids.iter().all(|id| graph.objects.get(id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant))))]
 #[ensures(true)]
-fn format_combined_implicit_group_to(
+fn format_tree_proj_implicit_group_to(
     graph: &SemanticGraph,
-    key: &CombinedImplicitConstantGroupKey,
+    key: &TreeProjImplicitConstantGroupKey,
     ids: &[SemanticObjectId],
     output: &mut String,
 ) {
@@ -1462,19 +1144,19 @@ fn format_combined_implicit_group_to(
         output.push_str(&referent_label(graph, *id));
     }
     output.push_str("] [");
-    format_combined_scope_dependence_to(graph, &key.scope_dependence, output);
+    format_tree_proj_scope_dependence_to(graph, &key.scope_dependence, output);
     let _ = write!(
         output,
         "; constant; descriptor-kind={}]",
-        combined_implicit_constant_kind_label(key.kind)
+        tree_proj_implicit_constant_kind_label(key.kind)
     );
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn format_combined_scope_dependence_to(
+fn format_tree_proj_scope_dependence_to(
     graph: &SemanticGraph,
-    scope_dependence: &CombinedScopeDependence,
+    scope_dependence: &TreeProjScopeDependence,
     output: &mut String,
 ) {
     match &scope_dependence.may_depend_on {
@@ -1493,10 +1175,10 @@ fn format_combined_scope_dependence_to(
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn combined_implicit_constant_kind_label(kind: CombinedImplicitConstantKind) -> &'static str {
+fn tree_proj_implicit_constant_kind_label(kind: TreeProjImplicitConstantKind) -> &'static str {
     match kind {
-        CombinedImplicitConstantKind::Elided => "elided",
-        CombinedImplicitConstantKind::TypicalPlaceValue => "typical-place-value",
+        TreeProjImplicitConstantKind::Elided => "elided",
+        TreeProjImplicitConstantKind::TypicalPlaceValue => "typical-place-value",
     }
 }
 
@@ -1658,34 +1340,6 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
     fn cycle(&mut self, id: SemanticObjectId, location: TraversalLocation) {
         self.line(location.depth, &format!("shared reference [{id}]"));
     }
-}
-
-#[requires(!title.is_empty())]
-#[ensures(true)]
-fn push_claim_tier(output: &mut String, title: &str, lines: &[ClaimLine]) {
-    output.push_str(title);
-    output.push(':');
-    output.push('\n');
-    if lines.is_empty() {
-        output.push_str("- (none)\n");
-    } else {
-        for line in lines {
-            output.push_str("- ");
-            output.push_str(&line.text);
-            output.push('\n');
-        }
-    }
-    output.pop();
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_predication(
-    graph: &SemanticGraph,
-    id: SemanticObjectId,
-    node: &PredicationNode,
-) -> String {
-    format_predication_with_event_conditions(graph, id, node, true)
 }
 
 #[requires(true)]
@@ -2746,61 +2400,6 @@ fn event_binding_label_with_conditions(
     }
 }
 
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn formula_context_label(
-    graph: &SemanticGraph,
-    id: SemanticObjectId,
-    node: &FormulaNode,
-    role: TraversalRole,
-) -> String {
-    format!(
-        "{} {} [{id}]",
-        traversal_role_label(role),
-        formula_tree_label(graph, id, node)
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|label| !label.is_empty()))]
-fn formula_scope_operator_label(graph: &SemanticGraph, node: &FormulaNode) -> Option<String> {
-    match node.as_data() {
-        data!(FormulaNode::Atom(_)) => None,
-        data!(FormulaNode::Connective(node)) => {
-            Some(formula_operator_label(node.operator).to_owned())
-        }
-        data!(FormulaNode::Quantified(node)) => Some(format!(
-            "{} {}",
-            formula_operator_label(node.operator),
-            referent_label(graph, node.variable)
-        )),
-        data!(FormulaNode::QuantifierBundle(node)) => {
-            let mut label = "quantifier-bundle".to_owned();
-            for (index, binding) in node.bindings.iter().enumerate() {
-                if index == 0 {
-                    label.push(' ');
-                } else {
-                    label.push_str(", ");
-                }
-                label.push_str(&referent_label(graph, binding.variable));
-            }
-            Some(label)
-        }
-        data!(FormulaNode::RespectivelyDistribution(node)) => {
-            let mut label = "respectively-distribution".to_owned();
-            for (index, stream) in node.streams.iter().enumerate() {
-                if index == 0 {
-                    label.push(' ');
-                } else {
-                    label.push_str(", ");
-                }
-                label.push_str(&referent_label(graph, stream.slot));
-            }
-            Some(label)
-        }
-    }
-}
-
 #[requires(!node.relation.is_empty())]
 #[ensures(!ret.is_empty())]
 fn format_displayed(
@@ -2840,30 +2439,6 @@ fn tree_role_prefix(role: TraversalRole) -> &'static str {
         TraversalRole::NonveridicalRelativeClause => "non-claim restrictive relative clause: ",
         TraversalRole::ModalBody => "modal body: ",
         TraversalRole::DetachedIncidental => "incidental: ",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn traversal_role_label(role: TraversalRole) -> &'static str {
-    match role {
-        TraversalRole::Root => "root",
-        TraversalRole::Content => "content",
-        TraversalRole::SequenceContent => "sequence-content",
-        TraversalRole::SequenceItem => "sequence-item",
-        TraversalRole::ConnectionClaim => "connection-claim",
-        TraversalRole::Aside => "aside",
-        TraversalRole::Child => "child",
-        TraversalRole::Restriction => "restriction",
-        TraversalRole::Body => "body",
-        TraversalRole::DescriptorBody => "descriptor-body",
-        TraversalRole::RelationBody => "relation-body",
-        TraversalRole::AbstractionBody => "abstraction-body",
-        TraversalRole::RestrictiveRelativeClause => "restrictive-relative-clause",
-        TraversalRole::IncidentalRelativeClause => "incidental-relative-clause",
-        TraversalRole::NonveridicalRelativeClause => "non-claim-restrictive-relative-clause",
-        TraversalRole::ModalBody => "modal-body",
-        TraversalRole::DetachedIncidental => "incidental",
     }
 }
 

@@ -188,8 +188,8 @@ use jbotci_search::vlacku::{
     normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    render_claims, render_combined, render_tree,
+    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options, render_tree,
+    render_tree_proj,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -248,7 +248,7 @@ pub enum Command {
     #[command(
         name = "tersmu",
         about = "Build and render a typed semantic graph",
-        long_about = "Build and render a typed semantic graph. JSON is the canonical interchange graph; claims, tree, and combined are deterministic projections of it.\n\nInterpretation contract: `>` means structural descent. In claims, projected commitments take widest scope and `context=` records their trigger site; `mode=` is graph vocabulary, while the heading is the commitment level. `scope=` lists only at-issue ancestor operators and is `top-level` when there are none. `denotes` states referential identity; `binder-dependence=underspecified` names possible binders, not proven dependence. Generated-bound events co-vary through structural `binds=exists`; referential events use denotation commitments, and `binds=exists` is not a projected claim. Event suffixes always name time, actuality, aspect, recurrence, space, spatial aspect, spatial recurrence, and details; `unspecified` is explicit absence of information, never a negative claim."
+        long_about = "Build and render a typed semantic graph. The default tree+proj format is a structural scope tree plus only commitments projected out of their structural site. Bare tree is the same spine without the projected section; JSON is the canonical interchange graph.\n\nInterpretation contract: indentation and `>` mean structural descent. The tree spine is authoritative where commitment follows structural position; entries under `projected:` take widest commitment scope. `mode=` is exact graph vocabulary. `denotes` states referential identity; `binder-dependence=underspecified` names possible binders, not proven dependence. Generated-bound events co-vary through structural `binds=exists`; referential events use denotation commitments, and `binds=exists` is not a projected claim. Event suffixes always name time, actuality, aspect, recurrence, space, spatial aspect, spatial recurrence, and details; `unspecified` is explicit absence of information, never a negative claim."
     )]
     Tersmu(TersmuInput),
     #[command(name = "vlacku", visible_alias = "dict")]
@@ -354,12 +354,11 @@ pub enum TersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph.
     #[value(alias = "djeisone")]
     Json,
-    /// Derived tiered ledger of asserted, projected, and displayed claims.
-    Claims,
     /// Derived indented view of utterance and formula nesting.
     Tree,
     /// Structural tree plus only commitments displaced from their tree site.
-    Combined,
+    #[value(name = "tree+proj")]
+    TreeProj,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -726,9 +725,9 @@ pub struct TersmuInput {
     pub file: Option<PathBuf>,
     #[arg(
         long = "format",
-        default_value_t = TersmuFormat::Json,
+        default_value_t = TersmuFormat::TreeProj,
         value_enum,
-        help = "Output canonical JSON or a derived claims, tree, or combined projection"
+        help = "Output tree+proj (default), bare tree, or canonical JSON; `+proj` names the projected-commitments feature added to the tree base format"
     )]
     pub format: TersmuFormat,
     #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]

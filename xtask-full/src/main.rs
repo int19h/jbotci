@@ -38,7 +38,7 @@ use jbotci_semantics::{
         FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
         analyze_generated_references,
     },
-    render_claims, render_combined, render_tree,
+    render_tree, render_tree_proj,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -10689,9 +10689,8 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::GentufaTreeShowElided => run_gentufa_tree_show_elided_fixture(fixture),
             Facet::GentufaJsonShowElided => run_gentufa_json_show_elided_fixture(fixture),
             Facet::TersmuJson => run_tersmu_json_fixture(fixture),
-            Facet::TersmuClaims => run_tersmu_claims_fixture(fixture),
             Facet::TersmuTree => run_tersmu_tree_fixture(fixture),
-            Facet::TersmuCombined => run_tersmu_combined_fixture(fixture),
+            Facet::TersmuTreeProj => run_tersmu_tree_proj_fixture(fixture),
         }
     }
 }
@@ -11241,19 +11240,6 @@ fn tersmu_graph_fixture_result(
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
-fn run_tersmu_claims_fixture(fixture: &LoadedTestCase) -> FacetResult {
-    let expectation = fixture
-        .test_case
-        .expectations
-        .output
-        .as_ref()
-        .and_then(|output| output.tersmu.as_ref())
-        .and_then(|output| output.claims.as_ref());
-    run_tersmu_derived_fixture(fixture, expectation, "tersmu claims", render_claims)
-}
-
-#[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[ensures(ret.is_valid())]
 fn run_tersmu_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let expectation = fixture
         .test_case
@@ -11267,15 +11253,15 @@ fn run_tersmu_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
-fn run_tersmu_combined_fixture(fixture: &LoadedTestCase) -> FacetResult {
+fn run_tersmu_tree_proj_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let expectation = fixture
         .test_case
         .expectations
         .output
         .as_ref()
         .and_then(|output| output.tersmu.as_ref())
-        .and_then(|output| output.combined.as_ref());
-    run_tersmu_derived_fixture(fixture, expectation, "tersmu combined", render_combined)
+        .and_then(|output| output.tree_proj.as_ref());
+    run_tersmu_derived_fixture(fixture, expectation, "tersmu tree+proj", render_tree_proj)
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -12448,23 +12434,17 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .and_then(|output| output.tersmu.as_ref())
             .filter(|output| output.json.is_some() || output.error.is_some())
             .map(|output| output.status),
-        Facet::TersmuClaims => expectations
-            .output
-            .as_ref()
-            .and_then(|output| output.tersmu.as_ref())
-            .and_then(|output| output.claims.as_ref())
-            .map(|_| ExpectationStatus::Success),
         Facet::TersmuTree => expectations
             .output
             .as_ref()
             .and_then(|output| output.tersmu.as_ref())
             .and_then(|output| output.tree.as_ref())
             .map(|_| ExpectationStatus::Success),
-        Facet::TersmuCombined => expectations
+        Facet::TersmuTreeProj => expectations
             .output
             .as_ref()
             .and_then(|output| output.tersmu.as_ref())
-            .and_then(|output| output.combined.as_ref())
+            .and_then(|output| output.tree_proj.as_ref())
             .map(|_| ExpectationStatus::Success),
     }
 }

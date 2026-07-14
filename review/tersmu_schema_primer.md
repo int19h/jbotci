@@ -7,12 +7,14 @@ syntax onto these objects). Use it to read a tersmu semantic graph and judge whe
 captures the meaning of a Lojban utterance.
 
 The flat `lojban-semantics-json-1` id-graph is the canonical model and the only
-interchange form. `jbotci tersmu --format claims`, `--format tree`, and
-`--format combined` are human-readable projections computed solely from that
-typed graph; none is a canonical human syntax, and none adds or repairs
-semantic information. The fourth format is named `combined`, not `full`,
-because it combines the two human reading strategies but is intentionally less
-complete than canonical JSON.
+interchange form. `jbotci tersmu --format tree` and
+`jbotci tersmu --format tree+proj` are human-readable projections computed
+solely from that typed graph; neither is a canonical human syntax, and neither
+adds or repairs semantic information. The `tree+proj` spelling follows the v0
+`base+feature` convention: it is the `tree` base format plus a projected-
+commitments section, and future format features use the same `+suffix` pattern.
+In argv the `+` is literal. REST and MCP requests carry the same literal as a
+JSON string: `"format": "tree+proj"`.
 
 All field names below are the **exact JSON keys** (the model serializes with serde
 `rename_all = "camelCase"` unless noted, so Rust `byte_start` → JSON `byteStart`, etc.). All enum
@@ -28,21 +30,13 @@ values are given exactly as they serialize (almost all enums are `camelCase`; a 
 
 The following rules apply wherever a detached human projection is read:
 
-- `>` means structural descent through the graph. In `claims`, a projected
-  entry takes widest commitment scope; its `context=` path records the graph
-  site that triggered the projection, not the final scope of the commitment.
-- A claims heading is a **commitment level**. `mode=` is the exact graph
-  `PredicationMode` vocabulary (`asserted`, `definitional`, `restrictive`,
-  `incidental`, `displayed`, `inert`, `performative`), not a second commitment
-  tier. To remove the old `asserted:`/`mode=asserted` collision without
-  translating wire vocabulary, the first heading is `at-issue commitments:`
-  while `mode=asserted` remains unchanged.
-- On every at-issue claims atom, `scope=` is a pure operator-skeleton
-  projection of the ancestor formula path. It includes negation, connective,
-  explicit-scope, and binding operators; quantifier entries retain only their
-  binder labels/ids. It excludes roles, formula ids, atom nodes, generated
-  event annotations, and all other context detail. `scope=top-level` explicitly
-  says that no such operator is above the atom.
+- Indentation and `>` mean structural descent through the graph. The tree spine
+  is authoritative wherever commitment follows structural position. An entry
+  under `projected:` takes widest commitment scope even though its triggering
+  predication is also shown at its structural tree site.
+- `mode=` is the exact graph `PredicationMode` vocabulary (`asserted`,
+  `definitional`, `restrictive`, `incidental`, `displayed`, `inert`,
+  `performative`), not a second commitment level.
 - `denotes` states a referential-identity commitment. A constant's
   `binder-dependence=fixed` means no graph binder was available at its
   introduction site. `binder-dependence=underspecified` plus
@@ -64,99 +58,15 @@ The following rules apply wherever a detached human projection is read:
   `otherwise=unspecified` so omitted members remain explicit. The human
   formats do not use a legend as a substitute for these per-site markers.
 
-### `--format claims`
-
-The claims ledger is a flat list grouped under exactly three headings:
-
-- `at-issue commitments`: predication atoms reached through
-  utterance/sequence content. Every entry includes its graph id, exact graph
-  predication mode, explicit `scope=` operator skeleton, and a structural
-  `context=` path summarizing surrounding quantifiers, restrictions,
-  connectives, negation, roles, ids, and generated-event annotations.
-- `presupposed/projected`: veridical descriptor bodies, veridical restrictive
-  and incidental relative clauses, explicitly qualified denotation commitments for
-  constant/indexical referents, and the projective nonempty-domain commitment
-  carried by restricted `forall` and `pluralForall`. A domain-import line names
-  both the bound variable and the restriction formula id, so `domainImport` is
-  visible without inventing an at-issue conjunct.
-- `displayed`: attitudinal, evidential, discursive, metalinguistic, emphasis,
-  and question-prompt objects, including their experiencer, target, polarity,
-  and assertion effect.
-
-Predications use the formulaic template
-`relation(x1=short-label[id], x2=short-label[id], ...) [predication-id]`.
-Lojban relation words are kept verbatim. Labels come from typed indexical,
-descriptor, sign, parameter, and sort fields; every label includes the object
-id, making shared referents explicit. No natural-language paraphrase inference
-is performed. A relation-sorted referent with a single-atom body includes that
-relation in its label (`relation mlatu[id]`, or `lo bajra[id]` when a descriptor
-word is present). A speaker-description label follows the typed `skicu` x4
-property edge to the same single-atom relation, so `le mlatu` is not mislabeled
-as `le skicu`.
-
-Constant and indexical denotations use the deterministic template
-`denotes label[id] [binder-dependence=STATE; ...; context=PATH]`. For an
-underspecified constant, the next component is
-`may-depend-on=binder-label[id], ...`; the binder list follows object-id order.
-The line remains in `presupposed/projected` because the ledger tier expresses
-commitment status while binder dependence qualifies the denotation. It is never
-rendered as an unqualified `exists` claim.
-
-Generated predication events are not denotational constants and never produce a
-`denotes` line. Their existential force is the typed `boundEventualities` edge
-on a formula or sequence owner. Claims contexts and the structural tree render
-that edge explicitly as `binds=exists LABEL[id]`; predication and connective
-formula lines render the corresponding use as `{event=LABEL[id]}` and, for
-tanru links, `{tanru-head-event=LABEL[id]}`. The tree's utterance line uses the
-same marker for its locution. The binding marker is scope, not an actuality
-claim: only an explicit CAhA gives the predication event a non-`unspecified`
-actuality value.
-
-Every event site carries the same typed condition suffix in fixed field order:
-`time`, `actuality`, `aspect`, `recurrence`, `space`, `spatial-aspect`,
-`spatial-recurrence`, and `details`. Referential events put that suffix on
-their `denotes` line; generated events repeat it at the use and binding sites so
-each line remains intelligible without consulting another scope line. Missing
-core fields render as `FIELD=unspecified`; omission never means atemporality,
-nonactuality, or the absence of that semantic dimension. Alternative scalar
-and list representations are combined under their dimension (`time` or
-`timePath`, `aspect` or `aspects`, and their spatial counterparts).
-
-`details` is the collective absence envelope for the sparse secondary fields:
-`tenseModal`, `timeInterval`, `timeSpan`, `intervalModifiers`, `spaceInterval`,
-`spatialIntervalModifiers`, and `content`. When none is populated it is
-`details=unspecified`; otherwise populated members appear by name followed by
-`otherwise=unspecified`, which explicitly covers every absent member without a
-long run of empty list-valued fields. Nested projections use the same rule:
-their required fields are always printed, their small core optional surfaces
-are per-field, and larger sparse qualifier sets use
-`details=unspecified`/`otherwise=unspecified`. These are fixed templates over
-the typed model; the renderer does not infer prose.
-
-An intensional relation/abstraction body is structural content, not an extra
-asserted or projected claim. Its owning constant's denotation line includes a
-`relation-body=` or `abstraction-body=` formula label while traversal of the
-body contributes no bare ledger entries. Likewise, a non-veridical restrictive
-clause (`veridical:false`, such as `voi`) is shown as
-`non-claim-restrictive-clause=` on the owning constant rather than promoted to
-a commitment.
-
-Ledger order is deterministic. Formula-backed entries follow semantic
-traversal order; numbered arguments use place order. Projective objects first
-appear at the claim-bearing graph edge that exposes them; detached incidental
-or displayed objects use object-id order as a stable tie-break. Inert objects
-do not acquire commitments merely by existing in the object map. Entries of
-the same semantic identity and tier are emitted once.
-
 ### `--format tree`
 
 The structural tree prints utterance and sequence nesting followed by formula
 nodes. Indentation is the graph's scope structure: `not`, quantifiers,
 connectives, `restriction`, and `body` remain separate nodes. Atomic leaves use
-the same typed predication and referent templates as the ledger. A restricted
+the same typed predication and referent templates as tree+proj. A restricted
 universal is annotated `domain-import=projective` on its quantifier line, while
-the commitment itself remains visible as a ledger entry rather than a fabricated
-formula child. Descriptor bodies, relation/abstraction bodies, and relative
+the commitment itself remains visible in tree+proj's `projected:` section rather
+than as a fabricated formula child. Descriptor bodies, relation/abstraction bodies, and relative
 clauses retain their graph edge labels as nested formula branches. Restrictive,
 incidental, and non-veridical restrictive clauses have distinct branch labels;
 displayed asides are printed at their utterance attachment.
@@ -169,11 +79,11 @@ Referent expansion follows typed field order: descriptor content, an optional
 intensional body, then referent-level relative clauses. The traversal's active
 object/formula set stops cycles through body parameters and self-references.
 
-### `--format combined`
+### `--format tree+proj`
 
-The combined projection is a partition, not `tree + claims`. Its byte-stable
-shape is the structural tree spine, one blank line, and a single `projected:`
-section:
+The tree+proj projection is a partition, not a concatenation of two formats.
+Its byte-stable shape is the structural tree spine, one blank line, and a
+single `projected:` section:
 
 ```text
 <structural tree spine>
@@ -194,7 +104,7 @@ The `projected:` section enumerates only commitments that escape their tree
 site:
 
 - restricted-universal domain imports use the same explicit witness,
-  restriction id, and owner id as claims;
+  restriction id, and owner id;
 - veridical descriptor bodies and incidental/restrictive clauses repeat their
   full predication text and exact graph `mode=`. The duplication with the tree
   is intentional: it records that the commitment escapes that position;
@@ -219,19 +129,19 @@ predication/connective use sites retain `{event=...}` without another suffix.
 Locutions carry it on their utterance; event indexicals carry it on `frame:`;
 other referential events carry it on their `denotes` line. Projected copies of
 predications and domain-import restriction text likewise retain the event id
-but omit a repeated condition suffix. Thus the combined format preserves the
+but omit a repeated condition suffix. Thus the tree+proj format preserves the
 explicit-absence doctrine without echoing conditions through use markers or
 context fragments.
 
-Combined ordering is fixed. The tree retains normal semantic child order. The
+Tree+proj ordering is fixed. The tree retains normal semantic child order. The
 projected section emits `frame:` first, displaced formula commitments in
 semantic traversal order, ordinary referential constants in first-visit order,
 then implicit groups in typed kind/binder order. A semantic identity is emitted
 at most once in each applicable projected category.
 
-The CLI, REST, and MCP request `format` values are `json`, `claims`, `tree`,
-and `combined`. MCP deliberately continues to default to `json`; changing that
-default is an owner decision, not part of this renderer change.
+The CLI, REST, and MCP request `format` values are `json`, `tree`, and
+`tree+proj`. All three surfaces default to `tree+proj`; request `json`
+explicitly whenever the canonical interchange graph is required.
 
 ---
 
@@ -328,7 +238,7 @@ text with multiple paragraphs).
 | `items` | array of id | members, each an `utterance`, `sequence`, or `displayedContent` |
 | `relation` | `SequenceRelation` | serialized from `sequence_relation`; currently only `same-topic-continuation` (**kebab-case**) |
 | `connectionClaims` | array of id → `formula` | formulas asserting the logical connection between consecutive items (for `.i je`-style sentence connectives) |
-| `content` | id → `formula` | when the whole sequence carries a single combined claim |
+| `content` | id → `formula` | when the whole sequence carries one aggregate content formula |
 | `boundEventualities` | array of id → generated eventuality | typed existential-binding edge used when the event's formula roots have no formula LCA |
 
 ### 2.3 `eventuality`

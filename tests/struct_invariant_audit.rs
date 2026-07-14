@@ -980,16 +980,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "source byte spans are projected from validated SourceSpan values",
     ),
     (
-        "crates/jbotci-semantics/src/render.rs:ClaimsVisitor",
-        "claims visitor is transient mutable accumulator state whose graph is validated and whose semantic ordering is enforced by DerivedTraversal",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:CombinedProjectedVisitor",
-        "combined projected visitor is transient mutable accumulator state; typed group keys and exact projection tests enforce its output partition",
+        "crates/jbotci-semantics/src/render.rs:TreeProjProjectedVisitor",
+        "tree+proj projected visitor is transient mutable accumulator state; typed group keys and exact projection tests enforce its output partition",
     ),
     (
         "crates/jbotci-semantics/src/render.rs:TraversalLocation",
-        "traversal location is the unrestricted product of closed tier and role enums with a nesting depth",
+        "traversal location is the unrestricted product of closed commitment-placement and role enums with a nesting depth",
     ),
     (
         "crates/jbotci-semantics/src/render.rs:TraversalState",
