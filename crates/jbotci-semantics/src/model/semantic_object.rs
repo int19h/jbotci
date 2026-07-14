@@ -304,6 +304,7 @@ pub struct FormulaTraversal {
 #[invariant((*category == ReferentCategory::Constant) == scope_dependence.is_some())]
 #[invariant(sign_kind.as_ref().is_some_and(|kind| *kind == SignKind::Quotation) == quotation.is_some())]
 #[invariant(text.as_ref().is_none_or(|text| !text.is_empty()))]
+#[invariant(relative_clauses.iter().all(|clause| clause.body.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(target.is_none_or(referent_target_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SignNode {
@@ -315,6 +316,7 @@ pub struct SignNode {
     pub quotation: Option<Quotation>,
     pub denotes: Option<SemanticObjectId>,
     pub descriptor: Option<Descriptor>,
+    pub relative_clauses: Vec<RelativeClause>,
     pub target: Option<SemanticObjectId>,
     pub subscript: Option<Subscript>,
     pub common: SemanticObjectCommon,
@@ -1098,6 +1100,7 @@ impl SemanticObject {
                 quotation: None,
                 denotes: None,
                 descriptor,
+                relative_clauses: Vec::new(),
                 target: None,
                 subscript: None,
                 common: SemanticObjectCommon::new(source, diagnostics),
@@ -1404,6 +1407,7 @@ impl SemanticObject {
             quotation,
             denotes: None,
             descriptor: None,
+            relative_clauses: Vec::new(),
             target: None,
             subscript: None,
             common: SemanticObjectCommon::new(source, diagnostics),
@@ -2193,7 +2197,7 @@ impl SemanticObject {
         };
     }
 
-    #[requires(self.as_eventuality().is_some() || self.as_referent().is_some())]
+    #[requires(self.as_eventuality().is_some() || self.as_referent().is_some() || self.as_sign().is_some())]
     #[ensures(true)]
     pub fn extend_relative_clauses(&mut self, clauses: Vec<RelativeClause>) {
         if self.as_eventuality().is_some() {
@@ -2202,11 +2206,17 @@ impl SemanticObject {
                 data.relative_clauses.extend(clauses);
                 EventualityNode::from_data(data)
             });
-        } else {
+        } else if self.as_referent().is_some() {
             self.update_referent(|node| {
                 let mut data = node.into_data();
                 data.relative_clauses.extend(clauses);
                 ReferentNode::from_data(data)
+            });
+        } else {
+            self.update_sign(|node| {
+                let mut data = node.into_data();
+                data.relative_clauses.extend(clauses);
+                SignNode::from_data(data)
             });
         }
     }
@@ -2729,6 +2739,7 @@ fn serialize_sign<M: SerializeMap>(map: &mut M, node: &SignNode) -> Result<(), M
     nonempty_entry!(map, "letterals", &node.letterals);
     optional_entry!(map, "quotation", node.quotation.as_ref());
     optional_entry!(map, "denotes", node.denotes.as_ref());
+    nonempty_entry!(map, "relativeClauses", &node.relative_clauses);
     optional_entry!(map, "target", node.target.as_ref());
     optional_entry!(map, "subscript", node.subscript.as_ref());
     Ok(())
@@ -2944,6 +2955,7 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
                 quotation.references_into(out);
             }
             extend_optional(out, node.denotes);
+            out.extend(node.relative_clauses.iter().map(|clause| clause.body));
             extend_optional(out, node.target);
             if let Some(subscript) = &node.subscript {
                 subscript.references_into(out);

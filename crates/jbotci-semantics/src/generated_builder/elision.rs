@@ -2,34 +2,17 @@ use super::*;
 
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(true)]
-    pub(super) fn fill_first_elided_generated_formula_argument(
+    pub(super) fn fill_first_elided_generated_formula_argument_with_object(
         &mut self,
         formula: SemanticObjectId,
-        head: SemanticObjectId,
+        argument_object: SemanticObjectId,
     ) -> Result<(), SemanticsError> {
-        let Some(object) = self
-            .objects
-            .get(&formula)
-            .and_then(SemanticObject::formula_traversal)
-        else {
-            return Ok(());
-        };
-        let object = object.into_data();
-        if let Some(predication) = object.predication {
-            self.fill_first_elided_generated_predication_argument(predication, head)?;
-        }
-        for child in object.children {
-            self.fill_first_elided_generated_formula_argument(child, head)?;
-        }
-        if let Some(restriction) = object.restriction {
-            self.fill_first_elided_generated_formula_argument(restriction, head)?;
-        }
-        if let Some(body) = object.body {
-            self.fill_first_elided_generated_formula_argument(body, head)?;
-        }
-        Ok(())
+        self.fill_first_elided_generated_formula_argument_with_argument(
+            formula,
+            &ArgumentValue::filled(argument_object, None),
+        )
     }
 
     #[requires(argument.value.is_some())]
@@ -183,49 +166,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }))
         });
         Ok(true)
-    }
-
-    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(true)]
-    pub(super) fn fill_first_elided_generated_predication_argument(
-        &mut self,
-        predication: SemanticObjectId,
-        head: SemanticObjectId,
-    ) -> Result<(), SemanticsError> {
-        let object = self.objects.get_mut(&predication).ok_or_else(|| {
-            invalid_graph(format!(
-                "semantic builder could not find relative-clause predication {predication}"
-            ))
-        })?;
-        let object_data = object.as_predication().ok_or_else(|| {
-            invalid_graph(format!(
-                "semantic builder expected {predication} to be a predication"
-            ))
-        })?;
-        let Some(place) = object_data
-            .arguments
-            .iter()
-            .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
-            .map(|(place, _argument)| (argument_place_index(place), place))
-            .min_by_key(|(index, _place)| *index)
-            .map(|(_index, place)| *place)
-        else {
-            return Ok(());
-        };
-        object.update_predication(|object| {
-            let data = object.into_data();
-            let mut arguments = data.arguments;
-            if let Some(argument) = arguments.get(&place) {
-                let source = argument.source.clone();
-                arguments.insert(place, ArgumentValue::filled(head, source));
-            }
-            PredicationNode::from_data(data!(PredicationNode {
-                arguments: arguments,
-                ..data
-            }))
-        });
-        Ok(())
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]

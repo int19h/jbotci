@@ -2,24 +2,29 @@ use super::*;
 
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn build_term_referent(
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    pub(super) fn build_term_argument_object(
         &mut self,
         term: &'tree TermSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let argument = self.build_argument_for_generated_term(term)?.into_data();
-        let referent = argument
+        let argument_object = argument
             .value
             .ok_or_else(|| unsupported("non-referential term argument"))?;
-        if !argument.relative_clauses.is_empty() {
-            let object = self.objects.get_mut(&referent).ok_or_else(|| {
+        if !argument.relative_clauses.is_empty()
+            && matches!(
+                argument_object.object_kind(),
+                crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Sign
+            )
+        {
+            let object = self.objects.get_mut(&argument_object).ok_or_else(|| {
                 invalid_graph(format!(
-                    "semantic builder could not find generated term referent {referent}"
+                    "semantic builder could not find generated term argument object {argument_object}"
                 ))
             })?;
             object.extend_relative_clauses(argument.relative_clauses);
         }
-        Ok(referent)
+        Ok(argument_object)
     }
 
     #[requires(*next_visible_place > 0)]
@@ -593,12 +598,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ))
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.as_ref().is_none_or(|argument| argument.relation.is_some())) || ret.is_err())]
-    pub(super) fn build_generated_jai_modal_argument_for_referent(
+    pub(super) fn build_generated_jai_modal_argument_for_argument_object(
         &mut self,
         unit: &JaiModalTanruUnitSyntax,
-        referent: SemanticObjectId,
+        argument_object: SemanticObjectId,
     ) -> Result<Option<ModalArgument>, SemanticsError> {
         let Some(tense_modal) = unit.tense_modal.as_deref() else {
             return Ok(None);
@@ -612,7 +617,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Err(unsupported("jai modal tanru unit tense modal"));
         };
         let arguments = self.modal_argument_map_for_visible_place(
-            ArgumentValue::filled(referent, None),
+            ArgumentValue::filled(argument_object, None),
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
@@ -1725,8 +1730,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
-    pub(super) fn build_terms_fragment_referent(
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    pub(super) fn build_terms_fragment_content(
         &mut self,
         fragment: &'tree TermsFragmentSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
@@ -1751,27 +1756,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
                     return Ok(Some(sign));
                 }
-                let referent = self.build_sumti_referent(sumti)?;
-                if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
-                    self.attach_generated_relative_clauses_to_referent(referent, sumti)?;
+                let argument_object = self.build_sumti_referent(sumti)?;
+                if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent {
+                    self.attach_generated_relative_clauses_to_referent(argument_object, sumti)?;
                 }
-                return Ok(Some(referent));
+                return Ok(Some(argument_object));
             }
             Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(term)) => {
                 if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
                     if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
                         return Ok(Some(sign));
                     }
-                    let referent = self.build_sumti_referent(sumti)?;
-                    if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
-                        self.attach_generated_relative_clauses_to_referent(referent, sumti)?;
+                    let argument_object = self.build_sumti_referent(sumti)?;
+                    if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent {
+                        self.attach_generated_relative_clauses_to_referent(argument_object, sumti)?;
                     }
-                    return Ok(Some(referent));
+                    return Ok(Some(argument_object));
                 }
             }
             _ => {}
         }
-        self.build_term_referent(term).map(Some)
+        self.build_term_argument_object(term).map(Some)
     }
 
     #[requires(true)]
@@ -2463,9 +2468,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .to_owned(),
             ));
         };
-        if head.object_kind() != crate::model::SemanticObjectKind::Referent {
+        if !crate::model::argument_object_kind_can_fill(head.object_kind()) {
             return Err(invalid_graph(format!(
-                "cannot attach generated relative clauses to non-referent argument {head}"
+                "cannot attach generated relative clauses to non-argument object {head}"
             )));
         }
         let lowered = self.lower_generated_relative_clause_list(relative_clauses, head)?;
@@ -3368,7 +3373,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_clause_list<'syntax: 'tree>(
         &mut self,
@@ -3393,7 +3398,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(lowered)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_clause_atom(
         &mut self,
@@ -3440,7 +3445,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(lowered)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_sumti_association_relative_clause(
         &mut self,
@@ -3532,37 +3537,38 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         if generated_sumti_is_assignable_reference(sumti) {
-            let Some(referent) = self.build_generated_relative_sumti_referent(&clause.sumti)?
+            let Some(argument_object) =
+                self.build_generated_relative_sumti_argument_object(&clause.sumti)?
             else {
                 return Ok(None);
             };
             if let Some(assigned_name) = self.assigned_name_for_generated_sumti(sumti, clause) {
-                self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
+                self.assign_generated_name_to_argument_object(argument_object, assigned_name)?;
             }
-            return Ok(Some(referent));
+            return Ok(Some(argument_object));
         }
         if generated_relative_sumti_is_assignable_reference(&clause.sumti) {
-            let referent = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
+            let argument_object = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
             if let Some(assigned_name) =
                 self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
             {
-                self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
+                self.assign_generated_name_to_argument_object(argument_object, assigned_name)?;
             }
-            return Ok(Some(referent));
+            return Ok(Some(argument_object));
         }
         if let Some(assigned_name) =
             self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
         {
-            let referent = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
-            self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
-            return Ok(Some(referent));
+            let argument_object = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
+            self.assign_generated_name_to_argument_object(argument_object, assigned_name)?;
+            return Ok(Some(argument_object));
         }
         Ok(None)
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
-    pub(super) fn build_generated_relative_sumti_referent<'syntax: 'tree>(
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    pub(super) fn build_generated_relative_sumti_argument_object<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax RelativeSumtiSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
@@ -3572,35 +3578,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
                 let argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
-                Ok(argument
-                    .value
-                    .filter(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))
+                Ok(argument.value)
             }
             RelativeSumtiSyntax::NaKuRelativeSumti(_) => Ok(None),
         }
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(true)]
-    pub(super) fn add_generated_assigned_name_to_referent(
+    pub(super) fn assign_generated_name_to_argument_object(
         &mut self,
-        referent: SemanticObjectId,
+        argument_object: SemanticObjectId,
         assigned_name: AssignedName,
     ) -> Result<(), SemanticsError> {
         let key = assigned_name.name.clone();
-        let object = self.objects.get_mut(&referent).ok_or_else(|| {
+        let object = self.objects.get_mut(&argument_object).ok_or_else(|| {
             invalid_graph(format!(
-                "semantic builder could not find assigned-name referent {referent}"
+                "semantic builder could not find assigned-name argument object {argument_object}"
             ))
         })?;
-        if !object
-            .assigned_names()
-            .iter()
-            .any(|existing| existing == &assigned_name)
+        if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent
+            && !object
+                .assigned_names()
+                .iter()
+                .any(|existing| existing == &assigned_name)
         {
             object.push_assigned_name(assigned_name);
         }
-        self.assigned_referents.insert(key, referent);
+        self.assigned_referents.insert(key, argument_object);
         Ok(())
     }
 
@@ -3615,7 +3620,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && let Some(assigned_name) =
                 self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
         {
-            self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
+            self.assign_generated_name_to_argument_object(referent, assigned_name)?;
         }
         Ok(())
     }
@@ -3632,7 +3637,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(());
         };
-        self.add_generated_assigned_name_to_referent(head, assigned_name)
+        self.assign_generated_name_to_argument_object(head, assigned_name)
     }
 
     #[requires(true)]
@@ -3715,7 +3720,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.source_for_tokens(&tokens, "assigned-name")
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[requires(!marker_text.is_empty())]
     #[ensures(true)]
     pub(super) fn build_generated_modal_sumti_association_clause(
@@ -3808,7 +3813,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_bridi_relative_clause(
         &mut self,
@@ -3840,7 +3845,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_restrictive_bridi_relative_clause(
         &mut self,
@@ -3862,7 +3867,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_nonveridical_relative_bridi_clause(
         &mut self,
@@ -3891,7 +3896,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ))
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_nonveridical_relative_formula_for_selbri(
         &mut self,
@@ -3942,7 +3947,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_property_abstraction_for_co_selbri(co_selbri, source)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_subbridi(
         &mut self,
@@ -3960,7 +3965,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.relative_head = previous_relative_head;
         let formula = result?;
         if !contains_keha {
-            self.fill_first_elided_generated_formula_argument(formula, head)?;
+            self.fill_first_elided_generated_formula_argument_with_object(formula, head)?;
         }
         self.set_formula_predication_mode(formula, mode);
         Ok(RelativeClause::new(
@@ -3970,7 +3975,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ))
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_statement(
         &mut self,
@@ -3992,7 +3997,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.relative_head = previous_relative_head;
         let formula = result?;
         if !contains_keha {
-            self.fill_first_elided_generated_formula_argument(formula, head)?;
+            self.fill_first_elided_generated_formula_argument_with_object(formula, head)?;
         }
         self.set_formula_predication_mode(formula, mode);
         Ok(RelativeClause::new(
@@ -4235,7 +4240,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance)) || ret.is_err())]
     pub(super) fn build_generated_quoted_text_group(
         &mut self,
         text: &'tree TextSyntax,
@@ -4252,7 +4257,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let previous_previous_utterance = self.previous_utterance;
         let previous_next_utterance = self.next_utterance;
         let previous_quote_depth = self.current_quote_depth;
-        let quote_roles = self.build_fresh_quote_deictic_roles(source)?;
+        let quote_roles = self.build_fresh_quote_deictic_roles(source.clone())?;
         self.set_current_deictic_roles(quote_roles);
         self.current_utterance = None;
         self.previous_utterance = None;
@@ -4268,7 +4273,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 if items.is_empty() {
                     return Ok(None);
                 }
-                let root = if let [single] = items.as_slice() {
+                let discourse_item = if let [single] = items.as_slice() {
                     *single
                 } else {
                     let id = self.next_sequence_id();
@@ -4283,6 +4288,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     )?;
                     id
                 };
+                let root =
+                    self.wrap_generated_quoted_discourse_item_in_utterance(discourse_item, source)?;
                 if !marker_asides.is_empty() {
                     self.add_asides_to_generated_discourse_item(
                         root,
@@ -4291,7 +4298,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 Ok(Some(root))
             } else {
-                self.build_generated_standalone_asides(marker_asides)
+                self.build_generated_standalone_asides(marker_asides)?
+                    .map(|item| {
+                        self.wrap_generated_quoted_discourse_item_in_utterance(item, source)
+                    })
+                    .transpose()
             }
         })();
         self.set_current_deictic_roles(previous_roles);
@@ -4300,6 +4311,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.next_utterance = previous_next_utterance;
         self.current_quote_depth = previous_quote_depth;
         result
+    }
+
+    #[requires(matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence | crate::model::SemanticObjectKind::DisplayedContent))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance) || ret.is_err())]
+    pub(super) fn wrap_generated_quoted_discourse_item_in_utterance(
+        &mut self,
+        item: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if item.object_kind() == crate::model::SemanticObjectKind::Utterance {
+            return Ok(item);
+        }
+        let utterance = self.next_utterance_id();
+        self.insert_generated_utterance(utterance, UtteranceForce::Quote, Some(item), source)
     }
 
     #[requires(true)]
@@ -6338,8 +6363,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_connected_generated_sumti_referent<N: TreeNode>(
         &mut self,
@@ -6445,8 +6470,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_connected_generated_forethought_sumti_referent<N: TreeNode>(
         &mut self,
@@ -6522,8 +6547,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_connected_generated_extra_forethought_sumti_referent<N: TreeNode>(
         &mut self,
@@ -7650,8 +7675,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(operand.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(operand.object_kind()))]
     #[ensures(true)]
     pub(super) fn build_generated_possessive_association_clause<N: TreeNode>(
         &mut self,
@@ -8333,7 +8358,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         let jai_modal_argument =
-            self.build_generated_jai_modal_argument_for_referent(jai_unit, referent)?;
+            self.build_generated_jai_modal_argument_for_argument_object(jai_unit, referent)?;
         let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,

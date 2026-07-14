@@ -232,7 +232,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .map(|(utterance, _formula)| utterance),
             GeneratedTextRoot::TermsFragment(fragment) => {
                 let previous_asides = std::mem::take(&mut self.pending_asides);
-                let content = self.build_terms_fragment_referent(fragment);
+                let content = self.build_terms_fragment_content(fragment);
                 let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
                 let content = content?;
                 self.insert_generated_utterance(
@@ -340,7 +340,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let utterance_id = self.next_utterance_id();
                 self.current_utterance = Some(utterance_id);
                 let previous_asides = std::mem::take(&mut self.pending_asides);
-                let content = self.build_terms_fragment_referent(fragment);
+                let content = self.build_terms_fragment_content(fragment);
                 let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
                 let content = content?;
                 self.insert_generated_utterance(
@@ -1669,7 +1669,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let Some(_cmavo) = assignable_koha_cmavo_for_word(&source_word) else {
                 continue;
             };
-            if let Some(referent) = self.assigned_referents.get(&source_word).copied() {
+            if let Some(referent) =
+                self.assigned_referents
+                    .get(&source_word)
+                    .copied()
+                    .filter(|referent| {
+                        referent.object_kind() == crate::model::SemanticObjectKind::Referent
+                    })
+            {
                 rafsi_bindings.push(RafsiBinding::new(
                     rafsi.clone(),
                     Some(source_word),

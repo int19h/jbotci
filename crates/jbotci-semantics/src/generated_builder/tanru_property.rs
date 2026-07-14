@@ -384,8 +384,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     raised_referent,
                 )?;
             } else if let Some(raised_referent) = raised_referent
-                && let Some(modal_argument) =
-                    self.build_generated_jai_modal_argument_for_referent(unit, raised_referent)?
+                && let Some(modal_argument) = self
+                    .build_generated_jai_modal_argument_for_argument_object(unit, raised_referent)?
             {
                 linkarg_modal_arguments.push(modal_argument);
             }
@@ -1330,13 +1330,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         })
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(ret.as_ref().is_none_or(|members| !members.is_empty()))]
     pub(super) fn generated_respectively_composite_members(
         &self,
-        referent: SemanticObjectId,
+        argument_object: SemanticObjectId,
     ) -> Option<Vec<SemanticObjectId>> {
-        let object = self.objects.get(&referent)?;
+        let object = self.objects.get(&argument_object)?;
         if object.object_kind() != crate::model::SemanticObjectKind::Referent
             || object.referent_category() != Some(ReferentCategory::Composite)
         {
@@ -3033,7 +3033,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     pub(super) fn build_sumti_selbri_source_operand(
         &mut self,
         sumti: &'tree SumtiSelbriSumtiSyntax,
@@ -5242,7 +5242,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted) || ret.is_err())]
     pub(super) fn build_tagged_or_elided_sumti_argument<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax TaggedOrElidedSumtiSyntax,
@@ -5251,7 +5251,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted) || ret.is_err())]
     pub(super) fn build_tagged_or_elided_sumti_argument_with_visible_arguments<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax TaggedOrElidedSumtiSyntax,
@@ -5281,7 +5281,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted) || ret.is_err())]
     pub(super) fn build_tagged_or_elided_sumti_argument_with_predication_arguments<
         'syntax: 'tree,
     >(
