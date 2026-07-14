@@ -1340,8 +1340,44 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
+        "nonzero trial and frame components make every identity pair structurally valid",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoFailure",
+        "memo failures pair a valid parser error with independently optional replay and observation payloads",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplay",
+        "typed memo lookup validates the shared output before constructing replay position and side effects",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoRuleFrame",
+        "rule frames intentionally represent every partial accumulation and finalization stage during parser descent",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSideEffects",
+        "warning and diagnostic observation snapshots are independent replay payloads",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",
         "syntax memo values are type-erased parser outputs validated by typed downcast on lookup",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoSession",
+        "private trial allocation methods maintain the monotonic identity counter over the shared store",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoStore",
+        "private memo APIs maintain key, observation-node, and sensitivity-cache relationships",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoTrial",
+        "a nonzero trial identity and shared memo store are independently valid components",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
+        "observation child indices are finalized and checked by the enclosing memo store APIs",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",
