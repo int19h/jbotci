@@ -355,7 +355,7 @@ struct SyntaxDiagnosticObservations<'tokens> {
 }
 
 #[invariant(::Candidate(_) => true)]
-#[invariant(::Nested(_) => true)]
+#[invariant(::Nested(observations) => !observations.observations.is_empty())]
 #[derive(Debug, Clone)]
 enum SyntaxDiagnosticObservation<'tokens> {
     Candidate(SyntaxParseError<'tokens>),
@@ -729,7 +729,7 @@ impl<'tokens> ParserState<'tokens> {
             if let Some(observations) = diagnostic_observations {
                 parent
                     .diagnostic_observations
-                    .push(SyntaxDiagnosticObservation::Nested(observations));
+                    .push(new!(SyntaxDiagnosticObservation::Nested(observations)));
             }
         }
         frame.recovery_sensitive
@@ -861,7 +861,9 @@ impl<'tokens> ParserState<'tokens> {
             .last_mut()
             .expect("syntax memo rule frame is active")
             .diagnostic_observations
-            .push(SyntaxDiagnosticObservation::Nested(Rc::clone(observations)));
+            .push(new!(SyntaxDiagnosticObservation::Nested(Rc::clone(
+                observations
+            ))));
 
         if !self
             .replayed_syntax_diagnostic_observations
@@ -871,11 +873,11 @@ impl<'tokens> ParserState<'tokens> {
         }
         let mut pending = observations.observations.iter().rev().collect::<Vec<_>>();
         while let Some(observation) = pending.pop() {
-            match observation {
-                SyntaxDiagnosticObservation::Candidate(error) => {
+            match observation.as_data() {
+                data!(SyntaxDiagnosticObservation::Candidate(error)) => {
                     self.merge_diagnostic_candidate(error.clone());
                 }
-                SyntaxDiagnosticObservation::Nested(observations) => {
+                data!(SyntaxDiagnosticObservation::Nested(observations)) => {
                     if self
                         .replayed_syntax_diagnostic_observations
                         .insert(observations.id)
@@ -919,8 +921,9 @@ impl<'tokens> ParserState<'tokens> {
         if let Some(observations) = &frame.finalized_diagnostic_observations {
             return Some(Rc::clone(observations));
         }
-        if let [SyntaxDiagnosticObservation::Nested(observations)] =
-            frame.diagnostic_observations.as_slice()
+        if frame.diagnostic_observations.len() == 1
+            && let data!(SyntaxDiagnosticObservation::Nested(observations)) =
+                frame.diagnostic_observations[0].as_data()
         {
             return Some(Rc::clone(observations));
         }
@@ -1297,7 +1300,7 @@ impl<'tokens> ParserState<'tokens> {
         {
             frame
                 .diagnostic_observations
-                .push(SyntaxDiagnosticObservation::Candidate(error.clone()));
+                .push(new!(SyntaxDiagnosticObservation::Candidate(error.clone())));
         }
         self.merge_diagnostic_candidate(error);
     }
