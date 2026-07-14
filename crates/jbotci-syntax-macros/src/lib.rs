@@ -3081,21 +3081,20 @@ impl NodeRule {
             .arguments
             .iter()
             .map(|argument| quote!(let #argument = #argument.clone();));
-        // The selected body is constructed only when this rule is evaluated.
-        // Both factories statically dispatch their concrete parser, while the
-        // unselected body occupies no parser-graph storage and adds no dynamic
-        // frame to the plain recursive path.
+        // Construct the plain body once with the parser family. Recovery stays
+        // behind a factory so its much larger body occupies no parser-graph
+        // storage until this rule is evaluated on the cold recovery path.
         let parser_body = quote!({
             let __generated_recovered_factory = {
                 #(#recovered_factory_argument_clones)*
                 let __generated_free_modifier = __generated_free_modifier.clone();
                 move || #parser
             };
-            let __generated_plain_factory = move || #plain_parser;
+            let __generated_plain_parser = #plain_parser;
             generated_runtime::recovery_rule_parser(
                 #rule_name,
                 __generated_recovered_factory,
-                __generated_plain_factory,
+                __generated_plain_parser,
             )
             .map(|#pattern| #body)
         });

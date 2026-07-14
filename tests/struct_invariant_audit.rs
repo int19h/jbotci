@@ -1348,8 +1348,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "memo failures pair a valid parser error with independently optional replay and observation payloads",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplay",
-        "typed memo lookup validates the shared output before constructing replay position and side effects",
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",
+        "memo replay position and side effects are independently valid after typed output validation",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoRuleFrame",
@@ -1358,6 +1358,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSideEffects",
         "warning and diagnostic observation snapshots are independent replay payloads",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSuccessHit",
+        "memo lookup returns a valid stored success plus its observed trial-sensitivity classification",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",

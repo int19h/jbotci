@@ -296,6 +296,14 @@ impl fmt::Debug for SyntaxMemoValue {
     }
 }
 
+impl SyntaxMemoValue {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn from_shared(value: Rc<dyn Any>) -> Self {
+        Self { value }
+    }
+}
+
 #[invariant(start_location <= end_location, "memo success must not rewind input")]
 #[invariant(recovery_index <= consumed_recovery_directives)]
 #[invariant(effective_fail_token_indices.len() == consumed_recovery_directives - recovery_index)]
@@ -457,8 +465,21 @@ pub(super) struct SyntaxMemoContext {
 }
 
 #[invariant(true)]
-pub(super) struct SyntaxMemoReplay<'tokens, O> {
-    output: parser_core::SharedSyntaxOutput<O>,
+pub(super) struct SyntaxMemoSuccessHit<'tokens> {
+    memo: SyntaxMemoSuccess<'tokens>,
+    sensitive: bool,
+}
+
+impl SyntaxMemoSuccessHit<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn value(&self) -> Rc<dyn Any> {
+        Rc::clone(&self.memo.value.value)
+    }
+}
+
+#[invariant(true)]
+pub(super) struct SyntaxMemoReplayEffects<'tokens> {
     end_location: usize,
     side_effects: SyntaxMemoSideEffects<'tokens>,
 }
@@ -980,15 +1001,15 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[ensures(true)]
     // This method is called immediately before recursive rule descent. Keeping
-    // recovery memo replay out of the wasm caller bounds every rule frame even
-    // as replay bookkeeping evolves.
-    #[cfg_attr(target_arch = "wasm32", inline(never))]
-    pub(super) fn syntax_memo_success<O: 'static>(
+    // recovery memo lookup out of the caller bounds every rule frame while
+    // compiling the type-independent bookkeeping only once.
+    #[inline(never)]
+    pub(super) fn syntax_memo_success(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         context: SyntaxMemoContext,
-    ) -> Option<SyntaxMemoReplay<'tokens, O>> {
+    ) -> Option<SyntaxMemoSuccessHit<'tokens>> {
         let (memo, sensitive) = if let Some(trial) = &self.recovery_memo_trial {
             let store = trial.store.borrow();
             let insensitive = (!self.syntax_memo_rule_is_recovery_sensitive())
@@ -1026,16 +1047,25 @@ impl<'tokens> ParserState<'tokens> {
                 false,
             )
         };
+        Some(SyntaxMemoSuccessHit { memo, sensitive })
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    #[inline(never)]
+    pub(super) fn apply_syntax_memo_success(
+        &mut self,
+        hit: SyntaxMemoSuccessHit<'tokens>,
+    ) -> SyntaxMemoReplayEffects<'tokens> {
+        let SyntaxMemoSuccessHit { memo, sensitive } = hit;
         let data!(SyntaxMemoSuccess {
             end_location,
             consumed_recovery_directives,
             effective_fail_token_indices,
-            value,
             side_effects,
             rule_observation_node,
             ..
         }) = memo.into_data();
-        let value = Rc::clone(&value.value).downcast::<O>().ok()?;
         if sensitive {
             self.mark_syntax_memo_rule_recovery_sensitive();
             self.effective_fail_token_indices
@@ -1045,18 +1075,10 @@ impl<'tokens> ParserState<'tokens> {
         if let Some(node) = rule_observation_node {
             self.replay_syntax_rule_observation(node);
         }
-        let SyntaxMemoSideEffects {
-            warnings,
-            diagnostic_observations,
-        } = side_effects;
-        Some(SyntaxMemoReplay {
-            output: parser_core::SharedSyntaxOutput::from_shared(value),
+        SyntaxMemoReplayEffects {
             end_location,
-            side_effects: SyntaxMemoSideEffects {
-                warnings,
-                diagnostic_observations,
-            },
-        })
+            side_effects,
+        }
     }
 
     #[requires(!rule_name.is_empty())]
@@ -1129,14 +1151,14 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
     // wrapper; V8 reserves frame space for inlined locals across the descent.
-    #[cfg_attr(target_arch = "wasm32", inline(never))]
-    pub(super) fn store_syntax_memo_success<O: 'static>(
+    #[inline(never)]
+    pub(super) fn store_syntax_memo_success(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         context: SyntaxMemoContext,
         end_location: usize,
-        value: parser_core::SharedSyntaxOutput<O>,
+        value: SyntaxMemoValue,
         warnings: Vec<SyntaxWarning>,
     ) {
         let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
@@ -1151,7 +1173,6 @@ impl<'tokens> ParserState<'tokens> {
             );
             Vec::new()
         };
-        let value: Rc<dyn Any> = value.into_shared();
         let (rule_observation_node, diagnostic_observations) = self
             .recovery_memo_trial
             .is_some()
@@ -1163,7 +1184,7 @@ impl<'tokens> ParserState<'tokens> {
             recovery_index: context.recovery_index,
             consumed_recovery_directives: self.consumed_recovery_directives,
             effective_fail_token_indices,
-            value: SyntaxMemoValue { value },
+            value,
             side_effects: SyntaxMemoSideEffects {
                 warnings: warnings.into(),
                 diagnostic_observations,
@@ -1295,9 +1316,11 @@ impl<'tokens> ParserState<'tokens> {
         let error = error
             .with_active_contexts(&self.active_syntax_contexts)
             .with_active_rule_contexts(&self.active_syntax_rules);
-        if self.recovery_memo_trial.is_some()
-            && let Some(frame) = self.syntax_memo_rule_frames.last_mut()
-        {
+        if self.recovery_memo_trial.is_none() {
+            self.merge_strict_diagnostic_candidate(error);
+            return;
+        }
+        if let Some(frame) = self.syntax_memo_rule_frames.last_mut() {
             frame
                 .diagnostic_observations
                 .push(new!(SyntaxDiagnosticObservation::Candidate(error.clone())));
@@ -1305,7 +1328,36 @@ impl<'tokens> ParserState<'tokens> {
         self.merge_diagnostic_candidate(error);
     }
 
-    #[requires(true)]
+    #[requires(self.recovery_memo_trial.is_none())]
+    #[ensures(true)]
+    fn merge_strict_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
+        let Some(farthest_start) = self
+            .diagnostic_candidates
+            .first()
+            .map(|candidate| candidate.span().start)
+        else {
+            self.diagnostic_candidates.push(error);
+            return;
+        };
+        match error.span().start.cmp(&farthest_start) {
+            std::cmp::Ordering::Greater => {
+                self.diagnostic_candidates.clear();
+                self.diagnostic_candidates.push(error);
+            }
+            std::cmp::Ordering::Equal => {
+                if !self
+                    .diagnostic_candidates
+                    .iter()
+                    .any(|candidate| candidate.same_report_content(&error))
+                {
+                    self.diagnostic_candidates.push(error);
+                }
+            }
+            std::cmp::Ordering::Less => {}
+        }
+    }
+
+    #[requires(self.recovery_memo_trial.is_some())]
     #[ensures(true)]
     fn merge_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
         let Some(farthest_start) = self
@@ -1341,7 +1393,7 @@ impl<'tokens> ParserState<'tokens> {
         }
     }
 
-    #[requires(true)]
+    #[requires(self.recovery_memo_trial.is_some())]
     #[ensures(self.diagnostic_candidates.len() == old(self.diagnostic_candidates.len()) + 1)]
     fn push_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
         let hash = error.report_content_hash_for_dedup();
@@ -1369,12 +1421,14 @@ impl<'tokens> ParserState<'tokens> {
     ) {
         self.diagnostic_candidates = snapshot;
         self.diagnostic_candidate_hash_buckets.clear();
-        for (index, candidate) in self.diagnostic_candidates.iter().enumerate() {
-            if let Some(hash) = candidate.report_content_hash_for_dedup() {
-                self.diagnostic_candidate_hash_buckets
-                    .entry(hash)
-                    .or_default()
-                    .push(index);
+        if self.recovery_memo_trial.is_some() {
+            for (index, candidate) in self.diagnostic_candidates.iter().enumerate() {
+                if let Some(hash) = candidate.report_content_hash_for_dedup() {
+                    self.diagnostic_candidate_hash_buckets
+                        .entry(hash)
+                        .or_default()
+                        .push(index);
+                }
             }
         }
     }

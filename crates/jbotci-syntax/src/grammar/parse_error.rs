@@ -2,7 +2,6 @@
 use bityzba::{data, ensures, invariant, new, requires};
 use std::{
     borrow::Cow,
-    cell::Cell,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
@@ -130,7 +129,6 @@ pub(super) struct SyntaxParseErrorData<'tokens> {
     active_rule_contexts: SharedVec<SyntaxRuleFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
     same_position_branches: SharedVec<Arc<SyntaxParseError<'tokens>>>,
-    report_content_hash: Cell<Option<u64>>,
 }
 
 impl<'tokens> Deref for SyntaxParseError<'tokens> {
@@ -147,9 +145,7 @@ impl<'tokens> DerefMut for SyntaxParseError<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let data = Rc::make_mut(&mut self.data);
-        data.report_content_hash.set(None);
-        data
+        Rc::make_mut(&mut self.data)
     }
 }
 
@@ -235,7 +231,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
-            report_content_hash: Cell::new(None),
         })
     }
 
@@ -257,7 +252,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
-            report_content_hash: Cell::new(None),
         })
     }
 
@@ -281,7 +275,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
-            report_content_hash: Cell::new(None),
         })
     }
 
@@ -313,7 +306,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
-            report_content_hash: Cell::new(None),
         })
     }
 
@@ -527,15 +519,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if Rc::ptr_eq(&self.data, &other.data) {
             return true;
         }
-        if self
-            .report_content_hash_for_dedup()
-            .expect("branch-free errors have a report-content hash")
-            != other
-                .report_content_hash_for_dedup()
-                .expect("branch-free errors have a report-content hash")
-        {
-            return false;
-        }
         self.span == other.span
             && self.expected_groups == other.expected_groups
             && self.context_paths == other.context_paths
@@ -550,9 +533,6 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if !self.same_position_branches.is_empty() {
             return None;
         }
-        if let Some(hash) = self.report_content_hash.get() {
-            return Some(hash);
-        }
         let mut hasher = DefaultHasher::new();
         self.span.hash(&mut hasher);
         self.expected_groups.hash(&mut hasher);
@@ -562,9 +542,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context.construct().hash(&mut hasher);
             context.byte_start().hash(&mut hasher);
         }
-        let hash = hasher.finish();
-        self.report_content_hash.set(Some(hash));
-        Some(hash)
+        Some(hasher.finish())
     }
 
     #[requires(true)]
@@ -630,7 +608,6 @@ where
             active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
-            report_content_hash: Cell::new(None),
         })
     }
 
@@ -1533,16 +1510,17 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn report_content_hash_is_invalidated_by_copy_on_write_mutation() {
+    fn report_content_hash_tracks_copy_on_write_mutation() {
         let stored = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
         let mut replayed = stored.clone();
 
-        assert!(stored.report_content_hash_for_dedup().is_some());
-        assert!(stored.report_content_hash.get().is_some());
+        let stored_hash = stored
+            .report_content_hash_for_dedup()
+            .expect("branch-free errors have a report-content hash");
         in_context(&mut replayed, "sumti");
 
-        assert!(stored.report_content_hash.get().is_some());
-        assert!(replayed.report_content_hash.get().is_none());
+        assert_eq!(stored.report_content_hash_for_dedup(), Some(stored_hash));
+        assert_ne!(replayed.report_content_hash_for_dedup(), Some(stored_hash));
         assert!(!stored.same_report_content(&replayed));
     }
 

@@ -4,7 +4,7 @@ use bityzba::{contract_trait, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
-use std::cell::Cell;
+use std::{any::Any, cell::Cell, rc::Rc};
 
 pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
@@ -189,42 +189,40 @@ impl Default for SyntaxGrammarPolicy {
 
 #[invariant(!rule.is_empty())]
 #[derive(Clone)]
-struct RecoveryRuleParser<RF, PF, R, P, O> {
+struct RecoveryRuleParser<RF, R, P, O> {
     rule: &'static str,
     recovered_factory: RF,
-    plain_factory: PF,
-    parser_types: std::marker::PhantomData<fn() -> (R, P, O)>,
+    plain_parser: P,
+    parser_types: std::marker::PhantomData<fn() -> (R, O)>,
 }
 
 #[requires(!rule.is_empty())]
 #[ensures(true)]
-pub(crate) fn recovery_rule_parser<'tokens, O, R, P, RF, PF>(
+pub(crate) fn recovery_rule_parser<'tokens, O, R, P, RF>(
     rule: &'static str,
     recovered_factory: RF,
-    plain_factory: PF,
+    plain_parser: P,
 ) -> impl Parser<'tokens, O> + Clone
 where
     O: Clone,
     R: Parser<'tokens, O> + Clone,
     P: Parser<'tokens, O> + Clone,
     RF: Fn() -> R + Clone,
-    PF: Fn() -> P + Clone,
 {
     new!(RecoveryRuleParser {
         rule,
         recovered_factory,
-        plain_factory,
+        plain_parser,
         parser_types: std::marker::PhantomData,
     })
 }
 
 #[contract_trait]
-impl<'tokens, O, R, P, RF, PF> Parser<'tokens, O> for RecoveryRuleParser<RF, PF, R, P, O>
+impl<'tokens, O, R, P, RF> Parser<'tokens, O> for RecoveryRuleParser<RF, R, P, O>
 where
     R: Parser<'tokens, O>,
     P: Parser<'tokens, O>,
     RF: Fn() -> R,
-    PF: Fn() -> P,
 {
     #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
@@ -232,7 +230,7 @@ where
             mark_recovered_rule_path_cold();
             (self.recovered_factory)().drive_emit(input)
         } else {
-            (self.plain_factory)().drive_emit(input)
+            self.plain_parser.drive_emit(input)
         }
     }
 
@@ -242,7 +240,7 @@ where
             mark_recovered_rule_path_cold();
             (self.recovered_factory)().drive_check(input)
         } else {
-            (self.plain_factory)().drive_check(input)
+            self.plain_parser.drive_check(input)
         }
     }
 }
@@ -294,16 +292,19 @@ where
         if input.state().trace_enabled() {
             input.state().mark_syntax_memo_rule_recovery_sensitive();
         }
-        let replay = input
+        let replay_hit = input
             .state()
-            .syntax_memo_success::<O>(name, start_location, memo_context);
-        if let Some(replay) = replay {
+            .syntax_memo_success(name, start_location, memo_context);
+        if let Some(hit) = replay_hit
+            && let Ok(value) = hit.value().downcast::<O>()
+        {
+            let replay = input.state().apply_syntax_memo_success(hit);
             advance_to_location(input, replay.end_location);
             input
                 .state()
                 .replay_syntax_memo_side_effects(&replay.side_effects);
             input.state().finish_syntax_memo_rule_frame();
-            return Ok(replay.output);
+            return Ok(SharedSyntaxOutput::from_shared(value));
         }
         let failure = input
             .state()
@@ -364,12 +365,13 @@ where
                 let end_location = ParserInput::cursor_location(input.cursor().inner());
                 let warnings = input.state().warnings_since(warning_start);
                 let output = SharedSyntaxOutput::new(output);
+                let memo_value: Rc<dyn Any> = output.clone().into_shared();
                 input.state().store_syntax_memo_success(
                     name,
                     start_location,
                     memo_context,
                     end_location,
-                    output.clone(),
+                    super::SyntaxMemoValue::from_shared(memo_value),
                     warnings,
                 );
                 if track_recovery_branches {
