@@ -10,7 +10,10 @@ use super::tokens::{
     cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens,
     syntax_error_with_diagnostic_candidate,
 };
-use super::{BoxedParser, ParserState, RecoveryDirective, SyntaxParseError, SyntaxRuleFrame};
+use super::{
+    BoxedParser, ParserState, RecoveryDirective, SpannedToken, SyntaxParseError,
+    SyntaxRecoveryMemoSession, SyntaxRuleFrame,
+};
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
 };
@@ -3078,7 +3081,7 @@ pub mod generated_model {
 
     #[bityzba::invariant(true)]
     pub(crate) struct GeneratedRecoveredParsedText {
-        pub text: recovered::TextSyntax,
+        pub text: generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>,
         pub warnings: Vec<SyntaxWarning>,
     }
 
@@ -3089,6 +3092,29 @@ pub mod generated_model {
         pub unconsumed_directives: usize,
         pub recovery_directives: Vec<RecoveryDirective>,
         pub effective_fail_token_indices: Vec<usize>,
+    }
+
+    #[bityzba::invariant(true)]
+    pub(in crate::grammar) struct GeneratedRecoveryParseSession<'tokens> {
+        memo_session: SyntaxRecoveryMemoSession<'tokens>,
+        parser: BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>>,
+    }
+
+    impl<'tokens> GeneratedRecoveryParseSession<'tokens> {
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        pub(in crate::grammar) fn new() -> Self {
+            Self {
+                memo_session: SyntaxRecoveryMemoSession::new(),
+                parser: recovered_generated_text_parser_with_eof(),
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        pub(in crate::grammar) fn clear_memo(&mut self) {
+            self.memo_session.clear();
+        }
     }
 
     #[bityzba::requires(true)]
@@ -3197,7 +3223,7 @@ pub mod generated_model {
         }
     }
 
-    #[bityzba::requires(true)]
+    #[bityzba::requires(!directives.is_empty())]
     #[bityzba::ensures(true)]
     #[bityzba::ensures(ret.effective_fail_token_indices.len() + ret.unconsumed_directives == ret.recovery_directives.len())]
     pub(crate) fn parse_recovered_text_attempt(
@@ -3206,23 +3232,38 @@ pub mod generated_model {
         options: &ParseOptions,
         directives: &[RecoveryDirective],
     ) -> GeneratedRecoveredParsedTextAttempt {
-        let tokens = spanned_tokens(words);
-        let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
-        let mut state = ParserState::new_with_recovery(words, source, options, directives);
-        // Field-boundary recovery checks are only relevant to rules that own a
-        // directive. The generated parser uses this set to leave all other typed
-        // recovered rules on their lower-stack ordinary path.
-        let mut recovery_rules = directives
-            .iter()
-            .map(|directive| directive.rule)
-            .collect::<Vec<_>>();
-        recovery_rules.sort_unstable();
-        recovery_rules.dedup();
-        let result = recovered_generated_text_parser_with_eof(recovery_rules.into())
+        let parser_tokens = spanned_tokens(words);
+        let mut recovery_session = GeneratedRecoveryParseSession::new();
+        parse_recovered_text_attempt_with_session(
+            words,
+            &parser_tokens,
+            source,
+            options,
+            directives,
+            &mut recovery_session,
+        )
+    }
+
+    #[bityzba::requires(!directives.is_empty())]
+    #[bityzba::ensures(true)]
+    #[bityzba::ensures(ret.effective_fail_token_indices.len() + ret.unconsumed_directives == ret.recovery_directives.len())]
+    pub(in crate::grammar) fn parse_recovered_text_attempt_with_session<'tokens>(
+        words: &[Token],
+        parser_tokens: &'tokens [SpannedToken],
+        source: Option<&str>,
+        options: &ParseOptions,
+        directives: &[RecoveryDirective],
+        recovery_session: &mut GeneratedRecoveryParseSession<'tokens>,
+    ) -> GeneratedRecoveredParsedTextAttempt {
+        let eoi_offset = parser_tokens.last().map_or(0, |token| token.span.end);
+        let memo_trial = recovery_session.memo_session.begin_trial();
+        let trial_id = memo_trial.trial_id.get();
+        let mut state =
+            ParserState::new_with_recovery(words, source, options, directives, memo_trial);
+        let parser = recovery_session.parser.clone();
+        let result = parser
             .parse_with_state(
-                tokens
-                    .as_slice()
-                    .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
+                parser_tokens.split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
                 &mut state,
             )
             .into_result();
@@ -3233,9 +3274,10 @@ pub mod generated_model {
             )
         });
         let finish = state.finish();
+        recovery_session.memo_session.finish_trial(trial_id);
         let result = match result {
             Ok(text) => Ok(GeneratedRecoveredParsedText {
-                text: text.into_owned(),
+                text,
                 warnings: finish.warnings,
             }),
             Err(errors) => {
@@ -3299,13 +3341,11 @@ pub mod generated_model {
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    fn recovered_generated_text_parser_with_eof<'tokens>(
-        recovery_rules: std::sync::Arc<[&'static str]>,
-    ) -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>> {
+    fn recovered_generated_text_parser_with_eof<'tokens>()
+    -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>> {
+        let parser = recovered_generated_text_shared_parser();
         custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
-            let text = input.parse(&recovered_generated_text_shared_parser(
-                recovery_rules.clone(),
-            ))?;
+            let text = input.parse(&parser)?;
             input.parse(end()).map(|()| text)
         })
         .boxed()

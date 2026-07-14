@@ -6,6 +6,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     marker::PhantomData,
+    num::NonZeroUsize,
     rc::Rc,
     sync::Arc,
 };
@@ -116,14 +117,20 @@ impl SyntaxContextFrame {
 pub(super) struct SyntaxRuleFrame {
     rule: &'static str,
     byte_start: usize,
+    recovery_enabled: bool,
 }
 
 impl SyntaxRuleFrame {
     #[requires(!rule.is_empty())]
     #[ensures(ret.rule == rule)]
     #[ensures(ret.byte_start == byte_start)]
-    pub(super) fn new(rule: &'static str, byte_start: usize) -> Self {
-        new!(SyntaxRuleFrame { rule, byte_start })
+    #[ensures(ret.recovery_enabled == recovery_enabled)]
+    pub(super) fn new(rule: &'static str, byte_start: usize, recovery_enabled: bool) -> Self {
+        new!(SyntaxRuleFrame {
+            rule,
+            byte_start,
+            recovery_enabled,
+        })
     }
 
     #[requires(true)]
@@ -136,6 +143,12 @@ impl SyntaxRuleFrame {
     #[ensures(true)]
     pub(super) fn byte_start(&self) -> usize {
         self.byte_start
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.recovery_enabled)]
+    pub(super) fn recovery_enabled(&self) -> bool {
+        self.recovery_enabled
     }
 }
 
@@ -272,7 +285,8 @@ pub(super) struct SyntaxMemoValue {
 }
 
 type StrictSyntaxMemoKey = (&'static str, usize);
-type RecoverySyntaxMemoKey = (&'static str, usize, usize);
+type RecoverySyntaxMemoKey = (&'static str, usize, usize, usize);
+type RecoverySyntaxMemoInProgressKey = (&'static str, usize, usize);
 
 impl fmt::Debug for SyntaxMemoValue {
     #[requires(true)]
@@ -286,30 +300,166 @@ impl fmt::Debug for SyntaxMemoValue {
 #[invariant(recovery_index <= consumed_recovery_directives)]
 #[invariant(effective_fail_token_indices.len() == consumed_recovery_directives - recovery_index)]
 #[derive(Debug, Clone)]
-pub(super) struct SyntaxMemoSuccess {
+pub(super) struct SyntaxMemoSuccess<'tokens> {
     start_location: usize,
     end_location: usize,
     recovery_index: usize,
     consumed_recovery_directives: usize,
     effective_fail_token_indices: Vec<usize>,
     value: SyntaxMemoValue,
-    warnings: Rc<[SyntaxWarning]>,
+    side_effects: SyntaxMemoSideEffects<'tokens>,
+    rule_observation_node: Option<usize>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct SyntaxMemoFailure<'tokens> {
+    error: SyntaxParseError<'tokens>,
+    diagnostic_observations: Option<Rc<[SyntaxParseError<'tokens>]>>,
+    rule_observation_node: Option<usize>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct SyntaxMemoSideEffects<'tokens> {
+    warnings: Rc<[SyntaxWarning]>,
+    diagnostic_observations: Option<Rc<[SyntaxParseError<'tokens>]>>,
+}
+
+#[invariant(!rule.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SyntaxRuleObservation {
+    rule: &'static str,
+    instance_byte_start: usize,
+}
+
+#[invariant(true)]
+#[derive(Debug)]
+struct SyntaxRuleObservationNode {
+    observation: SyntaxRuleObservation,
+    children: Vec<usize>,
+}
+
+#[invariant(::Candidate(_) => true)]
+#[invariant(::Nested(_) => true)]
+#[derive(Debug, Clone)]
+enum SyntaxDiagnosticObservation<'tokens> {
+    Candidate(SyntaxParseError<'tokens>),
+    Nested(Rc<[SyntaxParseError<'tokens>]>),
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct SyntaxMemoRuleFrame<'tokens> {
+    recovery_sensitive: bool,
+    rule_observation: Option<SyntaxRuleObservation>,
+    child_rule_observation_nodes: Vec<usize>,
+    finalized_rule_observation_node: Option<usize>,
+    diagnostic_observations: Vec<SyntaxDiagnosticObservation<'tokens>>,
+    finalized_diagnostic_observations: Option<Rc<[SyntaxParseError<'tokens>]>>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct SyntaxRecoveryMemoStore<'tokens> {
+    insensitive_successes: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
+    sensitive_successes: HashMap<RecoverySyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
+    insensitive_failures: HashMap<StrictSyntaxMemoKey, SyntaxMemoFailure<'tokens>>,
+    sensitive_failures: HashMap<RecoverySyntaxMemoKey, SyntaxMemoFailure<'tokens>>,
+    rule_observation_nodes: Vec<SyntaxRuleObservationNode>,
+    rule_sensitivity_cache: RefCell<HashMap<SyntaxRuleObservation, Vec<Option<bool>>>>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+struct SyntaxRecoveryMemoTrial<'tokens> {
+    trial_id: NonZeroUsize,
+    store: Rc<RefCell<SyntaxRecoveryMemoStore<'tokens>>>,
+}
+
+#[invariant(true)]
+#[derive(Debug)]
+pub(super) struct SyntaxRecoveryMemoSession<'tokens> {
+    next_trial_id: NonZeroUsize,
+    store: Rc<RefCell<SyntaxRecoveryMemoStore<'tokens>>>,
+}
+
+impl<'tokens> SyntaxRecoveryMemoSession<'tokens> {
+    #[requires(true)]
+    #[ensures(ret.next_trial_id.get() == 1)]
+    #[ensures(ret.store.borrow().insensitive_successes.is_empty())]
+    pub(super) fn new() -> Self {
+        Self {
+            next_trial_id: NonZeroUsize::MIN,
+            store: Rc::new(RefCell::new(SyntaxRecoveryMemoStore::default())),
+        }
+    }
+
+    #[requires(self.next_trial_id.get() < usize::MAX)]
+    #[ensures(ret.trial_id == old(self.next_trial_id))]
+    #[ensures(self.next_trial_id.get() == old(self.next_trial_id.get()) + 1)]
+    fn begin_trial(&mut self) -> SyntaxRecoveryMemoTrial<'tokens> {
+        let trial = SyntaxRecoveryMemoTrial {
+            trial_id: self.next_trial_id,
+            store: Rc::clone(&self.store),
+        };
+        self.next_trial_id = NonZeroUsize::new(
+            self.next_trial_id
+                .get()
+                .checked_add(1)
+                .expect("recovery memo trial identity does not overflow"),
+        )
+        .expect("a positive recovery memo trial identity stays nonzero");
+        trial
+    }
+
+    #[requires(trial_id > 0)]
+    #[ensures(!self.store.borrow().sensitive_successes.keys().any(|(_, _, entry_trial_id, _)| *entry_trial_id == trial_id))]
+    #[ensures(!self.store.borrow().sensitive_failures.keys().any(|(_, _, entry_trial_id, _)| *entry_trial_id == trial_id))]
+    fn finish_trial(&mut self, trial_id: usize) {
+        let mut store = self.store.borrow_mut();
+        store
+            .sensitive_successes
+            .retain(|(_, _, entry_trial_id, _), _| *entry_trial_id != trial_id);
+        store
+            .sensitive_failures
+            .retain(|(_, _, entry_trial_id, _), _| *entry_trial_id != trial_id);
+    }
+
+    #[requires(true)]
+    #[ensures(self.store.borrow().insensitive_successes.is_empty())]
+    #[ensures(self.store.borrow().insensitive_failures.is_empty())]
+    fn clear(&mut self) {
+        *self.store.borrow_mut() = SyntaxRecoveryMemoStore::default();
+    }
+}
+
+#[invariant(recovery_trial_id.is_none() -> *recovery_index == 0)]
+#[derive(Debug, Clone, Copy)]
+pub(super) struct SyntaxMemoContext {
+    recovery_trial_id: Option<usize>,
+    recovery_index: usize,
+}
+
+#[invariant(true)]
+pub(super) struct SyntaxMemoReplay<'tokens, O> {
+    output: parser_core::SharedSyntaxOutput<O>,
+    end_location: usize,
+    side_effects: SyntaxMemoSideEffects<'tokens>,
+}
+
+#[derive(Debug, Clone)]
 #[invariant(true)]
 pub(super) struct ParserState<'tokens> {
     anchor_byte_starts: Vec<Option<usize>>,
     syntax_location_byte_offsets: Vec<usize>,
     cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
-    syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess>,
-    syntax_recovery_memo: HashMap<RecoverySyntaxMemoKey, SyntaxMemoSuccess>,
+    syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
     syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxParseError<'tokens>>,
-    // Failed recovered rules depend on the same directive-consumption index as
-    // successful recovered rules; caching them prevents exponential retries.
-    syntax_recovery_failure_memo: HashMap<RecoverySyntaxMemoKey, SyntaxParseError<'tokens>>,
     syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
-    syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoKey>,
+    syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
+    recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
+    syntax_memo_rule_frames: Vec<SyntaxMemoRuleFrame<'tokens>>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
@@ -350,11 +500,11 @@ impl<'tokens> ParserState<'tokens> {
             syntax_location_byte_offsets: syntax_location_byte_offsets(words),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
-            syntax_recovery_memo: HashMap::new(),
             syntax_failure_memo: HashMap::new(),
-            syntax_recovery_failure_memo: HashMap::new(),
             syntax_memo_in_progress: HashSet::new(),
             syntax_recovery_memo_in_progress: HashSet::new(),
+            recovery_memo_trial: None,
+            syntax_memo_rule_frames: Vec::new(),
             diagnostic_candidates: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
@@ -389,11 +539,13 @@ impl<'tokens> ParserState<'tokens> {
         source: Option<&str>,
         options: &ParseOptions,
         directives: &[RecoveryDirective],
+        memo_trial: SyntaxRecoveryMemoTrial<'tokens>,
     ) -> Self {
         let mut state = Self::new_with_recovery_branches(words, options);
         state.recovery_directives = directives.to_vec();
         state.recovery_tokens = words.to_vec();
         state.recovery_source = source.map(Arc::<str>::from);
+        state.recovery_memo_trial = Some(memo_trial);
         state
     }
 
@@ -426,6 +578,26 @@ impl<'tokens> ParserState<'tokens> {
         !self.recovery_directives.is_empty()
     }
 
+    #[requires(!rule.is_empty())]
+    #[ensures(ret == (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start)))]
+    pub(super) fn recovery_rule_enabled(
+        &self,
+        rule: &'static str,
+        instance_byte_start: usize,
+    ) -> bool {
+        self.active_recovery_directive
+            .as_ref()
+            .is_some_and(|active| {
+                active.directive.rule == rule
+                    && active.directive.instance_byte_start == instance_byte_start
+            })
+            || self.recovery_directives[self.consumed_recovery_directives..]
+                .iter()
+                .any(|directive| {
+                    directive.rule == rule && directive.instance_byte_start == instance_byte_start
+                })
+    }
+
     #[requires(true)]
     #[ensures(ret == self.track_recovery_branches)]
     pub(super) fn recovery_branch_tracking_enabled(&self) -> bool {
@@ -433,12 +605,311 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret == self.consumed_recovery_directives)]
-    pub(super) fn syntax_recovery_memo_index(&self) -> usize {
-        self.consumed_recovery_directives
+    #[ensures(ret.recovery_index == self.consumed_recovery_directives)]
+    #[ensures(ret.recovery_trial_id.is_some() == self.recovery_enabled())]
+    pub(super) fn syntax_memo_context(&self) -> SyntaxMemoContext {
+        new!(SyntaxMemoContext {
+            recovery_trial_id: self
+                .recovery_memo_trial
+                .as_ref()
+                .map(|trial| trial.trial_id.get()),
+            recovery_index: self.consumed_recovery_directives,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(self.syntax_memo_rule_frames.len() == old(self.syntax_memo_rule_frames.len()) + 1)]
+    #[ensures(!self.syntax_memo_rule_frames.last().map_or(true, |frame| frame.recovery_sensitive))]
+    pub(super) fn begin_syntax_memo_rule_frame(&mut self) {
+        self.syntax_memo_rule_frames.push(SyntaxMemoRuleFrame {
+            recovery_sensitive: false,
+            rule_observation: None,
+            child_rule_observation_nodes: Vec::new(),
+            finalized_rule_observation_node: None,
+            diagnostic_observations: Vec::new(),
+            finalized_diagnostic_observations: None,
+        });
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.recovery_sensitive))]
+    pub(super) fn mark_syntax_memo_rule_recovery_sensitive(&mut self) {
+        self.syntax_memo_rule_frames
+            .last_mut()
+            .expect("syntax memo rule frame is active")
+            .recovery_sensitive = true;
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(ret == self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.recovery_sensitive))]
+    fn syntax_memo_rule_is_recovery_sensitive(&self) -> bool {
+        self.syntax_memo_rule_frames
+            .last()
+            .expect("syntax memo rule frame is active")
+            .recovery_sensitive
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(self.syntax_memo_rule_frames.len() + 1 == old(self.syntax_memo_rule_frames.len()))]
+    pub(super) fn finish_syntax_memo_rule_frame(&mut self) -> bool {
+        let mut frame = self
+            .syntax_memo_rule_frames
+            .pop()
+            .expect("syntax memo rule frame is active");
+        let rule_observation_node = if frame.recovery_sensitive {
+            None
+        } else {
+            self.recovery_memo_trial.as_ref().and_then(|trial| {
+                let store = Rc::clone(&trial.store);
+                let mut store = store.borrow_mut();
+                Self::finalize_syntax_rule_observation(&mut frame, &mut store)
+            })
+        };
+        let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(&mut frame);
+        if let Some(parent) = self.syntax_memo_rule_frames.last_mut() {
+            if frame.recovery_sensitive {
+                parent.recovery_sensitive = true;
+            }
+            if let Some(node) = rule_observation_node {
+                parent.child_rule_observation_nodes.push(node);
+            }
+            if let Some(observations) = diagnostic_observations {
+                parent
+                    .diagnostic_observations
+                    .push(SyntaxDiagnosticObservation::Nested(observations));
+            }
+        }
+        frame.recovery_sensitive
+    }
+
+    #[requires(true)]
+    #[ensures(!self.syntax_memo_rule_frames.is_empty() -> self.syntax_memo_rule_frames.last().is_some_and(|frame| frame.recovery_sensitive))]
+    fn observe_recovery_directive_state(&mut self) {
+        if !self.syntax_memo_rule_frames.is_empty() {
+            self.mark_syntax_memo_rule_recovery_sensitive();
+        }
+    }
+
+    #[requires(!rule.is_empty())]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    pub(super) fn observe_syntax_rule(&mut self, rule: &'static str, instance_byte_start: usize) {
+        if self.recovery_memo_trial.is_none() {
+            return;
+        }
+        let frame = self
+            .syntax_memo_rule_frames
+            .last_mut()
+            .expect("syntax memo rule frame is active");
+        debug_assert!(frame.rule_observation.is_none());
+        frame.rule_observation = Some(new!(SyntaxRuleObservation {
+            rule,
+            instance_byte_start,
+        }));
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    fn replay_syntax_rule_observation(&mut self, node: usize) {
+        if self.recovery_memo_trial.is_none() {
+            return;
+        }
+        self.syntax_memo_rule_frames
+            .last_mut()
+            .expect("syntax memo rule frame is active")
+            .child_rule_observation_nodes
+            .push(node);
+    }
+
+    #[requires(node < store.rule_observation_nodes.len())]
+    #[ensures(true)]
+    fn syntax_rule_observations_are_insensitive(
+        &self,
+        store: &SyntaxRecoveryMemoStore<'tokens>,
+        node: usize,
+    ) -> bool {
+        if let Some(active) = &self.active_recovery_directive
+            && self.syntax_rule_observation_contains(
+                store,
+                node,
+                active.directive.rule,
+                active.directive.instance_byte_start,
+            )
+        {
+            return false;
+        }
+        self.recovery_directives[self.consumed_recovery_directives..]
+            .iter()
+            .all(|directive| {
+                !self.syntax_rule_observation_contains(
+                    store,
+                    node,
+                    directive.rule,
+                    directive.instance_byte_start,
+                )
+            })
+    }
+
+    #[requires(node < store.rule_observation_nodes.len())]
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    fn syntax_rule_observation_contains(
+        &self,
+        store: &SyntaxRecoveryMemoStore<'tokens>,
+        node: usize,
+        rule: &'static str,
+        instance_byte_start: usize,
+    ) -> bool {
+        let target = new!(SyntaxRuleObservation {
+            rule,
+            instance_byte_start,
+        });
+        let mut cache = store.rule_sensitivity_cache.borrow_mut();
+        let node_results = cache.entry(target).or_default();
+        node_results.resize(store.rule_observation_nodes.len(), None);
+        if let Some(cached) = node_results[node] {
+            return cached;
+        }
+
+        let mut pending = vec![(node, false)];
+        while let Some((node, children_visited)) = pending.pop() {
+            if node_results[node].is_some() {
+                continue;
+            }
+            let observation_node = &store.rule_observation_nodes[node];
+            let own_match = observation_node.observation.rule == rule
+                && observation_node.observation.instance_byte_start == instance_byte_start;
+            if own_match {
+                node_results[node] = Some(true);
+                continue;
+            }
+            if children_visited {
+                let child_match = observation_node
+                    .children
+                    .iter()
+                    .any(|child| node_results[*child].unwrap_or(false));
+                node_results[node] = Some(child_match);
+            } else {
+                pending.push((node, true));
+                pending.extend(
+                    observation_node.children.iter().filter_map(|child| {
+                        node_results[*child].is_none().then_some((*child, false))
+                    }),
+                );
+            }
+        }
+        node_results[node].expect("observation containment was computed")
+    }
+
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    pub(super) fn replay_syntax_diagnostic_observations(
+        &mut self,
+        observations: Option<&Rc<[SyntaxParseError<'tokens>]>>,
+    ) {
+        let Some(observations) = observations else {
+            return;
+        };
+        self.syntax_memo_rule_frames
+            .last_mut()
+            .expect("syntax memo rule frame is active")
+            .diagnostic_observations
+            .push(SyntaxDiagnosticObservation::Nested(Rc::clone(observations)));
+
+        for candidate in observations.iter() {
+            self.merge_diagnostic_candidate(candidate.clone());
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|node| node < store.rule_observation_nodes.len()))]
+    fn finalize_syntax_rule_observation(
+        frame: &mut SyntaxMemoRuleFrame<'tokens>,
+        store: &mut SyntaxRecoveryMemoStore<'tokens>,
+    ) -> Option<usize> {
+        if let Some(node) = frame.finalized_rule_observation_node {
+            return Some(node);
+        }
+        let Some(observation) = frame.rule_observation.clone() else {
+            debug_assert!(frame.child_rule_observation_nodes.len() <= 1);
+            return frame.child_rule_observation_nodes.first().copied();
+        };
+        let node = store.rule_observation_nodes.len();
+        store
+            .rule_observation_nodes
+            .push(SyntaxRuleObservationNode {
+                observation,
+                children: frame.child_rule_observation_nodes.clone(),
+            });
+        frame.finalized_rule_observation_node = Some(node);
+        Some(node)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|observations| !observations.is_empty()))]
+    fn finalize_syntax_diagnostic_observations(
+        frame: &mut SyntaxMemoRuleFrame<'tokens>,
+    ) -> Option<Rc<[SyntaxParseError<'tokens>]>> {
+        if let Some(observations) = &frame.finalized_diagnostic_observations {
+            return Some(Rc::clone(observations));
+        }
+        if let [SyntaxDiagnosticObservation::Nested(observations)] =
+            frame.diagnostic_observations.as_slice()
+        {
+            return Some(Rc::clone(observations));
+        }
+        if frame.diagnostic_observations.is_empty() {
+            return None;
+        }
+        let mut candidates = Vec::new();
+        for observation in &frame.diagnostic_observations {
+            match observation {
+                SyntaxDiagnosticObservation::Candidate(error) => {
+                    Self::merge_diagnostic_candidate_into(&mut candidates, error.clone());
+                }
+                SyntaxDiagnosticObservation::Nested(observations) => {
+                    for error in observations.iter() {
+                        Self::merge_diagnostic_candidate_into(&mut candidates, error.clone());
+                    }
+                }
+            }
+        }
+        let observations = Rc::from(candidates);
+        frame.finalized_diagnostic_observations = Some(Rc::clone(&observations));
+        Some(observations)
+    }
+
+    #[requires(self.recovery_memo_trial.is_some())]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(ret.0.is_some() == !self.syntax_memo_rule_is_recovery_sensitive())]
+    fn current_syntax_memo_observations(
+        &mut self,
+    ) -> (Option<usize>, Option<Rc<[SyntaxParseError<'tokens>]>>) {
+        let store = Rc::clone(
+            &self
+                .recovery_memo_trial
+                .as_ref()
+                .expect("recovery memo trial is active")
+                .store,
+        );
+        let frame = self
+            .syntax_memo_rule_frames
+            .last_mut()
+            .expect("syntax memo rule frame is active");
+        let rule_observation_node = if frame.recovery_sensitive {
+            None
+        } else {
+            Some(
+                Self::finalize_syntax_rule_observation(frame, &mut store.borrow_mut())
+                    .expect("a freshly evaluated insensitive recovery rule records itself"),
+            )
+        };
+        let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(frame);
+        (rule_observation_node, diagnostic_observations)
     }
 
     #[requires(!rule_name.is_empty())]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[ensures(true)]
     // This method is called immediately before recursive rule descent. Keeping
     // recovery memo replay out of the wasm caller bounds every rule frame even
@@ -448,62 +919,146 @@ impl<'tokens> ParserState<'tokens> {
         &mut self,
         rule_name: &'static str,
         start_location: usize,
-        recovery_index: usize,
-    ) -> Option<(
-        parser_core::SharedSyntaxOutput<O>,
-        usize,
-        Rc<[SyntaxWarning]>,
-    )> {
-        if self.recovery_enabled() {
-            let memo =
-                self.syntax_recovery_memo
-                    .get(&(rule_name, start_location, recovery_index))?;
-            let value = Rc::clone(&memo.value.value).downcast::<O>().ok()?;
-            let value = parser_core::SharedSyntaxOutput::from_shared(value);
-            let end_location = memo.end_location;
-            let warnings = Rc::clone(&memo.warnings);
-            let consumed_recovery_directives = memo.consumed_recovery_directives;
-            self.effective_fail_token_indices
-                .extend_from_slice(&memo.effective_fail_token_indices);
-            self.consumed_recovery_directives = consumed_recovery_directives;
-            return Some((value, end_location, warnings));
-        }
-        let (value, end_location, warnings) = {
-            let memo = self.syntax_memo.get(&(rule_name, start_location))?;
-            let value = Rc::clone(&memo.value.value).downcast::<O>().ok()?;
-            let value = parser_core::SharedSyntaxOutput::from_shared(value);
-            (value, memo.end_location, Rc::clone(&memo.warnings))
+        context: SyntaxMemoContext,
+    ) -> Option<SyntaxMemoReplay<'tokens, O>> {
+        let (memo, sensitive) = if let Some(trial) = &self.recovery_memo_trial {
+            let store = trial.store.borrow();
+            let insensitive = (!self.syntax_memo_rule_is_recovery_sensitive())
+                .then(|| {
+                    store
+                        .insensitive_successes
+                        .get(&(rule_name, start_location))
+                        .filter(|memo| {
+                            self.syntax_rule_observations_are_insensitive(
+                                &store,
+                                memo.rule_observation_node
+                                    .expect("recovery memo entries record rule observations"),
+                            )
+                        })
+                        .cloned()
+                })
+                .flatten();
+            if let Some(memo) = insensitive {
+                (memo, false)
+            } else {
+                let trial_id = context
+                    .recovery_trial_id
+                    .expect("recovered memo context has a trial identity");
+                let memo = store.sensitive_successes.get(&(
+                    rule_name,
+                    start_location,
+                    trial_id,
+                    context.recovery_index,
+                ))?;
+                (memo.clone(), true)
+            }
+        } else {
+            (
+                self.syntax_memo.get(&(rule_name, start_location))?.clone(),
+                false,
+            )
         };
-        Some((value, end_location, warnings))
+        let data!(SyntaxMemoSuccess {
+            end_location,
+            consumed_recovery_directives,
+            effective_fail_token_indices,
+            value,
+            side_effects,
+            rule_observation_node,
+            ..
+        }) = memo.into_data();
+        let value = Rc::clone(&value.value).downcast::<O>().ok()?;
+        if sensitive {
+            self.mark_syntax_memo_rule_recovery_sensitive();
+            self.effective_fail_token_indices
+                .extend_from_slice(&effective_fail_token_indices);
+            self.consumed_recovery_directives = consumed_recovery_directives;
+        }
+        if let Some(node) = rule_observation_node {
+            self.replay_syntax_rule_observation(node);
+        }
+        let SyntaxMemoSideEffects {
+            warnings,
+            diagnostic_observations,
+        } = side_effects;
+        Some(SyntaxMemoReplay {
+            output: parser_core::SharedSyntaxOutput::from_shared(value),
+            end_location,
+            side_effects: SyntaxMemoSideEffects {
+                warnings,
+                diagnostic_observations,
+            },
+        })
     }
 
     #[requires(!rule_name.is_empty())]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[ensures(true)]
     pub(super) fn syntax_memo_failure(
-        &self,
+        &mut self,
         rule_name: &'static str,
         start_location: usize,
-        recovery_index: usize,
-    ) -> Option<SyntaxParseError<'tokens>> {
-        if self.recovery_enabled() {
-            return self
-                .syntax_recovery_failure_memo
-                .get(&(rule_name, start_location, recovery_index))
-                .cloned();
+        context: SyntaxMemoContext,
+    ) -> Option<SyntaxMemoFailure<'tokens>> {
+        if let Some(trial) = &self.recovery_memo_trial {
+            let hit = {
+                let store = trial.store.borrow();
+                if !self.syntax_memo_rule_is_recovery_sensitive()
+                    && let Some(failure) = store
+                        .insensitive_failures
+                        .get(&(rule_name, start_location))
+                        .filter(|failure| {
+                            self.syntax_rule_observations_are_insensitive(
+                                &store,
+                                failure
+                                    .rule_observation_node
+                                    .expect("recovery memo entries record rule observations"),
+                            )
+                        })
+                {
+                    Some((failure.clone(), false))
+                } else {
+                    let trial_id = context
+                        .recovery_trial_id
+                        .expect("recovered memo context has a trial identity");
+                    store
+                        .sensitive_failures
+                        .get(&(rule_name, start_location, trial_id, context.recovery_index))
+                        .cloned()
+                        .map(|failure| (failure, true))
+                }
+            }?;
+            let (failure, sensitive) = hit;
+            if sensitive {
+                self.mark_syntax_memo_rule_recovery_sensitive();
+            }
+            if let Some(node) = failure.rule_observation_node {
+                self.replay_syntax_rule_observation(node);
+            } else {
+                debug_assert!(
+                    sensitive,
+                    "only sensitive memo entries omit rule observations"
+                );
+            }
+            return Some(failure);
         }
-        let _ = recovery_index;
         self.syntax_failure_memo
             .get(&(rule_name, start_location))
             .cloned()
+            .map(|error| SyntaxMemoFailure {
+                error,
+                diagnostic_observations: None,
+                rule_observation_node: None,
+            })
     }
 
     #[requires(!rule_name.is_empty())]
     #[requires(end_location >= start_location)]
-    #[requires(recovery_index <= self.consumed_recovery_directives)]
+    #[requires(context.recovery_index <= self.consumed_recovery_directives)]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
-    #[ensures(!self.recovery_enabled() || self.syntax_recovery_memo.contains_key(&(rule_name, start_location, recovery_index)))]
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
     // wrapper; V8 reserves frame space for inlined locals across the descent.
     #[cfg_attr(target_arch = "wasm32", inline(never))]
@@ -511,51 +1066,103 @@ impl<'tokens> ParserState<'tokens> {
         &mut self,
         rule_name: &'static str,
         start_location: usize,
-        recovery_index: usize,
+        context: SyntaxMemoContext,
         end_location: usize,
         value: parser_core::SharedSyntaxOutput<O>,
         warnings: Vec<SyntaxWarning>,
     ) {
-        let effective_fail_token_indices = self.effective_fail_token_indices
-            [recovery_index..self.consumed_recovery_directives]
-            .to_vec();
+        let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
+        let effective_fail_token_indices = if sensitive {
+            self.effective_fail_token_indices
+                [context.recovery_index..self.consumed_recovery_directives]
+                .to_vec()
+        } else {
+            debug_assert_eq!(
+                context.recovery_index, self.consumed_recovery_directives,
+                "an insensitive rule cannot consume recovery directives"
+            );
+            Vec::new()
+        };
         let value: Rc<dyn Any> = value.into_shared();
+        let (rule_observation_node, diagnostic_observations) = self
+            .recovery_memo_trial
+            .is_some()
+            .then(|| self.current_syntax_memo_observations())
+            .unwrap_or((None, None));
         let success = new!(SyntaxMemoSuccess {
             start_location,
             end_location,
-            recovery_index,
+            recovery_index: context.recovery_index,
             consumed_recovery_directives: self.consumed_recovery_directives,
             effective_fail_token_indices,
             value: SyntaxMemoValue { value },
-            warnings: warnings.into(),
+            side_effects: SyntaxMemoSideEffects {
+                warnings: warnings.into(),
+                diagnostic_observations,
+            },
+            rule_observation_node,
         });
-        if self.recovery_enabled() {
-            self.syntax_recovery_memo
-                .insert((rule_name, start_location, recovery_index), success);
+        if let Some(trial) = &self.recovery_memo_trial {
+            let mut store = trial.store.borrow_mut();
+            if sensitive {
+                let trial_id = context
+                    .recovery_trial_id
+                    .expect("recovered memo context has a trial identity");
+                store.sensitive_successes.insert(
+                    (rule_name, start_location, trial_id, context.recovery_index),
+                    success,
+                );
+            } else {
+                store
+                    .insensitive_successes
+                    .insert((rule_name, start_location), success);
+            }
         } else {
-            let _ = recovery_index;
             self.syntax_memo
                 .insert((rule_name, start_location), success);
         }
     }
 
     #[requires(!rule_name.is_empty())]
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
-    #[ensures(!self.recovery_enabled() || self.syntax_recovery_failure_memo.contains_key(&(rule_name, start_location, recovery_index)))]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
-        recovery_index: usize,
+        context: SyntaxMemoContext,
         error: SyntaxParseError<'tokens>,
     ) {
-        if self.recovery_enabled() {
-            self.syntax_recovery_failure_memo
-                .insert((rule_name, start_location, recovery_index), error);
+        let sensitive = self.syntax_memo_rule_is_recovery_sensitive();
+        let observations = self
+            .recovery_memo_trial
+            .is_some()
+            .then(|| self.current_syntax_memo_observations());
+        if let Some(trial) = &self.recovery_memo_trial {
+            let (rule_observation_node, diagnostic_observations) =
+                observations.expect("recovery memo observations were finalized");
+            let failure = SyntaxMemoFailure {
+                error,
+                diagnostic_observations,
+                rule_observation_node,
+            };
+            let mut store = trial.store.borrow_mut();
+            if sensitive {
+                let trial_id = context
+                    .recovery_trial_id
+                    .expect("recovered memo context has a trial identity");
+                store.sensitive_failures.insert(
+                    (rule_name, start_location, trial_id, context.recovery_index),
+                    failure,
+                );
+            } else {
+                store
+                    .insensitive_failures
+                    .insert((rule_name, start_location), failure);
+            }
             return;
         }
-        let _ = recovery_index;
         self.syntax_failure_memo
             .insert((rule_name, start_location), error);
     }
@@ -563,21 +1170,20 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule_name.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(ret && !self.recovery_enabled() -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
-    #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, recovery_index)))]
+    #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.recovery_index)))]
     pub(super) fn enter_syntax_memo_rule(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
-        recovery_index: usize,
+        context: SyntaxMemoContext,
     ) -> bool {
         if self.recovery_enabled() {
             self.syntax_recovery_memo_in_progress.insert((
                 rule_name,
                 start_location,
-                recovery_index,
+                context.recovery_index,
             ))
         } else {
-            let _ = recovery_index;
             self.syntax_memo_in_progress
                 .insert((rule_name, start_location))
         }
@@ -585,24 +1191,33 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule_name.is_empty())]
     #[ensures(!self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
-    #[ensures(!self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, recovery_index)))]
+    #[ensures(!self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.recovery_index)))]
     pub(super) fn exit_syntax_memo_rule(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
-        recovery_index: usize,
+        context: SyntaxMemoContext,
     ) {
         if self.recovery_enabled() {
             self.syntax_recovery_memo_in_progress.remove(&(
                 rule_name,
                 start_location,
-                recovery_index,
+                context.recovery_index,
             ));
         } else {
-            let _ = recovery_index;
             self.syntax_memo_in_progress
                 .remove(&(rule_name, start_location));
         }
+    }
+
+    #[requires(true)]
+    #[ensures(self.warnings.len() == old(self.warnings.len()) + side_effects.warnings.len())]
+    pub(super) fn replay_syntax_memo_side_effects(
+        &mut self,
+        side_effects: &SyntaxMemoSideEffects<'tokens>,
+    ) {
+        self.warnings.extend_from_slice(&side_effects.warnings);
+        self.replay_syntax_diagnostic_observations(side_effects.diagnostic_observations.as_ref());
     }
 
     #[requires(true)]
@@ -611,26 +1226,44 @@ impl<'tokens> ParserState<'tokens> {
         let error = error
             .with_active_contexts(&self.active_syntax_contexts)
             .with_active_rule_contexts(&self.active_syntax_rules);
-        let Some(farthest_start) = self
-            .diagnostic_candidates
-            .first()
-            .map(|candidate| candidate.span().start)
+        if self.recovery_memo_trial.is_some()
+            && let Some(frame) = self.syntax_memo_rule_frames.last_mut()
+        {
+            frame
+                .diagnostic_observations
+                .push(SyntaxDiagnosticObservation::Candidate(error.clone()));
+        }
+        self.merge_diagnostic_candidate(error);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn merge_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
+        Self::merge_diagnostic_candidate_into(&mut self.diagnostic_candidates, error);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn merge_diagnostic_candidate_into(
+        candidates: &mut Vec<SyntaxParseError<'tokens>>,
+        error: SyntaxParseError<'tokens>,
+    ) {
+        let Some(farthest_start) = candidates.first().map(|candidate| candidate.span().start)
         else {
-            self.diagnostic_candidates.push(error);
+            candidates.push(error);
             return;
         };
         match error.span().start.cmp(&farthest_start) {
             std::cmp::Ordering::Greater => {
-                self.diagnostic_candidates.clear();
-                self.diagnostic_candidates.push(error);
+                candidates.clear();
+                candidates.push(error);
             }
             std::cmp::Ordering::Equal => {
-                if !self
-                    .diagnostic_candidates
+                if !candidates
                     .iter()
                     .any(|candidate| candidate.same_report_content(&error))
                 {
-                    self.diagnostic_candidates.push(error);
+                    candidates.push(error);
                 }
             }
             std::cmp::Ordering::Less => {}
@@ -665,7 +1298,7 @@ impl<'tokens> ParserState<'tokens> {
             .filter(|candidate| candidate.span().start == start)
             .cloned()
             .collect::<Vec<_>>();
-        self.diagnostic_candidates = snapshot;
+        self.restore_diagnostic_candidates(snapshot);
         for candidate in preserved {
             self.record_diagnostic_candidate(candidate);
         }
@@ -689,8 +1322,9 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule.is_empty())]
     #[ensures(self.active_syntax_rules.len() == old(self.active_syntax_rules.len()) + 1)]
     pub(super) fn push_syntax_rule(&mut self, rule: &'static str, byte_start: usize) {
+        let recovery_enabled = self.recovery_rule_enabled(rule, byte_start);
         self.active_syntax_rules
-            .push(SyntaxRuleFrame::new(rule, byte_start));
+            .push(SyntaxRuleFrame::new(rule, byte_start, recovery_enabled));
     }
 
     #[requires(!self.active_syntax_rules.is_empty())]
@@ -791,6 +1425,7 @@ impl<'tokens> ParserState<'tokens> {
         field_can_be_absent: bool,
         allow_earlier_natural_stop: bool,
     ) -> Option<RecoveryFieldAction> {
+        self.observe_recovery_directive_state();
         if self.active_recovery_directive.is_none() {
             let directive_index = self.consumed_recovery_directives;
             let directive = self.recovery_directives.get(directive_index)?.clone();
@@ -885,6 +1520,7 @@ impl<'tokens> ParserState<'tokens> {
         field_index: usize,
         input_location: usize,
     ) -> Option<(SyntaxRecoveryItem, usize)> {
+        self.observe_recovery_directive_state();
         if self.active_recovery_directive.is_some() {
             return None;
         }
@@ -1435,13 +2071,22 @@ fn recover_after_strict_failure(
     mut trace: Option<TraceReport>,
 ) -> RecoveredSyntaxParseAttempt {
     let cap = options.max_recovery_errors.get();
+    let parser_tokens = tokens::spanned_tokens(&tokens);
+    let recovery_token_scan = RecoveryTokenScan::new(&tokens);
+    let mut recovery_session = generated::generated_model::GeneratedRecoveryParseSession::new();
     let initial_failure = failure.clone();
     let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
 
     while errors.len() < cap {
-        let candidates = select_recovery_directives(&tokens, &failure, options, errors.len() - 1);
+        let candidates = select_recovery_directives(
+            &tokens,
+            &recovery_token_scan,
+            &failure,
+            options,
+            errors.len() - 1,
+        );
         if errors.len() == 1 {
             initial_has_anchor_candidates = !candidates.is_empty();
         }
@@ -1482,11 +2127,13 @@ fn recover_after_strict_failure(
                 let mut trial_directives = directives.clone();
                 trial_directives.push(directive.clone());
 
-                let attempt = generated::generated_model::parse_recovered_text_attempt(
+                let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
                     &tokens,
+                    &parser_tokens,
                     source,
                     options,
                     &trial_directives,
+                    &mut recovery_session,
                 );
                 let generated::generated_model::GeneratedRecoveredParsedTextAttempt {
                     result,
@@ -1503,19 +2150,12 @@ fn recover_after_strict_failure(
                     });
                 match result {
                     Ok(parsed) if unconsumed_directives == 0 => {
-                        let success = RecoveredSyntaxParseAttempt {
-                            result: new!(RecoveredSyntaxParse {
-                                parse_tree: Box::new(parsed.text),
-                                errors: errors.clone(),
-                                warnings: parsed.warnings,
-                            }),
-                            trace: attempt_trace,
-                        };
                         if !natural_stop_enabled || fired_left_of_declared_failure {
-                            return success;
+                            recovery_session.clear_memo();
+                            return recovered_success(parsed, &errors, attempt_trace);
                         }
                         if !directives.is_empty() && exact_position_success.is_none() {
-                            exact_position_success = Some(success);
+                            exact_position_success = Some((parsed, attempt_trace));
                         }
                     }
                     Ok(_) => {
@@ -1552,8 +2192,9 @@ fn recover_after_strict_failure(
         // priority. After prior progress, if none fires left of the next
         // declared failure, a late exact-site success is still a complete
         // recovery and is preferable to degrading the entire parse.
-        if let Some(success) = exact_position_success {
-            return success;
+        if let Some((parsed, attempt_trace)) = exact_position_success {
+            recovery_session.clear_memo();
+            return recovered_success(parsed, &errors, attempt_trace);
         }
 
         let Some(progress) = accepted_progress else {
@@ -1577,11 +2218,14 @@ fn recover_after_strict_failure(
             options,
             &initial_failure,
             &errors,
+            &parser_tokens,
+            &mut recovery_session,
         ) {
             return recovered;
         }
     }
 
+    recovery_session.clear_memo();
     let parse_tree = degraded_recovered_text(&tokens, source, &errors);
     RecoveredSyntaxParseAttempt {
         result: new!(RecoveredSyntaxParse {
@@ -1594,20 +2238,41 @@ fn recover_after_strict_failure(
 }
 
 #[requires(!errors.is_empty())]
+#[ensures(!ret.result.errors.is_empty())]
+fn recovered_success(
+    parsed: generated::generated_model::GeneratedRecoveredParsedText,
+    errors: &[SyntaxError],
+    trace: Option<TraceReport>,
+) -> RecoveredSyntaxParseAttempt {
+    RecoveredSyntaxParseAttempt {
+        result: new!(RecoveredSyntaxParse {
+            parse_tree: Box::new(parsed.text.into_owned()),
+            errors: errors.to_vec(),
+            warnings: parsed.warnings,
+        }),
+        trace,
+    }
+}
+
+#[requires(!errors.is_empty())]
 #[ensures(ret.as_ref().is_none_or(|attempt| !attempt.result.errors.is_empty()))]
-fn try_final_recovery_from_initial_failure(
+fn try_final_recovery_from_initial_failure<'tokens>(
     tokens: &[Token],
     source: Option<&str>,
     options: &ParseOptions,
     initial_failure: &generated::generated_model::GeneratedParseFailure,
     errors: &[SyntaxError],
+    parser_tokens: &'tokens [SpannedToken],
+    recovery_session: &mut generated::generated_model::GeneratedRecoveryParseSession<'tokens>,
 ) -> Option<RecoveredSyntaxParseAttempt> {
     for directive in select_final_recovery_directives(tokens, initial_failure, 0) {
-        let attempt = generated::generated_model::parse_recovered_text_attempt(
+        let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
             tokens,
+            parser_tokens,
             source,
             options,
             std::slice::from_ref(&directive),
+            recovery_session,
         );
         let generated::generated_model::GeneratedRecoveredParsedTextAttempt {
             result,
@@ -1618,9 +2283,10 @@ fn try_final_recovery_from_initial_failure(
         if let Ok(parsed) = result
             && unconsumed_directives == 0
         {
+            recovery_session.clear_memo();
             return Some(RecoveredSyntaxParseAttempt {
                 result: new!(RecoveredSyntaxParse {
-                    parse_tree: Box::new(parsed.text),
+                    parse_tree: Box::new(parsed.text.into_owned()),
                     errors: errors.to_vec(),
                     warnings: parsed.warnings,
                 }),
@@ -1659,10 +2325,66 @@ struct RecoveryProgressTrial {
     trace: Option<TraceReport>,
 }
 
+#[invariant(cmavo.len() == opens_subtext_container.len())]
+#[invariant(cmavo.len() == closes_subtext_container.len())]
+#[invariant(container_depth_before.len() == cmavo.len() + 1)]
+struct RecoveryTokenScan {
+    cmavo: Vec<Option<Cmavo>>,
+    opens_subtext_container: Vec<bool>,
+    closes_subtext_container: Vec<bool>,
+    container_depth_before: Vec<usize>,
+}
+
+impl RecoveryTokenScan {
+    #[requires(true)]
+    #[ensures(ret.cmavo.len() == tokens.len())]
+    #[ensures(ret.container_depth_before.len() == tokens.len() + 1)]
+    fn new(tokens: &[Token]) -> Self {
+        let cmavo = tokens.iter().map(Token::cmavo).collect::<Vec<_>>();
+        let opens_subtext_container = cmavo
+            .iter()
+            .map(|cmavo| token_cmavo_opens_subtext_container(*cmavo))
+            .collect::<Vec<_>>();
+        let closes_subtext_container = cmavo
+            .iter()
+            .map(|cmavo| token_cmavo_closes_subtext_container(*cmavo))
+            .collect::<Vec<_>>();
+        let mut container_depth_before = Vec::with_capacity(tokens.len() + 1);
+        let mut depth = 0usize;
+        container_depth_before.push(depth);
+        for (opens, closes) in opens_subtext_container
+            .iter()
+            .zip(&closes_subtext_container)
+        {
+            if *closes && depth > 0 {
+                depth -= 1;
+            }
+            if *opens {
+                depth += 1;
+            }
+            container_depth_before.push(depth);
+        }
+        new!(RecoveryTokenScan {
+            cmavo,
+            opens_subtext_container,
+            closes_subtext_container,
+            container_depth_before,
+        })
+    }
+
+    #[requires(index <= self.cmavo.len())]
+    #[ensures(true)]
+    fn container_depth_before(&self, index: usize) -> usize {
+        self.container_depth_before[index]
+    }
+}
+
 #[requires(true)]
+#[requires(scan.cmavo.len() == tokens.len())]
 #[ensures(ret.iter().all(|directive| directive.fail_token_index <= directive.resume_token_index))]
 fn select_recovery_directives(
     tokens: &[Token],
+    scan: &RecoveryTokenScan,
     failure: &generated::generated_model::GeneratedParseFailure,
     options: &ParseOptions,
     error_index: usize,
@@ -1695,10 +2417,9 @@ fn select_recovery_directives(
                         continue;
                     }
                     let frame_token_index = token_index_for_byte_start(tokens, frame.byte_start());
-                    let frame_container_depth =
-                        subtext_container_depth_before(tokens, frame_token_index);
+                    let frame_container_depth = scan.container_depth_before(frame_token_index);
                     let Some(resume_token_index) = scan_for_recovery_anchor(
-                        tokens,
+                        scan,
                         fail_token_index,
                         frame_container_depth,
                         anchor.start_tokens,
@@ -1907,18 +2628,20 @@ fn recovery_policy_condition_matches(
     }
 }
 
-#[requires(start <= tokens.len())]
-#[ensures(ret.is_none_or(|index| index >= start && index < tokens.len()))]
+#[requires(start <= scan.cmavo.len())]
+#[ensures(ret.is_none_or(|index| index >= start && index < scan.cmavo.len()))]
 fn scan_for_recovery_anchor(
-    tokens: &[Token],
+    scan: &RecoveryTokenScan,
     start: usize,
     base_depth: usize,
     anchors: &[generated::generated_model::SyntaxGrammarAnchorToken],
 ) -> Option<usize> {
-    let mut depth = subtext_container_depth_before(tokens, start).saturating_sub(base_depth);
-    for (index, token) in tokens.iter().enumerate().skip(start) {
-        let opens = token_opens_subtext_container(token);
-        let closes = token_closes_subtext_container(token);
+    let mut depth = scan
+        .container_depth_before(start)
+        .saturating_sub(base_depth);
+    for (index, cmavo) in scan.cmavo.iter().enumerate().skip(start) {
+        let opens = scan.opens_subtext_container[index];
+        let closes = scan.closes_subtext_container[index];
         if closes {
             if depth == 0 {
                 return None;
@@ -1928,7 +2651,7 @@ fn scan_for_recovery_anchor(
         if depth == 0
             && anchors
                 .iter()
-                .any(|anchor| recovery_anchor_matches(*anchor, token))
+                .any(|anchor| recovery_anchor_matches_cmavo(*anchor, *cmavo))
         {
             return Some(index);
         }
@@ -1939,57 +2662,42 @@ fn scan_for_recovery_anchor(
     None
 }
 
-#[requires(start <= tokens.len())]
-#[ensures(true)]
-fn subtext_container_depth_before(tokens: &[Token], start: usize) -> usize {
-    let mut depth = 0usize;
-    for token in tokens.iter().take(start) {
-        if token_closes_subtext_container(token) && depth > 0 {
-            depth -= 1;
-        }
-        if token_opens_subtext_container(token) {
-            depth += 1;
-        }
-    }
-    depth
-}
-
 #[requires(true)]
 #[ensures(true)]
-fn token_opens_subtext_container(token: &Token) -> bool {
+fn token_cmavo_opens_subtext_container(cmavo: Option<Cmavo>) -> bool {
     generated::generated_model::SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS
         .iter()
         .any(|container| {
             container
                 .opener_tokens
                 .iter()
-                .any(|anchor| recovery_anchor_matches(*anchor, token))
+                .any(|anchor| recovery_anchor_matches_cmavo(*anchor, cmavo))
         })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn token_closes_subtext_container(token: &Token) -> bool {
+fn token_cmavo_closes_subtext_container(cmavo: Option<Cmavo>) -> bool {
     generated::generated_model::SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS
         .iter()
         .any(|container| {
             container
                 .closer_tokens
                 .iter()
-                .any(|anchor| recovery_anchor_matches(*anchor, token))
+                .any(|anchor| recovery_anchor_matches_cmavo(*anchor, cmavo))
         })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovery_anchor_matches(
+fn recovery_anchor_matches_cmavo(
     anchor: generated::generated_model::SyntaxGrammarAnchorToken,
-    token: &Token,
+    actual: Option<Cmavo>,
 ) -> bool {
     match anchor {
-        generated::generated_model::SyntaxGrammarAnchorToken::Cmavo(cmavo) => token.is_cmavo(cmavo),
+        generated::generated_model::SyntaxGrammarAnchorToken::Cmavo(cmavo) => actual == Some(cmavo),
         generated::generated_model::SyntaxGrammarAnchorToken::Selmaho(selmaho) => {
-            token.is_selmaho(selmaho)
+            actual.is_some_and(|cmavo| selmaho.contains(cmavo))
         }
     }
 }
