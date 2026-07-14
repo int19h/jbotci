@@ -1,5 +1,12 @@
 use super::*;
 
+// Linked units and generated wrapper units historically exposed different diagnostics for an
+// unknown place structure. Preserve both at their typed wrapper boundaries so sharing the lower
+// construction does not silently rewrite otherwise unchanged semantic output.
+const LINKED_UNKNOWN_PLACE_STRUCTURE_WARNING: &str =
+    "relation place structure is unavailable; only explicit assigned places are represented";
+const GENERATED_UNKNOWN_PLACE_STRUCTURE_WARNING: &str = "relation place structure is unavailable; only places required by explicit assignments are represented";
+
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
@@ -4707,6 +4714,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_relation_formula_for_tanru_atom_argument_with_eventuality(
             atom,
             linkargs,
+            LINKED_UNKNOWN_PLACE_STRUCTURE_WARNING,
             self.source_for_node(unit, "abstraction-about"),
             argument,
             eventuality,
@@ -4734,6 +4742,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_relation_formula_for_tanru_atom_argument_with_eventuality(
             atom,
             linkargs,
+            GENERATED_UNKNOWN_PLACE_STRUCTURE_WARNING,
             self.source_for_node(generated_linked_tanru_unit(unit)?, "abstraction-about"),
             argument,
             eventuality,
@@ -4746,6 +4755,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
     #[requires(eventuality.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))]
+    #[requires(!unknown_place_structure_warning.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_relation_formula_for_tanru_atom_argument_with_eventuality<
         'syntax: 'tree,
@@ -4753,6 +4763,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         atom: &'syntax TanruUnitAtomSyntax,
         linkargs: Option<&'syntax LinkargsSyntax>,
+        unknown_place_structure_warning: &'static str,
         jai_source: Option<crate::model::SemanticSource>,
         argument: ArgumentValue,
         eventuality: Option<SemanticObjectId>,
@@ -4769,9 +4780,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let place_count = relation_place_count(self.dictionary, &relation);
         let diagnostics = if place_count.is_none() && !relation_has_open_place_structure(&relation)
         {
-            vec![diagnostic(
-                "relation place structure is unavailable; only places required by explicit assignments are represented",
-            )]
+            vec![diagnostic(unknown_place_structure_warning)]
         } else {
             Vec::new()
         };
