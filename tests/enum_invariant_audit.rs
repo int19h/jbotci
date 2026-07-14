@@ -1452,6 +1452,54 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::Ek",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::Gihek",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::LinkedSumti",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::LinkedSumtiContinuation",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::Mekso",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::MultipleNa",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::Prenex",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::RelativeClause",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::Selbri",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::SingleNa",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::Terms",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedFragmentRoot::ZantufaMekso",
+        "borrowed fragment root delegates validity to its typed generated syntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1564,6 +1612,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::PendingStatementConnection",
+        "pending statement connections borrow their typed separator and connective syntax nodes",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneParagraphBoundary",
+        "paragraph boundary markers use Vec1, so the typed plan item is nonempty by construction",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1576,12 +1632,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::EkFragment",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::GihekFragment",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::Fragment",
+        "borrowed text root delegates fragment validity to GeneratedFragmentRoot",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ForethoughtStatement",
@@ -1600,15 +1652,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::TermsFragment",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::TextGroupStatement",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ZantufaMeksoFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
@@ -1634,6 +1678,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/model.rs:SemanticSort::Eventuality",
         "eventuality sort payload is a closed EventualitySort enum and has no additional per-variant constraint",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SequenceRelation::ParagraphBoundary",
+        "paragraph boundaries store one required typed transition plus zero or more additional transitions",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SequenceRelation::SameTopicContinuation",
+        "same-topic continuation is a unit relation with no invalid representation",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",

@@ -1313,6 +1313,28 @@ pub(super) fn generated_modal_statement_connection_spec(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|spec| !spec.introduced_by.is_empty() && !spec.relation.is_empty() && spec.visible_place > 0))]
+pub(super) fn generated_paragraph_modal_statement_connection_spec(
+    connective: &IParagraphStatementConnectiveSyntax,
+) -> Option<GeneratedModalStatementConnectionSpec> {
+    match connective {
+        IParagraphStatementConnectiveSyntax::IStandardParagraphStatementConnective(connective) => {
+            connective
+                .tag_bo
+                .as_ref()
+                .and_then(|(tense_modal, _bo)| tense_modal.as_deref())
+                .and_then(generated_modal_statement_connection_spec_for_tense_modal)
+        }
+        IParagraphStatementConnectiveSyntax::ITagBoParagraphStatementConnective(connective) => {
+            connective
+                .tense_modal
+                .as_deref()
+                .and_then(generated_modal_statement_connection_spec_for_tense_modal)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| !spec.introduced_by.is_empty() && !spec.relation.is_empty() && spec.visible_place > 0))]
 pub(super) fn generated_modal_statement_connection_spec_for_tense_modal<N: TreeNode>(
     tense_modal: &N,
 ) -> Option<GeneratedModalStatementConnectionSpec> {
@@ -1424,6 +1446,26 @@ pub(super) fn generated_i_statement_nonlogical_connection(
             source,
             locus: "statement".to_owned(),
             truth_table,
+            parameter: None,
+        }),
+    ))
+}
+
+#[requires(!generated_statement_connective_is_logical(connective))]
+#[ensures(ret.as_ref().is_ok_and(|connection| !connection.operator.is_empty() && !connection.connector.source.is_empty()) || ret.is_err())]
+pub(super) fn generated_statement_core_nonlogical_connection(
+    connective: &StatementConnectiveSyntax,
+) -> Result<NonlogicalConnection, SemanticsError> {
+    let source = generated_statement_connective_core_source(connective)?;
+    let operator = generated_nonlogical_statement_composition_operator(connective)?
+        .label()
+        .to_owned();
+    Ok(NonlogicalConnection::new(
+        operator,
+        new!(Connector {
+            source,
+            locus: "statement".to_owned(),
+            truth_table: None,
             parameter: None,
         }),
     ))

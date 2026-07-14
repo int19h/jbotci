@@ -147,7 +147,9 @@ pub(super) fn constructed_relation_place_count(relation: &RelationLabel) -> Opti
         | data!(RelationLabel::ProBridi { .. })
         | data!(RelationLabel::Abstraction { .. })
         | data!(RelationLabel::NuhaOperator { .. })
-        | data!(RelationLabel::ZeiCompound { .. }) => None,
+        | data!(RelationLabel::ZeiCompound { .. })
+        | data!(RelationLabel::StatementConnection { .. })
+        | data!(RelationLabel::TextGroup { .. }) => None,
     }
 }
 
@@ -218,6 +220,64 @@ pub(super) fn statement_connective_from_standard(
         StandardStatementConnectiveSyntax::JekConnective(connective) => {
             StatementConnectiveSyntax::JekConnective(connective.clone())
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn statement_connective_from_paragraph_standard(
+    connective: &ParagraphStandardStatementConnectiveSyntax,
+) -> StatementConnectiveSyntax {
+    match connective {
+        ParagraphStandardStatementConnectiveSyntax::ParagraphJekConnective(connective) => {
+            StatementConnectiveSyntax::JekConnective(JekConnectiveSyntax {
+                na: connective.na.clone(),
+                se: connective.se.clone(),
+                ja: WithFreeModifiers::new(connective.ja.clone(), Vec::new()),
+                nai: connective
+                    .nai
+                    .clone()
+                    .map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+            })
+        }
+        ParagraphStandardStatementConnectiveSyntax::ParagraphJoiConnective(connective) => {
+            StatementConnectiveSyntax::JoikConnective(JoikConnectiveSyntax::JoiConnective(
+                JoiConnectiveSyntax {
+                    se: connective.se.clone(),
+                    joi: WithFreeModifiers::new(connective.joi.clone(), Vec::new()),
+                    nai: connective
+                        .nai
+                        .clone()
+                        .map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+                },
+            ))
+        }
+        ParagraphStandardStatementConnectiveSyntax::ParagraphSimpleIntervalConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::SimpleIntervalConnective(SimpleIntervalConnectiveSyntax {
+                se: connective.se.clone(),
+                bihi: WithFreeModifiers::new(connective.bihi.clone(), Vec::new()),
+                nai: connective
+                    .nai
+                    .clone()
+                    .map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+            }),
+        ),
+        ParagraphStandardStatementConnectiveSyntax::ParagraphClosedIntervalConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::ClosedIntervalConnective(ClosedIntervalConnectiveSyntax {
+                left_interval: connective.left_interval.clone(),
+                se: connective.se.clone(),
+                bihi: connective.bihi.clone(),
+                nai: connective.nai.clone(),
+                right_interval: WithFreeModifiers::new(
+                    connective.right_interval.clone(),
+                    Vec::new(),
+                ),
+            }),
+        ),
     }
 }
 

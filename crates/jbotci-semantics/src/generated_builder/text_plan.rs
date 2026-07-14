@@ -15,20 +15,16 @@ pub(super) fn generated_text_plan_from_text(
             leading_i_statements,
             paragraphs,
         }) => {
-            if !leading_nai.is_empty() {
-                return Err(unsupported("text leading material"));
-            }
             let mut plan = GeneratedTextPlan {
+                leading_nai,
                 leading_cmevla,
                 leading_indicators,
                 leading_free_modifiers: leading_free_modifiers.iter().collect(),
                 leading_connective: leading_connective.as_ref(),
+                leading_i_statements,
                 items: Vec::new(),
             };
             for leading_i in leading_i_statements {
-                if leading_i.connective.is_some() {
-                    return Err(unsupported("text leading material"));
-                }
                 plan.leading_free_modifiers
                     .extend(leading_i.free_modifiers.iter());
             }
@@ -39,10 +35,12 @@ pub(super) fn generated_text_plan_from_text(
         }
         TextSyntax::ExplicitXauhaLohoiText(ExplicitXauhaLohoiTextSyntax(paragraphs)) => {
             let mut plan = GeneratedTextPlan {
+                leading_nai: &[],
                 leading_cmevla: &[],
                 leading_indicators: &[],
                 leading_free_modifiers: Vec::new(),
                 leading_connective: None,
+                leading_i_statements: &[],
                 items: Vec::new(),
             };
             push_generated_text_paragraph_with_additional_niho(&mut plan.items, paragraphs)?;
@@ -54,9 +52,15 @@ pub(super) fn generated_text_plan_from_text(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_text_plan_has_semantic_content(plan: &GeneratedTextPlan<'_>) -> bool {
-    !plan.leading_cmevla.is_empty()
+    !plan.leading_nai.is_empty()
+        || !plan.leading_cmevla.is_empty()
         || !plan.leading_indicators.is_empty()
         || !plan.leading_free_modifiers.is_empty()
+        || plan.leading_connective.is_some()
+        || plan
+            .leading_i_statements
+            .iter()
+            .any(|statement| statement.connective.is_some())
         || !plan.items.is_empty()
 }
 
@@ -136,6 +140,7 @@ pub(super) fn push_generated_paragraph_items<'syntax>(
         ParagraphSyntax::INihoParagraph(paragraph) => {
             push_generated_optional_niho_statement_sequence_items(
                 items,
+                &paragraph.niho,
                 paragraph.statements.as_deref(),
                 &paragraph.free_modifiers,
             )
@@ -151,6 +156,7 @@ pub(super) fn push_generated_niho_paragraph_items<'syntax>(
 ) -> Result<(), SemanticsError> {
     push_generated_optional_niho_statement_sequence_items(
         items,
+        &paragraph.niho,
         paragraph.statements.as_deref(),
         &paragraph.free_modifiers,
     )
@@ -160,17 +166,17 @@ pub(super) fn push_generated_niho_paragraph_items<'syntax>(
 #[ensures(true)]
 pub(super) fn push_generated_optional_niho_statement_sequence_items<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
+    markers: &'syntax Vec1<Token>,
     sequence: Option<&'syntax ParagraphStatementSequenceSyntax>,
     free_modifiers: &'syntax [FreeModifierSyntax],
 ) -> Result<(), SemanticsError> {
     if let Some(sequence) = sequence {
         push_generated_paragraph_statement_sequence_items(items, sequence, free_modifiers)
-    } else if free_modifiers.is_empty() {
-        Err(unsupported("empty NIhO paragraph"))
     } else {
-        items.push(GeneratedTextPlanItem::StandaloneFreeModifiers(
-            free_modifiers.iter().collect(),
-        ));
+        items.push(GeneratedTextPlanItem::StandaloneParagraphBoundary {
+            markers,
+            free_modifiers: free_modifiers.iter().collect(),
+        });
         Ok(())
     }
 }
@@ -182,9 +188,6 @@ pub(super) fn push_generated_paragraph_statement_sequence_items<'syntax>(
     sequence: &'syntax ParagraphStatementSequenceSyntax,
     leading_free_modifiers: &'syntax [FreeModifierSyntax],
 ) -> Result<(), SemanticsError> {
-    if !sequence.trailing.is_empty() {
-        return Err(unsupported("paragraph statement continuations"));
-    }
     items.push(GeneratedTextPlanItem::Root {
         root: semantic_root_from_statement_or_fragment(sequence.initial.0.as_ref())?,
         free_modifiers: leading_free_modifiers.iter().collect(),
@@ -192,6 +195,12 @@ pub(super) fn push_generated_paragraph_statement_sequence_items<'syntax>(
     });
     for following in &sequence.following {
         push_generated_following_paragraph_statement_item(items, following)?;
+    }
+    for trailing in &sequence.trailing {
+        items.push(GeneratedTextPlanItem::PendingStatementConnection {
+            i: &trailing.i,
+            connective: &trailing.connective,
+        });
     }
     Ok(())
 }
@@ -240,19 +249,46 @@ pub(super) fn semantic_root_from_statement_or_fragment(
         StatementOrFragmentSyntax::StatementOrFragmentStatement(
             StatementOrFragmentStatementSyntax(statement),
         ) => semantic_root_from_statement(statement),
-        StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::TermsFragment(
-            fragment,
-        )) => Ok(GeneratedTextRoot::TermsFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::EkFragment(
-            fragment,
-        )) => Ok(GeneratedTextRoot::EkFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::GihekFragment(
-            fragment,
-        )) => Ok(GeneratedTextRoot::GihekFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(
-            FragmentStatementSyntax::ZantufaMeksoFragment(fragment),
-        ) => Ok(GeneratedTextRoot::ZantufaMeksoFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(_) => Err(unsupported("non-terms fragment")),
+        StatementOrFragmentSyntax::FragmentStatement(fragment) => {
+            Ok(GeneratedTextRoot::Fragment(match fragment {
+                FragmentStatementSyntax::PrenexFragment(fragment) => {
+                    GeneratedFragmentRoot::Prenex(fragment)
+                }
+                FragmentStatementSyntax::SelbriFragment(fragment) => {
+                    GeneratedFragmentRoot::Selbri(fragment)
+                }
+                FragmentStatementSyntax::EkFragment(fragment) => {
+                    GeneratedFragmentRoot::Ek(fragment)
+                }
+                FragmentStatementSyntax::GihekFragment(fragment) => {
+                    GeneratedFragmentRoot::Gihek(fragment)
+                }
+                FragmentStatementSyntax::MultipleNaFragment(fragment) => {
+                    GeneratedFragmentRoot::MultipleNa(fragment)
+                }
+                FragmentStatementSyntax::SingleNaFragment(fragment) => {
+                    GeneratedFragmentRoot::SingleNa(fragment)
+                }
+                FragmentStatementSyntax::TermsFragment(fragment) => {
+                    GeneratedFragmentRoot::Terms(fragment)
+                }
+                FragmentStatementSyntax::MeksoFragment(fragment) => {
+                    GeneratedFragmentRoot::Mekso(fragment)
+                }
+                FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
+                    GeneratedFragmentRoot::RelativeClause(fragment)
+                }
+                FragmentStatementSyntax::LinkedSumtiContinuationFragment(fragment) => {
+                    GeneratedFragmentRoot::LinkedSumtiContinuation(fragment)
+                }
+                FragmentStatementSyntax::LinkedSumtiFragment(fragment) => {
+                    GeneratedFragmentRoot::LinkedSumti(fragment)
+                }
+                FragmentStatementSyntax::ZantufaMeksoFragment(fragment) => {
+                    GeneratedFragmentRoot::ZantufaMekso(fragment)
+                }
+            }))
+        }
     }
 }
 
@@ -276,11 +312,7 @@ pub(super) fn semantic_root_from_statement(
 #[ensures(true)]
 pub(super) fn generated_text_root_is_utterance(root: &GeneratedTextRoot<'_>) -> bool {
     match root {
-        GeneratedTextRoot::Bridi(_)
-        | GeneratedTextRoot::TermsFragment(_)
-        | GeneratedTextRoot::EkFragment(_)
-        | GeneratedTextRoot::GihekFragment(_)
-        | GeneratedTextRoot::ZantufaMeksoFragment(_) => true,
+        GeneratedTextRoot::Bridi(_) | GeneratedTextRoot::Fragment(_) => true,
         GeneratedTextRoot::PrenexStatement(statement) => {
             generated_statement_is_utterance(&statement.inner_statement)
         }
@@ -495,6 +527,7 @@ pub(super) fn statement_connection_tail_parts(
     tail: &IStatementConnectionTailSyntax,
 ) -> Result<
     (
+        &[PendingIConnectiveSyntax],
         &Token,
         &IStatementConnectiveSyntax,
         &StatementAfterIConnectiveSyntax,
@@ -502,12 +535,18 @@ pub(super) fn statement_connection_tail_parts(
     SemanticsError,
 > {
     match tail {
-        IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
-            Ok((&tail.i, &tail.connective, tail.trailing_statement.as_ref()))
-        }
-        IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(_) => {
-            Err(unsupported("chained pending statement connective"))
-        }
+        IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => Ok((
+            &[],
+            &tail.i,
+            &tail.connective,
+            tail.trailing_statement.as_ref(),
+        )),
+        IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => Ok((
+            tail.pending.as_slice(),
+            &tail.i,
+            &tail.connective,
+            tail.trailing_statement.as_ref(),
+        )),
     }
 }
 

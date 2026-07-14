@@ -20,10 +20,10 @@ use jbotci_syntax::generated_model::{
     BoundOrSimpleMeksoOperandSyntax, BoundTanruUnitSyntax, BridiRelativeClauseSyntax,
     BridiStatementContinuationSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
     BridiTailConnectiveSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
-    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, CmevlaVocativeSumtiSyntax,
-    CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
-    CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
-    DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
+    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, ClosedIntervalConnectiveSyntax,
+    CmevlaVocativeSumtiSyntax, CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax,
+    ConnectedSelbriSyntax, ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax,
+    DescriptionTailBodySyntax, DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
     DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax, ExplicitXauhaLohoiTextSyntax,
     FollowingParagraphStatementSyntax, ForethoughtBridiConnectionSyntax,
@@ -33,31 +33,36 @@ use jbotci_syntax::generated_model::{
     ForethoughtStatementSyntax, ForethoughtSumtiSyntax, ForethoughtTermsetSyntax,
     FragmentStatementSyntax, FreeModifierSyntax, GihekConnectiveSyntax, GihekFragmentSyntax,
     GikConnectiveSyntax, GohaWordTanruUnitSyntax, GroupedForethoughtBridiConnectionSyntax,
-    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
-    IStatementConnectionTailSyntax, IStatementConnectiveSyntax, InfixMeksoSyntax,
-    JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JoikConnectiveSyntax, LaheSumtiSyntax,
+    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IParagraphStatementConnectiveSyntax,
+    IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
+    InfixMeksoSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JekConnectiveSyntax,
+    JoiConnectiveSyntax, JoikConnectiveSyntax, LaheSumtiSyntax, LeadingIStatementSyntax,
     LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax,
     LerfuStringSumtiSyntax, LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax,
-    LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax,
-    MeksoBaseSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax,
-    ModalForethoughtConnectiveSyntax, NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax,
-    NihoParagraphSyntax, NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax,
-    NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
-    OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax, ParagraphStatementSequenceSyntax,
-    ParagraphSyntax, ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax,
-    PeheTermsetOperandSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
-    PrenexStatementSyntax, PrenexSubbridiSyntax, PreposedIStatementConnectionSyntax,
-    ProBridiTanruUnitSyntax, ProSumtiSyntax, QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax,
-    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
-    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
-    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
-    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
-    RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax,
-    ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
-    ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriMeksoOperandSyntax,
+    LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax, LinkedSumtiFragmentSyntax,
+    LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax,
+    MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax,
+    MeksoSyntax, ModalForethoughtConnectiveSyntax, MultipleNaFragmentSyntax, NameSumtiSyntax,
+    NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
+    NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax, NumberWordContinuationSyntax,
+    NumberWordsSyntax, OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
+    ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
+    ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
+    PendingIConnectiveSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
+    PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
+    PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
+    QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
+    QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
+    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
+    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax,
+    RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
+    RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax, ReversePolishPartsSyntax,
+    ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
+    ScalarNegatedTanruUnitSyntax, SelbriFragmentSyntax, SelbriMeksoOperandSyntax,
     SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
-    SimpleBridiTailWithoutTailTermsSyntax, SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax,
-    SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax, SoiFreeModifierSyntax,
+    SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
+    SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
+    SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax,
     StandardStatementConnectiveSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
     StatementConnectiveSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
     StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax,
@@ -68,11 +73,11 @@ use jbotci_syntax::generated_model::{
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
     TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalAtomSyntax, TenseModalBodySyntax,
     TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
-    TermsetGroupSyntax, TextGroupStatementSyntax, TextNihoParagraphsSyntax,
-    TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
-    UntaggedSelbriSyntax, VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax,
-    VocativeSumtiSyntax, VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax,
-    ZantufaBoGroupedMeksoBaseSyntax, ZantufaExtraGikConnectiveSyntax,
+    TermsetGroupSyntax, TextGroupStatementSyntax, TextLeadingConnectiveSyntax,
+    TextNihoParagraphsSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
+    TextSyntax, TreeNode, UntaggedSelbriSyntax, VocativeFreeModifierSyntax,
+    VocativeMarkerWordsSyntax, VocativeSumtiSyntax, VuhoSumtiAttachmentTailSyntax,
+    WordTanruUnitSyntax, ZantufaBoGroupedMeksoBaseSyntax, ZantufaExtraGikConnectiveSyntax,
     ZantufaGroupedMeksoOperandSequenceSyntax, ZantufaInfixMeksoSyntax, ZantufaMeSelbriBodySyntax,
     ZantufaMeTanruUnitSyntax, ZantufaMeksoFragmentSyntax, ZantufaMexMoiTanruUnitSyntax,
     ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
@@ -80,6 +85,7 @@ use jbotci_syntax::generated_model::{
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
+use vec1::Vec1;
 
 use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
@@ -90,26 +96,27 @@ use crate::model::{
     CommandTarget, Composition, CompositionOperator, Connector, Descriptor, DescriptorDefiniteness,
     DescriptorKind, DisplayedContentAssertionEffect, DisplayedContentFamily,
     DisplayedContentModifier, DisplayedContentNode, DisplayedContentPolarity,
-    DisplayedContentTargetFocus, EventualityClass, EventualityNode, EventualityNodeData,
-    EventualitySort, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
-    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
-    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
-    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
-    MixedRadixComponent, ModalArgument, ModalArgumentData, ModalNegation, ModalNegationKind,
-    NonlogicalConnection, ParameterRole, PlaceIndex, PlaceQuestionBinding,
-    PlaceQuestionBindingData, PredicationMode, PredicationNode, PredicationNodeData,
-    PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm,
-    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode, QuestionSlot,
-    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, ReciprocalExchangeData,
-    Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    ReferentNode, RelationExpansion, RelationLabel, RelationLabelData, RelativeClause,
-    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
-    SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId, SemanticSort,
-    SequenceNode, SequenceRelation, SignKind, SignNode, SourceByteSpan, SpaceInterval,
-    SpatialMotion, SpatialMotionKind, Subscript, TanruLink, TanruLinkData, TemporalPathAnchor,
-    TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint,
-    UtteranceForce, UtteranceNode, argument_object_kind_can_fill, diagnostic,
-    displayed_content_target_kind_is_allowed, source_from_spans,
+    DisplayedContentTargetFocus, ElidedConnectionOperand, EventualityClass, EventualityNode,
+    EventualityNodeData, EventualitySort, FormulaNode, FormulaNodeData, FormulaOperator,
+    FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
+    MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
+    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, ModalArgument,
+    ModalArgumentData, ModalNegation, ModalNegationKind, NonlogicalConnection, ParagraphTransition,
+    ParameterRole, PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData, PredicationMode,
+    PredicationNode, PredicationNodeData, PredicationRelationData, QuantifierBinding,
+    QuantifierBundleFormulaNode, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
+    QuestionMode, QuestionNode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
+    ReciprocalExchange, ReciprocalExchangeData, Recurrence, RecurrenceConnection,
+    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion,
+    RelationLabel, RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream,
+    ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject,
+    SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind,
+    SignNode, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
+    TanruLink, TanruLinkData, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData,
+    TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
+    argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
+    source_from_spans,
 };
 
 mod connectives;
@@ -391,10 +398,7 @@ struct GeneratedProBridiReplaySource<'syntax> {
 }
 
 #[invariant(::Bridi(_) => true)]
-#[invariant(::TermsFragment(_) => true)]
-#[invariant(::EkFragment(_) => true)]
-#[invariant(::GihekFragment(_) => true)]
-#[invariant(::ZantufaMeksoFragment(_) => true)]
+#[invariant(::Fragment(_) => true)]
 #[invariant(::StatementConnection(_) => true)]
 #[invariant(::PreposedStatementConnection(_) => true)]
 #[invariant(::PrenexStatement(_) => true)]
@@ -404,16 +408,48 @@ struct GeneratedProBridiReplaySource<'syntax> {
 #[derive(Debug, Clone, Copy)]
 enum GeneratedTextRoot<'syntax> {
     Bridi(&'syntax BridiSyntax),
-    TermsFragment(&'syntax TermsFragmentSyntax),
-    EkFragment(&'syntax EkFragmentSyntax),
-    GihekFragment(&'syntax GihekFragmentSyntax),
-    ZantufaMeksoFragment(&'syntax ZantufaMeksoFragmentSyntax),
+    Fragment(GeneratedFragmentRoot<'syntax>),
     StatementConnection(&'syntax IStatementConnectionSyntax),
     PreposedStatementConnection(&'syntax PreposedIStatementConnectionSyntax),
     PrenexStatement(&'syntax PrenexStatementSyntax),
     TextGroupStatement(&'syntax TextGroupStatementSyntax),
     ForethoughtStatement(&'syntax ForethoughtStatementSyntax),
     ZantufaStatementTerms(&'syntax ZantufaStatementTermsStatementSyntax),
+}
+
+#[invariant(::Prenex(_) => true)]
+#[invariant(::Selbri(_) => true)]
+#[invariant(::Ek(_) => true)]
+#[invariant(::Gihek(_) => true)]
+#[invariant(::MultipleNa(_) => true)]
+#[invariant(::SingleNa(_) => true)]
+#[invariant(::Terms(_) => true)]
+#[invariant(::Mekso(_) => true)]
+#[invariant(::RelativeClause(_) => true)]
+#[invariant(::LinkedSumtiContinuation(_) => true)]
+#[invariant(::LinkedSumti(_) => true)]
+#[invariant(::ZantufaMekso(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedFragmentRoot<'syntax> {
+    Prenex(&'syntax PrenexFragmentSyntax),
+    Selbri(&'syntax SelbriFragmentSyntax),
+    Ek(&'syntax EkFragmentSyntax),
+    Gihek(&'syntax GihekFragmentSyntax),
+    MultipleNa(&'syntax MultipleNaFragmentSyntax),
+    SingleNa(&'syntax SingleNaFragmentSyntax),
+    Terms(&'syntax TermsFragmentSyntax),
+    Mekso(&'syntax MeksoFragmentSyntax),
+    RelativeClause(&'syntax RelativeClauseFragmentSyntax),
+    LinkedSumtiContinuation(&'syntax LinkedSumtiContinuationFragmentSyntax),
+    LinkedSumti(&'syntax LinkedSumtiFragmentSyntax),
+    ZantufaMekso(&'syntax ZantufaMeksoFragmentSyntax),
+}
+
+#[invariant(content.is_none_or(|content| crate::model::argument_object_kind_can_fill(content.object_kind())))]
+#[derive(Debug, Clone)]
+struct GeneratedFragmentSemantics {
+    content: Option<SemanticObjectId>,
+    source: Option<crate::model::SemanticSource>,
 }
 
 #[invariant(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
@@ -430,6 +466,7 @@ struct GeneratedStatementConnectionOperand {
 #[invariant(true)]
 #[derive(Debug, Clone)]
 struct GeneratedStatementConnectionTail<'syntax> {
+    left_operand: GeneratedStatementConnectionOperand,
     i: &'syntax Token,
     connective: &'syntax IStatementConnectiveSyntax,
     trailing_statement: &'syntax StatementAfterIConnectiveSyntax,
@@ -440,16 +477,35 @@ struct GeneratedStatementConnectionTail<'syntax> {
 #[invariant(true)]
 #[derive(Debug)]
 struct GeneratedTextPlan<'syntax> {
+    leading_nai: &'syntax [Token],
     leading_cmevla: &'syntax [Token],
     leading_indicators: &'syntax [LeadingIndicatorSyntax],
     leading_free_modifiers: Vec<&'syntax FreeModifierSyntax>,
     leading_connective:
         Option<&'syntax jbotci_syntax::generated_model::TextLeadingConnectiveSyntax>,
+    leading_i_statements: &'syntax [LeadingIStatementSyntax],
     items: Vec<GeneratedTextPlanItem<'syntax>>,
 }
 
+#[invariant(!source.is_empty())]
+#[derive(Debug)]
+struct GeneratedRelationLabelConnector {
+    source: String,
+    has_bo: bool,
+}
+
+#[invariant(!connector.is_empty())]
+#[invariant(trailing.is_displayable())]
+#[derive(Debug)]
+struct GeneratedPendingRelationLabelConnection {
+    connector: String,
+    trailing: RelationLabel,
+}
+
 #[invariant(::Root { .. } => true)]
+#[invariant(::StandaloneParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneFreeModifiers(_) => true)]
+#[invariant(::PendingStatementConnection { .. } => true)]
 #[invariant(::TrailingSeparator { .. } => true)]
 #[derive(Debug)]
 enum GeneratedTextPlanItem<'syntax> {
@@ -458,7 +514,15 @@ enum GeneratedTextPlanItem<'syntax> {
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
         separator_i: Option<&'syntax Token>,
     },
+    StandaloneParagraphBoundary {
+        markers: &'syntax Vec1<Token>,
+        free_modifiers: Vec<&'syntax FreeModifierSyntax>,
+    },
     StandaloneFreeModifiers(Vec<&'syntax FreeModifierSyntax>),
+    PendingStatementConnection {
+        i: &'syntax Token,
+        connective: &'syntax StatementConnectiveSyntax,
+    },
     TrailingSeparator {
         i: &'syntax Token,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
@@ -3600,13 +3664,82 @@ fn relation_label_from_statement(
 ) -> Result<RelationLabel, SemanticsError> {
     match statement {
         StatementSyntax::StatementBase(statement) => relation_label_from_statement_base(statement),
-        StatementSyntax::IStatementConnection(_) => {
-            Err(unsupported("connected statement relation label"))
+        StatementSyntax::IStatementConnection(connection) => {
+            relation_label_from_i_statement_connection(connection)
         }
-        StatementSyntax::PreposedIStatementConnection(_) => {
-            Err(unsupported("preposed statement connection relation label"))
+        StatementSyntax::PreposedIStatementConnection(connection) => {
+            relation_label_from_preposed_i_statement_connection(connection)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_i_statement_connection(
+    connection: &IStatementConnectionSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let mut statements = vec![relation_label_from_statement_base(
+        &connection.leading_statement,
+    )?];
+    let mut connectors = Vec::with_capacity(connection.continuations.len());
+    for continuation in &connection.continuations {
+        let (pending, _i, connective, trailing_statement) =
+            statement_connection_tail_parts(continuation)?;
+        if !pending.is_empty() {
+            return Err(requires_discourse_context(
+                "the elided operand in a chained pending statement-connection relation label",
+            ));
+        }
+        statements.push(relation_label_from_statement_after_i_connective(
+            trailing_statement,
+        )?);
+        connectors.push(new!(GeneratedRelationLabelConnector {
+            source: generated_i_statement_connective_token_source(connective),
+            has_bo: generated_i_statement_connective_has_bo(connective),
+        }));
+    }
+
+    let mut right = statements
+        .pop()
+        .expect("a statement connection has a trailing statement");
+    let mut pending_non_bo = Vec::new();
+    while let Some(connector) = connectors.pop() {
+        let data!(GeneratedRelationLabelConnector { source, has_bo }) = connector.into_data();
+        let left = statements
+            .pop()
+            .expect("each statement connector has a left operand");
+        if has_bo {
+            right = RelationLabel::statement_connection(left, source, right);
+        } else {
+            pending_non_bo.push(new!(GeneratedPendingRelationLabelConnection {
+                connector: source,
+                trailing: right,
+            }));
+            right = left;
+        }
+    }
+    for pending in pending_non_bo.into_iter().rev() {
+        let data!(GeneratedPendingRelationLabelConnection {
+            connector,
+            trailing,
+        }) = pending.into_data();
+        right = RelationLabel::statement_connection(right, connector, trailing);
+    }
+    Ok(right)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_preposed_i_statement_connection(
+    connection: &PreposedIStatementConnectionSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let left = relation_label_from_statement_base(&connection.leading_statement)?;
+    let right = relation_label_from_statement_after_i_connective(&connection.trailing_statement)?;
+    Ok(RelationLabel::statement_connection(
+        left,
+        generated_statement_connective_core_source(&connection.connective)?,
+        right,
+    ))
 }
 
 #[requires(true)]
@@ -3624,9 +3757,119 @@ fn relation_label_from_statement_base(
         StatementBaseSyntax::PrenexStatement(statement) => {
             relation_label_from_statement(&statement.inner_statement)
         }
-        StatementBaseSyntax::TextGroupStatement(_) => Err(unsupported("text group relation label")),
+        StatementBaseSyntax::TextGroupStatement(statement) => {
+            relation_label_from_text_group_statement(statement)
+        }
         StatementBaseSyntax::ForethoughtStatement(_) => {
             Err(unsupported("forethought statement relation label"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_statement_after_i_connective(
+    statement: &StatementAfterIConnectiveSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    match statement {
+        StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+            if !statement.continuations.is_empty() {
+                return Err(unsupported(
+                    "bridi statement continuation after statement connective relation label",
+                ));
+            }
+            relation_label_from_bridi(&statement.bridi)
+        }
+        StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+            relation_label_from_text_group_statement(statement)
+        }
+        StatementAfterIConnectiveSyntax::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement relation label"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_text_group_statement(
+    statement: &TextGroupStatementSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let plan = generated_text_plan_from_text(&statement.text)?;
+    if !plan.leading_nai.is_empty()
+        || !plan.leading_cmevla.is_empty()
+        || !plan.leading_indicators.is_empty()
+        || !plan.leading_free_modifiers.is_empty()
+        || plan.leading_connective.is_some()
+        || !plan.leading_i_statements.is_empty()
+        || plan.items.len() != 1
+    {
+        return Err(requires_discourse_context(
+            "a text-group relation label containing discourse-level material",
+        ));
+    }
+    let GeneratedTextPlanItem::Root {
+        root,
+        free_modifiers,
+        separator_i,
+    } = &plan.items[0]
+    else {
+        return Err(requires_discourse_context(
+            "a text-group relation label without a single denoting statement",
+        ));
+    };
+    if !free_modifiers.is_empty() || separator_i.is_some() {
+        return Err(requires_discourse_context(
+            "a text-group relation label with statement-level asides",
+        ));
+    }
+    let relation = relation_label_from_generated_text_root(*root)?;
+    Ok(RelationLabel::text_group(
+        statement
+            .tense_modal
+            .as_deref()
+            .map(generated_node_surface_text)
+            .transpose()?,
+        token_text(&statement.tuhe.value),
+        relation,
+        statement.tuhu.as_ref().map(|tuhu| token_text(&tuhu.value)),
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_generated_text_root(
+    root: GeneratedTextRoot<'_>,
+) -> Result<RelationLabel, SemanticsError> {
+    match root {
+        GeneratedTextRoot::Bridi(bridi) => relation_label_from_bridi(bridi),
+        GeneratedTextRoot::Fragment(GeneratedFragmentRoot::Selbri(fragment)) => {
+            relation_label_from_selbri(fragment.0.as_ref())
+        }
+        GeneratedTextRoot::Fragment(_) => Err(requires_discourse_context(
+            "a non-selbri fragment used as a text-group relation label",
+        )),
+        GeneratedTextRoot::StatementConnection(connection) => {
+            relation_label_from_i_statement_connection(connection)
+        }
+        GeneratedTextRoot::PreposedStatementConnection(connection) => {
+            relation_label_from_preposed_i_statement_connection(connection)
+        }
+        GeneratedTextRoot::PrenexStatement(statement) => {
+            relation_label_from_statement(&statement.inner_statement)
+        }
+        GeneratedTextRoot::TextGroupStatement(statement) => {
+            relation_label_from_text_group_statement(statement)
+        }
+        GeneratedTextRoot::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement relation label"))
+        }
+        GeneratedTextRoot::ZantufaStatementTerms(statement) => {
+            if !zantufa_statement_terms_tail_terms(&statement.tail).is_empty() {
+                return Err(requires_discourse_context(
+                    "statement-level terms in a text-group relation label",
+                ));
+            }
+            relation_label_from_statement(&statement.statement)
         }
     }
 }
@@ -7661,6 +7904,21 @@ mod tests {
     #[requires(!source.is_empty())]
     #[ensures(!ret.objects.is_empty())]
     fn semantic_graph_for(source: &str) -> SemanticGraph {
+        semantic_result_for(source).expect("source should build semantics")
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
+    fn semantic_result_for(source: &str) -> Result<SemanticGraph, SemanticsError> {
+        semantic_result_for_with_parse_options(source, &jbotci_syntax::ParseOptions::default())
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
+    fn semantic_result_for_with_parse_options(
+        source: &str,
+        parse_options: &jbotci_syntax::ParseOptions,
+    ) -> Result<SemanticGraph, SemanticsError> {
         let words = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
             source,
             &jbotci_morphology::MorphologyOptions::default(),
@@ -7670,7 +7928,7 @@ mod tests {
         let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
             &words,
             source,
-            &jbotci_syntax::ParseOptions::default(),
+            parse_options,
         )
         .expect("source should parse");
         build_generated_semantic_graph_with_dictionary(
@@ -7678,7 +7936,6 @@ mod tests {
             Some(source),
             jbotci_dictionary_data::english(),
         )
-        .expect("source should build semantics")
     }
 
     #[requires(graph.objects.values().any(|object| matches!(object.as_formula().map(FormulaNode::as_data), Some(data!(FormulaNode::Quantified(node))) if node.operator == FormulaOperator::Forall)))]
@@ -7787,6 +8044,453 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(owners.len(), 1, "generated events have exactly one owner");
         owners[0]
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_cu_bridi_builds_the_relation_formula_with_elided_arguments() {
+        let graph = semantic_graph_for("cu klama");
+        let utterance = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .expect("bare-CU bridi is an utterance");
+        assert_eq!(utterance.force, UtteranceForce::Assert);
+        let formula = utterance.content.expect("bare-CU bridi has content");
+        let predication = graph
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("bare-CU content is an atom");
+        assert!(matches!(
+            predication.relation.as_data(),
+            data!(PredicationRelation::Named { relation }) if relation == "klama"
+        ));
+        assert_eq!(predication.arguments.len(), 5);
+        assert!(
+            predication
+                .arguments
+                .values()
+                .all(|argument| argument.kind == ArgumentValueKind::Elided)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn post_cu_terms_keep_their_stream_order_before_tail_terms() {
+        let graph = semantic_graph_for("mi cu do tavla ti");
+        let formula = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("post-CU bridi has formula content");
+        let predication = graph
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("post-CU content is an atom");
+        assert!(matches!(
+            predication.relation.as_data(),
+            data!(PredicationRelation::Named { relation }) if relation == "tavla"
+        ));
+        for (place, indexical) in [
+            (1, IndexicalKind::Speaker),
+            (2, IndexicalKind::Audience),
+            (3, IndexicalKind::ProximalDemonstrative),
+        ] {
+            let argument = predication
+                .arguments
+                .get(&argument_key(place))
+                .expect("each explicit term has a place");
+            assert_eq!(argument.kind, ArgumentValueKind::Filled);
+            assert_eq!(
+                argument
+                    .value
+                    .and_then(|id| graph.objects.get(&id))
+                    .and_then(SemanticObject::as_referent)
+                    .and_then(|referent| referent.indexical),
+                Some(indexical)
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_niho_records_ordered_topic_transitions() {
+        let new_topic = semantic_graph_for("ni'oni'o");
+        let sequence = new_topic
+            .objects
+            .get(&new_topic.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("standalone NIhO is a discourse sequence");
+        assert!(sequence.items.is_empty());
+        assert!(sequence.content.is_none());
+        assert!(sequence.connection_claims.is_empty());
+        assert_eq!(
+            sequence.relation,
+            SequenceRelation::ParagraphBoundary {
+                transition: ParagraphTransition::NewTopic,
+                additional: vec![ParagraphTransition::NewTopic],
+            }
+        );
+
+        let resume = semantic_graph_for("no'i");
+        let sequence = resume
+            .objects
+            .get(&resume.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("standalone NOhI is a discourse sequence");
+        assert_eq!(
+            sequence.relation,
+            SequenceRelation::ParagraphBoundary {
+                transition: ParagraphTransition::ResumePriorTopic,
+                additional: Vec::new(),
+            }
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_vau_keeps_terms_fragment_denotation() {
+        let graph = semantic_graph_for("zo nalslabu vau xu");
+        let utterance = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .expect("terms fragment is an utterance");
+        assert_eq!(utterance.force, UtteranceForce::Mention);
+        let content = utterance.content.expect("terms fragment keeps its term");
+        let sign = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_sign)
+            .expect("ZO term denotes a sign");
+        assert_eq!(sign.sign_kind, Some(SignKind::Quotation));
+        assert_eq!(
+            sign.quotation
+                .as_ref()
+                .and_then(|quotation| quotation.text.as_deref()),
+            Some("zo nalslabu")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_fragment_families_keep_typed_denotations_or_context_requirements() {
+        let number = semantic_graph_for("mu");
+        let number_content = number
+            .objects
+            .get(&number.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("number fragment has content");
+        let number_referent = number
+            .objects
+            .get(&number_content)
+            .and_then(SemanticObject::as_referent)
+            .expect("number fragment denotes a referent");
+        assert_eq!(number_referent.sort, SemanticSort::Number);
+        assert_eq!(
+            number_referent
+                .descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.name.as_deref()),
+            Some("mu")
+        );
+        assert!(
+            number_referent
+                .descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.quantity)
+                .is_some()
+        );
+
+        let polarity = semantic_graph_for("na na");
+        let polarity_content = polarity
+            .objects
+            .get(&polarity.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("NA answer has content");
+        let polarity_sign = polarity
+            .objects
+            .get(&polarity_content)
+            .and_then(SemanticObject::as_sign)
+            .expect("NA answer denotes a connective expression");
+        assert_eq!(polarity_sign.sign_kind, Some(SignKind::Connective));
+        assert_eq!(polarity_sign.text.as_deref(), Some("na na"));
+
+        let relative = semantic_graph_for("poi remna");
+        let property = relative
+            .objects
+            .get(&relative.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .and_then(|content| relative.objects.get(&content))
+            .and_then(SemanticObject::as_referent)
+            .expect("relative-clause fragment denotes a property");
+        assert_eq!(property.sort, SemanticSort::Relation);
+        assert_eq!(property.abstraction_kind, Some(AbstractionKind::Property));
+        assert_eq!(property.parameters.len(), 1);
+        let parameter = property.parameters[0];
+        assert!(relative.objects.get(&parameter).is_some_and(|object| {
+            object.as_parameter().is_some_and(|parameter| {
+                parameter.sort == SemanticSort::Entity
+                    && parameter.role == ParameterRole::RelativeClauseHead
+            })
+        }));
+        let body = property.body.expect("property has a formula body");
+        let predication = relative
+            .objects
+            .get(&body)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| relative.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("POI body is an atomic restriction");
+        assert!(matches!(
+            predication.relation.as_data(),
+            data!(PredicationRelation::Named { relation }) if relation == "remna"
+        ));
+        assert_eq!(
+            predication
+                .arguments
+                .get(&argument_key(1))
+                .and_then(|argument| argument.value),
+            Some(parameter)
+        );
+
+        let linked = semantic_result_for("bei le dinju").expect_err("BEI omits its link head");
+        assert_eq!(linked.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert!(linked.message.contains("omitted linked-argument head"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pending_statement_connections_keep_the_present_operand_and_missing_side() {
+        let trailing = semantic_graph_for("broda i je broda i ja");
+        let pending = trailing
+            .objects
+            .get(&trailing.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("trailing connective builds a sequence");
+        assert_eq!(
+            pending.elided_connection_operand,
+            Some(ElidedConnectionOperand::FollowingDiscourse)
+        );
+        assert_eq!(pending.items.len(), 1);
+        let inner = trailing
+            .objects
+            .get(&pending.items[0])
+            .and_then(SemanticObject::as_sequence)
+            .expect("the completed JE connection remains nested");
+        let inner_formula = inner.content.expect("JE connection has content");
+        assert_eq!(
+            trailing
+                .objects
+                .get(&inner_formula)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+        let pending_formula = pending.content.expect("pending JA has unary content");
+        let pending_object = trailing
+            .objects
+            .get(&pending_formula)
+            .expect("pending formula exists");
+        assert_eq!(pending_object.formula_operator(), Some(FormulaOperator::Or));
+        assert_eq!(pending_object.formula_children(), &[inner_formula]);
+
+        let chained = semantic_graph_for("broda i je i ja broda");
+        let outer = chained
+            .objects
+            .get(&chained.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("outer JA builds a sequence");
+        assert_eq!(outer.items.len(), 2);
+        let pending = chained
+            .objects
+            .get(&outer.items[0])
+            .and_then(SemanticObject::as_sequence)
+            .expect("pending JE remains the left operand");
+        assert_eq!(
+            pending.elided_connection_operand,
+            Some(ElidedConnectionOperand::FollowingDiscourse)
+        );
+        let pending_formula = pending.content.expect("pending JE has unary content");
+        let pending_object = chained
+            .objects
+            .get(&pending_formula)
+            .expect("pending formula exists");
+        assert_eq!(
+            pending_object.formula_operator(),
+            Some(FormulaOperator::And)
+        );
+        assert_eq!(pending_object.formula_children().len(), 1);
+        let outer_formula = outer.content.expect("outer JA has binary content");
+        let outer_object = chained
+            .objects
+            .get(&outer_formula)
+            .expect("outer formula exists");
+        assert_eq!(outer_object.formula_operator(), Some(FormulaOperator::Or));
+        assert_eq!(outer_object.formula_children().len(), 2);
+        assert_eq!(outer_object.formula_children()[0], pending_formula);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn statement_prenex_and_text_group_connections_keep_their_graph_structure() {
+        for source in ["broda i je brode", "broda je i brode"] {
+            let graph = semantic_graph_for(source);
+            let sequence = graph
+                .objects
+                .get(&graph.root)
+                .and_then(SemanticObject::as_sequence)
+                .expect("statement connection is a sequence");
+            assert_eq!(sequence.items.len(), 2);
+            let formula = sequence.content.expect("statement connection has content");
+            let formula = graph.objects.get(&formula).expect("formula exists");
+            assert_eq!(formula.formula_operator(), Some(FormulaOperator::And));
+            assert_eq!(formula.formula_children().len(), 2);
+            for (item, child) in sequence.items.iter().zip(formula.formula_children()) {
+                let utterance = graph
+                    .objects
+                    .get(item)
+                    .and_then(SemanticObject::as_utterance)
+                    .expect("each connection operand is an utterance");
+                assert_eq!(utterance.force, UtteranceForce::Subordinated);
+                assert_eq!(utterance.content, Some(*child));
+            }
+        }
+
+        let prenex = semantic_graph_for("da zo'u broda i je brode");
+        let sequence = prenex
+            .objects
+            .get(&prenex.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("prenex connection remains a sequence");
+        assert_eq!(sequence.items.len(), 2);
+        let quantified = sequence.content.expect("prenex scopes over the connection");
+        let quantified = prenex.objects.get(&quantified).expect("formula exists");
+        assert_eq!(quantified.formula_operator(), Some(FormulaOperator::Exists));
+        let body = quantified.formula_body().expect("quantifier has a body");
+        assert_eq!(
+            prenex
+                .objects
+                .get(&body)
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+
+        let grouped = semantic_graph_for("tu'e broda i je brode tu'u");
+        let nested = grouped
+            .objects
+            .get(&grouped.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("text group denotes nested discourse");
+        let nested = grouped
+            .objects
+            .get(&nested)
+            .and_then(SemanticObject::as_sequence)
+            .expect("text group content is a sequence");
+        assert_eq!(nested.items.len(), 2);
+        assert_eq!(
+            nested
+                .content
+                .and_then(|formula| grouped.objects.get(&formula))
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_statement_abstractions_preserve_connection_and_group_labels() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        for (source, relation) in [
+            ("nu broda i je brode kei", "nu (broda) je (brode)"),
+            ("nu broda je i brode kei", "nu (broda) je (brode)"),
+            (
+                "nu tu'e broda i je brode tu'u kei",
+                "nu tu'e (broda) je (brode) tu'u",
+            ),
+        ] {
+            let graph = semantic_result_for_with_parse_options(source, &options)
+                .expect("statement abstraction has semantics");
+            assert!(graph.objects.values().any(|object| {
+                object.as_predication().is_some_and(|predication| {
+                    matches!(
+                        predication.relation.as_data(),
+                        data!(PredicationRelation::Named { relation: candidate })
+                            if candidate == relation
+                    )
+                })
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_initial_connections_keep_the_present_operand_and_prior_discourse_slot() {
+        let logical = semantic_graph_for(".ija cfipu mi");
+        let sequence = logical
+            .objects
+            .get(&logical.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("text-initial JA builds a sequence");
+        assert_eq!(
+            sequence.elided_connection_operand,
+            Some(ElidedConnectionOperand::PriorDiscourse)
+        );
+        assert_eq!(sequence.items.len(), 1);
+        let content = sequence.content.expect("JA has unary connective content");
+        let formula = logical.objects.get(&content).expect("JA formula exists");
+        assert_eq!(formula.formula_operator(), Some(FormulaOperator::Or));
+        assert_eq!(formula.formula_children().len(), 1);
+        assert_eq!(sequence.connection_claims.len(), 0);
+
+        let modal = semantic_graph_for(".iseni'ibo zo se se vimcu");
+        let sequence = modal
+            .objects
+            .get(&modal.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("text-initial modal builds a sequence");
+        assert_eq!(
+            sequence.elided_connection_operand,
+            Some(ElidedConnectionOperand::PriorDiscourse)
+        );
+        assert_eq!(sequence.items.len(), 1);
+        assert!(sequence.content.is_none());
+        assert_eq!(sequence.connection_claims.len(), 1);
+        let claim = modal
+            .objects
+            .get(&sequence.connection_claims[0])
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| modal.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("NIhI connection is an atomic claim");
+        assert!(matches!(
+            claim.relation.as_data(),
+            data!(PredicationRelation::Named { relation }) if relation == "nibli"
+        ));
+        assert_eq!(claim.arguments.len(), 1);
+        assert!(claim.arguments.contains_key(&argument_key(2)));
+        assert_eq!(claim.introduced_by.as_deref(), Some("se ni'i"));
     }
 
     #[test]
