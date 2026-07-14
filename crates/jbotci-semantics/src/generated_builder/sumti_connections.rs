@@ -1120,6 +1120,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     })
                 }
             }
+            GeneratedDistributedSumtiBranch::SumtiAfterthoughtPrefix(prefix) => {
+                if prefix.continuation_count == 0 {
+                    return self.build_generated_alternative_argument_for_sumti_branch(
+                        GeneratedDistributedSumtiBranch::SumtiBound(&prefix.sumti.leading_sumti),
+                        negated,
+                    );
+                }
+                self.build_generated_alternative_argument_for_sumti_afterthought_prefix(
+                    prefix, negated,
+                )
+            }
             GeneratedDistributedSumtiBranch::SumtiBound(sumti) => {
                 self.build_generated_alternative_argument_for_sumti_bound(sumti, negated)
             }
@@ -1127,6 +1138,51 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.build_generated_alternative_argument_for_sumti_forethought(sumti, negated)
             }
         }
+    }
+
+    #[requires(prefix.continuation_count > 0)]
+    #[ensures(true)]
+    pub(super) fn build_generated_alternative_argument_for_sumti_afterthought_prefix<
+        'syntax: 'tree,
+    >(
+        &mut self,
+        prefix: GeneratedSumtiAfterthoughtPrefix<'syntax>,
+        negated: bool,
+    ) -> Result<GeneratedAlternativeArgument<'syntax>, SemanticsError> {
+        let leading = self.build_generated_alternative_argument_for_sumti_bound(
+            &prefix.sumti.leading_sumti,
+            false,
+        )?;
+        let mut referent = leading
+            .argument
+            .value
+            .ok_or_else(|| unsupported("deleted operand in afterthought sumti prefix"))?;
+        let mut formula_scopes = leading.formula_scopes;
+        for continuation in prefix
+            .sumti
+            .continuations
+            .iter()
+            .take(prefix.continuation_count)
+        {
+            let trailing = self
+                .build_generated_alternative_argument_for_sumti_bound(&continuation.sumti, false)?;
+            let trailing_referent = trailing
+                .argument
+                .value
+                .ok_or_else(|| unsupported("deleted operand in afterthought sumti prefix"))?;
+            formula_scopes.extend(trailing.formula_scopes);
+            referent = self.build_connected_generated_sumti_referent(
+                prefix.sumti,
+                referent,
+                &continuation.connective,
+                trailing_referent,
+            )?;
+        }
+        Ok(GeneratedAlternativeArgument {
+            argument: ArgumentValue::filled(referent, None),
+            negated,
+            formula_scopes,
+        })
     }
 
     #[requires(place > 0)]

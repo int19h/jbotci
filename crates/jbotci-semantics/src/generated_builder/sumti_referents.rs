@@ -2380,14 +2380,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 {
                     return Err(unsupported("VUhO sumti relative connection"));
                 }
-                VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(_) => {
-                    return Err(unsupported("VUhO connected sumti"));
-                }
+                VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(_) => {}
                 VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(_) => {}
             }
         }
         let (id, built) = self.build_cached_sumti_referent_for_node(sumti, |builder| {
-            if let Some(referent) = builder.build_generated_goi_associated_referent(sumti)? {
+            if let Some(VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail)) =
+                &sumti.vuho_attachment
+            {
+                let leading = builder.build_sumti_grouped_referent(&sumti.base_sumti)?;
+                let trailing = builder.build_sumti_referent(&tail.sumti_connection.sumti)?;
+                builder.build_connected_generated_sumti_referent(
+                    sumti,
+                    leading,
+                    &tail.sumti_connection.connective,
+                    trailing,
+                )
+            } else if let Some(referent) = builder.build_generated_goi_associated_referent(sumti)? {
                 Ok(referent)
             } else {
                 builder.build_sumti_grouped_referent(&sumti.base_sumti)
@@ -4147,10 +4156,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'syntax SumtiGroupedSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_cached_sumti_referent_for_node(sumti, |builder| {
-            if sumti.grouped_tail.is_some() {
-                return Err(unsupported("grouped sumti"));
+            let leading = builder.build_sumti_afterthought_referent(&sumti.leading_sumti)?;
+            let Some(tail) = &sumti.grouped_tail else {
+                return Ok(leading);
+            };
+            if tail.tense_modal.is_some() {
+                return Err(unsupported("tense-modal grouped sumti referent"));
             }
-            builder.build_sumti_afterthought_referent(&sumti.leading_sumti)
+            let trailing = builder.build_sumti_referent(&tail.inner_sumti)?;
+            builder.build_connected_generated_sumti_referent(
+                sumti,
+                leading,
+                &tail.connective,
+                trailing,
+            )
         })
         .map(|(referent, _built)| referent)
     }
@@ -4162,22 +4181,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'syntax SumtiAfterthoughtSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_cached_sumti_referent_for_node(sumti, |builder| {
-            let leading = builder.build_sumti_bound_referent(&sumti.leading_sumti)?;
-            let [] = sumti.continuations.as_slice() else {
-                let [continuation] = sumti.continuations.as_slice() else {
-                    return Err(unsupported("multi-continuation afterthought sumti"));
-                };
-                let trailing = builder.build_sumti_bound_referent(&continuation.sumti)?;
-                return builder.build_connected_generated_sumti_referent(
-                    sumti,
-                    leading,
-                    &continuation.connective,
-                    trailing,
-                );
-            };
-            Ok(leading)
+            builder.build_sumti_afterthought_prefix_referent(sumti, sumti.continuations.len())
         })
         .map(|(referent, _built)| referent)
+    }
+
+    #[requires(continuation_count <= sumti.continuations.len())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    pub(super) fn build_sumti_afterthought_prefix_referent(
+        &mut self,
+        sumti: &'tree SumtiAfterthoughtSyntax,
+        continuation_count: usize,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut referent = self.build_sumti_bound_referent(&sumti.leading_sumti)?;
+        for continuation in sumti.continuations.iter().take(continuation_count) {
+            let trailing = self.build_sumti_bound_referent(&continuation.sumti)?;
+            referent = self.build_connected_generated_sumti_referent(
+                sumti,
+                referent,
+                &continuation.connective,
+                trailing,
+            )?;
+        }
+        Ok(referent)
     }
 
     #[requires(true)]
