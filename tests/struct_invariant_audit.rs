@@ -1348,6 +1348,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "lifetime-bearing parser error preserves invariants through constructors and merge helpers",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseErrorData",
+        "copy-on-write parser error payload uses private construction and mutation paths over invariant-bearing fields",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/tokens.rs:IncompleteKindCandidate",
         "diagnostic incomplete-kind candidates are copied ranking tuples built only from syntax metadata",
     ),

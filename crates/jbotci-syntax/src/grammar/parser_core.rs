@@ -26,7 +26,10 @@ use super::{ParserCheckpoint, ParserState, Token, parse_error::SyntaxParseError}
 /// Generated grammar adapters only materialize an owned value when a parent
 /// parser needs to consume it. Cloning this wrapper for memo store or replay is
 /// therefore constant-time regardless of the output tree's size.
-#[invariant(true)]
+#[invariant(
+    Arc::strong_count(value) >= 1,
+    "a shared parser output must own a live allocation"
+)]
 pub(crate) struct SharedSyntaxOutput<O> {
     value: Arc<O>,
 }
@@ -35,9 +38,9 @@ impl<O> SharedSyntaxOutput<O> {
     #[requires(true)]
     #[ensures(Arc::strong_count(&ret.value) == 1)]
     pub(crate) fn new(value: O) -> Self {
-        Self {
+        new!(SharedSyntaxOutput {
             value: Arc::new(value),
-        }
+        })
     }
 
     #[requires(true)]
@@ -46,7 +49,7 @@ impl<O> SharedSyntaxOutput<O> {
     where
         O: Clone,
     {
-        Arc::try_unwrap(self.value).unwrap_or_else(|value| (*value).clone())
+        Arc::try_unwrap(self.into_data().value).unwrap_or_else(|value| (*value).clone())
     }
 }
 
@@ -54,9 +57,9 @@ impl<O> Clone for SharedSyntaxOutput<O> {
     #[requires(true)]
     #[ensures(Arc::ptr_eq(&ret.value, &self.value))]
     fn clone(&self) -> Self {
-        Self {
+        new!(SharedSyntaxOutput {
             value: Arc::clone(&self.value),
-        }
+        })
     }
 }
 
