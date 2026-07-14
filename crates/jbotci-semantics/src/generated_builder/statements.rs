@@ -1,5 +1,27 @@
 use super::*;
 
+#[requires(!markers.is_empty())]
+#[ensures(ret.is_ok())]
+fn generated_standalone_paragraph_relation(
+    markers: &Vec1<Token>,
+) -> Result<SequenceRelation, SemanticsError> {
+    let mut transitions = markers.iter().map(|marker| match marker.cmavo() {
+        Some(Cmavo::Niho) => Ok(ParagraphTransition::NewTopic),
+        Some(Cmavo::Nohi) => Ok(ParagraphTransition::ResumePriorTopic),
+        _ => Err(invalid_graph(
+            "NIhO paragraph boundary contains a non-NIhO token".to_owned(),
+        )),
+    });
+    let transition = transitions
+        .next()
+        .expect("precondition guarantees a first paragraph marker")?;
+    let additional = transitions.collect::<Result<Vec<_>, _>>()?;
+    Ok(SequenceRelation::ParagraphBoundary {
+        transition,
+        additional,
+    })
+}
+
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
     #[ensures(true)]
@@ -148,6 +170,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     items.push(item);
                 }
                 GeneratedTextPlanItem::StandaloneFreeModifiers(free_modifiers) => {
+                    let asides = self.build_generated_vocative_asides_from_refs(&free_modifiers)?;
+                    if let Some(item) = self.build_generated_standalone_asides(asides)? {
+                        items.push(item);
+                    }
+                }
+                GeneratedTextPlanItem::StandaloneParagraphBoundary {
+                    markers,
+                    free_modifiers,
+                } => {
+                    let relation = generated_standalone_paragraph_relation(&markers)?;
+                    let boundary = self.next_sequence_id();
+                    self.insert(
+                        boundary,
+                        SemanticObject::sequence(
+                            Vec::new(),
+                            relation,
+                            self.source_for_tokens(markers.as_slice(), "paragraph-boundary"),
+                            Vec::new(),
+                        ),
+                    )?;
+                    items.push(boundary);
                     let asides = self.build_generated_vocative_asides_from_refs(&free_modifiers)?;
                     if let Some(item) = self.build_generated_standalone_asides(asides)? {
                         items.push(item);

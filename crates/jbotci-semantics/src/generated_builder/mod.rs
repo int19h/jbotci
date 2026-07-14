@@ -80,6 +80,7 @@ use jbotci_syntax::generated_model::{
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
+use vec1::Vec1;
 
 use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
@@ -96,7 +97,7 @@ use crate::model::{
     LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
     MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
     MixedRadixComponent, ModalArgument, ModalArgumentData, ModalNegation, ModalNegationKind,
-    NonlogicalConnection, ParameterRole, PlaceIndex, PlaceQuestionBinding,
+    NonlogicalConnection, ParagraphTransition, ParameterRole, PlaceIndex, PlaceQuestionBinding,
     PlaceQuestionBindingData, PredicationMode, PredicationNode, PredicationNodeData,
     PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm,
     QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode, QuestionSlot,
@@ -449,6 +450,7 @@ struct GeneratedTextPlan<'syntax> {
 }
 
 #[invariant(::Root { .. } => true)]
+#[invariant(::StandaloneParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneFreeModifiers(_) => true)]
 #[invariant(::TrailingSeparator { .. } => true)]
 #[derive(Debug)]
@@ -457,6 +459,10 @@ enum GeneratedTextPlanItem<'syntax> {
         root: GeneratedTextRoot<'syntax>,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
         separator_i: Option<&'syntax Token>,
+    },
+    StandaloneParagraphBoundary {
+        markers: &'syntax Vec1<Token>,
+        free_modifiers: Vec<&'syntax FreeModifierSyntax>,
     },
     StandaloneFreeModifiers(Vec<&'syntax FreeModifierSyntax>),
     TrailingSeparator {
@@ -7862,6 +7868,42 @@ mod tests {
                 Some(indexical)
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_niho_records_ordered_topic_transitions() {
+        let new_topic = semantic_graph_for("ni'oni'o");
+        let sequence = new_topic
+            .objects
+            .get(&new_topic.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("standalone NIhO is a discourse sequence");
+        assert!(sequence.items.is_empty());
+        assert!(sequence.content.is_none());
+        assert!(sequence.connection_claims.is_empty());
+        assert_eq!(
+            sequence.relation,
+            SequenceRelation::ParagraphBoundary {
+                transition: ParagraphTransition::NewTopic,
+                additional: vec![ParagraphTransition::NewTopic],
+            }
+        );
+
+        let resume = semantic_graph_for("no'i");
+        let sequence = resume
+            .objects
+            .get(&resume.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("standalone NOhI is a discourse sequence");
+        assert_eq!(
+            sequence.relation,
+            SequenceRelation::ParagraphBoundary {
+                transition: ParagraphTransition::ResumePriorTopic,
+                additional: Vec::new(),
+            }
+        );
     }
 
     #[test]

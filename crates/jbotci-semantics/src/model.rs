@@ -861,11 +861,24 @@ pub enum UtteranceForce {
     Vocative,
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[invariant(::SameTopicContinuation => true)]
+#[invariant(::ParagraphBoundary { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SequenceRelation {
     SameTopicContinuation,
+    ParagraphBoundary {
+        transition: ParagraphTransition,
+        additional: Vec<ParagraphTransition>,
+    },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ParagraphTransition {
+    NewTopic,
+    ResumePriorTopic,
 }
 
 #[invariant(!operator.is_empty(), "nonlogical sequence operator must be named")]

@@ -1564,6 +1564,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneParagraphBoundary",
+        "paragraph boundary markers use Vec1, so the typed plan item is nonempty by construction",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1634,6 +1638,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/model.rs:SemanticSort::Eventuality",
         "eventuality sort payload is a closed EventualitySort enum and has no additional per-variant constraint",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SequenceRelation::ParagraphBoundary",
+        "paragraph boundaries store one required typed transition plus zero or more additional transitions",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SequenceRelation::SameTopicContinuation",
+        "same-topic continuation is a unit relation with no invalid representation",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",

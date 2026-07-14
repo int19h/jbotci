@@ -136,6 +136,7 @@ pub(super) fn push_generated_paragraph_items<'syntax>(
         ParagraphSyntax::INihoParagraph(paragraph) => {
             push_generated_optional_niho_statement_sequence_items(
                 items,
+                &paragraph.niho,
                 paragraph.statements.as_deref(),
                 &paragraph.free_modifiers,
             )
@@ -151,6 +152,7 @@ pub(super) fn push_generated_niho_paragraph_items<'syntax>(
 ) -> Result<(), SemanticsError> {
     push_generated_optional_niho_statement_sequence_items(
         items,
+        &paragraph.niho,
         paragraph.statements.as_deref(),
         &paragraph.free_modifiers,
     )
@@ -160,17 +162,17 @@ pub(super) fn push_generated_niho_paragraph_items<'syntax>(
 #[ensures(true)]
 pub(super) fn push_generated_optional_niho_statement_sequence_items<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
+    markers: &'syntax Vec1<Token>,
     sequence: Option<&'syntax ParagraphStatementSequenceSyntax>,
     free_modifiers: &'syntax [FreeModifierSyntax],
 ) -> Result<(), SemanticsError> {
     if let Some(sequence) = sequence {
         push_generated_paragraph_statement_sequence_items(items, sequence, free_modifiers)
-    } else if free_modifiers.is_empty() {
-        Err(unsupported("empty NIhO paragraph"))
     } else {
-        items.push(GeneratedTextPlanItem::StandaloneFreeModifiers(
-            free_modifiers.iter().collect(),
-        ));
+        items.push(GeneratedTextPlanItem::StandaloneParagraphBoundary {
+            markers,
+            free_modifiers: free_modifiers.iter().collect(),
+        });
         Ok(())
     }
 }
