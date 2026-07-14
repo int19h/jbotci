@@ -1735,9 +1735,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         fragment: &'tree TermsFragmentSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        if fragment.vau.is_some() {
-            return Err(unsupported("terms fragment VAU"));
-        }
         let [term] = fragment.terms.as_slice() else {
             return Ok(None);
         };

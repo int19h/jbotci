@@ -7909,6 +7909,32 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn explicit_vau_keeps_terms_fragment_denotation() {
+        let graph = semantic_graph_for("zo nalslabu vau xu");
+        let utterance = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .expect("terms fragment is an utterance");
+        assert_eq!(utterance.force, UtteranceForce::Mention);
+        let content = utterance.content.expect("terms fragment keeps its term");
+        let sign = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_sign)
+            .expect("ZO term denotes a sign");
+        assert_eq!(sign.sign_kind, Some(SignKind::Quotation));
+        assert_eq!(
+            sign.quotation
+                .as_ref()
+                .and_then(|quotation| quotation.text.as_deref()),
+            Some("zo nalslabu")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");
