@@ -1380,6 +1380,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "observation child indices are finalized and checked by the enclosing memo store APIs",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",
+        "empty and shared copy-on-write vectors are both valid; Some(empty) has the same semantics as the allocation-free None representation",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",
         "lifetime-bearing parser error preserves invariants through constructors and merge helpers",
     ),

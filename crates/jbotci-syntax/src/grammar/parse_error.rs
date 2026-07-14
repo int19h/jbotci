@@ -21,6 +21,96 @@ use crate::{
 
 type SyntaxRichReason<'tokens> = RichReason<'tokens, Token, Cow<'static, str>>;
 
+/// A copy-on-write vector that does not allocate for the overwhelmingly common
+/// empty case. Parser errors are persistent memo payloads, and enriching one
+/// clone with a context must not deep-clone every unrelated vector in the
+/// error snapshot.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SharedVec<T> {
+    values: Option<Rc<Vec<T>>>,
+}
+
+impl<T> SharedVec<T> {
+    #[requires(true)]
+    #[ensures(ret.is_empty())]
+    fn empty() -> Self {
+        Self { values: None }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == old(values.len()))]
+    fn from_vec(values: Vec<T>) -> Self {
+        if values.is_empty() {
+            Self::empty()
+        } else {
+            Self {
+                values: Some(Rc::new(values)),
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn make_mut(&mut self) -> &mut Vec<T>
+    where
+        T: Clone,
+    {
+        Rc::make_mut(self.values.get_or_insert_with(|| Rc::new(Vec::new())))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == old(self.len()))]
+    fn into_vec(self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        self.values
+            .map(|values| Rc::try_unwrap(values).unwrap_or_else(|values| (*values).clone()))
+            .unwrap_or_default()
+    }
+}
+
+impl<T> Default for SharedVec<T> {
+    #[requires(true)]
+    #[ensures(ret.is_empty())]
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+impl<T> Deref for SharedVec<T> {
+    type Target = [T];
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn deref(&self) -> &Self::Target {
+        self.values.as_deref().map_or(&[], Vec::as_slice)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a SharedVec<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T: Clone> IntoIterator for &'a mut SharedVec<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::slice::IterMut<'a, T>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.make_mut().iter_mut()
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseError<'tokens> {
@@ -32,14 +122,14 @@ pub(super) struct SyntaxParseError<'tokens> {
 pub(super) struct SyntaxParseErrorData<'tokens> {
     span: Span,
     reason: SyntaxRichReason<'tokens>,
-    expected_groups: Vec<ExpectedTokenGroup>,
-    context_paths: Vec<Vec<SyntaxConstructContext>>,
+    expected_groups: SharedVec<ExpectedTokenGroup>,
+    context_paths: SharedVec<Vec<SyntaxConstructContext>>,
     found: Option<SyntaxFound>,
     custom_kind: Option<SyntaxParseCustomKind>,
-    active_contexts: Vec<SyntaxContextFrame>,
-    active_rule_contexts: Vec<SyntaxRuleFrame>,
+    active_contexts: SharedVec<SyntaxContextFrame>,
+    active_rule_contexts: SharedVec<SyntaxRuleFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
-    same_position_branches: Vec<Arc<SyntaxParseError<'tokens>>>,
+    same_position_branches: SharedVec<Arc<SyntaxParseError<'tokens>>>,
     report_content_hash: Cell<Option<u64>>,
 }
 
@@ -137,14 +227,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             reason: RichReason::Custom(Cow::Owned(message)),
-            expected_groups: Vec::new(),
+            expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: None,
-            active_contexts: Vec::new(),
-            active_rule_contexts: Vec::new(),
+            active_contexts: SharedVec::empty(),
+            active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
-            same_position_branches: Vec::new(),
+            same_position_branches: SharedVec::empty(),
             report_content_hash: Cell::new(None),
         })
     }
@@ -159,14 +249,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             reason: RichReason::Custom(Cow::Owned(message)),
-            expected_groups: Vec::new(),
+            expected_groups: SharedVec::empty(),
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: Some(custom_kind),
-            active_contexts: Vec::new(),
-            active_rule_contexts: Vec::new(),
+            active_contexts: SharedVec::empty(),
+            active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
-            same_position_branches: Vec::new(),
+            same_position_branches: SharedVec::empty(),
             report_content_hash: Cell::new(None),
         })
     }
@@ -183,14 +273,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             reason: unexpected_input_error(),
-            expected_groups: vec![ExpectedTokenGroup::new(tokens)],
+            expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: None,
-            active_contexts: Vec::new(),
-            active_rule_contexts: Vec::new(),
+            active_contexts: SharedVec::empty(),
+            active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
-            same_position_branches: Vec::new(),
+            same_position_branches: SharedVec::empty(),
             report_content_hash: Cell::new(None),
         })
     }
@@ -215,14 +305,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
         Self::from_data(SyntaxParseErrorData {
             span,
             reason: unexpected_input_error(),
-            expected_groups: vec![ExpectedTokenGroup::new(tokens)],
+            expected_groups: SharedVec::from_vec(vec![ExpectedTokenGroup::new(tokens)]),
             context_paths: empty_context_paths(),
             found: Some(found),
             custom_kind: None,
-            active_contexts: Vec::new(),
-            active_rule_contexts: Vec::new(),
+            active_contexts: SharedVec::empty(),
+            active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
-            same_position_branches: Vec::new(),
+            same_position_branches: SharedVec::empty(),
             report_content_hash: Cell::new(None),
         })
     }
@@ -381,7 +471,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if self.active_contexts.len() > contexts.len() {
             return self;
         }
-        self.active_contexts = contexts.to_vec();
+        self.active_contexts = SharedVec::from_vec(contexts.to_vec());
         if self.preferred_context_hint.is_none() {
             self.preferred_context_hint =
                 preferred_context_from_branches(&self.same_position_branches);
@@ -393,7 +483,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(true)]
     pub(super) fn with_active_rule_contexts(mut self, contexts: &[SyntaxRuleFrame]) -> Self {
         if self.active_rule_contexts.len() <= contexts.len() {
-            self.active_rule_contexts = contexts.to_vec();
+            self.active_rule_contexts = SharedVec::from_vec(contexts.to_vec());
         }
         self
     }
@@ -486,7 +576,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         let mut error = self;
         let branches = std::mem::take(&mut error.same_position_branches);
         let mut merged = None;
-        for branch in branches {
+        for branch in branches.into_vec() {
             let branch = arc_into_inner_or_clone(branch).into_report_error();
             merged = Some(match merged {
                 None => branch,
@@ -536,10 +626,10 @@ where
             context_paths: empty_context_paths(),
             found: Some(syntax_found),
             custom_kind: None,
-            active_contexts: Vec::new(),
-            active_rule_contexts: Vec::new(),
+            active_contexts: SharedVec::empty(),
+            active_rule_contexts: SharedVec::empty(),
             preferred_context_hint: None,
-            same_position_branches: Vec::new(),
+            same_position_branches: SharedVec::empty(),
             report_content_hash: Cell::new(None),
         })
     }
@@ -609,8 +699,8 @@ where
         self.context_paths = empty_context_paths();
         self.found = Some(syntax_found);
         self.custom_kind = None;
-        self.active_contexts = Vec::new();
-        self.active_rule_contexts = Vec::new();
+        self.active_contexts = SharedVec::empty();
+        self.active_rule_contexts = SharedVec::empty();
         self.preferred_context_hint = None;
         self
     }
@@ -652,6 +742,7 @@ where
             let reason = context_from_rich_pattern(&pattern)
                 .map(|construct| start_nested_reason(&construct));
             self.expected_groups
+                .make_mut()
                 .push(ExpectedTokenGroup::with_optional_reason(
                     Arc::from(vec![token]),
                     reason,
@@ -697,20 +788,22 @@ where
 
 #[requires(true)]
 #[ensures(ret.iter().all(|group| !group.tokens.is_empty()))]
-fn expected_token_groups_from_labels<'tokens, L>(labels: Vec<L>) -> Vec<ExpectedTokenGroup>
+fn expected_token_groups_from_labels<'tokens, L>(labels: Vec<L>) -> SharedVec<ExpectedTokenGroup>
 where
     L: TryInto<RichPattern<'tokens>>,
 {
-    labels
-        .into_iter()
-        .filter_map(|label| {
-            label
-                .try_into()
-                .ok()
-                .and_then(|pattern| syntax_expected_token_from_rich_pattern(&pattern))
-                .map(|token| ExpectedTokenGroup::from_vec(vec![token]))
-        })
-        .collect()
+    SharedVec::from_vec(
+        labels
+            .into_iter()
+            .filter_map(|label| {
+                label
+                    .try_into()
+                    .ok()
+                    .and_then(|pattern| syntax_expected_token_from_rich_pattern(&pattern))
+                    .map(|token| ExpectedTokenGroup::from_vec(vec![token]))
+            })
+            .collect(),
+    )
 }
 
 #[requires(true)]
@@ -918,8 +1011,8 @@ fn immediate_child_from_context_paths(
 
 #[requires(true)]
 #[ensures(ret.is_empty())]
-fn empty_context_paths() -> Vec<Vec<SyntaxConstructContext>> {
-    Vec::new()
+fn empty_context_paths() -> SharedVec<Vec<SyntaxConstructContext>> {
+    SharedVec::empty()
 }
 
 #[requires(true)]
@@ -1059,16 +1152,16 @@ fn merge_report_errors<'tokens>(
     left.found = merge_optional_equal(left.found, right.found);
     left.custom_kind = merge_optional_equal(left.custom_kind, right.custom_kind);
     left.preferred_context_hint = preferred_context_hint;
-    left.same_position_branches = Vec::new();
+    left.same_position_branches = SharedVec::empty();
     SyntaxParseError::from_data(left)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn deeper_active_context_stack(
-    left: Vec<SyntaxContextFrame>,
-    right: Vec<SyntaxContextFrame>,
-) -> Vec<SyntaxContextFrame> {
+    left: SharedVec<SyntaxContextFrame>,
+    right: SharedVec<SyntaxContextFrame>,
+) -> SharedVec<SyntaxContextFrame> {
     if right.len() > left.len() {
         right
     } else {
@@ -1085,9 +1178,10 @@ fn arc_into_inner_or_clone<T: Clone>(value: Arc<T>) -> T {
 #[requires(true)]
 #[ensures(true)]
 fn push_context_to_paths(
-    paths: &mut Vec<Vec<SyntaxConstructContext>>,
+    paths: &mut SharedVec<Vec<SyntaxConstructContext>>,
     context: SyntaxConstructContext,
 ) {
+    let paths = paths.make_mut();
     if paths.is_empty() {
         paths.push(Vec::new());
     }
@@ -1099,9 +1193,11 @@ fn push_context_to_paths(
 #[requires(true)]
 #[ensures(true)]
 fn append_unique_context_paths(
-    target: &mut Vec<Vec<SyntaxConstructContext>>,
-    source: Vec<Vec<SyntaxConstructContext>>,
+    target: &mut SharedVec<Vec<SyntaxConstructContext>>,
+    source: SharedVec<Vec<SyntaxConstructContext>>,
 ) {
+    let source = source.into_vec();
+    let target = target.make_mut();
     if source.is_empty() {
         if !target.is_empty() && !target.iter().any(Vec::is_empty) {
             target.push(Vec::new());
@@ -1295,8 +1391,12 @@ fn select_outer_common_context_including_roots(
 
 #[requires(true)]
 #[ensures(true)]
-fn append_unique_groups(target: &mut Vec<ExpectedTokenGroup>, source: Vec<ExpectedTokenGroup>) {
-    for group in source {
+fn append_unique_groups(
+    target: &mut SharedVec<ExpectedTokenGroup>,
+    source: SharedVec<ExpectedTokenGroup>,
+) {
+    let target = target.make_mut();
+    for group in source.into_vec() {
         if !group.tokens.is_empty() && !target.contains(&group) {
             target.push(group);
         }
