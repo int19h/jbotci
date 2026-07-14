@@ -364,6 +364,7 @@ pub(crate) struct InputRef<'tokens, 'parse> {
 impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn cursor(&self) -> Cursor<'tokens, 'parse> {
         Cursor {
             inner: self.cursor,
@@ -373,6 +374,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(ret.cursor().inner().index == self.cursor.index)]
+    #[inline(always)]
     pub(crate) fn save(&self) -> Checkpoint<'tokens, 'parse> {
         let cursor = self.cursor();
         Checkpoint {
@@ -383,6 +385,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(self.cursor.index == checkpoint.cursor.inner.index)]
+    #[inline(always)]
     pub(crate) fn rewind(&mut self, checkpoint: Checkpoint<'tokens, 'parse>) {
         self.state.on_rewind(&checkpoint);
         self.cursor = checkpoint.cursor.inner;
@@ -390,6 +393,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn state(&mut self) -> &mut ParserState<'tokens> {
         self.state
     }
@@ -397,6 +401,7 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
     #[requires(true)]
     #[ensures(ret.is_some() -> self.cursor.index == old(self.cursor.index) + 1)]
     #[ensures(ret.is_none() -> self.cursor.index == old(self.cursor.index))]
+    #[inline(always)]
     pub(crate) fn next(&mut self) -> Option<Token> {
         let token = self.input.tokens.get(self.cursor.index)?.clone();
         self.cursor = self.cursor.with_data(data! {
@@ -409,12 +414,14 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
 
     #[requires(true)]
     #[ensures(self.cursor.index >= old(self.cursor.index))]
+    #[inline(always)]
     pub(crate) fn skip(&mut self) {
         let _ = self.next();
     }
 
     #[requires(before.inner.index <= self.cursor.index)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn span_since(&self, before: &Cursor<'tokens, 'parse>) -> SimpleSpan {
         self.input.span_between(before.inner, self.cursor)
     }
@@ -503,6 +510,7 @@ pub(crate) struct MapExtra<'tokens, 'parse> {
 impl<'tokens> MapExtra<'tokens, '_> {
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     pub(crate) fn state(&mut self) -> &mut ParserState<'tokens> {
         self.state
     }
@@ -699,10 +707,12 @@ impl<'tokens, O, P> Parser<'tokens, O> for &P
 where
     P: Parser<'tokens, O>,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         P::drive_emit(*self, input)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         P::drive_check(*self, input)
     }
@@ -739,10 +749,12 @@ impl<'tokens, O> Boxed<'tokens, O> {
 
 #[contract_trait]
 impl<'tokens, O> Parser<'tokens, O> for Boxed<'tokens, O> {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         self.inner.drive_emit(input)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.inner.drive_check(input)
     }
@@ -777,6 +789,7 @@ impl<'tokens, O, F> Parser<'tokens, O> for Custom<F>
 where
     F: Fn(&mut InputRef<'tokens, '_>) -> Result<O, SyntaxParseError<'tokens>>,
 {
+    #[inline]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let before = input.cursor;
         match (self.parser)(input) {
@@ -788,6 +801,7 @@ where
         }
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.drive_emit(input).map(|_| ())
     }
@@ -806,10 +820,12 @@ pub(crate) fn empty() -> Empty {
 
 #[contract_trait]
 impl<'tokens> Parser<'tokens, ()> for Empty {
+    #[inline(always)]
     fn drive_emit(&self, _input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         Ok(())
     }
 
+    #[inline(always)]
     fn drive_check(&self, _input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         Ok(())
     }
@@ -828,6 +844,7 @@ pub(crate) fn end() -> End {
 
 #[contract_trait]
 impl<'tokens> Parser<'tokens, ()> for End {
+    #[inline]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         let before = input.save();
         match input.next() {
@@ -841,6 +858,7 @@ impl<'tokens> Parser<'tokens, ()> for End {
         }
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.drive_emit(input)
     }
@@ -861,10 +879,12 @@ where
     P: Parser<'tokens, O>,
     F: Fn(O) -> U,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<U, ()> {
         self.parser.drive_emit(input).map(&self.mapper)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.parser.drive_check(input)
     }
@@ -885,11 +905,13 @@ where
     P: Parser<'tokens, O>,
     F: Fn(O, &mut MapExtra<'tokens, '_>) -> U,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<U, ()> {
         let output = self.parser.drive_emit(input)?;
         Ok((self.mapper)(output, &mut MapExtra { state: input.state }))
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.parser.drive_check(input)
     }
@@ -906,6 +928,7 @@ pub(crate) struct MapErrWithState<P, F> {
 impl<P, F> MapErrWithState<P, F> {
     #[requires(true)]
     #[ensures(true)]
+    #[inline(always)]
     fn drive<'tokens, O, R>(
         &self,
         input: &mut InputRef<'tokens, '_>,
@@ -948,10 +971,12 @@ where
         &mut ParserState<'tokens>,
     ) -> SyntaxParseError<'tokens>,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         self.drive(input, Parser::drive_emit)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.drive(input, Parser::drive_check)
     }
@@ -972,12 +997,14 @@ where
     A: Parser<'tokens, OA>,
     B: Parser<'tokens, OB>,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<(OA, OB), ()> {
         let first = self.first.drive_emit(input)?;
         let second = self.second.drive_emit(input)?;
         Ok((first, second))
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.first.drive_check(input)?;
         self.second.drive_check(input)
@@ -999,11 +1026,13 @@ where
     A: Parser<'tokens, OA>,
     B: Parser<'tokens, OB>,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<OB, ()> {
         self.first.drive_check(input)?;
         self.second.drive_emit(input)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.first.drive_check(input)?;
         self.second.drive_check(input)
@@ -1024,6 +1053,7 @@ where
     A: Parser<'tokens, O>,
     B: Parser<'tokens, O>,
 {
+    #[inline]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let before = input.save();
         match self.first.drive_emit(input) {
@@ -1035,6 +1065,7 @@ where
         }
     }
 
+    #[inline]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         let before = input.save();
         match self.first.drive_check(input) {
@@ -1065,6 +1096,7 @@ impl<P, L> Labelled<P, L> {
 
     #[requires(true)]
     #[ensures(true)]
+    #[inline]
     fn drive<'tokens, R>(
         &self,
         input: &mut InputRef<'tokens, '_>,
@@ -1103,10 +1135,12 @@ where
     L: Clone,
     SyntaxParseError<'tokens>: LabelError<'tokens, L>,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         self.drive(input, Parser::drive_emit)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         self.drive(input, Parser::drive_check)
     }
@@ -1167,7 +1201,7 @@ impl<'tokens> RecursiveFamily<'tokens> {
 /// Type-specific recursive rule node stored in a heterogeneous family owner.
 #[invariant(true)]
 struct RecursiveNode<'tokens, O> {
-    parser: OnceCell<Boxed<'tokens, O>>,
+    parser: OnceCell<Box<dyn Parser<'tokens, O> + 'tokens>>,
 }
 
 /// A weak, non-owning recursive backedge.
@@ -1189,13 +1223,14 @@ impl<'tokens, O: 'tokens> Recursive<'tokens, O> {
             .upgrade()
             .expect("recursive parser family dropped before definition")
             .parser
-            .set(parser.boxed())
+            .set(Box::new(parser))
             .unwrap_or_else(|_| panic!("recursive parsers can only be defined once"));
     }
 }
 
 #[contract_trait]
 impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
             self.node
@@ -1208,6 +1243,7 @@ impl<'tokens, O> Parser<'tokens, O> for Recursive<'tokens, O> {
         })
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         stacker::maybe_grow(64 * 1024, 1024 * 1024, || {
             self.node
@@ -1234,11 +1270,13 @@ impl<'tokens, O, P> Parser<'tokens, O> for OwnedRecursiveRoot<'tokens, P>
 where
     P: Parser<'tokens, O>,
 {
+    #[inline(always)]
     fn drive_emit(&self, input: &mut InputRef<'tokens, '_>) -> Result<O, ()> {
         let _owner = &self.owner;
         self.parser.drive_emit(input)
     }
 
+    #[inline(always)]
     fn drive_check(&self, input: &mut InputRef<'tokens, '_>) -> Result<(), ()> {
         let _owner = &self.owner;
         self.parser.drive_check(input)
