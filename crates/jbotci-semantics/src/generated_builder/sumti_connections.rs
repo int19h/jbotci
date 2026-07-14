@@ -1,6 +1,82 @@
 use super::*;
 
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_generated_vocative_sumti_connection_formula(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
+        if generated_logical_sumti_connection_for_branch(branch)?.is_none() {
+            return Ok(None);
+        }
+        self.build_generated_sumti_connection_formula_for_place::<()>(
+            "vocativeTarget",
+            1,
+            &BTreeMap::new(),
+            branch,
+            1,
+            &[],
+            PredicationMode::Performative,
+            source.clone(),
+            source,
+            &[],
+            &[],
+        )
+        .map(Some)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.as_ref().is_none_or(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted)) || ret.is_err())]
+    pub(super) fn build_nonlogical_connected_sumti_argument_with_formula_scopes<'syntax: 'tree>(
+        &mut self,
+        sumti: &'syntax SumtiSyntax,
+        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    ) -> Result<Option<ArgumentValue>, SemanticsError> {
+        if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
+            return Ok(None);
+        }
+        let afterthought = sumti.base_sumti.leading_sumti.as_ref();
+        if afterthought.continuations.is_empty()
+            || afterthought.continuations.iter().any(|continuation| {
+                generated_argument_connective_is_logical(&continuation.connective)
+            })
+        {
+            return Ok(None);
+        }
+        if !generated_sumti_has_argument_formula_scope(sumti)? {
+            return Ok(None);
+        }
+        let leading = self.build_generated_alternative_argument_for_sumti_bound(
+            &afterthought.leading_sumti,
+            false,
+        )?;
+        let mut referent = leading
+            .argument
+            .value
+            .ok_or_else(|| unsupported("deleted operand in nonlogical sumti connection"))?;
+        formula_scopes.extend(leading.formula_scopes);
+        for continuation in &afterthought.continuations {
+            let trailing = self
+                .build_generated_alternative_argument_for_sumti_bound(&continuation.sumti, false)?;
+            let trailing_referent = trailing
+                .argument
+                .value
+                .ok_or_else(|| unsupported("deleted operand in nonlogical sumti connection"))?;
+            formula_scopes.extend(trailing.formula_scopes);
+            referent = self.build_connected_generated_sumti_referent(
+                sumti,
+                referent,
+                &continuation.connective,
+                trailing_referent,
+            )?;
+        }
+        self.finish_generated_sumti_argument(sumti, referent)
+            .map(Some)
+    }
+
     #[requires(!relation.is_empty())]
     #[requires(first_visible_place > 0)]
     #[requires(place_limit > 0)]
@@ -75,6 +151,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
         let mut alternatives = BTreeMap::<usize, Vec<GeneratedAlternativeArgumentSource>>::new();
         let mut modal_terms = Vec::new();
+        let mut modal_formula_scopes = Vec::new();
         let mut term_formula_scopes = Vec::new();
         let mut connective = None;
         let mut pending_connections = Vec::<(usize, &'syntax SumtiAfterthoughtSyntax)>::new();
@@ -198,7 +275,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     }
                 }
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                    modal_terms.push(term);
+                    modal_terms
+                        .push(self.prepare_generated_modal_term(term, &mut modal_formula_scopes)?);
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
@@ -315,10 +393,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let source = predication_source
             .clone()
             .or_else(|| formula_source.clone());
-        let outer_scopes = shared_arguments
+        let mut outer_scopes = shared_arguments
             .values()
             .flat_map(|value| value.formula_scopes.iter().cloned())
             .collect::<Vec<_>>();
+        outer_scopes.extend(modal_formula_scopes);
         let connection_formula_source =
             source_with_construct(source.clone(), "sumti-connection-formula");
         let pure_modal_connection =
@@ -670,7 +749,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     }
                 }
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                    modal_terms.push(term);
+                    modal_terms.push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
@@ -764,7 +843,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&'tree TaggedSumtiTermSyntax],
+        modal_terms: &[GeneratedModalTerm<'tree>],
         additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let Some(connection) = generated_logical_sumti_connection_for_branch(sumti)? else {
@@ -898,7 +977,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&'tree TaggedSumtiTermSyntax],
+        modal_terms: &[GeneratedModalTerm<'tree>],
         negated: bool,
         additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1013,24 +1092,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     })
                 } else {
                     self.build_generated_alternative_argument_for_sumti_branch(
-                        GeneratedDistributedSumtiBranch::SumtiAfterthought(&sumti.leading_sumti),
+                        generated_sumti_afterthought_branch(&sumti.leading_sumti),
                         negated,
                     )
                 }
             }
-            GeneratedDistributedSumtiBranch::SumtiAfterthought(sumti) => {
-                if sumti.continuations.is_empty() {
+            GeneratedDistributedSumtiBranch::SumtiAfterthought(prefix) => {
+                if prefix.continuation_count == 0 {
                     self.build_generated_alternative_argument_for_sumti_branch(
-                        GeneratedDistributedSumtiBranch::SumtiBound(&sumti.leading_sumti),
+                        GeneratedDistributedSumtiBranch::SumtiBound(&prefix.sumti.leading_sumti),
                         negated,
                     )
                 } else {
-                    let referent = self.build_sumti_afterthought_referent(sumti)?;
-                    Ok(GeneratedAlternativeArgument {
-                        argument: ArgumentValue::filled(referent, None),
-                        negated,
-                        formula_scopes: Vec::new(),
-                    })
+                    self.build_generated_alternative_argument_for_sumti_afterthought_prefix(
+                        prefix, negated,
+                    )
                 }
             }
             GeneratedDistributedSumtiBranch::SumtiBound(sumti) => {
@@ -1040,6 +1116,51 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.build_generated_alternative_argument_for_sumti_forethought(sumti, negated)
             }
         }
+    }
+
+    #[requires(prefix.continuation_count > 0)]
+    #[ensures(true)]
+    pub(super) fn build_generated_alternative_argument_for_sumti_afterthought_prefix<
+        'syntax: 'tree,
+    >(
+        &mut self,
+        prefix: GeneratedSumtiAfterthoughtPrefix<'syntax>,
+        negated: bool,
+    ) -> Result<GeneratedAlternativeArgument<'syntax>, SemanticsError> {
+        let leading = self.build_generated_alternative_argument_for_sumti_bound(
+            &prefix.sumti.leading_sumti,
+            false,
+        )?;
+        let mut referent = leading
+            .argument
+            .value
+            .ok_or_else(|| unsupported("deleted operand in afterthought sumti prefix"))?;
+        let mut formula_scopes = leading.formula_scopes;
+        for continuation in prefix
+            .sumti
+            .continuations
+            .iter()
+            .take(prefix.continuation_count)
+        {
+            let trailing = self
+                .build_generated_alternative_argument_for_sumti_bound(&continuation.sumti, false)?;
+            let trailing_referent = trailing
+                .argument
+                .value
+                .ok_or_else(|| unsupported("deleted operand in afterthought sumti prefix"))?;
+            formula_scopes.extend(trailing.formula_scopes);
+            referent = self.build_connected_generated_sumti_referent(
+                prefix.sumti,
+                referent,
+                &continuation.connective,
+                trailing_referent,
+            )?;
+        }
+        Ok(GeneratedAlternativeArgument {
+            argument: ArgumentValue::filled(referent, None),
+            negated,
+            formula_scopes,
+        })
     }
 
     #[requires(place > 0)]
@@ -1265,18 +1386,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             });
         }
         let mut formula_scopes = Vec::new();
-        let scope_source = generated_quantified_sumti_from_sumti_bound(sumti)
-            .map(GeneratedArgumentQuantifierSource::QuantifiedSumti)
-            .or_else(|| {
-                outer_quantified_description_from_sumti_bound(sumti)
-                    .map(GeneratedArgumentQuantifierSource::OuterQuantifiedDescription)
-            })
-            .or_else(|| {
-                no_gadri_description_from_sumti_bound(sumti)
-                    .ok()
-                    .flatten()
-                    .map(GeneratedArgumentQuantifierSource::NoGadriDescription)
-            });
+        let scope_source = generated_argument_quantifier_source_from_sumti_bound(sumti)?;
         let referent = if scope_source.is_some() {
             if self
                 .generated_requantified_da_source_for_sumti_bound(sumti, &formula_scopes)
@@ -1548,10 +1658,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(eventuality) => eventuality,
             None => self.build_generated_predication_eventuality(source.clone())?,
         };
-        self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
-        let assignments = self.with_temporal_context(eventuality, |builder| {
-            builder.build_term_assignments_for_terms(terms.clone(), first_visible_place)
-        })?;
+        let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
+        self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
         let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms_for_event(
             eventuality,
             &assignments.modal_terms,

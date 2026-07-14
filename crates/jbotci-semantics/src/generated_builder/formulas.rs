@@ -1700,7 +1700,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
-        modal_terms: &mut Vec<&'syntax TaggedSumtiTermSyntax>,
+        modal_terms: &mut Vec<GeneratedModalTerm<'syntax>>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
@@ -2273,8 +2273,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && allow_single_argument_distribution
             && let [term] = terms.as_slice()
             && let Some(sumti) = simple_sumti_from_term(term).ok()
-            && (no_gadri_description_from_sumti(sumti)?.is_some()
-                || generated_sumti_afterthought_for_distribution(sumti).is_some())
+            && no_gadri_description_from_sumti(sumti)?.is_some()
         {
             return Ok(None);
         }
@@ -2681,15 +2680,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     description,
                     predication_source,
                     formula_source,
-                );
-            }
-            if let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti) {
-                return self.build_afterthought_sumti_argument_formula(
-                    simple_tail,
-                    afterthought,
-                    self.source_for_node(source_node, "distributed-predication"),
-                    self.source_for_node(source_node, "distributed-formula"),
-                    self.source_for_node(source_node, "sumti-connection-formula"),
                 );
             }
         }

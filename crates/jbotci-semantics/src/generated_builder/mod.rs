@@ -777,11 +777,18 @@ struct GeneratedTermAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     next_visible_place: usize,
     place_questions: Vec<GeneratedPlaceQuestionAssignment>,
-    modal_terms: Vec<&'syntax TaggedSumtiTermSyntax>,
+    modal_terms: Vec<GeneratedModalTerm<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     coequal_scope_groups: Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
     implicit_existentials: Vec<GeneratedImplicitExistential>,
     term_formula_scopes: Vec<GeneratedTermFormulaScope>,
+}
+
+#[invariant(argument.as_ref().is_none_or(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted))]
+#[derive(Debug, Clone)]
+struct GeneratedModalTerm<'syntax> {
+    syntax: &'syntax TaggedSumtiTermSyntax,
+    argument: Option<ArgumentValue>,
 }
 
 #[invariant(true)]
@@ -820,18 +827,20 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 
 #[invariant(true)]
 #[derive(Debug)]
-struct GeneratedLinkargsAssignments {
+struct GeneratedLinkargsAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     modal_arguments: Vec<ModalArgument>,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     next_visible_place: usize,
 }
 
 #[invariant(!visible_argument_branches.is_empty())]
 #[invariant(visible_argument_branches.iter().all(|branch| branch.keys().all(|place| *place > 0)))]
 #[derive(Debug)]
-struct GeneratedLinkargsArgumentBranches {
+struct GeneratedLinkargsArgumentBranches<'syntax> {
     visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
     modal_arguments: Vec<ModalArgument>,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
 }
 
 #[invariant(::Negation { .. } => true)]
@@ -1135,6 +1144,13 @@ enum GeneratedDistributedSumtiConnective<'syntax> {
     },
 }
 
+#[invariant(*continuation_count <= sumti.continuations.len())]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedSumtiAfterthoughtPrefix<'syntax> {
+    sumti: &'syntax SumtiAfterthoughtSyntax,
+    continuation_count: usize,
+}
+
 #[invariant(::Sumti(_) => true)]
 #[invariant(::SumtiGrouped(_) => true)]
 #[invariant(::SumtiAfterthought(_) => true)]
@@ -1144,7 +1160,7 @@ enum GeneratedDistributedSumtiConnective<'syntax> {
 enum GeneratedDistributedSumtiBranch<'syntax> {
     Sumti(&'syntax SumtiSyntax),
     SumtiGrouped(&'syntax SumtiGroupedSyntax),
-    SumtiAfterthought(&'syntax SumtiAfterthoughtSyntax),
+    SumtiAfterthought(GeneratedSumtiAfterthoughtPrefix<'syntax>),
     SumtiBound(&'syntax SumtiBoundSyntax),
     SumtiForethought(&'syntax SumtiForethoughtSyntax),
 }
@@ -1185,6 +1201,17 @@ struct GeneratedArgumentQuantifierScope<'syntax> {
     source_restriction_formulas: Vec<SemanticObjectId>,
     inherited_restrictions: Vec<SemanticObjectId>,
     relative_clause_restrictions: Vec<SemanticObjectId>,
+}
+
+#[invariant(crate::model::argument_object_kind_can_fill(object.object_kind()))]
+#[invariant(formula_scopes.iter().all(|scope| scope.variable.object_kind() == crate::model::SemanticObjectKind::Referent))]
+#[invariant(formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula))]
+#[derive(Debug, Clone)]
+struct GeneratedVocativeTarget<'syntax> {
+    object: SemanticObjectId,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    formula: Option<SemanticObjectId>,
+    audience_is_target: bool,
 }
 
 #[invariant(::Sumti(_) => true)]
@@ -2806,7 +2833,7 @@ fn extend_generated_term_assignments_shifted<'syntax>(
         .extend(source.place_questions.clone());
     target
         .modal_terms
-        .extend(source.modal_terms.iter().copied());
+        .extend(source.modal_terms.iter().cloned());
     target.formula_scopes.extend(source.formula_scopes.clone());
     target
         .coequal_scope_groups
@@ -4641,6 +4668,28 @@ fn generated_logical_sumti_connection_for_branch(
 ) -> Result<Option<GeneratedLogicalSumtiConnection<'_>>, SemanticsError> {
     match branch {
         GeneratedDistributedSumtiBranch::Sumti(sumti) => {
+            if let Some(VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail)) =
+                &sumti.vuho_attachment
+            {
+                let connection = &tail.sumti_connection;
+                if generated_argument_connective_is_logical(&connection.connective)
+                    && !generated_argument_connective_is_interval(&connection.connective)
+                {
+                    return Ok(Some(GeneratedLogicalSumtiConnection {
+                        leading: GeneratedDistributedSumtiBranch::SumtiGrouped(
+                            sumti.base_sumti.as_ref(),
+                        ),
+                        connective: GeneratedDistributedSumtiConnective::Argument {
+                            connective: &connection.connective,
+                            tense_modal: None,
+                            bo: false,
+                        },
+                        trailing: GeneratedDistributedSumtiBranch::Sumti(connection.sumti.as_ref()),
+                        relative_clauses: None,
+                    }));
+                }
+                return Ok(None);
+            }
             let relative_clauses = generated_vuho_relative_clause_list_for_sumti(sumti);
             if sumti.vuho_attachment.is_some() && relative_clauses.is_none() {
                 return Ok(None);
@@ -4661,9 +4710,7 @@ fn generated_logical_sumti_connection_for_branch(
                     && !generated_argument_connective_is_interval(&tail.connective)
                 {
                     return Ok(Some(GeneratedLogicalSumtiConnection {
-                        leading: GeneratedDistributedSumtiBranch::SumtiAfterthought(
-                            sumti.leading_sumti.as_ref(),
-                        ),
+                        leading: generated_sumti_afterthought_branch(&sumti.leading_sumti),
                         connective: GeneratedDistributedSumtiConnective::Argument {
                             connective: &tail.connective,
                             tense_modal: tail.tense_modal.as_deref(),
@@ -4675,28 +4722,29 @@ fn generated_logical_sumti_connection_for_branch(
                 }
                 return Ok(None);
             }
-            generated_logical_sumti_connection_for_branch(
-                GeneratedDistributedSumtiBranch::SumtiAfterthought(sumti.leading_sumti.as_ref()),
-            )
+            generated_logical_sumti_connection_for_branch(generated_sumti_afterthought_branch(
+                &sumti.leading_sumti,
+            ))
         }
-        GeneratedDistributedSumtiBranch::SumtiAfterthought(sumti) => {
-            if sumti.continuations.is_empty() {
+        GeneratedDistributedSumtiBranch::SumtiAfterthought(prefix) => {
+            let sumti = prefix.sumti;
+            let continuation_count = prefix.continuation_count;
+            if continuation_count == 0 {
                 return generated_logical_sumti_connection_for_branch(
                     GeneratedDistributedSumtiBranch::SumtiBound(sumti.leading_sumti.as_ref()),
                 );
             }
-            let [continuation] = sumti.continuations.as_slice() else {
-                return Err(unsupported(
-                    "multi-continuation generated sumti distribution",
-                ));
-            };
+            let continuation = &sumti.continuations[continuation_count - 1];
             if generated_argument_connective_is_logical(&continuation.connective)
                 && !generated_argument_connective_is_interval(&continuation.connective)
             {
                 return Ok(Some(GeneratedLogicalSumtiConnection {
-                    leading: GeneratedDistributedSumtiBranch::SumtiBound(
-                        sumti.leading_sumti.as_ref(),
-                    ),
+                    leading: GeneratedDistributedSumtiBranch::SumtiAfterthought(new!(
+                        GeneratedSumtiAfterthoughtPrefix {
+                            sumti,
+                            continuation_count: continuation_count - 1,
+                        }
+                    )),
                     connective: GeneratedDistributedSumtiConnective::Argument {
                         connective: &continuation.connective,
                         tense_modal: None,
@@ -4760,6 +4808,17 @@ fn generated_logical_sumti_connection_for_branch(
             Ok(None)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, GeneratedDistributedSumtiBranch::SumtiAfterthought(_)))]
+fn generated_sumti_afterthought_branch(
+    sumti: &SumtiAfterthoughtSyntax,
+) -> GeneratedDistributedSumtiBranch<'_> {
+    GeneratedDistributedSumtiBranch::SumtiAfterthought(new!(GeneratedSumtiAfterthoughtPrefix {
+        sumti,
+        continuation_count: sumti.continuations.len(),
+    }))
 }
 
 #[requires(true)]
@@ -4845,6 +4904,84 @@ fn generated_quantified_sumti_from_sumti(sumti: &SumtiSyntax) -> Option<&Quantif
         return None;
     };
     Some(quantified)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| source.is_none_or(|source| matches!(source, GeneratedArgumentQuantifierSource::QuantifiedSumti(_) | GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(_) | GeneratedArgumentQuantifierSource::NoGadriDescription(_)))) || ret.is_err())]
+fn generated_argument_quantifier_source_from_sumti(
+    sumti: &SumtiSyntax,
+) -> Result<Option<GeneratedArgumentQuantifierSource<'_>>, SemanticsError> {
+    if let Some(quantified_sumti) = generated_quantified_sumti_from_sumti(sumti) {
+        return Ok(Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
+            quantified_sumti,
+        )));
+    }
+    if let Some(description) = outer_quantified_description_from_sumti(sumti) {
+        return Ok(Some(
+            GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description),
+        ));
+    }
+    no_gadri_description_from_sumti(sumti)
+        .map(|description| description.map(GeneratedArgumentQuantifierSource::NoGadriDescription))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| source.is_none_or(|source| matches!(source, GeneratedArgumentQuantifierSource::QuantifiedSumti(_) | GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(_) | GeneratedArgumentQuantifierSource::NoGadriDescription(_)))) || ret.is_err())]
+fn generated_argument_quantifier_source_from_sumti_bound(
+    sumti: &SumtiBoundSyntax,
+) -> Result<Option<GeneratedArgumentQuantifierSource<'_>>, SemanticsError> {
+    if let Some(quantified) = generated_quantified_sumti_from_sumti_bound(sumti) {
+        return Ok(Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
+            quantified,
+        )));
+    }
+    if let Some(description) = outer_quantified_description_from_sumti_bound(sumti) {
+        return Ok(Some(
+            GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description),
+        ));
+    }
+    no_gadri_description_from_sumti_bound(sumti)
+        .map(|description| description.map(GeneratedArgumentQuantifierSource::NoGadriDescription))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_has_argument_formula_scope(sumti: &SumtiSyntax) -> Result<bool, SemanticsError> {
+    if generated_argument_quantifier_source_from_sumti(sumti)?.is_some() {
+        return Ok(true);
+    }
+    if let Some(simple) = generated_simple_sumti_from_sumti(sumti)
+        && let SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::LaheSumti(lahe)) =
+            simple.base_sumti.as_ref()
+    {
+        return generated_sumti_has_argument_formula_scope(&lahe.inner_sumti);
+    }
+    if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
+        return Ok(false);
+    }
+    let afterthought = sumti.base_sumti.leading_sumti.as_ref();
+    if afterthought.continuations.is_empty()
+        || afterthought
+            .continuations
+            .iter()
+            .any(|continuation| generated_argument_connective_is_logical(&continuation.connective))
+    {
+        return Ok(false);
+    }
+    if generated_argument_quantifier_source_from_sumti_bound(&afterthought.leading_sumti)?.is_some()
+    {
+        return Ok(true);
+    }
+    afterthought
+        .continuations
+        .iter()
+        .try_fold(false, |has_scope, continuation| {
+            Ok::<bool, SemanticsError>(
+                has_scope
+                    || generated_argument_quantifier_source_from_sumti_bound(&continuation.sumti)?
+                        .is_some(),
+            )
+        })
 }
 
 #[requires(true)]
@@ -8272,6 +8409,26 @@ mod tests {
         let linked = semantic_result_for("bei le dinju").expect_err("BEI omits its link head");
         assert_eq!(linked.kind, SemanticsErrorKind::RequiresDiscourseContext);
         assert!(linked.message.contains("omitted linked-argument head"));
+
+        let quantified =
+            semantic_result_for("ro do").expect_err("a quantified fragment has no truth bearer");
+        assert_eq!(
+            quantified.kind,
+            SemanticsErrorKind::RequiresDiscourseContext
+        );
+        assert!(quantified.message.contains("truth-bearing scope"));
+
+        let deleted = semantic_graph_for("ru'a zi'o");
+        let deleted_content = deleted
+            .objects
+            .get(&deleted.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("deleted sumti fragment keeps its referential mention");
+        assert_eq!(
+            deleted_content.object_kind(),
+            crate::model::SemanticObjectKind::Referent
+        );
     }
 
     #[test]
@@ -8842,6 +8999,464 @@ mod tests {
         assert_eq!(
             serde_json::to_value(quantified).expect("formula should serialize")["domainImport"],
             serde_json::json!("projective")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_vocative_scopes_its_addressee_and_target_formula() {
+        let graph = semantic_graph_for("coi rodo");
+        let utterance = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .expect("root should be the vocative utterance");
+        assert_eq!(utterance.force, UtteranceForce::Vocative);
+        let content = utterance.content.expect("quantified vocative content");
+        let data!(FormulaNode::Quantified(scope)) = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_formula)
+            .expect("vocative content should be a formula")
+            .as_data()
+        else {
+            panic!("quantified vocative content should be a quantified formula");
+        };
+        assert_eq!(scope.operator, FormulaOperator::Forall);
+        assert_eq!(utterance.audience, scope.variable);
+        assert_eq!(
+            graph
+                .objects
+                .get(&scope.variable)
+                .and_then(|object| object.referent_category()),
+            Some(ReferentCategory::Variable)
+        );
+        assert_eq!(
+            graph
+                .objects
+                .get(&content)
+                .and_then(SemanticObject::formula_domain_import),
+            Some(DomainImport::Projective)
+        );
+        let quantity = graph
+            .objects
+            .get(&scope.quantity.expect("ro quantity"))
+            .and_then(SemanticObject::as_quantity)
+            .expect("ro quantity object");
+        assert_eq!(quantity.form, QuantityForm::All);
+
+        let restriction = graph
+            .objects
+            .get(&scope.restriction.expect("audience membership restriction"))
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("membership restriction predication");
+        assert!(matches!(
+            restriction.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "memberOf"
+        ));
+        assert_eq!(
+            restriction.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        assert_eq!(
+            restriction.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee())
+        );
+
+        let target = graph
+            .objects
+            .get(&scope.body)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("vocative target predication");
+        assert!(matches!(
+            target.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "vocativeTarget"
+        ));
+        assert_eq!(target.mode, PredicationMode::Performative);
+        assert_eq!(
+            target.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn outer_quantified_description_restricts_the_matrix_argument() {
+        let graph = semantic_graph_for("ro le prenu cu klama");
+        let scope = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(scope))
+                    if scope.operator == FormulaOperator::Forall =>
+                {
+                    Some(scope)
+                }
+                _ => None,
+            })
+            .expect("outer ro should introduce a forall scope");
+        assert_eq!(
+            graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                        .then_some(predication.arguments[&argument_key(1)].value)
+                })
+                .flatten(),
+            Some(scope.variable)
+        );
+        let restriction = graph
+            .objects
+            .get(
+                &scope
+                    .restriction
+                    .expect("description membership restriction"),
+            )
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("description membership predication");
+        assert!(matches!(
+            restriction.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "memberOf"
+        ));
+        assert_eq!(
+            restriction.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        let domain = restriction.arguments[&argument_key(2)]
+            .value
+            .expect("description referent domain");
+        assert_eq!(
+            graph
+                .objects
+                .get(&domain)
+                .and_then(SemanticObject::descriptor)
+                .map(|descriptor| descriptor.word.as_str()),
+            Some("le")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cardinal_quantified_pro_sumti_restricts_the_matrix_argument() {
+        let graph = semantic_graph_for("re do klama");
+        let scope = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(scope))
+                    if scope.operator == FormulaOperator::Cardinality =>
+                {
+                    Some(scope)
+                }
+                _ => None,
+            })
+            .expect("re do should introduce cardinality scope");
+        let quantity = graph
+            .objects
+            .get(&scope.quantity.expect("re quantity"))
+            .and_then(SemanticObject::as_quantity)
+            .expect("re quantity object");
+        assert_eq!(quantity.form, QuantityForm::Exact);
+        assert_eq!(quantity.value.integer, Some(2));
+        let klama = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("matrix klama predication");
+        assert_eq!(
+            klama.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        let restriction = graph
+            .objects
+            .get(&scope.restriction.expect("audience membership restriction"))
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("audience membership predication");
+        assert_eq!(
+            restriction.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        assert_eq!(
+            restriction.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn three_sumti_afterthought_chain_distributes_with_left_grouping() {
+        let graph = semantic_graph_for("le glico .e le dotco .e le fraso cu tavla");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let data!(FormulaNode::Connective(outer)) = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_formula)
+            .expect("outer connection formula")
+            .as_data()
+        else {
+            panic!("three-branch chain should have an outer connective");
+        };
+        assert_eq!(outer.operator, FormulaOperator::And);
+        assert_eq!(outer.children.len(), 2);
+        assert_eq!(
+            outer
+                .connector
+                .as_ref()
+                .map(|connector| connector.source.as_str()),
+            Some("e")
+        );
+        let data!(FormulaNode::Connective(inner)) = graph
+            .objects
+            .get(&outer.children[0])
+            .and_then(SemanticObject::as_formula)
+            .expect("left-grouped inner connection")
+            .as_data()
+        else {
+            panic!("the first two sumti should form the left branch");
+        };
+        assert_eq!(inner.operator, FormulaOperator::And);
+        assert_eq!(inner.children.len(), 2);
+        assert_eq!(
+            inner
+                .connector
+                .as_ref()
+                .map(|connector| connector.source.as_str()),
+            Some("e")
+        );
+        assert_eq!(
+            graph
+                .objects
+                .values()
+                .filter_map(SemanticObject::as_predication)
+                .filter(|predication| matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "tavla"))
+                .count(),
+            3
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ke_grouped_sumti_preserves_the_explicit_right_branch() {
+        let graph = semantic_graph_for("le klama .e ke le broda .e le brode ke'e cu cadzu");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let data!(FormulaNode::Connective(outer)) = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_formula)
+            .expect("outer connection formula")
+            .as_data()
+        else {
+            panic!("grouped sumti should distribute through an outer connective");
+        };
+        assert_eq!(outer.operator, FormulaOperator::And);
+        assert_eq!(outer.children.len(), 2);
+        assert!(matches!(
+            graph.objects[&outer.children[0]]
+                .as_formula()
+                .map(FormulaNode::as_data),
+            Some(data!(FormulaNode::Atom(_)))
+        ));
+        let data!(FormulaNode::Connective(group)) = graph
+            .objects
+            .get(&outer.children[1])
+            .and_then(SemanticObject::as_formula)
+            .expect("explicit ke group formula")
+            .as_data()
+        else {
+            panic!("ke should keep the trailing pair grouped");
+        };
+        assert_eq!(group.operator, FormulaOperator::And);
+        assert_eq!(group.children.len(), 2);
+        assert_eq!(
+            graph
+                .objects
+                .values()
+                .filter_map(SemanticObject::as_predication)
+                .filter(|predication| matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "cadzu"))
+                .count(),
+            3
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuho_connected_sumti_distributes_the_matrix_predication() {
+        let graph = semantic_graph_for("mi viska ko'a vu'o .e ko'e");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let data!(FormulaNode::Connective(connection)) = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_formula)
+            .expect("VUhO connection formula")
+            .as_data()
+        else {
+            panic!("VUhO-connected sumti should distribute the bridi");
+        };
+        assert_eq!(connection.operator, FormulaOperator::And);
+        assert_eq!(connection.children.len(), 2);
+        assert_eq!(
+            connection
+                .connector
+                .as_ref()
+                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
+            Some(("e", "sumti"))
+        );
+        let viska = connection
+            .children
+            .iter()
+            .map(|formula| {
+                graph.objects[formula]
+                    .formula_predication()
+                    .and_then(|predication| graph.objects.get(&predication))
+                    .and_then(SemanticObject::as_predication)
+                    .expect("distributed viska predication")
+            })
+            .collect::<Vec<_>>();
+        assert!(viska.iter().all(|predication| matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "viska")));
+        assert_eq!(
+            viska[0].arguments[&argument_key(1)].value,
+            viska[1].arguments[&argument_key(1)].value
+        );
+        assert_ne!(
+            viska[0].arguments[&argument_key(2)].value,
+            viska[1].arguments[&argument_key(2)].value
+        );
+        assert!(graph.objects.values().all(|object| {
+            object
+                .referent_composition()
+                .is_none_or(|composition| composition.operator != CompositionOperator::Joint)
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ji_sumti_connection_builds_a_connective_question_distribution() {
+        let graph = semantic_graph_for("le cecmu ji le velsku cu vajni");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let question = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_question)
+            .expect("connective question");
+        assert_eq!(question.kind, QuestionKind::Connective);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        let data!(FormulaNode::Connective(connection)) = graph.objects[&question.body]
+            .as_formula()
+            .expect("connective-question body formula")
+            .as_data()
+        else {
+            panic!("ji should distribute as a connective question");
+        };
+        assert_eq!(connection.operator, FormulaOperator::ConnectiveQuestion);
+        assert_eq!(connection.children.len(), 2);
+        assert!(
+            connection
+                .connector
+                .as_ref()
+                .is_some_and(|connector| connector.source == "ji" && connector.parameter.is_some())
+        );
+        assert_eq!(
+            graph
+                .objects
+                .values()
+                .filter_map(SemanticObject::as_predication)
+                .filter(|predication| matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "vajni"))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn naku_relative_phrase_negates_the_association_restriction() {
+        let graph = semantic_graph_for("le gerku pe naku cu klama ti");
+        let klama = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("matrix klama predication");
+        let dog = klama.arguments[&argument_key(1)]
+            .value
+            .expect("description argument");
+        let descriptor = graph.objects[&dog]
+            .descriptor()
+            .expect("dog description descriptor");
+        let relative = descriptor
+            .relative_clauses
+            .first()
+            .expect("pe naku relative phrase");
+        let data!(FormulaNode::Connective(negation)) = graph.objects[&relative.body]
+            .as_formula()
+            .expect("relative phrase formula")
+            .as_data()
+        else {
+            panic!("pe naku should wrap the association in negation");
+        };
+        assert_eq!(negation.operator, FormulaOperator::Not);
+        assert_eq!(negation.children.len(), 1);
+        let association = graph.objects[&negation.children[0]]
+            .formula_predication()
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("negated association predication");
+        assert!(matches!(
+            association.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "associatedWith"
+        ));
+        assert_eq!(association.mode, PredicationMode::Restrictive);
+        assert_eq!(association.arguments[&argument_key(1)].value, Some(dog));
+        let associated = association.arguments[&argument_key(2)]
+            .value
+            .expect("elided associated object");
+        assert_eq!(
+            graph.objects[&associated].referent_category(),
+            Some(ReferentCategory::Constant)
         );
     }
 
