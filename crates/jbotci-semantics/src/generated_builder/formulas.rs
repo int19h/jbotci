@@ -1700,7 +1700,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
-        modal_terms: &mut Vec<&'syntax TaggedSumtiTermSyntax>,
+        modal_terms: &mut Vec<GeneratedModalTerm<'syntax>>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,

@@ -777,11 +777,18 @@ struct GeneratedTermAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     next_visible_place: usize,
     place_questions: Vec<GeneratedPlaceQuestionAssignment>,
-    modal_terms: Vec<&'syntax TaggedSumtiTermSyntax>,
+    modal_terms: Vec<GeneratedModalTerm<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     coequal_scope_groups: Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
     implicit_existentials: Vec<GeneratedImplicitExistential>,
     term_formula_scopes: Vec<GeneratedTermFormulaScope>,
+}
+
+#[invariant(argument.as_ref().is_none_or(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted))]
+#[derive(Debug, Clone)]
+struct GeneratedModalTerm<'syntax> {
+    syntax: &'syntax TaggedSumtiTermSyntax,
+    argument: Option<ArgumentValue>,
 }
 
 #[invariant(true)]
@@ -820,18 +827,20 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 
 #[invariant(true)]
 #[derive(Debug)]
-struct GeneratedLinkargsAssignments {
+struct GeneratedLinkargsAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     modal_arguments: Vec<ModalArgument>,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     next_visible_place: usize,
 }
 
 #[invariant(!visible_argument_branches.is_empty())]
 #[invariant(visible_argument_branches.iter().all(|branch| branch.keys().all(|place| *place > 0)))]
 #[derive(Debug)]
-struct GeneratedLinkargsArgumentBranches {
+struct GeneratedLinkargsArgumentBranches<'syntax> {
     visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
     modal_arguments: Vec<ModalArgument>,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
 }
 
 #[invariant(::Negation { .. } => true)]
@@ -1185,6 +1194,17 @@ struct GeneratedArgumentQuantifierScope<'syntax> {
     source_restriction_formulas: Vec<SemanticObjectId>,
     inherited_restrictions: Vec<SemanticObjectId>,
     relative_clause_restrictions: Vec<SemanticObjectId>,
+}
+
+#[invariant(crate::model::argument_object_kind_can_fill(object.object_kind()))]
+#[invariant(formula_scopes.iter().all(|scope| scope.variable.object_kind() == crate::model::SemanticObjectKind::Referent))]
+#[invariant(formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula))]
+#[derive(Debug, Clone)]
+struct GeneratedVocativeTarget<'syntax> {
+    object: SemanticObjectId,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    formula: Option<SemanticObjectId>,
+    audience_is_target: bool,
 }
 
 #[invariant(::Sumti(_) => true)]
@@ -2806,7 +2826,7 @@ fn extend_generated_term_assignments_shifted<'syntax>(
         .extend(source.place_questions.clone());
     target
         .modal_terms
-        .extend(source.modal_terms.iter().copied());
+        .extend(source.modal_terms.iter().cloned());
     target.formula_scopes.extend(source.formula_scopes.clone());
     target
         .coequal_scope_groups
@@ -4845,6 +4865,44 @@ fn generated_quantified_sumti_from_sumti(sumti: &SumtiSyntax) -> Option<&Quantif
         return None;
     };
     Some(quantified)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| source.is_none_or(|source| matches!(source, GeneratedArgumentQuantifierSource::QuantifiedSumti(_) | GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(_) | GeneratedArgumentQuantifierSource::NoGadriDescription(_)))) || ret.is_err())]
+fn generated_argument_quantifier_source_from_sumti(
+    sumti: &SumtiSyntax,
+) -> Result<Option<GeneratedArgumentQuantifierSource<'_>>, SemanticsError> {
+    if let Some(quantified_sumti) = generated_quantified_sumti_from_sumti(sumti) {
+        return Ok(Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
+            quantified_sumti,
+        )));
+    }
+    if let Some(description) = outer_quantified_description_from_sumti(sumti) {
+        return Ok(Some(
+            GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description),
+        ));
+    }
+    no_gadri_description_from_sumti(sumti)
+        .map(|description| description.map(GeneratedArgumentQuantifierSource::NoGadriDescription))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| source.is_none_or(|source| matches!(source, GeneratedArgumentQuantifierSource::QuantifiedSumti(_) | GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(_) | GeneratedArgumentQuantifierSource::NoGadriDescription(_)))) || ret.is_err())]
+fn generated_argument_quantifier_source_from_sumti_bound(
+    sumti: &SumtiBoundSyntax,
+) -> Result<Option<GeneratedArgumentQuantifierSource<'_>>, SemanticsError> {
+    if let Some(quantified) = generated_quantified_sumti_from_sumti_bound(sumti) {
+        return Ok(Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
+            quantified,
+        )));
+    }
+    if let Some(description) = outer_quantified_description_from_sumti_bound(sumti) {
+        return Ok(Some(
+            GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description),
+        ));
+    }
+    no_gadri_description_from_sumti_bound(sumti)
+        .map(|description| description.map(GeneratedArgumentQuantifierSource::NoGadriDescription))
 }
 
 #[requires(true)]
@@ -8272,6 +8330,26 @@ mod tests {
         let linked = semantic_result_for("bei le dinju").expect_err("BEI omits its link head");
         assert_eq!(linked.kind, SemanticsErrorKind::RequiresDiscourseContext);
         assert!(linked.message.contains("omitted linked-argument head"));
+
+        let quantified =
+            semantic_result_for("ro do").expect_err("a quantified fragment has no truth bearer");
+        assert_eq!(
+            quantified.kind,
+            SemanticsErrorKind::RequiresDiscourseContext
+        );
+        assert!(quantified.message.contains("truth-bearing scope"));
+
+        let deleted = semantic_graph_for("ru'a zi'o");
+        let deleted_content = deleted
+            .objects
+            .get(&deleted.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("deleted sumti fragment keeps its referential mention");
+        assert_eq!(
+            deleted_content.object_kind(),
+            crate::model::SemanticObjectKind::Referent
+        );
     }
 
     #[test]
@@ -8895,6 +8973,203 @@ mod tests {
         assert_eq!(
             graph.objects[&associated].referent_category(),
             Some(ReferentCategory::Constant)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_vocative_scopes_its_addressee_and_target_formula() {
+        let graph = semantic_graph_for("coi rodo");
+        let utterance = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .expect("root should be the vocative utterance");
+        assert_eq!(utterance.force, UtteranceForce::Vocative);
+        let content = utterance.content.expect("quantified vocative content");
+        let data!(FormulaNode::Quantified(scope)) = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::as_formula)
+            .expect("vocative content should be a formula")
+            .as_data()
+        else {
+            panic!("quantified vocative content should be a quantified formula");
+        };
+        assert_eq!(scope.operator, FormulaOperator::Forall);
+        assert_eq!(utterance.audience, scope.variable);
+        assert_eq!(
+            graph
+                .objects
+                .get(&scope.variable)
+                .and_then(|object| object.referent_category()),
+            Some(ReferentCategory::Variable)
+        );
+        assert_eq!(
+            graph
+                .objects
+                .get(&content)
+                .and_then(SemanticObject::formula_domain_import),
+            Some(DomainImport::Projective)
+        );
+        let quantity = graph
+            .objects
+            .get(&scope.quantity.expect("ro quantity"))
+            .and_then(SemanticObject::as_quantity)
+            .expect("ro quantity object");
+        assert_eq!(quantity.form, QuantityForm::All);
+
+        let restriction = graph
+            .objects
+            .get(&scope.restriction.expect("audience membership restriction"))
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("membership restriction predication");
+        assert!(matches!(
+            restriction.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "memberOf"
+        ));
+        assert_eq!(
+            restriction.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        assert_eq!(
+            restriction.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee())
+        );
+
+        let target = graph
+            .objects
+            .get(&scope.body)
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("vocative target predication");
+        assert!(matches!(
+            target.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "vocativeTarget"
+        ));
+        assert_eq!(target.mode, PredicationMode::Performative);
+        assert_eq!(
+            target.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn outer_quantified_description_restricts_the_matrix_argument() {
+        let graph = semantic_graph_for("ro le prenu cu klama");
+        let scope = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(scope))
+                    if scope.operator == FormulaOperator::Forall =>
+                {
+                    Some(scope)
+                }
+                _ => None,
+            })
+            .expect("outer ro should introduce a forall scope");
+        assert_eq!(
+            graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                        .then_some(predication.arguments[&argument_key(1)].value)
+                })
+                .flatten(),
+            Some(scope.variable)
+        );
+        let restriction = graph
+            .objects
+            .get(
+                &scope
+                    .restriction
+                    .expect("description membership restriction"),
+            )
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("description membership predication");
+        assert!(matches!(
+            restriction.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "memberOf"
+        ));
+        assert_eq!(
+            restriction.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        let domain = restriction.arguments[&argument_key(2)]
+            .value
+            .expect("description referent domain");
+        assert_eq!(
+            graph
+                .objects
+                .get(&domain)
+                .and_then(SemanticObject::descriptor)
+                .map(|descriptor| descriptor.word.as_str()),
+            Some("le")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cardinal_quantified_pro_sumti_restricts_the_matrix_argument() {
+        let graph = semantic_graph_for("re do klama");
+        let scope = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(scope))
+                    if scope.operator == FormulaOperator::Cardinality =>
+                {
+                    Some(scope)
+                }
+                _ => None,
+            })
+            .expect("re do should introduce cardinality scope");
+        let quantity = graph
+            .objects
+            .get(&scope.quantity.expect("re quantity"))
+            .and_then(SemanticObject::as_quantity)
+            .expect("re quantity object");
+        assert_eq!(quantity.form, QuantityForm::Exact);
+        assert_eq!(quantity.value.integer, Some(2));
+        let klama = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("matrix klama predication");
+        assert_eq!(
+            klama.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        let restriction = graph
+            .objects
+            .get(&scope.restriction.expect("audience membership restriction"))
+            .and_then(SemanticObject::formula_predication)
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("audience membership predication");
+        assert_eq!(
+            restriction.arguments[&argument_key(1)].value,
+            Some(scope.variable)
+        );
+        assert_eq!(
+            restriction.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee())
         );
     }
 

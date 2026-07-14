@@ -324,6 +324,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let place_question_assignments = assignments.place_questions.clone();
         let mut visible_arguments = assignments.visible_arguments;
         let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_formula_scopes = Vec::new();
         let mut bare_jai_raised_participant = None;
         let mut jai_modal_visible_arguments = None;
         if let Some(jai_unit) = jai_unit {
@@ -376,6 +377,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             };
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
+            linkarg_formula_scopes = adjusted.formula_scopes;
         }
         if let Some(unit) = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()) {
             let raised_referent = jai_modal_visible_arguments
@@ -415,9 +417,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source,
                 formula_source,
             )?;
+            let mut formula_scopes = assignments.formula_scopes;
+            formula_scopes.extend(linkarg_formula_scopes);
             return self.wrap_formula_with_generated_assignment_scopes(
                 formula,
-                assignments.formula_scopes,
+                formula_scopes,
                 assignments.coequal_scope_groups,
                 assignments.implicit_existentials,
                 assignments.term_formula_scopes,
@@ -526,9 +530,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             _ => formula,
         };
+        let mut formula_scopes = assignments.formula_scopes;
+        formula_scopes.extend(linkarg_formula_scopes);
         self.wrap_formula_with_generated_assignment_scopes(
             formula,
-            assignments.formula_scopes,
+            formula_scopes,
             assignments.coequal_scope_groups,
             assignments.implicit_existentials,
             assignments.term_formula_scopes,
@@ -1729,7 +1735,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&'syntax TaggedSumtiTermSyntax],
+        modal_terms: &[GeneratedModalTerm<'syntax>],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let Some((trailing_unit, modifier_units)) = tanru.additional_units.split_last() else {
             return Err(unsupported("empty tanru continuation"));
@@ -2383,7 +2389,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&'tree TaggedSumtiTermSyntax],
+        modal_terms: &[GeneratedModalTerm<'tree>],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !unit.0.links.is_empty() {
             if eventuality.is_some() {
@@ -2567,7 +2573,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&'tree TaggedSumtiTermSyntax],
+        modal_terms: &[GeneratedModalTerm<'tree>],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let scalar_unit = atom.base().scalar_negated_base();
         if let Some(scalar_unit) = scalar_unit
@@ -2670,6 +2676,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let visible_x1_argument = visible_arguments.get(&1).cloned();
         let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
             let adjusted = if let Some(linkarg_assignments) = prebuilt_linkarg_assignments {
                 Self::visible_arguments_adjusted_for_linkarg_assignments(
@@ -2682,6 +2689,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             };
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
+            linkarg_formula_scopes = adjusted.formula_scopes;
         }
         if let Some(unit) = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base()) {
             linkarg_modal_arguments.push(self.build_generated_jai_modal_argument(
@@ -2772,6 +2780,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
+        let formula =
+            self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)?;
         Ok(GeneratedTanruFormulaForArgument::from_data(data!(
             GeneratedTanruFormulaForArgument {
                 formula,
@@ -2969,7 +2979,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
-        let source_operand = self.build_sumti_selbri_source_operand(&sumti_selbri.sumti)?;
+        let mut source_formula_scopes = Vec::new();
+        let source_operand = self.build_sumti_selbri_source_operand_with_formula_scopes(
+            &sumti_selbri.sumti,
+            &mut source_formula_scopes,
+        )?;
         if !arguments.contains_key(&argument_key(1)) {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
@@ -2999,7 +3013,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
-        Ok(formula)
+        let mut formula_scopes = assignments.formula_scopes;
+        formula_scopes.extend(source_formula_scopes);
+        self.wrap_formula_with_generated_assignment_scopes(
+            formula,
+            formula_scopes,
+            assignments.coequal_scope_groups,
+            assignments.implicit_existentials,
+            assignments.term_formula_scopes,
+        )
     }
 
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
@@ -3015,7 +3037,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Err(unsupported("MOI sumti selbri"));
         }
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
-        let source_operand = self.build_sumti_selbri_source_operand(&sumti_selbri.sumti)?;
+        let mut formula_scopes = Vec::new();
+        let source_operand = self.build_sumti_selbri_source_operand_with_formula_scopes(
+            &sumti_selbri.sumti,
+            &mut formula_scopes,
+        )?;
         let mut arguments = BTreeMap::new();
         arguments.insert(argument_key(1), argument);
         arguments.insert(argument_key(2), ArgumentValue::filled(source_operand, None));
@@ -3036,7 +3062,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)
     }
 
     #[requires(true)]
@@ -3052,6 +3078,26 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 } else {
                     self.build_sumti_referent(sumti)
                 }
+            }
+            SumtiSelbriSumtiSyntax::MeLerfuSumti(_) => Err(unsupported("ME lerfu sumti")),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    pub(super) fn build_sumti_selbri_source_operand_with_formula_scopes<'syntax: 'tree>(
+        &mut self,
+        sumti: &'syntax SumtiSelbriSumtiSyntax,
+        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match sumti {
+            SumtiSelbriSumtiSyntax::Sumti(sumti) => {
+                if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
+                    return Ok(sign);
+                }
+                self.build_argument_for_generated_sumti_with_formula_scopes(sumti, formula_scopes)?
+                    .value
+                    .ok_or_else(|| unsupported("deleted sumti as ME source operand"))
             }
             SumtiSelbriSumtiSyntax::MeLerfuSumti(_) => Err(unsupported("ME lerfu sumti")),
         }
@@ -4392,6 +4438,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         eventuality: GeneratedPredicationEventuality,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut modal_arguments = Vec::new();
+        let mut linkarg_formula_scopes = Vec::new();
         apply_generated_bare_jai_visible_argument(
             self,
             &mut visible_arguments,
@@ -4402,6 +4449,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
             visible_arguments = adjusted.visible_arguments;
             modal_arguments = adjusted.modal_arguments;
+            linkarg_formula_scopes = adjusted.formula_scopes;
         }
         let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
         let scalar_unit = atom.base().scalar_negated_base();
@@ -4495,7 +4543,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
     }
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
@@ -4511,11 +4559,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut modal_arguments = Vec::new();
+        let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
             let adjusted =
                 self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
             visible_arguments = adjusted.visible_arguments;
             modal_arguments = adjusted.modal_arguments;
+            linkarg_formula_scopes = adjusted.formula_scopes;
         }
         let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
         let predication_eventuality = if jai_modal.is_some() {
@@ -4608,7 +4658,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
     }
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
@@ -4792,11 +4842,36 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             bare_generated_jai_modal_tanru_unit(atom.base.as_ref()),
             jai_source,
         )?;
+        if eventuality.is_none()
+            && scalar_unit.is_none()
+            && generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()).is_none()
+            && let Some(linkargs) = linkargs
+            && linkargs.bei_links.is_empty()
+            && let LinkedSumtiSyntax::PlainLinkedSumti(linked_sumti) = &linkargs.first_link
+        {
+            let branch = GeneratedDistributedSumtiBranch::Sumti(&linked_sumti.0);
+            if generated_logical_sumti_connection_for_branch(branch)?.is_some() {
+                return self.build_generated_sumti_connection_formula_for_place(
+                    &relation.display_text(),
+                    2,
+                    &visible_arguments,
+                    branch,
+                    place_count.unwrap_or(2).max(2),
+                    &atom.conversions,
+                    mode,
+                    predication_source,
+                    formula_source,
+                    &[],
+                    &[],
+                );
+            }
+        }
         let branches =
             self.visible_argument_branches_with_linkargs(visible_arguments, linkargs, 2)?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
             modal_arguments,
+            formula_scopes,
         }) = branches.into_data();
         let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
         let relation_text = relation.display_text();
@@ -4893,9 +4968,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     Vec::new(),
                 ),
             )?;
-            return Ok(formula);
+            return self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes);
         };
-        Ok(*formula)
+        self.wrap_formula_with_generated_argument_scopes(*formula, formula_scopes)
     }
 
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
@@ -4920,8 +4995,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut visible_arguments = BTreeMap::new();
         insert_visible_argument(&mut visible_arguments, 1, argument)?;
         let mut modal_arguments = Vec::new();
+        let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
-            modal_arguments =
+            (modal_arguments, linkarg_formula_scopes) =
                 self.extend_visible_arguments_with_linkargs(&mut visible_arguments, linkargs, 2)?;
         }
         let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
@@ -5013,7 +5089,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
     }
 
     #[requires(first_visible_place > 0)]
@@ -5022,10 +5098,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         linkargs: &'syntax LinkargsSyntax,
         first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsAssignments, SemanticsError> {
+    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
         let mut assignments = GeneratedLinkargsAssignments {
             visible_arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
+            formula_scopes: Vec::new(),
             next_visible_place: first_visible_place,
         };
         self.add_linked_sumti_assignment(&mut assignments, &linkargs.first_link)?;
@@ -5043,13 +5120,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         arguments: &mut BTreeMap<usize, ArgumentValue>,
         linkargs: &'tree LinkargsSyntax,
         first_visible_place: usize,
-    ) -> Result<Vec<ModalArgument>, SemanticsError> {
+    ) -> Result<
+        (
+            Vec<ModalArgument>,
+            Vec<GeneratedArgumentQuantifierScope<'tree>>,
+        ),
+        SemanticsError,
+    > {
         let linkargs_assignments =
             self.build_linkargs_assignments(linkargs, first_visible_place)?;
         for (place, argument) in linkargs_assignments.visible_arguments {
             insert_visible_argument(arguments, place, argument)?;
         }
-        Ok(linkargs_assignments.modal_arguments)
+        Ok((
+            linkargs_assignments.modal_arguments,
+            linkargs_assignments.formula_scopes,
+        ))
     }
 
     #[requires(first_visible_place > 0)]
@@ -5060,11 +5146,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         linkargs: Option<&'syntax LinkargsSyntax>,
         first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsArgumentBranches, SemanticsError> {
+    ) -> Result<GeneratedLinkargsArgumentBranches<'syntax>, SemanticsError> {
         let Some(linkargs) = linkargs else {
             return Ok(new!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches: vec![visible_arguments],
                 modal_arguments: Vec::new(),
+                formula_scopes: Vec::new(),
             }));
         };
         let linkarg_assignments = self.build_linkargs_assignments(linkargs, first_visible_place)?;
@@ -5089,6 +5176,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(new!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches: branches,
             modal_arguments: linkarg_assignments.modal_arguments,
+            formula_scopes: linkarg_assignments.formula_scopes,
         }))
     }
 
@@ -5100,7 +5188,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         linkargs: &'syntax LinkargsSyntax,
         first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsAssignments, SemanticsError> {
+    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
         let linkarg_assignments = self.build_linkargs_assignments(linkargs, first_visible_place)?;
         Self::visible_arguments_adjusted_for_linkarg_assignments(
             visible_arguments,
@@ -5114,11 +5202,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(linkarg_assignments.next_visible_place >= first_visible_place)]
     #[requires(linkarg_assignments.visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn visible_arguments_adjusted_for_linkarg_assignments(
+    pub(super) fn visible_arguments_adjusted_for_linkarg_assignments<'syntax>(
         visible_arguments: BTreeMap<usize, ArgumentValue>,
-        linkarg_assignments: GeneratedLinkargsAssignments,
+        linkarg_assignments: GeneratedLinkargsAssignments<'syntax>,
         first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsAssignments, SemanticsError> {
+    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
         let mut next_tail_place = linkarg_assignments.next_visible_place;
         let mut adjusted_arguments = BTreeMap::new();
         let mut displaced_arguments = Vec::new();
@@ -5149,6 +5237,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(GeneratedLinkargsAssignments {
             visible_arguments: adjusted_arguments,
             modal_arguments: linkarg_assignments.modal_arguments,
+            formula_scopes: linkarg_assignments.formula_scopes,
             next_visible_place: next_tail_place,
         })
     }
@@ -5184,12 +5273,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn add_linked_sumti_assignment<'syntax: 'tree>(
         &mut self,
-        assignments: &mut GeneratedLinkargsAssignments,
+        assignments: &mut GeneratedLinkargsAssignments<'syntax>,
         link: &'syntax LinkedSumtiSyntax,
     ) -> Result<(), SemanticsError> {
         match link {
             LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
-                let argument = self.build_argument_for_generated_sumti(&sumti.0)?;
+                let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
+                    &sumti.0,
+                    &mut assignments.formula_scopes,
+                )?;
                 insert_visible_argument(
                     &mut assignments.visible_arguments,
                     assignments.next_visible_place,
@@ -5199,15 +5291,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
                 let place = linked_sumti_place(&sumti.fa.value)?;
-                let argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
+                let argument = match sumti.sumti.as_ref() {
+                    TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
+                        .build_argument_for_generated_sumti_with_formula_scopes(
+                            sumti,
+                            &mut assignments.formula_scopes,
+                        )?,
+                    TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
+                        self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
+                    }
+                };
                 insert_visible_argument(&mut assignments.visible_arguments, place, argument)?;
                 assignments.next_visible_place = assignments.next_visible_place.max(place + 1);
             }
             LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
+                let argument = match sumti.sumti.as_ref() {
+                    TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
+                        .build_argument_for_generated_sumti_with_formula_scopes(
+                            sumti,
+                            &mut assignments.formula_scopes,
+                        )?,
+                    TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
+                        self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
+                    }
+                };
                 let modal_argument = self
-                    .build_modal_argument_for_generated_tense_tagged_linked_sumti(
+                    .build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
                         sumti.tense_modal.as_ref(),
-                        sumti.sumti.as_ref(),
+                        argument,
                     )?;
                 assignments.modal_arguments.push(modal_argument);
             }
@@ -5225,12 +5336,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         tense_modal: &'syntax TenseModalSyntax,
         sumti: &'syntax TaggedOrElidedSumtiSyntax,
     ) -> Result<ModalArgument, SemanticsError> {
+        let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
+        self.build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
+            tense_modal,
+            argument,
+        )
+    }
+
+    #[requires(argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted)]
+    #[ensures(true)]
+    pub(super) fn build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
+        &mut self,
+        tense_modal: &'tree TenseModalSyntax,
+        argument: ArgumentValue,
+    ) -> Result<ModalArgument, SemanticsError> {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         else {
             return Err(unsupported("tense-tagged linked sumti tense modal"));
         };
-        let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
         let arguments = self.modal_argument_map_for_visible_place(
             argument,
             visible_place,

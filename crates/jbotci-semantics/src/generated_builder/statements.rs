@@ -2055,11 +2055,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let argument_question_start = self.argument_question_parameters.len();
         let relation_question_start = self.relation_question_parameters.len();
         let previous_pending_asides = std::mem::take(&mut self.pending_asides);
-        let addressed_or_identified = if let Some(sumti) = vocative.sumti.as_deref() {
+        let target = if let Some(sumti) = vocative.sumti.as_deref() {
             self.build_generated_vocative_target(sumti)?
         } else {
-            self.current_audience()
+            new!(GeneratedVocativeTarget {
+                object: self.current_audience(),
+                formula_scopes: Vec::new(),
+                formula: None,
+                audience_is_target: false,
+            })
         };
+        let data!(GeneratedVocativeTarget {
+            object: addressed_or_identified,
+            formula_scopes,
+            formula: prebuilt_target_formula,
+            audience_is_target,
+        }) = target.into_data();
         let nested_asides = std::mem::replace(&mut self.pending_asides, previous_pending_asides);
         let argument_parameters = self
             .argument_question_parameters
@@ -2067,26 +2078,44 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let relation_parameters = self
             .relation_question_parameters
             .split_off(relation_question_start);
+        let target_formula_source = self.exact_source_for_node(vocative, "vocative-question");
+        let target_formula = prebuilt_target_formula.or((!formula_scopes.is_empty()
+            || !argument_parameters.is_empty()
+            || !relation_parameters.is_empty())
+        .then(|| {
+            self.build_generated_vocative_target_formula(
+                addressed_or_identified,
+                target_formula_source.clone(),
+            )
+        })
+        .transpose()?);
+        let target_formula = target_formula
+            .map(|formula| {
+                self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)
+            })
+            .transpose()?;
         let content = if argument_parameters.is_empty() && relation_parameters.is_empty() {
-            (vocative_kind == "selfIdentification"
-                && addressed_or_identified.object_kind()
-                    == crate::model::SemanticObjectKind::Referent)
-                .then_some(addressed_or_identified)
+            target_formula.or_else(|| {
+                (vocative_kind == "selfIdentification"
+                    && addressed_or_identified.object_kind()
+                        == crate::model::SemanticObjectKind::Referent)
+                    .then_some(addressed_or_identified)
+            })
         } else if relation_parameters.is_empty() {
             Some(self.build_generated_vocative_question_content(
-                addressed_or_identified,
+                target_formula.expect("question targets always build a formula"),
                 argument_parameters,
                 QuestionKind::Argument,
                 SemanticSort::Entity,
-                self.exact_source_for_node(vocative, "vocative-question"),
+                target_formula_source,
             )?)
         } else if argument_parameters.is_empty() {
             Some(self.build_generated_vocative_question_content(
-                addressed_or_identified,
+                target_formula.expect("question targets always build a formula"),
                 relation_parameters,
                 QuestionKind::Relation,
                 SemanticSort::Relation,
-                self.exact_source_for_node(vocative, "vocative-question"),
+                target_formula_source,
             )?)
         } else {
             return Err(unsupported("mixed vocative target question"));
@@ -2132,7 +2161,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 node.with_data(data! { vocative_kind: Some(vocative_kind.clone()) })
             });
         }
-        if addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Referent {
+        if audience_is_target
+            && addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Referent
+        {
             if vocative_kind == "selfIdentification" {
                 self.set_generated_referent_target(addressed_or_identified, self.current_speaker());
             } else {
@@ -2148,25 +2179,73 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| matches!(id.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|target| crate::model::argument_object_kind_can_fill(target.object.object_kind())) || ret.is_err())]
     pub(super) fn build_generated_vocative_target(
         &mut self,
         target: &'tree VocativeSumtiSyntax,
-    ) -> Result<SemanticObjectId, SemanticsError> {
+    ) -> Result<GeneratedVocativeTarget<'tree>, SemanticsError> {
         match target {
             VocativeSumtiSyntax::Sumti(sumti) => {
+                let source = self.exact_source_for_node(sumti, "vocative-question");
+                if let Some(formula) =
+                    self.build_generated_vocative_sumti_connection_formula(sumti, source)?
+                {
+                    return Ok(new!(GeneratedVocativeTarget {
+                        object: self.current_audience(),
+                        formula_scopes: Vec::new(),
+                        formula: Some(formula),
+                        audience_is_target: false,
+                    }));
+                }
+                if generated_argument_quantifier_source_from_sumti(sumti)?.is_some() {
+                    let mut formula_scopes = Vec::new();
+                    let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
+                        sumti,
+                        &mut formula_scopes,
+                    )?;
+                    let object = argument.value.ok_or_else(|| {
+                        invalid_graph(
+                            "quantified vocative target has no argument object".to_owned(),
+                        )
+                    })?;
+                    return Ok(new!(GeneratedVocativeTarget {
+                        object,
+                        formula_scopes,
+                        formula: None,
+                        audience_is_target: true,
+                    }));
+                }
                 let referent = self.build_sumti_referent(sumti)?;
                 if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
                     self.attach_generated_relative_clauses_to_referent(referent, sumti)?;
                 }
-                Ok(referent)
+                Ok(new!(GeneratedVocativeTarget {
+                    object: referent,
+                    formula_scopes: Vec::new(),
+                    formula: None,
+                    audience_is_target: true,
+                }))
             }
-            VocativeSumtiSyntax::CmevlaVocativeSumti(sumti) => {
-                self.build_generated_cmevla_vocative_referent(sumti)
-            }
-            VocativeSumtiSyntax::SelbriVocativeSumti(sumti) => {
-                self.build_generated_selbri_vocative_referent(sumti)
-            }
+            VocativeSumtiSyntax::CmevlaVocativeSumti(sumti) => self
+                .build_generated_cmevla_vocative_referent(sumti)
+                .map(|object| {
+                    new!(GeneratedVocativeTarget {
+                        object,
+                        formula_scopes: Vec::new(),
+                        formula: None,
+                        audience_is_target: true,
+                    })
+                }),
+            VocativeSumtiSyntax::SelbriVocativeSumti(sumti) => self
+                .build_generated_selbri_vocative_referent(sumti)
+                .map(|object| {
+                    new!(GeneratedVocativeTarget {
+                        object,
+                        formula_scopes: Vec::new(),
+                        formula: None,
+                        audience_is_target: true,
+                    })
+                }),
         }
     }
 
@@ -2264,14 +2343,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(target.object_kind() == crate::model::SemanticObjectKind::Referent || target.object_kind() == crate::model::SemanticObjectKind::Parameter)]
-    #[requires(!parameters.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
-    pub(super) fn build_generated_vocative_question_content(
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_vocative_target_formula(
         &mut self,
         target: SemanticObjectId,
-        parameters: Vec<SemanticObjectId>,
-        kind: QuestionKind,
-        domain: SemanticSort,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let predication = self.next_predication_id();
@@ -2291,9 +2366,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let formula = self.next_formula_id();
         self.insert(
             formula,
-            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+            SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
-        self.build_direct_question(kind, domain, formula, parameters, source)
+        Ok(formula)
+    }
+
+    #[requires(target_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!parameters.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
+    pub(super) fn build_generated_vocative_question_content(
+        &mut self,
+        target_formula: SemanticObjectId,
+        parameters: Vec<SemanticObjectId>,
+        kind: QuestionKind,
+        domain: SemanticSort,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_direct_question(kind, domain, target_formula, parameters, source)
     }
 
     #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -2532,6 +2621,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?,
             )
         } else {
+            if self
+                .objects
+                .get(&formula)
+                .and_then(SemanticObject::formula_operator)
+                .is_some_and(|operator| {
+                    matches!(
+                        operator,
+                        FormulaOperator::Exists
+                            | FormulaOperator::Forall
+                            | FormulaOperator::None
+                            | FormulaOperator::Cardinality
+                            | FormulaOperator::PluralExists
+                            | FormulaOperator::PluralForall
+                            | FormulaOperator::QuantifierBundle
+                    )
+                })
+            {
+                return Err(SemanticsError::heterogeneous_question_domains());
+            }
             return Err(unsupported("mixed direct generated question kinds"));
         };
         self.insert_generated_utterance(
