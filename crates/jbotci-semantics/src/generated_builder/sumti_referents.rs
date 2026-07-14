@@ -8875,6 +8875,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let kind = abstraction_kind_for_cmavo(branch.nu.value.cmavo());
         let sort = abstraction_output_sort(kind);
+        let first_body_object_index = self.next_index;
         self.abstraction_parameter_stack.push(Vec::new());
         self.indirect_question_stack.push(Vec::new());
         let body = match self
@@ -8908,20 +8909,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.build_generated_embedded_indirect_questions(body, indirect_questions)?;
 
         if let Some(class) = abstraction_eventuality_class(kind) {
-            let existing_id = self.single_generated_formula_eventuality(body);
-            let mut object = existing_id
-                .and_then(|id| self.objects.remove(&id))
+            let body_eventuality = self.single_generated_formula_eventuality(body);
+            let owned_body_eventuality = body_eventuality.filter(|eventuality| {
+                eventuality.index() >= first_body_object_index
+                    && self
+                        .objects
+                        .get(eventuality)
+                        .is_some_and(SemanticObject::is_generated_eventuality)
+            });
+            let mut object = owned_body_eventuality
+                .and_then(|eventuality| self.objects.remove(&eventuality))
                 .unwrap_or_else(|| {
                     SemanticObject::referential_eventuality(class, None, source.clone())
                 });
-            let id = match existing_id {
-                Some(id) if id.referent_sort() == Some(sort) => id,
-                Some(id) => {
-                    let specialized_id = self.next_referent_with_sort_id(sort);
-                    self.replace_generated_eventuality_reference_everywhere(id, specialized_id);
-                    specialized_id
+            let id = match owned_body_eventuality {
+                Some(eventuality) if eventuality.referent_sort() == Some(sort) => eventuality,
+                Some(eventuality) => {
+                    let specialized = self.next_referent_with_sort_id(sort);
+                    self.replace_generated_formula_eventuality(body, eventuality, specialized);
+                    specialized
                 }
-                None => self.next_referent_with_sort_id(sort),
+                None => {
+                    let specialized = self.next_referent_with_sort_id(sort);
+                    if let Some(inherited) = body_eventuality {
+                        self.replace_generated_formula_eventuality(body, inherited, specialized);
+                    }
+                    specialized
+                }
             };
             object.configure_eventuality_abstraction(
                 class,
@@ -8941,6 +8955,119 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         object.set_abstraction_embedded_questions(embedded_questions);
         self.insert(id, object)?;
         Ok(id)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    pub(super) fn single_generated_formula_eventuality(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let predication = self.objects.get(&formula)?.formula_predication()?;
+        self.objects
+            .get(&predication)
+            .and_then(SemanticObject::predication_eventuality)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[ensures(true)]
+    pub(super) fn replace_generated_formula_eventuality(
+        &mut self,
+        formula: SemanticObjectId,
+        old_eventuality: SemanticObjectId,
+        new_eventuality: SemanticObjectId,
+    ) {
+        if old_eventuality == new_eventuality {
+            return;
+        }
+        let Some(traversal) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+            .map(FormulaTraversal::into_data)
+        else {
+            return;
+        };
+        if let Some(predication) = traversal.predication {
+            self.replace_generated_predication_eventuality(
+                predication,
+                old_eventuality,
+                new_eventuality,
+            );
+        }
+        let formula_uses_old_eventuality = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::as_formula)
+            .is_some_and(|node| {
+                matches!(
+                    node.as_data(),
+                    data!(FormulaNode::Connective(node))
+                        if node.eventuality == Some(old_eventuality)
+                )
+            });
+        if formula_uses_old_eventuality && let Some(object) = self.objects.get_mut(&formula) {
+            object.set_scoped_formula_eventuality(Some(new_eventuality));
+        }
+        for child in traversal.children {
+            self.replace_generated_formula_eventuality(child, old_eventuality, new_eventuality);
+        }
+        if let Some(restriction) = traversal.restriction {
+            self.replace_generated_formula_eventuality(
+                restriction,
+                old_eventuality,
+                new_eventuality,
+            );
+        }
+        if let Some(body) = traversal.body {
+            self.replace_generated_formula_eventuality(body, old_eventuality, new_eventuality);
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[ensures(true)]
+    pub(super) fn replace_generated_predication_eventuality(
+        &mut self,
+        predication: SemanticObjectId,
+        old_eventuality: SemanticObjectId,
+        new_eventuality: SemanticObjectId,
+    ) {
+        if old_eventuality == new_eventuality {
+            return;
+        }
+        let Some(node) = self
+            .objects
+            .get(&predication)
+            .and_then(SemanticObject::as_predication)
+        else {
+            return;
+        };
+        let tanru_head = node.tanru_link.as_ref().map(|link| link.head);
+        let modal_bodies = node
+            .modal_arguments
+            .iter()
+            .filter_map(|argument| argument.body)
+            .collect::<Vec<_>>();
+        let Some(object) = self.objects.get_mut(&predication) else {
+            return;
+        };
+        object.update_predication(|node| {
+            replace_generated_predication_eventuality_references(
+                node,
+                old_eventuality,
+                new_eventuality,
+            )
+        });
+        if let Some(head) = tanru_head {
+            self.replace_generated_predication_eventuality(head, old_eventuality, new_eventuality);
+        }
+        for body in modal_bodies {
+            self.replace_generated_formula_eventuality(body, old_eventuality, new_eventuality);
+        }
     }
 
     #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -9101,4 +9228,189 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         Ok(id)
     }
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.value != Some(old_eventuality))]
+fn replace_generated_argument_eventuality_reference(
+    argument: ArgumentValue,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> ArgumentValue {
+    if argument.value != Some(old_eventuality) {
+        return argument;
+    }
+    argument.with_data(data! { value: Some(new_eventuality) })
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.scale != Some(old_eventuality))]
+fn replace_generated_scalar_negation_eventuality_reference(
+    scalar_negation: ScalarNegation,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> ScalarNegation {
+    if scalar_negation.scale != Some(old_eventuality) {
+        return scalar_negation;
+    }
+    scalar_negation.with_data(data! { scale: Some(new_eventuality) })
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.arguments.values().all(|argument| argument.value != Some(old_eventuality)))]
+#[ensures(ret.component != Some(old_eventuality))]
+fn replace_generated_modal_eventuality_references(
+    modal: ModalArgument,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> ModalArgument {
+    let data = modal.into_data();
+    let arguments = data
+        .arguments
+        .into_iter()
+        .map(|(place, argument)| {
+            (
+                place,
+                replace_generated_argument_eventuality_reference(
+                    argument,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+            )
+        })
+        .collect();
+    let component = data.component.map(|component| {
+        if component == old_eventuality {
+            new_eventuality
+        } else {
+            component
+        }
+    });
+    let scalar_negation = data.scalar_negation.map(|scalar_negation| {
+        replace_generated_scalar_negation_eventuality_reference(
+            scalar_negation,
+            old_eventuality,
+            new_eventuality,
+        )
+    });
+    ModalArgument::from_data(data!(ModalArgument {
+        arguments,
+        component,
+        scalar_negation,
+        ..data
+    }))
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.eventuality != Some(old_eventuality))]
+#[ensures(ret.arguments.values().all(|argument| argument.value != Some(old_eventuality)))]
+#[ensures(ret.place_questions.iter().all(|binding| binding.argument.value != Some(old_eventuality)))]
+#[ensures(ret.modal_arguments.iter().all(|modal| modal.arguments.values().all(|argument| argument.value != Some(old_eventuality)) && modal.component != Some(old_eventuality)))]
+#[ensures(ret.reciprocity.iter().all(|exchange| exchange.left.value != Some(old_eventuality) && exchange.right.value != Some(old_eventuality)))]
+fn replace_generated_predication_eventuality_references(
+    predication: PredicationNode,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> PredicationNode {
+    let data = predication.into_data();
+    let eventuality = data.eventuality.map(|eventuality| {
+        if eventuality == old_eventuality {
+            new_eventuality
+        } else {
+            eventuality
+        }
+    });
+    let tanru_link = data.tanru_link.map(|link| {
+        let link_data = link.into_data();
+        let modifier = if link_data.modifier == old_eventuality {
+            new_eventuality
+        } else {
+            link_data.modifier
+        };
+        TanruLink::from_data(data!(TanruLink {
+            modifier,
+            ..link_data
+        }))
+    });
+    let arguments = data
+        .arguments
+        .into_iter()
+        .map(|(place, argument)| {
+            (
+                place,
+                replace_generated_argument_eventuality_reference(
+                    argument,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+            )
+        })
+        .collect();
+    let place_questions = data
+        .place_questions
+        .into_iter()
+        .map(|binding| {
+            let binding_data = binding.into_data();
+            PlaceQuestionBinding::from_data(data!(PlaceQuestionBinding {
+                argument: replace_generated_argument_eventuality_reference(
+                    binding_data.argument,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+                ..binding_data
+            }))
+        })
+        .collect();
+    let modal_arguments = data
+        .modal_arguments
+        .into_iter()
+        .map(|modal| {
+            replace_generated_modal_eventuality_references(modal, old_eventuality, new_eventuality)
+        })
+        .collect();
+    let reciprocity = data
+        .reciprocity
+        .into_iter()
+        .map(|exchange| {
+            let exchange_data = exchange.into_data();
+            ReciprocalExchange::from_data(data!(ReciprocalExchange {
+                left: replace_generated_argument_eventuality_reference(
+                    exchange_data.left,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+                right: replace_generated_argument_eventuality_reference(
+                    exchange_data.right,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+                ..exchange_data
+            }))
+        })
+        .collect();
+    let scalar_negation = data.scalar_negation.map(|scalar_negation| {
+        replace_generated_scalar_negation_eventuality_reference(
+            scalar_negation,
+            old_eventuality,
+            new_eventuality,
+        )
+    });
+    PredicationNode::from_data(data!(PredicationNode {
+        eventuality,
+        tanru_link,
+        arguments,
+        place_questions,
+        modal_arguments,
+        reciprocity,
+        scalar_negation,
+        ..data
+    }))
 }
