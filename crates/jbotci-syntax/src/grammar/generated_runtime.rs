@@ -271,7 +271,7 @@ fn recovery_rule_evaluation_enabled(input: &mut InputRef<'_, '_>, rule: &'static
     }
     let location = ParserInput::cursor_location(input.cursor().inner());
     let byte_start = input.state().byte_offset_for_location(location);
-    input.state().recovery_rule_enabled(rule, byte_start)
+    input.state().recovery_rule_parser_enabled(rule, byte_start)
 }
 
 #[requires(!name.is_empty())]

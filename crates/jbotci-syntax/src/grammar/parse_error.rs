@@ -2,6 +2,9 @@
 use bityzba::{data, ensures, invariant, new, requires};
 use std::{
     borrow::Cow,
+    cell::Cell,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
     rc::Rc,
     sync::Arc,
@@ -37,6 +40,7 @@ pub(super) struct SyntaxParseErrorData<'tokens> {
     active_rule_contexts: Vec<SyntaxRuleFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
     same_position_branches: Vec<Arc<SyntaxParseError<'tokens>>>,
+    report_content_hash: Cell<Option<u64>>,
 }
 
 impl<'tokens> Deref for SyntaxParseError<'tokens> {
@@ -53,7 +57,9 @@ impl<'tokens> DerefMut for SyntaxParseError<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        Rc::make_mut(&mut self.data)
+        let data = Rc::make_mut(&mut self.data);
+        data.report_content_hash.set(None);
+        data
     }
 }
 
@@ -65,14 +71,14 @@ pub(super) enum SyntaxFound {
     EndOfInput,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum SyntaxParseCustomKind {
     BridiTailKeContinuationConflict,
 }
 
 #[invariant(!tokens.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ExpectedTokenGroup {
     tokens: Arc<[SyntaxExpectedToken]>,
     reason: Option<SyntaxExpectationReason>,
@@ -139,6 +145,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
+            report_content_hash: Cell::new(None),
         })
     }
 
@@ -160,6 +167,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
+            report_content_hash: Cell::new(None),
         })
     }
 
@@ -183,6 +191,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
+            report_content_hash: Cell::new(None),
         })
     }
 
@@ -214,6 +223,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
+            report_content_hash: Cell::new(None),
         })
     }
 
@@ -424,12 +434,47 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if !self.same_position_branches.is_empty() || !other.same_position_branches.is_empty() {
             return false;
         }
+        if Rc::ptr_eq(&self.data, &other.data) {
+            return true;
+        }
+        if self
+            .report_content_hash_for_dedup()
+            .expect("branch-free errors have a report-content hash")
+            != other
+                .report_content_hash_for_dedup()
+                .expect("branch-free errors have a report-content hash")
+        {
+            return false;
+        }
         self.span == other.span
             && self.expected_groups == other.expected_groups
             && self.context_paths == other.context_paths
             && self.found == other.found
             && self.custom_kind == other.custom_kind
             && self.active_contexts == other.active_contexts
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == self.same_position_branches.is_empty())]
+    pub(super) fn report_content_hash_for_dedup(&self) -> Option<u64> {
+        if !self.same_position_branches.is_empty() {
+            return None;
+        }
+        if let Some(hash) = self.report_content_hash.get() {
+            return Some(hash);
+        }
+        let mut hasher = DefaultHasher::new();
+        self.span.hash(&mut hasher);
+        self.expected_groups.hash(&mut hasher);
+        self.context_paths.hash(&mut hasher);
+        self.custom_kind.hash(&mut hasher);
+        for context in &self.active_contexts {
+            context.construct().hash(&mut hasher);
+            context.byte_start().hash(&mut hasher);
+        }
+        let hash = hasher.finish();
+        self.report_content_hash.set(Some(hash));
+        Some(hash)
     }
 
     #[requires(true)]
@@ -495,6 +540,7 @@ where
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
+            report_content_hash: Cell::new(None),
         })
     }
 
@@ -1382,6 +1428,22 @@ mod tests {
                 .map(|context| context.construct.clone()),
             Some("sumti".to_owned())
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn report_content_hash_is_invalidated_by_copy_on_write_mutation() {
+        let stored = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        let mut replayed = stored.clone();
+
+        assert!(stored.report_content_hash_for_dedup().is_some());
+        assert!(stored.report_content_hash.get().is_some());
+        in_context(&mut replayed, "sumti");
+
+        assert!(stored.report_content_hash.get().is_some());
+        assert!(replayed.report_content_hash.get().is_none());
+        assert!(!stored.same_report_content(&replayed));
     }
 
     #[test]

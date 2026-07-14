@@ -315,7 +315,7 @@ pub(super) struct SyntaxMemoSuccess<'tokens> {
 #[derive(Debug, Clone)]
 struct SyntaxMemoFailure<'tokens> {
     error: SyntaxParseError<'tokens>,
-    diagnostic_observations: Option<Rc<[SyntaxParseError<'tokens>]>>,
+    diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
     rule_observation_node: Option<usize>,
 }
 
@@ -323,7 +323,7 @@ struct SyntaxMemoFailure<'tokens> {
 #[derive(Debug, Clone)]
 struct SyntaxMemoSideEffects<'tokens> {
     warnings: Rc<[SyntaxWarning]>,
-    diagnostic_observations: Option<Rc<[SyntaxParseError<'tokens>]>>,
+    diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
 }
 
 #[invariant(!rule.is_empty())]
@@ -340,12 +340,26 @@ struct SyntaxRuleObservationNode {
     children: Vec<usize>,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct SyntaxDiagnosticObservationId {
+    trial_id: NonZeroUsize,
+    frame_id: NonZeroUsize,
+}
+
+#[invariant(!observations.is_empty())]
+#[derive(Debug)]
+struct SyntaxDiagnosticObservations<'tokens> {
+    id: SyntaxDiagnosticObservationId,
+    observations: Rc<[SyntaxDiagnosticObservation<'tokens>]>,
+}
+
 #[invariant(::Candidate(_) => true)]
 #[invariant(::Nested(_) => true)]
 #[derive(Debug, Clone)]
 enum SyntaxDiagnosticObservation<'tokens> {
     Candidate(SyntaxParseError<'tokens>),
-    Nested(Rc<[SyntaxParseError<'tokens>]>),
+    Nested(Rc<SyntaxDiagnosticObservations<'tokens>>),
 }
 
 #[invariant(true)]
@@ -355,8 +369,9 @@ struct SyntaxMemoRuleFrame<'tokens> {
     rule_observation: Option<SyntaxRuleObservation>,
     child_rule_observation_nodes: Vec<usize>,
     finalized_rule_observation_node: Option<usize>,
+    diagnostic_observation_id: Option<SyntaxDiagnosticObservationId>,
     diagnostic_observations: Vec<SyntaxDiagnosticObservation<'tokens>>,
-    finalized_diagnostic_observations: Option<Rc<[SyntaxParseError<'tokens>]>>,
+    finalized_diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
 }
 
 #[invariant(true)]
@@ -460,12 +475,16 @@ pub(super) struct ParserState<'tokens> {
     syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
     recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
     syntax_memo_rule_frames: Vec<SyntaxMemoRuleFrame<'tokens>>,
+    next_syntax_diagnostic_observation_frame_id: NonZeroUsize,
+    replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
+    diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
     active_syntax_contexts: Vec<SyntaxContextFrame>,
     active_syntax_rules: Vec<SyntaxRuleFrame>,
     recovery_directives: Vec<RecoveryDirective>,
+    recovery_rule_parser_targets: HashSet<(&'static str, usize)>,
     consumed_recovery_directives: usize,
     // This is a consumption stack parallel to `recovery_directives`; each
     // entry records where its directive actually fired. Checkpoint rewind can
@@ -505,12 +524,16 @@ impl<'tokens> ParserState<'tokens> {
             syntax_recovery_memo_in_progress: HashSet::new(),
             recovery_memo_trial: None,
             syntax_memo_rule_frames: Vec::new(),
+            next_syntax_diagnostic_observation_frame_id: NonZeroUsize::MIN,
+            replayed_syntax_diagnostic_observations: HashSet::new(),
             diagnostic_candidates: Vec::new(),
+            diagnostic_candidate_hash_buckets: HashMap::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
             active_syntax_contexts: Vec::new(),
             active_syntax_rules: Vec::new(),
             recovery_directives: Vec::new(),
+            recovery_rule_parser_targets: HashSet::new(),
             consumed_recovery_directives: 0,
             effective_fail_token_indices: Vec::new(),
             active_recovery_directive: None,
@@ -543,6 +566,10 @@ impl<'tokens> ParserState<'tokens> {
     ) -> Self {
         let mut state = Self::new_with_recovery_branches(words, options);
         state.recovery_directives = directives.to_vec();
+        state.recovery_rule_parser_targets = directives
+            .iter()
+            .map(|directive| (directive.rule, directive.instance_byte_start))
+            .collect();
         state.recovery_tokens = words.to_vec();
         state.recovery_source = source.map(Arc::<str>::from);
         state.recovery_memo_trial = Some(memo_trial);
@@ -580,11 +607,18 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule.is_empty())]
     #[ensures(ret == (self.active_recovery_directive.as_ref().is_some_and(|active| active.directive.rule == rule && active.directive.instance_byte_start == instance_byte_start) || self.recovery_directives[self.consumed_recovery_directives..].iter().any(|directive| directive.rule == rule && directive.instance_byte_start == instance_byte_start)))]
-    pub(super) fn recovery_rule_enabled(
-        &self,
+    pub(super) fn recovery_rule_parser_enabled(
+        &mut self,
         rule: &'static str,
         instance_byte_start: usize,
     ) -> bool {
+        if !self
+            .recovery_rule_parser_targets
+            .contains(&(rule, instance_byte_start))
+        {
+            return false;
+        }
+        self.observe_recovery_directive_state();
         self.active_recovery_directive
             .as_ref()
             .is_some_and(|active| {
@@ -621,11 +655,26 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(self.syntax_memo_rule_frames.len() == old(self.syntax_memo_rule_frames.len()) + 1)]
     #[ensures(!self.syntax_memo_rule_frames.last().map_or(true, |frame| frame.recovery_sensitive))]
     pub(super) fn begin_syntax_memo_rule_frame(&mut self) {
+        let diagnostic_observation_id = self.recovery_memo_trial.as_ref().map(|trial| {
+            let frame_id = self.next_syntax_diagnostic_observation_frame_id;
+            self.next_syntax_diagnostic_observation_frame_id = NonZeroUsize::new(
+                frame_id
+                    .get()
+                    .checked_add(1)
+                    .expect("syntax diagnostic observation identity does not overflow"),
+            )
+            .expect("a positive syntax diagnostic observation identity stays nonzero");
+            SyntaxDiagnosticObservationId {
+                trial_id: trial.trial_id,
+                frame_id,
+            }
+        });
         self.syntax_memo_rule_frames.push(SyntaxMemoRuleFrame {
             recovery_sensitive: false,
             rule_observation: None,
             child_rule_observation_nodes: Vec::new(),
             finalized_rule_observation_node: None,
+            diagnostic_observation_id,
             diagnostic_observations: Vec::new(),
             finalized_diagnostic_observations: None,
         });
@@ -666,6 +715,10 @@ impl<'tokens> ParserState<'tokens> {
             })
         };
         let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(&mut frame);
+        if let Some(observations) = &diagnostic_observations {
+            self.replayed_syntax_diagnostic_observations
+                .insert(observations.id);
+        }
         if let Some(parent) = self.syntax_memo_rule_frames.last_mut() {
             if frame.recovery_sensitive {
                 parent.recovery_sensitive = true;
@@ -771,32 +824,26 @@ impl<'tokens> ParserState<'tokens> {
             return cached;
         }
 
-        let mut pending = vec![(node, false)];
-        while let Some((node, children_visited)) = pending.pop() {
-            if node_results[node].is_some() {
+        for current in 0..=node {
+            if node_results[current].is_some() {
                 continue;
             }
-            let observation_node = &store.rule_observation_nodes[node];
-            let own_match = observation_node.observation.rule == rule
-                && observation_node.observation.instance_byte_start == instance_byte_start;
-            if own_match {
-                node_results[node] = Some(true);
-                continue;
-            }
-            if children_visited {
-                let child_match = observation_node
+            let observation_node = &store.rule_observation_nodes[current];
+            debug_assert!(
+                observation_node
                     .children
                     .iter()
-                    .any(|child| node_results[*child].unwrap_or(false));
-                node_results[node] = Some(child_match);
-            } else {
-                pending.push((node, true));
-                pending.extend(
-                    observation_node.children.iter().filter_map(|child| {
-                        node_results[*child].is_none().then_some((*child, false))
-                    }),
-                );
-            }
+                    .all(|child| *child < current),
+                "observation children are finalized before their parent"
+            );
+            let own_match = observation_node.observation.rule == rule
+                && observation_node.observation.instance_byte_start == instance_byte_start;
+            let child_match = !own_match
+                && observation_node
+                    .children
+                    .iter()
+                    .any(|child| node_results[*child].expect("child containment was computed"));
+            node_results[current] = Some(own_match || child_match);
         }
         node_results[node].expect("observation containment was computed")
     }
@@ -805,7 +852,7 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     pub(super) fn replay_syntax_diagnostic_observations(
         &mut self,
-        observations: Option<&Rc<[SyntaxParseError<'tokens>]>>,
+        observations: Option<&Rc<SyntaxDiagnosticObservations<'tokens>>>,
     ) {
         let Some(observations) = observations else {
             return;
@@ -816,8 +863,27 @@ impl<'tokens> ParserState<'tokens> {
             .diagnostic_observations
             .push(SyntaxDiagnosticObservation::Nested(Rc::clone(observations)));
 
-        for candidate in observations.iter() {
-            self.merge_diagnostic_candidate(candidate.clone());
+        if !self
+            .replayed_syntax_diagnostic_observations
+            .insert(observations.id)
+        {
+            return;
+        }
+        let mut pending = observations.observations.iter().rev().collect::<Vec<_>>();
+        while let Some(observation) = pending.pop() {
+            match observation {
+                SyntaxDiagnosticObservation::Candidate(error) => {
+                    self.merge_diagnostic_candidate(error.clone());
+                }
+                SyntaxDiagnosticObservation::Nested(observations) => {
+                    if self
+                        .replayed_syntax_diagnostic_observations
+                        .insert(observations.id)
+                    {
+                        pending.extend(observations.observations.iter().rev());
+                    }
+                }
+            }
         }
     }
 
@@ -846,10 +912,10 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_none_or(|observations| !observations.is_empty()))]
+    #[ensures(ret.as_ref().is_none_or(|observations| !observations.observations.is_empty()))]
     fn finalize_syntax_diagnostic_observations(
         frame: &mut SyntaxMemoRuleFrame<'tokens>,
-    ) -> Option<Rc<[SyntaxParseError<'tokens>]>> {
+    ) -> Option<Rc<SyntaxDiagnosticObservations<'tokens>>> {
         if let Some(observations) = &frame.finalized_diagnostic_observations {
             return Some(Rc::clone(observations));
         }
@@ -861,20 +927,12 @@ impl<'tokens> ParserState<'tokens> {
         if frame.diagnostic_observations.is_empty() {
             return None;
         }
-        let mut candidates = Vec::new();
-        for observation in &frame.diagnostic_observations {
-            match observation {
-                SyntaxDiagnosticObservation::Candidate(error) => {
-                    Self::merge_diagnostic_candidate_into(&mut candidates, error.clone());
-                }
-                SyntaxDiagnosticObservation::Nested(observations) => {
-                    for error in observations.iter() {
-                        Self::merge_diagnostic_candidate_into(&mut candidates, error.clone());
-                    }
-                }
-            }
-        }
-        let observations = Rc::from(candidates);
+        let observations = Rc::new(new!(SyntaxDiagnosticObservations {
+            id: frame
+                .diagnostic_observation_id
+                .expect("recovered memo frames have diagnostic observation identities"),
+            observations: Rc::from(frame.diagnostic_observations.clone()),
+        }));
         frame.finalized_diagnostic_observations = Some(Rc::clone(&observations));
         Some(observations)
     }
@@ -884,7 +942,10 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.0.is_some() == !self.syntax_memo_rule_is_recovery_sensitive())]
     fn current_syntax_memo_observations(
         &mut self,
-    ) -> (Option<usize>, Option<Rc<[SyntaxParseError<'tokens>]>>) {
+    ) -> (
+        Option<usize>,
+        Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
+    ) {
         let store = Rc::clone(
             &self
                 .recovery_memo_trial
@@ -905,6 +966,10 @@ impl<'tokens> ParserState<'tokens> {
             )
         };
         let diagnostic_observations = Self::finalize_syntax_diagnostic_observations(frame);
+        if let Some(observations) = &diagnostic_observations {
+            self.replayed_syntax_diagnostic_observations
+                .insert(observations.id);
+        }
         (rule_observation_node, diagnostic_observations)
     }
 
@@ -1177,7 +1242,7 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> bool {
-        if self.recovery_enabled() {
+        let entered = if self.recovery_enabled() {
             self.syntax_recovery_memo_in_progress.insert((
                 rule_name,
                 start_location,
@@ -1186,7 +1251,8 @@ impl<'tokens> ParserState<'tokens> {
         } else {
             self.syntax_memo_in_progress
                 .insert((rule_name, start_location))
-        }
+        };
+        entered
     }
 
     #[requires(!rule_name.is_empty())]
@@ -1239,34 +1305,50 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     fn merge_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
-        Self::merge_diagnostic_candidate_into(&mut self.diagnostic_candidates, error);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn merge_diagnostic_candidate_into(
-        candidates: &mut Vec<SyntaxParseError<'tokens>>,
-        error: SyntaxParseError<'tokens>,
-    ) {
-        let Some(farthest_start) = candidates.first().map(|candidate| candidate.span().start)
+        let Some(farthest_start) = self
+            .diagnostic_candidates
+            .first()
+            .map(|candidate| candidate.span().start)
         else {
-            candidates.push(error);
+            self.push_diagnostic_candidate(error);
             return;
         };
         match error.span().start.cmp(&farthest_start) {
             std::cmp::Ordering::Greater => {
-                candidates.clear();
-                candidates.push(error);
+                self.diagnostic_candidates.clear();
+                self.diagnostic_candidate_hash_buckets.clear();
+                self.push_diagnostic_candidate(error);
             }
             std::cmp::Ordering::Equal => {
-                if !candidates
-                    .iter()
-                    .any(|candidate| candidate.same_report_content(&error))
-                {
-                    candidates.push(error);
+                let hash = error.report_content_hash_for_dedup();
+                let duplicate = hash.is_some_and(|hash| {
+                    self.diagnostic_candidate_hash_buckets
+                        .get(&hash)
+                        .is_some_and(|indices| {
+                            indices.iter().any(|index| {
+                                self.diagnostic_candidates[*index].same_report_content(&error)
+                            })
+                        })
+                });
+                if !duplicate {
+                    self.push_diagnostic_candidate(error);
                 }
             }
             std::cmp::Ordering::Less => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.diagnostic_candidates.len() == old(self.diagnostic_candidates.len()) + 1)]
+    fn push_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
+        let hash = error.report_content_hash_for_dedup();
+        let index = self.diagnostic_candidates.len();
+        self.diagnostic_candidates.push(error);
+        if let Some(hash) = hash {
+            self.diagnostic_candidate_hash_buckets
+                .entry(hash)
+                .or_default()
+                .push(index);
         }
     }
 
@@ -1283,6 +1365,15 @@ impl<'tokens> ParserState<'tokens> {
         snapshot: Vec<SyntaxParseError<'tokens>>,
     ) {
         self.diagnostic_candidates = snapshot;
+        self.diagnostic_candidate_hash_buckets.clear();
+        for (index, candidate) in self.diagnostic_candidates.iter().enumerate() {
+            if let Some(hash) = candidate.report_content_hash_for_dedup() {
+                self.diagnostic_candidate_hash_buckets
+                    .entry(hash)
+                    .or_default()
+                    .push(index);
+            }
+        }
     }
 
     #[requires(true)]
@@ -1322,7 +1413,7 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule.is_empty())]
     #[ensures(self.active_syntax_rules.len() == old(self.active_syntax_rules.len()) + 1)]
     pub(super) fn push_syntax_rule(&mut self, rule: &'static str, byte_start: usize) {
-        let recovery_enabled = self.recovery_rule_enabled(rule, byte_start);
+        let recovery_enabled = self.recovery_rule_parser_enabled(rule, byte_start);
         self.active_syntax_rules
             .push(SyntaxRuleFrame::new(rule, byte_start, recovery_enabled));
     }
