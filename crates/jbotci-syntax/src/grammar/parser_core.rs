@@ -14,11 +14,59 @@ use std::{
     marker::PhantomData,
     ops::{Deref, Range},
     rc::{Rc, Weak},
+    sync::Arc,
 };
 
 use bityzba::{contract_trait, data, invariant, new, requires};
 
 use super::{ParserCheckpoint, ParserState, Token, parse_error::SyntaxParseError};
+
+/// A rule output shared between the active parse and its packrat memo entry.
+///
+/// Generated grammar adapters only materialize an owned value when a parent
+/// parser needs to consume it. Cloning this wrapper for memo store or replay is
+/// therefore constant-time regardless of the output tree's size.
+#[invariant(true)]
+pub(crate) struct SharedSyntaxOutput<O> {
+    value: Arc<O>,
+}
+
+impl<O> SharedSyntaxOutput<O> {
+    #[requires(true)]
+    #[ensures(Arc::strong_count(&ret.value) == 1)]
+    pub(crate) fn new(value: O) -> Self {
+        Self {
+            value: Arc::new(value),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn into_owned(self) -> O
+    where
+        O: Clone,
+    {
+        Arc::try_unwrap(self.value).unwrap_or_else(|value| (*value).clone())
+    }
+}
+
+impl<O> Clone for SharedSyntaxOutput<O> {
+    #[requires(true)]
+    #[ensures(Arc::ptr_eq(&ret.value, &self.value))]
+    fn clone(&self) -> Self {
+        Self {
+            value: Arc::clone(&self.value),
+        }
+    }
+}
+
+impl<O: fmt::Debug> fmt::Debug for SharedSyntaxOutput<O> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(formatter)
+    }
+}
 
 /// A Chumsky-compatible byte span in the syntax input.
 ///
@@ -1285,14 +1333,26 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::{rc::Rc, sync::Arc};
 
     use bityzba::{invariant, requires};
 
-    use super::{Parser, Recursive, RecursiveFamily};
+    use super::{Parser, Recursive, RecursiveFamily, SharedSyntaxOutput};
 
     #[invariant(true)]
     struct DropProbe;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_syntax_output_clones_share_until_owned_consumption() {
+        let stored = SharedSyntaxOutput::new(vec!["memo payload".to_owned()]);
+        let replayed = stored.clone();
+
+        assert!(Arc::ptr_eq(&stored.value, &replayed.value));
+        assert_eq!(replayed.into_owned(), ["memo payload"]);
+        assert_eq!(stored.into_owned(), ["memo payload"]);
+    }
 
     #[test]
     #[requires(true)]

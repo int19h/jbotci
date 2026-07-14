@@ -1,7 +1,11 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use std::borrow::Cow;
-use std::sync::Arc;
+use std::{
+    borrow::Cow,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+    sync::Arc,
+};
 
 use super::parser_core::{Error, LabelError, MaybeRef, RichPattern, RichReason};
 use super::{Span, SyntaxContextFrame, SyntaxRuleFrame, Token};
@@ -17,6 +21,12 @@ type SyntaxRichReason<'tokens> = RichReason<'tokens, Token, Cow<'static, str>>;
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseError<'tokens> {
+    data: Rc<SyntaxParseErrorData<'tokens>>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+pub(super) struct SyntaxParseErrorData<'tokens> {
     span: Span,
     reason: SyntaxRichReason<'tokens>,
     expected_groups: Vec<ExpectedTokenGroup>,
@@ -27,6 +37,24 @@ pub(super) struct SyntaxParseError<'tokens> {
     active_rule_contexts: Vec<SyntaxRuleFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
     same_position_branches: Vec<Arc<SyntaxParseError<'tokens>>>,
+}
+
+impl<'tokens> Deref for SyntaxParseError<'tokens> {
+    type Target = SyntaxParseErrorData<'tokens>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<'tokens> DerefMut for SyntaxParseError<'tokens> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Rc::make_mut(&mut self.data)
+    }
 }
 
 #[invariant(true)]
@@ -83,10 +111,24 @@ fn unexpected_input_error<'tokens>() -> SyntaxRichReason<'tokens> {
 }
 
 impl<'tokens> SyntaxParseError<'tokens> {
+    #[requires(true)]
+    #[ensures(Rc::strong_count(&ret.data) == 1)]
+    fn from_data(data: SyntaxParseErrorData<'tokens>) -> Self {
+        Self {
+            data: Rc::new(data),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_data(self) -> SyntaxParseErrorData<'tokens> {
+        Rc::try_unwrap(self.data).unwrap_or_else(|data| (*data).clone())
+    }
+
     #[requires(!message.is_empty())]
     #[ensures(ret.expected_groups.is_empty())]
     pub(super) fn custom(span: Span, message: String) -> Self {
-        Self {
+        Self::from_data(SyntaxParseErrorData {
             span,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: Vec::new(),
@@ -97,7 +139,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
-        }
+        })
     }
 
     #[requires(!message.is_empty())]
@@ -107,7 +149,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         message: String,
         custom_kind: SyntaxParseCustomKind,
     ) -> Self {
-        Self {
+        Self::from_data(SyntaxParseErrorData {
             span,
             reason: RichReason::Custom(Cow::Owned(message)),
             expected_groups: Vec::new(),
@@ -118,7 +160,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
-        }
+        })
     }
 
     #[requires(!tokens.is_empty())]
@@ -130,7 +172,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[requires(!tokens.is_empty())]
     #[ensures(ret.expected_groups.len() == 1)]
     pub(super) fn expected_shared(span: Span, tokens: Arc<[SyntaxExpectedToken]>) -> Self {
-        Self {
+        Self::from_data(SyntaxParseErrorData {
             span,
             reason: unexpected_input_error(),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
@@ -141,7 +183,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
-        }
+        })
     }
 
     #[requires(!tokens.is_empty())]
@@ -161,7 +203,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         tokens: Arc<[SyntaxExpectedToken]>,
         found: SyntaxFound,
     ) -> Self {
-        Self {
+        Self::from_data(SyntaxParseErrorData {
             span,
             reason: unexpected_input_error(),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
@@ -172,7 +214,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
-        }
+        })
     }
 
     #[requires(true)]
@@ -307,10 +349,11 @@ impl<'tokens> SyntaxParseError<'tokens> {
         let preferred_context_hint =
             deeper_preferred_context(self.preferred_context(), other.preferred_context());
         let mut merged = self.into_report_error();
-        let other = other.into_report_error();
+        let other = other.into_report_error().into_data();
         append_unique_groups(&mut merged.expected_groups, other.expected_groups);
         append_unique_context_paths(&mut merged.context_paths, other.context_paths);
-        merged.found = merge_optional_equal(merged.found, other.found);
+        let merged_found = std::mem::take(&mut merged.found);
+        merged.found = merge_optional_equal(merged_found, other.found);
         merged.custom_kind = merge_optional_equal(merged.custom_kind, other.custom_kind);
         merged.preferred_context_hint = preferred_context_hint;
         merged
@@ -441,7 +484,7 @@ where
             found,
         };
         let expected_groups = expected_token_groups_from_labels(expected);
-        Self {
+        Self::from_data(SyntaxParseErrorData {
             span,
             reason,
             expected_groups,
@@ -452,7 +495,7 @@ where
             active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
-        }
+        })
     }
 
     #[requires(true)]
@@ -489,7 +532,8 @@ where
             }
             *current_found = current_found.take().or(found);
         }
-        self.found = merge_optional_equal(self.found, Some(syntax_found));
+        let current_found = std::mem::take(&mut self.found);
+        self.found = merge_optional_equal(current_found, Some(syntax_found));
         self.custom_kind = None;
         self
     }
@@ -961,8 +1005,8 @@ fn merge_report_errors<'tokens>(
 ) -> SyntaxParseError<'tokens> {
     let preferred_context_hint =
         deeper_preferred_context(left.preferred_context(), right.preferred_context());
-    let mut left = left.into_report_error();
-    let right = right.into_report_error();
+    let mut left = left.into_report_error().into_data();
+    let right = right.into_report_error().into_data();
     left.active_contexts = deeper_active_context_stack(left.active_contexts, right.active_contexts);
     append_unique_groups(&mut left.expected_groups, right.expected_groups);
     append_unique_context_paths(&mut left.context_paths, right.context_paths);
@@ -970,7 +1014,7 @@ fn merge_report_errors<'tokens>(
     left.custom_kind = merge_optional_equal(left.custom_kind, right.custom_kind);
     left.preferred_context_hint = preferred_context_hint;
     left.same_position_branches = Vec::new();
-    left
+    SyntaxParseError::from_data(left)
 }
 
 #[requires(true)]
@@ -1316,6 +1360,25 @@ mod tests {
         assert_eq!(
             merged
                 .preferred_context()
+                .map(|context| context.construct.clone()),
+            Some("sumti".to_owned())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cloned_errors_share_payload_until_context_is_changed() {
+        let stored = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        let mut replayed = stored.clone();
+
+        assert!(Rc::ptr_eq(&stored.data, &replayed.data));
+        in_context(&mut replayed, "sumti");
+        assert!(!Rc::ptr_eq(&stored.data, &replayed.data));
+        assert!(stored.current_context().is_none());
+        assert_eq!(
+            replayed
+                .current_context()
                 .map(|context| context.construct.clone()),
             Some("sumti".to_owned())
         );
