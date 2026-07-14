@@ -823,14 +823,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )
                 .map(Some);
         }
-        let leading = self.build_generated_termset_branch_formula(
+        let leading = self.build_generated_termset_branch_formula_in_mode(
             simple_tail,
             leading_terms,
             first_visible_place,
             mode,
             source.clone(),
         )?;
-        let trailing = self.build_generated_termset_branch_formula(
+        let trailing = self.build_generated_termset_branch_formula_in_mode(
             simple_tail,
             trailing_terms,
             first_visible_place,
@@ -921,7 +921,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &branch.terms,
                 after_terms,
             );
-            let branch_formula = self.build_generated_termset_branch_formula(
+            let branch_formula = self.build_generated_termset_branch_formula_in_mode(
                 simple_tail,
                 branch_terms,
                 first_visible_place,
@@ -996,7 +996,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .map(Some);
         }
 
-        let mut formula = self.build_generated_pehe_termset_branch_formula(
+        let mut formula = self.build_generated_pehe_termset_branch_formula_in_mode(
             simple_tail,
             &prefix_assignments,
             &connection.leading_term,
@@ -1009,7 +1009,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if !generated_statement_connective_is_logical(&continuation.connective) {
                 return Err(unsupported("mixed nonlogical pehe termset connection"));
             }
-            let right = self.build_generated_pehe_termset_branch_formula(
+            let right = self.build_generated_pehe_termset_branch_formula_in_mode(
                 simple_tail,
                 &prefix_assignments,
                 &continuation.trailing_term,
@@ -1433,9 +1433,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(first_visible_place > 0)]
-    #[requires(mode == PredicationMode::Asserted)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_pehe_termset_branch_formula<'syntax: 'tree>(
+    pub(super) fn build_generated_pehe_termset_branch_formula_in_mode<'syntax: 'tree>(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         prefix_assignments: &GeneratedTermAssignments<'syntax>,
@@ -1451,7 +1450,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             suffix_assignments,
             first_visible_place,
         )?;
-        self.build_generated_termset_branch_formula_from_assignments(
+        self.build_generated_termset_branch_formula_from_assignments_in_mode(
             simple_tail,
             assignments,
             mode,
@@ -1459,9 +1458,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )
     }
 
-    #[requires(mode == PredicationMode::Asserted)]
+    #[requires(assignments.visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_termset_branch_formula_from_assignments(
+    pub(super) fn build_generated_termset_branch_formula_from_assignments_in_mode(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         assignments: GeneratedTermAssignments<'tree>,
@@ -1920,9 +1919,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(first_visible_place > 0)]
-    #[requires(mode == PredicationMode::Asserted)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_termset_branch_formula(
+    pub(super) fn build_generated_termset_branch_formula_in_mode(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         terms: Vec<&'tree TermSyntax>,
@@ -2222,9 +2220,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             self.build_generated_shared_head_assignments(prefix_terms, annotate_shared_head_source)?
         };
-        if !shared_head_assignments.modal_terms.is_empty() {
-            return Err(unsupported("modal shared bridi-tail term"));
-        }
         let mut place_question_assignments = shared_head_assignments.place_questions.clone();
         place_question_assignments.extend(assignments.place_questions.clone());
         let mut visible_arguments_for_modal_terms =
@@ -2281,6 +2276,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.insert(
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
+        )?;
+        self.attach_generated_modal_terms_to_formula(
+            formula,
+            &shared_head_assignments.modal_terms,
         )?;
         let mut scoped = GeneratedScopedFormula {
             formula,
@@ -2341,10 +2340,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             self.build_generated_shared_head_assignments(prefix_terms, annotate_shared_head_source)?
         };
-        if !shared_head_assignments.modal_terms.is_empty() {
-            return Err(unsupported("modal shared bridi-tail term"));
-        }
-
         let mut children = Vec::with_capacity(connection.terms.len());
         for term in &connection.terms {
             children.push(
@@ -2488,6 +2483,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.insert(
             formula,
             SemanticObject::atom_formula(predication, branch_formula_source, Vec::new()),
+        )?;
+        self.attach_generated_modal_terms_to_formula(
+            formula,
+            &shared_head_assignments.modal_terms,
         )?;
         let mut scoped = GeneratedScopedFormula {
             formula,
@@ -3956,9 +3955,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     prefix_terms,
                     annotate_shared_head_source,
                 )?;
-                if !shared_head_assignments.modal_terms.is_empty() {
-                    return Err(unsupported("modal shared bridi-tail term"));
-                }
                 let preassigned_visible_arguments =
                     shared_head_assignments.visible_arguments.clone();
                 let local_first_visible_place =
@@ -3977,6 +3973,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         allow_single_argument_distribution,
                         "bridi-tail-formula",
                     )?;
+                self.attach_generated_modal_terms_to_formula(
+                    formula,
+                    &shared_head_assignments.modal_terms,
+                )?;
                 let formula = self.wrap_formula_with_generated_assignment_scopes(
                     formula,
                     shared_head_assignments.formula_scopes,

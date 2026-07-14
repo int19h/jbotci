@@ -2,24 +2,29 @@ use super::*;
 
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn build_term_referent(
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    pub(super) fn build_term_argument_object(
         &mut self,
         term: &'tree TermSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let argument = self.build_argument_for_generated_term(term)?.into_data();
-        let referent = argument
+        let argument_object = argument
             .value
             .ok_or_else(|| unsupported("non-referential term argument"))?;
-        if !argument.relative_clauses.is_empty() {
-            let object = self.objects.get_mut(&referent).ok_or_else(|| {
+        if !argument.relative_clauses.is_empty()
+            && matches!(
+                argument_object.object_kind(),
+                crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Sign
+            )
+        {
+            let object = self.objects.get_mut(&argument_object).ok_or_else(|| {
                 invalid_graph(format!(
-                    "semantic builder could not find generated term referent {referent}"
+                    "semantic builder could not find generated term argument object {argument_object}"
                 ))
             })?;
             object.extend_relative_clauses(argument.relative_clauses);
         }
-        Ok(referent)
+        Ok(argument_object)
     }
 
     #[requires(*next_visible_place > 0)]
@@ -593,12 +598,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ))
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.as_ref().is_none_or(|argument| argument.relation.is_some())) || ret.is_err())]
-    pub(super) fn build_generated_jai_modal_argument_for_referent(
+    pub(super) fn build_generated_jai_modal_argument_for_argument_object(
         &mut self,
         unit: &JaiModalTanruUnitSyntax,
-        referent: SemanticObjectId,
+        argument_object: SemanticObjectId,
     ) -> Result<Option<ModalArgument>, SemanticsError> {
         let Some(tense_modal) = unit.tense_modal.as_deref() else {
             return Ok(None);
@@ -612,7 +617,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Err(unsupported("jai modal tanru unit tense modal"));
         };
         let arguments = self.modal_argument_map_for_visible_place(
-            ArgumentValue::filled(referent, None),
+            ArgumentValue::filled(argument_object, None),
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
@@ -1725,8 +1730,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
-    pub(super) fn build_terms_fragment_referent(
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    pub(super) fn build_terms_fragment_content(
         &mut self,
         fragment: &'tree TermsFragmentSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
@@ -1751,27 +1756,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
                     return Ok(Some(sign));
                 }
-                let referent = self.build_sumti_referent(sumti)?;
-                if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
-                    self.attach_generated_relative_clauses_to_referent(referent, sumti)?;
+                let argument_object = self.build_sumti_referent(sumti)?;
+                if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent {
+                    self.attach_generated_relative_clauses_to_referent(argument_object, sumti)?;
                 }
-                return Ok(Some(referent));
+                return Ok(Some(argument_object));
             }
             Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(term)) => {
                 if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
                     if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
                         return Ok(Some(sign));
                     }
-                    let referent = self.build_sumti_referent(sumti)?;
-                    if referent.object_kind() == crate::model::SemanticObjectKind::Referent {
-                        self.attach_generated_relative_clauses_to_referent(referent, sumti)?;
+                    let argument_object = self.build_sumti_referent(sumti)?;
+                    if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent {
+                        self.attach_generated_relative_clauses_to_referent(argument_object, sumti)?;
                     }
-                    return Ok(Some(referent));
+                    return Ok(Some(argument_object));
                 }
             }
             _ => {}
         }
-        self.build_term_referent(term).map(Some)
+        self.build_term_argument_object(term).map(Some)
     }
 
     #[requires(true)]
@@ -2463,9 +2468,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .to_owned(),
             ));
         };
-        if head.object_kind() != crate::model::SemanticObjectKind::Referent {
+        if !crate::model::argument_object_kind_can_fill(head.object_kind()) {
             return Err(invalid_graph(format!(
-                "cannot attach generated relative clauses to non-referent argument {head}"
+                "cannot attach generated relative clauses to non-argument object {head}"
             )));
         }
         let lowered = self.lower_generated_relative_clause_list(relative_clauses, head)?;
@@ -3368,7 +3373,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_clause_list<'syntax: 'tree>(
         &mut self,
@@ -3393,7 +3398,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(lowered)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_clause_atom(
         &mut self,
@@ -3440,7 +3445,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(lowered)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_sumti_association_relative_clause(
         &mut self,
@@ -3532,37 +3537,38 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         if generated_sumti_is_assignable_reference(sumti) {
-            let Some(referent) = self.build_generated_relative_sumti_referent(&clause.sumti)?
+            let Some(argument_object) =
+                self.build_generated_relative_sumti_argument_object(&clause.sumti)?
             else {
                 return Ok(None);
             };
             if let Some(assigned_name) = self.assigned_name_for_generated_sumti(sumti, clause) {
-                self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
+                self.assign_generated_name_to_argument_object(argument_object, assigned_name)?;
             }
-            return Ok(Some(referent));
+            return Ok(Some(argument_object));
         }
         if generated_relative_sumti_is_assignable_reference(&clause.sumti) {
-            let referent = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
+            let argument_object = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
             if let Some(assigned_name) =
                 self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
             {
-                self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
+                self.assign_generated_name_to_argument_object(argument_object, assigned_name)?;
             }
-            return Ok(Some(referent));
+            return Ok(Some(argument_object));
         }
         if let Some(assigned_name) =
             self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
         {
-            let referent = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
-            self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
-            return Ok(Some(referent));
+            let argument_object = self.build_sumti_grouped_referent(&sumti.base_sumti)?;
+            self.assign_generated_name_to_argument_object(argument_object, assigned_name)?;
+            return Ok(Some(argument_object));
         }
         Ok(None)
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
-    pub(super) fn build_generated_relative_sumti_referent<'syntax: 'tree>(
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    pub(super) fn build_generated_relative_sumti_argument_object<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax RelativeSumtiSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
@@ -3572,35 +3578,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
                 let argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
-                Ok(argument
-                    .value
-                    .filter(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))
+                Ok(argument.value)
             }
             RelativeSumtiSyntax::NaKuRelativeSumti(_) => Ok(None),
         }
     }
 
-    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(true)]
-    pub(super) fn add_generated_assigned_name_to_referent(
+    pub(super) fn assign_generated_name_to_argument_object(
         &mut self,
-        referent: SemanticObjectId,
+        argument_object: SemanticObjectId,
         assigned_name: AssignedName,
     ) -> Result<(), SemanticsError> {
         let key = assigned_name.name.clone();
-        let object = self.objects.get_mut(&referent).ok_or_else(|| {
+        let object = self.objects.get_mut(&argument_object).ok_or_else(|| {
             invalid_graph(format!(
-                "semantic builder could not find assigned-name referent {referent}"
+                "semantic builder could not find assigned-name argument object {argument_object}"
             ))
         })?;
-        if !object
-            .assigned_names()
-            .iter()
-            .any(|existing| existing == &assigned_name)
+        if argument_object.object_kind() == crate::model::SemanticObjectKind::Referent
+            && !object
+                .assigned_names()
+                .iter()
+                .any(|existing| existing == &assigned_name)
         {
             object.push_assigned_name(assigned_name);
         }
-        self.assigned_referents.insert(key, referent);
+        self.assigned_referents.insert(key, argument_object);
         Ok(())
     }
 
@@ -3615,7 +3620,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && let Some(assigned_name) =
                 self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
         {
-            self.add_generated_assigned_name_to_referent(referent, assigned_name)?;
+            self.assign_generated_name_to_argument_object(referent, assigned_name)?;
         }
         Ok(())
     }
@@ -3632,7 +3637,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(());
         };
-        self.add_generated_assigned_name_to_referent(head, assigned_name)
+        self.assign_generated_name_to_argument_object(head, assigned_name)
     }
 
     #[requires(true)]
@@ -3715,7 +3720,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.source_for_tokens(&tokens, "assigned-name")
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[requires(!marker_text.is_empty())]
     #[ensures(true)]
     pub(super) fn build_generated_modal_sumti_association_clause(
@@ -3808,7 +3813,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_bridi_relative_clause(
         &mut self,
@@ -3840,7 +3845,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_restrictive_bridi_relative_clause(
         &mut self,
@@ -3862,7 +3867,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_nonveridical_relative_bridi_clause(
         &mut self,
@@ -3891,7 +3896,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ))
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_nonveridical_relative_formula_for_selbri(
         &mut self,
@@ -3942,7 +3947,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_property_abstraction_for_co_selbri(co_selbri, source)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_subbridi(
         &mut self,
@@ -3960,7 +3965,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.relative_head = previous_relative_head;
         let formula = result?;
         if !contains_keha {
-            self.fill_first_elided_generated_formula_argument(formula, head)?;
+            self.fill_first_elided_generated_formula_argument_with_object(formula, head)?;
         }
         self.set_formula_predication_mode(formula, mode);
         Ok(RelativeClause::new(
@@ -3970,7 +3975,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ))
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
     #[ensures(true)]
     pub(super) fn lower_generated_relative_statement(
         &mut self,
@@ -3992,7 +3997,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.relative_head = previous_relative_head;
         let formula = result?;
         if !contains_keha {
-            self.fill_first_elided_generated_formula_argument(formula, head)?;
+            self.fill_first_elided_generated_formula_argument_with_object(formula, head)?;
         }
         self.set_formula_predication_mode(formula, mode);
         Ok(RelativeClause::new(
@@ -4235,7 +4240,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance)) || ret.is_err())]
     pub(super) fn build_generated_quoted_text_group(
         &mut self,
         text: &'tree TextSyntax,
@@ -4252,7 +4257,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let previous_previous_utterance = self.previous_utterance;
         let previous_next_utterance = self.next_utterance;
         let previous_quote_depth = self.current_quote_depth;
-        let quote_roles = self.build_fresh_quote_deictic_roles(source)?;
+        let quote_roles = self.build_fresh_quote_deictic_roles(source.clone())?;
         self.set_current_deictic_roles(quote_roles);
         self.current_utterance = None;
         self.previous_utterance = None;
@@ -4268,7 +4273,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 if items.is_empty() {
                     return Ok(None);
                 }
-                let root = if let [single] = items.as_slice() {
+                let discourse_item = if let [single] = items.as_slice() {
                     *single
                 } else {
                     let id = self.next_sequence_id();
@@ -4283,6 +4288,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     )?;
                     id
                 };
+                let root =
+                    self.wrap_generated_quoted_discourse_item_in_utterance(discourse_item, source)?;
                 if !marker_asides.is_empty() {
                     self.add_asides_to_generated_discourse_item(
                         root,
@@ -4291,7 +4298,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 Ok(Some(root))
             } else {
-                self.build_generated_standalone_asides(marker_asides)
+                self.build_generated_standalone_asides(marker_asides)?
+                    .map(|item| {
+                        self.wrap_generated_quoted_discourse_item_in_utterance(item, source)
+                    })
+                    .transpose()
             }
         })();
         self.set_current_deictic_roles(previous_roles);
@@ -4300,6 +4311,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.next_utterance = previous_next_utterance;
         self.current_quote_depth = previous_quote_depth;
         result
+    }
+
+    #[requires(matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence | crate::model::SemanticObjectKind::DisplayedContent))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance) || ret.is_err())]
+    pub(super) fn wrap_generated_quoted_discourse_item_in_utterance(
+        &mut self,
+        item: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if item.object_kind() == crate::model::SemanticObjectKind::Utterance {
+            return Ok(item);
+        }
+        let utterance = self.next_utterance_id();
+        self.insert_generated_utterance(utterance, UtteranceForce::Quote, Some(item), source)
     }
 
     #[requires(true)]
@@ -6338,8 +6363,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_connected_generated_sumti_referent<N: TreeNode>(
         &mut self,
@@ -6445,8 +6470,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_connected_generated_forethought_sumti_referent<N: TreeNode>(
         &mut self,
@@ -6522,8 +6547,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_connected_generated_extra_forethought_sumti_referent<N: TreeNode>(
         &mut self,
@@ -7650,8 +7675,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
-    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[requires(operand.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(head.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(operand.object_kind()))]
     #[ensures(true)]
     pub(super) fn build_generated_possessive_association_clause<N: TreeNode>(
         &mut self,
@@ -8333,7 +8358,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         let jai_modal_argument =
-            self.build_generated_jai_modal_argument_for_referent(jai_unit, referent)?;
+            self.build_generated_jai_modal_argument_for_argument_object(jai_unit, referent)?;
         let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
@@ -8875,6 +8900,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let kind = abstraction_kind_for_cmavo(branch.nu.value.cmavo());
         let sort = abstraction_output_sort(kind);
+        let first_body_object_index = self.next_index;
         self.abstraction_parameter_stack.push(Vec::new());
         self.indirect_question_stack.push(Vec::new());
         let body = match self
@@ -8908,20 +8934,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.build_generated_embedded_indirect_questions(body, indirect_questions)?;
 
         if let Some(class) = abstraction_eventuality_class(kind) {
-            let existing_id = self.single_generated_formula_eventuality(body);
-            let mut object = existing_id
-                .and_then(|id| self.objects.remove(&id))
+            let body_eventuality = self.single_generated_formula_eventuality(body);
+            let owned_body_eventuality = body_eventuality.filter(|eventuality| {
+                eventuality.index() >= first_body_object_index
+                    && self
+                        .objects
+                        .get(eventuality)
+                        .is_some_and(SemanticObject::is_generated_eventuality)
+            });
+            let mut object = owned_body_eventuality
+                .and_then(|eventuality| self.objects.remove(&eventuality))
                 .unwrap_or_else(|| {
                     SemanticObject::referential_eventuality(class, None, source.clone())
                 });
-            let id = match existing_id {
-                Some(id) if id.referent_sort() == Some(sort) => id,
-                Some(id) => {
-                    let specialized_id = self.next_referent_with_sort_id(sort);
-                    self.replace_generated_eventuality_reference_everywhere(id, specialized_id);
-                    specialized_id
+            let id = match owned_body_eventuality {
+                Some(eventuality) if eventuality.referent_sort() == Some(sort) => eventuality,
+                Some(eventuality) => {
+                    let specialized = self.next_referent_with_sort_id(sort);
+                    self.replace_generated_formula_eventuality(body, eventuality, specialized);
+                    specialized
                 }
-                None => self.next_referent_with_sort_id(sort),
+                None => {
+                    let specialized = self.next_referent_with_sort_id(sort);
+                    if let Some(inherited) = body_eventuality {
+                        self.replace_generated_formula_eventuality(body, inherited, specialized);
+                    }
+                    specialized
+                }
             };
             object.configure_eventuality_abstraction(
                 class,
@@ -8941,6 +8980,119 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         object.set_abstraction_embedded_questions(embedded_questions);
         self.insert(id, object)?;
         Ok(id)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    pub(super) fn single_generated_formula_eventuality(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let predication = self.objects.get(&formula)?.formula_predication()?;
+        self.objects
+            .get(&predication)
+            .and_then(SemanticObject::predication_eventuality)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[ensures(true)]
+    pub(super) fn replace_generated_formula_eventuality(
+        &mut self,
+        formula: SemanticObjectId,
+        old_eventuality: SemanticObjectId,
+        new_eventuality: SemanticObjectId,
+    ) {
+        if old_eventuality == new_eventuality {
+            return;
+        }
+        let Some(traversal) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+            .map(FormulaTraversal::into_data)
+        else {
+            return;
+        };
+        if let Some(predication) = traversal.predication {
+            self.replace_generated_predication_eventuality(
+                predication,
+                old_eventuality,
+                new_eventuality,
+            );
+        }
+        let formula_uses_old_eventuality = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::as_formula)
+            .is_some_and(|node| {
+                matches!(
+                    node.as_data(),
+                    data!(FormulaNode::Connective(node))
+                        if node.eventuality == Some(old_eventuality)
+                )
+            });
+        if formula_uses_old_eventuality && let Some(object) = self.objects.get_mut(&formula) {
+            object.set_scoped_formula_eventuality(Some(new_eventuality));
+        }
+        for child in traversal.children {
+            self.replace_generated_formula_eventuality(child, old_eventuality, new_eventuality);
+        }
+        if let Some(restriction) = traversal.restriction {
+            self.replace_generated_formula_eventuality(
+                restriction,
+                old_eventuality,
+                new_eventuality,
+            );
+        }
+        if let Some(body) = traversal.body {
+            self.replace_generated_formula_eventuality(body, old_eventuality, new_eventuality);
+        }
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[ensures(true)]
+    pub(super) fn replace_generated_predication_eventuality(
+        &mut self,
+        predication: SemanticObjectId,
+        old_eventuality: SemanticObjectId,
+        new_eventuality: SemanticObjectId,
+    ) {
+        if old_eventuality == new_eventuality {
+            return;
+        }
+        let Some(node) = self
+            .objects
+            .get(&predication)
+            .and_then(SemanticObject::as_predication)
+        else {
+            return;
+        };
+        let tanru_head = node.tanru_link.as_ref().map(|link| link.head);
+        let modal_bodies = node
+            .modal_arguments
+            .iter()
+            .filter_map(|argument| argument.body)
+            .collect::<Vec<_>>();
+        let Some(object) = self.objects.get_mut(&predication) else {
+            return;
+        };
+        object.update_predication(|node| {
+            replace_generated_predication_eventuality_references(
+                node,
+                old_eventuality,
+                new_eventuality,
+            )
+        });
+        if let Some(head) = tanru_head {
+            self.replace_generated_predication_eventuality(head, old_eventuality, new_eventuality);
+        }
+        for body in modal_bodies {
+            self.replace_generated_formula_eventuality(body, old_eventuality, new_eventuality);
+        }
     }
 
     #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -9101,4 +9253,189 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         Ok(id)
     }
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.value != Some(old_eventuality))]
+fn replace_generated_argument_eventuality_reference(
+    argument: ArgumentValue,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> ArgumentValue {
+    if argument.value != Some(old_eventuality) {
+        return argument;
+    }
+    argument.with_data(data! { value: Some(new_eventuality) })
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.scale != Some(old_eventuality))]
+fn replace_generated_scalar_negation_eventuality_reference(
+    scalar_negation: ScalarNegation,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> ScalarNegation {
+    if scalar_negation.scale != Some(old_eventuality) {
+        return scalar_negation;
+    }
+    scalar_negation.with_data(data! { scale: Some(new_eventuality) })
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.arguments.values().all(|argument| argument.value != Some(old_eventuality)))]
+#[ensures(ret.component != Some(old_eventuality))]
+fn replace_generated_modal_eventuality_references(
+    modal: ModalArgument,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> ModalArgument {
+    let data = modal.into_data();
+    let arguments = data
+        .arguments
+        .into_iter()
+        .map(|(place, argument)| {
+            (
+                place,
+                replace_generated_argument_eventuality_reference(
+                    argument,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+            )
+        })
+        .collect();
+    let component = data.component.map(|component| {
+        if component == old_eventuality {
+            new_eventuality
+        } else {
+            component
+        }
+    });
+    let scalar_negation = data.scalar_negation.map(|scalar_negation| {
+        replace_generated_scalar_negation_eventuality_reference(
+            scalar_negation,
+            old_eventuality,
+            new_eventuality,
+        )
+    });
+    ModalArgument::from_data(data!(ModalArgument {
+        arguments,
+        component,
+        scalar_negation,
+        ..data
+    }))
+}
+
+#[requires(old_eventuality != new_eventuality)]
+#[requires(old_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[requires(new_eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(ret.eventuality != Some(old_eventuality))]
+#[ensures(ret.arguments.values().all(|argument| argument.value != Some(old_eventuality)))]
+#[ensures(ret.place_questions.iter().all(|binding| binding.argument.value != Some(old_eventuality)))]
+#[ensures(ret.modal_arguments.iter().all(|modal| modal.arguments.values().all(|argument| argument.value != Some(old_eventuality)) && modal.component != Some(old_eventuality)))]
+#[ensures(ret.reciprocity.iter().all(|exchange| exchange.left.value != Some(old_eventuality) && exchange.right.value != Some(old_eventuality)))]
+fn replace_generated_predication_eventuality_references(
+    predication: PredicationNode,
+    old_eventuality: SemanticObjectId,
+    new_eventuality: SemanticObjectId,
+) -> PredicationNode {
+    let data = predication.into_data();
+    let eventuality = data.eventuality.map(|eventuality| {
+        if eventuality == old_eventuality {
+            new_eventuality
+        } else {
+            eventuality
+        }
+    });
+    let tanru_link = data.tanru_link.map(|link| {
+        let link_data = link.into_data();
+        let modifier = if link_data.modifier == old_eventuality {
+            new_eventuality
+        } else {
+            link_data.modifier
+        };
+        TanruLink::from_data(data!(TanruLink {
+            modifier,
+            ..link_data
+        }))
+    });
+    let arguments = data
+        .arguments
+        .into_iter()
+        .map(|(place, argument)| {
+            (
+                place,
+                replace_generated_argument_eventuality_reference(
+                    argument,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+            )
+        })
+        .collect();
+    let place_questions = data
+        .place_questions
+        .into_iter()
+        .map(|binding| {
+            let binding_data = binding.into_data();
+            PlaceQuestionBinding::from_data(data!(PlaceQuestionBinding {
+                argument: replace_generated_argument_eventuality_reference(
+                    binding_data.argument,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+                ..binding_data
+            }))
+        })
+        .collect();
+    let modal_arguments = data
+        .modal_arguments
+        .into_iter()
+        .map(|modal| {
+            replace_generated_modal_eventuality_references(modal, old_eventuality, new_eventuality)
+        })
+        .collect();
+    let reciprocity = data
+        .reciprocity
+        .into_iter()
+        .map(|exchange| {
+            let exchange_data = exchange.into_data();
+            ReciprocalExchange::from_data(data!(ReciprocalExchange {
+                left: replace_generated_argument_eventuality_reference(
+                    exchange_data.left,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+                right: replace_generated_argument_eventuality_reference(
+                    exchange_data.right,
+                    old_eventuality,
+                    new_eventuality,
+                ),
+                ..exchange_data
+            }))
+        })
+        .collect();
+    let scalar_negation = data.scalar_negation.map(|scalar_negation| {
+        replace_generated_scalar_negation_eventuality_reference(
+            scalar_negation,
+            old_eventuality,
+            new_eventuality,
+        )
+    });
+    PredicationNode::from_data(data!(PredicationNode {
+        eventuality,
+        tanru_link,
+        arguments,
+        place_questions,
+        modal_arguments,
+        reciprocity,
+        scalar_negation,
+        ..data
+    }))
 }

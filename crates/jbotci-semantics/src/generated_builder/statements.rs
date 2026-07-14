@@ -232,7 +232,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .map(|(utterance, _formula)| utterance),
             GeneratedTextRoot::TermsFragment(fragment) => {
                 let previous_asides = std::mem::take(&mut self.pending_asides);
-                let content = self.build_terms_fragment_referent(fragment);
+                let content = self.build_terms_fragment_content(fragment);
                 let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
                 let content = content?;
                 self.insert_generated_utterance(
@@ -340,7 +340,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let utterance_id = self.next_utterance_id();
                 self.current_utterance = Some(utterance_id);
                 let previous_asides = std::mem::take(&mut self.pending_asides);
-                let content = self.build_terms_fragment_referent(fragment);
+                let content = self.build_terms_fragment_content(fragment);
                 let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
                 let content = content?;
                 self.insert_generated_utterance(
@@ -1669,7 +1669,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let Some(_cmavo) = assignable_koha_cmavo_for_word(&source_word) else {
                 continue;
             };
-            if let Some(referent) = self.assigned_referents.get(&source_word).copied() {
+            if let Some(referent) =
+                self.assigned_referents
+                    .get(&source_word)
+                    .copied()
+                    .filter(|referent| {
+                        referent.object_kind() == crate::model::SemanticObjectKind::Referent
+                    })
+            {
                 rafsi_bindings.push(RafsiBinding::new(
                     rafsi.clone(),
                     Some(source_word),
@@ -3025,91 +3032,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 });
             }
         }
-    }
-
-    #[requires(old_id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[requires(new_id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(true)]
-    pub(super) fn replace_generated_eventuality_reference_everywhere(
-        &mut self,
-        old_id: SemanticObjectId,
-        new_id: SemanticObjectId,
-    ) {
-        if old_id == new_id {
-            return;
-        }
-        for object in self.objects.values_mut() {
-            if object.as_utterance().is_some() {
-                object.update_utterance(|node| {
-                    let mut data = node.into_data();
-                    if data.eventuality == old_id {
-                        data.eventuality = new_id;
-                    }
-                    if data.deictic_ground.time == old_id {
-                        data.deictic_ground.time = new_id;
-                    }
-                    UtteranceNode::from_data(data)
-                });
-            } else if object.as_predication().is_some() {
-                object.update_predication(|node| {
-                    let mut data = node.into_data();
-                    if data.eventuality == Some(old_id) {
-                        data.eventuality = Some(new_id);
-                    }
-                    PredicationNode::from_data(data)
-                });
-            } else if object.as_formula().is_some() {
-                object.set_scoped_formula_eventuality(object.as_formula().and_then(|formula| {
-                    match formula.as_data() {
-                        data!(FormulaNode::Connective(node))
-                            if node.eventuality == Some(old_id) =>
-                        {
-                            Some(new_id)
-                        }
-                        data!(FormulaNode::Connective(node)) => node.eventuality,
-                        _ => None,
-                    }
-                }));
-            } else if object.as_eventuality().is_some() {
-                object.update_eventuality(|node| {
-                    let mut data = node.into_data();
-                    if let Some(time) = data.time.take() {
-                        data.time = Some(if time.anchor == old_id {
-                            time.with_data(data! { anchor: new_id })
-                        } else {
-                            time
-                        });
-                    }
-                    EventualityNode::from_data(data)
-                });
-            } else if object.as_displayed_content().is_some() {
-                object.update_displayed_content(|node| {
-                    if node.anchor == old_id {
-                        node.with_data(data! { anchor: new_id })
-                    } else {
-                        node
-                    }
-                });
-            }
-        }
-        for event in &mut self.temporal_context_stack {
-            if *event == old_id {
-                *event = new_id;
-            }
-        }
-    }
-
-    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    pub(super) fn single_generated_formula_eventuality(
-        &self,
-        formula: SemanticObjectId,
-    ) -> Option<SemanticObjectId> {
-        let object = self.objects.get(&formula)?;
-        let predication = object.formula_predication()?;
-        self.objects
-            .get(&predication)
-            .and_then(SemanticObject::predication_eventuality)
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
