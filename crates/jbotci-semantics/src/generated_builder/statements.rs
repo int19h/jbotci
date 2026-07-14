@@ -50,9 +50,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     "missing generated fragment utterance {utterance_id}"
                 ))
             })?;
-            object.push_diagnostic(diagnostic(
-                "fragment has no independently resolved denotation",
-            ));
+            object.push_diagnostic(diagnostic("fragment has no truth-bearing semantic formula"));
         }
         self.add_generated_utterance_asides(utterance_id, asides);
         Ok(utterance_id)
