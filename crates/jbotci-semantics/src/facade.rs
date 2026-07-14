@@ -55,6 +55,15 @@ impl SemanticsError {
             message: format!("semantic graph invariant failed: {message}"),
         }
     }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(ret.kind == SemanticsErrorKind::RequiresDiscourseContext)]
+    pub(crate) fn requires_discourse_context(construct: &str) -> Self {
+        Self {
+            kind: SemanticsErrorKind::RequiresDiscourseContext,
+            message: format!("semantic analysis of {construct} requires discourse context"),
+        }
+    }
 }
 
 impl fmt::Display for SemanticsError {
@@ -74,6 +83,7 @@ pub enum SemanticsErrorKind {
     MissingSyntaxNode,
     DuplicateObject,
     InvalidGraph,
+    RequiresDiscourseContext,
 }
 
 #[invariant(true)]

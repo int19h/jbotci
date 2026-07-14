@@ -223,6 +223,64 @@ pub(super) fn statement_connective_from_standard(
 
 #[requires(true)]
 #[ensures(true)]
+pub(super) fn statement_connective_from_paragraph_standard(
+    connective: &ParagraphStandardStatementConnectiveSyntax,
+) -> StatementConnectiveSyntax {
+    match connective {
+        ParagraphStandardStatementConnectiveSyntax::ParagraphJekConnective(connective) => {
+            StatementConnectiveSyntax::JekConnective(JekConnectiveSyntax {
+                na: connective.na.clone(),
+                se: connective.se.clone(),
+                ja: WithFreeModifiers::new(connective.ja.clone(), Vec::new()),
+                nai: connective
+                    .nai
+                    .clone()
+                    .map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+            })
+        }
+        ParagraphStandardStatementConnectiveSyntax::ParagraphJoiConnective(connective) => {
+            StatementConnectiveSyntax::JoikConnective(JoikConnectiveSyntax::JoiConnective(
+                JoiConnectiveSyntax {
+                    se: connective.se.clone(),
+                    joi: WithFreeModifiers::new(connective.joi.clone(), Vec::new()),
+                    nai: connective
+                        .nai
+                        .clone()
+                        .map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+                },
+            ))
+        }
+        ParagraphStandardStatementConnectiveSyntax::ParagraphSimpleIntervalConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::SimpleIntervalConnective(SimpleIntervalConnectiveSyntax {
+                se: connective.se.clone(),
+                bihi: WithFreeModifiers::new(connective.bihi.clone(), Vec::new()),
+                nai: connective
+                    .nai
+                    .clone()
+                    .map(|nai| WithFreeModifiers::new(nai, Vec::new())),
+            }),
+        ),
+        ParagraphStandardStatementConnectiveSyntax::ParagraphClosedIntervalConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::ClosedIntervalConnective(ClosedIntervalConnectiveSyntax {
+                left_interval: connective.left_interval.clone(),
+                se: connective.se.clone(),
+                bihi: connective.bihi.clone(),
+                nai: connective.nai.clone(),
+                right_interval: WithFreeModifiers::new(
+                    connective.right_interval.clone(),
+                    Vec::new(),
+                ),
+            }),
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(super) fn abstraction_kind_for_cmavo(cmavo: Option<Cmavo>) -> AbstractionKind {
     match cmavo {
         Some(Cmavo::Nu) => AbstractionKind::Event,

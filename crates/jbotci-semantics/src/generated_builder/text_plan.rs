@@ -15,20 +15,16 @@ pub(super) fn generated_text_plan_from_text(
             leading_i_statements,
             paragraphs,
         }) => {
-            if !leading_nai.is_empty() {
-                return Err(unsupported("text leading material"));
-            }
             let mut plan = GeneratedTextPlan {
+                leading_nai,
                 leading_cmevla,
                 leading_indicators,
                 leading_free_modifiers: leading_free_modifiers.iter().collect(),
                 leading_connective: leading_connective.as_ref(),
+                leading_i_statements,
                 items: Vec::new(),
             };
             for leading_i in leading_i_statements {
-                if leading_i.connective.is_some() {
-                    return Err(unsupported("text leading material"));
-                }
                 plan.leading_free_modifiers
                     .extend(leading_i.free_modifiers.iter());
             }
@@ -39,10 +35,12 @@ pub(super) fn generated_text_plan_from_text(
         }
         TextSyntax::ExplicitXauhaLohoiText(ExplicitXauhaLohoiTextSyntax(paragraphs)) => {
             let mut plan = GeneratedTextPlan {
+                leading_nai: &[],
                 leading_cmevla: &[],
                 leading_indicators: &[],
                 leading_free_modifiers: Vec::new(),
                 leading_connective: None,
+                leading_i_statements: &[],
                 items: Vec::new(),
             };
             push_generated_text_paragraph_with_additional_niho(&mut plan.items, paragraphs)?;
@@ -54,9 +52,15 @@ pub(super) fn generated_text_plan_from_text(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_text_plan_has_semantic_content(plan: &GeneratedTextPlan<'_>) -> bool {
-    !plan.leading_cmevla.is_empty()
+    !plan.leading_nai.is_empty()
+        || !plan.leading_cmevla.is_empty()
         || !plan.leading_indicators.is_empty()
         || !plan.leading_free_modifiers.is_empty()
+        || plan.leading_connective.is_some()
+        || plan
+            .leading_i_statements
+            .iter()
+            .any(|statement| statement.connective.is_some())
         || !plan.items.is_empty()
 }
 
@@ -245,19 +249,46 @@ pub(super) fn semantic_root_from_statement_or_fragment(
         StatementOrFragmentSyntax::StatementOrFragmentStatement(
             StatementOrFragmentStatementSyntax(statement),
         ) => semantic_root_from_statement(statement),
-        StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::TermsFragment(
-            fragment,
-        )) => Ok(GeneratedTextRoot::TermsFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::EkFragment(
-            fragment,
-        )) => Ok(GeneratedTextRoot::EkFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::GihekFragment(
-            fragment,
-        )) => Ok(GeneratedTextRoot::GihekFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(
-            FragmentStatementSyntax::ZantufaMeksoFragment(fragment),
-        ) => Ok(GeneratedTextRoot::ZantufaMeksoFragment(fragment)),
-        StatementOrFragmentSyntax::FragmentStatement(_) => Err(unsupported("non-terms fragment")),
+        StatementOrFragmentSyntax::FragmentStatement(fragment) => {
+            Ok(GeneratedTextRoot::Fragment(match fragment {
+                FragmentStatementSyntax::PrenexFragment(fragment) => {
+                    GeneratedFragmentRoot::Prenex(fragment)
+                }
+                FragmentStatementSyntax::SelbriFragment(fragment) => {
+                    GeneratedFragmentRoot::Selbri(fragment)
+                }
+                FragmentStatementSyntax::EkFragment(fragment) => {
+                    GeneratedFragmentRoot::Ek(fragment)
+                }
+                FragmentStatementSyntax::GihekFragment(fragment) => {
+                    GeneratedFragmentRoot::Gihek(fragment)
+                }
+                FragmentStatementSyntax::MultipleNaFragment(fragment) => {
+                    GeneratedFragmentRoot::MultipleNa(fragment)
+                }
+                FragmentStatementSyntax::SingleNaFragment(fragment) => {
+                    GeneratedFragmentRoot::SingleNa(fragment)
+                }
+                FragmentStatementSyntax::TermsFragment(fragment) => {
+                    GeneratedFragmentRoot::Terms(fragment)
+                }
+                FragmentStatementSyntax::MeksoFragment(fragment) => {
+                    GeneratedFragmentRoot::Mekso(fragment)
+                }
+                FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
+                    GeneratedFragmentRoot::RelativeClause(fragment)
+                }
+                FragmentStatementSyntax::LinkedSumtiContinuationFragment(fragment) => {
+                    GeneratedFragmentRoot::LinkedSumtiContinuation(fragment)
+                }
+                FragmentStatementSyntax::LinkedSumtiFragment(fragment) => {
+                    GeneratedFragmentRoot::LinkedSumti(fragment)
+                }
+                FragmentStatementSyntax::ZantufaMeksoFragment(fragment) => {
+                    GeneratedFragmentRoot::ZantufaMekso(fragment)
+                }
+            }))
+        }
     }
 }
 
@@ -281,11 +312,7 @@ pub(super) fn semantic_root_from_statement(
 #[ensures(true)]
 pub(super) fn generated_text_root_is_utterance(root: &GeneratedTextRoot<'_>) -> bool {
     match root {
-        GeneratedTextRoot::Bridi(_)
-        | GeneratedTextRoot::TermsFragment(_)
-        | GeneratedTextRoot::EkFragment(_)
-        | GeneratedTextRoot::GihekFragment(_)
-        | GeneratedTextRoot::ZantufaMeksoFragment(_) => true,
+        GeneratedTextRoot::Bridi(_) | GeneratedTextRoot::Fragment(_) => true,
         GeneratedTextRoot::PrenexStatement(statement) => {
             generated_statement_is_utterance(&statement.inner_statement)
         }

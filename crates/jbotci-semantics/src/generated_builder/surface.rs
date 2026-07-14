@@ -435,3 +435,9 @@ pub(super) fn unsupported(what: &str) -> SemanticsError {
         message: format!("generated semantic builder does not yet support {what}"),
     }
 }
+
+#[requires(!what.is_empty())]
+#[ensures(ret.kind == SemanticsErrorKind::RequiresDiscourseContext)]
+pub(super) fn requires_discourse_context(what: &str) -> SemanticsError {
+    SemanticsError::requires_discourse_context(what)
+}

@@ -1313,6 +1313,28 @@ pub(super) fn generated_modal_statement_connection_spec(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|spec| !spec.introduced_by.is_empty() && !spec.relation.is_empty() && spec.visible_place > 0))]
+pub(super) fn generated_paragraph_modal_statement_connection_spec(
+    connective: &IParagraphStatementConnectiveSyntax,
+) -> Option<GeneratedModalStatementConnectionSpec> {
+    match connective {
+        IParagraphStatementConnectiveSyntax::IStandardParagraphStatementConnective(connective) => {
+            connective
+                .tag_bo
+                .as_ref()
+                .and_then(|(tense_modal, _bo)| tense_modal.as_deref())
+                .and_then(generated_modal_statement_connection_spec_for_tense_modal)
+        }
+        IParagraphStatementConnectiveSyntax::ITagBoParagraphStatementConnective(connective) => {
+            connective
+                .tense_modal
+                .as_deref()
+                .and_then(generated_modal_statement_connection_spec_for_tense_modal)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| !spec.introduced_by.is_empty() && !spec.relation.is_empty() && spec.visible_place > 0))]
 pub(super) fn generated_modal_statement_connection_spec_for_tense_modal<N: TreeNode>(
     tense_modal: &N,
 ) -> Option<GeneratedModalStatementConnectionSpec> {
