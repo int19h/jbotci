@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Rewrite and verify the issue #374 semantics fixture migration.
+"""Rewrite and verify the issue #374 semantics fixture migrations.
 
 Issue #358 requires a two-sided gate for expectation changes. This script
 freezes the exact 400-fixture allowlist removal, reproduces every old blocker
-with a main binary, reproduces every current result with the issue binary, and
-proves that the sole fixture document migration changes only its tersmu
-expectation.
+with a main binary, reproduces every current result with the issue binary,
+proves that every changed fixture document changes only its tersmu expectation,
+and verifies the one success-to-success graph migration modulo object IDs.
 """
 
 from __future__ import annotations
@@ -23,7 +23,34 @@ from typing import Any
 
 
 ALLOWLIST = "tests/semantics-coverage-allowlist.txt"
-MIGRATED_FIXTURE = "tests/fixtures/cll/chrestomathy/in-xanadu.toml"
+MIGRATED_FIXTURES = {
+    "tests/fixtures/cll/chapter-14/section-14.10/c14e10d7.toml": (
+        "success-id-allocation",
+        "shared forethought-term construction preserves the graph while allocating "
+        "its canonical object IDs in structural build order",
+    ),
+    "tests/fixtures/cll/chrestomathy/alice01.toml": (
+        "next-blocker",
+        "tagged/connected selbri lowering reaches the next unsupported connected "
+        "bridi-tail child",
+    ),
+    "tests/fixtures/cll/chrestomathy/in-xanadu.toml": (
+        "restored-success",
+        "plain tanru lowering restores the fixture's complete semantic graph",
+    ),
+    "tests/fixtures/corpus/alis/full-alice.toml": (
+        "next-blocker",
+        "tanru lowering reaches the next unsupported non-sumti term in the full text",
+    ),
+}
+MIGRATION_NEXT_BLOCKERS = {
+    "cll.chrestomathy.alice01": (
+        "generated semantic builder does not yet support connected bridi tail"
+    ),
+    "corpus.alis.full-alice": (
+        "generated semantic builder does not yet support non-sumti term"
+    ),
+}
 EXPECTED_REMOVED_COUNT = 400
 EXPECTED_REMOVED_SHA256 = (
     "7fc41e56c68b617711a3bfb8b2b32bf3d49076c6721577f72f94398aa2d7d51d"
@@ -270,22 +297,75 @@ def fixture_paths_by_id() -> dict[str, Path]:
     return paths
 
 
-def migrated_fixture_source(base_source: str, current_result: dict[str, Any]) -> str:
-    if current_result.get("status") != "success":
-        raise ValueError("in-Xanadu must have a successful current tersmu result")
-    rendered = current_result["json"]
-    if "'''" in rendered:
-        raise ValueError("in-Xanadu JSON cannot be represented by the fixture string form")
-    replacement = f"[expectations.output.tersmu]\njson = '''{rendered}'''\n"
+def migrated_fixture_source(
+    base_source: str,
+    base_fixture: dict[str, Any],
+    current_result: dict[str, Any],
+) -> str:
+    story_time = bool(tersmu_options(base_fixture).get("story-time", False))
+    lines = ["[expectations.output.tersmu]"]
+    if story_time:
+        lines.append("story-time = true")
+    if current_result.get("status") == "success":
+        rendered = current_result["json"]
+        if "'''" in rendered:
+            raise ValueError("tersmu JSON cannot be represented by the fixture string form")
+        lines.append(f"json = '''{rendered}'''")
+    elif current_result.get("status") == "failure":
+        error = f"tersmu JSON build error: {current_result['error']}"
+        lines.extend(("status = \"failure\"", f"error = {json.dumps(error)}"))
+    else:
+        raise ValueError(f"unexpected tersmu result: {current_result!r}")
+    replacement = "\n".join(lines) + "\n"
     updated, count = re.subn(
-        r'(?ms)^\[expectations\.output\.tersmu\]\n.*\Z',
+        r'(?ms)^\[expectations\.output\.tersmu\]\n.*?(?=^\[|\Z)',
         lambda _: replacement,
         base_source,
         count=1,
     )
     if count != 1:
-        raise ValueError("in-Xanadu does not have exactly one final tersmu section")
+        raise ValueError("fixture does not have exactly one tersmu section")
     return updated
+
+
+def canonical_semantic_graph(rendered: str) -> dict[str, Any]:
+    """Canonicalize a semantic graph by structural traversal, not allocated IDs."""
+
+    graph = json.loads(rendered)
+    objects = graph.get("objects")
+    root = graph.get("root")
+    if not isinstance(objects, dict) or not isinstance(root, str) or root not in objects:
+        raise ValueError("tersmu JSON is not a rooted semantic object graph")
+    canonical_ids: dict[str, str] = {}
+    canonical_objects: dict[str, Any] = {}
+
+    def visit_reference(object_id: str) -> str:
+        canonical_id = canonical_ids.get(object_id)
+        if canonical_id is not None:
+            return canonical_id
+        canonical_id = f"object:{len(canonical_ids) + 1}"
+        canonical_ids[object_id] = canonical_id
+        canonical_objects[canonical_id] = visit_value(objects[object_id])
+        return canonical_id
+
+    def visit_value(value: Any) -> Any:
+        if isinstance(value, str) and value in objects:
+            return visit_reference(value)
+        if isinstance(value, list):
+            return [visit_value(item) for item in value]
+        if isinstance(value, dict):
+            return {key: visit_value(value[key]) for key in sorted(value)}
+        return value
+
+    canonical_root = visit_reference(root)
+    if len(canonical_ids) != len(objects):
+        unreachable = sorted(set(objects) - canonical_ids.keys())
+        raise ValueError(f"semantic graph contains unreachable objects: {unreachable}")
+    return {
+        "version": graph.get("version"),
+        "root": canonical_root,
+        "objects": canonical_objects,
+    }
 
 
 def changed_fixture_paths(base_ref: str) -> set[str]:
@@ -395,30 +475,62 @@ def main() -> None:
             f"issue #374 base class counts changed: {dict(sorted(base_classes.items()))!r}"
         )
 
-    base_fixture_source = git_source(args.base_ref, MIGRATED_FIXTURE)
-    base_fixture = document(base_fixture_source)
-    migrated_id = base_fixture["id"]
-    base_result = render(args.base_binary, Path(MIGRATED_FIXTURE), base_fixture)
-    if normalized_expectation(base_fixture) != base_result:
-        raise ValueError("in-Xanadu base expectation is stale")
-    expected_fixture_source = migrated_fixture_source(
-        base_fixture_source, current_cache[migrated_id]
-    )
-    if args.write:
-        Path(MIGRATED_FIXTURE).write_text(expected_fixture_source)
-    current_fixture_source = Path(MIGRATED_FIXTURE).read_text()
-    if current_fixture_source != expected_fixture_source:
-        raise ValueError("in-Xanadu changed beyond its tersmu expectation")
-    current_fixture = document(current_fixture_source)
-    if normalized_expectation(current_fixture) != current_cache[migrated_id]:
-        raise ValueError("in-Xanadu current expectation is stale")
-    reverse = copy.deepcopy(current_fixture)
-    reverse["expectations"]["output"]["tersmu"] = copy.deepcopy(tersmu(base_fixture))
-    if reverse != base_fixture:
-        raise ValueError("in-Xanadu PR-to-base reconstruction changed non-tersmu data")
+    for migrated_path, (migration_kind, justification) in MIGRATED_FIXTURES.items():
+        path = Path(migrated_path)
+        base_fixture_source = git_source(args.base_ref, migrated_path)
+        base_fixture = document(base_fixture_source)
+        migrated_id = base_fixture["id"]
+        base_result = render(args.base_binary, path, base_fixture)
+        if normalized_expectation(base_fixture) != base_result:
+            raise ValueError(f"{migrated_id}: base expectation is stale")
+        current_result = current_cache.get(migrated_id)
+        if current_result is None:
+            current_result = render(args.current_binary, path, base_fixture)
+        if migration_kind == "restored-success":
+            if current_result.get("status") != "success":
+                raise ValueError(f"{migrated_id}: expected a restored success")
+        elif migration_kind == "next-blocker":
+            expected_error = MIGRATION_NEXT_BLOCKERS.get(migrated_id)
+            if current_result != {"status": "failure", "error": expected_error}:
+                raise ValueError(
+                    f"{migrated_id}: unexpected next-child blocker: {current_result!r}"
+                )
+        elif migration_kind == "success-id-allocation":
+            if base_result.get("status") != "success" or current_result.get("status") != "success":
+                raise ValueError(f"{migrated_id}: expected successful graphs on both sides")
+            if canonical_semantic_graph(base_result["json"]) != canonical_semantic_graph(
+                current_result["json"]
+            ):
+                raise ValueError(
+                    f"{migrated_id}: success graph changed beyond allocated object IDs"
+                )
+        else:
+            raise ValueError(f"{migrated_id}: unknown migration kind {migration_kind!r}")
+        expected_fixture_source = migrated_fixture_source(
+            base_fixture_source,
+            base_fixture,
+            current_result,
+        )
+        if args.write:
+            path.write_text(expected_fixture_source)
+        current_fixture_source = path.read_text()
+        if current_fixture_source != expected_fixture_source:
+            raise ValueError(f"{migrated_id}: changed beyond its tersmu expectation")
+        current_fixture = document(current_fixture_source)
+        if normalized_expectation(current_fixture) != current_result:
+            raise ValueError(f"{migrated_id}: current expectation is stale")
+        reverse = copy.deepcopy(current_fixture)
+        reverse["expectations"]["output"]["tersmu"] = copy.deepcopy(
+            tersmu(base_fixture)
+        )
+        if reverse != base_fixture:
+            raise ValueError(
+                f"{migrated_id}: PR-to-base reconstruction changed non-tersmu data"
+            )
+        print(f"{migrated_id}: fixture migration: {justification}")
 
     changed = changed_fixture_paths(args.base_ref)
-    if changed != {MIGRATED_FIXTURE}:
+    if changed != set(MIGRATED_FIXTURES):
         raise ValueError(f"unexpected fixture drift: {sorted(changed)}")
 
     print("issue-374 fixture migration: verified")
@@ -427,8 +539,14 @@ def main() -> None:
     print(f"individually justified next blockers: {len(CURRENT_BLOCKERS)}")
     for fixture_class, count in sorted(base_classes.items()):
         print(f"base class {fixture_class}: {count}")
-    print("base-to-PR document reconstruction: 1/1")
-    print("PR-to-base document reconstruction: 1/1")
+    print(
+        f"base-to-PR document reconstruction: {len(MIGRATED_FIXTURES)}/"
+        f"{len(MIGRATED_FIXTURES)}"
+    )
+    print(
+        f"PR-to-base document reconstruction: {len(MIGRATED_FIXTURES)}/"
+        f"{len(MIGRATED_FIXTURES)}"
+    )
     print("unexpected fixture drift: 0")
 
 
