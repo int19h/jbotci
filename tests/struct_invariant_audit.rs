@@ -1224,12 +1224,112 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated grammar policy flags are independent parser behavior switches",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Boxed",
+        "type-erased parser storage is valid for every parser admitted by its constructor bounds",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Checkpoint",
+        "cursor lifetime and inspector snapshot validity are enforced by their component types",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Cursor",
+        "parse invocation identity is carried entirely by invariant lifetime markers",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Custom",
+        "custom parser validity is fully expressed by the callback bound on its Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:DropProbe",
+        "unit test drop probe has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Empty",
+        "unit parser has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:End",
+        "unit parser has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Errors",
+        "absence and presence of a routed alternative error are both valid driver states",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:IgnoreThen",
+        "combinator validity is fully expressed by the parser bounds on its Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:InputRef",
+        "mutable parser invocation state is private and maintained by token and rewind operations",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Labelled",
+        "parser, label, and context mode are independent until constrained by Parser implementation bounds",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:LocatedError",
+        "every parser position and syntax error pair is a valid routed alternative",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Map",
+        "combinator validity is fully expressed by parser and callback bounds on its Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:MapErrWithState",
+        "combinator validity is fully expressed by parser and callback bounds on its Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:MapExtra",
+        "state access validity is enforced by the borrowed ParserState lifetime",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:MapWith",
+        "combinator validity is fully expressed by parser and callback bounds on its Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Or",
+        "ordered alternatives need no relation beyond the shared output bound on their Parser implementation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:OwnedRecursiveRoot",
+        "the root and family owner are coupled by private construction and each component owns its validity",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Recursive",
+        "a weak recursive backedge may validly outlive its owner; parser execution checks owner availability",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RecursiveFamily",
+        "shared family storage is always valid and node initialization is tracked by each OnceCell",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RecursiveFamilyStorage",
+        "heterogeneous node arena accepts every parser node admitted by its erased trait bound",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:RecursiveNode",
+        "both declared and defined OnceCell states are valid phases of recursive grammar construction",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:SimpleSpan",
+        "all endpoint pairs are valid because compatibility requires inverted empty spans between tokens",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Spanned",
+        "the generic value and span components each own their validity without a cross-field constraint",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parser_core.rs:Then",
+        "combinator validity is fully expressed by the parser bounds on its Parser implementation",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:GeneratedModelNoopVisitor",
         "stateless generated-model validation visitor; all instances are equivalent",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserCheckpoint",
-        "checkpoint mirrors Chumsky save state with warning count plus whether trace would record the save",
+        "checkpoint mirrors parser-core save state with warning count plus whether trace would record the save",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserState",
@@ -1245,7 +1345,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",
-        "lifetime-bearing Chumsky error wrapper preserves invariants through constructors and merge helpers",
+        "lifetime-bearing parser error preserves invariants through constructors and merge helpers",
     ),
     (
         "crates/jbotci-syntax/src/grammar/tokens.rs:IncompleteKindCandidate",

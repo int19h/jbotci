@@ -1337,7 +1337,7 @@ impl SyntaxGrammar {
         });
         let declarations = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
-            quote!(let mut #name = Recursive::declare();)
+            quote!(let mut #name = __generated_recursive_family.declare();)
         });
         let definitions = recursive_rules
             .iter()
@@ -1389,7 +1389,7 @@ impl SyntaxGrammar {
             .collect::<Result<Vec<_>>>()?;
         let outputs = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
-            quote!(#name: #name.boxed())
+            quote!(#name: __generated_recursive_family.own(#name).boxed())
         });
         let root_functions = recursive_rules.iter().map(|rule| {
             let root_name = &rule.name;
@@ -1411,6 +1411,7 @@ impl SyntaxGrammar {
 
             #[allow(dead_code)]
             pub(crate) fn strict_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
+                let __generated_recursive_family = RecursiveFamily::new();
                 #(#declarations)*
                 #(#definitions)*
                 #family_ident {
@@ -1456,7 +1457,7 @@ impl SyntaxGrammar {
         });
         let declarations = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
-            quote!(let mut #name = Recursive::declare();)
+            quote!(let mut #name = __generated_recursive_family.declare();)
         });
         let definitions = recursive_rules
             .iter()
@@ -1516,7 +1517,7 @@ impl SyntaxGrammar {
             .collect::<Result<Vec<_>>>()?;
         let outputs = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
-            quote!(#name: #name.boxed())
+            quote!(#name: __generated_recursive_family.own(#name).boxed())
         });
         let root_functions = recursive_rules.iter().map(|rule| {
             let root_name = &rule.name;
@@ -1542,6 +1543,7 @@ impl SyntaxGrammar {
             pub(crate) fn recovered_generated_parser_family<'tokens>(
                 __generated_recovery_rules: std::sync::Arc<[&'static str]>,
             ) -> #family_ident<'tokens> {
+                let __generated_recursive_family = RecursiveFamily::new();
                 #(#declarations)*
                 #(#definitions)*
                 #family_ident {
@@ -3395,7 +3397,7 @@ fn strict_parser_argument_tokens(
         generic_params.push(generic.clone());
         params.push(quote!(#argument: #generic));
         where_predicates.push(quote!(
-            #generic: Parser<'tokens, ParserInput<'tokens>, #ty, ParseExtra<'tokens>> + Clone + 'tokens
+            #generic: Parser<'tokens, #ty> + Clone + 'tokens
         ));
     }
     let where_clause = if where_predicates.is_empty() {
@@ -3447,7 +3449,7 @@ fn recovered_parser_argument_tokens(
         generic_params.push(generic.clone());
         params.push(quote!(#argument: #generic));
         where_predicates.push(quote!(
-            #generic: Parser<'tokens, ParserInput<'tokens>, #ty, ParseExtra<'tokens>> + Clone + 'tokens
+            #generic: Parser<'tokens, #ty> + Clone + 'tokens
         ));
     }
     let where_clause = if where_predicates.is_empty() {
@@ -4348,7 +4350,7 @@ fn strict_method_parser_expr_tokens(
         let construct = format_ident!("{construct}");
         Ok(quote! {
             #inner.map_with(
-                |value, extra: &mut chumsky::input::MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                |value, extra: &mut MapExtra<'tokens, '_>| {
                     extra.state().warn(ExperimentalConstruct::#construct, &value);
                     value
                 },
@@ -5166,7 +5168,7 @@ fn recovered_method_parser_expr_tokens(
         let recovered_module = generation.recovered_module;
         Ok(quote! {
             #inner.map_with(
-                |value, extra: &mut chumsky::input::MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                |value, extra: &mut MapExtra<'tokens, '_>| {
                     if let #recovered_module::Recovered::Valid(token) = &value {
                         extra.state().warn(ExperimentalConstruct::#construct, token.as_ref());
                     }

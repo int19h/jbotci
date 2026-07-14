@@ -9,12 +9,6 @@ use std::{
     sync::Arc,
 };
 
-use chumsky::Boxed;
-use chumsky::input::MappedInput;
-use chumsky::input::{Checkpoint, Cursor};
-use chumsky::inspector::Inspector;
-use chumsky::prelude::*;
-use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_diagnostics::{
     TraceEventKind, TraceFailureSummary, TraceLevel, TracePhase, TraceRecorder, TraceReport,
     source_span_from_byte_offsets,
@@ -36,8 +30,10 @@ use crate::{
 mod generated;
 mod generated_runtime;
 mod parse_error;
+mod parser_core;
 pub(crate) mod tokens;
 use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError};
+use parser_core::{Boxed, Checkpoint, Cursor, Inspector, MappedInput, SimpleSpan, Spanned};
 
 #[doc(hidden)]
 pub mod generated_model {
@@ -46,10 +42,8 @@ pub mod generated_model {
 
 type Span = SimpleSpan;
 type SpannedToken = Spanned<Token, Span>;
-type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedToken]>;
-type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState<'tokens>, ()>;
-type BoxedParser<'tokens, O> =
-    Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
+type ParserInput<'tokens> = MappedInput<'tokens>;
+type BoxedParser<'tokens, O> = Boxed<'tokens, O>;
 
 // Candidate directives are already sorted by the spec's priority order. Keep
 // the legacy bound and ordering intact for inputs that already recover. The
@@ -1186,9 +1180,8 @@ fn diagnostic_expectations_include_construct(
         .any(|expectation| expectation.reason.construct() == construct)
 }
 
-impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> {
-    type Checkpoint = ParserCheckpoint;
-
+#[bityzba::contract_trait]
+impl<'tokens> Inspector<'tokens> for ParserState<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     fn on_token(&mut self, token: &Token) {
@@ -1213,10 +1206,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
 
     #[requires(true)]
     #[ensures(ret.warning_count == self.warnings.len())]
-    fn on_save<'parse>(
-        &self,
-        _cursor: &Cursor<'tokens, 'parse, ParserInput<'tokens>>,
-    ) -> ParserCheckpoint {
+    fn on_save<'parse>(&self, _cursor: &Cursor<'tokens, 'parse>) -> ParserCheckpoint {
         ParserCheckpoint {
             warning_count: self.warnings.len(),
             syntax_context_count: self.active_syntax_contexts.len(),
@@ -1233,10 +1223,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
 
     #[requires(true)]
     #[ensures(self.warnings.len() <= old(self.warnings.len()))]
-    fn on_rewind<'parse>(
-        &mut self,
-        marker: &Checkpoint<'tokens, 'parse, ParserInput<'tokens>, ParserCheckpoint>,
-    ) {
+    fn on_rewind<'parse>(&mut self, marker: &Checkpoint<'tokens, 'parse>) {
         if marker.inspector().trace_save {
             self.trace_event(
                 TraceLevel::Primitives,
