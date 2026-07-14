@@ -62,6 +62,10 @@ use xtask_common::service_worker::{
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
+mod semantics_coverage;
+
+use semantics_coverage::SemanticsCoverageArgs;
+
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
@@ -191,6 +195,7 @@ struct Cli {
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
+#[invariant(::SemanticsCoverage(..) => true)]
 #[invariant(::SyntaxParserBenchmark(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::VendorWiki(..) => true)]
@@ -222,6 +227,8 @@ enum Command {
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
+    #[command(name = "semantics-coverage")]
+    SemanticsCoverage(SemanticsCoverageArgs),
     #[command(name = "syntax-parser-benchmark")]
     SyntaxParserBenchmark(SyntaxParserBenchmarkArgs),
     VendorDictionary(VendorDictionaryArgs),
@@ -1097,6 +1104,7 @@ fn main() -> Result<()> {
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
+        Command::SemanticsCoverage(args) => semantics_coverage::run(args),
         Command::SyntaxParserBenchmark(args) => syntax_parser_benchmark(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::VendorWiki(args) => vendor_wiki(args),
