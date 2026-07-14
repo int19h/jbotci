@@ -7652,7 +7652,9 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{ActualityKind, DomainImport, ScopeDependence, ScopeDependenceData};
+    use crate::model::{
+        ActualityKind, DomainImport, ScopeDependence, ScopeDependenceData, SemanticObjectKind,
+    };
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
 
@@ -8447,5 +8449,331 @@ mod tests {
         assert_eq!(source.span.byte_start, 9);
         assert_eq!(source.span.byte_end, 17);
         assert_eq!(source.construct.as_deref(), Some("implicit-property-slot"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn question_sumti_survive_relative_goi_and_fragment_lowering() {
+        let relative = semantic_graph_for("ma poi cinri ku'o vi do fasnu");
+        let parameter = relative
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_parameter()
+                    .is_some_and(|parameter| parameter.role == ParameterRole::ArgumentQuestion)
+                    .then_some(id)
+            })
+            .expect("ma should produce an argument-question parameter");
+        for relation in ["cinri", "fasnu"] {
+            assert!(relative.objects.values().any(|object| {
+                object.as_predication().is_some_and(|predication| {
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        && predication
+                            .arguments
+                            .values()
+                            .any(|argument| argument.value == Some(parameter))
+                })
+            }));
+        }
+
+        let goi = semantic_graph_for("ma goi ko'a cu klama ko'a");
+        let question = goi
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_parameter()
+                    .is_some_and(|parameter| parameter.role == ParameterRole::ArgumentQuestion)
+                    .then_some(id)
+            })
+            .expect("goi should preserve the question parameter");
+        let klama = goi
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("klama predication should exist");
+        assert_eq!(klama.arguments[&argument_key(1)].value, Some(question));
+        assert_eq!(klama.arguments[&argument_key(2)].value, Some(question));
+
+        let fragment = semantic_graph_for("ma");
+        let parameter = fragment
+            .objects
+            .iter()
+            .find_map(|(&id, object)| object.as_parameter().is_some().then_some(id))
+            .expect("bare ma should remain a parameter");
+        assert_eq!(
+            fragment
+                .objects
+                .get(&fragment.root)
+                .and_then(SemanticObject::as_utterance)
+                .and_then(|utterance| utterance.content),
+            Some(parameter)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn question_and_deleted_arguments_keep_their_typed_semantics() {
+        let respectively = semantic_graph_for("ma fa'u ma klama ma fa'u ma");
+        assert_eq!(
+            respectively
+                .objects
+                .values()
+                .filter(|object| {
+                    object
+                        .as_parameter()
+                        .is_some_and(|parameter| parameter.role == ParameterRole::ArgumentQuestion)
+                })
+                .count(),
+            4
+        );
+        assert_eq!(
+            respectively
+                .objects
+                .values()
+                .filter_map(SemanticObject::referent_composition)
+                .filter(|composition| {
+                    composition.operator == CompositionOperator::Respectively
+                        && composition.members.len() == 2
+                        && composition.members.iter().all(|member| {
+                            respectively.objects.get(member).is_some_and(|object| {
+                                object.as_parameter().is_some_and(|parameter| {
+                                    parameter.role == ParameterRole::ArgumentQuestion
+                                })
+                            })
+                        })
+                })
+                .count(),
+            2
+        );
+
+        let indirect = semantic_graph_for("mi na djuno le makau mukti");
+        let makau = indirect
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_parameter()
+                    .is_some_and(|parameter| {
+                        parameter.role == ParameterRole::ArgumentQuestion
+                            && parameter.introduced_by == "ma"
+                    })
+                    .then_some(id)
+            })
+            .expect("makau should produce an argument-question parameter");
+        let associated_with = indirect
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "associatedWith")
+                    .then_some(predication)
+            })
+            .expect("possessive makau should produce an association restriction");
+        assert_eq!(
+            associated_with.arguments[&argument_key(2)].value,
+            Some(makau)
+        );
+        assert!(indirect.objects.values().any(|object| {
+            object.as_question().is_some_and(|question| {
+                question
+                    .slots
+                    .iter()
+                    .any(|slot| slot.parameter == makau && slot.role == QuestionSlotRole::Answer)
+            })
+        }));
+
+        let deleted = semantic_graph_for("gugde fi zi'o");
+        let gugde = deleted
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "gugde")
+                    .then_some(predication)
+            })
+            .expect("gugde predication should exist");
+        let x3 = &gugde.arguments[&argument_key(3)];
+        assert_eq!(x3.kind, ArgumentValueKind::Deleted);
+        assert_eq!(x3.value, None);
+        assert_eq!(x3.introduced_by.as_deref(), Some("zi'o"));
+
+        let me = semantic_graph_for("me ma");
+        let referent_of = me
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "referentOf")
+                    .then_some(predication)
+            })
+            .expect("me should lower to referentOf");
+        let source = referent_of.arguments[&argument_key(2)]
+            .value
+            .expect("referentOf source is filled");
+        assert!(me.objects.get(&source).is_some_and(|object| {
+            object
+                .as_parameter()
+                .is_some_and(|parameter| parameter.role == ParameterRole::ArgumentQuestion)
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn multi_item_lu_quote_has_an_utterance_anchor() {
+        let graph = semantic_graph_for("lu mi klama i do cadzu li'u cu se cusku mi");
+        let quoted_utterance = graph
+            .objects
+            .values()
+            .find_map(|object| object.as_sign()?.quotation.as_ref()?.utterance)
+            .expect("LU quotation should point at an utterance");
+        let quoted_content = graph
+            .objects
+            .get(&quoted_utterance)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("quoted utterance should contain its discourse");
+        assert_eq!(quoted_content.object_kind(), SemanticObjectKind::Sequence);
+        assert_eq!(
+            graph
+                .objects
+                .get(&quoted_content)
+                .and_then(SemanticObject::as_sequence)
+                .map(|sequence| sequence.items.len()),
+            Some(2)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sign_relative_clauses_and_restrictive_termsets_are_preserved() {
+        let sign_graph = semantic_graph_for("xu zo irc poi lojbo cmene");
+        let sign = sign_graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_sign)
+            .expect("zo should produce a sign");
+        assert_eq!(sign.relative_clauses.len(), 1);
+        assert_eq!(
+            sign.relative_clauses[0].body.object_kind(),
+            SemanticObjectKind::Formula
+        );
+
+        let termset = semantic_graph_for(
+            "la blabi ractu noi jgari nu'i ge lo tabra lo xance gi lo skapi te ciska clanu le drata",
+        );
+        for relation in ["tabra", "skapi"] {
+            assert!(termset.objects.values().any(|object| {
+                object.as_predication().is_some_and(|predication| {
+                    predication.mode == PredicationMode::Restrictive
+                        && matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                })
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_modal_terms_attach_to_every_connected_bridi_branch() {
+        let graph = semantic_graph_for("va'o le nu do klama ku mi cu cadzu gi'e tavla");
+        let mut modal_values = Vec::new();
+        for relation in ["cadzu", "tavla"] {
+            let predication = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication)
+                })
+                .expect("connected branch predication should exist");
+            let modal = predication
+                .modal_arguments
+                .iter()
+                .find(|modal| modal.relation.as_deref() == Some("va'o"))
+                .expect("shared va'o term should attach to every branch");
+            modal_values.push(
+                modal.arguments[&argument_key(1)]
+                    .value
+                    .expect("va'o condition should be filled"),
+            );
+        }
+        assert_eq!(modal_values[0], modal_values[1]);
+        assert_eq!(
+            modal_values[0].referent_sort(),
+            Some(SemanticSort::Eventuality(EventualitySort::General))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn duplicate_linkarg_x1_expands_to_conjoined_restrictions() {
+        let graph = semantic_graph_for("le gadri be fa zo le");
+        let gadri = graph
+            .objects
+            .values()
+            .filter_map(SemanticObject::as_predication)
+            .filter(|predication| {
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "gadri")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(gadri.len(), 2);
+        assert!(
+            gadri
+                .iter()
+                .all(|predication| predication.mode == PredicationMode::Restrictive)
+        );
+        let x1s = gadri
+            .iter()
+            .map(|predication| {
+                predication.arguments[&argument_key(1)]
+                    .value
+                    .expect("both restrictions have x1")
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(x1s.len(), 2);
+        assert!(graph.objects.values().any(|object| {
+            object.formula_operator() == Some(FormulaOperator::And)
+                && object.formula_children().len() == 2
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstraction_retargets_only_inherited_body_eventuality() {
+        let graph = semantic_graph_for("le za'i mi lenku ki'u le nu le glavacri minji na banzu");
+        let relation_event = |relation: &str| {
+            graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication.eventuality)
+                        .flatten()
+                })
+                .expect("named predication should have an eventuality")
+        };
+        let state = relation_event("lenku");
+        let event = relation_event("banzu");
+        assert_ne!(state, event);
+        assert_eq!(
+            state.referent_sort(),
+            Some(SemanticSort::Eventuality(EventualitySort::State))
+        );
+        assert!(graph.objects.contains_key(&state));
+        assert!(graph.objects.contains_key(&event));
     }
 }
