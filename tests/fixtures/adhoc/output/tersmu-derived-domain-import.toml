@@ -1,30 +1,12 @@
 id = "adhoc.output.tersmu-derived-domain-import"
 lojban = "ro da poi mlatu cu klama"
-tags = ["output", "tersmu", "claims", "tree", "issue-278", "domain-import"]
+tags = ["output", "tersmu", "tree", "tree+proj", "issue-278", "domain-import"]
 
 [[provenance]]
 kind = "adhoc"
 description = "Issue #278 restricted universal: domainImport is a visible projected commitment."
 
 [expectations.output.tersmu]
-claims = """
-at-issue commitments:
-- mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:11] [mode=restrictive; scope=forall da[entity:7]; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom binds=exists eventuality[eventuality:8] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]]
-- klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:17] [mode=asserted; scope=forall da[entity:7]; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]]
-presupposed/projected:
-- denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality/locution[eventuality/locution:21] [time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; constant; context=utterance:5 assert]
-- denotes now[eventuality:3] [time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- exists da[entity:7] satisfying mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:11] [restriction=formula:12; projective domain import of formula:20]
-- denotes zo'e[entity:10] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > restriction atom binds=exists eventuality[eventuality:8] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]]
-- denotes zo'e[entity:13] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]]
-- denotes zo'e[entity:14] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]]
-- denotes zo'e[entity:15] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]]
-- denotes zo'e[entity:16] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; context=utterance:5 assert > content forall variable=da[entity:7] domain-import=projective [formula:20] > body atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]]
-displayed:
-- (none)"""
 tree = """
 utterance assert {event=eventuality/locution[eventuality/locution:21]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
   content: forall variable=da[entity:7] domain-import=projective [formula:20]
@@ -32,3 +14,15 @@ utterance assert {event=eventuality/locution[eventuality/locution:21]; time=unsp
       mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:11]
     body: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]
       klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:17]"""
+"tree+proj" = """
+utterance assert {event=eventuality/locution[eventuality/locution:21]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
+  content: forall variable=da[entity:7] domain-import=projective [formula:20]
+    restriction: atom binds=exists eventuality[eventuality:8] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]
+      mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]} [predication:11]
+    body: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:18]
+      klama(x1=da[entity:7], x2=zo'e[entity:13], x3=zo'e[entity:14], x4=zo'e[entity:15], x5=zo'e[entity:16]) {event=eventuality[eventuality:6]} [predication:17]
+
+projected:
+- frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:21]] [binder-dependence=fixed]
+- exists da[entity:7] satisfying mlatu(x1=da[entity:7], x2=zo'e[entity:10]) {event=eventuality[eventuality:8]} [predication:11] [restriction=formula:12; projective domain import of formula:20]
+- denotes [zo'e[entity:10], zo'e[entity:13], zo'e[entity:14], zo'e[entity:15], zo'e[entity:16]] [binder-dependence=underspecified; may-depend-on=da[entity:7]; constant; descriptor-kind=elided]"""

@@ -1,35 +1,19 @@
 id = "adhoc.output.tersmu-derived-opacity"
 lojban = "mi nitcu lo tanxe"
-tags = ["output", "tersmu", "claims", "tree", "issue-278"]
+tags = ["output", "tersmu", "tree", "tree+proj", "issue-278"]
 
 [[provenance]]
 kind = "adhoc"
-description = "Issue #278 opacity trap: the lo descriptor commitment must be top-level in the claims ledger."
+description = "Issue #278 opacity trap: the lo descriptor commitment must appear in the top-level projected section."
 
 [expectations.output.tersmu]
-claims = """
-at-issue commitments:
-- nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13] [mode=asserted; scope=top-level; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]]
-presupposed/projected:
-- denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality/locution[eventuality/locution:15] [time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; constant; context=utterance:5 assert]
-- denotes now[eventuality:3] [time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes lo tanxe[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]]
-- tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14] > descriptor-body atom [formula:11]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14] > descriptor-body atom [formula:11]]
-- denotes zo'e[entity:9] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14] > descriptor-body atom [formula:11]]
-- denotes zo'e[entity:12] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]]
-displayed:
-- (none)"""
 tree = """
 utterance assert {event=eventuality/locution[eventuality/locution:15]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
   content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]
     nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13]
       descriptor body: atom [formula:11]
         tanxe(x1=lo tanxe[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9]) [predication:10]"""
-combined = """
+"tree+proj" = """
 utterance assert {event=eventuality/locution[eventuality/locution:15]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
   content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]
     nitcu(x1=speaker[entity:1], x2=lo tanxe[entity:7], x3=zo'e[entity:12]) {event=eventuality[eventuality:6]} [predication:13]

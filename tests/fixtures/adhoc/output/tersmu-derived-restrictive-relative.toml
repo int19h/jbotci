@@ -1,31 +1,12 @@
 id = "adhoc.output.tersmu-derived-restrictive-relative"
 lojban = "lo mlatu poi blanu cu klama"
-tags = ["output", "tersmu", "claims", "tree", "issue-278", "relative-clause"]
+tags = ["output", "tersmu", "tree", "tree+proj", "issue-278", "relative-clause"]
 
 [[provenance]]
 kind = "adhoc"
 description = "Issue #278 review: a veridical restrictive relative clause is a projected claim and a distinct tree branch."
 
 [expectations.output.tersmu]
-claims = """
-at-issue commitments:
-- klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:19] [mode=asserted; scope=top-level; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]]
-presupposed/projected:
-- denotes speaker[entity:1] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes audience[entity:2] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes eventuality/locution[eventuality/locution:21] [time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; constant; context=utterance:5 assert]
-- denotes now[eventuality:3] [time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified; binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes here[entity:4] [binder-dependence=fixed; indexical; context=utterance:5 assert]
-- denotes lo mlatu[entity:7] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]]
-- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20] > descriptor-body atom [formula:10]]
-- denotes zo'e[entity:8] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20] > descriptor-body atom [formula:10]]
-- blanu(x1=lo mlatu[entity:7]) {event=eventuality[eventuality:11]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13] [mode=restrictive; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20] > restrictive-relative-clause atom binds=exists eventuality[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]]
-- denotes zo'e[entity:15] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]]
-- denotes zo'e[entity:16] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]]
-- denotes zo'e[entity:17] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]]
-- denotes zo'e[entity:18] [binder-dependence=fixed; constant; context=utterance:5 assert > content atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]]
-displayed:
-- (none)"""
 tree = """
 utterance assert {event=eventuality/locution[eventuality/locution:21]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
   content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]
@@ -34,3 +15,18 @@ utterance assert {event=eventuality/locution[eventuality/locution:21]; time=unsp
         mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9]
       restrictive relative clause: atom binds=exists eventuality[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]
         blanu(x1=lo mlatu[entity:7]) {event=eventuality[eventuality:11]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:13]"""
+"tree+proj" = """
+utterance assert {event=eventuality/locution[eventuality/locution:21]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
+  content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:20]
+    klama(x1=lo mlatu[entity:7], x2=zo'e[entity:15], x3=zo'e[entity:16], x4=zo'e[entity:17], x5=zo'e[entity:18]) {event=eventuality[eventuality:6]} [predication:19]
+      descriptor body: atom [formula:10]
+        mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9]
+      restrictive relative clause: atom binds=exists eventuality[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:14]
+        blanu(x1=lo mlatu[entity:7]) {event=eventuality[eventuality:11]} [predication:13]
+
+projected:
+- frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:21]] [binder-dependence=fixed]
+- mlatu(x1=lo mlatu[entity:7], x2=zo'e[entity:8]) [predication:9] [mode=restrictive]
+- blanu(x1=lo mlatu[entity:7]) {event=eventuality[eventuality:11]} [predication:13] [mode=restrictive]
+- denotes lo mlatu[entity:7] [binder-dependence=fixed; constant]
+- denotes [zo'e[entity:8], zo'e[entity:15], zo'e[entity:16], zo'e[entity:17], zo'e[entity:18]] [binder-dependence=fixed; constant; descriptor-kind=elided]"""

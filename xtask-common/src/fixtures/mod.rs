@@ -241,13 +241,6 @@ impl TestCase {
             if output
                 .tersmu
                 .as_ref()
-                .is_some_and(|tersmu| tersmu.claims.is_some())
-            {
-                facets.insert(Facet::TersmuClaims);
-            }
-            if output
-                .tersmu
-                .as_ref()
                 .is_some_and(|tersmu| tersmu.tree.is_some())
             {
                 facets.insert(Facet::TersmuTree);
@@ -255,9 +248,9 @@ impl TestCase {
             if output
                 .tersmu
                 .as_ref()
-                .is_some_and(|tersmu| tersmu.combined.is_some())
+                .is_some_and(|tersmu| tersmu.tree_proj.is_some())
             {
-                facets.insert(Facet::TersmuCombined);
+                facets.insert(Facet::TersmuTreeProj);
             }
         }
         facets
@@ -388,13 +381,6 @@ impl TestCase {
                 .and_then(|output| output.tersmu.as_ref())
                 .filter(|output| output.json.is_some() || output.error.is_some())
                 .map(|output| output.status),
-            Facet::TersmuClaims => self
-                .expectations
-                .output
-                .as_ref()
-                .and_then(|output| output.tersmu.as_ref())
-                .and_then(|output| output.claims.as_ref())
-                .map(|_| ExpectationStatus::Success),
             Facet::TersmuTree => self
                 .expectations
                 .output
@@ -402,12 +388,12 @@ impl TestCase {
                 .and_then(|output| output.tersmu.as_ref())
                 .and_then(|output| output.tree.as_ref())
                 .map(|_| ExpectationStatus::Success),
-            Facet::TersmuCombined => self
+            Facet::TersmuTreeProj => self
                 .expectations
                 .output
                 .as_ref()
                 .and_then(|output| output.tersmu.as_ref())
-                .and_then(|output| output.combined.as_ref())
+                .and_then(|output| output.tree_proj.as_ref())
                 .map(|_| ExpectationStatus::Success),
         }
     }
@@ -587,12 +573,9 @@ pub struct TersmuOutputExpectation {
     pub story_time: bool,
     #[serde(default)]
     pub json: Option<TextExpectation>,
-    #[serde(default)]
-    pub claims: Option<TextExpectation>,
-    #[serde(default)]
     pub tree: Option<TextExpectation>,
-    #[serde(default)]
-    pub combined: Option<TextExpectation>,
+    #[serde(default, rename = "tree+proj")]
+    pub tree_proj: Option<TextExpectation>,
     #[serde(default)]
     pub error: Option<TextExpectation>,
 }
@@ -605,9 +588,8 @@ impl Default for TersmuOutputExpectation {
             status: ExpectationStatus::Success,
             story_time: false,
             json: None,
-            claims: None,
             tree: None,
-            combined: None,
+            tree_proj: None,
             error: None,
         }
     }
@@ -1043,9 +1025,9 @@ pub enum Facet {
     GentufaTreeShowElided,
     GentufaJsonShowElided,
     TersmuJson,
-    TersmuClaims,
     TersmuTree,
-    TersmuCombined,
+    #[serde(rename = "tersmu-tree+proj")]
+    TersmuTreeProj,
 }
 
 impl Facet {
@@ -1069,9 +1051,8 @@ impl Facet {
             Self::GentufaTreeShowElided,
             Self::GentufaJsonShowElided,
             Self::TersmuJson,
-            Self::TersmuClaims,
             Self::TersmuTree,
-            Self::TersmuCombined,
+            Self::TersmuTreeProj,
         ]
     }
 }
@@ -1097,9 +1078,8 @@ impl fmt::Display for Facet {
             Self::GentufaTreeShowElided => "gentufa-tree-show-elided",
             Self::GentufaJsonShowElided => "gentufa-json-show-elided",
             Self::TersmuJson => "tersmu-json",
-            Self::TersmuClaims => "tersmu-claims",
             Self::TersmuTree => "tersmu-tree",
-            Self::TersmuCombined => "tersmu-combined",
+            Self::TersmuTreeProj => "tersmu-tree+proj",
         };
         f.write_str(text)
     }
@@ -1128,9 +1108,8 @@ impl std::str::FromStr for Facet {
             "gentufa-tree-show-elided" => Ok(Self::GentufaTreeShowElided),
             "gentufa-json-show-elided" => Ok(Self::GentufaJsonShowElided),
             "tersmu-json" => Ok(Self::TersmuJson),
-            "tersmu-claims" => Ok(Self::TersmuClaims),
             "tersmu-tree" => Ok(Self::TersmuTree),
-            "tersmu-combined" => Ok(Self::TersmuCombined),
+            "tersmu-tree+proj" => Ok(Self::TersmuTreeProj),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }
