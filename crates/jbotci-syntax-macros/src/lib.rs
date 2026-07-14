@@ -1405,12 +1405,20 @@ impl SyntaxGrammar {
         let root_functions = recursive_rules.iter().map(|rule| {
             let root_name = &rule.name;
             let function = format_ident!("strict_generated_{}_parser", root_name);
+            let shared_function = format_ident!("strict_generated_{}_shared_parser", root_name);
             let output = self.parser_type_tokens(&rule.output);
             quote! {
                 #[allow(dead_code, unused_variables)]
+                pub(crate) fn #shared_function<'tokens>() -> BoxedParser<
+                    'tokens,
+                    generated_runtime::SharedSyntaxOutput<#output>,
+                > {
+                    strict_generated_parser_family().#root_name
+                }
+
+                #[allow(dead_code, unused_variables)]
                 pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
-                    strict_generated_parser_family()
-                        .#root_name
+                    #shared_function()
                         .map(generated_runtime::SharedSyntaxOutput::into_owned)
                         .boxed()
                 }
@@ -1544,14 +1552,24 @@ impl SyntaxGrammar {
         let root_functions = recursive_rules.iter().map(|rule| {
             let root_name = &rule.name;
             let function = format_ident!("recovered_generated_{}_parser", root_name);
+            let shared_function = format_ident!("recovered_generated_{}_shared_parser", root_name);
             let output = recovered_rule_function_output_tokens(&rule.output, recovered_module);
             quote! {
+                #[allow(dead_code, unused_variables)]
+                pub(crate) fn #shared_function<'tokens>(
+                    __generated_recovery_rules: std::sync::Arc<[&'static str]>,
+                ) -> BoxedParser<
+                    'tokens,
+                    generated_runtime::SharedSyntaxOutput<#output>,
+                > {
+                    recovered_generated_parser_family(__generated_recovery_rules).#root_name
+                }
+
                 #[allow(dead_code, unused_variables)]
                 pub(crate) fn #function<'tokens>(
                     __generated_recovery_rules: std::sync::Arc<[&'static str]>,
                 ) -> BoxedParser<'tokens, #output> {
-                    recovered_generated_parser_family(__generated_recovery_rules)
-                        .#root_name
+                    #shared_function(__generated_recovery_rules)
                         .map(generated_runtime::SharedSyntaxOutput::into_owned)
                         .boxed()
                 }

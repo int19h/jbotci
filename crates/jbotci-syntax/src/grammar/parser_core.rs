@@ -14,7 +14,6 @@ use std::{
     marker::PhantomData,
     ops::{Deref, Range},
     rc::{Rc, Weak},
-    sync::Arc,
 };
 
 use bityzba::{contract_trait, data, invariant, new, requires};
@@ -27,20 +26,32 @@ use super::{ParserCheckpoint, ParserState, Token, parse_error::SyntaxParseError}
 /// parser needs to consume it. Cloning this wrapper for memo store or replay is
 /// therefore constant-time regardless of the output tree's size.
 #[invariant(
-    Arc::strong_count(value) >= 1,
+    Rc::strong_count(value) >= 1,
     "a shared parser output must own a live allocation"
 )]
 pub(crate) struct SharedSyntaxOutput<O> {
-    value: Arc<O>,
+    value: Rc<O>,
 }
 
 impl<O> SharedSyntaxOutput<O> {
     #[requires(true)]
-    #[ensures(Arc::strong_count(&ret.value) == 1)]
+    #[ensures(Rc::strong_count(&ret.value) == 1)]
     pub(crate) fn new(value: O) -> Self {
         new!(SharedSyntaxOutput {
-            value: Arc::new(value),
+            value: Rc::new(value),
         })
+    }
+
+    #[requires(true)]
+    #[ensures(Rc::as_ptr(&ret.value) == old(Rc::as_ptr(&value)))]
+    pub(crate) fn from_shared(value: Rc<O>) -> Self {
+        new!(SharedSyntaxOutput { value })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn into_shared(self) -> Rc<O> {
+        self.into_data().value
     }
 
     #[requires(true)]
@@ -49,16 +60,16 @@ impl<O> SharedSyntaxOutput<O> {
     where
         O: Clone,
     {
-        Arc::try_unwrap(self.into_data().value).unwrap_or_else(|value| (*value).clone())
+        Rc::try_unwrap(self.into_shared()).unwrap_or_else(|value| (*value).clone())
     }
 }
 
 impl<O> Clone for SharedSyntaxOutput<O> {
     #[requires(true)]
-    #[ensures(Arc::ptr_eq(&ret.value, &self.value))]
+    #[ensures(Rc::ptr_eq(&ret.value, &self.value))]
     fn clone(&self) -> Self {
         new!(SharedSyntaxOutput {
-            value: Arc::clone(&self.value),
+            value: Rc::clone(&self.value),
         })
     }
 }
@@ -1336,7 +1347,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{rc::Rc, sync::Arc};
+    use std::rc::Rc;
 
     use bityzba::{invariant, requires};
 
@@ -1352,7 +1363,7 @@ mod tests {
         let stored = SharedSyntaxOutput::new(vec!["memo payload".to_owned()]);
         let replayed = stored.clone();
 
-        assert!(Arc::ptr_eq(&stored.value, &replayed.value));
+        assert!(Rc::ptr_eq(&stored.value, &replayed.value));
         assert_eq!(replayed.into_owned(), ["memo payload"]);
         assert_eq!(stored.into_owned(), ["memo payload"]);
     }
