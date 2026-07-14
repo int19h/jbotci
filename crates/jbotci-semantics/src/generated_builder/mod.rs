@@ -762,6 +762,14 @@ struct GeneratedLinkargsAssignments {
     next_visible_place: usize,
 }
 
+#[invariant(!visible_argument_branches.is_empty())]
+#[invariant(visible_argument_branches.iter().all(|branch| branch.keys().all(|place| *place > 0)))]
+#[derive(Debug)]
+struct GeneratedLinkargsArgumentBranches {
+    visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
+    modal_arguments: Vec<ModalArgument>,
+}
+
 #[invariant(::Negation { .. } => true)]
 #[derive(Debug, Clone)]
 enum GeneratedTermFormulaScope {
