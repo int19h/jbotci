@@ -8848,6 +8848,59 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn naku_relative_phrase_negates_the_association_restriction() {
+        let graph = semantic_graph_for("le gerku pe naku cu klama ti");
+        let klama = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("matrix klama predication");
+        let dog = klama.arguments[&argument_key(1)]
+            .value
+            .expect("description argument");
+        let descriptor = graph.objects[&dog]
+            .descriptor()
+            .expect("dog description descriptor");
+        let relative = descriptor
+            .relative_clauses
+            .first()
+            .expect("pe naku relative phrase");
+        let data!(FormulaNode::Connective(negation)) = graph.objects[&relative.body]
+            .as_formula()
+            .expect("relative phrase formula")
+            .as_data()
+        else {
+            panic!("pe naku should wrap the association in negation");
+        };
+        assert_eq!(negation.operator, FormulaOperator::Not);
+        assert_eq!(negation.children.len(), 1);
+        let association = graph.objects[&negation.children[0]]
+            .formula_predication()
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("negated association predication");
+        assert!(matches!(
+            association.relation.as_data(),
+            data!(crate::model::PredicationRelation::Named { relation }) if relation == "associatedWith"
+        ));
+        assert_eq!(association.mode, PredicationMode::Restrictive);
+        assert_eq!(association.arguments[&argument_key(1)].value, Some(dog));
+        let associated = association.arguments[&argument_key(2)]
+            .value
+            .expect("elided associated object");
+        assert_eq!(
+            graph.objects[&associated].referent_category(),
+            Some(ReferentCategory::Constant)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn restricted_universal_elisions_may_depend_on_the_quantifier() {
         let graph = semantic_graph_for("ro mlatu cu jbena");
         let variable = forall_variable(&graph);

@@ -3513,6 +3513,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
         )?;
+        let formula = if matches!(
+            clause.sumti.as_ref(),
+            RelativeSumtiSyntax::NaKuRelativeSumti(_)
+        ) {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                formula,
+                self.source_for_node(clause.sumti.as_ref(), "relative-phrase-negation"),
+            )?
+        } else {
+            formula
+        };
         Ok(Some(RelativeClause::with_introducer(
             kind,
             formula,
@@ -3804,9 +3816,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
                 self.build_tagged_or_elided_sumti_argument(&sumti.sumti)
             }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => {
-                Err(unsupported("negative relative phrase sumti"))
-            }
+            RelativeSumtiSyntax::NaKuRelativeSumti(_) => self.build_elided_argument_for_place(2),
         }
     }
 
