@@ -1100,36 +1100,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     })
                 } else {
                     self.build_generated_alternative_argument_for_sumti_branch(
-                        GeneratedDistributedSumtiBranch::SumtiAfterthought(&sumti.leading_sumti),
+                        generated_sumti_afterthought_branch(&sumti.leading_sumti),
                         negated,
                     )
                 }
             }
-            GeneratedDistributedSumtiBranch::SumtiAfterthought(sumti) => {
-                if sumti.continuations.is_empty() {
+            GeneratedDistributedSumtiBranch::SumtiAfterthought(prefix) => {
+                if prefix.continuation_count == 0 {
                     self.build_generated_alternative_argument_for_sumti_branch(
-                        GeneratedDistributedSumtiBranch::SumtiBound(&sumti.leading_sumti),
+                        GeneratedDistributedSumtiBranch::SumtiBound(&prefix.sumti.leading_sumti),
                         negated,
                     )
                 } else {
-                    let referent = self.build_sumti_afterthought_referent(sumti)?;
-                    Ok(GeneratedAlternativeArgument {
-                        argument: ArgumentValue::filled(referent, None),
-                        negated,
-                        formula_scopes: Vec::new(),
-                    })
+                    self.build_generated_alternative_argument_for_sumti_afterthought_prefix(
+                        prefix, negated,
+                    )
                 }
-            }
-            GeneratedDistributedSumtiBranch::SumtiAfterthoughtPrefix(prefix) => {
-                if prefix.continuation_count == 0 {
-                    return self.build_generated_alternative_argument_for_sumti_branch(
-                        GeneratedDistributedSumtiBranch::SumtiBound(&prefix.sumti.leading_sumti),
-                        negated,
-                    );
-                }
-                self.build_generated_alternative_argument_for_sumti_afterthought_prefix(
-                    prefix, negated,
-                )
             }
             GeneratedDistributedSumtiBranch::SumtiBound(sumti) => {
                 self.build_generated_alternative_argument_for_sumti_bound(sumti, negated)

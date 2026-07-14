@@ -1154,15 +1154,13 @@ struct GeneratedSumtiAfterthoughtPrefix<'syntax> {
 #[invariant(::Sumti(_) => true)]
 #[invariant(::SumtiGrouped(_) => true)]
 #[invariant(::SumtiAfterthought(_) => true)]
-#[invariant(::SumtiAfterthoughtPrefix(_) => true)]
 #[invariant(::SumtiBound(_) => true)]
 #[invariant(::SumtiForethought(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum GeneratedDistributedSumtiBranch<'syntax> {
     Sumti(&'syntax SumtiSyntax),
     SumtiGrouped(&'syntax SumtiGroupedSyntax),
-    SumtiAfterthought(&'syntax SumtiAfterthoughtSyntax),
-    SumtiAfterthoughtPrefix(GeneratedSumtiAfterthoughtPrefix<'syntax>),
+    SumtiAfterthought(GeneratedSumtiAfterthoughtPrefix<'syntax>),
     SumtiBound(&'syntax SumtiBoundSyntax),
     SumtiForethought(&'syntax SumtiForethoughtSyntax),
 }
@@ -4712,9 +4710,7 @@ fn generated_logical_sumti_connection_for_branch(
                     && !generated_argument_connective_is_interval(&tail.connective)
                 {
                     return Ok(Some(GeneratedLogicalSumtiConnection {
-                        leading: GeneratedDistributedSumtiBranch::SumtiAfterthought(
-                            sumti.leading_sumti.as_ref(),
-                        ),
+                        leading: generated_sumti_afterthought_branch(&sumti.leading_sumti),
                         connective: GeneratedDistributedSumtiConnective::Argument {
                             connective: &tail.connective,
                             tense_modal: tail.tense_modal.as_deref(),
@@ -4726,21 +4722,11 @@ fn generated_logical_sumti_connection_for_branch(
                 }
                 return Ok(None);
             }
-            generated_logical_sumti_connection_for_branch(
-                GeneratedDistributedSumtiBranch::SumtiAfterthought(sumti.leading_sumti.as_ref()),
-            )
+            generated_logical_sumti_connection_for_branch(generated_sumti_afterthought_branch(
+                &sumti.leading_sumti,
+            ))
         }
-        GeneratedDistributedSumtiBranch::SumtiAfterthought(sumti) => {
-            generated_logical_sumti_connection_for_branch(
-                GeneratedDistributedSumtiBranch::SumtiAfterthoughtPrefix(new!(
-                    GeneratedSumtiAfterthoughtPrefix {
-                        sumti,
-                        continuation_count: sumti.continuations.len(),
-                    }
-                )),
-            )
-        }
-        GeneratedDistributedSumtiBranch::SumtiAfterthoughtPrefix(prefix) => {
+        GeneratedDistributedSumtiBranch::SumtiAfterthought(prefix) => {
             let sumti = prefix.sumti;
             let continuation_count = prefix.continuation_count;
             if continuation_count == 0 {
@@ -4753,7 +4739,7 @@ fn generated_logical_sumti_connection_for_branch(
                 && !generated_argument_connective_is_interval(&continuation.connective)
             {
                 return Ok(Some(GeneratedLogicalSumtiConnection {
-                    leading: GeneratedDistributedSumtiBranch::SumtiAfterthoughtPrefix(new!(
+                    leading: GeneratedDistributedSumtiBranch::SumtiAfterthought(new!(
                         GeneratedSumtiAfterthoughtPrefix {
                             sumti,
                             continuation_count: continuation_count - 1,
@@ -4822,6 +4808,17 @@ fn generated_logical_sumti_connection_for_branch(
             Ok(None)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, GeneratedDistributedSumtiBranch::SumtiAfterthought(_)))]
+fn generated_sumti_afterthought_branch(
+    sumti: &SumtiAfterthoughtSyntax,
+) -> GeneratedDistributedSumtiBranch<'_> {
+    GeneratedDistributedSumtiBranch::SumtiAfterthought(new!(GeneratedSumtiAfterthoughtPrefix {
+        sumti,
+        continuation_count: sumti.continuations.len(),
+    }))
 }
 
 #[requires(true)]
