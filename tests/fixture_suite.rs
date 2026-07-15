@@ -186,6 +186,7 @@ fn domain_import_marker_iff_holds_for_fixture_corpus() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let fixtures = load_fixture_tree(&root).expect("fixtures should load");
     let mut fixtures_checked = 0usize;
+    let mut hash_only_fixtures_skipped = 0usize;
     let mut formula_nodes_checked = 0usize;
     let mut marked_nodes = 0usize;
 
@@ -201,6 +202,15 @@ fn domain_import_marker_iff_holds_for_fixture_corpus() {
         else {
             continue;
         };
+        if expectation.text.is_empty() {
+            assert!(
+                expectation.sha256.is_some(),
+                "{} tersmu JSON is neither inline nor hash-pinned",
+                fixture.test_case.id,
+            );
+            hash_only_fixtures_skipped += 1;
+            continue;
+        }
         let graph: serde_json::Value = serde_json::from_str(&expectation.text)
             .unwrap_or_else(|error| panic!("{} tersmu JSON: {error}", fixture.test_case.id));
         let objects = graph["objects"]
@@ -235,7 +245,7 @@ fn domain_import_marker_iff_holds_for_fixture_corpus() {
     }
 
     println!(
-        "fixtures_checked={fixtures_checked} formula_nodes_checked={formula_nodes_checked} marked_nodes={marked_nodes}"
+        "fixtures_checked={fixtures_checked} hash_only_fixtures_skipped={hash_only_fixtures_skipped} formula_nodes_checked={formula_nodes_checked} marked_nodes={marked_nodes}"
     );
     assert!(fixtures_checked > 0);
     assert!(formula_nodes_checked > 0);
