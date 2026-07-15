@@ -1448,6 +1448,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDirectTermConnective::Bound",
+        "direct term connective delegates validity to the typed bound connective syntax",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDirectTermConnective::Connected",
+        "direct term connective delegates validity to the typed connected connective syntax",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedEventTenseModal::LeadingTermTag",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),

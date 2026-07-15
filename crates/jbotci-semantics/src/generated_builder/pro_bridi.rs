@@ -636,6 +636,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(relation) = generated_pro_bridi_target_relation_label(selbri)? else {
             return Ok(None);
         };
+        // FAI is an unnumbered JAI restoration slot, so it is not part of the numbered frame
+        // replayed for pro-bridi references. The owning relation builder handles it after the
+        // converted frame is established; excluding it here also keeps a nei inside that FAI
+        // argument from recursively rebuilding itself.
+        let (terms, _) = self.split_generated_fai_terms(terms)?;
         let relation = semantic_relation_label(relation);
         let excluded_source = source.as_ref().map(|source| &source.span);
         let (assignments, skipped_recursive_argument) = self

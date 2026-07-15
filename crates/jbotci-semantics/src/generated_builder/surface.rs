@@ -254,6 +254,9 @@ pub(super) fn bind_generated_modal_argument_to_host_event_preserving_elision(
     eventuality: SemanticObjectId,
 ) -> Option<GeneratedHostEventModalElision> {
     if modal_argument.relation.is_none() {
+        if modal_argument.body.is_some() {
+            *modal_argument = modal_argument.clone().with_component(eventuality);
+        }
         return None;
     }
     let relation = modal_argument.relation.as_ref()?.clone();
@@ -433,6 +436,15 @@ pub(super) fn unsupported(what: &str) -> SemanticsError {
     SemanticsError {
         kind: SemanticsErrorKind::InvalidGraph,
         message: format!("generated semantic builder does not yet support {what}"),
+    }
+}
+
+#[requires(!what.is_empty())]
+#[ensures(ret.kind == SemanticsErrorKind::InvalidGraph)]
+pub(super) fn undefined_semantics(what: &str) -> SemanticsError {
+    SemanticsError {
+        kind: SemanticsErrorKind::InvalidGraph,
+        message: format!("semantic interpretation is undefined for {what}"),
     }
 }
 

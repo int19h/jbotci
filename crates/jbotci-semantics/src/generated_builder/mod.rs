@@ -605,26 +605,65 @@ struct GeneratedModalStatementConnectionSpec {
 }
 
 #[invariant(!source.is_empty(), "modal connection source must preserve connector text")]
-#[invariant(truth_table.len() == 4, "logical connective truth tables have four rows")]
+#[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.as_ref().is_some_and(|table| table.len() == 4)), "logical modal connections have either a four-row truth table or respectively distribution")]
 #[invariant(terms.len() >= 2, "modal connections need at least two branches")]
 #[derive(Debug, Clone)]
-struct GeneratedLogicalModalConnectionSpec {
+struct GeneratedLogicalModalConnectionSpec<'syntax> {
     operator: FormulaOperator,
     source: String,
-    truth_table: String,
-    terms: Vec<GeneratedConnectedModalTerm>,
+    truth_table: Option<String>,
+    terms: Vec<GeneratedConnectedModalTerm<'syntax>>,
 }
 
-#[invariant(!introduced_by.is_empty(), "modal term marker must be named")]
-#[invariant(!relation.is_empty(), "modal term relation must be named")]
-#[invariant(*visible_place > 0, "modal visible place is one-based")]
+#[invariant(generated_tense_modal_has_modal_argument(tense_modal))]
 #[derive(Debug, Clone)]
-struct GeneratedConnectedModalTerm {
+struct GeneratedConnectedModalTerm<'syntax> {
     tense_modal: TenseModalSyntax,
-    introduced_by: String,
-    relation: String,
-    visible_place: usize,
+    kind: GeneratedConnectedModalTermKind<'syntax>,
     negated: bool,
+}
+
+#[invariant(!source.is_empty())]
+#[invariant(!locus.is_empty())]
+#[invariant(branches.len() >= 2)]
+#[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none() && connector_question.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.is_some() != connector_question.is_some()))]
+#[derive(Debug, Clone)]
+struct GeneratedLogicalTagConnection<'syntax> {
+    operator: FormulaOperator,
+    source: String,
+    truth_table: Option<String>,
+    connector_question: Option<Token>,
+    locus: String,
+    connected_index: usize,
+    branches: Vec<GeneratedLogicalTagConnectionBranch<'syntax>>,
+}
+
+#[invariant(::Modal { term, .. } => generated_tense_modal_has_modal_argument(&term.tense_modal))]
+#[invariant(::Event { branch, anchor } => generated_tense_modal_has_event_modifier(&branch.tense_modal) && anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[derive(Debug, Clone)]
+enum GeneratedLogicalTagConnectionBranch<'syntax> {
+    Modal {
+        term: GeneratedConnectedModalTerm<'syntax>,
+        argument: ArgumentValue,
+    },
+    Event {
+        branch: GeneratedConnectedEventTenseBranch,
+        anchor: Option<SemanticObjectId>,
+    },
+}
+
+#[invariant(::Named { introduced_by, relation, visible_place } => !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0)]
+#[invariant(::AdHoc { fiho } => fiho.fiho.value.is_cmavo(Cmavo::Fiho) && fiho.fehu.as_ref().is_none_or(|fehu| fehu.value.is_cmavo(Cmavo::Fehu)))]
+#[derive(Debug, Clone)]
+enum GeneratedConnectedModalTermKind<'syntax> {
+    Named {
+        introduced_by: String,
+        relation: String,
+        visible_place: usize,
+    },
+    AdHoc {
+        fiho: &'syntax jbotci_syntax::generated_model::FihoTenseSyntax,
+    },
 }
 
 #[invariant(true)]
@@ -806,10 +845,13 @@ struct GeneratedTermAssignments<'syntax> {
     term_formula_scopes: Vec<GeneratedTermFormulaScope>,
 }
 
+#[invariant(tagged_sumti.is_none_or(|tagged_sumti| std::ptr::eq(tagged_sumti.tense_modal.as_ref(), *tense_modal)), "a prepared modal term keeps the tag and its optional sumti-bearing wrapper together")]
+#[invariant(tagged_sumti.is_some() || argument.is_none(), "a bare tag cannot carry a prepared sumti argument")]
 #[invariant(argument.as_ref().is_none_or(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted))]
 #[derive(Debug, Clone)]
 struct GeneratedModalTerm<'syntax> {
-    syntax: &'syntax TaggedSumtiTermSyntax,
+    tense_modal: &'syntax LeadingTermTagTenseModalSyntax,
+    tagged_sumti: Option<&'syntax TaggedSumtiTermSyntax>,
     argument: Option<ArgumentValue>,
 }
 
@@ -852,6 +894,7 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 struct GeneratedLinkargsAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     modal_arguments: Vec<ModalArgument>,
+    event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     next_visible_place: usize,
 }
@@ -862,7 +905,15 @@ struct GeneratedLinkargsAssignments<'syntax> {
 struct GeneratedLinkargsArgumentBranches<'syntax> {
     visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
     modal_arguments: Vec<ModalArgument>,
+    event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+}
+
+#[invariant(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[derive(Debug, Clone)]
+struct GeneratedLinkedEventModifier<'syntax> {
+    tense_modal: &'syntax TenseModalSyntax,
+    anchor: Option<SemanticObjectId>,
 }
 
 #[invariant(::Negation { .. } => true)]
@@ -1016,7 +1067,7 @@ struct GeneratedGovernedTermset {
 
 #[invariant(branches.len() >= 2)]
 #[invariant(!source.is_empty())]
-#[invariant(truth_table.is_some() != connector_question.is_some())]
+#[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none() && connector_question.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.is_some() != connector_question.is_some()))]
 #[derive(Debug, Clone)]
 struct GeneratedConnectedEventTenseSpec {
     operator: FormulaOperator,
@@ -1164,6 +1215,14 @@ enum GeneratedDistributedSumtiConnective<'syntax> {
         gek: &'syntax jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
         gik: &'syntax GikConnectiveSyntax,
     },
+}
+
+#[invariant(::Connected(_) => true)]
+#[invariant(::Bound(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedDirectTermConnective<'syntax> {
+    Connected(&'syntax jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax),
+    Bound(&'syntax jbotci_syntax::generated_model::BoundTermConnectiveSyntax),
 }
 
 #[invariant(*continuation_count <= sumti.continuations.len())]
@@ -2827,7 +2886,9 @@ fn next_visible_place_after_generated_assignments(
 fn generated_shared_head_term_uses_shared_source(term: &TermSyntax) -> bool {
     !matches!(
         generated_simple_term_for_assignment(term),
-        Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(_)) | Ok(SimpleTermSyntax::TaggedSumtiTerm(_))
+        Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(_))
+            | Ok(SimpleTermSyntax::TaggedSumtiTerm(_))
+            | Ok(SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_))
     )
 }
 
@@ -2997,6 +3058,9 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
     assigned_places: &mut BTreeSet<usize>,
     next_visible_place: &mut usize,
 ) -> Result<(), SemanticsError> {
+    if let Some(description) = generated_undefined_experimental_term_description(term) {
+        return Err(undefined_semantics(description));
+    }
     match term {
         SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
             let place =
@@ -3011,6 +3075,12 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
             Ok(())
         }
         SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+            // FAI restores the displaced argument of a JAI conversion. It is not a numbered
+            // place and does not participate in the numbered-assignment prepass; the JAI
+            // relation builder extracts and assigns it after establishing the converted frame.
+            if term.fa.value.cmavo() == Some(Cmavo::Fai) {
+                return Ok(());
+            }
             let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
                 return Ok(());
             };
@@ -3025,6 +3095,7 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
             Ok(())
         }
         SimpleTermSyntax::TaggedSumtiTerm(_)
+        | SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_)
         | SimpleTermSyntax::NaKuTerm(_)
         | SimpleTermSyntax::BareNaTerm(_) => Ok(()),
         SimpleTermSyntax::NuhiTermset(termset) => {
@@ -3100,6 +3171,9 @@ fn advance_next_visible_place_after_generated_simple_term(
     next_visible_place: &mut usize,
     assigned_places: &mut BTreeSet<usize>,
 ) -> Result<(), SemanticsError> {
+    if let Some(description) = generated_undefined_experimental_term_description(simple) {
+        return Err(undefined_semantics(description));
+    }
     match simple {
         SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
             let count = generated_sumti_afterthought_for_termset(sumti)
@@ -3122,6 +3196,9 @@ fn advance_next_visible_place_after_generated_simple_term(
                 *next_visible_place += 1;
                 return Ok(());
             }
+            if term.fa.value.cmavo() == Some(Cmavo::Fai) {
+                return Ok(());
+            }
             let place = fa_place(&term.fa.value)?;
             assigned_places.insert(place);
             record_generated_simulated_visible_place_assignment(
@@ -3132,6 +3209,7 @@ fn advance_next_visible_place_after_generated_simple_term(
             Ok(())
         }
         SimpleTermSyntax::TaggedSumtiTerm(_)
+        | SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_)
         | SimpleTermSyntax::NaKuTerm(_)
         | SimpleTermSyntax::BareNaTerm(_) => Ok(()),
         SimpleTermSyntax::NuhiTermset(termset) => {
@@ -3304,15 +3382,13 @@ fn generated_distributed_sumti_connective_source(
             let Some(tense_modal) = tense_modal else {
                 return Ok(connective_source);
             };
-            let Some((introduced_by, _relation, _visible_place)) =
-                generated_modal_relation_spec_for_tense_modal(tense_modal)
-            else {
-                return Ok(connective_source);
-            };
+            let mut collector = GeneratedSpanCollector::default();
+            tense_modal.visit_in_order(&mut collector);
+            let tense_source = token_list_text(collector.tokens.iter().copied());
             if bo {
-                Ok(format!("{connective_source} {introduced_by} bo"))
+                Ok(format!("{connective_source} {tense_source} bo"))
             } else {
-                Ok(format!("{connective_source} {introduced_by}"))
+                Ok(format!("{connective_source} {tense_source}"))
             }
         }
         GeneratedDistributedSumtiConnective::Forethought { gek, .. } => {
@@ -4570,6 +4646,20 @@ fn generated_simple_term_for_assignment(
 
 #[requires(true)]
 #[ensures(true)]
+fn generated_undefined_experimental_term_description(
+    term: &SimpleTermSyntax,
+) -> Option<&'static str> {
+    match term {
+        SimpleTermSyntax::NoihaAdverbialTerm(_) => Some("an experimental NOIhA adverbial term"),
+        SimpleTermSyntax::FihoiAdverbialTerm(_) => Some("an experimental FIhOI adverbial term"),
+        SimpleTermSyntax::SoiAdverbialTerm(_) => Some("an experimental SOI/XOI adverbial term"),
+        SimpleTermSyntax::JaiTaggedSumtiTerm(_) => Some("an experimental Zantufa JAI tag term"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn generated_governed_termset_indices_for_terms(terms: &[&TermSyntax]) -> BTreeSet<usize> {
     let mut indices = BTreeSet::new();
     for (modifier_index, term) in terms.iter().enumerate() {
@@ -4661,6 +4751,15 @@ fn generated_term_has_distributed_sumti_connection(term: &TermSyntax) -> bool {
             }
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
+        SimpleTermSyntax::TaggedSumtiTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_logical_sumti_connection_for_branch(
+                    GeneratedDistributedSumtiBranch::Sumti(sumti),
+                )
+                .is_ok_and(|connection| connection.is_some())
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
         _ => false,
     }
 }
@@ -4690,6 +4789,9 @@ fn generated_terms_have_duplicate_numbered_assignments(
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
                 if term.fa.value.cmavo() == Some(Cmavo::Fiha) {
                     next_visible_place += 1;
+                    continue;
+                }
+                if term.fa.value.cmavo() == Some(Cmavo::Fai) {
                     continue;
                 }
                 let place = fa_place(&term.fa.value)?;
@@ -8512,6 +8614,25 @@ mod tests {
         );
         assert!(quantified.message.contains("truth-bearing scope"));
 
+        for source in ["fe", "coi mofo", "to be safe", "fi", "fo"] {
+            let place_tag = semantic_result_for(source)
+                .expect_err("a standalone FA tag has no bridi place structure");
+            assert_eq!(place_tag.kind, SemanticsErrorKind::RequiresDiscourseContext);
+            assert!(place_tag.message.contains("standalone place-tag fragment"));
+        }
+
+        let naku = semantic_result_for("naku")
+            .expect_err("standalone naku has no proposition whose scope it can negate");
+        assert_eq!(naku.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert!(naku.message.contains("missing bridi proposition"));
+
+        let termset = semantic_result_for(
+            "nu'ige zo by. .a zo beiste nu'ugi zo zy. .a zo zgana toji'a zo viska toi",
+        )
+        .expect_err("a standalone termset has no bridi place structure");
+        assert_eq!(termset.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert!(termset.message.contains("standalone termset fragment"));
+
         let deleted = semantic_graph_for("ru'a zi'o");
         let deleted_content = deleted
             .objects
@@ -10407,6 +10528,269 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn shared_tense_term_constrains_every_connected_bridi_branch() {
+        let graph = semantic_graph_for("i caku do zvati le zdani gi'i gunka");
+        let mut events = Vec::new();
+        for relation in ["zvati", "gunka"] {
+            let predication = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication)
+                })
+                .expect("connected branch predication should exist");
+            let event_id = predication
+                .eventuality
+                .expect("connected branch should have an eventuality");
+            let event = graph.objects[&event_id]
+                .as_eventuality()
+                .expect("branch eventuality should be typed");
+            let time = event
+                .time
+                .as_ref()
+                .expect("shared ca ku must constrain every branch event");
+            assert_eq!(time.relation, "at");
+            assert_eq!(time.anchor, SemanticObjectId::now());
+            events.push(event_id);
+        }
+        assert_ne!(
+            events[0], events[1],
+            "the shared condition must be copied onto distinct branch events"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_forethought_term_survives_nested_bo_bridi_grouping() {
+        let graph = semantic_graph_for("mi ga broda gi brode gi'e ba bo brodi");
+        for relation in ["broda", "brode", "brodi"] {
+            let predication = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication)
+                })
+                .expect("every forethought/BO branch should retain its predication");
+            assert_eq!(
+                predication.arguments[&argument_key(1)].value,
+                Some(SemanticObjectId::speaker()),
+                "the shared mi term must fill x1 in {relation}"
+            );
+        }
+        assert!(graph.objects.values().any(|object| {
+            object.formula_operator() == Some(FormulaOperator::And)
+                && object.formula_children().iter().any(|formula| {
+                    graph.objects[formula]
+                        .formula_predication()
+                        .is_some_and(|predication| {
+                            named_predication_ids(&graph, "brode").contains(&predication)
+                        })
+                })
+                && object.formula_children().iter().any(|formula| {
+                    graph.objects[formula]
+                        .formula_predication()
+                        .is_some_and(|predication| {
+                            named_predication_ids(&graph, "brodi").contains(&predication)
+                        })
+                })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_tense_terms_compose_with_the_following_tag_on_the_same_event() {
+        let spatial = semantic_graph_for("vi bai broda");
+        let broda = spatial
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda")
+                    .then_some(predication)
+            })
+            .expect("broda predication should exist");
+        let eventuality = broda.eventuality.expect("broda should have an eventuality");
+        let event = spatial.objects[&eventuality]
+            .as_eventuality()
+            .expect("broda eventuality should be an event");
+        let space = event
+            .space
+            .as_ref()
+            .expect("the leading vi term must constrain the event");
+        assert_eq!(space.relation, "distanceFrom");
+        assert_eq!(space.anchor, SemanticObjectId::here());
+        assert_eq!(space.distance.as_deref(), Some("short"));
+        let bai = broda
+            .modal_arguments
+            .iter()
+            .find(|argument| argument.relation.as_deref() == Some("bapli"))
+            .expect("the following bai tag must remain attached");
+        assert_eq!(bai.arguments[&argument_key(2)].value, Some(eventuality));
+
+        let aspectual = semantic_graph_for("do ka'e ro roi tavla");
+        let tavla_event = aspectual
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "tavla")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .and_then(|eventuality| aspectual.objects.get(&eventuality))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("tavla should have an eventuality");
+        assert_eq!(
+            tavla_event
+                .actuality
+                .as_ref()
+                .map(|actuality| actuality.kind),
+            Some(ActualityKind::Capable),
+            "the leading ka'e term must not be dropped"
+        );
+        assert_eq!(tavla_event.recurrence.len(), 1);
+        assert_eq!(
+            tavla_event.recurrence[0].kind,
+            RecurrenceKind::OccurrenceCount,
+            "the following ro roi tag must compose with ka'e"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_adverbial_terms_report_principled_undefined_semantics() {
+        for (source, construct) in [
+            (
+                "mi klama noi'a broda",
+                "an experimental NOIhA adverbial term",
+            ),
+            (
+                "mi klama fi'oi broda",
+                "an experimental FIhOI adverbial term",
+            ),
+            (
+                "mi klama xoi mutce",
+                "an experimental SOI/XOI adverbial term",
+            ),
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("experimental adverbials have no defined semantic lowering");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                format!("semantic interpretation is undefined for {construct}")
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_sumti_bases_report_principled_undefined_semantics() {
+        for (source, construct) in [
+            (
+                "mi tavla la'e fa do",
+                "an experimental LAhE/NAhE term wrapper",
+            ),
+            (
+                "mi tavla na'e bo fa do",
+                "an experimental LAhE/NAhE term wrapper",
+            ),
+            (
+                "mi tavla na'e fa do",
+                "an experimental NAhE-prefixed FA tag",
+            ),
+            (
+                "lo'oi mi klama ku'au cu melbi",
+                "an experimental LOhOI/KUhAU bridi-description sumti",
+            ),
+            (
+                "lo je le broda",
+                "an experimental JA connection between descriptor heads",
+            ),
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("experimental sumti base has no defined semantic lowering");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                format!("semantic interpretation is undefined for {construct}")
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_online_location_tag_anchors_the_host_event() {
+        let graph = semantic_graph_for("xei'e lo kibro mi klama");
+        let predication = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("klama predication should exist");
+        let speaker = graph
+            .objects
+            .iter()
+            .find_map(|(id, object)| {
+                (object.as_referent().and_then(|referent| referent.indexical)
+                    == Some(IndexicalKind::Speaker))
+                .then_some(*id)
+            })
+            .expect("speaker referent should exist");
+        assert_eq!(
+            predication.arguments[&argument_key(1)].value,
+            Some(speaker),
+            "the ordinary mi term must retain klama x1"
+        );
+        let event = graph
+            .objects
+            .get(&predication.eventuality.expect("klama should have an event"))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("klama eventuality should exist");
+        let space = event
+            .space
+            .as_ref()
+            .expect("xei'e must create a spatial condition");
+        assert_eq!(space.relation, "onlineWith");
+        assert_eq!(
+            graph
+                .objects
+                .get(&space.anchor)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("lo kibro"),
+            "the xei'e sumti must be the online-location anchor"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ki_does_not_silently_discard_a_tagged_sumti() {
+        let error = semantic_result_for("i xu do gunka ki le do zdani vu ma doi tsali")
+            .expect_err("KI alone defines a reset, not a relation to a following sumti");
+        assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+        assert_eq!(
+            error.message,
+            "semantic interpretation is undefined for a KI reset tag applied to a sumti argument"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn duplicate_linkarg_x1_expands_to_conjoined_restrictions() {
         let graph = semantic_graph_for("le gadri be fa zo le");
         let gadri = graph
@@ -10436,6 +10820,755 @@ mod tests {
             object.formula_operator() == Some(FormulaOperator::And)
                 && object.formula_children().len() == 2
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fai_restores_jai_displaced_argument_without_consuming_a_numbered_place() {
+        let graph = semantic_graph_for("le panka cu jai vi citka le cirla fai le ratcu");
+        let citka = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "citka")
+                    .then_some(predication)
+            })
+            .expect("citka predication should exist");
+        let restored_x1 = &citka.arguments[&argument_key(1)];
+        let ordinary_x2 = &citka.arguments[&argument_key(2)];
+        assert_eq!(restored_x1.kind, ArgumentValueKind::Filled);
+        assert_eq!(ordinary_x2.kind, ArgumentValueKind::Filled);
+        assert_eq!(
+            restored_x1
+                .value
+                .and_then(|value| graph.objects.get(&value))
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le ratcu")
+        );
+        assert_eq!(
+            ordinary_x2
+                .value
+                .and_then(|value| graph.objects.get(&value))
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le cirla")
+        );
+
+        let event = citka
+            .eventuality
+            .and_then(|event| graph.objects.get(&event))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("JAI tense conversion should retain the citka eventuality");
+        let anchor = event
+            .space
+            .as_ref()
+            .map(|relation| relation.anchor)
+            .expect("vi should retain the raised location as an event anchor");
+        assert_eq!(
+            graph
+                .objects
+                .get(&anchor)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le panka")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_linkargs_do_not_consume_or_drop_following_slots() {
+        let graph = semantic_graph_for("lo broda be bei mi cu melbi");
+        let broda = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda")
+                    .then_some(predication)
+            })
+            .expect("broda restriction should exist");
+        assert_eq!(broda.arguments.len(), 2);
+        assert_eq!(
+            broda.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(
+            broda.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Filled
+        );
+
+        for source in ["lo broda be cu melbi", "lo broda be mi bei cu melbi"] {
+            semantic_result_for(source).expect("a trailing empty linkarg should be zero-width");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tense_tagged_linkarg_constrains_the_relation_event_without_consuming_a_place() {
+        let graph = semantic_graph_for("le viska be mi bei ca le nu do klama cu melbi");
+        let viska = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "viska")
+                    .then_some(predication)
+            })
+            .expect("viska restriction should exist");
+        assert_eq!(
+            viska.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker()),
+            "the ordinary BE argument must remain x2"
+        );
+        assert_eq!(
+            viska.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Filled
+        );
+
+        let event = viska
+            .eventuality
+            .and_then(|eventuality| graph.objects.get(&eventuality))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("the tense-tagged link must allocate a viska eventuality");
+        let anchor = event
+            .time
+            .as_ref()
+            .map(|time| time.anchor)
+            .expect("ca must constrain the viska eventuality");
+        assert_eq!(
+            graph
+                .objects
+                .get(&anchor)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le nu do klama"),
+            "the linked sumti must be the temporal anchor rather than being dropped"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_tense_terms_copy_the_bridi_and_keep_both_event_anchors() {
+        let graph = semantic_graph_for("pu ko'a .e ba ko'e broda");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let data!(FormulaNode::Connective(connection)) = graph.objects[&content]
+            .as_formula()
+            .expect("direct term connection formula")
+            .as_data()
+        else {
+            panic!("connected terms should distribute the bridi");
+        };
+        assert_eq!(connection.operator, FormulaOperator::And);
+        assert_eq!(connection.children.len(), 2);
+        assert_eq!(
+            connection
+                .connector
+                .as_ref()
+                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
+            Some(("e", "term"))
+        );
+
+        let branches = connection
+            .children
+            .iter()
+            .map(|formula| {
+                let predication = graph.objects[formula]
+                    .formula_predication()
+                    .and_then(|predication| graph.objects.get(&predication))
+                    .and_then(SemanticObject::as_predication)
+                    .expect("distributed broda predication");
+                assert!(matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda"));
+                let event = predication
+                    .eventuality
+                    .and_then(|event| graph.objects.get(&event))
+                    .and_then(SemanticObject::as_eventuality)
+                    .expect("each branch has its own eventuality");
+                let time = event.time.as_ref().expect("each term constrains its branch");
+                let anchor_source = graph
+                    .objects
+                    .get(&time.anchor)
+                    .and_then(SemanticObject::source)
+                    .and_then(|source| source.text.as_deref())
+                    .expect("the tense anchor retains its source");
+                (time.relation.as_str(), anchor_source)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(branches, [("before", "ko'a"), ("after", "ko'e")]);
+        assert_ne!(
+            graph.objects[&connection.children[0]]
+                .formula_predication()
+                .and_then(|predication| graph.objects[&predication].as_predication())
+                .and_then(|predication| predication.eventuality),
+            graph.objects[&connection.children[1]]
+                .formula_predication()
+                .and_then(|predication| graph.objects[&predication].as_predication())
+                .and_then(|predication| predication.eventuality),
+            "the two event conditions must not collapse onto one copied predication"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_modal_anchor_sumti_copy_the_bridi_and_relate_branch_events() {
+        let graph = semantic_graph_for("pu ko'a .e ba bo ko'e broda");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let data!(FormulaNode::Connective(connection)) = graph.objects[&content]
+            .as_formula()
+            .expect("sumti connection formula")
+            .as_data()
+        else {
+            panic!("the connected modal anchor should distribute the bridi");
+        };
+        assert_eq!(connection.operator, FormulaOperator::And);
+        assert_eq!(connection.children.len(), 3);
+        assert_eq!(
+            connection
+                .connector
+                .as_ref()
+                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
+            Some(("e ba bo", "sumti"))
+        );
+
+        let branch_events = connection.children[..2]
+            .iter()
+            .map(|formula| {
+                let predication = graph.objects[formula]
+                    .formula_predication()
+                    .and_then(|predication| graph.objects.get(&predication))
+                    .and_then(SemanticObject::as_predication)
+                    .expect("distributed broda predication");
+                assert!(matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda"));
+                let event_id = predication
+                    .eventuality
+                    .expect("each copied bridi has its own event");
+                let event = graph.objects[&event_id]
+                    .as_eventuality()
+                    .expect("branch event");
+                let time = event
+                    .time
+                    .as_ref()
+                    .expect("pu must constrain every copied branch");
+                assert_eq!(time.relation, "before");
+                let anchor_source = graph.objects[&time.anchor]
+                    .source()
+                    .and_then(|source| source.text.as_deref())
+                    .expect("branch anchor source");
+                (event_id, anchor_source)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(branch_events[0].1, "ko'a");
+        assert_eq!(branch_events[1].1, "ko'e");
+        assert_ne!(branch_events[0].0, branch_events[1].0);
+
+        let connection_claim = graph.objects[&connection.children[2]]
+            .formula_predication()
+            .and_then(|predication| graph.objects.get(&predication))
+            .and_then(SemanticObject::as_predication)
+            .expect("ba must become a claim relating the branch events");
+        assert!(
+            matches!(connection_claim.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "after")
+        );
+        assert_eq!(
+            connection_claim.arguments[&argument_key(1)].value,
+            Some(branch_events[1].0)
+        );
+        assert_eq!(
+            connection_claim.arguments[&argument_key(2)].value,
+            Some(branch_events[0].0)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recurrent_connected_sumti_copy_a_compound_tanru_and_constrain_the_second_event() {
+        let graph = semantic_graph_for(
+            "mi lifri gi'e di'a senva sezysku lu broda li'u .e su'o roi bo lu brode li'u",
+        );
+        let lifri_ids = named_predication_ids(&graph, "lifri");
+        let [lifri] = lifri_ids.as_slice() else {
+            panic!("the shared branch must contain exactly one lifri predication");
+        };
+        let lifri = graph.objects[lifri]
+            .as_predication()
+            .expect("lifri predication");
+        assert_eq!(
+            lifri.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(
+            lifri.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Elided,
+            "the linked quotations are local to sezysku and must not leak into lifri"
+        );
+        let mut branches = named_predication_ids(&graph, "sezysku")
+            .into_iter()
+            .map(|predication| {
+                let predication = graph.objects[&predication]
+                    .as_predication()
+                    .expect("sezysku branch predication");
+                assert_eq!(
+                    predication.arguments[&argument_key(1)].value,
+                    Some(SemanticObjectId::speaker()),
+                    "the shared leading mi must reach every linked sezysku branch"
+                );
+                let sign = predication.arguments[&argument_key(2)]
+                    .value
+                    .expect("each copied tanru retains its quote argument");
+                let sign_source = graph.objects[&sign]
+                    .source()
+                    .and_then(|source| source.text.as_deref())
+                    .expect("quote source");
+                let event = predication
+                    .eventuality
+                    .expect("each copied tanru head has an event");
+                (sign_source, event)
+            })
+            .collect::<Vec<_>>();
+        branches.sort_by_key(|(source, _)| *source);
+        assert_eq!(branches.len(), 2);
+        assert_eq!(branches[0].0, "lu broda li'u");
+        assert_eq!(branches[1].0, "lu brode li'u");
+        assert_ne!(branches[0].1, branches[1].1);
+
+        let first_event = graph.objects[&branches[0].1]
+            .as_eventuality()
+            .expect("first tanru event");
+        let second_event = graph.objects[&branches[1].1]
+            .as_eventuality()
+            .expect("second tanru event");
+        for (branch_index, event) in [first_event, second_event].into_iter().enumerate() {
+            assert!(
+                event
+                    .aspect
+                    .as_ref()
+                    .is_some_and(|aspect| aspect.contour == "resumptive"),
+                "the selbri-scoped di'a must reach linked tanru branch {branch_index}: {:?}",
+                (branches[branch_index].1, &event.aspect)
+            );
+        }
+        assert!(first_event.recurrence.is_empty());
+        let [recurrence] = second_event.recurrence.as_slice() else {
+            panic!("su'o roi must become exactly one recurrence condition");
+        };
+        assert_eq!(recurrence.kind, RecurrenceKind::OccurrenceCount);
+        assert_eq!(recurrence.introduced_by, "roi");
+        assert_eq!(recurrence.interval, Some(branches[0].1));
+        let quantity = recurrence.quantity.expect("su'o supplies a quantity");
+        let quantity = graph.objects[&quantity]
+            .as_quantity()
+            .expect("recurrence quantity is typed");
+        assert_eq!(quantity.form, QuantityForm::AtLeast);
+        assert_eq!(quantity.scale, QuantityScale::Frequency);
+        assert_eq!(quantity.value, QuantityValue::text("su'o".to_owned()));
+
+        assert!(graph.objects.values().any(|object| {
+            object.formula_operator() == Some(FormulaOperator::And)
+                && object.as_formula().is_some_and(|formula| {
+                    matches!(formula.as_data(), data!(FormulaNode::Connective(formula)) if formula.connector.as_ref().is_some_and(|connector| connector.source == "e su'o roi bo" && connector.locus == "sumti"))
+                })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_fa_sumti_connection_tag_is_a_principled_error() {
+        let error = semantic_result_for("ko'a .e fa bo ko'e")
+            .expect_err("experimental FA tag semantics are undefined");
+        assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+        assert_eq!(
+            error.message,
+            "semantic interpretation is undefined for an experimental FA tag in a sumti connection"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ji_connected_tense_terms_build_a_connective_question() {
+        let graph = semantic_graph_for("pu ko'a ji ba ko'e broda");
+        let question = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .and_then(|content| graph.objects.get(&content))
+            .and_then(SemanticObject::as_question)
+            .expect("JI term connection should produce a direct connective question");
+        let data!(FormulaNode::Connective(connection)) = graph.objects[&question.body]
+            .as_formula()
+            .expect("connective-question body")
+            .as_data()
+        else {
+            panic!("JI term connection should distribute the bridi");
+        };
+        assert_eq!(connection.operator, FormulaOperator::ConnectiveQuestion);
+        assert_eq!(connection.children.len(), 2);
+        assert!(connection.connector.as_ref().is_some_and(|connector| {
+            connector.source == "ji"
+                && connector.locus == "term"
+                && connector.truth_table.is_none()
+                && connector.parameter.is_some()
+        }));
+        assert_eq!(named_predication_ids(&graph, "broda").len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_fiho_modals_copy_the_bridi_and_keep_typed_modal_bodies() {
+        let graph = semantic_graph_for(".e'a casnu fi'o selsnu ja fi'o bangu la lojban");
+        let casnu = named_predication_ids(&graph, "casnu");
+        assert_eq!(casnu.len(), 2, "JA-connected FIhO tags copy the bridi");
+        let mut modal_relations = BTreeSet::new();
+        let mut shared_topic = None;
+        for predication in casnu {
+            let predication = graph.objects[&predication]
+                .as_predication()
+                .expect("casnu branch predication");
+            let [modal] = predication.modal_arguments.as_slice() else {
+                panic!("each casnu branch must retain exactly one FIhO modal body");
+            };
+            assert_eq!(modal.introduced_by, "fi'o");
+            let body = modal.body.expect("FIhO modal keeps a typed body formula");
+            assert_eq!(
+                modal.component, predication.eventuality,
+                "the FIhO modal component must be its copied casnu event"
+            );
+            let body = graph.objects[&body]
+                .formula_predication()
+                .and_then(|body| graph.objects.get(&body))
+                .and_then(SemanticObject::as_predication)
+                .expect("FIhO body is an atomic selbri formula");
+            let data!(PredicationRelation::Named { relation }) = body.relation.as_data() else {
+                panic!("FIhO body relation must stay named");
+            };
+            modal_relations.insert(relation.clone());
+            let topic = body.arguments[&argument_key(1)]
+                .value
+                .expect("la lojban fills the FIhO relation x1");
+            assert_eq!(*shared_topic.get_or_insert(topic), topic);
+        }
+        assert_eq!(
+            modal_relations,
+            BTreeSet::from(["bangu".to_owned(), "selsnu".to_owned()])
+        );
+        assert!(graph.objects.values().any(|object| {
+            matches!(
+                object.as_formula().map(FormulaNode::as_data),
+                Some(data!(FormulaNode::Connective(connection)))
+                    if connection.operator == FormulaOperator::Or
+                        && connection.connector.as_ref().is_some_and(|connector| {
+                            connector.locus == "modal"
+                                && connector.source == "fi'o selsnu ja fi'o bangu"
+                        })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_event_tense_terms_copy_the_bridi_and_constrain_each_event() {
+        let graph = semantic_graph_for("mi pu je ba zu cu zasti");
+        let mut zasti = named_predication_ids(&graph, "zasti")
+            .into_iter()
+            .map(|id| {
+                let predication = graph.objects[&id]
+                    .as_predication()
+                    .expect("zasti branch predication");
+                assert_eq!(
+                    predication.arguments[&argument_key(1)].value,
+                    Some(SemanticObjectId::speaker()),
+                    "the leading mi term must be shared by both tense branches"
+                );
+                let eventuality = predication
+                    .eventuality
+                    .expect("each zasti branch has an eventuality");
+                (
+                    eventuality,
+                    graph.objects[&eventuality].as_eventuality().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        zasti.sort_by_key(|(eventuality, _)| *eventuality);
+        let [(first_id, first), (second_id, second)] = zasti.as_slice() else {
+            panic!("JE-connected tense terms must build exactly two zasti events");
+        };
+        let first_time = first.time.as_ref().expect("pu constrains the first event");
+        let second_time = second
+            .time
+            .as_ref()
+            .expect("ba zu constrains the second event");
+        assert_eq!(first_time.relation, "before");
+        assert_eq!(second_time.relation, "after");
+        assert_eq!(first_time.anchor, second_time.anchor);
+        assert_eq!(first_time.distance, None);
+        assert_eq!(second_time.distance.as_deref(), Some("long"));
+        assert_ne!(
+            first_id, second_id,
+            "the branches need distinct eventualities"
+        );
+        assert!(graph.objects.values().any(|object| {
+            matches!(
+                object.as_formula().map(FormulaNode::as_data),
+                Some(data!(FormulaNode::Connective(connection)))
+                    if connection.operator == FormulaOperator::And
+                        && connection.children.len() == 2
+                        && connection.connector.as_ref().is_some_and(|connector| {
+                            connector.locus == "tense"
+                                && connector.source == "pu je ba zu"
+                                && connector.truth_table.as_deref() == Some("TFFF")
+                        })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fahu_connected_spatial_terms_preserve_parallel_event_conditions() {
+        let graph = semantic_graph_for("punji le romei le pluta vi fa'u va ku");
+        let mut punji = named_predication_ids(&graph, "punji")
+            .into_iter()
+            .map(|id| {
+                let predication = graph.objects[&id]
+                    .as_predication()
+                    .expect("punji branch predication");
+                let eventuality = predication
+                    .eventuality
+                    .expect("each punji branch has an eventuality");
+                (
+                    predication,
+                    graph.objects[&eventuality].as_eventuality().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        punji.sort_by_key(|(predication, _)| predication.eventuality);
+        let [(near_predication, near), (medium_predication, medium)] = punji.as_slice() else {
+            panic!("FAhU-connected spatial terms must build exactly two punji events");
+        };
+        let near_space = near.space.as_ref().expect("vi constrains the first event");
+        let medium_space = medium
+            .space
+            .as_ref()
+            .expect("va constrains the second event");
+        assert_eq!(near_space.relation, "distanceFrom");
+        assert_eq!(medium_space.relation, "distanceFrom");
+        assert_eq!(near_space.anchor, medium_space.anchor);
+        assert_eq!(near_space.distance.as_deref(), Some("short"));
+        assert_eq!(medium_space.distance.as_deref(), Some("medium"));
+        for place in [2, 3] {
+            assert_eq!(
+                near_predication.arguments[&argument_key(place)].value,
+                medium_predication.arguments[&argument_key(place)].value,
+                "explicit place x{place} must be shared by both spatial branches"
+            );
+        }
+        let distribution = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::RespectivelyDistribution(distribution)) => Some(distribution),
+                _ => None,
+            })
+            .expect("fa'u must remain a typed respectively distribution");
+        let [branch_stream] = distribution.streams.as_slice() else {
+            panic!("a tag-only fa'u connection has one parallel formula stream");
+        };
+        assert_eq!(branch_stream.items.len(), 2);
+        let data!(FormulaNode::Connective(body)) = graph.objects[&distribution.body]
+            .as_formula()
+            .expect("respectively body is a formula")
+            .as_data()
+        else {
+            panic!("respectively body must retain both spatial branches");
+        };
+        assert_eq!(body.operator, FormulaOperator::And);
+        assert_eq!(body.children, branch_stream.items);
+        assert!(body.connector.as_ref().is_some_and(|connector| {
+            connector.locus == "tense"
+                && connector.source == "vi fa'u va"
+                && connector.truth_table.is_none()
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_termsets_fill_each_branch_place_without_dropping_shared_terms() {
+        let graph = semantic_graph_for(
+            "le pamoi zgana cu du la mapypre noi nerkla gi'e jgari nu'i ge lo tcati kabri le xance gi lo nanba joi matne le drata",
+        );
+        let jgari = named_predication_ids(&graph, "jgari");
+        let [first, second] = jgari.as_slice() else {
+            panic!("GE/GI termsets must build exactly two jgari branches");
+        };
+        let first = graph.objects[first].as_predication().unwrap();
+        let second = graph.objects[second].as_predication().unwrap();
+        assert_eq!(
+            first.arguments[&argument_key(1)].value,
+            second.arguments[&argument_key(1)].value,
+            "the leading observer must be shared across termset branches"
+        );
+        let branch_sources = |predication: &crate::model::PredicationNode| {
+            [2, 3]
+                .map(|place| {
+                    let value = predication.arguments[&argument_key(place)]
+                        .value
+                        .expect("termset branch fills both explicit places");
+                    graph.objects[&value]
+                        .source()
+                        .and_then(|source| source.text.clone())
+                        .expect("explicit sumti retains its source")
+                })
+                .to_vec()
+        };
+        let sources = [branch_sources(first), branch_sources(second)];
+        assert!(sources.contains(&vec!["lo tcati kabri".to_owned(), "le xance".to_owned()]));
+        assert!(sources.contains(&vec![
+            "lo nanba joi matne".to_owned(),
+            "le drata".to_owned(),
+        ]));
+        assert!(graph.objects.values().any(|object| {
+            matches!(
+                object.as_formula().map(FormulaNode::as_data),
+                Some(data!(FormulaNode::Connective(connection)))
+                    if connection.operator == FormulaOperator::And
+                        && connection.children.len() == 2
+                        && connection.connector.as_ref().is_some_and(|connector| {
+                            connector.locus == "termset"
+                                && connector.source == "ge gi"
+                                && connector.truth_table.as_deref() == Some("TFFF")
+                        })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_connected_term_fragments_require_the_missing_bridi() {
+        let error = semantic_result_for("lu da .o de li'u du lu da .e de .a ke nada .e nade li'u")
+            .expect_err(
+                "the connected terms inside the second quotation have no bridi to distribute",
+            );
+        assert_eq!(error.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert_eq!(
+            error.message,
+            "semantic analysis of the missing bridi proposition distributed by standalone connected-term fragment `da e de a ke na da e na de` requires discourse context"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonlogical_direct_term_connections_are_principled_errors() {
+        for source in ["pu ko'a joi ba ko'e broda", "pu ko'a su'i ba ko'e broda"] {
+            let error = semantic_result_for(source)
+                .expect_err("experimental nonlogical direct term semantics are undefined");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                "semantic interpretation is undefined for an experimental nonlogical direct term connection"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_jai_fai_preserves_its_argument_and_quantified_event_anchor() {
+        let graph = semantic_graph_for("jai frili fai le nu krobi'o fa'a roda");
+        let frili = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "frili")
+                    .then_some(predication)
+            })
+            .expect("frili predication should exist");
+        let restored = frili.arguments[&argument_key(1)]
+            .value
+            .expect("FAI should restore the explicit eventuality into x1");
+        assert_eq!(
+            graph
+                .objects
+                .get(&restored)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le nu krobi'o fa'a roda")
+        );
+
+        let quantified = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(node))
+                    if node.operator == FormulaOperator::Forall =>
+                {
+                    Some(node.variable)
+                }
+                _ => None,
+            })
+            .expect("roda should retain a universal scope");
+        let krobiho_event = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "krobi'o")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .expect("krobi'o predication should have an eventuality");
+        assert_eq!(
+            graph
+                .objects
+                .get(&krobiho_event)
+                .and_then(SemanticObject::as_eventuality)
+                .and_then(|event| event.space.as_ref())
+                .map(|space| space.anchor),
+            Some(quantified)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fai_does_not_cross_a_nested_bridi_scope_to_find_jai() {
+        for source in [
+            ".iku'i li'a la rab,n. poi jai mutce lakne fai zo'epeleka ce'u zvati cu ca cando",
+            "mi pu pa roi jai mukti le nu vitke le mikce fai lo trixe nu cortu",
+            ".i ni'o mi mutce jai mukti le nu cirke la tikik fai le nu mi cikre le ralju samselpla vreji",
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("FAI without a JAI target in its own bridi must be rejected");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                "semantic interpretation is undefined for a fai term without a local JAI conversion target"
+            );
+        }
     }
 
     #[test]

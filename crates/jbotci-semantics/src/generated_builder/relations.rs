@@ -936,12 +936,8 @@ pub(super) fn advance_visible_place_after_linked_sumti(
             let place = linked_sumti_place(&sumti.fa.value)?;
             *next_visible_place = (*next_visible_place).max(place + 1);
         }
-        LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) => {
-            return Err(unsupported("tense-tagged linked sumti"));
-        }
-        LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
-            return Err(unsupported("empty linked sumti"));
-        }
+        LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) => {}
+        LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
     }
     Ok(())
 }

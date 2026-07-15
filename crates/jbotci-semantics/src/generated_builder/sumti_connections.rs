@@ -162,6 +162,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut highest_assigned_place = 0usize;
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
+            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+                return Err(undefined_semantics(description));
+            }
             match simple {
                 SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;
@@ -277,6 +280,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
                     modal_terms
                         .push(self.prepare_generated_modal_term(term, &mut modal_formula_scopes)?);
+                }
+                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                    modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
@@ -680,6 +686,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let mut connected_place = None;
+        let mut connected_modal = None;
         let mut base_arguments = BTreeMap::<usize, ArgumentValue>::new();
         let mut outer_scopes = Vec::new();
         let mut modal_terms = Vec::new();
@@ -690,6 +697,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
+            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+                return Err(undefined_semantics(description));
+            }
             match simple {
                 SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;
@@ -715,6 +725,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     }
                 }
                 SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                    if term.fa.value.cmavo() == Some(Cmavo::Fai) {
+                        return Err(undefined_semantics(
+                            "FAI without a local JAI conversion whose displaced argument it can restore",
+                        ));
+                    }
                     let place = fa_place(&term.fa.value)?;
                     next_visible_place = next_visible_place.max(place + 1);
                     highest_assigned_place = highest_assigned_place.max(place);
@@ -749,7 +764,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     }
                 }
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                    modal_terms.push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
+                    let connected_sumti = match term.sumti.as_ref() {
+                        TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                            let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
+                            generated_logical_sumti_connection_for_branch(branch)?
+                                .is_some()
+                                .then_some(branch)
+                        }
+                        TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => None,
+                    };
+                    if let Some(connected_sumti) = connected_sumti {
+                        if connected_modal.replace((term, connected_sumti)).is_some() {
+                            return Err(unsupported(
+                                "multiple connected sumti used as modal arguments in one bridi",
+                            ));
+                        }
+                    } else {
+                        modal_terms
+                            .push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
+                    }
+                }
+                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                    modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
@@ -765,16 +801,176 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if assignment_counts.values().any(|count| *count > 1) {
             return Ok(None);
         }
-        let Some((connected_place, connected_sumti)) = connected_place else {
+        let fill_through = place_limit.max(highest_assigned_place);
+        let formula = match (connected_place, connected_modal) {
+            (Some((connected_place, connected_sumti)), None) => self
+                .build_generated_sumti_connection_formula_for_place(
+                    relation,
+                    connected_place,
+                    &base_arguments,
+                    connected_sumti,
+                    fill_through,
+                    conversions,
+                    mode,
+                    predication_source,
+                    formula_source,
+                    &modal_terms,
+                    &[],
+                )?,
+            (None, Some((tagged_sumti, connected_sumti))) => self
+                .build_generated_tagged_sumti_connection_formula(
+                    relation,
+                    &base_arguments,
+                    tagged_sumti,
+                    connected_sumti,
+                    fill_through,
+                    conversions,
+                    mode,
+                    predication_source,
+                    formula_source,
+                    &modal_terms,
+                    &[],
+                )?,
+            (Some(_), Some(_)) => {
+                return Err(unsupported(
+                    "simultaneous connected numbered and modal sumti arguments",
+                ));
+            }
+            (None, None) => return Ok(None),
+        };
+        self.wrap_formula_with_generated_assignment_scopes(
+            formula,
+            outer_scopes,
+            Vec::new(),
+            Vec::new(),
+            term_formula_scopes,
+        )
+        .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(base_arguments.keys().all(|place| *place > 0))]
+    #[requires(first_visible_place > 0)]
+    #[requires(place_limit > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_generated_logical_sumti_connection_formula_for_terms_with_preassigned_arguments<
+        'syntax: 'tree,
+        F,
+    >(
+        &mut self,
+        relation: &str,
+        terms: &[&'syntax TermSyntax],
+        base_arguments: &BTreeMap<usize, ArgumentValue>,
+        first_visible_place: usize,
+        place_limit: usize,
+        conversions: &[WithFreeModifiers<Token, F>],
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let mut connected_place = None;
+        let mut arguments = base_arguments.clone();
+        let mut outer_scopes = Vec::new();
+        let mut modal_terms = Vec::new();
+        let mut term_formula_scopes = Vec::new();
+        let mut next_visible_place = first_visible_place;
+        let mut highest_assigned_place = arguments.keys().copied().max().unwrap_or(0);
+        for term in terms {
+            let simple = generated_simple_term_for_assignment(term)?;
+            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+                return Err(undefined_semantics(description));
+            }
+            match simple {
+                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                    let place = next_visible_place;
+                    next_visible_place += 1;
+                    highest_assigned_place = highest_assigned_place.max(place);
+                    let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
+                    if generated_logical_sumti_connection_for_branch(branch)?.is_some() {
+                        if connected_place.replace((place, branch)).is_some() {
+                            return Err(unsupported(
+                                "multiple connected sumti with preassigned bridi arguments",
+                            ));
+                        }
+                    } else {
+                        let mut formula_scopes = Vec::new();
+                        let argument = self
+                            .build_argument_for_generated_sumti_with_formula_scopes(
+                                sumti,
+                                &mut formula_scopes,
+                            )?;
+                        outer_scopes.extend(formula_scopes);
+                        if arguments.insert(place, argument).is_some() {
+                            return Err(invalid_graph(format!(
+                                "multiple generated bridi arguments map to x{place}"
+                            )));
+                        }
+                    }
+                }
+                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                    let place = fa_place(&term.fa.value)?;
+                    next_visible_place = next_visible_place.max(place + 1);
+                    highest_assigned_place = highest_assigned_place.max(place);
+                    match term.sumti.as_ref() {
+                        TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                            let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
+                            if generated_logical_sumti_connection_for_branch(branch)?.is_some() {
+                                if connected_place.replace((place, branch)).is_some() {
+                                    return Err(unsupported(
+                                        "multiple connected sumti with preassigned bridi arguments",
+                                    ));
+                                }
+                            } else {
+                                let mut formula_scopes = Vec::new();
+                                let argument = self
+                                    .build_argument_for_generated_sumti_with_formula_scopes(
+                                        sumti,
+                                        &mut formula_scopes,
+                                    )?;
+                                outer_scopes.extend(formula_scopes);
+                                if arguments.insert(place, argument).is_some() {
+                                    return Err(invalid_graph(format!(
+                                        "multiple generated bridi arguments map to x{place}"
+                                    )));
+                                }
+                            }
+                        }
+                        TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
+                            let argument =
+                                self.build_tagged_or_elided_sumti_argument(&term.sumti)?;
+                            if arguments.insert(place, argument).is_some() {
+                                return Err(invalid_graph(format!(
+                                    "multiple generated bridi arguments map to x{place}"
+                                )));
+                            }
+                        }
+                    }
+                }
+                SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                    modal_terms.push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
+                }
+                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                    modal_terms.push(self.prepare_generated_bare_modal_term(term));
+                }
+                SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+                    self.collect_generated_term_formula_scopes_for_simple_term(
+                        *term,
+                        simple,
+                        &mut term_formula_scopes,
+                    )?;
+                }
+                _ => return Ok(None),
+            }
+        }
+        let Some((connected_place, sumti)) = connected_place else {
             return Ok(None);
         };
-        let fill_through = place_limit.max(highest_assigned_place);
         let formula = self.build_generated_sumti_connection_formula_for_place(
             relation,
             connected_place,
-            &base_arguments,
-            connected_sumti,
-            fill_through,
+            &arguments,
+            sumti,
+            place_limit.max(highest_assigned_place),
             conversions,
             mode,
             predication_source,
@@ -790,6 +986,287 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             term_formula_scopes,
         )
         .map(Some)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(fill_through > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_tagged_sumti_connection_formula<'syntax: 'tree, F>(
+        &mut self,
+        relation: &str,
+        base_arguments: &BTreeMap<usize, ArgumentValue>,
+        tagged_sumti: &'syntax TaggedSumtiTermSyntax,
+        sumti: GeneratedDistributedSumtiBranch<'syntax>,
+        fill_through: usize,
+        conversions: &[WithFreeModifiers<Token, F>],
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+        modal_terms: &[GeneratedModalTerm<'tree>],
+        additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(connection) = generated_logical_sumti_connection_for_branch(sumti)? else {
+            return self.build_generated_tagged_sumti_connection_branch_formula(
+                relation,
+                base_arguments,
+                tagged_sumti,
+                sumti,
+                fill_through,
+                conversions,
+                mode,
+                predication_source,
+                formula_source,
+                modal_terms,
+                false,
+                additional_relative_clause_lists,
+            );
+        };
+        let mut relative_clause_lists = additional_relative_clause_lists.to_vec();
+        if let Some(relative_clauses) = connection.relative_clauses {
+            relative_clause_lists.push(relative_clauses);
+        }
+        let leading_formula = self.build_generated_tagged_sumti_connection_branch_formula(
+            relation,
+            base_arguments,
+            tagged_sumti,
+            connection.leading,
+            fill_through,
+            conversions,
+            mode,
+            predication_source.clone(),
+            formula_source.clone(),
+            modal_terms,
+            generated_distributed_sumti_connective_negates_left(connection.connective),
+            &relative_clause_lists,
+        )?;
+        let trailing_formula = self.build_generated_tagged_sumti_connection_branch_formula(
+            relation,
+            base_arguments,
+            tagged_sumti,
+            connection.trailing,
+            fill_through,
+            conversions,
+            mode,
+            predication_source.clone(),
+            formula_source.clone(),
+            modal_terms,
+            generated_distributed_sumti_connective_negates_right(connection.connective),
+            &relative_clause_lists,
+        )?;
+        self.combine_generated_sumti_connection_branch_formulas(
+            connection.connective,
+            leading_formula,
+            trailing_formula,
+            predication_source,
+            formula_source,
+        )
+    }
+
+    #[requires(leading_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(trailing_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn combine_generated_sumti_connection_branch_formulas(
+        &mut self,
+        connective: GeneratedDistributedSumtiConnective<'tree>,
+        leading_formula: SemanticObjectId,
+        trailing_formula: SemanticObjectId,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut children = vec![leading_formula, trailing_formula];
+        let mut diagnostics = Vec::new();
+        let pure_modal_connection =
+            generated_distributed_sumti_connective_is_pure_modal(connective);
+        let modal_spec = generated_distributed_sumti_connective_modal_spec(connective);
+        if let GeneratedDistributedSumtiConnective::Argument {
+            tense_modal: Some(tense_modal),
+            ..
+        } = connective
+            && modal_spec.is_none()
+        {
+            if generated_tense_modal_is_experimental_fa_tag(tense_modal) {
+                return Err(undefined_semantics(
+                    "an experimental FA tag in a sumti connection",
+                ));
+            }
+            if !generated_tense_modal_has_event_modifier(tense_modal) {
+                return Err(unsupported("tense-modal sumti connection"));
+            }
+            let leading_eventuality = self.modal_eventuality_argument_for_generated_formula(
+                leading_formula,
+                formula_source.clone(),
+            )?;
+            let trailing_eventuality = self.modal_eventuality_argument_for_generated_formula(
+                trailing_formula,
+                formula_source.clone(),
+            )?;
+            self.apply_generated_tense_modal_event_modifier_to_eventuality(
+                trailing_eventuality,
+                tense_modal,
+                Some(leading_eventuality),
+            )?;
+        }
+        if let Some(spec) = modal_spec {
+            let (visible_formula, other_formula) =
+                if generated_distributed_sumti_connective_visible_argument_is_first(connective) {
+                    (leading_formula, trailing_formula)
+                } else {
+                    (trailing_formula, leading_formula)
+                };
+            match self.build_generated_modal_formula_connection_claim(
+                visible_formula,
+                other_formula,
+                &spec,
+                source_with_construct(
+                    formula_source
+                        .clone()
+                        .or_else(|| predication_source.clone()),
+                    "sumti-connection-claim",
+                ),
+            )? {
+                Some(claim) => {
+                    if pure_modal_connection {
+                        self.set_formula_predication_mode(leading_formula, PredicationMode::Inert);
+                        self.set_formula_predication_mode(trailing_formula, PredicationMode::Inert);
+                        return Ok(claim);
+                    }
+                    children.push(claim);
+                }
+                None => diagnostics.push(diagnostic(
+                    "modal sumti connection could not find formula-bearing bridi events to relate",
+                )),
+            }
+        }
+        let connector_source = generated_distributed_sumti_connective_source(connective)?;
+        let formula = self.next_formula_id();
+        let connector_parameter = self
+            .build_generated_connective_question_parameter_for_distributed_sumti_connective(
+                connective,
+            )?;
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                generated_distributed_sumti_connective_formula_operator(connective),
+                children,
+                Some(new!(Connector {
+                    source: connector_source,
+                    locus: "sumti".to_owned(),
+                    truth_table: generated_distributed_sumti_connective_truth_table(connective),
+                    parameter: connector_parameter,
+                })),
+                source_with_construct(
+                    formula_source.or(predication_source),
+                    "sumti-connection-formula",
+                ),
+                diagnostics,
+            ),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(fill_through > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_tagged_sumti_connection_branch_formula<'syntax: 'tree, F>(
+        &mut self,
+        relation: &str,
+        base_arguments: &BTreeMap<usize, ArgumentValue>,
+        tagged_sumti: &'syntax TaggedSumtiTermSyntax,
+        sumti: GeneratedDistributedSumtiBranch<'syntax>,
+        fill_through: usize,
+        conversions: &[WithFreeModifiers<Token, F>],
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+        modal_terms: &[GeneratedModalTerm<'tree>],
+        negated: bool,
+        additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut formula = if generated_logical_sumti_connection_for_branch(sumti)?.is_some() {
+            self.build_generated_tagged_sumti_connection_formula(
+                relation,
+                base_arguments,
+                tagged_sumti,
+                sumti,
+                fill_through,
+                conversions,
+                mode,
+                predication_source.clone(),
+                formula_source.clone(),
+                modal_terms,
+                additional_relative_clause_lists,
+            )?
+        } else {
+            let mut argument =
+                self.build_generated_alternative_argument_for_sumti_branch(sumti, false)?;
+            for relative_clauses in additional_relative_clause_lists {
+                argument.argument = self.attach_generated_relative_clauses_to_argument(
+                    argument.argument,
+                    relative_clauses,
+                )?;
+            }
+            let mut branch_modal_terms = modal_terms.to_vec();
+            branch_modal_terms.push(new!(GeneratedModalTerm {
+                tense_modal: tagged_sumti.tense_modal.as_ref(),
+                tagged_sumti: Some(tagged_sumti),
+                argument: Some(argument.argument),
+            }));
+            let mut raw_arguments = base_arguments.clone();
+            for place in 1..=fill_through {
+                if !raw_arguments.contains_key(&place) {
+                    raw_arguments.insert(place, self.build_elided_argument_for_place(place)?);
+                }
+            }
+            let mut arguments = BTreeMap::new();
+            for (place, argument) in raw_arguments {
+                let mapped_place = mapped_place_for_generated_conversions(place, conversions)?;
+                let key = argument_key(mapped_place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated bridi arguments map to {key}"
+                    )));
+                }
+            }
+            let eventuality = self.build_generated_predication_eventuality(
+                source_with_construct(predication_source.clone(), "distributed-predication"),
+            )?;
+            self.apply_generated_tagged_term_event_modifiers(eventuality, &branch_modal_terms)?;
+            let modal_arguments = self
+                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                    eventuality,
+                    &branch_modal_terms,
+                    Some(&arguments),
+                )?;
+            let mut predication_object = SemanticObject::predication(
+                relation.to_owned(),
+                Some(eventuality),
+                arguments,
+                predication_mode_for_relation(relation, mode),
+                source_with_construct(predication_source.clone(), "distributed-predication"),
+                Vec::new(),
+            );
+            predication_object.set_predication_modal_arguments(modal_arguments);
+            let predication = self.next_predication_id();
+            self.insert(predication, predication_object)?;
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(
+                    predication,
+                    source_with_construct(formula_source.clone(), "distributed-formula"),
+                    Vec::new(),
+                ),
+            )?;
+            self.wrap_formula_with_generated_argument_scopes(formula, argument.formula_scopes)?
+        };
+        if negated {
+            formula = self.build_unary_formula(
+                FormulaOperator::Not,
+                formula,
+                source_with_construct(formula_source, "distributed-negation"),
+            )?;
+        }
+        Ok(formula)
     }
 
     #[requires(!relation.is_empty())]
@@ -894,72 +1371,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             generated_distributed_sumti_connective_negates_right(connection.connective),
             &relative_clause_lists,
         )?;
-        let mut children = vec![leading_formula, trailing_formula];
-        let mut diagnostics = Vec::new();
-        let pure_modal_connection =
-            generated_distributed_sumti_connective_is_pure_modal(connection.connective);
-        if let Some(spec) = generated_distributed_sumti_connective_modal_spec(connection.connective)
-        {
-            let (visible_formula, other_formula) =
-                if generated_distributed_sumti_connective_visible_argument_is_first(
-                    connection.connective,
-                ) {
-                    (leading_formula, trailing_formula)
-                } else {
-                    (trailing_formula, leading_formula)
-                };
-            match self.build_generated_modal_formula_connection_claim(
-                visible_formula,
-                other_formula,
-                &spec,
-                source_with_construct(
-                    formula_source
-                        .clone()
-                        .or_else(|| predication_source.clone()),
-                    "sumti-connection-claim",
-                ),
-            )? {
-                Some(claim) => {
-                    if pure_modal_connection {
-                        self.set_formula_predication_mode(leading_formula, PredicationMode::Inert);
-                        self.set_formula_predication_mode(trailing_formula, PredicationMode::Inert);
-                        return Ok(claim);
-                    }
-                    children.push(claim);
-                }
-                None => diagnostics.push(diagnostic(
-                    "modal sumti connection could not find formula-bearing bridi events to relate",
-                )),
-            }
-        }
-        let connector_source =
-            generated_distributed_sumti_connective_source(connection.connective)?;
-        let formula = self.next_formula_id();
-        let connector_parameter = self
-            .build_generated_connective_question_parameter_for_distributed_sumti_connective(
-                connection.connective,
-            )?;
-        self.insert(
-            formula,
-            SemanticObject::connective_formula(
-                generated_distributed_sumti_connective_formula_operator(connection.connective),
-                children,
-                Some(new!(Connector {
-                    source: connector_source,
-                    locus: "sumti".to_owned(),
-                    truth_table: generated_distributed_sumti_connective_truth_table(
-                        connection.connective,
-                    ),
-                    parameter: connector_parameter,
-                })),
-                source_with_construct(
-                    formula_source.or(predication_source),
-                    "sumti-connection-formula",
-                ),
-                diagnostics,
-            ),
-        )?;
-        Ok(formula)
+        self.combine_generated_sumti_connection_branch_formulas(
+            connection.connective,
+            leading_formula,
+            trailing_formula,
+            predication_source,
+            formula_source,
+        )
     }
 
     #[requires(!relation.is_empty())]
