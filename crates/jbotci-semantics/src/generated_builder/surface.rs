@@ -254,6 +254,9 @@ pub(super) fn bind_generated_modal_argument_to_host_event_preserving_elision(
     eventuality: SemanticObjectId,
 ) -> Option<GeneratedHostEventModalElision> {
     if modal_argument.relation.is_none() {
+        if modal_argument.body.is_some() {
+            *modal_argument = modal_argument.clone().with_component(eventuality);
+        }
         return None;
     }
     let relation = modal_argument.relation.as_ref()?.clone();

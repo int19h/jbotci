@@ -110,7 +110,7 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
     Option<(
         usize,
         &'syntax TaggedSumtiTermSyntax,
-        GeneratedLogicalModalConnectionSpec,
+        GeneratedLogicalModalConnectionSpec<'syntax>,
     )>,
     SemanticsError,
 > {
@@ -138,10 +138,42 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(_, _, spec)| spec.branches.len() >= 2))]
+pub(super) fn generated_logical_event_tense_connection_assignment_in_terms<'syntax>(
+    terms: &[&'syntax TermSyntax],
+) -> Option<(
+    usize,
+    &'syntax TaggedSumtiTermSyntax,
+    GeneratedConnectedEventTenseSpec,
+)> {
+    let mut connection = None;
+    for (index, term) in terms.iter().enumerate() {
+        let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
+            generated_simple_term_for_assignment(term)
+        else {
+            continue;
+        };
+        let LeadingTermTagTenseModalSyntax::TenseModal(tense_modal) = term.tense_modal.as_ref()
+        else {
+            continue;
+        };
+        let Some(spec) = generated_connected_event_tense_spec_for_term_connection(tense_modal)
+        else {
+            continue;
+        };
+        if connection.is_some() {
+            return None;
+        }
+        connection = Some((index, term, spec));
+    }
+    connection
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|spec| spec.as_ref().is_none_or(|spec| spec.terms.len() >= 2)) || ret.is_err())]
-pub(super) fn generated_logical_modal_connection_spec_for_tense_modal(
-    tense_modal: &TenseModalSyntax,
-) -> Result<Option<GeneratedLogicalModalConnectionSpec>, SemanticsError> {
+pub(super) fn generated_logical_modal_connection_spec_for_tense_modal<'syntax>(
+    tense_modal: &'syntax TenseModalSyntax,
+) -> Result<Option<GeneratedLogicalModalConnectionSpec<'syntax>>, SemanticsError> {
     // CLL 10.23 keeps modal and tense connection grammar parallel, but their
     // event-role order differs, so modal connection lowering stays separate.
     let TenseModalBodySyntax::ConnectedTenseModal(connected) = &tense_modal.0 else {
@@ -173,30 +205,40 @@ pub(super) fn generated_logical_modal_connection_spec_for_tense_modal(
     Ok(Some(new!(GeneratedLogicalModalConnectionSpec {
         operator,
         source: token_list_text(collector.tokens.iter().copied()),
-        truth_table: generated_truth_table_for_formula_operator(operator),
+        truth_table: (operator != FormulaOperator::RespectivelyDistribution)
+            .then(|| generated_truth_table_for_formula_operator(operator)),
         terms,
     })))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|term| !term.relation.is_empty() && term.visible_place > 0) || ret.is_err())]
-pub(super) fn generated_connected_modal_term_from_atom(
-    atom: &TenseModalAtomSyntax,
-) -> Result<GeneratedConnectedModalTerm, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|term| generated_tense_modal_has_modal_argument(&term.tense_modal)) || ret.is_err())]
+pub(super) fn generated_connected_modal_term_from_atom<'syntax>(
+    atom: &'syntax TenseModalAtomSyntax,
+) -> Result<GeneratedConnectedModalTerm<'syntax>, SemanticsError> {
     let tense_modal = TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(atom.clone()));
     if generated_tense_modal_has_event_modifier(&tense_modal) {
         return Err(unsupported("event tense in logical modal connection"));
     }
-    let Some((introduced_by, relation, visible_place)) =
-        generated_modal_relation_spec_for_tense_modal(&tense_modal)
-    else {
-        return Err(unsupported("non-modal tag in logical modal connection"));
+    let kind = if let TenseModalAtomSyntax::FihoTense(fiho) = atom {
+        new!(GeneratedConnectedModalTermKind::AdHoc {
+            selbri: fiho.selbri.as_ref(),
+        })
+    } else {
+        let Some((introduced_by, relation, visible_place)) =
+            generated_modal_relation_spec_for_tense_modal(&tense_modal)
+        else {
+            return Err(unsupported("non-modal tag in logical modal connection"));
+        };
+        new!(GeneratedConnectedModalTermKind::Named {
+            introduced_by,
+            relation,
+            visible_place,
+        })
     };
     Ok(new!(GeneratedConnectedModalTerm {
         tense_modal,
-        introduced_by,
-        relation,
-        visible_place,
+        kind,
         negated: false,
     }))
 }
@@ -205,6 +247,23 @@ pub(super) fn generated_connected_modal_term_from_atom(
 #[ensures(ret.as_ref().is_none_or(|spec| spec.branches.len() >= 2))]
 pub(super) fn generated_connected_event_tense_spec_for_tense_modal(
     tense_modal: &TenseModalSyntax,
+) -> Option<GeneratedConnectedEventTenseSpec> {
+    generated_connected_event_tense_spec(tense_modal, false)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| spec.branches.len() >= 2))]
+pub(super) fn generated_connected_event_tense_spec_for_term_connection(
+    tense_modal: &TenseModalSyntax,
+) -> Option<GeneratedConnectedEventTenseSpec> {
+    generated_connected_event_tense_spec(tense_modal, true)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|spec| spec.branches.len() >= 2))]
+fn generated_connected_event_tense_spec(
+    tense_modal: &TenseModalSyntax,
+    allow_respectively: bool,
 ) -> Option<GeneratedConnectedEventTenseSpec> {
     let TenseModalBodySyntax::ConnectedTenseModal(connected) = &tense_modal.0 else {
         return None;
@@ -235,9 +294,15 @@ pub(super) fn generated_connected_event_tense_spec_for_tense_modal(
             if connector_question.is_some() {
                 return None;
             }
-            let next_operator = generated_connected_event_tense_connective_formula_operator(
-                &continuation.connective,
-            )?;
+            let next_operator = if allow_respectively {
+                generated_connected_event_tense_connective_formula_operator_for_term_connection(
+                    &continuation.connective,
+                )?
+            } else {
+                generated_connected_event_tense_connective_formula_operator(
+                    &continuation.connective,
+                )?
+            };
             if let Some(operator) = operator
                 && operator != next_operator
             {
@@ -253,8 +318,8 @@ pub(super) fn generated_connected_event_tense_spec_for_tense_modal(
         branches.push(next_branch);
     }
     let operator = operator?;
-    let truth_table = connector_question
-        .is_none()
+    let truth_table = (connector_question.is_none()
+        && operator != FormulaOperator::RespectivelyDistribution)
         .then(|| generated_truth_table_for_formula_operator(operator));
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
@@ -314,6 +379,24 @@ pub(super) fn generated_connected_event_tense_connective_formula_operator<N: Tre
             Some(Cmavo::Ju) => Some(FormulaOperator::WhetherOrNot),
             _ => None,
         })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|operator| matches!(operator, FormulaOperator::And | FormulaOperator::Or | FormulaOperator::Iff | FormulaOperator::WhetherOrNot | FormulaOperator::RespectivelyDistribution)))]
+pub(super) fn generated_connected_event_tense_connective_formula_operator_for_term_connection<
+    N: TreeNode,
+>(
+    connective: &N,
+) -> Option<FormulaOperator> {
+    generated_connected_event_tense_connective_formula_operator(connective).or_else(|| {
+        let mut collector = GeneratedSpanCollector::default();
+        connective.visit_in_order(&mut collector);
+        collector
+            .tokens
+            .into_iter()
+            .any(|token| token.cmavo() == Some(Cmavo::Fahu))
+            .then_some(FormulaOperator::RespectivelyDistribution)
+    })
 }
 
 #[requires(true)]

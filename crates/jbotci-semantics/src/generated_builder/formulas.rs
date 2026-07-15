@@ -342,6 +342,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source_node,
             simple_tail,
             &terms,
+            &BTreeMap::new(),
+            &[],
             first_visible_place,
             eventuality,
             mode,
@@ -636,6 +638,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             bridi,
             simple_tail,
             &terms,
+            &BTreeMap::new(),
+            &[],
             2,
             eventuality,
             mode,
@@ -693,6 +697,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source_node,
             simple_tail,
             &terms,
+            &BTreeMap::new(),
+            &[],
             2,
             None,
             PredicationMode::Asserted,
@@ -769,6 +775,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             bridi,
             simple_tail,
             &terms,
+            &BTreeMap::new(),
+            &[],
             1,
             eventuality,
             mode,
@@ -1055,6 +1063,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source_node,
             simple_tail,
             &terms,
+            &BTreeMap::new(),
+            &[],
             1,
             None,
             PredicationMode::Asserted,
@@ -1098,6 +1108,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         _source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         terms: &[&'syntax TermSyntax],
+        preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
+        preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -1153,6 +1165,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 != Some(Cmavo::Fahu)
             && modal_connection_spec.is_none()
         {
+            if !preassigned_visible_arguments.is_empty() || !preassigned_place_questions.is_empty()
+            {
+                return Err(unsupported(
+                    "nonlogical forethought termset with shared bridi arguments",
+                ));
+            }
             return self
                 .build_generated_nonlogical_forethought_termset_connection_formula(
                     termset,
@@ -1168,6 +1186,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let leading = self.build_generated_termset_branch_formula_in_mode(
             simple_tail,
             leading_terms,
+            preassigned_visible_arguments,
+            preassigned_place_questions,
             first_visible_place,
             mode,
             source.clone(),
@@ -1175,6 +1195,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let trailing = self.build_generated_termset_branch_formula_in_mode(
             simple_tail,
             trailing_terms,
+            preassigned_visible_arguments,
+            preassigned_place_questions,
             first_visible_place,
             mode,
             source.clone(),
@@ -1266,6 +1288,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let branch_formula = self.build_generated_termset_branch_formula_in_mode(
                 simple_tail,
                 branch_terms,
+                preassigned_visible_arguments,
+                preassigned_place_questions,
                 first_visible_place,
                 mode,
                 source.clone(),
@@ -2261,11 +2285,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(first_visible_place > 0)]
+    #[requires(preassigned_visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_termset_branch_formula_in_mode(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         terms: Vec<&'tree TermSyntax>,
+        preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
+        preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
         first_visible_place: usize,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
@@ -2273,15 +2300,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let relation = match relation_label_from_selbri(&simple_tail.selbri) {
             Ok(relation) => semantic_relation_label(relation),
             Err(_) => {
-                return self.build_selbri_formula_with_options(
+                return self.build_selbri_simple_bridi_tail_formula_with_preassigned_arguments(
                     &simple_tail.selbri,
+                    simple_tail,
+                    preassigned_visible_arguments,
+                    preassigned_place_questions,
                     terms,
                     first_visible_place,
                     None,
                     mode,
                     false,
-                    source.clone(),
-                    source,
                 );
             }
         };
@@ -2296,26 +2324,40 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         "relation place structure is unavailable; only places required by explicit assignments are represented",
                     ));
                 }
-                terms.len().max(1)
+                terms.len().max(1).max(
+                    preassigned_visible_arguments
+                        .keys()
+                        .copied()
+                        .max()
+                        .unwrap_or(0),
+                )
             }
         };
-        if let Some(formula) = self.build_generated_logical_sumti_connection_formula_for_terms(
-            &relation_text,
-            &terms,
-            first_visible_place,
-            place_limit,
-            &[] as &[WithFreeModifiers<Token, FreeModifierSyntax>],
-            mode,
-            source.clone(),
-            source.clone(),
-        )? {
-            return Ok(formula);
+        if preassigned_place_questions.is_empty() {
+            if let Some(formula) = self
+                .build_generated_logical_sumti_connection_formula_for_terms_with_preassigned_arguments(
+                    &relation_text,
+                    &terms,
+                    preassigned_visible_arguments,
+                    first_visible_place,
+                    place_limit,
+                    &[] as &[WithFreeModifiers<Token, FreeModifierSyntax>],
+                    mode,
+                    source.clone(),
+                    source.clone(),
+                )?
+            {
+                return Ok(formula);
+            }
         }
         let assignments =
             self.build_term_assignments_for_terms(terms.clone(), first_visible_place)?;
         let modal_arguments =
             self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
-        let mut arguments = BTreeMap::new();
+        let mut arguments = preassigned_visible_arguments
+            .iter()
+            .map(|(place, argument)| (argument_key(*place), argument.clone()))
+            .collect::<BTreeMap<_, _>>();
         for (visible_place, argument) in assignments.visible_arguments {
             let key = argument_key(visible_place);
             if arguments.insert(key.clone(), argument).is_some() {
@@ -2325,6 +2367,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+        let mut place_question_assignments = preassigned_place_questions.to_vec();
+        place_question_assignments.extend(assignments.place_questions.clone());
+        let place_questions = self.build_generated_place_question_bindings(
+            &place_question_assignments,
+            &arguments,
+            place_count,
+            highest_argument,
+        )?;
         for place in 1..=place_limit.max(highest_argument) {
             let key = argument_key(place);
             if !arguments.contains_key(&key) {
@@ -2342,7 +2392,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2693,20 +2743,108 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if mode != PredicationMode::Asserted {
             return Ok(None);
         }
-        let Some((connected_index, connected_term, connection)) =
+        let connection = if let Some((connected_index, connected_term, spec)) =
+            generated_logical_event_tense_connection_assignment_in_terms(terms)
+        {
+            let anchor = self
+                .build_tagged_or_elided_sumti_argument(&connected_term.sumti)?
+                .value;
+            let data!(GeneratedConnectedEventTenseSpec {
+                operator,
+                source,
+                truth_table,
+                connector_question,
+                branches,
+            }) = spec.into_data();
+            new!(GeneratedLogicalTagConnection {
+                operator,
+                source,
+                truth_table,
+                connector_question,
+                locus: "tense".to_owned(),
+                connected_index,
+                branches: branches
+                    .into_iter()
+                    .map(|branch| {
+                        new!(GeneratedLogicalTagConnectionBranch::Event { branch, anchor })
+                    })
+                    .collect(),
+            })
+        } else if let Some((connected_index, connected_term, spec)) =
             generated_logical_modal_connection_assignment_in_terms(terms)?
-        else {
+        {
+            let argument = self.build_tagged_or_elided_sumti_argument(&connected_term.sumti)?;
+            let data!(GeneratedLogicalModalConnectionSpec {
+                operator,
+                source,
+                truth_table,
+                terms: modal_terms,
+            }) = spec.into_data();
+            new!(GeneratedLogicalTagConnection {
+                operator,
+                source,
+                truth_table,
+                connector_question: None,
+                locus: "modal".to_owned(),
+                connected_index,
+                branches: modal_terms
+                    .into_iter()
+                    .map(|term| {
+                        new!(GeneratedLogicalTagConnectionBranch::Modal {
+                            term,
+                            argument: argument.clone(),
+                        })
+                    })
+                    .collect(),
+            })
+        } else {
             return Ok(None);
         };
-        let modal_argument_value =
-            self.build_tagged_or_elided_sumti_argument(&connected_term.sumti)?;
+        self.build_generated_logical_tag_connection_formula_for_terms(
+            branch_formula_source,
+            connection_formula_source,
+            relation,
+            direct_relation_place_count,
+            place_limit,
+            prefix_terms,
+            annotate_shared_head_source,
+            terms,
+            shared_tail_start,
+            first_visible_place,
+            conversions,
+            connection,
+            predication_source,
+        )
+        .map(Some)
+    }
+
+    #[requires(place_limit > 0)]
+    #[requires(first_visible_place > 0)]
+    #[requires(connection.connected_index < terms.len())]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_logical_tag_connection_formula_for_terms<'syntax: 'tree, F>(
+        &mut self,
+        branch_formula_source: Option<crate::model::SemanticSource>,
+        connection_formula_source: Option<crate::model::SemanticSource>,
+        relation: &str,
+        direct_relation_place_count: Option<usize>,
+        place_limit: usize,
+        prefix_terms: &[&'syntax TermSyntax],
+        annotate_shared_head_source: bool,
+        terms: &[&'syntax TermSyntax],
+        shared_tail_start: Option<usize>,
+        first_visible_place: usize,
+        conversions: &[WithFreeModifiers<Token, F>],
+        connection: GeneratedLogicalTagConnection<'syntax>,
+        predication_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let base_terms = terms
             .iter()
             .enumerate()
-            .filter_map(|(index, term)| (index != connected_index).then_some(*term))
+            .filter_map(|(index, term)| (index != connection.connected_index).then_some(*term))
             .collect::<Vec<_>>();
         let adjusted_shared_tail_start = shared_tail_start.map(|start| {
-            if connected_index < start {
+            if connection.connected_index < start {
                 start.saturating_sub(1)
             } else {
                 start
@@ -2719,8 +2857,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             self.build_generated_shared_head_assignments(prefix_terms, annotate_shared_head_source)?
         };
-        let mut children = Vec::with_capacity(connection.terms.len());
-        for term in &connection.terms {
+        let mut children = Vec::with_capacity(connection.branches.len());
+        for branch in &connection.branches {
             children.push(
                 self.build_generated_logical_modal_connection_branch_formula(
                     branch_formula_source.clone(),
@@ -2732,13 +2870,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     local_first_visible_place,
                     conversions,
                     shared_head_assignments.clone(),
-                    term,
-                    modal_argument_value.clone(),
+                    branch,
                     predication_source.clone(),
                 )?,
             );
         }
 
+        if connection.operator == FormulaOperator::RespectivelyDistribution {
+            return self.build_generated_respectively_tag_connection_formula(
+                children,
+                &connection,
+                connection_formula_source,
+            );
+        }
+        let connector_parameter = connection
+            .connector_question
+            .as_ref()
+            .map(|token| self.build_generated_connective_question_parameter_for_token(token))
+            .transpose()?
+            .flatten();
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -2747,15 +2897,117 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 children,
                 Some(new!(Connector {
                     source: connection.source.clone(),
-                    locus: "modal".to_owned(),
-                    truth_table: Some(connection.truth_table.clone()),
-                    parameter: None,
+                    locus: connection.locus.clone(),
+                    truth_table: connection.truth_table.clone(),
+                    parameter: connector_parameter,
                 })),
                 connection_formula_source,
                 Vec::new(),
             ),
         )?;
-        Ok(Some(formula))
+        Ok(formula)
+    }
+
+    #[requires(children.len() == connection.branches.len())]
+    #[requires(children.len() >= 2)]
+    #[requires(children.iter().all(|child| child.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    #[requires(connection.operator == FormulaOperator::RespectivelyDistribution)]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_respectively_tag_connection_formula(
+        &mut self,
+        children: Vec<SemanticObjectId>,
+        connection: &GeneratedLogicalTagConnection<'tree>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let composites = children
+            .iter()
+            .map(|child| self.generated_first_respectively_composite_argument(*child))
+            .collect::<Vec<_>>();
+        let has_composites = composites.iter().any(Option::is_some);
+        if has_composites && composites.iter().any(Option::is_none) {
+            return Err(invalid_graph(
+                "generated fa'u tag connection branches disagree about their composite argument"
+                    .to_owned(),
+            ));
+        }
+        let mut distributed_children = Vec::with_capacity(children.len());
+        let mut subject_members = Vec::with_capacity(children.len());
+        for (branch_index, (child, composite)) in children.into_iter().zip(composites).enumerate() {
+            let Some((composite, members)) = composite else {
+                distributed_children.push(child);
+                continue;
+            };
+            if members.len() != connection.branches.len() {
+                return Err(invalid_graph(format!(
+                    "generated fa'u tag connection has {} branches but its composite argument has {} members",
+                    connection.branches.len(),
+                    members.len(),
+                )));
+            }
+            let member = members[branch_index];
+            let distributed = self
+                .clone_generated_formula_with_argument_replacements(
+                    child,
+                    &BTreeMap::from([(composite, member)]),
+                )?
+                .ok_or_else(|| {
+                    invalid_graph(format!(
+                        "generated fa'u tag connection branch {} could not be distributed",
+                        branch_index + 1,
+                    ))
+                })?;
+            distributed_children.push(distributed);
+            subject_members.push(member);
+        }
+
+        let body = self.next_formula_id();
+        self.insert(
+            body,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                distributed_children.clone(),
+                Some(new!(Connector {
+                    source: connection.source.clone(),
+                    locus: connection.locus.clone(),
+                    truth_table: None,
+                    parameter: None,
+                })),
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let branch_slot = self.build_generated_parameter_with_source(
+            "fa'u".to_owned(),
+            source.clone(),
+            SemanticSort::Proposition,
+            ParameterRole::RespectiveSlot,
+        )?;
+        let mut streams = Vec::with_capacity(usize::from(has_composites) + 1);
+        if has_composites {
+            let subject_slot = self.build_generated_parameter_with_source(
+                "fa'u".to_owned(),
+                source.clone(),
+                SemanticSort::Entity,
+                ParameterRole::RespectiveSlot,
+            )?;
+            streams.push(RespectivelyStream::new(subject_slot, subject_members));
+        }
+        streams.push(RespectivelyStream::new(
+            branch_slot,
+            distributed_children.clone(),
+        ));
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::respectively_distribution_formula(
+                body,
+                streams,
+                None,
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
     }
 
     #[requires(place_limit > 0)]
@@ -2772,27 +3024,59 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         first_visible_place: usize,
         conversions: &[WithFreeModifiers<Token, F>],
         shared_head_assignments: GeneratedTermAssignments<'syntax>,
-        branch: &GeneratedConnectedModalTerm,
-        modal_argument_value: ArgumentValue,
+        branch: &GeneratedLogicalTagConnectionBranch<'syntax>,
         predication_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let modal_arguments_for_relation = self.modal_argument_map_for_visible_place(
-            modal_argument_value,
-            branch.visible_place,
-            relation_place_count(self.dictionary, &branch.relation),
-        )?;
-        let mut branch_modal_argument = self.generated_modal_argument_with_tense_modal_modifiers(
-            &branch.tense_modal,
-            branch.relation.clone(),
-            branch.introduced_by.clone(),
-            modal_arguments_for_relation,
-            generated_modal_negation_for_tense_modal(&branch.tense_modal),
-            generated_modal_scalar_negation_for_tense_modal(&branch.tense_modal),
-            "modal-argument",
-        );
+        let mut branch_modal_argument = match branch.as_data() {
+            data!(GeneratedLogicalTagConnectionBranch::Modal { term, argument }) => {
+                Some(match term.kind.as_data() {
+                    data!(GeneratedConnectedModalTermKind::Named {
+                        introduced_by,
+                        relation,
+                        visible_place,
+                    }) => {
+                        let modal_arguments_for_relation = self
+                            .modal_argument_map_for_visible_place(
+                                argument.clone(),
+                                *visible_place,
+                                relation_place_count(self.dictionary, relation),
+                            )?;
+                        self.generated_modal_argument_with_tense_modal_modifiers(
+                            &term.tense_modal,
+                            relation.clone(),
+                            introduced_by.clone(),
+                            modal_arguments_for_relation,
+                            generated_modal_negation_for_tense_modal(&term.tense_modal),
+                            generated_modal_scalar_negation_for_tense_modal(&term.tense_modal),
+                            "modal-argument",
+                        )
+                    }
+                    data!(GeneratedConnectedModalTermKind::AdHoc { selbri }) => self
+                        .build_generated_ad_hoc_modal_argument_for_selbri(
+                            &term.tense_modal,
+                            selbri,
+                            argument.clone(),
+                            "modal-argument",
+                        )?,
+                })
+            }
+            data!(GeneratedLogicalTagConnectionBranch::Event { .. }) => None,
+        };
         let eventuality =
             self.build_generated_predication_eventuality(predication_source.clone())?;
-        self.bind_generated_modal_argument_to_host_event(&mut branch_modal_argument, eventuality);
+        if let Some(modal_argument) = &mut branch_modal_argument {
+            self.bind_generated_modal_argument_to_host_event(modal_argument, eventuality);
+        }
+        if let data!(GeneratedLogicalTagConnectionBranch::Event { branch, anchor }) =
+            branch.as_data()
+        {
+            self.record_generated_tense_modal_event_modifier(
+                eventuality,
+                &branch.tense_modal,
+                *anchor,
+            )?;
+            self.flush_generated_event_modifiers(eventuality)?;
+        }
         self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, terms)?;
         let assignments = self.with_temporal_context(eventuality, |builder| {
             builder.build_term_assignments_for_terms_with_shared_tail_source(
@@ -2840,7 +3124,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         }
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
-        let mut modal_arguments = vec![branch_modal_argument];
+        let mut modal_arguments = branch_modal_argument.into_iter().collect::<Vec<_>>();
         self.append_generated_sticky_modal_arguments(
             &inherited_modal_arguments,
             &mut modal_arguments,
@@ -2876,11 +3160,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         scoped = self.append_generated_term_assignment_scopes(scoped, shared_head_assignments);
         let formula = self.wrap_generated_scoped_formula(scoped)?;
-        if branch.negated {
+        let (negated, tense_modal) = match branch.as_data() {
+            data!(GeneratedLogicalTagConnectionBranch::Modal { term, .. }) => {
+                (term.negated, &term.tense_modal)
+            }
+            data!(GeneratedLogicalTagConnectionBranch::Event { branch, .. }) => {
+                (branch.negated, &branch.tense_modal)
+            }
+        };
+        if negated {
             return self.build_unary_formula(
                 FormulaOperator::Not,
                 formula,
-                self.source_for_node(&branch.tense_modal, "modal-negation"),
+                self.source_for_node(tense_modal, "tag-negation"),
             );
         }
         Ok(formula)
@@ -4712,6 +5004,55 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let shared_tail_start =
                     (!suffix_terms.is_empty()).then_some(simple_tail.terms.len());
                 let eventuality = None;
+                if terms.iter().any(|term| match term {
+                    TermSyntax::SimpleTerm(SimpleTermSyntax::ForethoughtTermset(_)) => true,
+                    TermSyntax::ConnectedTerm(ConnectedTermSyntax {
+                        leading_term,
+                        continuations,
+                    }) => {
+                        continuations.is_empty()
+                            && matches!(
+                                leading_term.as_ref(),
+                                SimpleTermSyntax::ForethoughtTermset(_)
+                            )
+                    }
+                    _ => false,
+                }) {
+                    let shared_head_assignments = if prefix_terms.is_empty() {
+                        empty_generated_term_assignments()
+                    } else {
+                        self.build_generated_shared_head_assignments(
+                            prefix_terms,
+                            annotate_shared_head_source,
+                        )?
+                    };
+                    let local_first_visible_place =
+                        first_visible_place.max(shared_head_assignments.next_visible_place);
+                    if let Some(formula) = self
+                        .build_generated_forethought_termset_connection_formula(
+                            &simple_tail.selbri,
+                            simple_tail,
+                            &terms,
+                            &shared_head_assignments.visible_arguments,
+                            &shared_head_assignments.place_questions,
+                            local_first_visible_place,
+                            eventuality,
+                            mode,
+                        )?
+                    {
+                        self.attach_generated_modal_terms_to_formula(
+                            formula,
+                            &shared_head_assignments.modal_terms,
+                        )?;
+                        return Ok(GeneratedScopedFormula {
+                            formula,
+                            formula_scopes: shared_head_assignments.formula_scopes,
+                            coequal_scope_groups: shared_head_assignments.coequal_scope_groups,
+                            implicit_existentials: shared_head_assignments.implicit_existentials,
+                            term_formula_scopes: shared_head_assignments.term_formula_scopes,
+                        });
+                    }
+                }
                 if let Some(scoped) = self.build_direct_relation_scoped_formula_from_terms(
                     &simple_tail.selbri,
                     &simple_tail.selbri,

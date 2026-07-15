@@ -605,26 +605,65 @@ struct GeneratedModalStatementConnectionSpec {
 }
 
 #[invariant(!source.is_empty(), "modal connection source must preserve connector text")]
-#[invariant(truth_table.len() == 4, "logical connective truth tables have four rows")]
+#[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.as_ref().is_some_and(|table| table.len() == 4)), "logical modal connections have either a four-row truth table or respectively distribution")]
 #[invariant(terms.len() >= 2, "modal connections need at least two branches")]
 #[derive(Debug, Clone)]
-struct GeneratedLogicalModalConnectionSpec {
+struct GeneratedLogicalModalConnectionSpec<'syntax> {
     operator: FormulaOperator,
     source: String,
-    truth_table: String,
-    terms: Vec<GeneratedConnectedModalTerm>,
+    truth_table: Option<String>,
+    terms: Vec<GeneratedConnectedModalTerm<'syntax>>,
 }
 
-#[invariant(!introduced_by.is_empty(), "modal term marker must be named")]
-#[invariant(!relation.is_empty(), "modal term relation must be named")]
-#[invariant(*visible_place > 0, "modal visible place is one-based")]
+#[invariant(generated_tense_modal_has_modal_argument(tense_modal))]
 #[derive(Debug, Clone)]
-struct GeneratedConnectedModalTerm {
+struct GeneratedConnectedModalTerm<'syntax> {
     tense_modal: TenseModalSyntax,
-    introduced_by: String,
-    relation: String,
-    visible_place: usize,
+    kind: GeneratedConnectedModalTermKind<'syntax>,
     negated: bool,
+}
+
+#[invariant(!source.is_empty())]
+#[invariant(!locus.is_empty())]
+#[invariant(branches.len() >= 2)]
+#[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none() && connector_question.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.is_some() != connector_question.is_some()))]
+#[derive(Debug, Clone)]
+struct GeneratedLogicalTagConnection<'syntax> {
+    operator: FormulaOperator,
+    source: String,
+    truth_table: Option<String>,
+    connector_question: Option<Token>,
+    locus: String,
+    connected_index: usize,
+    branches: Vec<GeneratedLogicalTagConnectionBranch<'syntax>>,
+}
+
+#[invariant(::Modal { term, .. } => generated_tense_modal_has_modal_argument(&term.tense_modal))]
+#[invariant(::Event { branch, anchor } => generated_tense_modal_has_event_modifier(&branch.tense_modal) && anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[derive(Debug, Clone)]
+enum GeneratedLogicalTagConnectionBranch<'syntax> {
+    Modal {
+        term: GeneratedConnectedModalTerm<'syntax>,
+        argument: ArgumentValue,
+    },
+    Event {
+        branch: GeneratedConnectedEventTenseBranch,
+        anchor: Option<SemanticObjectId>,
+    },
+}
+
+#[invariant(::Named { introduced_by, relation, visible_place } => !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0)]
+#[invariant(::AdHoc { .. } => true)]
+#[derive(Debug, Clone)]
+enum GeneratedConnectedModalTermKind<'syntax> {
+    Named {
+        introduced_by: String,
+        relation: String,
+        visible_place: usize,
+    },
+    AdHoc {
+        selbri: &'syntax SelbriSyntax,
+    },
 }
 
 #[invariant(true)]
@@ -1028,7 +1067,7 @@ struct GeneratedGovernedTermset {
 
 #[invariant(branches.len() >= 2)]
 #[invariant(!source.is_empty())]
-#[invariant(truth_table.is_some() != connector_question.is_some())]
+#[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none() && connector_question.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.is_some() != connector_question.is_some()))]
 #[derive(Debug, Clone)]
 struct GeneratedConnectedEventTenseSpec {
     operator: FormulaOperator,
@@ -11190,6 +11229,253 @@ mod tests {
                 && connector.parameter.is_some()
         }));
         assert_eq!(named_predication_ids(&graph, "broda").len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_fiho_modals_copy_the_bridi_and_keep_typed_modal_bodies() {
+        let graph = semantic_graph_for(".e'a casnu fi'o selsnu ja fi'o bangu la lojban");
+        let casnu = named_predication_ids(&graph, "casnu");
+        assert_eq!(casnu.len(), 2, "JA-connected FIhO tags copy the bridi");
+        let mut modal_relations = BTreeSet::new();
+        let mut shared_topic = None;
+        for predication in casnu {
+            let predication = graph.objects[&predication]
+                .as_predication()
+                .expect("casnu branch predication");
+            let [modal] = predication.modal_arguments.as_slice() else {
+                panic!("each casnu branch must retain exactly one FIhO modal body");
+            };
+            assert_eq!(modal.introduced_by, "fi'o");
+            let body = modal.body.expect("FIhO modal keeps a typed body formula");
+            assert_eq!(
+                modal.component, predication.eventuality,
+                "the FIhO modal component must be its copied casnu event"
+            );
+            let body = graph.objects[&body]
+                .formula_predication()
+                .and_then(|body| graph.objects.get(&body))
+                .and_then(SemanticObject::as_predication)
+                .expect("FIhO body is an atomic selbri formula");
+            let data!(PredicationRelation::Named { relation }) = body.relation.as_data() else {
+                panic!("FIhO body relation must stay named");
+            };
+            modal_relations.insert(relation.clone());
+            let topic = body.arguments[&argument_key(1)]
+                .value
+                .expect("la lojban fills the FIhO relation x1");
+            assert_eq!(*shared_topic.get_or_insert(topic), topic);
+        }
+        assert_eq!(
+            modal_relations,
+            BTreeSet::from(["bangu".to_owned(), "selsnu".to_owned()])
+        );
+        assert!(graph.objects.values().any(|object| {
+            matches!(
+                object.as_formula().map(FormulaNode::as_data),
+                Some(data!(FormulaNode::Connective(connection)))
+                    if connection.operator == FormulaOperator::Or
+                        && connection.connector.as_ref().is_some_and(|connector| {
+                            connector.locus == "modal"
+                                && connector.source == "fi'o selsnu ja fi'o bangu"
+                        })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_event_tense_terms_copy_the_bridi_and_constrain_each_event() {
+        let graph = semantic_graph_for("mi pu je ba zu cu zasti");
+        let mut zasti = named_predication_ids(&graph, "zasti")
+            .into_iter()
+            .map(|id| {
+                let predication = graph.objects[&id]
+                    .as_predication()
+                    .expect("zasti branch predication");
+                assert_eq!(
+                    predication.arguments[&argument_key(1)].value,
+                    Some(SemanticObjectId::speaker()),
+                    "the leading mi term must be shared by both tense branches"
+                );
+                let eventuality = predication
+                    .eventuality
+                    .expect("each zasti branch has an eventuality");
+                (
+                    eventuality,
+                    graph.objects[&eventuality].as_eventuality().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        zasti.sort_by_key(|(eventuality, _)| *eventuality);
+        let [(first_id, first), (second_id, second)] = zasti.as_slice() else {
+            panic!("JE-connected tense terms must build exactly two zasti events");
+        };
+        let first_time = first.time.as_ref().expect("pu constrains the first event");
+        let second_time = second
+            .time
+            .as_ref()
+            .expect("ba zu constrains the second event");
+        assert_eq!(first_time.relation, "before");
+        assert_eq!(second_time.relation, "after");
+        assert_eq!(first_time.anchor, second_time.anchor);
+        assert_eq!(first_time.distance, None);
+        assert_eq!(second_time.distance.as_deref(), Some("long"));
+        assert_ne!(
+            first_id, second_id,
+            "the branches need distinct eventualities"
+        );
+        assert!(graph.objects.values().any(|object| {
+            matches!(
+                object.as_formula().map(FormulaNode::as_data),
+                Some(data!(FormulaNode::Connective(connection)))
+                    if connection.operator == FormulaOperator::And
+                        && connection.children.len() == 2
+                        && connection.connector.as_ref().is_some_and(|connector| {
+                            connector.locus == "tense"
+                                && connector.source == "pu je ba zu"
+                                && connector.truth_table.as_deref() == Some("TFFF")
+                        })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fahu_connected_spatial_terms_preserve_parallel_event_conditions() {
+        let graph = semantic_graph_for("punji le romei le pluta vi fa'u va ku");
+        let mut punji = named_predication_ids(&graph, "punji")
+            .into_iter()
+            .map(|id| {
+                let predication = graph.objects[&id]
+                    .as_predication()
+                    .expect("punji branch predication");
+                let eventuality = predication
+                    .eventuality
+                    .expect("each punji branch has an eventuality");
+                (
+                    predication,
+                    graph.objects[&eventuality].as_eventuality().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        punji.sort_by_key(|(predication, _)| predication.eventuality);
+        let [(near_predication, near), (medium_predication, medium)] = punji.as_slice() else {
+            panic!("FAhU-connected spatial terms must build exactly two punji events");
+        };
+        let near_space = near.space.as_ref().expect("vi constrains the first event");
+        let medium_space = medium
+            .space
+            .as_ref()
+            .expect("va constrains the second event");
+        assert_eq!(near_space.relation, "distanceFrom");
+        assert_eq!(medium_space.relation, "distanceFrom");
+        assert_eq!(near_space.anchor, medium_space.anchor);
+        assert_eq!(near_space.distance.as_deref(), Some("short"));
+        assert_eq!(medium_space.distance.as_deref(), Some("medium"));
+        for place in [2, 3] {
+            assert_eq!(
+                near_predication.arguments[&argument_key(place)].value,
+                medium_predication.arguments[&argument_key(place)].value,
+                "explicit place x{place} must be shared by both spatial branches"
+            );
+        }
+        let distribution = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::RespectivelyDistribution(distribution)) => Some(distribution),
+                _ => None,
+            })
+            .expect("fa'u must remain a typed respectively distribution");
+        let [branch_stream] = distribution.streams.as_slice() else {
+            panic!("a tag-only fa'u connection has one parallel formula stream");
+        };
+        assert_eq!(branch_stream.items.len(), 2);
+        let data!(FormulaNode::Connective(body)) = graph.objects[&distribution.body]
+            .as_formula()
+            .expect("respectively body is a formula")
+            .as_data()
+        else {
+            panic!("respectively body must retain both spatial branches");
+        };
+        assert_eq!(body.operator, FormulaOperator::And);
+        assert_eq!(body.children, branch_stream.items);
+        assert!(body.connector.as_ref().is_some_and(|connector| {
+            connector.locus == "tense"
+                && connector.source == "vi fa'u va"
+                && connector.truth_table.is_none()
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_termsets_fill_each_branch_place_without_dropping_shared_terms() {
+        let graph = semantic_graph_for(
+            "le pamoi zgana cu du la mapypre noi nerkla gi'e jgari nu'i ge lo tcati kabri le xance gi lo nanba joi matne le drata",
+        );
+        let jgari = named_predication_ids(&graph, "jgari");
+        let [first, second] = jgari.as_slice() else {
+            panic!("GE/GI termsets must build exactly two jgari branches");
+        };
+        let first = graph.objects[first].as_predication().unwrap();
+        let second = graph.objects[second].as_predication().unwrap();
+        assert_eq!(
+            first.arguments[&argument_key(1)].value,
+            second.arguments[&argument_key(1)].value,
+            "the leading observer must be shared across termset branches"
+        );
+        let branch_sources = |predication: &crate::model::PredicationNode| {
+            [2, 3]
+                .map(|place| {
+                    let value = predication.arguments[&argument_key(place)]
+                        .value
+                        .expect("termset branch fills both explicit places");
+                    graph.objects[&value]
+                        .source()
+                        .and_then(|source| source.text.clone())
+                        .expect("explicit sumti retains its source")
+                })
+                .to_vec()
+        };
+        let sources = [branch_sources(first), branch_sources(second)];
+        assert!(sources.contains(&vec!["lo tcati kabri".to_owned(), "le xance".to_owned()]));
+        assert!(sources.contains(&vec![
+            "lo nanba joi matne".to_owned(),
+            "le drata".to_owned(),
+        ]));
+        assert!(graph.objects.values().any(|object| {
+            matches!(
+                object.as_formula().map(FormulaNode::as_data),
+                Some(data!(FormulaNode::Connective(connection)))
+                    if connection.operator == FormulaOperator::And
+                        && connection.children.len() == 2
+                        && connection.connector.as_ref().is_some_and(|connector| {
+                            connector.locus == "termset"
+                                && connector.source == "ge gi"
+                                && connector.truth_table.as_deref() == Some("TFFF")
+                        })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standalone_connected_term_fragments_require_the_missing_bridi() {
+        let error = semantic_result_for("lu da .o de li'u du lu da .e de .a ke nada .e nade li'u")
+            .expect_err(
+                "the connected terms inside the second quotation have no bridi to distribute",
+            );
+        assert_eq!(error.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert_eq!(
+            error.message,
+            "semantic analysis of the missing bridi proposition distributed by standalone connected-term fragment `da e de a ke na da e na de` requires discourse context"
+        );
     }
 
     #[test]
