@@ -10544,6 +10544,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn experimental_sumti_bases_report_principled_undefined_semantics() {
+        for (source, construct) in [
+            (
+                "mi tavla la'e fa do",
+                "an experimental LAhE/NAhE term wrapper",
+            ),
+            (
+                "mi tavla na'e bo fa do",
+                "an experimental LAhE/NAhE term wrapper",
+            ),
+            (
+                "mi tavla na'e fa do",
+                "an experimental NAhE-prefixed FA tag",
+            ),
+            (
+                "lo'oi mi klama ku'au cu melbi",
+                "an experimental LOhOI/KUhAU bridi-description sumti",
+            ),
+            (
+                "lo je le broda",
+                "an experimental JA connection between descriptor heads",
+            ),
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("experimental sumti base has no defined semantic lowering");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                format!("semantic interpretation is undefined for {construct}")
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn duplicate_linkarg_x1_expands_to_conjoined_restrictions() {
         let graph = semantic_graph_for("le gadri be fa zo le");
         let gadri = graph

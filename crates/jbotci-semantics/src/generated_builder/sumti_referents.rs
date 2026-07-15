@@ -469,6 +469,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         argument: ArgumentValue,
     ) -> Result<Option<ModalArgument>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
+        if matches!(
+            tense_modal,
+            LeadingTermTagTenseModalSyntax::TenseModal(TenseModalSyntax(
+                TenseModalBodySyntax::TenseModalAtom(
+                    TenseModalAtomSyntax::NaheSeFlatPrefixedTense(prefix)
+                )
+            )) if matches!(
+                prefix.atom,
+                jbotci_syntax::generated_model::FlatTagAtomSyntax::FaFlatTagAtom(_)
+            )
+        ) {
+            return Err(undefined_semantics("an experimental NAhE-prefixed FA tag"));
+        }
         if generated_tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
         }
@@ -4499,7 +4512,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             SumtiBaseSyntax::LaheSumti(sumti) => builder.build_lahe_sumti_referent(sumti),
             SumtiBaseSyntax::QuotedSumti(sumti) => builder.build_quoted_sumti_sign(sumti),
-            _ => Err(unsupported("sumti base")),
+            SumtiBaseSyntax::LaheTermWrapper(_)
+            | SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(_)
+            | SumtiBaseSyntax::ScalarNegatedTermWrapper(_) => Err(undefined_semantics(
+                "an experimental LAhE/NAhE term wrapper",
+            )),
+            SumtiBaseSyntax::BridiDescriptionSumti(_) => Err(undefined_semantics(
+                "an experimental LOhOI/KUhAU bridi-description sumti",
+            )),
+            SumtiBaseSyntax::DescriptionConnectionSumti(_) => Err(undefined_semantics(
+                "an experimental JA connection between descriptor heads",
+            )),
         })
         .map(|(referent, _built)| referent)
     }
