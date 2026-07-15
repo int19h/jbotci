@@ -784,6 +784,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )? {
             return Ok(formula);
         }
+        if let Some(formula) = self.build_generated_direct_term_connection_formula(
+            simple_tail,
+            &terms,
+            1,
+            None,
+            PredicationMode::Asserted,
+        )? {
+            return Ok(formula);
+        }
         let first_visible_place =
             generated_bridi_with_leading_terms_first_visible_place(&leading_terms)?;
         self.build_selbri_simple_bridi_tail_formula_from_terms(
@@ -795,6 +804,211 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             mode,
             true,
         )
+    }
+
+    #[requires(first_visible_place > 0)]
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_generated_direct_term_connection_formula<'syntax: 'tree>(
+        &mut self,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: &[&'syntax TermSyntax],
+        first_visible_place: usize,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some((position, connection)) =
+            terms
+                .iter()
+                .enumerate()
+                .find_map(|(position, term)| match term {
+                    TermSyntax::ConnectedTerm(connection)
+                        if !connection.continuations.is_empty() =>
+                    {
+                        Some((position, term))
+                    }
+                    TermSyntax::BoundTermConnection(_) => Some((position, term)),
+                    _ => None,
+                })
+        else {
+            return Ok(None);
+        };
+        let connection = *connection;
+        if eventuality.is_some() {
+            return Err(unsupported("scoped direct term connection"));
+        }
+
+        let before_terms = &terms[..position];
+        let after_terms = &terms[position + 1..];
+        let prefix_assignments =
+            self.build_term_assignments_for_terms(before_terms.to_vec(), first_visible_place)?;
+        let suffix_assignments = self.build_term_assignments_for_terms(after_terms.to_vec(), 1)?;
+        let source = self.source_for_node(connection, "term-connection-formula");
+
+        let (leading_term, continuations): (
+            &'syntax SimpleTermSyntax,
+            Vec<(
+                GeneratedDirectTermConnective<'syntax>,
+                &'syntax SimpleTermSyntax,
+            )>,
+        ) = match connection {
+            TermSyntax::ConnectedTerm(connection) => (
+                &connection.leading_term,
+                connection
+                    .continuations
+                    .iter()
+                    .map(|continuation| {
+                        (
+                            GeneratedDirectTermConnective::Connected(&continuation.connective),
+                            continuation.trailing_term.as_ref(),
+                        )
+                    })
+                    .collect(),
+            ),
+            TermSyntax::BoundTermConnection(connection) => (
+                &connection.leading_term,
+                vec![(
+                    GeneratedDirectTermConnective::Bound(&connection.connective),
+                    connection.trailing_term.as_ref(),
+                )],
+            ),
+            _ => unreachable!("the direct term connection search returned another term kind"),
+        };
+
+        let mut formula = self.build_generated_direct_term_branch_formula_in_mode(
+            simple_tail,
+            &prefix_assignments,
+            leading_term,
+            &suffix_assignments,
+            first_visible_place,
+            mode,
+            source.clone(),
+        )?;
+        for (connective, trailing_term) in continuations {
+            if !generated_direct_term_connective_is_logical(connective) {
+                return Err(undefined_semantics(
+                    "an experimental nonlogical direct term connection",
+                ));
+            }
+            let right = self.build_generated_direct_term_branch_formula_in_mode(
+                simple_tail,
+                &prefix_assignments,
+                trailing_term,
+                &suffix_assignments,
+                first_visible_place,
+                mode,
+                source.clone(),
+            )?;
+            formula = self.build_generated_direct_term_pair_formula(
+                connective,
+                formula,
+                right,
+                source.clone(),
+            )?;
+        }
+        Ok(Some(formula))
+    }
+
+    #[requires(first_visible_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_direct_term_branch_formula_in_mode<'syntax: 'tree>(
+        &mut self,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        prefix_assignments: &GeneratedTermAssignments<'syntax>,
+        term: &'syntax SimpleTermSyntax,
+        suffix_assignments: &GeneratedTermAssignments<'syntax>,
+        first_visible_place: usize,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut assignments = prefix_assignments.clone();
+        let mut next_visible_place =
+            next_visible_place_after_generated_assignments(&assignments).max(first_visible_place);
+        let existential_start = self.implicit_existential_variables.len();
+        self.insert_generated_simple_term_assignment(
+            &mut assignments.visible_arguments,
+            &mut assignments.place_questions,
+            &mut assignments.modal_terms,
+            &mut assignments.formula_scopes,
+            &mut assignments.coequal_scope_groups,
+            &mut assignments.term_formula_scopes,
+            &mut next_visible_place,
+            term,
+            term,
+        )?;
+        assignments.implicit_existentials.extend(
+            self.implicit_existential_variables
+                .split_off(existential_start),
+        );
+        assignments.next_visible_place = next_visible_place;
+        extend_generated_term_assignments_shifted(
+            &mut assignments,
+            suffix_assignments,
+            next_visible_place.saturating_sub(1),
+        )?;
+        self.build_generated_termset_branch_formula_from_assignments_in_mode(
+            simple_tail,
+            assignments,
+            mode,
+            source,
+        )
+    }
+
+    #[requires(generated_direct_term_connective_is_logical(connective))]
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_direct_term_pair_formula(
+        &mut self,
+        connective: GeneratedDirectTermConnective<'_>,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let left = if generated_direct_term_connective_negates_left(connective) {
+            self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
+        } else {
+            left
+        };
+        let right = if generated_direct_term_connective_negates_right(connective) {
+            self.build_unary_formula(FormulaOperator::Not, right, source.clone())?
+        } else {
+            right
+        };
+        let operator = generated_direct_term_connective_formula_operator(connective);
+        let children = if generated_direct_term_connective_has_se(connective)
+            && operator != FormulaOperator::WhetherOrNot
+        {
+            vec![right, left]
+        } else {
+            vec![left, right]
+        };
+        let parameter = generated_direct_term_connective_question_token(connective)
+            .map(|token| self.build_generated_connective_question_parameter_for_token(&token))
+            .transpose()?
+            .flatten();
+        let connector_source = generated_direct_term_connective_source(connective)?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                if parameter.is_some() {
+                    FormulaOperator::ConnectiveQuestion
+                } else {
+                    operator
+                },
+                children,
+                Some(new!(Connector {
+                    source: connector_source,
+                    locus: "term".to_owned(),
+                    truth_table: generated_direct_term_connective_truth_table(connective),
+                    parameter,
+                })),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
     }
 
     #[requires(true)]

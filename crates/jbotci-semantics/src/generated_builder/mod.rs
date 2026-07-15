@@ -1178,6 +1178,14 @@ enum GeneratedDistributedSumtiConnective<'syntax> {
     },
 }
 
+#[invariant(::Connected(_) => true)]
+#[invariant(::Bound(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedDirectTermConnective<'syntax> {
+    Connected(&'syntax jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax),
+    Bound(&'syntax jbotci_syntax::generated_model::BoundTermConnectiveSyntax),
+}
+
 #[invariant(*continuation_count <= sumti.continuations.len())]
 #[derive(Debug, Clone, Copy)]
 struct GeneratedSumtiAfterthoughtPrefix<'syntax> {
@@ -10800,6 +10808,119 @@ mod tests {
             Some("le nu do klama"),
             "the linked sumti must be the temporal anchor rather than being dropped"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_tense_terms_copy_the_bridi_and_keep_both_event_anchors() {
+        let graph = semantic_graph_for("pu ko'a .e ba ko'e broda");
+        let content = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .expect("assertion content");
+        let data!(FormulaNode::Connective(connection)) = graph.objects[&content]
+            .as_formula()
+            .expect("direct term connection formula")
+            .as_data()
+        else {
+            panic!("connected terms should distribute the bridi");
+        };
+        assert_eq!(connection.operator, FormulaOperator::And);
+        assert_eq!(connection.children.len(), 2);
+        assert_eq!(
+            connection
+                .connector
+                .as_ref()
+                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
+            Some(("e", "term"))
+        );
+
+        let branches = connection
+            .children
+            .iter()
+            .map(|formula| {
+                let predication = graph.objects[formula]
+                    .formula_predication()
+                    .and_then(|predication| graph.objects.get(&predication))
+                    .and_then(SemanticObject::as_predication)
+                    .expect("distributed broda predication");
+                assert!(matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda"));
+                let event = predication
+                    .eventuality
+                    .and_then(|event| graph.objects.get(&event))
+                    .and_then(SemanticObject::as_eventuality)
+                    .expect("each branch has its own eventuality");
+                let time = event.time.as_ref().expect("each term constrains its branch");
+                let anchor_source = graph
+                    .objects
+                    .get(&time.anchor)
+                    .and_then(SemanticObject::source)
+                    .and_then(|source| source.text.as_deref())
+                    .expect("the tense anchor retains its source");
+                (time.relation.as_str(), anchor_source)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(branches, [("before", "ko'a"), ("after", "ko'e")]);
+        assert_ne!(
+            graph.objects[&connection.children[0]]
+                .formula_predication()
+                .and_then(|predication| graph.objects[&predication].as_predication())
+                .and_then(|predication| predication.eventuality),
+            graph.objects[&connection.children[1]]
+                .formula_predication()
+                .and_then(|predication| graph.objects[&predication].as_predication())
+                .and_then(|predication| predication.eventuality),
+            "the two event conditions must not collapse onto one copied predication"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ji_connected_tense_terms_build_a_connective_question() {
+        let graph = semantic_graph_for("pu ko'a ji ba ko'e broda");
+        let question = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_utterance)
+            .and_then(|utterance| utterance.content)
+            .and_then(|content| graph.objects.get(&content))
+            .and_then(SemanticObject::as_question)
+            .expect("JI term connection should produce a direct connective question");
+        let data!(FormulaNode::Connective(connection)) = graph.objects[&question.body]
+            .as_formula()
+            .expect("connective-question body")
+            .as_data()
+        else {
+            panic!("JI term connection should distribute the bridi");
+        };
+        assert_eq!(connection.operator, FormulaOperator::ConnectiveQuestion);
+        assert_eq!(connection.children.len(), 2);
+        assert!(connection.connector.as_ref().is_some_and(|connector| {
+            connector.source == "ji"
+                && connector.locus == "term"
+                && connector.truth_table.is_none()
+                && connector.parameter.is_some()
+        }));
+        assert_eq!(named_predication_ids(&graph, "broda").len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonlogical_direct_term_connections_are_principled_errors() {
+        for source in ["pu ko'a joi ba ko'e broda", "pu ko'a su'i ba ko'e broda"] {
+            let error = semantic_result_for(source)
+                .expect_err("experimental nonlogical direct term semantics are undefined");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                "semantic interpretation is undefined for an experimental nonlogical direct term connection"
+            );
+        }
     }
 
     #[test]
