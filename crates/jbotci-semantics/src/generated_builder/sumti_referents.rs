@@ -4425,6 +4425,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let Some(tail) = &sumti.bound_tail else {
                 return Ok(leading);
             };
+            if tail
+                .tense_modal
+                .as_deref()
+                .is_some_and(generated_tense_modal_is_experimental_fa_tag)
+            {
+                return Err(undefined_semantics(
+                    "an experimental FA tag in a sumti connection",
+                ));
+            }
             if tail.tense_modal.is_some() {
                 return Err(unsupported("tense-modal bound sumti"));
             }

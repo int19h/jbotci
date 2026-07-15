@@ -1611,6 +1611,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(!tanru.additional_units.is_empty())]
     #[requires(first_visible_place > 0)]
     #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_terms_with_head_eventuality_order_and_mode(
         &mut self,
@@ -1630,7 +1631,306 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             head_eventuality
         };
+        if let Some(formula) = self
+            .build_generated_logical_sumti_connection_formula_for_tanru_terms(
+                tanru,
+                &terms,
+                first_visible_place,
+                head_eventuality,
+                mode,
+                source.clone(),
+            )?
+        {
+            return Ok(formula);
+        }
         let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
+        self.build_tanru_formula_from_assignments_in_mode(
+            tanru,
+            assignments,
+            head_eventuality,
+            mode,
+            source,
+        )
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(first_visible_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_generated_logical_sumti_connection_formula_for_tanru_terms<
+        'syntax: 'tree,
+    >(
+        &mut self,
+        tanru: &'syntax TanruSelbriSyntax,
+        terms: &[&'syntax TermSyntax],
+        first_visible_place: usize,
+        head_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let mut base_assignments = empty_generated_term_assignments();
+        base_assignments.next_visible_place = first_visible_place;
+        self.build_generated_logical_sumti_connection_formula_for_tanru_terms_with_preassigned(
+            tanru,
+            terms,
+            &base_assignments,
+            first_visible_place,
+            head_eventuality,
+            mode,
+            source,
+        )
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(base_assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(first_visible_place > 0)]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_generated_logical_sumti_connection_formula_for_tanru_terms_with_preassigned<
+        'syntax: 'tree,
+    >(
+        &mut self,
+        tanru: &'syntax TanruSelbriSyntax,
+        terms: &[&'syntax TermSyntax],
+        base_assignments: &GeneratedTermAssignments<'syntax>,
+        first_visible_place: usize,
+        head_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let mut connected = None;
+        for (position, term) in terms.iter().enumerate() {
+            let simple = generated_simple_term_for_assignment(term)?;
+            let (place_tag, sumti) = match simple {
+                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => (None, sumti.as_ref()),
+                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                    let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
+                        continue;
+                    };
+                    (Some(&term.fa.value), sumti)
+                }
+                _ => continue,
+            };
+            let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
+            if generated_logical_sumti_connection_for_branch(branch)?.is_none() {
+                continue;
+            }
+            let explicit_place = match place_tag {
+                Some(token) if token.cmavo() == Some(Cmavo::Fai) => {
+                    return Err(undefined_semantics(
+                        "a fai term without a local JAI conversion target",
+                    ));
+                }
+                Some(token) => Some(fa_place(token)?),
+                None => None,
+            };
+            if connected
+                .replace((position, explicit_place, branch))
+                .is_some()
+            {
+                return Err(unsupported(
+                    "multiple connected sumti arguments on a compound tanru",
+                ));
+            }
+        }
+        let Some((position, explicit_place, sumti)) = connected else {
+            return Ok(None);
+        };
+        let mut prefix_assignments = base_assignments.clone();
+        prefix_assignments.next_visible_place = prefix_assignments
+            .next_visible_place
+            .max(first_visible_place);
+        for term in &terms[..position] {
+            let existential_start = self.implicit_existential_variables.len();
+            self.insert_generated_term_assignment(
+                &mut prefix_assignments.visible_arguments,
+                &mut prefix_assignments.place_questions,
+                &mut prefix_assignments.modal_terms,
+                &mut prefix_assignments.formula_scopes,
+                &mut prefix_assignments.coequal_scope_groups,
+                &mut prefix_assignments.term_formula_scopes,
+                &mut prefix_assignments.next_visible_place,
+                term,
+            )?;
+            prefix_assignments.implicit_existentials.extend(
+                self.implicit_existential_variables
+                    .split_off(existential_start),
+            );
+        }
+        let suffix_assignments =
+            self.build_term_assignments_for_terms(terms[position + 1..].to_vec(), 1)?;
+        self.build_generated_tanru_sumti_connection_formula(
+            tanru,
+            &prefix_assignments,
+            &suffix_assignments,
+            explicit_place,
+            sumti,
+            first_visible_place,
+            head_eventuality,
+            mode,
+            source,
+            &[],
+        )
+        .map(Some)
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(prefix_assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(suffix_assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(first_visible_place > 0)]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_tanru_sumti_connection_formula<'syntax: 'tree>(
+        &mut self,
+        tanru: &'syntax TanruSelbriSyntax,
+        prefix_assignments: &GeneratedTermAssignments<'syntax>,
+        suffix_assignments: &GeneratedTermAssignments<'syntax>,
+        explicit_place: Option<usize>,
+        sumti: GeneratedDistributedSumtiBranch<'syntax>,
+        first_visible_place: usize,
+        head_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+        additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(connection) = generated_logical_sumti_connection_for_branch(sumti)? else {
+            return self.build_generated_tanru_sumti_connection_branch_formula(
+                tanru,
+                prefix_assignments,
+                suffix_assignments,
+                explicit_place,
+                sumti,
+                first_visible_place,
+                head_eventuality,
+                mode,
+                source,
+                false,
+                additional_relative_clause_lists,
+            );
+        };
+        let mut relative_clause_lists = additional_relative_clause_lists.to_vec();
+        if let Some(relative_clauses) = connection.relative_clauses {
+            relative_clause_lists.push(relative_clauses);
+        }
+        let leading_formula = self.build_generated_tanru_sumti_connection_branch_formula(
+            tanru,
+            prefix_assignments,
+            suffix_assignments,
+            explicit_place,
+            connection.leading,
+            first_visible_place,
+            head_eventuality,
+            mode,
+            source.clone(),
+            generated_distributed_sumti_connective_negates_left(connection.connective),
+            &relative_clause_lists,
+        )?;
+        let trailing_head_eventuality = head_eventuality
+            .map(|eventuality| self.clone_generated_eventuality_for_predication(eventuality))
+            .transpose()?;
+        let trailing_formula = self.build_generated_tanru_sumti_connection_branch_formula(
+            tanru,
+            prefix_assignments,
+            suffix_assignments,
+            explicit_place,
+            connection.trailing,
+            first_visible_place,
+            trailing_head_eventuality,
+            mode,
+            source.clone(),
+            generated_distributed_sumti_connective_negates_right(connection.connective),
+            &relative_clause_lists,
+        )?;
+        self.combine_generated_sumti_connection_branch_formulas(
+            connection.connective,
+            leading_formula,
+            trailing_formula,
+            source.clone(),
+            source,
+        )
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(prefix_assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(suffix_assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(first_visible_place > 0)]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_tanru_sumti_connection_branch_formula<'syntax: 'tree>(
+        &mut self,
+        tanru: &'syntax TanruSelbriSyntax,
+        prefix_assignments: &GeneratedTermAssignments<'syntax>,
+        suffix_assignments: &GeneratedTermAssignments<'syntax>,
+        explicit_place: Option<usize>,
+        sumti: GeneratedDistributedSumtiBranch<'syntax>,
+        first_visible_place: usize,
+        head_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+        negated: bool,
+        additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut formula = if generated_logical_sumti_connection_for_branch(sumti)?.is_some() {
+            self.build_generated_tanru_sumti_connection_formula(
+                tanru,
+                prefix_assignments,
+                suffix_assignments,
+                explicit_place,
+                sumti,
+                first_visible_place,
+                head_eventuality,
+                mode,
+                source.clone(),
+                additional_relative_clause_lists,
+            )?
+        } else {
+            let mut argument =
+                self.build_generated_alternative_argument_for_sumti_branch(sumti, false)?;
+            for relative_clauses in additional_relative_clause_lists {
+                argument.argument = self.attach_generated_relative_clauses_to_argument(
+                    argument.argument,
+                    relative_clauses,
+                )?;
+            }
+            let mut assignments = prefix_assignments.clone();
+            let mut next_visible_place =
+                next_visible_place_after_generated_assignments(&assignments)
+                    .max(first_visible_place);
+            let place = explicit_place.unwrap_or(next_visible_place);
+            insert_visible_argument(&mut assignments.visible_arguments, place, argument.argument)?;
+            next_visible_place = next_visible_place.max(place + 1);
+            assignments.next_visible_place = next_visible_place;
+            assignments.formula_scopes.extend(argument.formula_scopes);
+            extend_generated_term_assignments_shifted(
+                &mut assignments,
+                suffix_assignments,
+                next_visible_place.saturating_sub(1),
+            )?;
+            self.build_tanru_formula_from_assignments_in_mode(
+                tanru,
+                assignments,
+                head_eventuality,
+                mode,
+                source.clone(),
+            )?
+        };
+        if negated {
+            formula = self.build_unary_formula(FormulaOperator::Not, formula, source)?;
+        }
+        Ok(formula)
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_tanru_formula_from_assignments_in_mode(
+        &mut self,
+        tanru: &'tree TanruSelbriSyntax,
+        assignments: GeneratedTermAssignments<'tree>,
+        head_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         self.record_generated_assigned_pro_bridi_bindings_for_tanru_selbri(
             tanru,
             &assignments.visible_arguments,

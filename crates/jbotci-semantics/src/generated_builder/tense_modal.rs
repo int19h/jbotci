@@ -47,6 +47,17 @@ pub(super) fn generated_tense_modal_has_event_modifier<N: TreeNode>(tense_modal:
 }
 
 #[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_tense_modal_is_experimental_fa_tag(tense_modal: &TenseModalSyntax) -> bool {
+    matches!(
+        tense_modal,
+        TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(
+            TenseModalAtomSyntax::FaFlatTagTense(_)
+        ))
+    )
+}
+
+#[requires(true)]
 #[ensures(ret -> generated_tense_modal_has_event_modifier(tense_modal))]
 pub(super) fn generated_tense_modal_event_modifier_allocates_objects<N: TreeNode>(
     tense_modal: &N,

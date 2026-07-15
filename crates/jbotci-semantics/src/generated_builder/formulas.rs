@@ -3416,13 +3416,118 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula_construct,
             );
         }
+        let predication_source = self.source_for_node(source_node, "predication");
+        let formula_source = self.source_for_node(source_node, formula_construct);
+        if let SelbriSyntax::TaggedSelbri(tagged) = simple_tail.selbri.as_ref()
+            && generated_connected_event_tense_spec_for_tense_modal(tagged.tense_modal.as_ref())
+                .is_none()
+            && !generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref())
+            && let UntaggedSelbriSyntax::CoSelbri(co_selbri) = tagged.inner_selbri.as_ref()
+            && let Some(tanru) = tanru_selbri_from_co_selbri(co_selbri)?
+            && !tanru.additional_units.is_empty()
+            && terms
+                .iter()
+                .any(|term| generated_term_has_distributed_sumti_connection(term))
+        {
+            if generated_tense_modal_resets_sticky_modals(tagged.tense_modal.as_ref()) {
+                self.sticky_modal_arguments.clear();
+            }
+            if generated_tense_modal_resets_sticky_tense(tagged.tense_modal.as_ref()) {
+                self.sticky_time_path.clear();
+                self.sticky_space_path.clear();
+            }
+            let mut base_assignments = empty_generated_term_assignments();
+            base_assignments.visible_arguments = preassigned_visible_arguments.clone();
+            base_assignments.place_questions = preassigned_place_questions.to_vec();
+            base_assignments.next_visible_place = first_visible_place;
+            let source =
+                self.source_for_node(source_node, generated_tanru_formula_source_construct(tanru));
+            return self.build_tagged_selbri_formula_around_child(
+                tagged,
+                eventuality,
+                predication_source.clone(),
+                |builder, child_eventuality| {
+                    let Some(formula) = builder
+                        .build_generated_logical_sumti_connection_formula_for_tanru_terms_with_preassigned(
+                            tanru,
+                            &terms,
+                            &base_assignments,
+                            first_visible_place,
+                            child_eventuality,
+                            mode,
+                            source,
+                        )?
+                    else {
+                        return Err(invalid_graph(
+                            "connected tanru argument disappeared after tagged-selbri dispatch"
+                                .to_owned(),
+                        ));
+                    };
+                    Ok(formula)
+                },
+            );
+        }
+        if preassigned_place_questions.is_empty() {
+            if eventuality.is_none()
+                && let Ok(relation) = relation_label_from_selbri(&simple_tail.selbri)
+            {
+                let relation = semantic_relation_label(relation);
+                let place_count = relation_place_count(self.dictionary, &relation);
+                let place_limit = place_count.unwrap_or_else(|| {
+                    preassigned_visible_arguments
+                        .keys()
+                        .copied()
+                        .max()
+                        .unwrap_or(0)
+                        .max(terms.len())
+                        .max(1)
+                });
+                if let Some(formula) = self
+                    .build_generated_logical_sumti_connection_formula_for_terms_with_preassigned_arguments(
+                        &relation.display_text(),
+                        &terms,
+                        preassigned_visible_arguments,
+                        first_visible_place,
+                        place_limit,
+                        &[] as &[WithFreeModifiers<Token, FreeModifierSyntax>],
+                        mode,
+                        predication_source.clone(),
+                        formula_source.clone(),
+                    )?
+                {
+                    return Ok(formula);
+                }
+            }
+            if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
+                && !tanru.additional_units.is_empty()
+            {
+                let mut base_assignments = empty_generated_term_assignments();
+                base_assignments.visible_arguments = preassigned_visible_arguments.clone();
+                base_assignments.place_questions = preassigned_place_questions.to_vec();
+                base_assignments.next_visible_place = first_visible_place;
+                if let Some(formula) = self
+                    .build_generated_logical_sumti_connection_formula_for_tanru_terms_with_preassigned(
+                        tanru,
+                        &terms,
+                        &base_assignments,
+                        first_visible_place,
+                        eventuality,
+                        mode,
+                        self.source_for_node(
+                            source_node,
+                            generated_tanru_formula_source_construct(tanru),
+                        ),
+                    )?
+                {
+                    return Ok(formula);
+                }
+            }
+        }
         let assignments = self.build_term_assignments_for_terms_with_shared_tail_source(
             terms,
             first_visible_place,
             shared_tail_start,
         )?;
-        let predication_source = self.source_for_node(source_node, "predication");
-        let formula_source = self.source_for_node(source_node, formula_construct);
         if relation_label_from_selbri(&simple_tail.selbri).is_err()
             && preassigned_place_questions.is_empty()
             && assignments.place_questions.is_empty()
@@ -3518,7 +3623,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(eventuality),
             arguments,
             predication_mode,
-            predication_source,
+            predication_source.clone(),
             diagnostics,
         );
         predication_object.set_predication_attachments(modal_arguments, place_questions);
@@ -5632,6 +5737,37 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
 
+        self.build_tagged_selbri_formula_around_child(
+            tagged,
+            eventuality,
+            predication_source.clone(),
+            |builder, child_eventuality| {
+                builder.build_untagged_selbri_formula_with_options(
+                    tagged.inner_selbri.as_ref(),
+                    terms,
+                    first_visible_place,
+                    child_eventuality,
+                    mode,
+                    formula_scope_child,
+                    predication_source,
+                    formula_source,
+                )
+            },
+        )
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_tagged_selbri_formula_around_child<F>(
+        &mut self,
+        tagged: &'tree jbotci_syntax::generated_model::TaggedSelbriSyntax,
+        eventuality: Option<SemanticObjectId>,
+        predication_source: Option<crate::model::SemanticSource>,
+        build_child: F,
+    ) -> Result<SemanticObjectId, SemanticsError>
+    where
+        F: FnOnce(&mut Self, Option<SemanticObjectId>) -> Result<SemanticObjectId, SemanticsError>,
+    {
         let tagged_tense_modifies_event =
             generated_tense_modal_has_event_modifier(tagged.tense_modal.as_ref())
                 || generated_tense_modal_makes_tense_sticky(tagged.tense_modal.as_ref())
@@ -5670,22 +5806,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         self.deferred_event_modifier_flush_depth += 1;
-        let formula_result = self.build_untagged_selbri_formula_with_options(
-            tagged.inner_selbri.as_ref(),
-            terms,
-            first_visible_place,
-            child_eventuality,
-            mode,
-            formula_scope_child,
-            predication_source,
-            formula_source,
-        );
+        let formula_result = build_child(self, child_eventuality);
         self.deferred_event_modifier_flush_depth -= 1;
         let formula = formula_result?;
-        let host_eventualities = match child_eventuality {
-            Some(eventuality) => vec![eventuality],
-            None => self.eventualities_for_generated_formula_predications(formula)?,
-        };
+        let mut host_eventualities =
+            self.eventualities_for_generated_formula_predications(formula)?;
+        if let Some(eventuality) = child_eventuality
+            && !host_eventualities.contains(&eventuality)
+        {
+            host_eventualities.insert(0, eventuality);
+        }
         for eventuality in &host_eventualities {
             if self.pending_event_modifiers.contains_key(eventuality) {
                 self.flush_generated_event_modifiers_with_recurrence_quantity_promotion(
