@@ -788,8 +788,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             simple_tail,
             &terms,
             1,
-            None,
-            PredicationMode::Asserted,
+            eventuality,
+            mode,
         )? {
             return Ok(formula);
         }
@@ -4293,11 +4293,41 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         eventuality: Option<SemanticObjectId>,
         allow_single_argument_distribution: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if tail.bo_continuation.is_some() {
-            return Err(unsupported(
-                "BO grouped bridi tail with preassigned shared terms",
-            ));
+        if let Some(continuation) = tail.bo_continuation.as_deref() {
+            return self.build_bound_bo_grouped_bridi_tail_formula_with_preassigned_shared_terms(
+                tail,
+                continuation,
+                assignments,
+                suffix_terms,
+                first_visible_place,
+                eventuality,
+                allow_single_argument_distribution,
+            );
         }
+        self.build_bo_grouped_bridi_tail_formula_core_with_preassigned_shared_terms(
+            tail,
+            assignments,
+            suffix_terms,
+            first_visible_place,
+            eventuality,
+            allow_single_argument_distribution,
+        )
+    }
+
+    #[requires(first_visible_place > 0)]
+    #[requires(assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_bo_grouped_bridi_tail_formula_core_with_preassigned_shared_terms<
+        'syntax: 'tree,
+    >(
+        &mut self,
+        tail: &'syntax BoGroupedBridiTailSyntax,
+        assignments: &GeneratedTermAssignments<'syntax>,
+        suffix_terms: &[&'syntax TermSyntax],
+        first_visible_place: usize,
+        eventuality: Option<SemanticObjectId>,
+        allow_single_argument_distribution: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let SimpleBridiTailSyntax::SelbriSimpleBridiTail(simple_tail) = tail.first.as_ref() else {
             return Err(unsupported(
                 "forethought simple bridi tail with preassigned shared terms",
@@ -4323,6 +4353,53 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
         self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
         Ok(formula)
+    }
+
+    #[requires(first_visible_place > 0)]
+    #[requires(assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_bound_bo_grouped_bridi_tail_formula_with_preassigned_shared_terms<
+        'syntax: 'tree,
+    >(
+        &mut self,
+        leading_tail: &'syntax BoGroupedBridiTailSyntax,
+        continuation: &'syntax jbotci_syntax::generated_model::BridiTailBoContinuationSyntax,
+        assignments: &GeneratedTermAssignments<'syntax>,
+        suffix_terms: &[&'syntax TermSyntax],
+        first_visible_place: usize,
+        leading_eventuality: Option<SemanticObjectId>,
+        allow_single_argument_distribution: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut branch_suffix_terms =
+            Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
+        branch_suffix_terms.extend(continuation.tail_terms.iter());
+        branch_suffix_terms.extend_from_slice(suffix_terms);
+        let first = self.build_bo_grouped_bridi_tail_formula_core_with_preassigned_shared_terms(
+            leading_tail,
+            assignments,
+            &branch_suffix_terms,
+            first_visible_place,
+            leading_eventuality,
+            allow_single_argument_distribution,
+        )?;
+        let second = self.build_bo_grouped_bridi_tail_formula_with_preassigned_shared_terms(
+            &continuation.bridi_tail,
+            assignments,
+            &branch_suffix_terms,
+            first_visible_place,
+            None,
+            allow_single_argument_distribution,
+        )?;
+        let source = continuation.tense_modal.as_deref().and_then(|tense_modal| {
+            self.source_for_node(tense_modal, "bridi-tail-connection-formula")
+        });
+        self.build_binary_generated_bridi_tail_connection_formula(
+            first,
+            second,
+            &continuation.connective,
+            continuation.tense_modal.as_deref(),
+            source,
+        )
     }
 
     #[requires(true)]

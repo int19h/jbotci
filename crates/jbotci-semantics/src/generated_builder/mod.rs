@@ -10463,6 +10463,82 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn shared_tense_term_constrains_every_connected_bridi_branch() {
+        let graph = semantic_graph_for("i caku do zvati le zdani gi'i gunka");
+        let mut events = Vec::new();
+        for relation in ["zvati", "gunka"] {
+            let predication = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication)
+                })
+                .expect("connected branch predication should exist");
+            let event_id = predication
+                .eventuality
+                .expect("connected branch should have an eventuality");
+            let event = graph.objects[&event_id]
+                .as_eventuality()
+                .expect("branch eventuality should be typed");
+            let time = event
+                .time
+                .as_ref()
+                .expect("shared ca ku must constrain every branch event");
+            assert_eq!(time.relation, "at");
+            assert_eq!(time.anchor, SemanticObjectId::now());
+            events.push(event_id);
+        }
+        assert_ne!(
+            events[0], events[1],
+            "the shared condition must be copied onto distinct branch events"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_forethought_term_survives_nested_bo_bridi_grouping() {
+        let graph = semantic_graph_for("mi ga broda gi brode gi'e ba bo brodi");
+        for relation in ["broda", "brode", "brodi"] {
+            let predication = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication)
+                })
+                .expect("every forethought/BO branch should retain its predication");
+            assert_eq!(
+                predication.arguments[&argument_key(1)].value,
+                Some(SemanticObjectId::speaker()),
+                "the shared mi term must fill x1 in {relation}"
+            );
+        }
+        assert!(graph.objects.values().any(|object| {
+            object.formula_operator() == Some(FormulaOperator::And)
+                && object.formula_children().iter().any(|formula| {
+                    graph.objects[formula]
+                        .formula_predication()
+                        .is_some_and(|predication| {
+                            named_predication_ids(&graph, "brode").contains(&predication)
+                        })
+                })
+                && object.formula_children().iter().any(|formula| {
+                    graph.objects[formula]
+                        .formula_predication()
+                        .is_some_and(|predication| {
+                            named_predication_ids(&graph, "brodi").contains(&predication)
+                        })
+                })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn bare_tense_terms_compose_with_the_following_tag_on_the_same_event() {
         let spatial = semantic_graph_for("vi bai broda");
         let broda = spatial
