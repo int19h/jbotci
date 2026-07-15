@@ -268,7 +268,9 @@ def verify_expectation(
             if result["json"].removesuffix("\n") != expected_json:
                 raise ValueError(f"{path}: inline tersmu JSON is stale")
         elif isinstance(expected_json, dict) and set(expected_json) == {"sha256"}:
-            actual_hash = hashlib.sha256(result["json"].encode()).hexdigest()
+            actual_hash = hashlib.sha256(
+                result["json"].removesuffix("\n").encode()
+            ).hexdigest()
             if actual_hash != expected_json["sha256"]:
                 raise ValueError(
                     f"{path}: tersmu JSON hash is stale: {actual_hash}"
@@ -336,7 +338,9 @@ def verify_fixture_migrations(
     full_graph = full_current["graph"]
     if len(full_graph["objects"]) != 45905 or full_graph["root"] != "sequence:46614":
         raise ValueError("Full Alice graph shape changed")
-    full_hash = hashlib.sha256(full_current["json"].encode()).hexdigest()
+    full_hash = hashlib.sha256(
+        full_current["json"].removesuffix("\n").encode()
+    ).hexdigest()
     print(
         "corpus.alis.full-alice: unsupported -> success: all mixed direct "
         "questions retain ordered typed slots; "
