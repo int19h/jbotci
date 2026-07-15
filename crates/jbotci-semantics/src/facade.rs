@@ -64,16 +64,6 @@ impl SemanticsError {
             message: format!("semantic analysis of {construct} requires discourse context"),
         }
     }
-
-    #[requires(true)]
-    #[ensures(ret.kind == SemanticsErrorKind::HeterogeneousQuestionDomains)]
-    pub(crate) fn heterogeneous_question_domains() -> Self {
-        Self {
-            kind: SemanticsErrorKind::HeterogeneousQuestionDomains,
-            message: "semantic question model cannot represent multiple answer domains in one direct question"
-                .to_owned(),
-        }
-    }
 }
 
 impl fmt::Display for SemanticsError {
@@ -94,7 +84,6 @@ pub enum SemanticsErrorKind {
     DuplicateObject,
     InvalidGraph,
     RequiresDiscourseContext,
-    HeterogeneousQuestionDomains,
 }
 
 #[invariant(true)]

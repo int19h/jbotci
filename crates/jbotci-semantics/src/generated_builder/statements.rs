@@ -39,11 +39,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         utterance_id: SemanticObjectId,
         fragment: GeneratedFragmentRoot<'tree>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let question_start = self.direct_question_slots.len();
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let semantics = self.build_generated_fragment_semantics(fragment);
         let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
         let data!(GeneratedFragmentSemantics { content, source }) = semantics?.into_data();
-        self.insert_generated_utterance(utterance_id, UtteranceForce::Mention, content, source)?;
+        let question_slots = self.direct_question_slots.split_off(question_start);
+        let (force, content) = if !question_slots.is_empty()
+            && let Some(formula) = content
+            && formula.object_kind() == crate::model::SemanticObjectKind::Formula
+        {
+            (
+                UtteranceForce::Ask,
+                Some(self.build_generated_direct_question(
+                    formula,
+                    question_slots,
+                    source.clone(),
+                )?),
+            )
+        } else {
+            (UtteranceForce::Mention, content)
+        };
+        self.insert_generated_utterance(utterance_id, force, content, source)?;
         if content.is_none() {
             let object = self.objects.get_mut(&utterance_id).ok_or_else(|| {
                 invalid_graph(format!(
@@ -228,6 +245,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             sequence
         };
         self.prune_unreachable_objects(root);
+        if let Some(error) =
+            crate::model::semantic_object_question_slots_validation_error(&self.objects)
+        {
+            return Err(invalid_graph(error));
+        }
         SemanticGraph::new(root, self.objects).map_err(|message| SemanticsError {
             kind: SemanticsErrorKind::InvalidGraph,
             message: format!("semantic graph invariant failed: {message}"),
@@ -243,10 +265,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut items = Vec::new();
         let mut leading_asides =
             self.build_generated_vocative_asides_from_refs(&plan.leading_free_modifiers)?;
-        let truth_question = plan
-            .leading_indicators
-            .iter()
-            .any(|indicator| indicator.indicator.cmavo() == Some(Cmavo::Xu));
+        let truth_question = plan.leading_indicators.iter().any(|indicator| {
+            let parts = indicator_parts_for_leading_indicator(indicator);
+            parts.iter().any(|part| part.cmavo == Cmavo::Xu)
+                && !parts.iter().any(|part| part.cmavo == Cmavo::Kau)
+        });
         if !plan.leading_nai.is_empty() {
             items.push(self.build_generated_leading_nai_utterance(plan.leading_nai)?);
         }
@@ -276,8 +299,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     free_modifiers,
                     separator_i,
                 } if generated_text_root_is_utterance(&root) => {
+                    let separator_truth_question = separator_i.is_some_and(|separator| {
+                        let parts = indicator_parts_for_token(separator);
+                        parts.iter().any(|part| part.cmavo == Cmavo::Xu)
+                            && !parts.iter().any(|part| part.cmavo == Cmavo::Kau)
+                    });
                     let statement_truth_question =
-                        truth_question_pending && matches!(root, GeneratedTextRoot::Bridi(_));
+                        truth_question_pending || separator_truth_question;
                     let mut asides =
                         self.build_generated_vocative_asides_from_refs(&free_modifiers)?;
                     let utterance_id = utterance_ids[utterance_index];
@@ -326,6 +354,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     let mut asides =
                         self.build_generated_vocative_asides_from_refs(&free_modifiers)?;
                     let item = self.build_discourse_item_for_generated_text_root(root)?;
+                    if truth_question_pending {
+                        self.add_generated_truth_question_to_discourse_item(item, 0)?;
+                        truth_question_pending = false;
+                    }
                     if let Some(separator_i) = separator_i {
                         self.attach_generated_statement_separator_indicators_to_discourse_item(
                             item,
@@ -402,6 +434,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for leading_i in plan.leading_i_statements.iter().rev() {
             if leading_i.connective.is_none() {
                 if let Some(first_item) = items.first().copied() {
+                    for source_order in self.direct_truth_question_source_orders(&leading_i.i) {
+                        self.add_generated_truth_question_to_discourse_item(
+                            first_item,
+                            source_order,
+                        )?;
+                    }
                     self.attach_generated_statement_separator_indicators_to_discourse_item(
                         first_item,
                         &leading_i.i,
@@ -483,7 +521,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )
                 .map(|(utterance, _formula)| utterance),
             GeneratedTextRoot::Fragment(fragment) => {
-                self.build_generated_fragment_utterance(utterance_id, fragment)
+                let item = self.build_generated_fragment_utterance(utterance_id, fragment)?;
+                if truth_question {
+                    self.add_generated_truth_question_to_discourse_item(item, 0)?;
+                }
+                Ok(item)
             }
             GeneratedTextRoot::PrenexStatement(statement) => self
                 .build_utterance_for_generated_prenex_statement(
@@ -497,7 +539,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Err(unsupported("statement connection as utterance"))
             }
             GeneratedTextRoot::TextGroupStatement(statement) => {
-                self.build_generated_text_group_statement_with_id(utterance_id, statement)
+                let item =
+                    self.build_generated_text_group_statement_with_id(utterance_id, statement)?;
+                if truth_question {
+                    self.add_generated_truth_question_to_discourse_item(item, 0)?;
+                }
+                Ok(item)
             }
             GeneratedTextRoot::ZantufaStatementTerms(statement) => self
                 .build_utterance_for_generated_zantufa_statement_terms(
@@ -2109,8 +2156,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         vocative: &'tree VocativeFreeModifierSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let vocative_kind = generated_vocative_kind_for_markers(&vocative.vocative_markers);
-        let argument_question_start = self.argument_question_parameters.len();
-        let relation_question_start = self.relation_question_parameters.len();
+        let question_start = self.direct_question_slots.len();
         let previous_pending_asides = std::mem::take(&mut self.pending_asides);
         let target = if let Some(sumti) = vocative.sumti.as_deref() {
             self.build_generated_vocative_target(sumti)?
@@ -2129,16 +2175,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             audience_is_target,
         }) = target.into_data();
         let nested_asides = std::mem::replace(&mut self.pending_asides, previous_pending_asides);
-        let argument_parameters = self
-            .argument_question_parameters
-            .split_off(argument_question_start);
-        let relation_parameters = self
-            .relation_question_parameters
-            .split_off(relation_question_start);
+        let question_slots = self.direct_question_slots.split_off(question_start);
         let target_formula_source = self.exact_source_for_node(vocative, "vocative-question");
         let target_formula = prebuilt_target_formula.or((!formula_scopes.is_empty()
-            || !argument_parameters.is_empty()
-            || !relation_parameters.is_empty())
+            || !question_slots.is_empty())
         .then(|| {
             self.build_generated_vocative_target_formula(
                 addressed_or_identified,
@@ -2151,31 +2191,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)
             })
             .transpose()?;
-        let content = if argument_parameters.is_empty() && relation_parameters.is_empty() {
+        let content = if question_slots.is_empty() {
             target_formula.or_else(|| {
                 (vocative_kind == "selfIdentification"
                     && addressed_or_identified.object_kind()
                         == crate::model::SemanticObjectKind::Referent)
                     .then_some(addressed_or_identified)
             })
-        } else if relation_parameters.is_empty() {
-            Some(self.build_generated_vocative_question_content(
-                target_formula.expect("question targets always build a formula"),
-                argument_parameters,
-                QuestionKind::Argument,
-                SemanticSort::Entity,
-                target_formula_source,
-            )?)
-        } else if argument_parameters.is_empty() {
-            Some(self.build_generated_vocative_question_content(
-                target_formula.expect("question targets always build a formula"),
-                relation_parameters,
-                QuestionKind::Relation,
-                SemanticSort::Relation,
-                target_formula_source,
-            )?)
         } else {
-            return Err(unsupported("mixed vocative target question"));
+            Some(self.build_generated_direct_question(
+                target_formula.expect("question targets always build a formula"),
+                question_slots,
+                target_formula_source,
+            )?)
         };
         let diagnostics = if addressed_or_identified.object_kind()
             == crate::model::SemanticObjectKind::Referent
@@ -2428,20 +2456,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(formula)
     }
 
-    #[requires(target_formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(!parameters.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
-    pub(super) fn build_generated_vocative_question_content(
-        &mut self,
-        target_formula: SemanticObjectId,
-        parameters: Vec<SemanticObjectId>,
-        kind: QuestionKind,
-        domain: SemanticSort,
-        source: Option<crate::model::SemanticSource>,
-    ) -> Result<SemanticObjectId, SemanticsError> {
-        self.build_direct_question(kind, domain, target_formula, parameters, source)
-    }
-
     #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[requires(audience.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(true)]
@@ -2509,12 +2523,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         suffix_terms: &[&'tree TermSyntax],
         source_node: &N,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
-        let question_start = self.argument_question_parameters.len();
-        let place_question_start = self.place_question_parameters.len();
-        let relation_question_start = self.relation_question_parameters.len();
-        let tense_question_start = self.tense_question_parameters.len();
-        let connective_question_start = self.connective_question_parameters.len();
-        let math_operator_question_start = self.math_operator_question_parameters.len();
+        let question_start = self.direct_question_slots.len();
         let existential_start = self.implicit_existential_variables.len();
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let previous_da_series_bindings = std::mem::take(&mut self.implicit_da_series_bindings);
@@ -2544,160 +2553,44 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let formula = self
             .wrap_generated_bridi_formula_with_contradictory_event_tense_negation(bridi, formula)?;
-        let question_parameters = self.argument_question_parameters.split_off(question_start);
-        let place_question_parameters = self
-            .place_question_parameters
-            .split_off(place_question_start);
-        let relation_question_parameters = self
-            .relation_question_parameters
-            .split_off(relation_question_start);
-        let tense_question_parameters = self
-            .tense_question_parameters
-            .split_off(tense_question_start);
-        let connective_question_parameters = self
-            .connective_question_parameters
-            .split_off(connective_question_start);
-        let math_operator_question_parameters = self
-            .math_operator_question_parameters
-            .split_off(math_operator_question_start);
-        let (force, content) = if question_parameters.is_empty()
-            && place_question_parameters.is_empty()
-            && relation_question_parameters.is_empty()
-            && tense_question_parameters.is_empty()
-            && connective_question_parameters.is_empty()
-            && math_operator_question_parameters.is_empty()
-        {
-            if force == UtteranceForce::Ask {
-                (
-                    force,
-                    self.build_direct_question(
-                        QuestionKind::Truth,
-                        SemanticSort::TruthValue,
-                        formula,
-                        Vec::new(),
-                        self.source_for_node(source_node, "question"),
-                    )?,
-                )
-            } else {
-                (force, formula)
-            }
-        } else if question_parameters.is_empty()
-            && place_question_parameters.is_empty()
-            && tense_question_parameters.is_empty()
-            && connective_question_parameters.is_empty()
-            && math_operator_question_parameters.is_empty()
-        {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_question(
-                    QuestionKind::Relation,
-                    SemanticSort::Relation,
-                    formula,
-                    relation_question_parameters,
-                    self.source_for_node(source_node, "question"),
-                )?,
-            )
-        } else if place_question_parameters.is_empty()
-            && relation_question_parameters.is_empty()
-            && tense_question_parameters.is_empty()
-            && connective_question_parameters.is_empty()
-            && math_operator_question_parameters.is_empty()
-        {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_question(
-                    QuestionKind::Argument,
-                    SemanticSort::Entity,
-                    formula,
-                    question_parameters,
-                    self.source_for_node(source_node, "question"),
-                )?,
-            )
-        } else if question_parameters.is_empty()
-            && relation_question_parameters.is_empty()
-            && tense_question_parameters.is_empty()
-            && connective_question_parameters.is_empty()
-            && math_operator_question_parameters.is_empty()
-        {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_question(
-                    QuestionKind::Place,
-                    SemanticSort::Place,
-                    formula,
-                    place_question_parameters,
-                    self.source_for_node(source_node, "question"),
-                )?,
-            )
-        } else if question_parameters.is_empty()
-            && place_question_parameters.is_empty()
-            && relation_question_parameters.is_empty()
-            && connective_question_parameters.is_empty()
-            && math_operator_question_parameters.is_empty()
-        {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_question(
-                    QuestionKind::Tense,
-                    SemanticSort::TenseModal,
-                    formula,
-                    tense_question_parameters,
-                    self.source_for_node(source_node, "question"),
-                )?,
-            )
-        } else if question_parameters.is_empty()
-            && place_question_parameters.is_empty()
-            && relation_question_parameters.is_empty()
-            && tense_question_parameters.is_empty()
-            && math_operator_question_parameters.is_empty()
-        {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_question(
-                    QuestionKind::Connective,
-                    SemanticSort::Connective,
-                    formula,
-                    connective_question_parameters,
-                    self.source_for_node(source_node, "question"),
-                )?,
-            )
-        } else if question_parameters.is_empty()
-            && place_question_parameters.is_empty()
-            && relation_question_parameters.is_empty()
-            && tense_question_parameters.is_empty()
-            && connective_question_parameters.is_empty()
-        {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_question(
-                    QuestionKind::MathOperator,
-                    SemanticSort::MathOperator,
-                    formula,
-                    math_operator_question_parameters,
-                    self.source_for_node(source_node, "question"),
-                )?,
-            )
+        let mut question_slots = self.direct_question_slots.split_off(question_start);
+        question_slots.extend(
+            self.direct_truth_question_source_orders(source_node)
+                .into_iter()
+                .map(|source_order| {
+                    GeneratedDirectQuestionSlot::from_data(data!(GeneratedDirectQuestionSlot {
+                        parameter: None,
+                        kind: QuestionKind::Truth,
+                        domain: SemanticSort::TruthValue,
+                        source_order,
+                    }))
+                }),
+        );
+        if force == UtteranceForce::Ask {
+            let source_order = self
+                .source_for_node(source_node, "truth-question")
+                .map(|source| source.span.byte_start.saturating_sub(1))
+                .unwrap_or(0);
+            question_slots.push(GeneratedDirectQuestionSlot::from_data(data!(
+                GeneratedDirectQuestionSlot {
+                    parameter: None,
+                    kind: QuestionKind::Truth,
+                    domain: SemanticSort::TruthValue,
+                    source_order,
+                }
+            )));
+        }
+        let (force, content) = if question_slots.is_empty() {
+            (force, formula)
         } else {
-            if self
-                .objects
-                .get(&formula)
-                .and_then(SemanticObject::formula_operator)
-                .is_some_and(|operator| {
-                    matches!(
-                        operator,
-                        FormulaOperator::Exists
-                            | FormulaOperator::Forall
-                            | FormulaOperator::None
-                            | FormulaOperator::Cardinality
-                            | FormulaOperator::PluralExists
-                            | FormulaOperator::PluralForall
-                            | FormulaOperator::QuantifierBundle
-                    )
-                })
-            {
-                return Err(SemanticsError::heterogeneous_question_domains());
-            }
-            return Err(unsupported("mixed direct generated question kinds"));
+            (
+                UtteranceForce::Ask,
+                self.build_generated_direct_question(
+                    formula,
+                    question_slots,
+                    self.source_for_node(source_node, "question"),
+                )?,
+            )
         };
         self.insert_generated_utterance(
             utterance_id,
@@ -2734,12 +2627,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.next_index += 1;
         let slots = parameters
             .into_iter()
-            .map(|parameter| {
-                new!(QuestionSlot {
-                    parameter,
-                    role: QuestionSlotRole::Answer,
-                })
-            })
+            .map(|parameter| QuestionSlot::homogeneous(parameter, QuestionSlotRole::Answer))
             .collect::<Vec<_>>();
         self.insert(
             question,
@@ -2755,6 +2643,308 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         Ok(question)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!slots.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
+    fn build_generated_direct_question(
+        &mut self,
+        formula: SemanticObjectId,
+        mut slots: Vec<GeneratedDirectQuestionSlot>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        slots.sort_by_key(|slot| slot.source_order);
+        let first_kind = slots[0].kind;
+        let first_domain = slots[0].domain;
+        let homogeneous = slots
+            .iter()
+            .all(|slot| slot.kind == first_kind && slot.domain == first_domain);
+        if homogeneous {
+            let parameters = slots
+                .into_iter()
+                .filter_map(|slot| slot.parameter)
+                .collect::<Vec<_>>();
+            return self.build_direct_question(
+                first_kind,
+                first_domain,
+                formula,
+                parameters,
+                source,
+            );
+        }
+        let question = SemanticObjectId::question(self.next_index);
+        self.next_index += 1;
+        let slots = slots
+            .into_iter()
+            .map(|slot| {
+                QuestionSlot::typed(
+                    slot.parameter,
+                    QuestionSlotRole::Answer,
+                    slot.kind,
+                    slot.domain,
+                )
+            })
+            .collect();
+        self.insert(
+            question,
+            SemanticObject::question(
+                QuestionKind::Multiple,
+                QuestionMode::Direct,
+                SemanticSort::ArgumentBundle,
+                formula,
+                slots,
+                self.current_speaker(),
+                self.current_audience(),
+                source,
+            ),
+        )?;
+        Ok(question)
+    }
+
+    #[requires(question.object_kind() == crate::model::SemanticObjectKind::Question)]
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!additional_slots.is_empty())]
+    #[ensures(self.objects.get(&question).is_some_and(|object| object.as_question().is_some_and(|node| node.body == formula)))]
+    fn extend_generated_direct_question(
+        &mut self,
+        question: SemanticObjectId,
+        formula: SemanticObjectId,
+        additional_slots: Vec<GeneratedDirectQuestionSlot>,
+    ) {
+        let existing = self.objects[&question]
+            .as_question()
+            .expect("question ID must identify a question")
+            .clone();
+        let fallback_order = existing
+            .common
+            .source
+            .as_ref()
+            .map(|source| source.span.byte_start)
+            .unwrap_or(usize::MAX);
+        let mut slots = if existing.kind == QuestionKind::Truth {
+            vec![GeneratedDirectQuestionSlot::from_data(data!(
+                GeneratedDirectQuestionSlot {
+                    parameter: None,
+                    kind: QuestionKind::Truth,
+                    domain: SemanticSort::TruthValue,
+                    source_order: fallback_order,
+                }
+            ))]
+        } else {
+            existing
+                .slots
+                .iter()
+                .map(|slot| {
+                    let (kind, domain) = slot
+                        .kind_and_domain()
+                        .unwrap_or((existing.kind, existing.domain));
+                    let parameter = slot.parameter();
+                    let source_order = parameter
+                        .and_then(|parameter| self.objects.get(&parameter))
+                        .and_then(SemanticObject::source)
+                        .map(|source| source.span.byte_start)
+                        .unwrap_or(fallback_order);
+                    GeneratedDirectQuestionSlot::from_data(data!(GeneratedDirectQuestionSlot {
+                        parameter,
+                        kind,
+                        domain,
+                        source_order,
+                    }))
+                })
+                .collect()
+        };
+        slots.extend(additional_slots);
+        slots.sort_by_key(|slot| slot.source_order);
+        let first_kind = slots[0].kind;
+        let first_domain = slots[0].domain;
+        let homogeneous = slots
+            .iter()
+            .all(|slot| slot.kind == first_kind && slot.domain == first_domain);
+        let (kind, domain, slots) = if homogeneous {
+            (
+                first_kind,
+                first_domain,
+                slots
+                    .into_iter()
+                    .filter_map(|slot| slot.parameter)
+                    .map(|parameter| QuestionSlot::homogeneous(parameter, QuestionSlotRole::Answer))
+                    .collect(),
+            )
+        } else {
+            (
+                QuestionKind::Multiple,
+                SemanticSort::ArgumentBundle,
+                slots
+                    .into_iter()
+                    .map(|slot| {
+                        QuestionSlot::typed(
+                            slot.parameter,
+                            QuestionSlotRole::Answer,
+                            slot.kind,
+                            slot.domain,
+                        )
+                    })
+                    .collect(),
+            )
+        };
+        self.objects
+            .get_mut(&question)
+            .expect("question must remain present")
+            .update_question(|node| {
+                node.with_data(data! {
+                    kind: kind,
+                    domain: domain,
+                    body: formula,
+                    slots: slots,
+                })
+            });
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.is_none_or(|question| question.object_kind() == crate::model::SemanticObjectKind::Question))]
+    fn direct_question_for_generated_discourse_item(
+        &self,
+        item: SemanticObjectId,
+    ) -> Option<SemanticObjectId> {
+        let object = self.objects.get(&item)?;
+        let content = object
+            .as_utterance()
+            .and_then(|node| node.content)
+            .or_else(|| object.as_sequence().and_then(|node| node.content));
+        if let Some(content) = content
+            && content.object_kind() == crate::model::SemanticObjectKind::Question
+        {
+            return Some(content);
+        }
+        object
+            .as_sequence()?
+            .items
+            .iter()
+            .find_map(|item| self.direct_question_for_generated_discourse_item(*item))
+    }
+
+    #[requires(sequence.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!slots.is_empty())]
+    #[requires(items.iter().all(|item| matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence)))]
+    #[ensures(self.objects.get(&sequence).is_some_and(|object| object.as_sequence().is_some_and(|node| node.content.is_some_and(|content| content.object_kind() == crate::model::SemanticObjectKind::Question))))]
+    fn set_generated_statement_question_content(
+        &mut self,
+        sequence: SemanticObjectId,
+        formula: SemanticObjectId,
+        slots: Vec<GeneratedDirectQuestionSlot>,
+        items: &[SemanticObjectId],
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(), SemanticsError> {
+        let question = items
+            .iter()
+            .find_map(|item| self.direct_question_for_generated_discourse_item(*item));
+        let question = match question {
+            Some(question) => {
+                self.extend_generated_direct_question(question, formula, slots);
+                question
+            }
+            None => self.build_generated_direct_question(formula, slots, source)?,
+        };
+        self.objects
+            .get_mut(&sequence)
+            .expect("sequence must remain present")
+            .update_sequence(|node| node.with_data(data! { content: Some(question) }));
+        Ok(())
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn add_generated_truth_question_to_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+        source_order: usize,
+    ) -> Result<(), SemanticsError> {
+        let Some(formula) = self.content_formula_for_generated_discourse_item(item) else {
+            return Ok(());
+        };
+        let slot = GeneratedDirectQuestionSlot::from_data(data!(GeneratedDirectQuestionSlot {
+            parameter: None,
+            kind: QuestionKind::Truth,
+            domain: SemanticSort::TruthValue,
+            source_order,
+        }));
+        let question = match self.direct_question_for_generated_discourse_item(item) {
+            Some(question) => {
+                self.extend_generated_direct_question(question, formula, vec![slot]);
+                question
+            }
+            None => self.build_generated_direct_question(
+                formula,
+                vec![slot],
+                self.objects
+                    .get(&item)
+                    .and_then(SemanticObject::source)
+                    .cloned(),
+            )?,
+        };
+        if let Some(object) = self.objects.get_mut(&item) {
+            if object.as_sequence().is_some() {
+                object.update_sequence(|node| node.with_data(data! { content: Some(question) }));
+            } else if object.as_utterance().is_some() {
+                object.update_utterance(|node| {
+                    node.with_data(data! {
+                        force: UtteranceForce::Ask,
+                        content: Some(question),
+                    })
+                });
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[requires(kind != QuestionKind::Truth && kind != QuestionKind::Multiple)]
+    #[requires(crate::model::question_kind_domain_are_coherent(kind, domain))]
+    #[ensures(self.direct_question_slots.len() == old(self.direct_question_slots.len()) + 1)]
+    pub(super) fn record_generated_direct_question_parameter(
+        &mut self,
+        parameter: SemanticObjectId,
+        kind: QuestionKind,
+        domain: SemanticSort,
+    ) {
+        let source_order = self
+            .objects
+            .get(&parameter)
+            .and_then(SemanticObject::source)
+            .map(|source| source.span.byte_start)
+            .unwrap_or(usize::MAX);
+        self.direct_question_slots
+            .push(GeneratedDirectQuestionSlot::from_data(data!(
+                GeneratedDirectQuestionSlot {
+                    parameter: Some(parameter),
+                    kind,
+                    domain,
+                    source_order,
+                }
+            )));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn direct_truth_question_source_orders<N: TreeNode>(&self, node: &N) -> Vec<usize> {
+        let mut collector = GeneratedSpanCollector::default();
+        node.visit_in_order(&mut collector);
+        let mut orders = Vec::new();
+        for token in collector.tokens {
+            let parts = indicator_parts_for_token(token);
+            if parts.iter().any(|part| part.cmavo == Cmavo::Kau) {
+                continue;
+            }
+            orders.extend(parts.into_iter().filter_map(|part| {
+                (part.cmavo == Cmavo::Xu)
+                    .then(|| self.source_for_tokens(&part.tokens, "truth-question"))
+                    .flatten()
+                    .map(|source| source.span.byte_start)
+            }));
+        }
+        orders
     }
 
     #[requires(true)]
@@ -2776,7 +2966,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.source_for_token(&token, "parameter"),
             ),
         )?;
-        self.tense_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Tense,
+            SemanticSort::TenseModal,
+        );
         Ok(Some(parameter))
     }
 
@@ -2829,22 +3023,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source,
             }) = focus.into_data();
             let id = self.next_question_id();
-            let mut object = SemanticObject::question(
+            let object = SemanticObject::question_with_focus(
                 kind,
                 QuestionMode::Indirect,
                 domain,
                 body,
                 slots,
+                Some(focus),
+                presupposed_answer,
                 self.current_speaker(),
                 self.current_audience(),
                 source,
             );
-            object.update_question(|node| {
-                node.with_data(data! {
-                    focus: Some(focus),
-                    presupposed_answer: presupposed_answer,
-                })
-            });
             self.insert(id, object)?;
             questions.push(id);
         }
@@ -3936,6 +4126,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut diagnostics = Vec::new();
         let has_logical_component =
             generated_i_statement_connective_has_logical_component(connective);
+        let question_start = self.direct_question_slots.len();
         let content = if has_logical_component {
             if let (Some(left_formula), Some(right_formula)) = (left.formula, right.formula) {
                 Some(
@@ -3955,6 +4146,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             None
         };
+        let question_slots = self.direct_question_slots.split_off(question_start);
         let mut connection_claims = Vec::new();
         let claim_spec = generated_modal_statement_connection_spec(connective)
             .map(|spec| (spec, source.clone()))
@@ -3986,6 +4178,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             Some(generated_i_statement_nonlogical_connection(connective)?)
         };
+        let question_source = source.clone();
         let item = self.insert_generated_statement_connection_sequence(
             left.item,
             right.item,
@@ -3995,6 +4188,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             diagnostics,
         )?;
+        if !question_slots.is_empty()
+            && let Some(formula) = content
+        {
+            self.set_generated_statement_question_content(
+                item,
+                formula,
+                question_slots,
+                &[left.item, right.item],
+                question_source,
+            )?;
+        }
         self.attach_generated_statement_separator_indicators_to_discourse_item_with_target(
             right.last_item,
             _i,
@@ -4505,9 +4709,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let operator = generated_statement_connective_formula_operator_for_core(connective);
-        let Some(truth_table) = generated_statement_connective_core_truth_table(connective) else {
+        let truth_table = generated_statement_connective_core_truth_table(connective);
+        if operator != FormulaOperator::ConnectiveQuestion && truth_table.is_none() {
             return Err(unsupported("nonlogical generated statement connective"));
-        };
+        }
+        let parameter = build_generated_connective_question_parameter_for_statement_connective(
+            self, connective,
+        )?;
         self.mark_generated_statement_whether_or_not_inert_operand(connective, left, right);
         let left = if generated_statement_connective_negates_left(connective) {
             self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
@@ -4535,8 +4743,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Some(new!(Connector {
                     source: connector_source,
                     locus: "statement".to_owned(),
-                    truth_table: Some(truth_table),
-                    parameter: None,
+                    truth_table,
+                    parameter,
                 })),
                 source,
                 Vec::new(),
@@ -4556,8 +4764,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let operator = generated_statement_connective_formula_operator_for_core(connective);
-        let truth_table = generated_statement_connective_core_truth_table(connective)
-            .ok_or_else(|| unsupported("nonlogical generated statement connective formula"))?;
+        let truth_table = generated_statement_connective_core_truth_table(connective);
+        if operator != FormulaOperator::ConnectiveQuestion && truth_table.is_none() {
+            return Err(unsupported(
+                "nonlogical generated statement connective formula",
+            ));
+        }
         let negates_present_operand = match elided_operand {
             ElidedConnectionOperand::PriorDiscourse => {
                 generated_statement_connective_negates_right(connective)
@@ -4584,7 +4796,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Some(new!(Connector {
                     source: connector_source,
                     locus: "statement".to_owned(),
-                    truth_table: Some(truth_table),
+                    truth_table,
                     parameter,
                 })),
                 source,
@@ -4604,9 +4816,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         connective: Option<&StatementConnectiveSyntax>,
         connection_claims: Vec<SemanticObjectId>,
         elided_operand: ElidedConnectionOperand,
+        truth_question_source_orders: Vec<usize>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let logical = connective.is_some_and(generated_statement_connective_is_logical);
+        let question_start = self.direct_question_slots.len();
         let mut diagnostics = Vec::new();
         let content = if logical {
             match formula {
@@ -4628,6 +4842,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             None
         };
+        let mut question_slots = self.direct_question_slots.split_off(question_start);
+        question_slots.extend(
+            truth_question_source_orders
+                .into_iter()
+                .map(|source_order| {
+                    GeneratedDirectQuestionSlot::from_data(data!(GeneratedDirectQuestionSlot {
+                        parameter: None,
+                        kind: QuestionKind::Truth,
+                        domain: SemanticSort::TruthValue,
+                        source_order,
+                    }))
+                }),
+        );
         let nonlogical_connection = connective
             .filter(|connective| !generated_statement_connective_is_logical(connective))
             .map(generated_statement_core_nonlogical_connection)
@@ -4641,6 +4868,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.mark_generated_discourse_item_subordinated(item);
         }
         let sequence = self.next_sequence_id();
+        let question_source = source.clone();
         let mut object = SemanticObject::sequence_with_connection_claims(
             vec![item],
             SequenceRelation::SameTopicContinuation,
@@ -4656,6 +4884,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             })
         });
         self.insert(sequence, object)?;
+        if !question_slots.is_empty()
+            && let Some(formula) = content
+        {
+            self.set_generated_statement_question_content(
+                sequence,
+                formula,
+                question_slots,
+                &[item],
+                question_source,
+            )?;
+        }
         Ok(sequence)
     }
 
@@ -4685,6 +4924,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(connective),
             Vec::new(),
             elided_operand,
+            self.direct_truth_question_source_orders(i)
+                .into_iter()
+                .chain(self.direct_truth_question_source_orders(connective))
+                .collect(),
             source,
         )
     }
@@ -4747,6 +4990,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             core.as_ref(),
             claims,
             ElidedConnectionOperand::PriorDiscourse,
+            self.direct_truth_question_source_orders(leading_i),
             source,
         )
     }
@@ -4773,6 +5017,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(&core),
             Vec::new(),
             ElidedConnectionOperand::PriorDiscourse,
+            self.direct_truth_question_source_orders(connective),
             source,
         )
     }
@@ -4808,13 +5053,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(&connection.connective),
             false,
         )?;
+        let question_start = self.direct_question_slots.len();
         let formula = self.build_binary_formula_for_generated_statement_connective_core(
             &connection.connective,
             leading_formula,
             trailing_formula,
             self.source_for_node(connection, "statement-connection"),
         )?;
+        let mut question_slots = self.direct_question_slots.split_off(question_start);
+        question_slots.extend(
+            self.direct_truth_question_source_orders(&connection.i)
+                .into_iter()
+                .chain(self.direct_truth_question_source_orders(&connection.connective))
+                .map(|source_order| {
+                    GeneratedDirectQuestionSlot::from_data(data!(GeneratedDirectQuestionSlot {
+                        parameter: None,
+                        kind: QuestionKind::Truth,
+                        domain: SemanticSort::TruthValue,
+                        source_order,
+                    }))
+                }),
+        );
         let sequence = self.next_sequence_id();
+        let question_source = self.source_for_node(connection, "statement-question");
         let mut object = SemanticObject::sequence(
             vec![leading_item, trailing_item],
             SequenceRelation::SameTopicContinuation,
@@ -4823,37 +5084,43 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         );
         object.update_sequence(|node| node.with_data(data! { content: Some(formula) }));
         self.insert(sequence, object)?;
+        if !question_slots.is_empty() {
+            self.set_generated_statement_question_content(
+                sequence,
+                formula,
+                question_slots,
+                &[leading_item, trailing_item],
+                question_source,
+            )?;
+        }
         Ok(sequence)
     }
 
     #[requires(self.objects.contains_key(&root))]
     #[ensures(self.objects.contains_key(&root))]
-    #[ensures(self.objects.keys().all(|id| {
-        let mut reachable = HashSet::new();
-        let mut stack = vec![root];
-        while let Some(next) = stack.pop() {
-            if reachable.insert(next)
-                && let Some(object) = self.objects.get(&next)
-            {
-                let mut references = Vec::new();
-                object.references_into(&mut references);
-                stack.extend(references);
-            }
-        }
-        reachable.contains(id)
-    }))]
+    #[expensive_ensures(reachable_generated_object_ids(&self.objects, root).len() == self.objects.len())]
     pub(super) fn prune_unreachable_objects(&mut self, root: SemanticObjectId) {
-        let mut reachable = HashSet::new();
-        let mut stack = vec![root];
-        while let Some(next) = stack.pop() {
-            if reachable.insert(next)
-                && let Some(object) = self.objects.get(&next)
-            {
-                let mut references = Vec::new();
-                object.references_into(&mut references);
-                stack.extend(references);
-            }
-        }
+        let reachable = reachable_generated_object_ids(&self.objects, root);
         self.objects.retain(|id, _object| reachable.contains(id));
     }
+}
+
+#[requires(objects.contains_key(&root))]
+#[ensures(ret.contains(&root))]
+fn reachable_generated_object_ids(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    root: SemanticObjectId,
+) -> HashSet<SemanticObjectId> {
+    let mut reachable = HashSet::new();
+    let mut stack = vec![root];
+    while let Some(next) = stack.pop() {
+        if reachable.insert(next)
+            && let Some(object) = objects.get(&next)
+        {
+            let mut references = Vec::new();
+            object.references_into(&mut references);
+            stack.extend(references);
+        }
+    }
+    reachable
 }

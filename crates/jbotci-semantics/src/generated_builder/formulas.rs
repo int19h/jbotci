@@ -3615,19 +3615,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_mekso_operand_surface_text(expression)?;
-        let value = generated_simple_pa_quantity_value_for_mekso_operand(expression).map_or_else(
-            || {
-                self.build_generated_mekso_operand(
-                    expression,
-                    source.clone().map(|source| crate::model::SemanticSource {
-                        construct: Some("math-expression".to_owned()),
-                        ..source
-                    }),
-                )
-                .map(QuantityValue::math_expression)
-            },
-            Ok,
-        )?;
+        let mut value = generated_simple_pa_quantity_value_for_mekso_operand(expression)
+            .map_or_else(
+                || {
+                    self.build_generated_mekso_operand(
+                        expression,
+                        source.clone().map(|source| crate::model::SemanticSource {
+                            construct: Some("math-expression".to_owned()),
+                            ..source
+                        }),
+                    )
+                    .map(QuantityValue::math_expression)
+                },
+                Ok,
+            )?;
+        let question_parameters =
+            self.build_quantity_question_parameters_for_generated_node(expression)?;
+        if !question_parameters.is_empty() {
+            value = value.with_question_parameters(question_parameters);
+        }
         let quantity = self.next_quantity_id();
         self.insert(
             quantity,
@@ -5948,9 +5954,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let assignments = self.with_temporal_context(first_eventuality, |builder| {
             builder.build_term_assignments_for_terms(terms.clone(), first_visible_place)
         })?;
-        if !assignments.place_questions.is_empty() {
-            return Err(unsupported("mixed direct generated question kinds"));
-        }
+        let explicit_arguments = assignments
+            .visible_arguments
+            .iter()
+            .map(|(place, argument)| (argument_key(*place), argument.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let highest_argument = explicit_arguments
+            .keys()
+            .map(|place| place.get())
+            .max()
+            .unwrap_or(0);
+        let place_questions = self.build_generated_place_question_bindings(
+            &assignments.place_questions,
+            &explicit_arguments,
+            None,
+            highest_argument,
+        )?;
         let mut children = Vec::with_capacity(branches.len());
         for (branch_index, branch) in branches.iter().enumerate() {
             let branch_eventuality = if branch_index == 0 {
@@ -5969,6 +5988,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Some(branch_eventuality),
             )?;
             self.attach_generated_modal_terms_to_formula(result.formula, &assignments.modal_terms)?;
+            if !place_questions.is_empty()
+                && let Some(predication) = self.objects.get_mut(&result.head_predication)
+            {
+                predication.set_predication_place_questions(place_questions.clone());
+            }
             if mode != PredicationMode::Asserted {
                 self.set_formula_predication_mode(result.formula, mode);
             }

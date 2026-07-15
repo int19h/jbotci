@@ -6300,7 +6300,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.source_for_relation_question(question, "parameter"),
             ),
         )?;
-        self.relation_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Relation,
+            SemanticSort::Relation,
+        );
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         let mut arguments = BTreeMap::new();
         arguments.insert(argument_key(1), ArgumentValue::filled(x1, None));

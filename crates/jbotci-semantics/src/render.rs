@@ -63,6 +63,7 @@ enum TraversalRole {
     ConnectionClaim,
     Aside,
     Child,
+    FormulaArgument,
     Restriction,
     Body,
     DescriptorBody,
@@ -622,7 +623,22 @@ impl<'graph> DerivedTraversal<'graph> {
         visitor: &mut V,
     ) {
         if let Some(value) = argument.value {
-            self.visit_referent(value, location, state, visitor);
+            match value.object_kind() {
+                SemanticObjectKind::Formula => self.walk_formula(
+                    value,
+                    TraversalLocation {
+                        role: TraversalRole::FormulaArgument,
+                        depth: location.depth + 1,
+                        ..location
+                    },
+                    state,
+                    visitor,
+                ),
+                SemanticObjectKind::Referent | SemanticObjectKind::Parameter => {
+                    self.visit_referent(value, location, state, visitor);
+                }
+                _ => unreachable!("validated argument values have an allowed object kind"),
+            }
         }
         for clause in &argument.relative_clauses {
             if state.structural_restrictions.contains(&clause.body) {
@@ -2429,6 +2445,7 @@ fn tree_role_prefix(role: TraversalRole) -> &'static str {
         TraversalRole::ConnectionClaim => "connection claim: ",
         TraversalRole::Aside => "aside: ",
         TraversalRole::Child => "child: ",
+        TraversalRole::FormulaArgument => "formula argument: ",
         TraversalRole::Restriction => "restriction: ",
         TraversalRole::Body => "body: ",
         TraversalRole::DescriptorBody => "descriptor body: ",

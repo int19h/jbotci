@@ -56,7 +56,7 @@ pub struct UtteranceNode {
 }
 
 #[invariant(items.iter().all(|item| sequence_item_kind_is_allowed(item.object_kind())))]
-#[invariant(content.is_none_or(|content| content.object_kind() == SemanticObjectKind::Formula))]
+#[invariant(content.is_none_or(|content| matches!(content.object_kind(), SemanticObjectKind::Formula | SemanticObjectKind::Question)))]
 #[invariant(connection_claims.iter().all(|claim| claim.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(elided_connection_operand.is_none() || content.is_some() || !connection_claims.is_empty() || nonlogical_connection.is_some())]
 #[invariant(generated_eventuality_bindings_are_sorted(bound_eventualities))]
@@ -398,7 +398,7 @@ pub struct RelationMetadataNode {
 #[invariant(body.object_kind() == SemanticObjectKind::Formula)]
 #[invariant(asker.object_kind() == SemanticObjectKind::Referent)]
 #[invariant(respondent.object_kind() == SemanticObjectKind::Referent)]
-#[invariant(slots.iter().all(|slot| slot.parameter.object_kind() == SemanticObjectKind::Parameter))]
+#[invariant(question_node_shape_is_valid(*kind, *mode, *domain, slots, *focus, *presupposed_answer))]
 #[invariant(focus.is_none_or(question_focus_kind_is_allowed))]
 #[invariant(presupposed_answer.is_none_or(question_focus_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
@@ -413,6 +413,42 @@ pub struct QuestionNode {
     pub focus: Option<SemanticObjectId>,
     pub presupposed_answer: Option<SemanticObjectId>,
     pub common: SemanticObjectCommon,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn question_node_shape_is_valid(
+    kind: QuestionKind,
+    mode: QuestionMode,
+    domain: SemanticSort,
+    slots: &[QuestionSlot],
+    focus: Option<SemanticObjectId>,
+    presupposed_answer: Option<SemanticObjectId>,
+) -> bool {
+    if !question_kind_domain_are_coherent(kind, domain) {
+        return false;
+    }
+    if kind == QuestionKind::Multiple {
+        let Some(first) = slots.first().and_then(QuestionSlot::kind_and_domain) else {
+            return false;
+        };
+        return slots.len() >= 2
+            && slots.iter().all(|slot| slot.kind_and_domain().is_some())
+            && slots
+                .iter()
+                .filter_map(QuestionSlot::kind_and_domain)
+                .any(|slot| slot != first);
+    }
+    if kind == QuestionKind::Truth {
+        return slots.is_empty();
+    }
+    if mode == QuestionMode::Indirect && slots.is_empty() {
+        return focus.is_some() && presupposed_answer.is_some();
+    }
+    !slots.is_empty()
+        && slots
+            .iter()
+            .all(|slot| slot.kind_and_domain().is_none() && slot.parameter().is_some())
 }
 
 #[invariant(::Utterance(node) => eventuality_is_referent(node.eventuality))]
@@ -1379,6 +1415,29 @@ impl SemanticObject {
         respondent: SemanticObjectId,
         source: Option<SemanticSource>,
     ) -> Self {
+        Self::question_with_focus(
+            kind, mode, domain, body, slots, None, None, asker, respondent, source,
+        )
+    }
+
+    #[requires(body.object_kind() == SemanticObjectKind::Formula)]
+    #[requires(question_node_shape_is_valid(kind, mode, domain, &slots, focus, presupposed_answer))]
+    #[requires(focus.is_none_or(question_focus_kind_is_allowed))]
+    #[requires(presupposed_answer.is_none_or(question_focus_kind_is_allowed))]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Question)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn question_with_focus(
+        kind: QuestionKind,
+        mode: QuestionMode,
+        domain: SemanticSort,
+        body: SemanticObjectId,
+        slots: Vec<QuestionSlot>,
+        focus: Option<SemanticObjectId>,
+        presupposed_answer: Option<SemanticObjectId>,
+        asker: SemanticObjectId,
+        respondent: SemanticObjectId,
+        source: Option<SemanticSource>,
+    ) -> Self {
         new!(SemanticObject::Question(new!(QuestionNode {
             kind,
             mode,
@@ -1387,8 +1446,8 @@ impl SemanticObject {
             domain,
             body,
             slots,
-            focus: None,
-            presupposed_answer: None,
+            focus,
+            presupposed_answer,
             common: SemanticObjectCommon::new(source, Vec::new()),
         })))
     }
@@ -3011,7 +3070,7 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
         }
         data!(SemanticObject::Question(node)) => {
             out.extend([node.asker, node.respondent, node.body]);
-            out.extend(node.slots.iter().map(|slot| slot.parameter));
+            out.extend(node.slots.iter().filter_map(QuestionSlot::parameter));
             extend_optional(out, node.focus);
             extend_optional(out, node.presupposed_answer);
         }

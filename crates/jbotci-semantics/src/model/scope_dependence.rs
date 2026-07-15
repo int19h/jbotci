@@ -157,7 +157,7 @@ fn visit_scope_object(
             visit_ids(
                 [node.asker, node.respondent]
                     .into_iter()
-                    .chain(node.slots.iter().map(|slot| slot.parameter))
+                    .chain(node.slots.iter().filter_map(QuestionSlot::parameter))
                     .chain(node.focus)
                     .chain(node.presupposed_answer),
                 objects,
@@ -165,7 +165,10 @@ fn visit_scope_object(
                 expanded,
                 derived,
             );
-            let scoped = binders_with(binders, node.slots.iter().map(|slot| slot.parameter));
+            let scoped = binders_with(
+                binders,
+                node.slots.iter().filter_map(QuestionSlot::parameter),
+            );
             visit_scope_object(node.body, objects, &scoped, expanded, derived);
         }
         _ => {

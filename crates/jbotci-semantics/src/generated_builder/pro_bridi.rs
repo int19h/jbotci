@@ -409,8 +409,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let excluded_source = predication_source.as_ref().map(|source| &source.span);
+        let replay_question_start = self.direct_question_slots.len();
         let target_arguments =
             self.generated_pro_bridi_replayed_arguments(&target, excluded_source)?;
+        let replay_question_end = self.direct_question_slots.len();
         let eventuality = match eventuality {
             Some(eventuality) => eventuality,
             None => self.build_generated_pro_bridi_eventuality_from_frame(
@@ -486,6 +488,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             assignments.implicit_existentials,
             assignments.term_formula_scopes,
         )?;
+        let replayed_slots = self
+            .direct_question_slots
+            .drain(replay_question_start..replay_question_end)
+            .collect::<Vec<_>>();
+        let replayed_slots = replayed_slots
+            .into_iter()
+            .filter(|slot| {
+                slot.parameter.is_none_or(|parameter| {
+                    crate::model::semantic_object_reaches(&self.objects, formula, parameter)
+                })
+            })
+            .collect::<Vec<_>>();
+        self.direct_question_slots
+            .splice(replay_question_start..replay_question_start, replayed_slots);
         Ok(Some(formula))
     }
 
