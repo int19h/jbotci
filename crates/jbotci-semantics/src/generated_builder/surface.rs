@@ -432,15 +432,6 @@ pub(super) fn push_word_text(output: &mut String, word: &Word) {
 
 #[requires(!what.is_empty())]
 #[ensures(ret.kind == SemanticsErrorKind::InvalidGraph)]
-pub(super) fn unsupported(what: &str) -> SemanticsError {
-    SemanticsError {
-        kind: SemanticsErrorKind::InvalidGraph,
-        message: format!("generated semantic builder does not yet support {what}"),
-    }
-}
-
-#[requires(!what.is_empty())]
-#[ensures(ret.kind == SemanticsErrorKind::InvalidGraph)]
 pub(super) fn undefined_semantics(what: &str) -> SemanticsError {
     SemanticsError {
         kind: SemanticsErrorKind::InvalidGraph,

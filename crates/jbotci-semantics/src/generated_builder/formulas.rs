@@ -39,7 +39,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     suffix_terms,
                 ),
             BridiSyntax::BridiWithPostCuTerms(_) | BridiSyntax::BareCuTermsBridi(_) => {
-                Err(unsupported("Zantufa statement terms with post-CU bridi"))
+                Err(undefined_semantics(
+                    "experimental Zantufa post-CU terms combined with statement-level suffix terms",
+                ))
             }
         };
         self.pro_bridi_scope_stack.pop();
@@ -200,16 +202,87 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             TermSyntax::SimpleTerm(simple) => {
                 self.collect_generated_term_formula_scopes_for_simple_term(term, simple, scopes)
             }
-            TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-                leading_term,
-                continuations,
-            }) if continuations.is_empty() => self
-                .collect_generated_term_formula_scopes_for_simple_term(
-                    term,
-                    leading_term.as_ref(),
+            TermSyntax::ConnectedTerm(connection) => {
+                self.collect_generated_term_formula_scopes_for_simple_term(
+                    connection.leading_term.as_ref(),
+                    connection.leading_term.as_ref(),
                     scopes,
-                ),
-            _ => Err(unsupported("non-simple term")),
+                )?;
+                for continuation in &connection.continuations {
+                    self.collect_generated_term_formula_scopes_for_simple_term(
+                        continuation.trailing_term.as_ref(),
+                        continuation.trailing_term.as_ref(),
+                        scopes,
+                    )?;
+                }
+                Ok(())
+            }
+            TermSyntax::BoundTermConnection(connection) => {
+                self.collect_generated_term_formula_scopes_for_simple_term(
+                    &connection.leading_term,
+                    &connection.leading_term,
+                    scopes,
+                )?;
+                self.collect_generated_term_formula_scopes_for_simple_term(
+                    &connection.trailing_term,
+                    &connection.trailing_term,
+                    scopes,
+                )
+            }
+            TermSyntax::PeheTermsetConnection(connection) => {
+                self.collect_generated_term_formula_scopes_for_pehe_operand(
+                    &connection.leading_term,
+                    scopes,
+                )?;
+                for continuation in &connection.continuations {
+                    self.collect_generated_term_formula_scopes_for_pehe_operand(
+                        &continuation.trailing_term,
+                        scopes,
+                    )?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn collect_generated_term_formula_scopes_for_pehe_operand(
+        &self,
+        operand: &'tree PeheTermsetOperandSyntax,
+        scopes: &mut Vec<GeneratedTermFormulaScope>,
+    ) -> Result<(), SemanticsError> {
+        match operand {
+            PeheTermsetOperandSyntax::SimpleTerm(simple) => {
+                self.collect_generated_term_formula_scopes_for_simple_term(simple, simple, scopes)
+            }
+            PeheTermsetOperandSyntax::TermsetGroup(termset) => {
+                self.collect_generated_term_formula_scopes_for_simple_term(
+                    termset.leading_term.as_ref(),
+                    termset.leading_term.as_ref(),
+                    scopes,
+                )?;
+                for continuation in &termset.continuations {
+                    self.collect_generated_term_formula_scopes_for_simple_term(
+                        continuation.trailing_term.as_ref(),
+                        continuation.trailing_term.as_ref(),
+                        scopes,
+                    )?;
+                }
+                Ok(())
+            }
+            PeheTermsetOperandSyntax::BoundTermConnection(connection) => {
+                self.collect_generated_term_formula_scopes_for_simple_term(
+                    &connection.leading_term,
+                    &connection.leading_term,
+                    scopes,
+                )?;
+                self.collect_generated_term_formula_scopes_for_simple_term(
+                    &connection.trailing_term,
+                    &connection.trailing_term,
+                    scopes,
+                )
+            }
         }
     }
 
@@ -458,11 +531,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(None);
         };
-        if abstraction.nai.is_some() {
-            return Err(unsupported("negated abstraction"));
-        }
-        if !abstraction.abstractor_connections.is_empty() {
-            return Err(unsupported("connected abstraction"));
+        if abstraction.nai.is_some() || !abstraction.abstractor_connections.is_empty() {
+            return Ok(None);
         }
         Ok(Some(abstraction))
     }
@@ -573,7 +643,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         conversions: &[WithFreeModifiers<Token, F>],
     ) -> Result<Option<GeneratedDescriptionAbstraction<'syntax>>, SemanticsError> {
         if abstraction.nai.is_some() {
-            return Err(unsupported("negated abstraction"));
+            return Ok(None);
         }
         let kind = abstraction_kind_for_nu(abstraction);
         if conversions.is_empty() {
@@ -843,7 +913,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         let connection = *connection;
         if eventuality.is_some() {
-            return Err(unsupported("scoped direct term connection"));
+            return Err(invalid_graph(
+                "direct term connection reached branch lowering with an explicit eventuality"
+                    .to_owned(),
+            ));
         }
 
         let before_terms = &terms[..position];
@@ -1135,7 +1208,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         if eventuality.is_some() {
-            return Err(unsupported("scoped forethought termset connection"));
+            return Err(invalid_graph(
+                "forethought termset reached branch lowering with an explicit eventuality"
+                    .to_owned(),
+            ));
         }
 
         let before_terms = &terms[..position];
@@ -1156,8 +1232,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     == Some(Cmavo::Fahu)
                 || modal_connection_spec.is_some())
         {
-            return Err(unsupported(
-                "n-ary modal, nonlogical, or FAhU forethought termset semantics",
+            return Err(undefined_semantics(
+                "an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
             ));
         }
         if !generated_modal_forethought_connective_is_logical(&termset.gek)
@@ -1167,8 +1243,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             if !preassigned_visible_arguments.is_empty() || !preassigned_place_questions.is_empty()
             {
-                return Err(unsupported(
-                    "nonlogical forethought termset with shared bridi arguments",
+                return Err(invalid_graph(
+                    "nonlogical forethought termset with shared arguments reached unshared branch lowering"
+                        .to_owned(),
                 ));
             }
             return self
@@ -1337,7 +1414,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         if eventuality.is_some() {
-            return Err(unsupported("scoped pehe termset connection"));
+            return Err(invalid_graph(
+                "PEhE termset reached branch lowering with an explicit eventuality".to_owned(),
+            ));
         }
         let before_terms = &terms[..position];
         let after_terms = &terms[position + 1..];
@@ -1373,7 +1452,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         for continuation in &connection.continuations {
             if !generated_statement_connective_is_logical(&continuation.connective) {
-                return Err(unsupported("mixed nonlogical pehe termset connection"));
+                return Err(invalid_graph(
+                    "mixed logical and nonlogical PEhE chain reached logical branch folding"
+                        .to_owned(),
+                ));
             }
             let right = self.build_generated_pehe_termset_branch_formula_in_mode(
                 simple_tail,
@@ -1480,7 +1562,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if !Self::generated_term_assignments_are_unscoped(&leading_assignments)
             || !Self::generated_term_assignments_are_unscoped(&trailing_assignments)
         {
-            return Err(unsupported("scoped generated fa'u termset branch"));
+            return Err(invalid_graph(
+                "scoped FAhU termset reached unscoped respectively lowering".to_owned(),
+            ));
         }
 
         let Some((composite, members)) = self
@@ -1970,9 +2054,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     operand,
                     simple,
                 ),
-            PeheTermsetOperandSyntax::BoundTermConnection(_) => {
-                Err(unsupported("bound pehe termset operand"))
-            }
+            PeheTermsetOperandSyntax::BoundTermConnection(_) => Err(invalid_graph(
+                "bound PEhE operand reached simple operand assignment lowering".to_owned(),
+            )),
         }
     }
 
@@ -2012,7 +2096,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             || !trailing_assignments.implicit_existentials.is_empty()
             || !trailing_assignments.term_formula_scopes.is_empty()
         {
-            return Err(unsupported("scoped nonlogical pehe termset branch"));
+            return Err(invalid_graph(
+                "scoped nonlogical PEhE branch reached unscoped composite lowering".to_owned(),
+            ));
         }
 
         let mut leading_modal_arguments = self
@@ -2161,7 +2247,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             || !trailing_assignments.implicit_existentials.is_empty()
             || !trailing_assignments.term_formula_scopes.is_empty()
         {
-            return Err(unsupported("scoped nonlogical forethought termset branch"));
+            return Err(invalid_graph(
+                "scoped nonlogical forethought termset reached unscoped composite lowering"
+                    .to_owned(),
+            ));
         }
 
         let mut leading_modal_arguments = self
@@ -2574,7 +2663,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && mode == PredicationMode::Asserted
             && allow_single_argument_distribution
             && let [term] = terms.as_slice()
-            && let Some(sumti) = simple_sumti_from_term(term).ok()
+            && let Some(sumti) = simple_sumti_from_term(term)
             && no_gadri_description_from_sumti(sumti)?.is_some()
         {
             return Ok(None);
@@ -3216,7 +3305,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && mode == PredicationMode::Asserted
             && allow_single_argument_distribution
             && let [term] = terms.as_slice()
-            && let Some(sumti) = simple_sumti_from_term(term).ok()
+            && let Some(sumti) = simple_sumti_from_term(term)
         {
             if let Some(description) = no_gadri_description_from_sumti(sumti)? {
                 return self.build_no_gadri_quantified_argument_formula(
@@ -3316,7 +3405,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         for (connected_index, (connected_place, connected_sumti)) in assignments.iter().enumerate()
         {
-            let Ok(SumtiBaseSyntax::NumberSumti(number)) =
+            let Some(SumtiBaseSyntax::NumberSumti(number)) =
                 simple_sumti_base_from_sumti(connected_sumti)
             else {
                 continue;
@@ -3805,6 +3894,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
             );
         }
+        if excluded_source.is_none()
+            && let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) =
+                simple_tail.selbri.as_ref()
+            && co_selbri.co_tail.is_none()
+            && let Some(tanru) = tanru_selbri_from_co_selbri(co_selbri)?
+            && tanru.additional_units.is_empty()
+            && let (atom, _) = generated_linked_tanru_unit_parts(&tanru.first_unit)?
+            && generated_jai_modal_tanru_unit(atom.base.as_ref()).is_some()
+            && !self.split_generated_fai_terms(terms.clone())?.1.is_empty()
+        {
+            return self
+                .build_relation_formula_for_generated_tanru_unit_terms_with_preassigned_arguments(
+                    &tanru.first_unit,
+                    preassigned_visible_arguments,
+                    preassigned_place_questions,
+                    terms,
+                    first_visible_place,
+                    eventuality,
+                    mode,
+                    predication_source,
+                    formula_source,
+                );
+        }
         if preassigned_place_questions.is_empty() && excluded_source.is_none() {
             if eventuality.is_none()
                 && let Ok(relation) = relation_label_from_selbri(&simple_tail.selbri)
@@ -4044,7 +4156,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         }
         if mode != PredicationMode::Asserted {
-            return Err(unsupported("scoped deferred-prefix bridi terms"));
+            return Err(invalid_graph(
+                "deferred prefix terms reached asserted-only branch lowering".to_owned(),
+            ));
         }
         let local_assignments = self.build_term_assignments_for_terms_with_shared_tail_source(
             terms,
@@ -4265,8 +4379,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && (!generated_modal_forethought_connective_is_logical(&connection.gek)
                 || modal_connection_spec.is_some())
         {
-            return Err(unsupported(
-                "n-ary modal or nonlogical forethought bridi semantics",
+            return Err(undefined_semantics(
+                "an experimental n-ary modal or nonlogical forethought bridi connection",
             ));
         }
         let first_eventuality = match eventuality {
@@ -4557,15 +4671,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         annotate_shared_head_source: bool,
         annotate_compound_source: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if eventuality.is_some() {
-            return Err(unsupported("explicit eventuality on connected bridi tail"));
-        }
         let BridiTailSyntax::BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax {
             first,
             ke_continuation,
         }) = tail
         else {
-            return Err(unsupported("connected bridi tail without possible terms"));
+            return Err(invalid_graph(
+                "connected-tail lowering received a bridi tail without possible terms".to_owned(),
+            ));
         };
         let source = annotate_compound_source
             .then(|| self.source_for_node(source_node, "compound-bridi-formula"))
@@ -4640,7 +4753,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             current = self.with_generated_scoped_formula(current, formula);
         }
-        self.wrap_generated_scoped_formula(current)
+        let formula = self.wrap_generated_scoped_formula(current)?;
+        let Some(eventuality) = eventuality else {
+            return Ok(formula);
+        };
+        let scoped = self.next_formula_id();
+        let mut object = SemanticObject::connective_formula(
+            FormulaOperator::Scoped,
+            vec![formula],
+            None,
+            self.source_for_node(source_node, "compound-event-scope"),
+            Vec::new(),
+        );
+        object.set_scoped_formula_eventuality(Some(eventuality));
+        self.insert(scoped, object)?;
+        Ok(scoped)
     }
 
     #[requires(first_visible_place > 0)]
@@ -4666,7 +4793,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ke_continuation,
         }) = tail
         else {
-            return Err(unsupported("connected bridi tail without possible terms"));
+            return Err(invalid_graph(
+                "connected-tail lowering received a bridi tail without possible terms".to_owned(),
+            ));
         };
         let source = self.source_for_node(source_node, "compound-bridi-formula");
         let leading_suffix_terms = if let Some(first_continuation) = first.0.links.first() {
@@ -4798,8 +4927,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         excluded_source: Option<&SourceByteSpan>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let SimpleBridiTailSyntax::SelbriSimpleBridiTail(simple_tail) = tail.first.as_ref() else {
-            return Err(unsupported(
-                "forethought simple bridi tail with preassigned shared terms",
+            return Err(invalid_graph(
+                "forethought bridi tail reached preassigned selbri-tail lowering".to_owned(),
             ));
         };
         let mut terms = Vec::with_capacity(simple_tail.terms.len() + suffix_terms.len());
@@ -5436,7 +5565,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     false,
                 ),
             BridiSyntax::BridiWithPostCuTerms(_) | BridiSyntax::BareCuTermsBridi(_) => {
-                Err(unsupported("forethought bridi branch with post-CU terms"))
+                Err(undefined_semantics(
+                    "experimental Zantufa post-CU terms inside a forethought bridi branch",
+                ))
             }
         }
     }
@@ -5516,8 +5647,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         }
         if forethought_connection_from_bridi_tail(tail)?.is_some() {
-            return Err(unsupported(
-                "shared terms with nested forethought bridi connection",
+            return Err(invalid_graph(
+                "nested forethought bridi reached simple shared-term branch lowering".to_owned(),
             ));
         }
         let simple_tail = simple_tail_from_bridi_tail(tail)?;
@@ -5628,7 +5759,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 branch_prenex_existentials,
             ),
             BridiSyntax::BridiWithPostCuTerms(_) | BridiSyntax::BareCuTermsBridi(_) => {
-                Err(unsupported("forethought bridi branch with post-CU terms"))
+                Err(undefined_semantics(
+                    "experimental Zantufa post-CU terms inside a forethought bridi branch",
+                ))
             }
         }
     }
@@ -5656,8 +5789,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if generated_bridi_tail_is_connected(tail) {
             if !preassigned_visible_arguments.is_empty() {
                 if !branch_leading_terms.is_empty() {
-                    return Err(unsupported(
-                        "connected forethought bridi tail with local leading terms",
+                    return Err(invalid_graph(
+                        "connected forethought branch with local terms reached shared-only lowering"
+                            .to_owned(),
                     ));
                 }
                 let mut assignments = empty_generated_term_assignments();
@@ -5700,8 +5834,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if let Some(connection) = forethought_connection_from_bridi_tail(tail)? {
             if !branch_leading_terms.is_empty() || !preassigned_visible_arguments.is_empty() {
-                return Err(unsupported(
-                    "shared terms with nested forethought bridi connection",
+                return Err(invalid_graph(
+                    "nested forethought bridi reached simple shared-term branch lowering"
+                        .to_owned(),
                 ));
             }
             return self.build_forethought_bridi_connection_formula_with_shared_terms(
@@ -5842,7 +5977,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             branches,
         }) = spec.into_data();
         let UntaggedSelbriSyntax::CoSelbri(co_selbri) = tagged.inner_selbri.as_ref() else {
-            return Err(unsupported("connected event tense on non-relation selbri"));
+            return Err(invalid_graph(
+                "connected event tense reached atomic-relation lowering for a compound selbri"
+                    .to_owned(),
+            ));
         };
         let relation = semantic_relation_label(relation_label_from_co_selbri(co_selbri)?);
         let place_count = relation_place_count(self.dictionary, &relation);
@@ -6159,9 +6297,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.sticky_space_path.clear();
         }
         if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
-            if eventuality.is_some() {
-                return Err(unsupported("eventuality on scoped tagged selbri"));
-            }
             let child = self.build_untagged_selbri_formula_with_options(
                 tagged.inner_selbri.as_ref(),
                 terms,
@@ -6172,10 +6307,31 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula_source.clone(),
                 formula_source,
             )?;
+            let scope_source = self.source_for_node(tagged, "tense-scope");
+            if let Some(eventuality) = eventuality {
+                if generated_tense_modal_has_event_modifier(tagged.tense_modal.as_ref()) {
+                    self.apply_generated_tense_modal_event_modifier_to_eventuality(
+                        eventuality,
+                        tagged.tense_modal.as_ref(),
+                        None,
+                    )?;
+                }
+                let formula = self.next_formula_id();
+                let mut object = SemanticObject::connective_formula(
+                    FormulaOperator::Scoped,
+                    vec![child],
+                    None,
+                    scope_source,
+                    Vec::new(),
+                );
+                object.set_scoped_formula_eventuality(Some(eventuality));
+                self.insert(formula, object)?;
+                return Ok(formula);
+            }
             return self.build_generated_tense_scope_formula(
                 child,
                 tagged.tense_modal.as_ref(),
-                self.source_for_node(tagged, "tense-scope"),
+                scope_source,
             );
         }
 
@@ -6437,7 +6593,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )
             };
             let (head_terms, modifier_terms, modifier_first_visible_place) =
-                split_generated_co_terms(terms, first_visible_place);
+                split_generated_co_terms(selbri, terms)?;
             let leading_eventuality = match eventuality {
                 Some(eventuality) => Some(eventuality),
                 None if !head_terms.is_empty() => {

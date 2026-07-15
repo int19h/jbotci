@@ -8,9 +8,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         term: &'tree TermSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let argument = self.build_argument_for_generated_term(term)?.into_data();
-        let argument_object = argument
-            .value
-            .ok_or_else(|| unsupported("non-referential term argument"))?;
+        let argument_object = argument.value.ok_or_else(|| {
+            invalid_graph("referential term lowering produced no argument object".to_owned())
+        })?;
         if !argument.relative_clauses.is_empty()
             && matches!(
                 argument_object.object_kind(),
@@ -77,7 +77,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term,
                 leading_term.as_ref(),
             ),
-            _ => Err(unsupported("non-simple term")),
+            _ => Err(invalid_graph(
+                "connected term reached simple-term assignment lowering".to_owned(),
+            )),
         }
     }
 
@@ -292,7 +294,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 coequal_scope_groups.extend(local_coequal_scope_groups);
                 Ok(())
             }
-            _ => Err(unsupported("non-sumti term")),
+            _ => Err(invalid_graph(
+                "non-sumti term reached sumti assignment lowering".to_owned(),
+            )),
         }
     }
 
@@ -503,7 +507,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         else {
-            return Err(unsupported("tagged sumti tense modal"));
+            return Ok(None);
         };
         let arguments = self.modal_argument_map_for_visible_place(
             argument,
@@ -661,12 +665,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         eventuality: SemanticObjectId,
     ) -> Result<ModalArgument, SemanticsError> {
         let Some(tense_modal) = unit.tense_modal.as_deref() else {
-            return Err(unsupported("bare jai modal argument"));
+            return Err(invalid_graph(
+                "bare JAI reached modal-argument lowering".to_owned(),
+            ));
         };
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         else {
-            return Err(unsupported("jai modal tanru unit tense modal"));
+            return Err(invalid_graph(
+                "non-modal JAI tag reached modal-argument lowering".to_owned(),
+            ));
         };
         let other_place = convert_numbered_place(2, visible_place);
         let highest_place = relation_place_count(self.dictionary, &relation)
@@ -716,7 +724,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         else {
-            return Err(unsupported("jai modal tanru unit tense modal"));
+            return Ok(None);
         };
         let arguments = self.modal_argument_map_for_visible_place(
             ArgumentValue::filled(argument_object, None),
@@ -1977,25 +1985,39 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             term,
         )?;
         if !modal_terms.is_empty() {
-            return Err(unsupported("modal term as referential argument"));
+            return Err(invalid_graph(
+                "modal term reached referential-argument lowering".to_owned(),
+            ));
         }
         if !place_questions.is_empty() {
-            return Err(unsupported("place-question term as referential argument"));
+            return Err(invalid_graph(
+                "place-question term reached referential-argument lowering".to_owned(),
+            ));
         }
         if !formula_scopes.is_empty() {
-            return Err(unsupported("scoped term as referential argument"));
+            return Err(invalid_graph(
+                "quantified term reached unscoped referential-argument lowering".to_owned(),
+            ));
         }
         if !coequal_scope_groups.is_empty() {
-            return Err(unsupported("coequal-scoped term as referential argument"));
+            return Err(invalid_graph(
+                "coequal-scoped term reached referential-argument lowering".to_owned(),
+            ));
         }
         if !term_formula_scopes.is_empty() {
-            return Err(unsupported("formula-scoped term as referential argument"));
+            return Err(invalid_graph(
+                "formula-scoped term reached referential-argument lowering".to_owned(),
+            ));
         }
         let Some(argument) = visible_arguments.remove(&1) else {
-            return Err(unsupported("non-referential term argument"));
+            return Err(invalid_graph(
+                "referential term lowering produced no x1 argument".to_owned(),
+            ));
         };
         if !visible_arguments.is_empty() {
-            return Err(unsupported("multi-place term as referential argument"));
+            return Err(invalid_graph(
+                "multi-place term reached single referential-argument lowering".to_owned(),
+            ));
         }
         Ok(argument)
     }
@@ -2095,18 +2117,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     &mut formula_scopes,
                 )?;
                 if !formula_scopes.is_empty() {
-                    let argument_object = argument
-                        .value
-                        .ok_or_else(|| unsupported("sumti fragment without an argument object"))?;
+                    let argument_object = argument.value.ok_or_else(|| {
+                        requires_discourse_context(
+                            "a deleted place has no standalone sumti denotation",
+                        )
+                    })?;
                     return self.build_generated_scoped_sumti_fragment_denotation(
                         argument_object,
                         formula_scopes,
                         self.source_for_node(sumti, "sumti-fragment-scope"),
                     );
                 }
-                argument
-                    .value
-                    .ok_or_else(|| unsupported("sumti fragment without an argument object"))?
+                argument.value.ok_or_else(|| {
+                    requires_discourse_context("a deleted place has no standalone sumti denotation")
+                })?
             }
         } else {
             self.build_sumti_referent(sumti)?
@@ -2146,7 +2170,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         sumti: &'tree SumtiSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Ok(SumtiBaseSyntax::LerfuStringSumti(letters)) = simple_sumti_base_from_sumti(sumti)
+        let Some(SumtiBaseSyntax::LerfuStringSumti(letters)) = simple_sumti_base_from_sumti(sumti)
         else {
             return Ok(None);
         };
@@ -2178,7 +2202,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let tokens = self.tokens_for_node(fragment);
         if tokens.is_empty() {
-            return Err(unsupported("empty connective fragment"));
+            return Err(invalid_graph(
+                "generated connective fragment has no tokens".to_owned(),
+            ));
         }
         let sign = self.next_sign_id();
         self.insert(
@@ -2666,27 +2692,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         sumti: &'syntax SumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if let Some(vuho_attachment) = &sumti.vuho_attachment {
-            match vuho_attachment {
-                VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(tail)
-                    if tail.sumti_connection.is_some() =>
-                {
-                    return Err(unsupported("VUhO sumti relative connection"));
-                }
-                VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(_) => {}
-                VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(_) => {}
-            }
-        }
         let (id, built) = self.build_cached_sumti_referent_for_node(sumti, |builder| {
-            if let Some(VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail)) =
-                &sumti.vuho_attachment
-            {
+            let vuho_connection = match &sumti.vuho_attachment {
+                Some(VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail)) => {
+                    Some(tail.sumti_connection.as_ref())
+                }
+                Some(VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(tail)) => {
+                    tail.sumti_connection.as_deref()
+                }
+                None => None,
+            };
+            if let Some(connection) = vuho_connection {
                 let leading = builder.build_sumti_grouped_referent(&sumti.base_sumti)?;
-                let trailing = builder.build_sumti_referent(&tail.sumti_connection.sumti)?;
+                let trailing = builder.build_sumti_referent(&connection.sumti)?;
                 builder.build_connected_generated_sumti_referent(
                     sumti,
                     leading,
-                    &tail.sumti_connection.connective,
+                    &connection.connective,
                     trailing,
                 )
             } else if let Some(referent) = builder.build_generated_goi_associated_referent(sumti)? {
@@ -2976,7 +2998,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?;
                 if !inner_scopes.is_empty() {
                     let operand = inner_argument.value.ok_or_else(|| {
-                        unsupported("deleted operand for referent-qualified sumti")
+                        invalid_graph(
+                            "referent-qualified sumti received a deleted scoped operand".to_owned(),
+                        )
                     })?;
                     let referent = self.build_lahe_sumti_referent_with_operand(lahe, operand)?;
                     formula_scopes.extend(inner_scopes);
@@ -4414,7 +4438,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Some(formula) => Ok(formula),
                 None => self
                     .subordinate_formula_for_generated_discourse_item(item)?
-                    .ok_or_else(|| unsupported("relative statement without formula")),
+                    .ok_or_else(|| {
+                        invalid_graph(
+                            "relative-clause statement produced no subordinate formula".to_owned(),
+                        )
+                    }),
             });
         self.relative_head_stack.pop();
         let formula = result?;
@@ -4450,9 +4478,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let Some(tail) = &sumti.grouped_tail else {
                 return Ok(leading);
             };
-            if tail.tense_modal.is_some() {
-                return Err(unsupported("tense-modal grouped sumti referent"));
-            }
             let trailing = builder.build_sumti_referent(&tail.inner_sumti)?;
             builder.build_connected_generated_sumti_referent(
                 sumti,
@@ -4516,9 +4541,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     "an experimental FA tag in a sumti connection",
                 ));
             }
-            if tail.tense_modal.is_some() {
-                return Err(unsupported("tense-modal bound sumti"));
-            }
             let trailing = builder.build_sumti_bound_referent(&tail.trailing_sumti)?;
             builder.build_connected_generated_sumti_referent(
                 sumti,
@@ -4572,7 +4594,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_cached_sumti_referent_for_node(sumti, |builder| {
             match sumti.base_sumti.as_ref() {
                 SumtiAtomSyntax::SumtiBase(base) => builder.build_sumti_base_referent(base),
-                SumtiAtomSyntax::QuantifiedSumti(_) => Err(unsupported("quantified sumti")),
+                SumtiAtomSyntax::QuantifiedSumti(_) => Err(invalid_graph(
+                    "quantified sumti reached referent-only lowering without its formula scope"
+                        .to_owned(),
+                )),
             }
         })
         .map(|(referent, _built)| referent)
@@ -6286,12 +6311,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
 
         if stack.len() != 1 {
-            return Err(unsupported(
-                "Zantufa reverse Polish mex stack did not reduce to one expression",
+            return Err(invalid_graph(
+                "Zantufa reverse Polish mex stack did not reduce to one expression".to_owned(),
             ));
         }
         stack.pop().ok_or_else(|| {
-            unsupported("Zantufa reverse Polish mex stack did not produce an expression")
+            invalid_graph(
+                "Zantufa reverse Polish mex stack did not produce an expression".to_owned(),
+            )
         })
     }
 
@@ -6304,16 +6331,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(), SemanticsError> {
         if stack.len() < 2 {
-            return Err(unsupported(
-                "Zantufa reverse Polish mex operator without two operands",
+            return Err(invalid_graph(
+                "Zantufa reverse Polish mex operator has fewer than two operands".to_owned(),
             ));
         }
-        let right = stack
-            .pop()
-            .ok_or_else(|| unsupported("Zantufa reverse Polish mex missing right operand"))?;
-        let left = stack
-            .pop()
-            .ok_or_else(|| unsupported("Zantufa reverse Polish mex missing left operand"))?;
+        let right = stack.pop().ok_or_else(|| {
+            invalid_graph("Zantufa reverse Polish mex is missing its right operand".to_owned())
+        })?;
+        let left = stack.pop().ok_or_else(|| {
+            invalid_graph("Zantufa reverse Polish mex is missing its left operand".to_owned())
+        })?;
         let expression = self.build_generated_math_operator_expression_for_operator(
             operator,
             vec![left, right],
@@ -7637,7 +7664,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(Cmavo::Dihe) => self.next_utterance,
             Some(Cmavo::Dohi) => None,
             Some(Cmavo::Dehu | Cmavo::Dahu | Cmavo::Dehe | Cmavo::Dahe) => None,
-            _ => return Err(unsupported(&format!("utterance pro-sumti {word}"))),
+            _ => {
+                return Err(invalid_graph(format!(
+                    "non-utterance pro-sumti `{word}` reached utterance-reference lowering"
+                )));
+            }
         };
         let mut diagnostics = Vec::new();
         if target.is_none() && token.cmavo() != Some(Cmavo::Dohi) {
@@ -7814,7 +7845,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .as_ref()
             .map(|tail_sumti| tail_sumti.0.as_ref());
         if leading_operand_sumti.is_some() && body_operand_sumti.is_some() {
-            return Err(unsupported("multiple description operands"));
+            return Err(invalid_graph(
+                "generated description contains both leading and body operands".to_owned(),
+            ));
         }
         let cmavo = description_head.0.value.cmavo();
         let word = token_text(&description_head.0.value);
@@ -8085,7 +8118,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .as_ref()
             .map(|tail_sumti| tail_sumti.0.as_ref());
         if leading_operand_sumti.is_some() && body_operand_sumti.is_some() {
-            return Err(unsupported("multiple aggregate description operands"));
+            return Err(invalid_graph(
+                "generated aggregate description contains both leading and body operands"
+                    .to_owned(),
+            ));
         }
         let id = self.next_referent_id();
         self.insert(
@@ -8267,9 +8303,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         kind: DescriptorKind,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if abstraction.nai.is_some() {
-            return Err(unsupported("negated abstraction"));
-        }
         let output_sort = abstraction_output_sort(abstraction_kind_for_nu(abstraction));
         let id = self.next_referent_with_sort_id(output_sort);
         self.insert(
@@ -8410,7 +8443,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let operator = generated_statement_connective_formula_operator_for_core(connective);
         let Some(truth_table) = generated_statement_connective_core_truth_table(connective) else {
-            return Err(unsupported("nonlogical abstraction connective"));
+            return Err(undefined_semantics(
+                "a non-truth-functional abstraction connection inside a restrictive description",
+            ));
         };
         self.mark_generated_statement_whether_or_not_inert_operand(connective, left, right);
         let left = if generated_statement_connective_negates_left(connective) {
@@ -8969,10 +9004,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
-            return Err(unsupported("scoped tagged restrictive selbri"));
+            return Err(invalid_graph(
+                "scoped tagged selbri reached atomic restrictive lowering".to_owned(),
+            ));
         }
         let UntaggedSelbriSyntax::CoSelbri(co_selbri) = tagged.inner_selbri.as_ref() else {
-            return Err(unsupported("non-CO tagged restrictive selbri"));
+            return Err(invalid_graph(
+                "non-CO tagged selbri reached atomic restrictive lowering".to_owned(),
+            ));
         };
         let predication_source = self.source_for_node(tagged, "restrictive-predication");
         let formula_source = self.source_for_node(tagged, "restrictive-formula");
@@ -9034,7 +9073,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             QuantifierSyntax::PaRunQuantifier(quantifier) => {
                 let words = self.tokens_for_node(&quantifier.number);
                 if words.is_empty() {
-                    return Err(unsupported("empty quantifier"));
+                    return Err(invalid_graph(
+                        "generated PA quantifier has no tokens".to_owned(),
+                    ));
                 }
                 let text = token_list_text(words.iter());
                 self.build_quantity_for_generated_tokens(
@@ -9246,7 +9287,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let words = self.tokens_for_node(node);
         if words.is_empty() {
-            return Err(unsupported("empty quantifier"));
+            return Err(invalid_graph(
+                "generated quantifier node has no tokens".to_owned(),
+            ));
         }
         let text = token_list_text(words.iter());
         self.build_quantity_for_generated_tokens(
@@ -9491,16 +9534,111 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         abstraction: &'syntax AbstractionTanruUnitSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if abstraction.nai.is_some() {
-            return Err(unsupported("negated abstraction"));
-        }
-        if !abstraction.abstractor_connections.is_empty() {
-            return Err(unsupported("connected abstraction"));
-        }
-        self.build_abstraction_output_for_branch(
+        let mut output = self.build_abstraction_output_for_branch(
             GeneratedAbstractionBranch::primary(abstraction),
-            source,
-        )
+            source.clone(),
+        )?;
+        for connection in &abstraction.abstractor_connections {
+            let trailing = self.build_abstraction_output_for_branch(
+                GeneratedAbstractionBranch::connected(abstraction, connection),
+                self.source_for_abstraction_branch(
+                    GeneratedAbstractionBranch::connected(abstraction, connection),
+                    "abstraction",
+                ),
+            )?;
+            output = self.build_connected_abstraction_output(
+                abstraction,
+                output,
+                &statement_connective_from_standard(&connection.connective),
+                trailing,
+                source.clone(),
+            )?;
+        }
+        Ok(output)
+    }
+
+    #[requires(crate::model::argument_object_kind_can_fill(source.object_kind()))]
+    #[requires(crate::model::argument_object_kind_can_fill(trailing.object_kind()))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    pub(super) fn build_connected_abstraction_output<N: TreeNode>(
+        &mut self,
+        node: &N,
+        source: SemanticObjectId,
+        connective: &StatementConnectiveSyntax,
+        trailing: SemanticObjectId,
+        semantic_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let logical = generated_statement_connective_is_logical(connective);
+        let interval = matches!(
+            generated_statement_connective_primary_cmavo(connective),
+            Some(Cmavo::Bihi | Cmavo::Biho | Cmavo::Mihi)
+        );
+        let operator_parameter =
+            build_generated_connective_question_parameter_for_statement_connective(
+                self, connective,
+            )?;
+        let right_negated = operator_parameter.is_none()
+            && logical
+            && generated_statement_connective_negates_right(connective);
+        let complement = (operator_parameter.is_none()
+            && interval
+            && generated_statement_connective_negates_right(connective))
+        .then_some(true);
+        let scalar_negated = (operator_parameter.is_none()
+            && !logical
+            && !interval
+            && generated_statement_connective_negates_right(connective))
+        .then_some(true);
+        let operator = if operator_parameter.is_some() {
+            CompositionOperator::ConnectiveQuestion
+        } else if logical {
+            CompositionOperator::Joint
+        } else {
+            generated_nonlogical_statement_composition_operator(connective)?
+        };
+        let reverse_members =
+            generated_statement_connective_reverses_composition_members(connective);
+        let (first, second) = if reverse_members {
+            (trailing, source)
+        } else {
+            (source, trailing)
+        };
+        let members = if right_negated {
+            vec![source]
+        } else {
+            vec![first, second]
+        };
+        let excluded_members = if right_negated {
+            vec![trailing]
+        } else {
+            Vec::new()
+        };
+        let id = self.next_referent_id();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Composite,
+                SemanticSort::Entity,
+                None,
+                None,
+                Some(new!(Composition {
+                    operator,
+                    operator_parameter,
+                    members,
+                    excluded_members,
+                    collective: operator.is_mass().then_some(true),
+                    scalar_negated,
+                    complement,
+                    endpoint_inclusion: generated_statement_connective_endpoint_inclusion(
+                        connective,
+                        reverse_members,
+                    ),
+                })),
+                semantic_source.or_else(|| self.source_for_node(node, "connected-abstraction")),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(source.as_ref().is_none_or(|source| source.construct.is_some()))]
@@ -9510,9 +9648,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         branch: GeneratedAbstractionBranch<'tree>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if branch.nai.is_some() {
-            return Err(unsupported("negated abstraction"));
-        }
         let kind = abstraction_kind_for_cmavo(branch.nu.value.cmavo());
         let sort = abstraction_output_sort(kind);
         let first_body_object_index = self.next_index;
@@ -9527,6 +9662,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let _ = self.indirect_question_stack.pop();
                 return Err(error);
             }
+        };
+        let body_eventuality = self.single_generated_formula_eventuality(body);
+        let body = if branch.nai.is_some() {
+            self.build_unary_formula(
+                FormulaOperator::Not,
+                body,
+                self.source_for_abstraction_branch_tokens(branch, "abstraction-negation"),
+            )?
+        } else {
+            body
         };
         let indirect_questions = self
             .indirect_question_stack
@@ -9549,7 +9694,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.build_generated_embedded_indirect_questions(body, indirect_questions)?;
 
         if let Some(class) = abstraction_eventuality_class(kind) {
-            let body_eventuality = self.single_generated_formula_eventuality(body);
             let owned_body_eventuality = body_eventuality.filter(|eventuality| {
                 eventuality.index() >= first_body_object_index
                     && self

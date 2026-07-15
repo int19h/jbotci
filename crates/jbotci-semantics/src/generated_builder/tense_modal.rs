@@ -186,16 +186,24 @@ pub(super) fn generated_logical_modal_connection_spec_for_tense_modal<'syntax>(
     {
         return Ok(None);
     }
-    let operator =
+    let Some(operator) =
         generated_connected_event_tense_connective_formula_operator(&continuation.connective)
-            .ok_or_else(|| unsupported("connected modal tag connective"))?;
+    else {
+        return Ok(None);
+    };
     let mut terms = Vec::with_capacity(2);
-    let mut first = generated_connected_modal_term_from_atom(connected.first.as_ref())?;
+    let Some(mut first) = generated_connected_modal_term_from_atom(connected.first.as_ref()) else {
+        return Ok(None);
+    };
     if generated_connected_event_tense_connective_negates_left(&continuation.connective) {
         first = first.with_data(data! { negated: true });
     }
     terms.push(first);
-    let mut second = generated_connected_modal_term_from_atom(continuation.tense_modal.as_ref())?;
+    let Some(mut second) =
+        generated_connected_modal_term_from_atom(continuation.tense_modal.as_ref())
+    else {
+        return Ok(None);
+    };
     if generated_connected_event_tense_connective_negates_right(&continuation.connective) {
         second = second.with_data(data! { negated: true });
     }
@@ -212,29 +220,26 @@ pub(super) fn generated_logical_modal_connection_spec_for_tense_modal<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|term| generated_tense_modal_has_modal_argument(&term.tense_modal)) || ret.is_err())]
+#[ensures(ret.as_ref().is_none_or(|term| generated_tense_modal_has_modal_argument(&term.tense_modal)))]
 pub(super) fn generated_connected_modal_term_from_atom<'syntax>(
     atom: &'syntax TenseModalAtomSyntax,
-) -> Result<GeneratedConnectedModalTerm<'syntax>, SemanticsError> {
+) -> Option<GeneratedConnectedModalTerm<'syntax>> {
     let tense_modal = TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(atom.clone()));
     if generated_tense_modal_has_event_modifier(&tense_modal) {
-        return Err(unsupported("event tense in logical modal connection"));
+        return None;
     }
     let kind = if let TenseModalAtomSyntax::FihoTense(fiho) = atom {
         new!(GeneratedConnectedModalTermKind::AdHoc { fiho })
     } else {
-        let Some((introduced_by, relation, visible_place)) =
-            generated_modal_relation_spec_for_tense_modal(&tense_modal)
-        else {
-            return Err(unsupported("non-modal tag in logical modal connection"));
-        };
+        let (introduced_by, relation, visible_place) =
+            generated_modal_relation_spec_for_tense_modal(&tense_modal)?;
         new!(GeneratedConnectedModalTermKind::Named {
             introduced_by,
             relation,
             visible_place,
         })
     };
-    Ok(new!(GeneratedConnectedModalTerm {
+    Some(new!(GeneratedConnectedModalTerm {
         tense_modal,
         kind,
         negated: false,

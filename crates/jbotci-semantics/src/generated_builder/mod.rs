@@ -2607,20 +2607,54 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 }
 
-#[requires(first_visible_place > 0)]
-#[ensures(ret.2 > 0)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|(_, _, modifier_first_visible_place)| *modifier_first_visible_place == 2) || ret.is_err())]
 fn split_generated_co_terms<'syntax>(
+    selbri: &CoSelbriSyntax,
     terms: Vec<&'syntax TermSyntax>,
-    first_visible_place: usize,
-) -> (Vec<&'syntax TermSyntax>, Vec<&'syntax TermSyntax>, usize) {
-    if first_visible_place != 1 {
-        return (Vec::new(), terms, first_visible_place);
+) -> Result<(Vec<&'syntax TermSyntax>, Vec<&'syntax TermSyntax>, usize), SemanticsError> {
+    let (selbri_start, selbri_end) = generated_node_byte_bounds(selbri)?;
+    let mut head_terms = Vec::new();
+    let mut modifier_terms = Vec::new();
+    for term in terms {
+        let (term_start, term_end) = generated_node_byte_bounds(term)?;
+        if term_end <= selbri_start {
+            head_terms.push(term);
+        } else if selbri_end <= term_start {
+            modifier_terms.push(term);
+        } else {
+            return Err(invalid_graph(
+                "CO term overlaps its inverted selbri in the generated syntax tree".to_owned(),
+            ));
+        }
     }
-    let mut terms = terms.into_iter();
-    let Some(head_term) = terms.next() else {
-        return (Vec::new(), Vec::new(), first_visible_place + 1);
+    Ok((head_terms, modifier_terms, 2))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|(byte_start, byte_end)| byte_start <= byte_end) || ret.is_err())]
+fn generated_node_byte_bounds<N: TreeNode>(node: &N) -> Result<(usize, usize), SemanticsError> {
+    let mut collector = GeneratedSpanCollector::default();
+    node.visit_in_order(&mut collector);
+    let Some(first) = collector.spans.first() else {
+        return Err(invalid_graph(
+            "generated syntax node has no source span".to_owned(),
+        ));
     };
-    (vec![head_term], terms.collect(), first_visible_place + 1)
+    Ok((
+        collector
+            .spans
+            .iter()
+            .map(|span| span.byte_start)
+            .min()
+            .unwrap_or(first.byte_start),
+        collector
+            .spans
+            .iter()
+            .map(|span| span.byte_end)
+            .max()
+            .unwrap_or(first.byte_end),
+    ))
 }
 
 #[requires(true)]
@@ -2802,7 +2836,9 @@ fn generated_operand_connective_interval_operator(
         Some(Cmavo::Bihi) => Ok(new!(MathOperator::UnorderedInterval)),
         Some(Cmavo::Biho) => Ok(new!(MathOperator::OrderedInterval)),
         Some(Cmavo::Mihi) => Ok(new!(MathOperator::CenteredInterval)),
-        _ => Err(unsupported("non-interval operand connective")),
+        _ => Err(invalid_graph(
+            "interval operator requested from a non-interval operand connective".to_owned(),
+        )),
     }
 }
 
@@ -3044,7 +3080,9 @@ fn generated_numbered_sumti_assignments_for_term<'syntax>(
             assigned_places,
             next_visible_place,
         ),
-        _ => Err(unsupported("non-simple term")),
+        _ => Err(invalid_graph(
+            "connected term reached numbered simple-term assignment".to_owned(),
+        )),
     }
 }
 
@@ -3120,7 +3158,9 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
             }
             Ok(())
         }
-        _ => Err(unsupported("non-sumti term")),
+        _ => Err(invalid_graph(
+            "non-sumti term reached numbered sumti assignment".to_owned(),
+        )),
     }
 }
 
@@ -3160,7 +3200,9 @@ fn advance_next_visible_place_after_generated_term(
             next_visible_place,
             assigned_places,
         ),
-        _ => Err(unsupported("non-simple term")),
+        _ => Err(invalid_graph(
+            "connected term reached simple visible-place advancement".to_owned(),
+        )),
     }
 }
 
@@ -3232,7 +3274,9 @@ fn advance_next_visible_place_after_generated_simple_term(
             }
             Ok(())
         }
-        _ => Err(unsupported("non-sumti term")),
+        _ => Err(invalid_graph(
+            "non-sumti term reached sumti visible-place advancement".to_owned(),
+        )),
     }
 }
 
@@ -3676,8 +3720,8 @@ fn generated_nonlogical_modal_forethought_composition_operator(
         Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
         Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
         Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
-        _ => Err(unsupported(&format!(
-            "unsupported nonlogical forethought connective {}",
+        _ => Err(invalid_graph(format!(
+            "nonlogical forethought composition requested for connective {}",
             generated_modal_forethought_connective_source(connective)
         ))),
     }
@@ -3875,7 +3919,9 @@ fn relation_label_from_statement_base(
     match statement {
         StatementBaseSyntax::BridiStatement(statement) => {
             if !statement.continuations.is_empty() {
-                return Err(unsupported("bridi statement continuation relation label"));
+                return Ok(RelationLabel::constructed(generated_node_surface_text(
+                    statement,
+                )?));
             }
             relation_label_from_bridi(&statement.bridi)
         }
@@ -3924,9 +3970,9 @@ fn relation_label_from_statement_after_i_connective(
     match statement {
         StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
             if !statement.continuations.is_empty() {
-                return Err(unsupported(
-                    "bridi statement continuation after statement connective relation label",
-                ));
+                return Ok(RelationLabel::constructed(generated_node_surface_text(
+                    statement,
+                )?));
             }
             relation_label_from_bridi(&statement.bridi)
         }
@@ -4054,7 +4100,11 @@ fn relation_label_from_bridi(bridi: &BridiSyntax) -> Result<RelationLabel, Seman
         BridiSyntax::BridiWithLeadingTerms(BridiWithLeadingTermsSyntax { bridi_tail, .. }) => {
             bridi_tail
         }
-        _ => return Err(unsupported("subbridi relation label")),
+        _ => {
+            return Ok(RelationLabel::constructed(generated_node_surface_text(
+                bridi,
+            )?));
+        }
     };
     let simple_tail = match simple_tail_from_bridi_tail(tail) {
         Ok(simple_tail) => simple_tail,
@@ -4581,8 +4631,8 @@ fn tanru_unit_label_from_scalar_negated_tanru_unit(
         ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
             Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi).display_text())
         }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(_) => {
-            Err(unsupported("tagged scalar-negated tanru unit"))
+        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(tagged) => {
+            generated_node_surface_text(tagged)
         }
     }
 }
@@ -4650,19 +4700,19 @@ fn relation_label_from_tanru_unit_atom(
 
 #[requires(true)]
 #[ensures(true)]
-fn simple_sumti_from_term(term: &TermSyntax) -> Result<&SumtiSyntax, SemanticsError> {
+fn simple_sumti_from_term(term: &TermSyntax) -> Option<&SumtiSyntax> {
     let simple = match term {
         TermSyntax::SimpleTerm(simple) => simple,
         TermSyntax::ConnectedTerm(ConnectedTermSyntax {
             leading_term,
             continuations,
         }) if continuations.is_empty() => leading_term.as_ref(),
-        _ => return Err(unsupported("non-simple term")),
+        _ => return None,
     };
     let SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) = simple else {
-        return Err(unsupported("non-sumti term"));
+        return None;
     };
-    Ok(sumti)
+    Some(sumti)
 }
 
 #[requires(true)]
@@ -4676,7 +4726,9 @@ fn generated_simple_term_for_assignment(
             leading_term,
             continuations,
         }) if continuations.is_empty() => Ok(leading_term.as_ref()),
-        _ => Err(unsupported("non-simple term")),
+        _ => Err(invalid_graph(
+            "connected term reached simple assignment lowering".to_owned(),
+        )),
     }
 }
 
@@ -5037,49 +5089,49 @@ fn generated_distributed_sumti_connective_negates_right(
 
 #[requires(true)]
 #[ensures(true)]
-fn simple_sumti_base_from_sumti(sumti: &SumtiSyntax) -> Result<&SumtiBaseSyntax, SemanticsError> {
+fn simple_sumti_base_from_sumti(sumti: &SumtiSyntax) -> Option<&SumtiBaseSyntax> {
     let SumtiSyntax {
         base_sumti,
         vuho_attachment,
     } = sumti;
     if vuho_attachment.is_some() {
-        return Err(unsupported("VUhO attached sumti"));
+        return None;
     }
     let SumtiGroupedSyntax {
         leading_sumti,
         grouped_tail,
     } = base_sumti.as_ref();
     if grouped_tail.is_some() {
-        return Err(unsupported("grouped sumti"));
+        return None;
     }
     let SumtiAfterthoughtSyntax {
         leading_sumti,
         continuations,
     } = leading_sumti.as_ref();
     if !continuations.is_empty() {
-        return Err(unsupported("afterthought sumti"));
+        return None;
     }
     let SumtiBoundSyntax {
         leading_sumti,
         bound_tail,
     } = leading_sumti.as_ref();
     if bound_tail.is_some() {
-        return Err(unsupported("bound sumti"));
+        return None;
     }
     let SumtiForethoughtSyntax::SimpleSumti(SimpleSumtiSyntax {
         base_sumti,
         relative_clauses,
     }) = leading_sumti.as_ref()
     else {
-        return Err(unsupported("forethought sumti"));
+        return None;
     };
     if relative_clauses.is_some() {
-        return Err(unsupported("relative clauses"));
+        return None;
     }
     let SumtiAtomSyntax::SumtiBase(sumti_base) = base_sumti.as_ref() else {
-        return Err(unsupported("quantified sumti"));
+        return None;
     };
-    Ok(sumti_base)
+    Some(sumti_base)
 }
 
 #[requires(true)]
@@ -9307,6 +9359,41 @@ mod tests {
             Some(SemanticObjectId::addressee()),
             "post-CO terms start at the modifier's x2"
         );
+
+        let scrambled =
+            semantic_graph_for("fe lu .ua virnu li'u fa le se lanzu ba cusku co jinvi be fi mi");
+        let cusku = named_predication_ids(&scrambled, "cusku");
+        let jinvi = named_predication_ids(&scrambled, "jinvi");
+        assert_eq!(cusku.len(), 1);
+        assert_eq!(jinvi.len(), 1);
+        let cusku = scrambled.objects[&cusku[0]]
+            .as_predication()
+            .expect("cusku");
+        let jinvi = scrambled.objects[&jinvi[0]]
+            .as_predication()
+            .expect("jinvi");
+        assert_eq!(
+            scrambled.objects[&cusku.arguments[&argument_key(1)]
+                .value
+                .expect("FA-tagged cusku x1")]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("le se lanzu")
+        );
+        assert_eq!(
+            scrambled.objects[&cusku.arguments[&argument_key(2)]
+                .value
+                .expect("FE-tagged cusku x2")]
+                .as_sign()
+                .and_then(|sign| sign.quotation.as_ref())
+                .and_then(|quotation| quotation.text.as_deref()),
+            Some("lu .ua virnu li'u")
+        );
+        assert_eq!(
+            jinvi.arguments[&argument_key(3)].value,
+            Some(SemanticObjectId::speaker()),
+            "BE FI linkargs remain arguments of the post-CO modifier"
+        );
     }
 
     #[test]
@@ -11422,6 +11509,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn retired_zantufa_static_guards_report_exact_principled_errors() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        for (source, expected) in [
+            (
+                "ca le nu mi klama le mi zdani cu mi tirna ra vau do",
+                "semantic interpretation is undefined for experimental Zantufa post-CU terms combined with statement-level suffix terms",
+            ),
+            (
+                "nu'i fa'ugi mi do gi do mi gi ko'a ko'e nu'u klama",
+                "semantic interpretation is undefined for an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
+            ),
+            (
+                "nu'i mu'igi mi do gi do mi gi ko'a ko'e nu'u klama",
+                "semantic interpretation is undefined for an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
+            ),
+            (
+                "li fu'a pa re su'i lo'o cu namcu",
+                "semantic graph invariant failed: Zantufa reverse Polish mex operator has fewer than two operands",
+            ),
+            (
+                "ga mi klama gi do cadzu vau ko'a",
+                "semantic graph invariant failed: Zantufa statement-level trailing terms reached a non-bridi statement",
+            ),
+        ] {
+            let error = semantic_result_for_with_parse_options(source, &options)
+                .expect_err("the experimental shape has no adopted semantic interpretation");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(error.message, expected);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn dictionary_online_location_tag_anchors_the_host_event() {
         let graph = semantic_graph_for("xei'e lo kibro mi klama");
         let predication = graph
@@ -11567,6 +11690,32 @@ mod tests {
                 .and_then(SemanticObject::source)
                 .and_then(|source| source.text.as_deref()),
             Some("le panka")
+        );
+
+        let connected = semantic_graph_for("mi jai gau kalri fai le vorme gi'e zgana");
+        let kalri = named_predication_ids(&connected, "kalri");
+        let zgana = named_predication_ids(&connected, "zgana");
+        assert_eq!(kalri.len(), 1);
+        assert_eq!(zgana.len(), 1);
+        let kalri = connected.objects[&kalri[0]]
+            .as_predication()
+            .expect("kalri");
+        let zgana = connected.objects[&zgana[0]]
+            .as_predication()
+            .expect("zgana");
+        assert_eq!(
+            kalri.arguments[&argument_key(1)]
+                .value
+                .and_then(|value| connected.objects.get(&value))
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le vorme"),
+            "branch-local FAI restores only the JAI-converted branch"
+        );
+        assert_eq!(
+            zgana.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker()),
+            "the shared leading sumti remains x1 in the ordinary sibling branch"
         );
     }
 
@@ -12445,6 +12594,42 @@ mod tests {
                 .and_then(|event| event.space.as_ref())
                 .map(|space| space.anchor),
             Some(quantified)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_fai_argument_keeps_its_formula_scope() {
+        let graph = semantic_graph_for("mi jai gau morsi fai su'o da");
+        let morsi = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "morsi")
+                    .then_some(predication)
+            })
+            .expect("morsi predication should exist");
+        let restored = morsi.arguments[&argument_key(1)]
+            .value
+            .expect("FAI should restore the quantified argument into morsi x1");
+        let quantified = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(node)) if node.variable == restored => Some(node),
+                _ => None,
+            })
+            .expect("su'o da should scope the formula containing morsi");
+        assert_eq!(quantified.operator, FormulaOperator::Cardinality);
+        assert_eq!(
+            quantified
+                .common
+                .source
+                .as_ref()
+                .and_then(|source| source.text.as_deref()),
+            Some("su'o da")
         );
     }
 

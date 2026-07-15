@@ -23,6 +23,8 @@ use xtask_common::fixtures::{ExpectationStatus, LoadedTestCase, fixture_paths, l
 
 const DEFAULT_JOBS: usize = 16;
 const DEFAULT_FAILURE_SAMPLES: usize = 20;
+// The constructor is gone, but retain its public diagnostic text as a tripwire against
+// reintroducing the retired error class through a different path.
 const UNSUPPORTED_ERROR_MARKER: &str = "generated semantic builder does not yet support ";
 
 #[invariant(true)]
@@ -31,7 +33,7 @@ pub(crate) struct SemanticsCoverageArgs {
     /// Fixture corpus root.
     #[arg(long, default_value = "tests/fixtures")]
     root: PathBuf,
-    /// Shrink-only set of fixture IDs that currently panic or report unsupported syntax.
+    /// Legacy compatibility file; the invariant requires it to remain empty.
     #[arg(long, default_value = "tests/semantics-coverage-allowlist.txt")]
     allowlist: PathBuf,
     /// Parallel semantic-analysis jobs.
@@ -116,7 +118,8 @@ pub(crate) fn run(args: SemanticsCoverageArgs) -> Result<()> {
 
     // The semantic builder owns all mutable analysis state for each call and only shares the
     // immutable embedded dictionary. Catching an unwind per fixture therefore cannot poison
-    // another fixture's state. Silence the process-global panic hook while all such panics are
+    // another fixture's state. Panics and the retired unsupported-message pattern are both
+    // unconditional invariant violations. Silence the process-global panic hook while panics are
     // deliberately captured; the panic payload remains part of the fixture classification.
     let previous_panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
@@ -285,6 +288,9 @@ fn load_allowlist(path: &Path) -> Result<BTreeSet<String>> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn parse_allowlist(text: &str, path: &Path) -> Result<BTreeSet<String>> {
+    if text.is_empty() {
+        return Ok(BTreeSet::new());
+    }
     let mut entries = Vec::<String>::new();
     let mut saw_header_comment = false;
     let mut saw_entry = false;
@@ -378,9 +384,7 @@ fn enforce_ratchet(
 ) -> Result<()> {
     let unexpected_count = outcomes
         .iter()
-        .filter(|(fixture_id, classification)| {
-            classification.is_ratchet_failure() && !allowlist.contains(*fixture_id)
-        })
+        .filter(|(_fixture_id, classification)| classification.is_ratchet_failure())
         .count();
     let stale_count = allowlist
         .iter()
@@ -393,16 +397,16 @@ fn enforce_ratchet(
 
     if unexpected_count > 0 {
         eprintln!(
-            "semantics coverage found {unexpected_count} non-allowlisted panic/unsupported failure(s):"
+            "semantics coverage found {unexpected_count} panic/unsupported invariant violation(s):"
         );
         let mut printed = 0usize;
         for (fixture_id, classification) in outcomes {
             if printed >= failure_samples {
                 break;
             }
-            if classification.is_ratchet_failure() && !allowlist.contains(fixture_id) {
+            if classification.is_ratchet_failure() {
                 eprintln!(
-                    "  UNEXPECTED `{fixture_id}`: {}. Fix the semantic-analysis regression; do not add this fixture to `{}` because the allowlist is shrink-only.",
+                    "  INVARIANT `{fixture_id}`: {}. Fix the semantic-analysis regression; `{}` no longer permits exceptions.",
                     classification.unexpected_description(),
                     allowlist_path.display()
                 );
@@ -485,10 +489,26 @@ mod tests {
     #[ensures(true)]
     fn allowlist_parser_requires_a_sorted_unique_headered_list() {
         let path = Path::new("allowlist.txt");
+        assert!(parse_allowlist("", path).unwrap().is_empty());
         let parsed = parse_allowlist("# Shrink only.\na\nb\n", path).unwrap();
         assert_eq!(parsed.into_iter().collect::<Vec<_>>(), ["a", "b"]);
         assert!(parse_allowlist("a\n", path).is_err());
         assert!(parse_allowlist("# Shrink only.\nb\na\n", path).is_err());
         assert!(parse_allowlist("# Shrink only.\na\na\n", path).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn legacy_allowlist_cannot_exempt_an_invariant_violation() {
+        let fixture_id = "fixture".to_owned();
+        let outcomes = BTreeMap::from([(
+            fixture_id.clone(),
+            new!(SemanticsCoverageClassification::Unsupported {
+                class: "retired class".to_owned(),
+            }),
+        )]);
+        let allowlist = BTreeSet::from([fixture_id]);
+        assert!(enforce_ratchet(&outcomes, &allowlist, Path::new("allowlist.txt"), 0).is_err());
     }
 }
