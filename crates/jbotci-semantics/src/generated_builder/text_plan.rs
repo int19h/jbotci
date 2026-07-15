@@ -386,14 +386,18 @@ pub(super) fn bridi_from_statement_base(
         StatementBaseSyntax::PrenexStatement(statement) => {
             let root = semantic_root_from_statement(&statement.inner_statement)?;
             let GeneratedTextRoot::Bridi(bridi) = root else {
-                return Err(unsupported("prenex non-bridi statement"));
+                return Err(invalid_graph(
+                    "non-bridi prenex reached bridi-only lowering".to_owned(),
+                ));
             };
             Ok(bridi)
         }
-        StatementBaseSyntax::TextGroupStatement(_) => Err(unsupported("text group statement")),
-        StatementBaseSyntax::ForethoughtStatement(_) => {
-            Err(unsupported("forethought statement as bridi"))
-        }
+        StatementBaseSyntax::TextGroupStatement(_) => Err(invalid_graph(
+            "text group reached bridi-only lowering".to_owned(),
+        )),
+        StatementBaseSyntax::ForethoughtStatement(_) => Err(invalid_graph(
+            "forethought statement reached bridi-only lowering".to_owned(),
+        )),
     }
 }
 
@@ -447,7 +451,9 @@ pub(super) fn bridi_from_bridi_statement(
     statement: &BridiStatementSyntax,
 ) -> Result<&BridiSyntax, SemanticsError> {
     if !statement.continuations.is_empty() {
-        return Err(unsupported("bridi statement continuations"));
+        return Err(invalid_graph(
+            "connected bridi statement reached atomic-bridi lowering".to_owned(),
+        ));
     }
     Ok(&statement.bridi)
 }
@@ -461,12 +467,12 @@ pub(super) fn bridi_from_statement_after_i_connective(
         StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
             bridi_from_bridi_statement(statement)
         }
-        StatementAfterIConnectiveSyntax::TextGroupStatement(_) => {
-            Err(unsupported("text group statement connection"))
-        }
-        StatementAfterIConnectiveSyntax::ForethoughtStatement(_) => {
-            Err(unsupported("forethought statement as bridi"))
-        }
+        StatementAfterIConnectiveSyntax::TextGroupStatement(_) => Err(invalid_graph(
+            "text group statement reached bridi-only connection lowering".to_owned(),
+        )),
+        StatementAfterIConnectiveSyntax::ForethoughtStatement(_) => Err(invalid_graph(
+            "forethought statement reached bridi-only lowering".to_owned(),
+        )),
     }
 }
 
@@ -573,20 +579,28 @@ pub(super) fn simple_tail_from_bridi_tail(
         ke_continuation,
     }) = tail
     else {
-        return Err(unsupported("bridi tail without possible terms"));
+        return Err(invalid_graph(
+            "simple tail requested from a bridi tail without possible terms".to_owned(),
+        ));
     };
     if ke_continuation.is_some() || !first.0.links.is_empty() {
-        return Err(unsupported("connected bridi tail"));
+        return Err(invalid_graph(
+            "simple tail requested from a connected bridi tail".to_owned(),
+        ));
     }
     let BoGroupedBridiTailSyntax {
         first,
         bo_continuation,
     } = first.0.first.as_ref();
     if bo_continuation.is_some() {
-        return Err(unsupported("BO grouped bridi tail"));
+        return Err(invalid_graph(
+            "simple tail requested from a BO-grouped bridi tail".to_owned(),
+        ));
     }
     let SimpleBridiTailSyntax::SelbriSimpleBridiTail(simple_tail) = first.as_ref() else {
-        return Err(unsupported("forethought simple bridi tail"));
+        return Err(invalid_graph(
+            "selbri tail requested from a forethought bridi tail".to_owned(),
+        ));
     };
     Ok(simple_tail)
 }
@@ -601,17 +615,23 @@ pub(super) fn forethought_connection_from_bridi_tail(
         ke_continuation,
     }) = tail
     else {
-        return Err(unsupported("bridi tail without possible terms"));
+        return Err(invalid_graph(
+            "forethought connection requested from a bridi tail without possible terms".to_owned(),
+        ));
     };
     if ke_continuation.is_some() || !first.0.links.is_empty() {
-        return Err(unsupported("connected bridi tail"));
+        return Err(invalid_graph(
+            "forethought connection requested from a connected bridi tail".to_owned(),
+        ));
     }
     let BoGroupedBridiTailSyntax {
         first,
         bo_continuation,
     } = first.0.first.as_ref();
     if bo_continuation.is_some() {
-        return Err(unsupported("BO grouped bridi tail"));
+        return Err(invalid_graph(
+            "forethought connection requested from a BO-grouped bridi tail".to_owned(),
+        ));
     }
     Ok(match first.as_ref() {
         SimpleBridiTailSyntax::ForethoughtSimpleBridiTail(forethought) => Some(&forethought.0),

@@ -258,7 +258,9 @@ pub(super) fn generated_argument_connective_source(
     }
     let tokens = generated_argument_connective_tokens(connective);
     if tokens.is_empty() {
-        return Err(unsupported("empty generated argument connective"));
+        return Err(invalid_graph(
+            "generated argument connective has no tokens".to_owned(),
+        ));
     }
     Ok(connective_source_from_tokens(tokens.iter().collect()))
 }

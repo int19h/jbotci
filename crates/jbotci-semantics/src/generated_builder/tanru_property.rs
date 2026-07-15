@@ -20,6 +20,35 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_relation_formula_for_generated_tanru_unit_terms_with_preassigned_arguments(
+            unit,
+            &BTreeMap::new(),
+            &[],
+            terms,
+            first_visible_place,
+            eventuality,
+            mode,
+            predication_source,
+            formula_source,
+        )
+    }
+
+    #[requires(preassigned_visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(first_visible_place > 0)]
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_relation_formula_for_generated_tanru_unit_terms_with_preassigned_arguments(
+        &mut self,
+        unit: &'tree TanruUnitSyntax,
+        preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
+        preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
+        terms: Vec<&'tree TermSyntax>,
+        first_visible_place: usize,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         if !unit.0.links.is_empty()
             || !matches!(
                 unit.0.first.as_ref(),
@@ -253,7 +282,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             (terms, Vec::new())
         };
-        if linkargs.is_none()
+        if preassigned_visible_arguments.is_empty()
+            && preassigned_place_questions.is_empty()
+            && linkargs.is_none()
             && let Some(formula) = self.build_generated_logical_sumti_connection_formula_for_terms(
                 &relation_text,
                 &terms,
@@ -267,7 +298,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             return Ok(formula);
         }
-        if linkargs.is_none()
+        if preassigned_visible_arguments.is_empty()
+            && preassigned_place_questions.is_empty()
+            && linkargs.is_none()
             && let Some(formula) = self.build_generated_logical_modal_connection_formula_for_terms(
                 source_with_construct(
                     formula_source
@@ -375,11 +408,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 (eventuality, prebuilt_linkarg_assignments, assignments)
             }
         };
-        let place_question_assignments = assignments.place_questions.clone();
-        let mut visible_arguments = assignments.visible_arguments;
+        let mut place_question_assignments = preassigned_place_questions.to_vec();
+        place_question_assignments.extend(assignments.place_questions.clone());
+        let mut visible_arguments = preassigned_visible_arguments.clone();
+        for (visible_place, argument) in assignments.visible_arguments {
+            insert_visible_argument(&mut visible_arguments, visible_place, argument)?;
+        }
         let mut linkarg_modal_arguments = Vec::new();
         let mut linkarg_event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
+        let mut fai_formula_scopes = Vec::new();
         let mut bare_jai_raised_participant = None;
         let mut jai_modal_visible_arguments = None;
         if let Some(jai_unit) = jai_unit {
@@ -387,7 +425,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if jai_unit.tense_modal.is_some() {
                 let raised_argument = visible_arguments.remove(&1);
                 for sumti in fai_sumti {
-                    let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
+                    let argument = self.build_tagged_or_elided_sumti_argument_with_formula_scopes(
+                        sumti,
+                        &mut fai_formula_scopes,
+                    )?;
                     insert_visible_argument(&mut visible_arguments, moved_place, argument)?;
                 }
                 if let Some(raised_argument) = raised_argument {
@@ -399,7 +440,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments =
                     shift_generated_visible_arguments_after_jai_raised_argument(visible_arguments)?;
                 for sumti in fai_sumti {
-                    let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
+                    let argument = self.build_tagged_or_elided_sumti_argument_with_formula_scopes(
+                        sumti,
+                        &mut fai_formula_scopes,
+                    )?;
                     insert_visible_argument(&mut visible_arguments, moved_place, argument)?;
                 }
                 if let Some(raised_argument) = raised_argument {
@@ -414,7 +458,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             } else if !fai_sumti.is_empty() {
                 let raised_argument = visible_arguments.remove(&1);
                 for sumti in fai_sumti {
-                    let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
+                    let argument = self.build_tagged_or_elided_sumti_argument_with_formula_scopes(
+                        sumti,
+                        &mut fai_formula_scopes,
+                    )?;
                     insert_visible_argument(&mut visible_arguments, moved_place, argument)?;
                 }
                 if let Some(raised_argument) = raised_argument {
@@ -488,6 +535,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula_source,
             )?;
             let mut formula_scopes = assignments.formula_scopes;
+            formula_scopes.extend(fai_formula_scopes);
             formula_scopes.extend(linkarg_formula_scopes);
             return self.wrap_formula_with_generated_assignment_scopes(
                 formula,
@@ -601,6 +649,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             _ => formula,
         };
         let mut formula_scopes = assignments.formula_scopes;
+        formula_scopes.extend(fai_formula_scopes);
         formula_scopes.extend(linkarg_formula_scopes);
         self.wrap_formula_with_generated_assignment_scopes(
             formula,
@@ -1727,9 +1776,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .replace((position, explicit_place, branch))
                 .is_some()
             {
-                return Err(unsupported(
-                    "multiple connected sumti arguments on a compound tanru",
-                ));
+                return Ok(None);
             }
         }
         let Some((position, explicit_place, sumti)) = connected else {
@@ -2025,7 +2072,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         modal_terms: &[GeneratedModalTerm<'syntax>],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let Some((trailing_unit, modifier_units)) = tanru.additional_units.split_last() else {
-            return Err(unsupported("empty tanru continuation"));
+            return Err(invalid_graph(
+                "compound tanru lowering received no continuation units".to_owned(),
+            ));
         };
         let head = self.build_tanru_head_relation_formula_with_modal_terms(
             trailing_unit,
@@ -2226,11 +2275,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         match selbri {
             SelbriSyntax::TaggedSelbri(tagged) => {
                 if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
-                    if leading_eventuality.is_some() {
-                        return Err(unsupported(
-                            "eventuality on scoped tagged visible-argument selbri",
-                        ));
-                    }
                     let result = self.build_untagged_selbri_formula_for_visible_arguments(
                         tagged.inner_selbri.as_ref(),
                         visible_arguments,
@@ -2238,11 +2282,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         connector_locus,
                         None,
                     )?;
-                    let formula = self.build_generated_tense_scope_formula(
-                        result.formula,
-                        tagged.tense_modal.as_ref(),
-                        self.source_for_node(tagged, "tense-scope"),
-                    )?;
+                    let scope_source = self.source_for_node(tagged, "tense-scope");
+                    let formula = if let Some(eventuality) = leading_eventuality {
+                        if generated_tense_modal_has_event_modifier(tagged.tense_modal.as_ref()) {
+                            self.apply_generated_tense_modal_event_modifier_to_eventuality(
+                                eventuality,
+                                tagged.tense_modal.as_ref(),
+                                None,
+                            )?;
+                        }
+                        let formula = self.next_formula_id();
+                        let mut object = SemanticObject::connective_formula(
+                            FormulaOperator::Scoped,
+                            vec![result.formula],
+                            None,
+                            scope_source,
+                            Vec::new(),
+                        );
+                        object.set_scoped_formula_eventuality(Some(eventuality));
+                        self.insert(formula, object)?;
+                        formula
+                    } else {
+                        self.build_generated_tense_scope_formula(
+                            result.formula,
+                            tagged.tense_modal.as_ref(),
+                            scope_source,
+                        )?
+                    };
                     Ok(GeneratedTanruFormulaForArgument::from_data(data!(
                         GeneratedTanruFormulaForArgument {
                             formula,
@@ -2695,16 +2761,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     modal_terms,
                 ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-                if !modal_terms.is_empty() {
-                    return Err(unsupported("modal terms on BO-bound tanru head"));
-                }
-                self.build_bound_tanru_unit_formula_for_visible_arguments(
+                let result = self.build_bound_tanru_unit_formula_for_visible_arguments(
                     unit,
                     visible_arguments,
                     source,
                     "tanru-unit",
                     eventuality,
-                )
+                )?;
+                self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
+                Ok(result)
             }
             BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => self
                 .build_forethought_selbri_group_tanru_unit_formula_for_visible_arguments(
@@ -2900,7 +2965,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 scalar_negated_tanru_unit_inner_grouped(scalar_unit)
         {
             if linkargs.is_some() {
-                return Err(unsupported("scoped scalar grouped tanru unit head"));
+                return Err(invalid_graph(
+                    "grouped scalar-negated head with linkargs reached unscoped group lowering"
+                        .to_owned(),
+                ));
             }
             visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
@@ -2939,7 +3007,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if let Some(grouped) = atom.base().grouped_base() {
             if linkargs.is_some() {
-                return Err(unsupported("scoped grouped tanru unit head"));
+                return Err(invalid_graph(
+                    "grouped tanru head with linkargs reached unscoped group lowering".to_owned(),
+                ));
             }
             let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
@@ -3075,7 +3145,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let x1_argument = visible_x1_argument
             .or_else(|| arguments.get(&argument_key(1)).cloned())
-            .ok_or_else(|| unsupported("tanru without visible x1"))?;
+            .ok_or_else(|| {
+                invalid_graph("tanru predication lowering produced no visible x1".to_owned())
+            })?;
         let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
             atom.base(),
@@ -3482,7 +3554,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.build_sumti_referent(sumti)
                 }
             }
-            SumtiSelbriSumtiSyntax::MeLerfuSumti(_) => Err(unsupported("ME lerfu sumti")),
+            SumtiSelbriSumtiSyntax::MeLerfuSumti(lerfu) => {
+                let tokens = self.tokens_for_node(&lerfu.0);
+                if tokens.is_empty() {
+                    return Err(invalid_graph(
+                        "generated ME lerfu source has no letter tokens".to_owned(),
+                    ));
+                }
+                self.build_generated_letteral_sign(&tokens, self.source_for_node(lerfu, "letteral"))
+            }
         }
     }
 
@@ -3500,9 +3580,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 self.build_argument_for_generated_sumti_with_formula_scopes(sumti, formula_scopes)?
                     .value
-                    .ok_or_else(|| unsupported("deleted sumti as ME source operand"))
+                    .ok_or_else(|| {
+                        undefined_semantics("a deleted-place sumti used as a ME source operand")
+                    })
             }
-            SumtiSelbriSumtiSyntax::MeLerfuSumti(_) => Err(unsupported("ME lerfu sumti")),
+            SumtiSelbriSumtiSyntax::MeLerfuSumti(lerfu) => {
+                let tokens = self.tokens_for_node(&lerfu.0);
+                if tokens.is_empty() {
+                    return Err(invalid_graph(
+                        "generated ME lerfu source has no letter tokens".to_owned(),
+                    ));
+                }
+                self.build_generated_letteral_sign(&tokens, self.source_for_node(lerfu, "letteral"))
+            }
         }
     }
 
@@ -4031,10 +4121,40 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source,
                     eventuality,
                 ),
-            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => {
-                Err(unsupported("non-atomic tanru unit property arguments"))
-            }
+            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => self
+                .build_property_formula_for_forethought_selbri_group_with_visible_arguments(
+                    unit,
+                    visible_arguments,
+                    source,
+                    eventuality,
+                ),
         }
+    }
+
+    #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_property_formula_for_forethought_selbri_group_with_visible_arguments(
+        &mut self,
+        unit: &'tree ForethoughtSelbriGroupTanruUnitSyntax,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        source: Option<crate::model::SemanticSource>,
+        eventuality: GeneratedPredicationEventuality,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading_eventuality = match eventuality.as_data() {
+            data!(GeneratedPredicationEventuality::Absent) => None,
+            data!(GeneratedPredicationEventuality::Fresh) => {
+                Some(self.build_generated_predication_eventuality(source.clone())?)
+            }
+            data!(GeneratedPredicationEventuality::Existing(eventuality)) => Some(*eventuality),
+        };
+        self.build_forethought_selbri_group_tanru_unit_formula_for_visible_arguments(
+            unit,
+            visible_arguments,
+            source,
+            "property-abstraction",
+            leading_eventuality,
+        )
+        .map(|result| result.formula)
     }
 
     #[requires(!unit.0.links.is_empty())]
@@ -4107,9 +4227,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     None,
                     eventuality,
                 ),
-            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => {
-                Err(unsupported("non-atomic tanru unit property arguments"))
-            }
+            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => self
+                .build_property_formula_for_forethought_selbri_group_with_visible_arguments(
+                    unit,
+                    visible_arguments,
+                    None,
+                    eventuality,
+                ),
         }
     }
 
@@ -4147,9 +4271,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source,
                     eventuality,
                 ),
-            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => {
-                Err(unsupported("non-atomic tanru unit property arguments"))
-            }
+            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => self
+                .build_property_formula_for_forethought_selbri_group_with_visible_arguments(
+                    unit,
+                    visible_arguments,
+                    source,
+                    eventuality,
+                ),
         }
     }
 
@@ -6128,7 +6256,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         else {
-            return Err(unsupported("tense-tagged linked sumti tense modal"));
+            return Err(invalid_graph(
+                "non-modal tense tag reached linked-sumti modal-argument lowering".to_owned(),
+            ));
         };
         let arguments = self.modal_argument_map_for_visible_place(
             argument,
@@ -6153,6 +6283,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'syntax TaggedOrElidedSumtiSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
         self.build_tagged_or_elided_sumti_argument_with_visible_arguments(sumti, None)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted) || ret.is_err())]
+    pub(super) fn build_tagged_or_elided_sumti_argument_with_formula_scopes<'syntax: 'tree>(
+        &mut self,
+        sumti: &'syntax TaggedOrElidedSumtiSyntax,
+        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        match sumti {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                self.build_argument_for_generated_sumti_with_formula_scopes(sumti, formula_scopes)
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
+                self.build_tagged_or_elided_sumti_argument(sumti)
+            }
+        }
     }
 
     #[requires(true)]
@@ -6339,9 +6486,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find formula {formula} for predication lookup"
             ))
         })?;
-        object
-            .formula_predication()
-            .ok_or_else(|| unsupported("property formula without a primary predication"))
+        object.formula_predication().ok_or_else(|| {
+            invalid_graph("atom property formula has no primary predication".to_owned())
+        })
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]

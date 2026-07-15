@@ -10,7 +10,9 @@ pub(super) fn relation_label_from_selbri(
         co_tail: _,
     })) = selbri
     else {
-        return Err(unsupported("tagged or connected selbri"));
+        return Err(invalid_graph(
+            "atomic relation label requested for a tagged or connected selbri".to_owned(),
+        ));
     };
     let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) = selbri else {
         unreachable!("previous pattern requires a co selbri")
@@ -119,21 +121,27 @@ pub(super) fn relation_label_from_co_selbri(
     selbri: &CoSelbriSyntax,
 ) -> Result<RelationLabel, SemanticsError> {
     if selbri.co_tail.is_some() {
-        return Err(unsupported("CO selbri"));
+        return Err(invalid_graph(
+            "atomic relation label requested for a CO selbri".to_owned(),
+        ));
     }
     let ConnectedSelbriSyntax {
         leading_selbri,
         continuations,
     } = selbri.leading_selbri.as_ref();
     if !continuations.is_empty() {
-        return Err(unsupported("connected selbri"));
+        return Err(invalid_graph(
+            "atomic relation label requested for a connected selbri".to_owned(),
+        ));
     }
     let TanruSelbriSyntax {
         first_unit,
         additional_units,
     } = leading_selbri.as_ref();
     if !additional_units.is_empty() {
-        return Err(unsupported("tanru"));
+        return Err(invalid_graph(
+            "atomic relation label requested for a tanru".to_owned(),
+        ));
     }
     relation_label_from_tanru_unit(first_unit)
 }
@@ -440,17 +448,6 @@ pub(super) fn tanru_selbri_from_co_selbri(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn connected_selbri_as_tanru(
-    selbri: &ConnectedSelbriSyntax,
-) -> Result<&TanruSelbriSyntax, SemanticsError> {
-    if !selbri.continuations.is_empty() {
-        return Err(unsupported("connected grouped tanru unit"));
-    }
-    Ok(selbri.leading_selbri.as_ref())
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(super) fn sumti_selbri_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<&SumtiSelbriTanruUnitSyntax>, SemanticsError> {
@@ -579,33 +576,18 @@ pub(super) fn abstraction_from_generated_tanru_unit(
         return Ok(None);
     };
     if linkargs.is_some() {
-        return Err(unsupported("linkargs abstraction"));
+        return Ok(None);
     }
     if !atom.conversions.is_empty() {
-        return Err(unsupported("converted abstraction"));
+        return Ok(None);
     }
     if abstraction.nai.is_some() {
-        return Err(unsupported("negated abstraction"));
+        return Ok(None);
     }
     if !abstraction.abstractor_connections.is_empty() {
-        return Err(unsupported("connected abstraction"));
+        return Ok(None);
     }
     Ok(Some(abstraction))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|atom| atom.conversions.is_empty()) || ret.is_err())]
-pub(super) fn generated_tanru_unit_atom(
-    unit: &TanruUnitSyntax,
-) -> Result<&TanruUnitAtomSyntax, SemanticsError> {
-    let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
-    if linkargs.is_some() {
-        return Err(unsupported("linkargs tanru unit"));
-    }
-    if !atom.conversions.is_empty() {
-        return Err(unsupported("converted tanru unit"));
-    }
-    Ok(atom)
 }
 
 #[requires(true)]
@@ -614,10 +596,14 @@ pub(super) fn generated_linked_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<&LinkedTanruUnitSyntax, SemanticsError> {
     if !unit.0.links.is_empty() {
-        return Err(unsupported("connected tanru unit"));
+        return Err(invalid_graph(
+            "atomic tanru unit requested for a connected tanru unit".to_owned(),
+        ));
     }
     let BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) = &*unit.0.first else {
-        return Err(unsupported("non-atomic tanru unit"));
+        return Err(invalid_graph(
+            "atomic tanru unit requested for a BO-grouped tanru unit".to_owned(),
+        ));
     };
     Ok(unit)
 }
@@ -845,8 +831,12 @@ pub(super) fn se_conversion_place(token: &Token) -> Result<Option<usize>, Semant
         Some(Cmavo::Te) => Ok(Some(3)),
         Some(Cmavo::Ve) => Ok(Some(4)),
         Some(Cmavo::Xe) => Ok(Some(5)),
-        Some(cmavo) => Err(unsupported(&format!("SE conversion cmavo {cmavo:?}"))),
-        None => Err(unsupported("non-cmavo SE conversion")),
+        Some(cmavo) => Err(invalid_graph(format!(
+            "generated SE conversion contains unexpected cmavo {cmavo:?}"
+        ))),
+        None => Err(invalid_graph(
+            "generated SE conversion contains a non-cmavo token".to_owned(),
+        )),
     }
 }
 
@@ -859,10 +849,18 @@ pub(super) fn fa_place(token: &Token) -> Result<usize, SemanticsError> {
         Some(Cmavo::Fi) => Ok(3),
         Some(Cmavo::Fo) => Ok(4),
         Some(Cmavo::Fu) => Ok(5),
-        Some(Cmavo::Fiha) => Err(unsupported("place-question linked sumti")),
-        Some(Cmavo::Fai) => Err(unsupported("FAI linked sumti")),
-        Some(cmavo) => Err(unsupported(&format!("FA linked sumti cmavo {cmavo:?}"))),
-        None => Err(unsupported("non-cmavo FA linked sumti")),
+        Some(Cmavo::Fiha) => Err(invalid_graph(
+            "place-question tag has no fixed place index".to_owned(),
+        )),
+        Some(Cmavo::Fai) => Err(invalid_graph(
+            "FAI tag requires JAI-specific place resolution".to_owned(),
+        )),
+        Some(cmavo) => Err(invalid_graph(format!(
+            "generated FA tag contains unexpected cmavo {cmavo:?}"
+        ))),
+        None => Err(invalid_graph(
+            "generated FA tag contains a non-cmavo token".to_owned(),
+        )),
     }
 }
 
@@ -1435,7 +1433,15 @@ pub(super) fn relation_label_from_jai_inner_tanru_unit(
         JaiInnerTanruUnitSyntax::GroupedJaiInnerTanruUnit(grouped) => {
             relation_label_from_connected_jai_inner_selbri(&grouped.selbri)
         }
-        _ => Err(unsupported("non-word jai inner tanru unit")),
+        JaiInnerTanruUnitSyntax::QuotedBridiSelbriTanruUnit(unit) => Ok(
+            RelationLabel::constructed(generated_node_surface_text(unit)?),
+        ),
+        JaiInnerTanruUnitSyntax::QuotedTextSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
+        JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
     }
 }
 
@@ -1834,7 +1840,9 @@ pub(super) fn add_generated_linked_sumti_visible_places(
         }
         LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) => {}
         LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
-            return Err(unsupported("empty linked sumti"));
+            return Err(invalid_graph(
+                "generated empty linked sumti has no visible place".to_owned(),
+            ));
         }
     }
     Ok(())
@@ -1880,8 +1888,8 @@ pub(super) fn relation_label_from_scalar_negated_tanru_unit(
         ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
             Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi))
         }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(_) => {
-            Err(unsupported("tagged scalar-negated tanru unit"))
+        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(tagged) => {
+            relation_label_from_connected_selbri(&tagged.inner_selbri)
         }
     }
 }
@@ -1900,15 +1908,15 @@ pub(super) fn relation_phrase_label_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<String, SemanticsError> {
     match selbri {
-        SelbriSyntax::TaggedSelbri(_) => Err(unsupported("tagged selbri relation phrase label")),
+        SelbriSyntax::TaggedSelbri(tagged) => generated_node_surface_text(tagged),
         SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) => {
             if co_selbri.co_tail.is_some() {
-                return Err(unsupported("CO selbri relation phrase label"));
+                return generated_node_surface_text(co_selbri);
             }
             relation_phrase_label_from_connected_selbri(co_selbri.leading_selbri.as_ref())
         }
-        SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::NegatedSelbri(_)) => {
-            Err(unsupported("negated selbri relation phrase label"))
+        SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::NegatedSelbri(negated)) => {
+            generated_node_surface_text(negated)
         }
         SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::ForethoughtSelbriConnection(
             connection,
@@ -2093,7 +2101,9 @@ pub(super) fn relation_label_from_ordinal_tanru_unit(
     let mut visitor = GeneratedSpanCollector::default();
     ordinal.visit_in_order(&mut visitor);
     if visitor.tokens.len() < 2 {
-        return Err(unsupported("empty ordinal tanru unit"));
+        return Err(invalid_graph(
+            "generated ordinal tanru unit has fewer than two tokens".to_owned(),
+        ));
     }
     let moi = token_text(
         visitor

@@ -1708,7 +1708,7 @@ pub(super) fn generated_reverse_polish_surface_text(
     let mut visitor = GeneratedSpanCollector::default();
     reverse_polish.visit_in_order(&mut visitor);
     non_empty_token_list_text(visitor.tokens.iter().copied())
-        .ok_or_else(|| unsupported("empty reverse Polish mekso"))
+        .ok_or_else(|| invalid_graph("generated reverse Polish mekso has no tokens".to_owned()))
 }
 
 #[requires(true)]
@@ -1718,8 +1718,9 @@ pub(super) fn generated_zantufa_reverse_polish_surface_text(
 ) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     reverse_polish.visit_in_order(&mut visitor);
-    non_empty_token_list_text(visitor.tokens.iter().copied())
-        .ok_or_else(|| unsupported("empty Zantufa reverse Polish mex"))
+    non_empty_token_list_text(visitor.tokens.iter().copied()).ok_or_else(|| {
+        invalid_graph("generated Zantufa reverse Polish mex has no tokens".to_owned())
+    })
 }
 
 #[requires(true)]

@@ -150,7 +150,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let words = quantifier_tokens(fragment.0.as_ref());
         if words.is_empty() {
-            return Err(unsupported("empty mekso fragment"));
+            return Err(invalid_graph(
+                "generated mekso fragment has no expression tokens".to_owned(),
+            ));
         }
         let text = token_list_text(words.iter());
         let quantity = self.build_quantity_for_quantifier(fragment.0.as_ref())?;
@@ -535,9 +537,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 ),
             GeneratedTextRoot::StatementConnection(_)
             | GeneratedTextRoot::PreposedStatementConnection(_)
-            | GeneratedTextRoot::ForethoughtStatement(_) => {
-                Err(unsupported("statement connection as utterance"))
-            }
+            | GeneratedTextRoot::ForethoughtStatement(_) => Err(invalid_graph(
+                "statement connection reached single-utterance lowering".to_owned(),
+            )),
             GeneratedTextRoot::TextGroupStatement(statement) => {
                 let item =
                     self.build_generated_text_group_statement_with_id(utterance_id, statement)?;
@@ -649,8 +651,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let suffix_terms = zantufa_statement_terms_tail_terms(&statement.tail);
         if !suffix_terms.is_empty() {
             let GeneratedTextRoot::Bridi(bridi) = root else {
-                return Err(unsupported(
-                    "Zantufa statement-level trailing terms on non-bridi statement",
+                return Err(invalid_graph(
+                    "Zantufa statement-level trailing terms reached a non-bridi statement"
+                        .to_owned(),
                 ));
             };
             return self
@@ -664,8 +667,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .map(|(utterance, _formula)| utterance);
         }
         if !generated_text_root_is_utterance(&root) {
-            return Err(unsupported(
-                "Zantufa statement-level reset around statement connection",
+            return Err(invalid_graph(
+                "Zantufa statement-level reset reached a statement connection in single-utterance lowering"
+                    .to_owned(),
             ));
         }
         self.build_utterance_for_generated_text_root(utterance_id, root, truth_question)
@@ -681,8 +685,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let suffix_terms = zantufa_statement_terms_tail_terms(&statement.tail);
         if !suffix_terms.is_empty() {
             let GeneratedTextRoot::Bridi(bridi) = root else {
-                return Err(unsupported(
-                    "Zantufa statement-level trailing terms on non-bridi statement",
+                return Err(invalid_graph(
+                    "Zantufa statement-level trailing terms reached a non-bridi statement"
+                        .to_owned(),
                 ));
             };
             let utterance_id = self.next_utterance_id();
@@ -718,7 +723,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         if !generated_text_root_is_utterance(&root) {
             self.pop_generated_prenex_scope_bindings(bindings);
-            return Err(unsupported("prenex non-utterance statement"));
+            return Err(invalid_graph(
+                "statement connection reached single-utterance prenex lowering".to_owned(),
+            ));
         }
         let result =
             self.build_utterance_for_generated_text_root(utterance_id, root, truth_question);
@@ -816,8 +823,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .flat_map(|part| part.tokens.iter().cloned())
             .collect::<Vec<_>>();
         if source_tokens.is_empty() {
-            return Err(unsupported(
-                "standalone generated indicator without source tokens",
+            return Err(invalid_graph(
+                "standalone generated indicator has no source tokens".to_owned(),
             ));
         }
         let sign = self.next_sign_id();
@@ -4664,7 +4671,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let Some(connective_core) = generated_i_statement_connective_core(connective)? else {
-            return Err(unsupported("modal-only generated statement connective"));
+            return Err(invalid_graph(
+                "modal-only statement connective reached logical formula lowering".to_owned(),
+            ));
         };
         let connector_source = generated_statement_connective_source(connective)?;
         self.build_binary_formula_for_generated_statement_connective_core_with_connector_source(
@@ -4711,7 +4720,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let operator = generated_statement_connective_formula_operator_for_core(connective);
         let truth_table = generated_statement_connective_core_truth_table(connective);
         if operator != FormulaOperator::ConnectiveQuestion && truth_table.is_none() {
-            return Err(unsupported("nonlogical generated statement connective"));
+            return Err(invalid_graph(
+                "nonlogical statement connective reached logical formula lowering".to_owned(),
+            ));
         }
         let parameter = build_generated_connective_question_parameter_for_statement_connective(
             self, connective,
@@ -4766,8 +4777,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let operator = generated_statement_connective_formula_operator_for_core(connective);
         let truth_table = generated_statement_connective_core_truth_table(connective);
         if operator != FormulaOperator::ConnectiveQuestion && truth_table.is_none() {
-            return Err(unsupported(
-                "nonlogical generated statement connective formula",
+            return Err(invalid_graph(
+                "nonlogical statement connective reached unary logical formula lowering".to_owned(),
             ));
         }
         let negates_present_operand = match elided_operand {

@@ -77,5 +77,5 @@ pub(super) fn generated_node_surface_text<N: TreeNode>(node: &N) -> Result<Strin
     let mut visitor = GeneratedSpanCollector::default();
     node.visit_in_order(&mut visitor);
     non_empty_token_list_text(visitor.tokens.iter().copied())
-        .ok_or_else(|| unsupported("empty generated node surface text"))
+        .ok_or_else(|| invalid_graph("generated syntax node has no surface tokens".to_owned()))
 }

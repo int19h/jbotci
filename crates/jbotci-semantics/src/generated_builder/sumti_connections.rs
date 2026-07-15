@@ -53,18 +53,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &afterthought.leading_sumti,
             false,
         )?;
-        let mut referent = leading
-            .argument
-            .value
-            .ok_or_else(|| unsupported("deleted operand in nonlogical sumti connection"))?;
+        let mut referent = leading.argument.value.ok_or_else(|| {
+            undefined_semantics("a deleted-place operand in a nonlogical sumti connection")
+        })?;
         formula_scopes.extend(leading.formula_scopes);
         for continuation in &afterthought.continuations {
             let trailing = self
                 .build_generated_alternative_argument_for_sumti_bound(&continuation.sumti, false)?;
-            let trailing_referent = trailing
-                .argument
-                .value
-                .ok_or_else(|| unsupported("deleted operand in nonlogical sumti connection"))?;
+            let trailing_referent = trailing.argument.value.ok_or_else(|| {
+                undefined_semantics("a deleted-place operand in a nonlogical sumti connection")
+            })?;
             formula_scopes.extend(trailing.formula_scopes);
             referent = self.build_connected_generated_sumti_referent(
                 sumti,
@@ -173,8 +171,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     if let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti)
                     {
                         let [continuation] = afterthought.continuations.as_slice() else {
-                            return Err(unsupported(
-                                "multi-continuation generated sumti distribution",
+                            return Err(invalid_graph(
+                                "multi-continuation sumti reached single-connective distribution lowering"
+                                    .to_owned(),
                             ));
                         };
                         connective =
@@ -237,8 +236,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     if let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti)
                     {
                         let [continuation] = afterthought.continuations.as_slice() else {
-                            return Err(unsupported(
-                                "multi-continuation generated sumti distribution",
+                            return Err(invalid_graph(
+                                "multi-continuation sumti reached single-connective distribution lowering"
+                                    .to_owned(),
                             ));
                         };
                         connective =
@@ -291,13 +291,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         &mut term_formula_scopes,
                     )?;
                 }
-                _ => return Err(unsupported("non-sumti term")),
+                _ => {
+                    return Err(invalid_graph(
+                        "non-sumti term reached sumti-distribution lowering".to_owned(),
+                    ));
+                }
             }
         }
         for (place, afterthought) in pending_connections {
             let [continuation] = afterthought.continuations.as_slice() else {
-                return Err(unsupported(
-                    "multi-continuation generated sumti distribution",
+                return Err(invalid_graph(
+                    "multi-continuation sumti reached single-connective distribution lowering"
+                        .to_owned(),
                 ));
             };
             insert_generated_alternative_argument(
@@ -775,8 +780,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     };
                     if let Some(connected_sumti) = connected_sumti {
                         if connected_modal.replace((term, connected_sumti)).is_some() {
-                            return Err(unsupported(
-                                "multiple connected sumti used as modal arguments in one bridi",
+                            return Err(invalid_graph(
+                                "multiple connected modal sumti reached single-connection lowering"
+                                    .to_owned(),
                             ));
                         }
                     } else {
@@ -832,8 +838,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     &[],
                 )?,
             (Some(_), Some(_)) => {
-                return Err(unsupported(
-                    "simultaneous connected numbered and modal sumti arguments",
+                return Err(invalid_graph(
+                    "numbered and modal connected sumti reached single-connection lowering"
+                        .to_owned(),
                 ));
             }
             (None, None) => return Ok(None),
@@ -888,8 +895,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
                     if generated_logical_sumti_connection_for_branch(branch)?.is_some() {
                         if connected_place.replace((place, branch)).is_some() {
-                            return Err(unsupported(
-                                "multiple connected sumti with preassigned bridi arguments",
+                            return Err(invalid_graph(
+                                "multiple connected sumti reached single preassigned-connection lowering"
+                                    .to_owned(),
                             ));
                         }
                     } else {
@@ -916,8 +924,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
                             if generated_logical_sumti_connection_for_branch(branch)?.is_some() {
                                 if connected_place.replace((place, branch)).is_some() {
-                                    return Err(unsupported(
-                                        "multiple connected sumti with preassigned bridi arguments",
+                                    return Err(invalid_graph(
+                                        "multiple connected sumti reached single preassigned-connection lowering"
+                                            .to_owned(),
                                     ));
                                 }
                             } else {
@@ -1090,7 +1099,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 ));
             }
             if !generated_tense_modal_has_event_modifier(tense_modal) {
-                return Err(unsupported("tense-modal sumti connection"));
+                return Err(invalid_graph(
+                    "non-event tense-modal reached event-relative sumti-connection lowering"
+                        .to_owned(),
+                ));
             }
             let leading_eventuality = self.modal_eventuality_argument_for_generated_formula(
                 leading_formula,
@@ -1549,10 +1561,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &prefix.sumti.leading_sumti,
             false,
         )?;
-        let mut referent = leading
-            .argument
-            .value
-            .ok_or_else(|| unsupported("deleted operand in afterthought sumti prefix"))?;
+        let mut referent = leading.argument.value.ok_or_else(|| {
+            undefined_semantics("a deleted-place operand in an afterthought sumti connection")
+        })?;
         let mut formula_scopes = leading.formula_scopes;
         for continuation in prefix
             .sumti
@@ -1562,10 +1573,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             let trailing = self
                 .build_generated_alternative_argument_for_sumti_bound(&continuation.sumti, false)?;
-            let trailing_referent = trailing
-                .argument
-                .value
-                .ok_or_else(|| unsupported("deleted operand in afterthought sumti prefix"))?;
+            let trailing_referent = trailing.argument.value.ok_or_else(|| {
+                undefined_semantics("a deleted-place operand in an afterthought sumti connection")
+            })?;
             formula_scopes.extend(trailing.formula_scopes);
             referent = self.build_connected_generated_sumti_referent(
                 prefix.sumti,
@@ -1663,8 +1673,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let [continuation] = afterthought.continuations.as_slice() else {
-            return Err(unsupported(
-                "multi-continuation generated sumti distribution",
+            return Err(invalid_graph(
+                "multi-continuation sumti reached single-connective distribution lowering"
+                    .to_owned(),
             ));
         };
         insert_generated_alternative_argument(
