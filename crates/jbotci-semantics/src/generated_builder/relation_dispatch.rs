@@ -150,7 +150,8 @@ pub(super) fn constructed_relation_place_count(relation: &RelationLabel) -> Opti
         | data!(RelationLabel::ZeiCompound { .. })
         | data!(RelationLabel::StatementConnection { .. })
         | data!(RelationLabel::TextGroup { .. })
-        | data!(RelationLabel::Prenex { .. }) => None,
+        | data!(RelationLabel::Prenex { .. })
+        | data!(RelationLabel::ForethoughtStatementConnection { .. }) => None,
     }
 }
 

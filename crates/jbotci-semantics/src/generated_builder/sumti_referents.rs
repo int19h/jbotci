@@ -4361,8 +4361,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.relative_head_stack.push(head);
         let result = self
             .build_generated_statement_connection_item(statement, UtteranceForce::Subordinated)
-            .and_then(|(_item, formula)| {
-                formula.ok_or_else(|| unsupported("relative statement without formula"))
+            .and_then(|(item, formula)| match formula {
+                Some(formula) => Ok(formula),
+                None => self
+                    .subordinate_formula_for_generated_discourse_item(item)?
+                    .ok_or_else(|| unsupported("relative statement without formula")),
             });
         self.relative_head_stack.pop();
         let formula = result?;
