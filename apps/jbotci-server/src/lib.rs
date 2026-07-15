@@ -2038,7 +2038,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn tersmu_default_preserves_unsupported_construct_diagnostics() {
-        const INPUT: &str = "mi klama je'i i do klama";
+        const INPUT: &str = "mi klama joi i do klama";
         const EXPECTED_ERROR: &str = "semantic error: generated semantic builder does not yet support nonlogical generated statement connective\n";
 
         let app = router(test_config(test_static_dir()));

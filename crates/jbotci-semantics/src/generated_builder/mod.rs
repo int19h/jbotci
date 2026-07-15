@@ -8642,13 +8642,27 @@ mod tests {
         assert_eq!(linked.kind, SemanticsErrorKind::RequiresDiscourseContext);
         assert!(linked.message.contains("omitted linked-argument head"));
 
-        let quantified =
-            semantic_result_for("ro do").expect_err("a quantified fragment has no truth bearer");
-        assert_eq!(
-            quantified.kind,
-            SemanticsErrorKind::RequiresDiscourseContext
+        let quantified = semantic_graph_for("ro do");
+        let quantified_utterance = quantified.objects[&quantified.root]
+            .as_utterance()
+            .expect("quantified fragment utterance");
+        assert_eq!(quantified_utterance.force, UtteranceForce::Mention);
+        let quantified_content = quantified_utterance
+            .content
+            .and_then(|content| quantified.objects[&content].as_formula())
+            .expect("quantified fragment formula");
+        let data!(FormulaNode::Quantified(scope)) = quantified_content.as_data() else {
+            panic!("quantified fragment must preserve its quantifier scope");
+        };
+        assert_eq!(scope.operator, FormulaOperator::Forall);
+        assert_eq!(scope.variable.referent_sort(), Some(SemanticSort::Entity));
+        assert_eq!(scope.restriction, Some(scope.body));
+        assert!(
+            scope
+                .quantity
+                .and_then(|quantity| quantified.objects[&quantity].as_quantity())
+                .is_some_and(|quantity| quantity.form == QuantityForm::All)
         );
-        assert!(quantified.message.contains("truth-bearing scope"));
 
         for source in ["fe", "coi mofo", "to be safe", "fi", "fo"] {
             let place_tag = semantic_result_for(source)
