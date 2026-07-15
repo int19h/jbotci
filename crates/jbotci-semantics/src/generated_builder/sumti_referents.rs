@@ -2010,6 +2010,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let fragment_text = token_list_text(self.tokens_for_node(fragment).iter());
+        if matches!(term, TermSyntax::ConnectedTerm(term) if !term.continuations.is_empty()) {
+            return Err(requires_discourse_context(&format!(
+                "the missing bridi proposition distributed by standalone connected-term fragment `{fragment_text}`"
+            )));
+        }
         if matches!(term, TermSyntax::TermsetGroup(_))
             || matches!(
                 generated_simple_term_for_assignment(term),
