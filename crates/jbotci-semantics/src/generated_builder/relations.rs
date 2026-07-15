@@ -479,11 +479,8 @@ pub(super) fn sumti_selbri_from_generated_tanru_unit(
     let TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(sumti_selbri) = atom.base.as_ref() else {
         return Ok(None);
     };
-    if linkargs.is_some() {
-        return Err(unsupported("linkargs sumti selbri"));
-    }
-    if !atom.conversions.is_empty() {
-        return Err(unsupported("converted sumti selbri"));
+    if linkargs.is_some() || !atom.conversions.is_empty() {
+        return Ok(None);
     }
     Ok(Some(sumti_selbri))
 }
@@ -1255,7 +1252,21 @@ pub(super) fn relation_label_from_tanru_unit_atom_base(
         TanruUnitAtomBaseSyntax::JaiModalTanruUnit(unit) => {
             relation_label_from_jai_inner_tanru_unit(&unit.inner_unit)
         }
-        _ => Err(unsupported("non-word tanru unit")),
+        TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit) => {
+            relation_label_from_generated_tanru_unit(&unit.base)
+        }
+        TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(unit) => Ok(
+            RelationLabel::constructed(generated_node_surface_text(unit)?),
+        ),
+        TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
+        TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
+        TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
     }
 }
 
@@ -1305,7 +1316,29 @@ pub(super) fn relation_label_from_tanru_atom_base_view(
         GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit)) => {
             relation_label_from_jai_inner_tanru_unit(&unit.inner_unit)
         }
-        GeneratedTanruAtomBaseView::Cei(_) => Err(unsupported("non-word tanru unit")),
+        GeneratedTanruAtomBaseView::Cei(
+            TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit),
+        ) => relation_label_from_generated_tanru_unit(&unit.base),
+        GeneratedTanruAtomBaseView::Cei(
+            TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(unit),
+        ) => Ok(RelationLabel::constructed(generated_node_surface_text(
+            unit,
+        )?)),
+        GeneratedTanruAtomBaseView::Cei(
+            TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(unit),
+        ) => Ok(RelationLabel::constructed(generated_node_surface_text(
+            unit,
+        )?)),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(
+            unit,
+        )) => Ok(RelationLabel::constructed(generated_node_surface_text(
+            unit,
+        )?)),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(
+            unit,
+        )) => Ok(RelationLabel::constructed(generated_node_surface_text(
+            unit,
+        )?)),
     }
 }
 

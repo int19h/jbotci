@@ -759,6 +759,28 @@ impl<'syntax> GeneratedTanruAtomBaseView<'syntax> {
             _ => None,
         }
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_selbri_base(self) -> Option<&'syntax SumtiSelbriTanruUnitSyntax> {
+        match self {
+            Self::Normal(TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit))
+            | Self::Cei(TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit)) => Some(unit),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn preposed_linkargs_base(self) -> Option<(&'syntax LinkargsSyntax, &'syntax TanruUnitSyntax)> {
+        match self {
+            Self::Normal(TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit))
+            | Self::Cei(TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit)) => {
+                Some((&unit.linkargs, &unit.base))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[invariant(!relation.is_empty(), "aggregate relation must be named")]
@@ -3922,8 +3944,20 @@ fn relation_label_from_bridi(bridi: &BridiSyntax) -> Result<RelationLabel, Seman
         }
         _ => return Err(unsupported("subbridi relation label")),
     };
-    let simple_tail = simple_tail_from_bridi_tail(tail)?;
-    relation_label_from_selbri(&simple_tail.selbri)
+    let simple_tail = match simple_tail_from_bridi_tail(tail) {
+        Ok(simple_tail) => simple_tail,
+        Err(_) => {
+            return Ok(RelationLabel::constructed(generated_node_surface_text(
+                tail,
+            )?));
+        }
+    };
+    match generated_pro_bridi_target_relation_label(&simple_tail.selbri)? {
+        Some(relation) => Ok(relation),
+        None => Ok(RelationLabel::constructed(generated_node_surface_text(
+            simple_tail.selbri.as_ref(),
+        )?)),
+    }
 }
 
 #[requires(true)]
@@ -4484,7 +4518,21 @@ fn relation_label_from_tanru_unit_atom(
         TanruUnitAtomBaseSyntax::JaiModalTanruUnit(unit) => {
             relation_label_from_jai_inner_tanru_unit(&unit.inner_unit)
         }
-        _ => Err(unsupported("non-word tanru unit")),
+        TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit) => {
+            relation_label_from_generated_tanru_unit(&unit.base)
+        }
+        TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(unit) => Ok(
+            RelationLabel::constructed(generated_node_surface_text(unit)?),
+        ),
+        TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
+        TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
+        TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(unit) => Ok(RelationLabel::constructed(
+            generated_node_surface_text(unit)?,
+        )),
     }
 }
 
@@ -8183,6 +8231,52 @@ mod tests {
         owners[0]
     }
 
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.iter().all(|id| id.object_kind() == crate::model::SemanticObjectKind::Predication))]
+    fn named_predication_ids(graph: &SemanticGraph, relation: &str) -> Vec<SemanticObjectId> {
+        graph
+            .objects
+            .iter()
+            .filter_map(|(&id, object)| {
+                object
+                    .as_predication()
+                    .is_some_and(|predication| {
+                        matches!(
+                            predication.relation.as_data(),
+                            data!(PredicationRelation::Named { relation: candidate })
+                                if candidate == relation
+                        )
+                    })
+                    .then_some(id)
+            })
+            .collect()
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(true)]
+    fn formula_contains_predication(
+        graph: &SemanticGraph,
+        formula: SemanticObjectId,
+        predication: SemanticObjectId,
+    ) -> bool {
+        let traversal = graph
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+            .expect("formula precondition guarantees traversal");
+        if traversal.predication == Some(predication) {
+            return true;
+        }
+        traversal
+            .children
+            .iter()
+            .copied()
+            .chain(traversal.restriction)
+            .chain(traversal.body)
+            .any(|child| formula_contains_predication(graph, child, predication))
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -8850,6 +8944,312 @@ mod tests {
             crate::render::render_tree(&graph)
                 .contains(&format!("and binds=exists eventuality[{event}]"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_and_co_keep_modifier_graphs_and_head_place_structure() {
+        let tanru = semantic_graph_for("so'u prenu cu kelci djica");
+        let djica = named_predication_ids(&tanru, "djica");
+        let kelci = named_predication_ids(&tanru, "kelci");
+        assert_eq!(djica.len(), 1);
+        assert_eq!(kelci.len(), 1);
+        let link = tanru
+            .objects
+            .values()
+            .find_map(SemanticObject::predication_tanru_link)
+            .expect("plain tanru keeps an explicit modifier link");
+        assert_eq!(link.head, djica[0]);
+        let modifier_body = tanru
+            .objects
+            .get(&link.modifier)
+            .and_then(SemanticObject::as_referent)
+            .and_then(|referent| referent.body)
+            .expect("tanru modifier is a relation abstraction");
+        assert!(formula_contains_predication(
+            &tanru,
+            modifier_body,
+            kelci[0]
+        ));
+        let djica_x1 = tanru.objects[&djica[0]]
+            .as_predication()
+            .expect("djica")
+            .arguments[&argument_key(1)]
+            .value;
+        let kelci_x1 = tanru.objects[&kelci[0]]
+            .as_predication()
+            .expect("kelci")
+            .arguments[&argument_key(1)]
+            .value;
+        assert_ne!(djica_x1, kelci_x1, "modifier x1 is its property parameter");
+
+        let co = semantic_graph_for("mi zbasu co fagri do");
+        let zbasu = named_predication_ids(&co, "zbasu");
+        let fagri = named_predication_ids(&co, "fagri");
+        assert_eq!(zbasu.len(), 1);
+        assert_eq!(fagri.len(), 1);
+        let link = co
+            .objects
+            .values()
+            .find_map(SemanticObject::predication_tanru_link)
+            .expect("CO inversion keeps an explicit modifier link");
+        assert_eq!(link.head, zbasu[0], "pre-CO tertau remains the head");
+        let modifier_body = co
+            .objects
+            .get(&link.modifier)
+            .and_then(SemanticObject::as_referent)
+            .and_then(|referent| referent.body)
+            .expect("post-CO seltau is a relation abstraction");
+        assert!(formula_contains_predication(&co, modifier_body, fagri[0]));
+        let zbasu = co.objects[&zbasu[0]].as_predication().expect("zbasu");
+        let fagri = co.objects[&fagri[0]].as_predication().expect("fagri");
+        assert_eq!(
+            zbasu.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(
+            fagri.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee()),
+            "post-CO terms start at the modifier's x2"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_tanru_head_shares_x1_but_not_branch_events() {
+        let graph = semantic_graph_for("mi brodo ke broda je brode ke'e bau do");
+        let broda = named_predication_ids(&graph, "broda");
+        let brode = named_predication_ids(&graph, "brode");
+        let brodo = named_predication_ids(&graph, "brodo");
+        assert_eq!(broda.len(), 1);
+        assert_eq!(brode.len(), 1);
+        assert_eq!(brodo.len(), 1);
+        let broda_node = graph.objects[&broda[0]].as_predication().expect("broda");
+        let brode_node = graph.objects[&brode[0]].as_predication().expect("brode");
+        assert_eq!(
+            broda_node.arguments[&argument_key(1)].value,
+            brode_node.arguments[&argument_key(1)].value
+        );
+        assert_ne!(broda_node.eventuality, brode_node.eventuality);
+        for branch in [broda_node, brode_node] {
+            let modal = branch
+                .modal_arguments
+                .iter()
+                .find(|modal| modal.relation.as_deref() == Some("bangu"))
+                .expect("group-head modal term attaches to every connected branch");
+            assert_eq!(
+                modal.arguments[&argument_key(1)].value,
+                Some(SemanticObjectId::addressee())
+            );
+        }
+        let link = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::predication_tanru_link)
+            .expect("outer tanru modifier remains explicit");
+        assert_eq!(link.head, broda[0]);
+        let modifier_body = graph
+            .objects
+            .get(&link.modifier)
+            .and_then(SemanticObject::as_referent)
+            .and_then(|referent| referent.body)
+            .expect("outer modifier is a relation abstraction");
+        assert!(formula_contains_predication(
+            &graph,
+            modifier_body,
+            brodo[0]
+        ));
+        let head_event = broda_node.eventuality.expect("head branch has an event");
+        assert_eq!(
+            event_binding_owner(&graph, head_event).object_kind(),
+            SemanticObjectKind::Formula
+        );
+        assert_eq!(
+            graph
+                .objects
+                .get(&event_binding_owner(&graph, head_event))
+                .and_then(SemanticObject::formula_operator),
+            Some(FormulaOperator::And)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn me_and_moi_preserve_referents_ordinals_and_linkargs() {
+        let me = semantic_graph_for("mi me do");
+        let referent_of = named_predication_ids(&me, "referentOf");
+        assert_eq!(referent_of.len(), 1);
+        let referent_of = me.objects[&referent_of[0]]
+            .as_predication()
+            .expect("ME predication");
+        assert_eq!(referent_of.arguments.len(), 2);
+        assert_eq!(
+            referent_of.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(
+            referent_of.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee())
+        );
+
+        let linked =
+            semantic_graph_for("xu le kelvo be li rezeci cu dunli le me la sesius. be li no");
+        let linked_referent_of = named_predication_ids(&linked, "referentOf");
+        assert_eq!(linked_referent_of.len(), 1);
+        let linked_referent_of = linked.objects[&linked_referent_of[0]]
+            .as_predication()
+            .expect("linked ME predication");
+        assert_eq!(linked_referent_of.arguments.len(), 3);
+        assert_eq!(
+            linked_referent_of.arguments[&argument_key(2)]
+                .value
+                .and_then(|id| id.referent_sort()),
+            Some(SemanticSort::Entity)
+        );
+        assert_eq!(
+            linked_referent_of.arguments[&argument_key(3)]
+                .value
+                .and_then(|id| id.referent_sort()),
+            Some(SemanticSort::Number)
+        );
+
+        let moi = semantic_graph_for("ta me li ny. su'i pa me'u moi le'i mi ratcu");
+        assert!(named_predication_ids(&moi, "referentOf").is_empty());
+        let ordinal = named_predication_ids(&moi, "li ny su'i pa moi");
+        assert_eq!(ordinal.len(), 1);
+        let ordinal = moi.objects[&ordinal[0]]
+            .as_predication()
+            .expect("MOI predication");
+        assert_eq!(ordinal.arguments.len(), 3);
+        assert_eq!(
+            ordinal.arguments[&argument_key(1)]
+                .value
+                .and_then(|id| moi.objects.get(&id))
+                .and_then(SemanticObject::as_referent)
+                .and_then(|referent| referent.indexical),
+            Some(IndexicalKind::MedialDemonstrative)
+        );
+        assert_eq!(
+            ordinal.arguments[&argument_key(2)]
+                .value
+                .and_then(|id| id.referent_sort()),
+            Some(SemanticSort::Set)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn headline_scoped_connected_tanru_keeps_both_property_branches() {
+        let graph = semantic_graph_for(
+            "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli",
+        );
+        let xendo = named_predication_ids(&graph, "xendo");
+        let cnikansa = named_predication_ids(&graph, "cnikansa");
+        assert_eq!(xendo.len(), 1);
+        assert_eq!(cnikansa.len(), 1);
+        let xendo_node = graph.objects[&xendo[0]].as_predication().expect("xendo");
+        let cnikansa_node = graph.objects[&cnikansa[0]]
+            .as_predication()
+            .expect("cnikansa");
+        assert_eq!(xendo_node.mode, PredicationMode::Restrictive);
+        assert_eq!(cnikansa_node.mode, PredicationMode::Restrictive);
+        assert_eq!(
+            xendo_node.arguments[&argument_key(1)].value,
+            cnikansa_node.arguments[&argument_key(1)].value,
+            "connected property branches share ce'u"
+        );
+        assert_eq!(
+            xendo_node.arguments[&argument_key(2)].value,
+            cnikansa_node.arguments[&argument_key(2)].value,
+            "connected property branches share ro lo jmive"
+        );
+        assert!(graph.objects.iter().any(|(&formula, object)| {
+            object.formula_operator() == Some(FormulaOperator::And)
+                && formula_contains_predication(&graph, formula, xendo[0])
+                && formula_contains_predication(&graph, formula, cnikansa[0])
+        }));
+        assert_eq!(named_predication_ids(&graph, "tarti").len(), 1);
+        assert_eq!(named_predication_ids(&graph, "troci").len(), 1);
+        assert_eq!(named_predication_ids(&graph, "cadga").len(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_word_tanru_units_keep_typed_inner_arguments() {
+        let preposed = semantic_graph_for("lo be mi broda cu melbi");
+        let broda = named_predication_ids(&preposed, "broda");
+        assert_eq!(broda.len(), 1);
+        let broda = preposed.objects[&broda[0]]
+            .as_predication()
+            .expect("preposed-BE inner relation");
+        assert_eq!(broda.mode, PredicationMode::Restrictive);
+        assert_eq!(
+            broda.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker()),
+            "preposed BE fills the inner relation's x2"
+        );
+
+        let quoted_bridi = semantic_graph_for("go'oi broda");
+        let quoted_bridi_relations = quoted_bridi
+            .objects
+            .values()
+            .filter_map(SemanticObject::as_predication)
+            .map(|predication| match predication.relation.as_data() {
+                data!(crate::model::PredicationRelation::Named { relation }) => relation.as_str(),
+                data!(crate::model::PredicationRelation::Parameter { .. }) => {
+                    panic!("quoted bridi relation is not a parameter")
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(quoted_bridi_relations, ["cmavo:go'oĭ-\"broda\""]);
+
+        let tag_relation = semantic_graph_for("cy no xo'i ne'i cy pa");
+        assert_eq!(named_predication_ids(&tag_relation, "xo'i ne'i").len(), 1);
+
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        let text_relation =
+            semantic_result_for_with_parse_options("mi lu'ei do klama li'au", &options)
+                .expect("LUhEI relation unit has semantics");
+        assert_eq!(
+            named_predication_ids(&text_relation, "lu'ei do klama li'au").len(),
+            1
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_forethought_bridi_shares_terms_across_connected_branches() {
+        let graph = semantic_graph_for(
+            ".i ma'i le ci moi ba ku le za'u da ga nai du'e va'e le ka citno kei gi'e ricfu gi snada le ka rivbi kei gi'e troci le ka citka do",
+        );
+        let mut shared_x1 = None;
+        let mut shared_standard = None;
+        for relation in ["du'e va'e", "ricfu", "snada", "troci"] {
+            let predications = named_predication_ids(&graph, relation);
+            assert_eq!(predications.len(), 1);
+            let predication = graph.objects[&predications[0]]
+                .as_predication()
+                .expect("forethought branch predication");
+            let x1 = predication.arguments[&argument_key(1)]
+                .value
+                .expect("shared forethought x1");
+            assert_eq!(*shared_x1.get_or_insert(x1), x1);
+            let standard = predication
+                .modal_arguments
+                .iter()
+                .find(|modal| modal.relation.as_deref() == Some("manri"))
+                .and_then(|modal| modal.arguments[&argument_key(1)].value)
+                .expect("MAhI standard attaches to every branch");
+            assert_eq!(*shared_standard.get_or_insert(standard), standard);
+        }
     }
 
     #[test]

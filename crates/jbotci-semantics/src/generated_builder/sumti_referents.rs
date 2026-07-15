@@ -8339,6 +8339,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.source_for_node(selbri, "bridi-negation"),
             );
         }
+        if let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) = selbri
+            && (co_selbri.co_tail.is_some() || !co_selbri.leading_selbri.continuations.is_empty())
+        {
+            let mut visible_arguments = BTreeMap::new();
+            insert_visible_argument(
+                &mut visible_arguments,
+                1,
+                ArgumentValue::filled(referent, None),
+            )?;
+            return self.build_property_formula_for_co_selbri_with_visible_arguments(
+                co_selbri,
+                visible_arguments,
+                self.source_for_node(selbri, "restrictive-selbri-formula"),
+                GeneratedPropertyTanruContext::Description,
+                None,
+            );
+        }
         if let Some(sumti_selbri) = sumti_selbri_from_selbri(selbri)? {
             return self.build_sumti_selbri_formula_for_argument(
                 sumti_selbri,
@@ -8432,6 +8449,32 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedPropertyTanruContext::Description,
                 None,
             );
+        }
+        if let SelbriSyntax::TaggedSelbri(tagged) = selbri
+            && (generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref())
+                || match tagged.inner_selbri.as_ref() {
+                    UntaggedSelbriSyntax::CoSelbri(co_selbri) => {
+                        relation_label_from_co_selbri(co_selbri).is_err()
+                    }
+                    UntaggedSelbriSyntax::NegatedSelbri(_)
+                    | UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => true,
+                })
+        {
+            let mut visible_arguments = BTreeMap::new();
+            insert_visible_argument(
+                &mut visible_arguments,
+                1,
+                ArgumentValue::filled(referent, None),
+            )?;
+            let result = self.build_selbri_formula_for_visible_arguments(
+                selbri,
+                visible_arguments,
+                self.source_for_node(selbri, "restrictive-selbri-formula"),
+                "description",
+                None,
+            )?;
+            self.set_formula_predication_mode(result.formula, PredicationMode::Restrictive);
+            return Ok(result.formula);
         }
         if matches!(selbri, SelbriSyntax::TaggedSelbri(_)) {
             let SelbriSyntax::TaggedSelbri(tagged) = selbri else {
