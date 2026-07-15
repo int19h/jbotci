@@ -10580,6 +10580,68 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn dictionary_online_location_tag_anchors_the_host_event() {
+        let graph = semantic_graph_for("xei'e lo kibro mi klama");
+        let predication = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication)
+            })
+            .expect("klama predication should exist");
+        let speaker = graph
+            .objects
+            .iter()
+            .find_map(|(id, object)| {
+                (object.as_referent().and_then(|referent| referent.indexical)
+                    == Some(IndexicalKind::Speaker))
+                .then_some(*id)
+            })
+            .expect("speaker referent should exist");
+        assert_eq!(
+            predication.arguments[&argument_key(1)].value,
+            Some(speaker),
+            "the ordinary mi term must retain klama x1"
+        );
+        let event = graph
+            .objects
+            .get(&predication.eventuality.expect("klama should have an event"))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("klama eventuality should exist");
+        let space = event
+            .space
+            .as_ref()
+            .expect("xei'e must create a spatial condition");
+        assert_eq!(space.relation, "onlineWith");
+        assert_eq!(
+            graph
+                .objects
+                .get(&space.anchor)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("lo kibro"),
+            "the xei'e sumti must be the online-location anchor"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ki_does_not_silently_discard_a_tagged_sumti() {
+        let error = semantic_result_for("i xu do gunka ki le do zdani vu ma doi tsali")
+            .expect_err("KI alone defines a reset, not a relation to a following sumti");
+        assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+        assert_eq!(
+            error.message,
+            "semantic interpretation is undefined for a KI reset tag applied to a sumti argument"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn duplicate_linkarg_x1_expands_to_conjoined_restrictions() {
         let graph = semantic_graph_for("le gadri be fa zo le");
         let gadri = graph

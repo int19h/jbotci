@@ -1063,6 +1063,9 @@ pub(super) fn space_relation_for_faha_token(token: &Token) -> Option<String> {
         Some(Cmavo::Nehu) => Some("southOf".to_owned()),
         Some(Cmavo::Duha) => Some("eastOf".to_owned()),
         Some(Cmavo::Vuha) => Some("westOf".to_owned()),
+        // The jbovlaste definition makes experimental FAhA3 `xei'e` the
+        // online-location counterpart of `bu'u`, not a generic place word.
+        Some(Cmavo::Xeihe) => Some("onlineWith".to_owned()),
         _ => None,
     }
 }

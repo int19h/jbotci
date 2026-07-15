@@ -482,6 +482,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         ) {
             return Err(undefined_semantics("an experimental NAhE-prefixed FA tag"));
         }
+        if generated_tense_modal_resets_sticky_tense(tense_modal) {
+            return Err(undefined_semantics(
+                "a KI reset tag applied to a sumti argument",
+            ));
+        }
         if generated_tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
         }
