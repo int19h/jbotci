@@ -162,6 +162,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut highest_assigned_place = 0usize;
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
+            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+                return Err(undefined_semantics(description));
+            }
             match simple {
                 SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;
@@ -693,6 +696,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
+            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+                return Err(undefined_semantics(description));
+            }
             match simple {
                 SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;

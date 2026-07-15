@@ -3011,6 +3011,9 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
     assigned_places: &mut BTreeSet<usize>,
     next_visible_place: &mut usize,
 ) -> Result<(), SemanticsError> {
+    if let Some(description) = generated_undefined_experimental_term_description(term) {
+        return Err(undefined_semantics(description));
+    }
     match term {
         SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
             let place =
@@ -3121,6 +3124,9 @@ fn advance_next_visible_place_after_generated_simple_term(
     next_visible_place: &mut usize,
     assigned_places: &mut BTreeSet<usize>,
 ) -> Result<(), SemanticsError> {
+    if let Some(description) = generated_undefined_experimental_term_description(simple) {
+        return Err(undefined_semantics(description));
+    }
     match simple {
         SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
             let count = generated_sumti_afterthought_for_termset(sumti)
@@ -4590,6 +4596,20 @@ fn generated_simple_term_for_assignment(
             continuations,
         }) if continuations.is_empty() => Ok(leading_term.as_ref()),
         _ => Err(unsupported("non-simple term")),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_undefined_experimental_term_description(
+    term: &SimpleTermSyntax,
+) -> Option<&'static str> {
+    match term {
+        SimpleTermSyntax::NoihaAdverbialTerm(_) => Some("an experimental NOIhA adverbial term"),
+        SimpleTermSyntax::FihoiAdverbialTerm(_) => Some("an experimental FIhOI adverbial term"),
+        SimpleTermSyntax::SoiAdverbialTerm(_) => Some("an experimental SOI/XOI adverbial term"),
+        SimpleTermSyntax::JaiTaggedSumtiTerm(_) => Some("an experimental Zantufa JAI tag term"),
+        _ => None,
     }
 }
 
@@ -10491,6 +10511,34 @@ mod tests {
             RecurrenceKind::OccurrenceCount,
             "the following ro roi tag must compose with ka'e"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_adverbial_terms_report_principled_undefined_semantics() {
+        for (source, construct) in [
+            (
+                "mi klama noi'a broda",
+                "an experimental NOIhA adverbial term",
+            ),
+            (
+                "mi klama fi'oi broda",
+                "an experimental FIhOI adverbial term",
+            ),
+            (
+                "mi klama xoi mutce",
+                "an experimental SOI/XOI adverbial term",
+            ),
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("experimental adverbials have no defined semantic lowering");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                format!("semantic interpretation is undefined for {construct}")
+            );
+        }
     }
 
     #[test]

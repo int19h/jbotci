@@ -145,6 +145,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         node: &N,
         simple: &'syntax SimpleTermSyntax,
     ) -> Result<(), SemanticsError> {
+        if let Some(description) = generated_undefined_experimental_term_description(simple) {
+            return Err(undefined_semantics(description));
+        }
         match simple {
             SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
                 if self.insert_generated_termset_sumti_assignment(
