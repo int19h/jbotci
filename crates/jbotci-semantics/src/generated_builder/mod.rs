@@ -10329,6 +10329,48 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn standalone_ki_cancels_a_prior_tense_anchor_question() {
+        let graph = semantic_graph_for("ca ma ki klama");
+        let utterance = graph.objects[&graph.root]
+            .as_utterance()
+            .expect("single bridi utterance");
+        assert_eq!(utterance.force, UtteranceForce::Assert);
+        assert_eq!(
+            utterance.content.map(SemanticObjectId::object_kind),
+            Some(SemanticObjectKind::Formula)
+        );
+        assert!(
+            graph
+                .objects
+                .values()
+                .all(|object| object.as_question().is_none())
+        );
+        assert!(graph.objects.values().all(|object| {
+            object
+                .as_parameter()
+                .is_none_or(|parameter| parameter.role != ParameterRole::ArgumentQuestion)
+        }));
+        let klama = graph
+            .objects
+            .values()
+            .filter_map(SemanticObject::as_predication)
+            .find(|predication| {
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+            })
+            .expect("klama predication");
+        let event = klama
+            .eventuality
+            .and_then(|event| graph.objects[&event].as_eventuality())
+            .expect("klama eventuality");
+        assert!(event.time.is_none());
+        assert!(event.time_path.is_empty());
+        assert!(event.space.is_none());
+        assert!(event.space_path.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn keha_is_typed_outside_relatives_and_crosses_abstraction_boundaries() {
         let property = semantic_graph_for("ka ke'a pilno ce'u");
         let pilno = named_predication_ids(&property, "pilno");

@@ -2347,11 +2347,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         anchor: Option<SemanticObjectId>,
     ) -> Result<(), SemanticsError> {
         if generated_tense_modal_resets_sticky_tense(tense_modal) {
-            let event = self.objects.get_mut(&eventuality).ok_or_else(|| {
-                invalid_graph(format!("missing generated eventuality {eventuality}"))
-            })?;
-            clear_generated_event_time_path(event);
-            clear_generated_event_space_path(event);
+            let cleared_references = {
+                let event = self.objects.get_mut(&eventuality).ok_or_else(|| {
+                    invalid_graph(format!("missing generated eventuality {eventuality}"))
+                })?;
+                let mut before = Vec::new();
+                event.references_into(&mut before);
+                clear_generated_event_time_path(event);
+                clear_generated_event_space_path(event);
+                let mut after = Vec::new();
+                event.references_into(&mut after);
+                let after = after.into_iter().collect::<BTreeSet<_>>();
+                before
+                    .into_iter()
+                    .filter(|reference| !after.contains(reference))
+                    .collect::<BTreeSet<_>>()
+            };
+            // CLL 10.13 defines bare KI as returning this bridi to the speaker's
+            // here-and-now. An interrogative that supplied only a discarded time or
+            // space anchor therefore does not survive as an answer domain.
+            self.direct_question_slots.retain(|slot| {
+                slot.parameter
+                    .is_none_or(|parameter| !cleared_references.contains(&parameter))
+            });
             self.apply_generated_sticky_event_update(GeneratedStickyEventUpdate {
                 reset: true,
                 ..GeneratedStickyEventUpdate::default()
