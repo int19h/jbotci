@@ -8575,6 +8575,25 @@ mod tests {
         );
         assert!(quantified.message.contains("truth-bearing scope"));
 
+        for source in ["fe", "coi mofo", "to be safe", "fi", "fo"] {
+            let place_tag = semantic_result_for(source)
+                .expect_err("a standalone FA tag has no bridi place structure");
+            assert_eq!(place_tag.kind, SemanticsErrorKind::RequiresDiscourseContext);
+            assert!(place_tag.message.contains("standalone place-tag fragment"));
+        }
+
+        let naku = semantic_result_for("naku")
+            .expect_err("standalone naku has no proposition whose scope it can negate");
+        assert_eq!(naku.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert!(naku.message.contains("missing bridi proposition"));
+
+        let termset = semantic_result_for(
+            "nu'ige zo by. .a zo beiste nu'ugi zo zy. .a zo zgana toji'a zo viska toi",
+        )
+        .expect_err("a standalone termset has no bridi place structure");
+        assert_eq!(termset.kind, SemanticsErrorKind::RequiresDiscourseContext);
+        assert!(termset.message.contains("standalone termset fragment"));
+
         let deleted = semantic_graph_for("ru'a zi'o");
         let deleted_content = deleted
             .objects

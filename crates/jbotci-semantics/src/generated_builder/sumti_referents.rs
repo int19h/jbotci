@@ -2009,6 +2009,37 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let [term] = fragment.terms.as_slice() else {
             return Ok(None);
         };
+        let fragment_text = token_list_text(self.tokens_for_node(fragment).iter());
+        if matches!(term, TermSyntax::TermsetGroup(_))
+            || matches!(
+                generated_simple_term_for_assignment(term),
+                Ok(SimpleTermSyntax::ForethoughtTermset(_))
+            )
+        {
+            return Err(requires_discourse_context(&format!(
+                "the bridi place structure required by standalone termset fragment `{fragment_text}`"
+            )));
+        }
+        if matches!(
+            generated_simple_term_for_assignment(term),
+            Ok(SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_))
+        ) {
+            return Err(requires_discourse_context(&format!(
+                "the missing bridi proposition scoped by standalone term fragment `{fragment_text}`"
+            )));
+        }
+        if matches!(
+            generated_simple_term_for_assignment(term),
+            Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(term))
+                if matches!(
+                    term.sumti.as_ref(),
+                    TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_)
+                )
+        ) {
+            return Err(requires_discourse_context(&format!(
+                "the bridi argument selected by standalone place-tag fragment `{fragment_text}`"
+            )));
+        }
         if let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
             generated_simple_term_for_assignment(term)
         {
