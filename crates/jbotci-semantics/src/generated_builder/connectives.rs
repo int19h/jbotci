@@ -78,6 +78,15 @@ pub(super) fn generated_argument_connective_is_interval(
 pub(super) fn generated_nonlogical_argument_composition_operator(
     connective: &ArgumentConnectiveSyntax,
 ) -> Result<CompositionOperator, SemanticsError> {
+    if matches!(
+        connective,
+        ArgumentConnectiveSyntax::VuhuNonlogicalConnective(_)
+    ) {
+        return Err(undefined_semantics(&format!(
+            "the experimental VUhU argument connective `{}` outside a mekso expression",
+            generated_argument_connective_source(connective)?
+        )));
+    }
     match generated_argument_connective_primary_cmavo(connective) {
         Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
         Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
@@ -90,8 +99,8 @@ pub(super) fn generated_nonlogical_argument_composition_operator(
         Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
         Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
         Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
-        _ => Err(unsupported(&format!(
-            "unsupported nonlogical argument connective {}",
+        _ => Err(invalid_graph(format!(
+            "generated nonlogical argument connective `{}` has no composition operator",
             generated_argument_connective_source(connective)?
         ))),
     }
@@ -1931,6 +1940,15 @@ pub(super) fn generated_statement_connective_question_token(
 pub(super) fn generated_nonlogical_statement_composition_operator(
     connective: &StatementConnectiveSyntax,
 ) -> Result<CompositionOperator, SemanticsError> {
+    if matches!(
+        connective,
+        StatementConnectiveSyntax::VuhuNonlogicalConnective(_)
+    ) {
+        return Err(undefined_semantics(&format!(
+            "the experimental VUhU statement connective `{}` outside a mekso expression",
+            generated_statement_connective_core_source(connective)?
+        )));
+    }
     match generated_statement_connective_primary_cmavo(connective) {
         Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
         Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
@@ -1943,8 +1961,8 @@ pub(super) fn generated_nonlogical_statement_composition_operator(
         Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
         Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
         Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
-        _ => Err(unsupported(&format!(
-            "unsupported nonlogical statement connective {}",
+        _ => Err(invalid_graph(format!(
+            "generated nonlogical statement connective `{}` has no composition operator",
             generated_statement_connective_core_source(connective)?
         ))),
     }
@@ -2174,7 +2192,28 @@ pub(super) fn generated_relation_afterthought_connective_formula_operator(
         Some(Cmavo::E | Cmavo::Je) => FormulaOperator::And,
         Some(Cmavo::O | Cmavo::Jo) => FormulaOperator::Iff,
         Some(Cmavo::U | Cmavo::Ju) => FormulaOperator::WhetherOrNot,
+        Some(Cmavo::Ji | Cmavo::Jehi) => FormulaOperator::ConnectiveQuestion,
         _ => FormulaOperator::And,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|token| matches!(token.cmavo(), Some(Cmavo::Ji | Cmavo::Jehi))))]
+pub(super) fn generated_relation_afterthought_connective_question_token(
+    connective: &RelationAfterthoughtConnectiveSyntax,
+) -> Option<Token> {
+    match connective {
+        RelationAfterthoughtConnectiveSyntax::EkConnective(connective)
+            if connective.a.value.cmavo() == Some(Cmavo::Ji) =>
+        {
+            Some(connective.a.value.clone())
+        }
+        RelationAfterthoughtConnectiveSyntax::JekConnective(connective)
+            if connective.ja.value.cmavo() == Some(Cmavo::Jehi) =>
+        {
+            Some(connective.ja.value.clone())
+        }
+        _ => None,
     }
 }
 
@@ -2279,6 +2318,9 @@ pub(super) fn generated_joik_connective_negates_right(connective: &JoikConnectiv
 pub(super) fn generated_relation_afterthought_connective_truth_table(
     connective: &RelationAfterthoughtConnectiveSyntax,
 ) -> Option<String> {
+    if generated_relation_afterthought_connective_question_token(connective).is_some() {
+        return None;
+    }
     if !generated_relation_afterthought_connective_is_logical(connective) {
         return None;
     }
@@ -2308,6 +2350,9 @@ pub(super) fn generated_relation_afterthought_connective_truth_table(
 pub(super) fn generated_relation_afterthought_connective_is_logical(
     connective: &RelationAfterthoughtConnectiveSyntax,
 ) -> bool {
+    if generated_relation_afterthought_connective_question_token(connective).is_some() {
+        return true;
+    }
     matches!(
         generated_relation_afterthought_connective_primary_cmavo(connective),
         Some(
@@ -2328,6 +2373,15 @@ pub(super) fn generated_relation_afterthought_connective_is_logical(
 pub(super) fn generated_nonlogical_composition_operator(
     connective: &RelationAfterthoughtConnectiveSyntax,
 ) -> Result<CompositionOperator, SemanticsError> {
+    if matches!(
+        connective,
+        RelationAfterthoughtConnectiveSyntax::VuhuNonlogicalConnective(_)
+    ) {
+        return Err(undefined_semantics(&format!(
+            "the experimental VUhU relation connective `{}` outside a mekso expression",
+            generated_relation_afterthought_connective_source(connective)?
+        )));
+    }
     match generated_relation_afterthought_connective_primary_cmavo(connective) {
         Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
         Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
@@ -2340,8 +2394,8 @@ pub(super) fn generated_nonlogical_composition_operator(
         Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
         Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
         Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
-        _ => Err(unsupported(&format!(
-            "unsupported nonlogical relation connective {}",
+        _ => Err(invalid_graph(format!(
+            "generated nonlogical relation connective `{}` has no composition operator",
             generated_relation_afterthought_connective_source(connective)?
         ))),
     }

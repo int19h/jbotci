@@ -12189,6 +12189,209 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn preposed_joi_statement_connection_is_a_typed_nonlogical_mass() {
+        let graph = semantic_graph_for("mi klama joi i do klama");
+        let sequence = graph.objects[&graph.root]
+            .as_sequence()
+            .expect("pre-I JOI should build a discourse sequence");
+        assert_eq!(sequence.items.len(), 2);
+        assert_eq!(sequence.content, None);
+        let connection = sequence
+            .nonlogical_connection
+            .as_ref()
+            .expect("JOI should remain nonlogical rather than becoming formula conjunction");
+        assert_eq!(connection.operator, CompositionOperator::Mass.label());
+        assert_eq!(connection.connector.source, "joi");
+        assert_eq!(connection.connector.locus, "statement");
+        assert_eq!(connection.connector.truth_table, None);
+        assert_eq!(connection.connector.parameter, None);
+        for item in &sequence.items {
+            let utterance = graph.objects[item]
+                .as_utterance()
+                .expect("each JOI member should remain an utterance");
+            assert_eq!(utterance.force, UtteranceForce::Assert);
+            let formula = utterance
+                .content
+                .expect("each JOI member keeps its formula");
+            assert_eq!(
+                graph.objects[&formula].formula_operator(),
+                Some(FormulaOperator::Atom)
+            );
+        }
+        assert!(graph.objects.values().all(|object| {
+            object
+                .formula_operator()
+                .is_none_or(|operator| operator != FormulaOperator::And)
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuhu_connectives_outside_mekso_report_the_cll_semantic_gap() {
+        for (source, locus) in [
+            ("le ni renvi kei su'i le ni renvi selcertu kei", "argument"),
+            ("mi klama i su'i do klama", "statement"),
+            ("ganse su'i zukte nirna", "relation"),
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("raw VUhU has no CLL semantics as a general connective");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                format!(
+                    "semantic interpretation is undefined for the experimental VUhU {locus} connective `su'i` outside a mekso expression"
+                )
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ji_relation_connection_builds_a_typed_connective_question() {
+        let graph = semantic_graph_for("ganse ji zukte nirna");
+        let utterance = graph.objects[&graph.root]
+            .as_utterance()
+            .expect("relation connective question utterance");
+        assert_eq!(utterance.force, UtteranceForce::Ask);
+        let question = utterance
+            .content
+            .and_then(|content| graph.objects[&content].as_question())
+            .expect("JI should raise a direct connective question");
+        assert_eq!(question.kind, QuestionKind::Connective);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        let connection = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Connective(connection))
+                    if connection.operator == FormulaOperator::ConnectiveQuestion =>
+                {
+                    Some(connection)
+                }
+                _ => None,
+            })
+            .expect("JI must remain a typed connective formula inside the tanru");
+        assert_eq!(connection.children.len(), 2);
+        let connector = connection
+            .connector
+            .as_ref()
+            .expect("connective question has connector metadata");
+        assert_eq!(connector.source, "ji");
+        assert_eq!(connector.locus, "property-abstraction");
+        assert_eq!(connector.truth_table, None);
+        let answer = connector
+            .parameter
+            .expect("connective question has a typed answer parameter");
+        assert!(
+            graph.objects[&answer]
+                .as_parameter()
+                .is_some_and(|parameter| {
+                    parameter.sort == SemanticSort::Connective
+                        && parameter.role == ParameterRole::ConnectiveQuestion
+                })
+        );
+        let branch_predications = connection
+            .children
+            .iter()
+            .map(|formula| {
+                graph.objects[formula]
+                    .formula_predication()
+                    .and_then(|predication| graph.objects[&predication].as_predication())
+                    .expect("each JI property branch is atomic")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            branch_predications
+                .iter()
+                .filter_map(|predication| match predication.relation.as_data() {
+                    data!(PredicationRelation::Named { relation }) => Some(relation.clone()),
+                    data!(PredicationRelation::Parameter { .. }) => None,
+                })
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["ganse".to_owned(), "zukte".to_owned()])
+        );
+        assert!(
+            branch_predications
+                .iter()
+                .all(|predication| predication.mode == PredicationMode::Restrictive)
+        );
+        assert_eq!(
+            branch_predications[0].arguments[&argument_key(1)].value,
+            branch_predications[1].arguments[&argument_key(1)].value
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nei_replays_the_entire_connected_current_bridi() {
+        const RECURSION_DIAGNOSTIC: &str =
+            "recursive inherited pro-bridi argument was elided to keep the semantic graph finite";
+        let graph = semantic_graph_for("mi broda gi'e brode le nei");
+        let connected = graph
+            .objects
+            .values()
+            .filter_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Connective(connection))
+                    if connection.connector.as_ref().is_some_and(|connector| {
+                        connector.source == "gi'e" && connector.locus == "bridiTail"
+                    }) =>
+                {
+                    Some((object, connection))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(connected.len(), 2, "outer bridi plus the finite NEI replay");
+        let (replay, replay_connection) = connected
+            .iter()
+            .find(|(object, _)| {
+                object
+                    .diagnostics()
+                    .iter()
+                    .any(|diagnostic| diagnostic.message == RECURSION_DIAGNOSTIC)
+            })
+            .expect("the recursive argument elision must be explicit");
+        assert_eq!(replay_connection.operator, FormulaOperator::And);
+        assert_eq!(replay_connection.children.len(), 2);
+        assert_eq!(replay.diagnostics().len(), 1);
+        let replayed_predications = replay_connection
+            .children
+            .iter()
+            .map(|formula| {
+                graph.objects[formula]
+                    .formula_predication()
+                    .and_then(|predication| graph.objects[&predication].as_predication())
+                    .expect("each replayed connected branch is atomic")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            replayed_predications
+                .iter()
+                .filter_map(|predication| match predication.relation.as_data() {
+                    data!(PredicationRelation::Named { relation }) => Some(relation.clone()),
+                    data!(PredicationRelation::Parameter { .. }) => None,
+                })
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["broda".to_owned(), "brode".to_owned()])
+        );
+        assert!(
+            replayed_predications
+                .iter()
+                .all(|predication| predication.mode == PredicationMode::Restrictive)
+        );
+        assert_eq!(
+            replayed_predications[0].arguments[&argument_key(1)].value,
+            replayed_predications[1].arguments[&argument_key(1)].value,
+            "the description parameter replaces x1 in every connected branch"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn bare_jai_fai_preserves_its_argument_and_quantified_event_anchor() {
         let graph = semantic_graph_for("jai frili fai le nu krobi'o fa'a roda");
         let frili = graph

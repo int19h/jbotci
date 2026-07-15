@@ -5028,6 +5028,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         connection: &'tree PreposedIStatementConnectionSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let logical = generated_statement_connective_is_logical(&connection.connective);
         let leading_bridi = bridi_from_statement_base(&connection.leading_statement)?;
         let trailing_bridi =
             bridi_from_statement_after_i_connective(&connection.trailing_statement)?;
@@ -5036,7 +5037,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let (leading_item, leading_formula) = self.build_bridi_utterance_with_force(
             leading_utterance,
             leading_bridi,
-            UtteranceForce::Subordinated,
+            UtteranceForce::Assert,
         )?;
         let trailing_utterance = self.next_utterance_id();
         self.previous_utterance = Some(leading_item);
@@ -5045,7 +5046,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let (trailing_item, trailing_formula) = self.build_bridi_utterance_with_force(
             trailing_utterance,
             trailing_bridi,
-            UtteranceForce::Subordinated,
+            UtteranceForce::Assert,
         )?;
         self.attach_generated_statement_separator_indicators_to_discourse_item(
             trailing_item,
@@ -5054,12 +5055,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             false,
         )?;
         let question_start = self.direct_question_slots.len();
-        let formula = self.build_binary_formula_for_generated_statement_connective_core(
-            &connection.connective,
-            leading_formula,
-            trailing_formula,
-            self.source_for_node(connection, "statement-connection"),
-        )?;
+        let source = self.source_for_node(connection, "statement-connection");
+        let formula = logical
+            .then(|| {
+                self.build_binary_formula_for_generated_statement_connective_core(
+                    &connection.connective,
+                    leading_formula,
+                    trailing_formula,
+                    source.clone(),
+                )
+            })
+            .transpose()?;
         let mut question_slots = self.direct_question_slots.split_off(question_start);
         question_slots.extend(
             self.direct_truth_question_source_orders(&connection.i)
@@ -5074,17 +5080,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     }))
                 }),
         );
-        let sequence = self.next_sequence_id();
         let question_source = self.source_for_node(connection, "statement-question");
-        let mut object = SemanticObject::sequence(
-            vec![leading_item, trailing_item],
-            SequenceRelation::SameTopicContinuation,
-            self.source_for_node(connection, "statement-connection"),
+        let nonlogical_connection = (!logical)
+            .then(|| generated_statement_core_nonlogical_connection(&connection.connective))
+            .transpose()?;
+        let sequence = self.insert_generated_statement_connection_sequence(
+            leading_item,
+            trailing_item,
+            formula,
             Vec::new(),
-        );
-        object.update_sequence(|node| node.with_data(data! { content: Some(formula) }));
-        self.insert(sequence, object)?;
-        if !question_slots.is_empty() {
+            nonlogical_connection,
+            source,
+            Vec::new(),
+        )?;
+        if !question_slots.is_empty()
+            && let Some(formula) = formula
+        {
             self.set_generated_statement_question_content(
                 sequence,
                 formula,

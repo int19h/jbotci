@@ -3699,9 +3699,48 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         allow_single_argument_distribution: bool,
         formula_construct: &'static str,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct_excluding_source(
+            source_node,
+            simple_tail,
+            preassigned_visible_arguments,
+            preassigned_place_questions,
+            terms,
+            shared_tail_start,
+            first_visible_place,
+            eventuality,
+            mode,
+            allow_single_argument_distribution,
+            formula_construct,
+            None,
+        )
+    }
+
+    #[requires(first_visible_place > 0)]
+    #[requires(preassigned_visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(!formula_construct.is_empty())]
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(true)]
+    pub(super) fn build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct_excluding_source<
+        N: TreeNode,
+    >(
+        &mut self,
+        source_node: &N,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
+        preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
+        terms: Vec<&'tree TermSyntax>,
+        shared_tail_start: Option<usize>,
+        first_visible_place: usize,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        allow_single_argument_distribution: bool,
+        formula_construct: &'static str,
+        excluded_source: Option<&SourceByteSpan>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         if preassigned_visible_arguments.is_empty()
             && preassigned_place_questions.is_empty()
             && shared_tail_start.is_none()
+            && excluded_source.is_none()
         {
             return self.build_selbri_simple_bridi_tail_formula_from_terms_with_formula_construct(
                 source_node,
@@ -3716,7 +3755,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let predication_source = self.source_for_node(source_node, "predication");
         let formula_source = self.source_for_node(source_node, formula_construct);
-        if let SelbriSyntax::TaggedSelbri(tagged) = simple_tail.selbri.as_ref()
+        if excluded_source.is_none()
+            && let SelbriSyntax::TaggedSelbri(tagged) = simple_tail.selbri.as_ref()
             && generated_connected_event_tense_spec_for_tense_modal(tagged.tense_modal.as_ref())
                 .is_none()
             && !generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref())
@@ -3765,7 +3805,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
             );
         }
-        if preassigned_place_questions.is_empty() {
+        if preassigned_place_questions.is_empty() && excluded_source.is_none() {
             if eventuality.is_none()
                 && let Ok(relation) = relation_label_from_selbri(&simple_tail.selbri)
             {
@@ -3821,11 +3861,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
             }
         }
-        let assignments = self.build_term_assignments_for_terms_with_shared_tail_source(
-            terms,
-            first_visible_place,
-            shared_tail_start,
-        )?;
+        let assignments = match excluded_source {
+            Some(excluded_source) => {
+                self.build_term_assignments_for_terms_excluding_source(
+                    terms,
+                    first_visible_place,
+                    Some(excluded_source),
+                )?
+                .0
+            }
+            None => self.build_term_assignments_for_terms_with_shared_tail_source(
+                terms,
+                first_visible_place,
+                shared_tail_start,
+            )?,
+        };
         if relation_label_from_selbri(&simple_tail.selbri).is_err()
             && preassigned_place_questions.is_empty()
             && assignments.place_questions.is_empty()
@@ -4607,7 +4657,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         suffix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         leading_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
         allow_single_argument_distribution: bool,
+        excluded_source: Option<&SourceByteSpan>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let BridiTailSyntax::BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax {
             first,
@@ -4632,7 +4684,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &leading_suffix_terms,
             first_visible_place,
             leading_eventuality,
+            mode,
             allow_single_argument_distribution,
+            excluded_source,
         )?;
         for continuation in &first.0.links {
             let mut branch_suffix_terms =
@@ -4645,7 +4699,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &branch_suffix_terms,
                 first_visible_place,
                 None,
+                mode,
                 allow_single_argument_distribution,
+                excluded_source,
             )?;
             formula = self.build_binary_generated_bridi_tail_connection_formula(
                 formula,
@@ -4667,7 +4723,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &branch_suffix_terms,
                 first_visible_place,
                 None,
+                mode,
                 allow_single_argument_distribution,
+                excluded_source,
             )?;
             let connective =
                 BridiTailConnectiveSyntax::GihekConnective(continuation.connective.clone());
@@ -4694,7 +4752,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         suffix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
         allow_single_argument_distribution: bool,
+        excluded_source: Option<&SourceByteSpan>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(continuation) = tail.bo_continuation.as_deref() {
             return self.build_bound_bo_grouped_bridi_tail_formula_with_preassigned_shared_terms(
@@ -4704,7 +4764,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 suffix_terms,
                 first_visible_place,
                 eventuality,
+                mode,
                 allow_single_argument_distribution,
+                excluded_source,
             );
         }
         self.build_bo_grouped_bridi_tail_formula_core_with_preassigned_shared_terms(
@@ -4713,7 +4775,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             suffix_terms,
             first_visible_place,
             eventuality,
+            mode,
             allow_single_argument_distribution,
+            excluded_source,
         )
     }
 
@@ -4729,7 +4793,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         suffix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
         allow_single_argument_distribution: bool,
+        excluded_source: Option<&SourceByteSpan>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let SimpleBridiTailSyntax::SelbriSimpleBridiTail(simple_tail) = tail.first.as_ref() else {
             return Err(unsupported(
@@ -4741,7 +4807,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         terms.extend_from_slice(suffix_terms);
         let shared_tail_start = (!suffix_terms.is_empty()).then_some(simple_tail.terms.len());
         let formula = self
-            .build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct(
+            .build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct_excluding_source(
                 &simple_tail.selbri,
                 simple_tail,
                 &assignments.visible_arguments,
@@ -4750,9 +4816,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 shared_tail_start,
                 first_visible_place.max(assignments.next_visible_place),
                 eventuality,
-                PredicationMode::Asserted,
+                mode,
                 allow_single_argument_distribution,
                 "bridi-tail-formula",
+                excluded_source,
             )?;
         self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
         Ok(formula)
@@ -4771,7 +4838,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         suffix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         leading_eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
         allow_single_argument_distribution: bool,
+        excluded_source: Option<&SourceByteSpan>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut branch_suffix_terms =
             Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
@@ -4783,7 +4852,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &branch_suffix_terms,
             first_visible_place,
             leading_eventuality,
+            mode,
             allow_single_argument_distribution,
+            excluded_source,
         )?;
         let second = self.build_bo_grouped_bridi_tail_formula_with_preassigned_shared_terms(
             &continuation.bridi_tail,
@@ -4791,7 +4862,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &branch_suffix_terms,
             first_visible_place,
             None,
+            mode,
             allow_single_argument_distribution,
+            excluded_source,
         )?;
         let source = continuation.tense_modal.as_deref().and_then(|tense_modal| {
             self.source_for_node(tense_modal, "bridi-tail-connection-formula")
@@ -5410,7 +5483,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         suffix_terms,
                         branch_first_visible_place,
                         eventuality,
+                        PredicationMode::Asserted,
                         allow_single_argument_distribution,
+                        None,
                     )?;
                 return Ok((
                     formula,
@@ -5596,7 +5671,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         suffix_terms,
                         branch_first_visible_place,
                         eventuality,
+                        PredicationMode::Asserted,
                         allow_single_argument_distribution,
+                        None,
                     )?;
                 return self.wrap_formula_with_implicit_existentials(
                     formula,

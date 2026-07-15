@@ -2037,9 +2037,9 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn tersmu_default_preserves_unsupported_construct_diagnostics() {
-        const INPUT: &str = "mi klama joi i do klama";
-        const EXPECTED_ERROR: &str = "semantic error: generated semantic builder does not yet support nonlogical generated statement connective\n";
+    async fn tersmu_default_preserves_principled_construct_diagnostics() {
+        const INPUT: &str = "mi klama i su'i do klama";
+        const EXPECTED_ERROR: &str = "semantic error: semantic interpretation is undefined for the experimental VUhU statement connective `su'i` outside a mekso expression\n";
 
         let app = router(test_config(test_static_dir()));
         let response = app

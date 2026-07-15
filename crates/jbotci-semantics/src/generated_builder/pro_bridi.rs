@@ -270,6 +270,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         x1: SemanticObjectId,
         fallback_source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        if let Some(formula) = self.build_restrictive_formula_for_generated_connected_pro_bridi(
+            cmavo,
+            x1,
+            fallback_source.clone(),
+        )? {
+            return Ok(Some(formula));
+        }
         let Some(target) = self.generated_pro_bridi_target_frame(cmavo, fallback_source.clone())?
         else {
             return Ok(None);
@@ -329,6 +336,99 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Vec::new(),
             ),
         )?;
+        Ok(Some(formula))
+    }
+
+    #[requires(x1.object_kind() == crate::model::SemanticObjectKind::Referent || x1.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_restrictive_formula_for_generated_connected_pro_bridi(
+        &mut self,
+        cmavo: Cmavo,
+        x1: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let target = match cmavo {
+            Cmavo::Nei => self.pro_bridi_scope_stack.first().copied(),
+            Cmavo::Noha => self.pro_bridi_scope_stack.iter().rev().nth(1).copied(),
+            _ => None,
+        };
+        let Some(target) = target else {
+            return Ok(None);
+        };
+        let excluded_source = source.as_ref().map(|source| &source.span);
+        match target {
+            BridiSyntax::BridiWithLeadingTerms(bridi)
+                if generated_bridi_tail_is_connected(&bridi.bridi_tail) =>
+            {
+                let (assignments, _) = self.build_term_assignments_for_terms_excluding_source(
+                    bridi.leading_terms.iter().collect(),
+                    1,
+                    excluded_source,
+                )?;
+                self.build_restrictive_formula_for_generated_connected_pro_bridi_tail(
+                    bridi,
+                    &bridi.bridi_tail,
+                    assignments,
+                    1,
+                    x1,
+                    excluded_source,
+                )
+            }
+            BridiSyntax::RelationOnlyBridi(bridi)
+                if generated_bridi_tail_is_connected(&bridi.0) =>
+            {
+                self.build_restrictive_formula_for_generated_connected_pro_bridi_tail(
+                    bridi,
+                    &bridi.0,
+                    empty_generated_term_assignments(),
+                    2,
+                    x1,
+                    excluded_source,
+                )
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(first_visible_place > 0)]
+    #[requires(x1.object_kind() == crate::model::SemanticObjectKind::Referent || x1.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[requires(assignments.visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn build_restrictive_formula_for_generated_connected_pro_bridi_tail<N: TreeNode>(
+        &mut self,
+        source_node: &N,
+        tail: &'tree BridiTailSyntax,
+        mut assignments: GeneratedTermAssignments<'tree>,
+        first_visible_place: usize,
+        x1: SemanticObjectId,
+        excluded_source: Option<&SourceByteSpan>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        assignments
+            .visible_arguments
+            .insert(1, ArgumentValue::filled(x1, None));
+        assignments.next_visible_place = assignments.next_visible_place.max(2);
+        let formula = self.build_connected_bridi_tail_formula_with_preassigned_shared_terms(
+            source_node,
+            tail,
+            &assignments,
+            &[],
+            first_visible_place,
+            None,
+            PredicationMode::Restrictive,
+            true,
+            excluded_source,
+        )?;
+        let formula = self.wrap_formula_with_generated_assignment_scopes(
+            formula,
+            assignments.formula_scopes,
+            assignments.coequal_scope_groups,
+            assignments.implicit_existentials,
+            assignments.term_formula_scopes,
+        )?;
+        self.add_generated_object_diagnostic(
+            formula,
+            "recursive inherited pro-bridi argument was elided to keep the semantic graph finite",
+        );
         Ok(Some(formula))
     }
 
