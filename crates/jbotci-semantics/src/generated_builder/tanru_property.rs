@@ -6468,6 +6468,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             vec![left_formula, right_formula]
         };
         let connector_source = generated_relation_afterthought_connective_source(connective)?;
+        let parameter = generated_relation_afterthought_connective_question_token(connective)
+            .map(|token| self.build_generated_connective_question_parameter_for_token(&token))
+            .transpose()?
+            .flatten();
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -6478,7 +6482,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source: connector_source,
                     locus: locus.to_owned(),
                     truth_table: generated_relation_afterthought_connective_truth_table(connective),
-                    parameter: None,
+                    parameter,
                 })),
                 source,
                 Vec::new(),
