@@ -5391,14 +5391,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         );
         self.deferred_event_modifier_flush_depth -= 1;
         let formula = formula_result?;
-        let host_eventualities = if tagged_tense_modifies_event {
-            match child_eventuality {
-                Some(eventuality) => vec![eventuality],
-                None => self.eventualities_for_generated_formula_predications(formula)?,
-            }
-        } else {
-            Vec::new()
+        let host_eventualities = match child_eventuality {
+            Some(eventuality) => vec![eventuality],
+            None => self.eventualities_for_generated_formula_predications(formula)?,
         };
+        for eventuality in &host_eventualities {
+            if self.pending_event_modifiers.contains_key(eventuality) {
+                self.flush_generated_event_modifiers_with_recurrence_quantity_promotion(
+                    *eventuality,
+                )?;
+            }
+        }
         if tagged_tense_modifies_event && !preapply_tagged_event_modifier {
             if self.options.story_time && tagged_temporal_modifier {
                 self.story_time_anchor = previous_story_time_anchor;

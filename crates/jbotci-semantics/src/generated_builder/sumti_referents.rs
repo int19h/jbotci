@@ -231,6 +231,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 modal_terms.push(self.prepare_generated_modal_term(term, formula_scopes)?);
                 Ok(())
             }
+            SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                modal_terms.push(self.prepare_generated_bare_modal_term(term));
+                Ok(())
+            }
             SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                 term_formula_scopes.push(GeneratedTermFormulaScope::Negation {
                     source: self.source_for_node(node, "bridi-negation-boundary"),
@@ -362,9 +366,69 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             _ => None,
         };
         Ok(new!(GeneratedModalTerm {
-            syntax: term,
+            tense_modal: term.tense_modal.as_ref(),
+            tagged_sumti: Some(term),
             argument,
         }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.tagged_sumti.is_none() && ret.argument.is_none())]
+    pub(super) fn prepare_generated_bare_modal_term<'syntax: 'tree>(
+        &self,
+        term: &'syntax jbotci_syntax::generated_model::TaggedSumtiBeforeTagTermSyntax,
+    ) -> GeneratedModalTerm<'syntax> {
+        new!(GeneratedModalTerm {
+            tense_modal: term.0.as_ref(),
+            tagged_sumti: None,
+            argument: None,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn build_modal_argument_for_generated_bare_tag(
+        &mut self,
+        tense_modal: &'tree LeadingTermTagTenseModalSyntax,
+        construct: &str,
+    ) -> Result<Option<ModalArgument>, SemanticsError> {
+        if generated_tense_modal_has_event_modifier(tense_modal) {
+            return Ok(None);
+        }
+        if let Some(selbri) = generated_fiho_tense_selbri(tense_modal) {
+            let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
+            let argument = self.build_elided_argument_for_place(visible_x1_place)?;
+            return self
+                .build_generated_ad_hoc_modal_argument_for_selbri(
+                    tense_modal,
+                    selbri,
+                    argument,
+                    construct,
+                )
+                .map(Some);
+        }
+        let Some((introduced_by, relation, visible_place)) =
+            generated_modal_relation_spec_for_tense_modal(tense_modal)
+        else {
+            return Ok(None);
+        };
+        let argument = self.build_elided_argument_for_place(visible_place)?;
+        let arguments = self.modal_argument_map_for_visible_place(
+            argument,
+            visible_place,
+            relation_place_count(self.dictionary, &relation),
+        )?;
+        Ok(Some(
+            self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                introduced_by,
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                construct,
+            ),
+        ))
     }
 
     #[requires(true)]
@@ -659,7 +723,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         modal_terms: &[GeneratedModalTerm<'tree>],
     ) -> Result<(), SemanticsError> {
         for modal_term in modal_terms {
-            self.attach_generated_modal_term_to_formula(formula, modal_term.syntax)?;
+            self.attach_generated_modal_term_to_formula(formula, modal_term)?;
         }
         Ok(())
     }
@@ -669,7 +733,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn attach_generated_modal_term_to_formula(
         &mut self,
         formula: SemanticObjectId,
-        modal_term: &'tree TaggedSumtiTermSyntax,
+        modal_term: &GeneratedModalTerm<'tree>,
     ) -> Result<(), SemanticsError> {
         let object = self
             .objects
@@ -693,7 +757,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn attach_generated_modal_term_to_predication(
         &mut self,
         predication: SemanticObjectId,
-        modal_term: &'tree TaggedSumtiTermSyntax,
+        modal_term: &GeneratedModalTerm<'tree>,
     ) -> Result<(), SemanticsError> {
         let (mode, eventuality) = {
             let object = self.objects.get(&predication).ok_or_else(|| {
@@ -704,9 +768,43 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if mode != Some(PredicationMode::Asserted) {
             return Ok(());
         }
-        let Some(mut modal_argument) =
-            self.build_modal_argument_for_generated_tagged_sumti(modal_term)?
-        else {
+        if let Some(eventuality) = eventuality {
+            match (&modal_term.argument, modal_term.tagged_sumti) {
+                (Some(argument), Some(tagged_sumti)) => {
+                    self.apply_generated_tagged_term_event_modifier_with_anchor(
+                        eventuality,
+                        tagged_sumti,
+                        argument.value,
+                    )?;
+                }
+                (None, Some(tagged_sumti)) => {
+                    self.apply_generated_tagged_term_event_modifier(eventuality, tagged_sumti)?;
+                }
+                (None, None) => {
+                    self.record_generated_leading_term_tag_event_modifier(
+                        eventuality,
+                        modal_term.tense_modal,
+                        None,
+                    )?;
+                }
+                (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
+            }
+            if self.deferred_event_modifier_flush_depth == 0 {
+                self.flush_generated_event_modifiers_with_recurrence_quantity_promotion(
+                    eventuality,
+                )?;
+            }
+        }
+        let modal_argument = match modal_term.tagged_sumti {
+            Some(tagged_sumti) => {
+                self.build_modal_argument_for_generated_tagged_sumti(tagged_sumti)?
+            }
+            None => self.build_modal_argument_for_generated_bare_tag(
+                modal_term.tense_modal,
+                "modal-argument",
+            )?,
+        };
+        let Some(mut modal_argument) = modal_argument else {
             return Ok(());
         };
         if let Some(eventuality) = eventuality {
@@ -993,6 +1091,78 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub(super) fn build_modal_argument_for_generated_modal_term(
+        &mut self,
+        term: &GeneratedModalTerm<'tree>,
+    ) -> Result<Option<ModalArgument>, SemanticsError> {
+        match (&term.argument, term.tagged_sumti) {
+            (Some(argument), Some(tagged_sumti)) => self
+                .build_modal_argument_for_generated_tagged_sumti_with_argument(
+                    tagged_sumti,
+                    argument.clone(),
+                ),
+            (None, Some(tagged_sumti)) => {
+                self.build_modal_argument_for_generated_tagged_sumti(tagged_sumti)
+            }
+            (None, None) => {
+                self.build_modal_argument_for_generated_bare_tag(term.tense_modal, "modal-argument")
+            }
+            (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn build_modal_argument_for_generated_modal_term_with_visible_arguments(
+        &mut self,
+        term: &GeneratedModalTerm<'tree>,
+        visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
+    ) -> Result<Option<ModalArgument>, SemanticsError> {
+        match (&term.argument, term.tagged_sumti) {
+            (Some(argument), Some(tagged_sumti)) => self
+                .build_modal_argument_for_generated_tagged_sumti_with_argument(
+                    tagged_sumti,
+                    argument.clone(),
+                ),
+            (None, Some(tagged_sumti)) => self
+                .build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
+                    tagged_sumti,
+                    visible_arguments,
+                ),
+            (None, None) => {
+                self.build_modal_argument_for_generated_bare_tag(term.tense_modal, "modal-argument")
+            }
+            (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn build_modal_argument_for_generated_modal_term_with_predication_arguments(
+        &mut self,
+        term: &GeneratedModalTerm<'tree>,
+        arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
+    ) -> Result<Option<ModalArgument>, SemanticsError> {
+        match (&term.argument, term.tagged_sumti) {
+            (Some(argument), Some(tagged_sumti)) => self
+                .build_modal_argument_for_generated_tagged_sumti_with_argument(
+                    tagged_sumti,
+                    argument.clone(),
+                ),
+            (None, Some(tagged_sumti)) => self
+                .build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
+                    tagged_sumti,
+                    arguments,
+                ),
+            (None, None) => {
+                self.build_modal_argument_for_generated_bare_tag(term.tense_modal, "modal-argument")
+            }
+            (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub(super) fn build_modal_arguments_for_generated_tagged_terms(
         &mut self,
         modal_terms: &[GeneratedModalTerm<'tree>],
@@ -1000,19 +1170,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
         for term in modal_terms {
-            let argument = match &term.argument {
-                Some(argument) => self
-                    .build_modal_argument_for_generated_tagged_sumti_with_argument(
-                        term.syntax,
-                        argument.clone(),
-                    )?,
-                None => self.build_modal_argument_for_generated_tagged_sumti(term.syntax)?,
-            };
+            let argument = self.build_modal_argument_for_generated_modal_term(term)?;
             if let Some(argument) = argument {
-                self.record_generated_sticky_modal_argument_if_needed(
-                    term.syntax.tense_modal.as_ref(),
-                    &argument,
-                );
+                self.record_generated_sticky_modal_argument_if_needed(term.tense_modal, &argument);
                 modal_arguments.push(argument);
             }
         }
@@ -1049,23 +1209,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
         for term in modal_terms {
-            let argument = match &term.argument {
-                Some(argument) => self
-                    .build_modal_argument_for_generated_tagged_sumti_with_argument(
-                        term.syntax,
-                        argument.clone(),
-                    )?,
-                None => self
-                    .build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
-                        term.syntax,
-                        visible_arguments,
-                    )?,
-            };
+            let argument = self
+                .build_modal_argument_for_generated_modal_term_with_visible_arguments(
+                    term,
+                    visible_arguments,
+                )?;
             if let Some(mut argument) = argument {
-                self.record_generated_sticky_modal_argument_if_needed(
-                    term.syntax.tense_modal.as_ref(),
-                    &argument,
-                );
+                self.record_generated_sticky_modal_argument_if_needed(term.tense_modal, &argument);
                 self.bind_generated_modal_argument_to_host_event(&mut argument, eventuality);
                 modal_arguments.push(argument);
             }
@@ -1089,23 +1239,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
         for term in modal_terms {
-            let argument = match &term.argument {
-                Some(argument) => self
-                    .build_modal_argument_for_generated_tagged_sumti_with_argument(
-                        term.syntax,
-                        argument.clone(),
-                    )?,
-                None => self
-                    .build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
-                        term.syntax,
-                        arguments,
-                    )?,
-            };
+            let argument = self
+                .build_modal_argument_for_generated_modal_term_with_predication_arguments(
+                    term, arguments,
+                )?;
             if let Some(mut argument) = argument {
-                self.record_generated_sticky_modal_argument_if_needed(
-                    term.syntax.tense_modal.as_ref(),
-                    &argument,
-                );
+                self.record_generated_sticky_modal_argument_if_needed(term.tense_modal, &argument);
                 self.bind_generated_modal_argument_to_host_event(&mut argument, eventuality);
                 modal_arguments.push(argument);
             }
@@ -1302,19 +1441,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.with_pending_sumti_candidates_for_terms(terms, |builder| {
             let governed_termsets = builder.build_generated_governed_termsets_for_terms(terms)?;
             for (index, term) in terms.iter().enumerate() {
-                let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
-                    generated_simple_term_for_assignment(term)
-                else {
-                    continue;
-                };
-                if let Some(governed) = governed_termsets.get(&index) {
-                    builder.apply_generated_tagged_term_event_modifier_with_governed_termset(
-                        eventuality,
-                        term,
-                        governed,
-                    )?;
-                } else {
-                    builder.apply_generated_tagged_term_event_modifier(eventuality, term)?;
+                match generated_simple_term_for_assignment(term) {
+                    Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) => {
+                        if let Some(governed) = governed_termsets.get(&index) {
+                            builder
+                                .apply_generated_tagged_term_event_modifier_with_governed_termset(
+                                    eventuality,
+                                    term,
+                                    governed,
+                                )?;
+                        } else {
+                            builder
+                                .apply_generated_tagged_term_event_modifier(eventuality, term)?;
+                        }
+                    }
+                    Ok(SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term)) => {
+                        builder.record_generated_leading_term_tag_event_modifier(
+                            eventuality,
+                            term.0.as_ref(),
+                            None,
+                        )?;
+                    }
+                    _ => {}
                 }
             }
             if builder.deferred_event_modifier_flush_depth == 0 {
@@ -1358,17 +1506,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         modal_terms: &[GeneratedModalTerm<'tree>],
     ) -> Result<(), SemanticsError> {
         for term in modal_terms {
-            match &term.argument {
-                Some(argument) => {
+            match (&term.argument, term.tagged_sumti) {
+                (Some(argument), Some(tagged_sumti)) => {
                     self.apply_generated_tagged_term_event_modifier_with_anchor(
                         eventuality,
-                        term.syntax,
+                        tagged_sumti,
                         argument.value,
                     )?;
                 }
-                None => {
-                    self.apply_generated_tagged_term_event_modifier(eventuality, term.syntax)?;
+                (None, Some(tagged_sumti)) => {
+                    self.apply_generated_tagged_term_event_modifier(eventuality, tagged_sumti)?;
                 }
+                (None, None) => {
+                    self.record_generated_leading_term_tag_event_modifier(
+                        eventuality,
+                        term.tense_modal,
+                        None,
+                    )?;
+                }
+                (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
             }
         }
         if self.deferred_event_modifier_flush_depth == 0 {

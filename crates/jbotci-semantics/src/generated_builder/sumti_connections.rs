@@ -278,6 +278,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     modal_terms
                         .push(self.prepare_generated_modal_term(term, &mut modal_formula_scopes)?);
                 }
+                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                    modal_terms.push(self.prepare_generated_bare_modal_term(term));
+                }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         *term,
@@ -750,6 +753,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
                     modal_terms.push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
+                }
+                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                    modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(

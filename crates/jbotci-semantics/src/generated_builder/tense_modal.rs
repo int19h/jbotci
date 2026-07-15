@@ -471,6 +471,15 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_term(
                 generated_tense_modal_has_contradictory_event_negation(tense_modal)
             })
         }
+        SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+            let tense_modal = match term.0.as_ref() {
+                LeadingTermTagTenseModalSyntax::TenseModal(tense_modal) => Some(tense_modal),
+                _ => None,
+            };
+            tense_modal.filter(|tense_modal| {
+                generated_tense_modal_has_contradictory_event_negation(tense_modal)
+            })
+        }
         SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
             let Some(tag) = &term.tag else {
                 return None;

@@ -806,10 +806,13 @@ struct GeneratedTermAssignments<'syntax> {
     term_formula_scopes: Vec<GeneratedTermFormulaScope>,
 }
 
+#[invariant(tagged_sumti.is_none_or(|tagged_sumti| std::ptr::eq(tagged_sumti.tense_modal.as_ref(), *tense_modal)), "a prepared modal term keeps the tag and its optional sumti-bearing wrapper together")]
+#[invariant(tagged_sumti.is_some() || argument.is_none(), "a bare tag cannot carry a prepared sumti argument")]
 #[invariant(argument.as_ref().is_none_or(|argument| argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted))]
 #[derive(Debug, Clone)]
 struct GeneratedModalTerm<'syntax> {
-    syntax: &'syntax TaggedSumtiTermSyntax,
+    tense_modal: &'syntax LeadingTermTagTenseModalSyntax,
+    tagged_sumti: Option<&'syntax TaggedSumtiTermSyntax>,
     argument: Option<ArgumentValue>,
 }
 
@@ -2836,7 +2839,9 @@ fn next_visible_place_after_generated_assignments(
 fn generated_shared_head_term_uses_shared_source(term: &TermSyntax) -> bool {
     !matches!(
         generated_simple_term_for_assignment(term),
-        Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(_)) | Ok(SimpleTermSyntax::TaggedSumtiTerm(_))
+        Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(_))
+            | Ok(SimpleTermSyntax::TaggedSumtiTerm(_))
+            | Ok(SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_))
     )
 }
 
@@ -3040,6 +3045,7 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
             Ok(())
         }
         SimpleTermSyntax::TaggedSumtiTerm(_)
+        | SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_)
         | SimpleTermSyntax::NaKuTerm(_)
         | SimpleTermSyntax::BareNaTerm(_) => Ok(()),
         SimpleTermSyntax::NuhiTermset(termset) => {
@@ -3150,6 +3156,7 @@ fn advance_next_visible_place_after_generated_simple_term(
             Ok(())
         }
         SimpleTermSyntax::TaggedSumtiTerm(_)
+        | SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_)
         | SimpleTermSyntax::NaKuTerm(_)
         | SimpleTermSyntax::BareNaTerm(_) => Ok(()),
         SimpleTermSyntax::NuhiTermset(termset) => {
@@ -10422,6 +10429,67 @@ mod tests {
         assert_eq!(
             modal_values[0].referent_sort(),
             Some(SemanticSort::Eventuality(EventualitySort::General))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_tense_terms_compose_with_the_following_tag_on_the_same_event() {
+        let spatial = semantic_graph_for("vi bai broda");
+        let broda = spatial
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda")
+                    .then_some(predication)
+            })
+            .expect("broda predication should exist");
+        let eventuality = broda.eventuality.expect("broda should have an eventuality");
+        let event = spatial.objects[&eventuality]
+            .as_eventuality()
+            .expect("broda eventuality should be an event");
+        let space = event
+            .space
+            .as_ref()
+            .expect("the leading vi term must constrain the event");
+        assert_eq!(space.relation, "distanceFrom");
+        assert_eq!(space.anchor, SemanticObjectId::here());
+        assert_eq!(space.distance.as_deref(), Some("short"));
+        let bai = broda
+            .modal_arguments
+            .iter()
+            .find(|argument| argument.relation.as_deref() == Some("bapli"))
+            .expect("the following bai tag must remain attached");
+        assert_eq!(bai.arguments[&argument_key(2)].value, Some(eventuality));
+
+        let aspectual = semantic_graph_for("do ka'e ro roi tavla");
+        let tavla_event = aspectual
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "tavla")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .and_then(|eventuality| aspectual.objects.get(&eventuality))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("tavla should have an eventuality");
+        assert_eq!(
+            tavla_event
+                .actuality
+                .as_ref()
+                .map(|actuality| actuality.kind),
+            Some(ActualityKind::Capable),
+            "the leading ka'e term must not be dropped"
+        );
+        assert_eq!(tavla_event.recurrence.len(), 1);
+        assert_eq!(
+            tavla_event.recurrence[0].kind,
+            RecurrenceKind::OccurrenceCount,
+            "the following ro roi tag must compose with ka'e"
         );
     }
 
