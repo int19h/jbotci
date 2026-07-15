@@ -180,7 +180,6 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     dictionary: &'dict Dictionary<'dict>,
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     next_index: usize,
-    relative_head: Option<SemanticObjectId>,
     relative_head_stack: Vec<SemanticObjectId>,
     current_utterance: Option<SemanticObjectId>,
     previous_utterance: Option<SemanticObjectId>,
@@ -1433,7 +1432,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             dictionary,
             objects: BTreeMap::new(),
             next_index: 5,
-            relative_head: None,
             relative_head_stack: Vec::new(),
             current_utterance: None,
             previous_utterance: None,
@@ -9995,6 +9993,56 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn keha_is_typed_outside_relatives_and_crosses_abstraction_boundaries() {
+        let property = semantic_graph_for("ka ke'a pilno ce'u");
+        let pilno = named_predication_ids(&property, "pilno");
+        assert_eq!(pilno.len(), 1);
+        let pilno = property.objects[&pilno[0]]
+            .as_predication()
+            .expect("pilno predication");
+        let relative_head = pilno.arguments[&argument_key(1)]
+            .value
+            .expect("ke'a fills pilno x1");
+        let property_slot = pilno.arguments[&argument_key(2)]
+            .value
+            .expect("ce'u fills pilno x2");
+        assert_ne!(relative_head, property_slot);
+        assert_eq!(
+            property.objects[&relative_head]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::RelativeClauseHead)
+        );
+        assert_eq!(
+            property.objects[&property_slot]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::PropertySlot)
+        );
+
+        let nested = semantic_graph_for("lo mlatu poi mi djica lo nu do viska ke'a ku'o cu melbi");
+        let mlatu = named_predication_ids(&nested, "mlatu");
+        assert_eq!(mlatu.len(), 1);
+        let head = nested.objects[&mlatu[0]]
+            .as_predication()
+            .and_then(|predication| predication.arguments[&argument_key(1)].value)
+            .expect("mlatu description head");
+        let viska = named_predication_ids(&nested, "viska");
+        assert_eq!(viska.len(), 1);
+        let nested_keha = nested.objects[&viska[0]]
+            .as_predication()
+            .and_then(|predication| predication.arguments[&argument_key(2)].value)
+            .expect("nested ke'a fills viska x2");
+        assert_eq!(
+            nested_keha, head,
+            "CLL 8.1 ke'a must retain the concrete relative head through NU"
+        );
+        assert_eq!(nested_keha.object_kind(), SemanticObjectKind::Referent);
     }
 
     #[test]
