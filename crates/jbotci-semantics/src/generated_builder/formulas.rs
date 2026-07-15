@@ -2256,7 +2256,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         selbri: &'tree SelbriSyntax,
         prefix_terms: &[&'syntax TermSyntax],
         annotate_shared_head_source: bool,
-        terms: Vec<&'syntax TermSyntax>,
+        mut terms: Vec<&'syntax TermSyntax>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -2275,12 +2275,36 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             return Ok(None);
         }
-        if let Some(tanru) = tanru_selbri_from_co_selbri(co_selbri)?
+        let tanru = tanru_selbri_from_co_selbri(co_selbri)?;
+        if let Some(tanru) = tanru
             && (!tanru.additional_units.is_empty()
                 || sumti_selbri_from_generated_tanru_unit(&tanru.first_unit)?.is_some()
                 || generated_tanru_unit_is_grouped(&tanru.first_unit)?)
         {
             return Ok(None);
+        }
+        let (_, fai_sumti) = self.split_generated_fai_terms(terms.clone())?;
+        if !fai_sumti.is_empty() {
+            let jai_unit = match tanru {
+                Some(tanru) => {
+                    let (atom, _) = generated_linked_tanru_unit_parts(&tanru.first_unit)?;
+                    generated_jai_modal_tanru_unit(atom.base.as_ref())
+                }
+                None => None,
+            };
+            if jai_unit.is_some() {
+                // The full tanru path extracts FAI after establishing the JAI-converted frame.
+                return Ok(None);
+            }
+            if let Some(shared_tail_start) = shared_tail_start {
+                let (_, local_fai_sumti) =
+                    self.split_generated_fai_terms(terms[..shared_tail_start].to_vec())?;
+                if local_fai_sumti.is_empty() {
+                    // A shared FAI is meaningful only to connected branches containing JAI. It
+                    // contributes no numbered assignment to their ordinary sibling branches.
+                    terms = self.split_generated_fai_terms(terms)?.0;
+                }
+            }
         }
         if eventuality.is_none()
             && mode == PredicationMode::Asserted

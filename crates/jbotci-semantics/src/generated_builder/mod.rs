@@ -3011,6 +3011,12 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
             Ok(())
         }
         SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+            // FAI restores the displaced argument of a JAI conversion. It is not a numbered
+            // place and does not participate in the numbered-assignment prepass; the JAI
+            // relation builder extracts and assigns it after establishing the converted frame.
+            if term.fa.value.cmavo() == Some(Cmavo::Fai) {
+                return Ok(());
+            }
             let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
                 return Ok(());
             };
@@ -3120,6 +3126,9 @@ fn advance_next_visible_place_after_generated_simple_term(
         SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
             if term.fa.value.cmavo() == Some(Cmavo::Fiha) {
                 *next_visible_place += 1;
+                return Ok(());
+            }
+            if term.fa.value.cmavo() == Some(Cmavo::Fai) {
                 return Ok(());
             }
             let place = fa_place(&term.fa.value)?;
@@ -4690,6 +4699,9 @@ fn generated_terms_have_duplicate_numbered_assignments(
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
                 if term.fa.value.cmavo() == Some(Cmavo::Fiha) {
                     next_visible_place += 1;
+                    continue;
+                }
+                if term.fa.value.cmavo() == Some(Cmavo::Fai) {
                     continue;
                 }
                 let place = fa_place(&term.fa.value)?;
@@ -10436,6 +10448,168 @@ mod tests {
             object.formula_operator() == Some(FormulaOperator::And)
                 && object.formula_children().len() == 2
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fai_restores_jai_displaced_argument_without_consuming_a_numbered_place() {
+        let graph = semantic_graph_for("le panka cu jai vi citka le cirla fai le ratcu");
+        let citka = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "citka")
+                    .then_some(predication)
+            })
+            .expect("citka predication should exist");
+        let restored_x1 = &citka.arguments[&argument_key(1)];
+        let ordinary_x2 = &citka.arguments[&argument_key(2)];
+        assert_eq!(restored_x1.kind, ArgumentValueKind::Filled);
+        assert_eq!(ordinary_x2.kind, ArgumentValueKind::Filled);
+        assert_eq!(
+            restored_x1
+                .value
+                .and_then(|value| graph.objects.get(&value))
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le ratcu")
+        );
+        assert_eq!(
+            ordinary_x2
+                .value
+                .and_then(|value| graph.objects.get(&value))
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le cirla")
+        );
+
+        let event = citka
+            .eventuality
+            .and_then(|event| graph.objects.get(&event))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("JAI tense conversion should retain the citka eventuality");
+        let anchor = event
+            .space
+            .as_ref()
+            .map(|relation| relation.anchor)
+            .expect("vi should retain the raised location as an event anchor");
+        assert_eq!(
+            graph
+                .objects
+                .get(&anchor)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le panka")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_linkargs_do_not_consume_or_drop_following_slots() {
+        let graph = semantic_graph_for("lo broda be bei mi cu melbi");
+        let broda = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "broda")
+                    .then_some(predication)
+            })
+            .expect("broda restriction should exist");
+        assert_eq!(broda.arguments.len(), 2);
+        assert_eq!(
+            broda.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(
+            broda.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Filled
+        );
+
+        for source in ["lo broda be cu melbi", "lo broda be mi bei cu melbi"] {
+            semantic_result_for(source).expect("a trailing empty linkarg should be zero-width");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_jai_fai_preserves_its_argument_and_quantified_event_anchor() {
+        let graph = semantic_graph_for("jai frili fai le nu krobi'o fa'a roda");
+        let frili = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "frili")
+                    .then_some(predication)
+            })
+            .expect("frili predication should exist");
+        let restored = frili.arguments[&argument_key(1)]
+            .value
+            .expect("FAI should restore the explicit eventuality into x1");
+        assert_eq!(
+            graph
+                .objects
+                .get(&restored)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le nu krobi'o fa'a roda")
+        );
+
+        let quantified = graph
+            .objects
+            .values()
+            .find_map(|object| match object.as_formula()?.as_data() {
+                data!(FormulaNode::Quantified(node))
+                    if node.operator == FormulaOperator::Forall =>
+                {
+                    Some(node.variable)
+                }
+                _ => None,
+            })
+            .expect("roda should retain a universal scope");
+        let krobiho_event = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "krobi'o")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .expect("krobi'o predication should have an eventuality");
+        assert_eq!(
+            graph
+                .objects
+                .get(&krobiho_event)
+                .and_then(SemanticObject::as_eventuality)
+                .and_then(|event| event.space.as_ref())
+                .map(|space| space.anchor),
+            Some(quantified)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fai_does_not_cross_a_nested_bridi_scope_to_find_jai() {
+        for source in [
+            ".iku'i li'a la rab,n. poi jai mutce lakne fai zo'epeleka ce'u zvati cu ca cando",
+            "mi pu pa roi jai mukti le nu vitke le mikce fai lo trixe nu cortu",
+            ".i ni'o mi mutce jai mukti le nu cirke la tikik fai le nu mi cikre le ralju samselpla vreji",
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("FAI without a JAI target in its own bridi must be rejected");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                "semantic interpretation is undefined for a fai term without a local JAI conversion target"
+            );
+        }
     }
 
     #[test]

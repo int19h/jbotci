@@ -177,6 +177,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 Ok(())
             }
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                if term.fa.value.cmavo() == Some(Cmavo::Fai) {
+                    return Err(undefined_semantics(
+                        "a fai term without a local JAI conversion target",
+                    ));
+                }
                 if term.fa.value.cmavo() == Some(Cmavo::Fiha) {
                     let argument = match term.sumti.as_ref() {
                         TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
@@ -1319,6 +1324,30 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             Ok(())
         })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn generated_tagged_terms_need_prepared_event_modifier_arguments(
+        &mut self,
+        terms: &[&TermSyntax],
+    ) -> Result<bool, SemanticsError> {
+        for term in terms {
+            let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
+                generated_simple_term_for_assignment(term)
+            else {
+                continue;
+            };
+            let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
+                continue;
+            };
+            if generated_tense_modal_has_event_modifier(term.tense_modal.as_ref())
+                && generated_argument_quantifier_source_from_sumti(sumti)?.is_some()
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]

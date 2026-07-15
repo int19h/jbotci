@@ -939,9 +939,7 @@ pub(super) fn advance_visible_place_after_linked_sumti(
         LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) => {
             return Err(unsupported("tense-tagged linked sumti"));
         }
-        LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
-            return Err(unsupported("empty linked sumti"));
-        }
+        LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
     }
     Ok(())
 }

@@ -300,6 +300,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(linkargs) => !generated_linkargs_visible_places(linkargs, 2)?.is_empty(),
             None => false,
         };
+        let needs_prepared_event_modifier_arguments =
+            self.generated_tagged_terms_need_prepared_event_modifier_arguments(&terms)?;
         let (eventuality, prebuilt_linkarg_assignments, assignments) = match eventuality {
             Some(eventuality) => {
                 let prebuilt_linkarg_assignments = if prebuild_linkarg_assignments {
@@ -310,10 +312,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 } else {
                     None
                 };
-                self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
+                if !needs_prepared_event_modifier_arguments {
+                    self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
+                }
                 let assignments = self.with_temporal_context(eventuality, |builder| {
                     builder.build_term_assignments_for_terms(terms.clone(), first_visible_place)
                 })?;
+                if needs_prepared_event_modifier_arguments {
+                    self.apply_generated_tagged_term_event_modifiers(
+                        eventuality,
+                        &assignments.modal_terms,
+                    )?;
+                }
                 (eventuality, prebuilt_linkarg_assignments, assignments)
             }
             None if scalar_unit.is_some() => {
@@ -329,13 +339,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.build_term_assignments_for_terms(terms.clone(), first_visible_place)?;
                 let eventuality =
                     self.build_generated_predication_eventuality(predication_source.clone())?;
-                self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
+                if needs_prepared_event_modifier_arguments {
+                    self.apply_generated_tagged_term_event_modifiers(
+                        eventuality,
+                        &assignments.modal_terms,
+                    )?;
+                } else {
+                    self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
+                }
                 (eventuality, prebuilt_linkarg_assignments, assignments)
             }
             None => {
                 let eventuality =
                     self.build_generated_predication_eventuality(predication_source.clone())?;
-                self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
+                if !needs_prepared_event_modifier_arguments {
+                    self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
+                }
                 let prebuilt_linkarg_assignments = if prebuild_linkarg_assignments {
                     Some(self.build_linkargs_assignments(
                         linkargs.expect("prebuild flag requires linkargs"),
@@ -347,6 +366,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let assignments = self.with_temporal_context(eventuality, |builder| {
                     builder.build_term_assignments_for_terms(terms.clone(), first_visible_place)
                 })?;
+                if needs_prepared_event_modifier_arguments {
+                    self.apply_generated_tagged_term_event_modifiers(
+                        eventuality,
+                        &assignments.modal_terms,
+                    )?;
+                }
                 (eventuality, prebuilt_linkarg_assignments, assignments)
             }
         };
@@ -382,6 +407,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     if jai_unit.tense_modal.is_none()
                         && let Some(raised_operand) = raised_argument.value
                     {
+                        bare_jai_raised_participant = Some((jai_unit, moved_place, raised_operand));
+                    }
+                }
+            } else if !fai_sumti.is_empty() {
+                let raised_argument = visible_arguments.remove(&1);
+                for sumti in fai_sumti {
+                    let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
+                    insert_visible_argument(&mut visible_arguments, moved_place, argument)?;
+                }
+                if let Some(raised_argument) = raised_argument {
+                    jai_modal_visible_arguments =
+                        Some(BTreeMap::from([(1, raised_argument.clone())]));
+                    if let Some(raised_operand) = raised_argument.value {
                         bare_jai_raised_participant = Some((jai_unit, moved_place, raised_operand));
                     }
                 }
@@ -5489,9 +5527,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             None => visible_arguments,
         };
 
-        // The experimental preposed-BE form permits an empty BE/BEI slot. It contributes no
-        // argument and does not consume a visible place; any following non-empty slot still starts
-        // at the first linkarg place.
+        // An empty BE/BEI slot contributes no argument and does not consume a visible place; any
+        // following non-empty slot still starts at the first linkarg place.
         let mut preposed_assignments = GeneratedLinkargsAssignments {
             visible_arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
@@ -5641,9 +5678,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     )?;
                 assignments.modal_arguments.push(modal_argument);
             }
-            LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
-                return Err(unsupported("empty linked sumti"));
-            }
+            LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
         }
         Ok(())
     }

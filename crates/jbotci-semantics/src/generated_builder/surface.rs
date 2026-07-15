@@ -437,6 +437,15 @@ pub(super) fn unsupported(what: &str) -> SemanticsError {
 }
 
 #[requires(!what.is_empty())]
+#[ensures(ret.kind == SemanticsErrorKind::InvalidGraph)]
+pub(super) fn undefined_semantics(what: &str) -> SemanticsError {
+    SemanticsError {
+        kind: SemanticsErrorKind::InvalidGraph,
+        message: format!("semantic interpretation is undefined for {what}"),
+    }
+}
+
+#[requires(!what.is_empty())]
 #[ensures(ret.kind == SemanticsErrorKind::RequiresDiscourseContext)]
 pub(super) fn requires_discourse_context(what: &str) -> SemanticsError {
     SemanticsError::requires_discourse_context(what)
