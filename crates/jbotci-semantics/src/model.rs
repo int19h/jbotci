@@ -98,6 +98,16 @@ const RELATION_LABEL_DU_TEXT: &str = "du";
         && !opener.is_empty()
         && relation.is_displayable()
         && closer.as_ref().is_none_or(|closer| !closer.is_empty()))]
+#[invariant(::Prenex { terms, separator, relation } =>
+    terms.iter().all(|term| !term.is_empty())
+        && !separator.is_empty()
+        && relation.is_displayable())]
+#[invariant(::ForethoughtStatementConnection { opener, first, branches, closer } =>
+    !opener.is_empty()
+        && first.is_displayable()
+        && !branches.is_empty()
+        && branches.iter().all(ForethoughtRelationBranch::is_displayable)
+        && closer.as_ref().is_none_or(|closer| !closer.is_empty()))]
 #[invariant(::Constructed { text } => !text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelationLabel {
@@ -133,6 +143,17 @@ pub enum RelationLabel {
         modifier: Option<String>,
         opener: String,
         relation: Box<RelationLabel>,
+        closer: Option<String>,
+    },
+    Prenex {
+        terms: Vec<String>,
+        separator: String,
+        relation: Box<RelationLabel>,
+    },
+    ForethoughtStatementConnection {
+        opener: String,
+        first: Box<RelationLabel>,
+        branches: Vec<ForethoughtRelationBranch>,
         closer: Option<String>,
     },
     Constructed {
@@ -226,6 +247,38 @@ impl RelationLabel {
         })
     }
 
+    #[requires(terms.iter().all(|term| !term.is_empty()))]
+    #[requires(!separator.is_empty())]
+    #[requires(relation.is_displayable())]
+    #[ensures(ret.is_displayable())]
+    pub fn prenex(terms: Vec<String>, separator: String, relation: Self) -> Self {
+        new!(RelationLabel::Prenex {
+            terms,
+            separator,
+            relation: Box::new(relation),
+        })
+    }
+
+    #[requires(!opener.is_empty())]
+    #[requires(first.is_displayable())]
+    #[requires(!branches.is_empty())]
+    #[requires(branches.iter().all(ForethoughtRelationBranch::is_displayable))]
+    #[requires(closer.as_ref().is_none_or(|closer| !closer.is_empty()))]
+    #[ensures(ret.is_displayable())]
+    pub fn forethought_statement_connection(
+        opener: String,
+        first: Self,
+        branches: Vec<ForethoughtRelationBranch>,
+        closer: Option<String>,
+    ) -> Self {
+        new!(RelationLabel::ForethoughtStatementConnection {
+            opener,
+            first: Box::new(first),
+            branches,
+            closer,
+        })
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(ret.is_displayable())]
     pub fn constructed(text: String) -> Self {
@@ -265,6 +318,29 @@ impl RelationLabel {
                     .is_none_or(|modifier| !modifier.is_empty())
                     && !opener.is_empty()
                     && relation.is_displayable()
+                    && closer.as_ref().is_none_or(|closer| !closer.is_empty())
+            }
+            data!(RelationLabel::Prenex {
+                terms,
+                separator,
+                relation,
+            }) => {
+                terms.iter().all(|term| !term.is_empty())
+                    && !separator.is_empty()
+                    && relation.is_displayable()
+            }
+            data!(RelationLabel::ForethoughtStatementConnection {
+                opener,
+                first,
+                branches,
+                closer,
+            }) => {
+                !opener.is_empty()
+                    && first.is_displayable()
+                    && !branches.is_empty()
+                    && branches
+                        .iter()
+                        .all(ForethoughtRelationBranch::is_displayable)
                     && closer.as_ref().is_none_or(|closer| !closer.is_empty())
             }
             data!(RelationLabel::ZeiCompound { text })
@@ -314,7 +390,66 @@ impl RelationLabel {
                     .map_or_else(String::new, |closer| format!(" {closer}"));
                 format!("{modifier}{opener} {}{closer}", relation.display_text())
             }
+            data!(RelationLabel::Prenex {
+                terms,
+                separator,
+                relation,
+            }) => {
+                let terms = terms.join(" ");
+                let separator = if terms.is_empty() {
+                    separator.clone()
+                } else {
+                    format!("{terms} {separator}")
+                };
+                format!("{separator} {}", relation.display_text())
+            }
+            data!(RelationLabel::ForethoughtStatementConnection {
+                opener,
+                first,
+                branches,
+                closer,
+            }) => {
+                let mut text = format!("{opener} ({})", first.display_text());
+                for branch in branches {
+                    text.push_str(&format!(
+                        " {} ({})",
+                        branch.separator,
+                        branch.relation.display_text()
+                    ));
+                }
+                if let Some(closer) = closer {
+                    text.push(' ');
+                    text.push_str(closer);
+                }
+                text
+            }
         }
+    }
+}
+
+#[invariant(!separator.is_empty())]
+#[invariant(relation.is_displayable())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForethoughtRelationBranch {
+    pub separator: String,
+    pub relation: RelationLabel,
+}
+
+impl ForethoughtRelationBranch {
+    #[requires(!separator.is_empty())]
+    #[requires(relation.is_displayable())]
+    #[ensures(ret.is_displayable())]
+    pub fn new(separator: String, relation: RelationLabel) -> Self {
+        Self::from_data(data!(ForethoughtRelationBranch {
+            separator,
+            relation,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_displayable(&self) -> bool {
+        !self.separator.is_empty() && self.relation.is_displayable()
     }
 }
 

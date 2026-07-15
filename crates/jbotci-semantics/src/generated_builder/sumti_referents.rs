@@ -4333,12 +4333,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<RelativeClause, SemanticsError> {
         let mode = predication_mode_for_relative_clause_kind(kind);
         let contains_keha = generated_subbridi_contains_current_level_keha(subbridi);
-        let previous_relative_head = self.relative_head;
-        self.relative_head = Some(head);
         self.relative_head_stack.push(head);
         let result = self.build_generated_subbridi_formula(subbridi, mode);
         self.relative_head_stack.pop();
-        self.relative_head = previous_relative_head;
         let formula = result?;
         if !contains_keha {
             self.fill_first_elided_generated_formula_argument_with_object(formula, head)?;
@@ -4361,16 +4358,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<RelativeClause, SemanticsError> {
         let mode = predication_mode_for_relative_clause_kind(kind);
         let contains_keha = generated_statement_contains_current_level_keha(statement);
-        let previous_relative_head = self.relative_head;
-        self.relative_head = Some(head);
         self.relative_head_stack.push(head);
         let result = self
             .build_generated_statement_connection_item(statement, UtteranceForce::Subordinated)
-            .and_then(|(_item, formula)| {
-                formula.ok_or_else(|| unsupported("relative statement without formula"))
+            .and_then(|(item, formula)| match formula {
+                Some(formula) => Ok(formula),
+                None => self
+                    .subordinate_formula_for_generated_discourse_item(item)?
+                    .ok_or_else(|| unsupported("relative statement without formula")),
             });
         self.relative_head_stack.pop();
-        self.relative_head = previous_relative_head;
         let formula = result?;
         if !contains_keha {
             self.fill_first_elided_generated_formula_argument_with_object(formula, head)?;
@@ -7062,13 +7059,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             Some(Cmavo::Keha) => {
                 let offset = generated_pro_sumti_positive_xi_offset(pro_sumti).unwrap_or(1);
-                self.relative_head_stack
+                if let Some(head) = self
+                    .relative_head_stack
                     .iter()
                     .rev()
                     .nth(offset - 1)
                     .copied()
-                    .or(self.relative_head)
-                    .ok_or_else(|| unsupported("relative head pro-sumti outside relative clause"))
+                {
+                    Ok(head)
+                } else {
+                    self.build_generated_parameter(pro_sumti, ParameterRole::RelativeClauseHead)
+                }
             }
             Some(
                 Cmavo::Dei

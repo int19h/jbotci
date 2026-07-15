@@ -97,8 +97,8 @@ use crate::model::{
     DescriptorKind, DisplayedContentAssertionEffect, DisplayedContentFamily,
     DisplayedContentModifier, DisplayedContentNode, DisplayedContentPolarity,
     DisplayedContentTargetFocus, ElidedConnectionOperand, EventualityClass, EventualityNode,
-    EventualityNodeData, EventualitySort, FormulaNode, FormulaNodeData, FormulaOperator,
-    FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    EventualityNodeData, EventualitySort, ForethoughtRelationBranch, FormulaNode, FormulaNodeData,
+    FormulaOperator, FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
     IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
     MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
     MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, ModalArgument,
@@ -180,7 +180,6 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     dictionary: &'dict Dictionary<'dict>,
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     next_index: usize,
-    relative_head: Option<SemanticObjectId>,
     relative_head_stack: Vec<SemanticObjectId>,
     current_utterance: Option<SemanticObjectId>,
     previous_utterance: Option<SemanticObjectId>,
@@ -1433,7 +1432,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             dictionary,
             objects: BTreeMap::new(),
             next_index: 5,
-            relative_head: None,
             relative_head_stack: Vec::new(),
             current_utterance: None,
             previous_utterance: None,
@@ -3885,10 +3883,35 @@ fn relation_label_from_statement_base(
         StatementBaseSyntax::TextGroupStatement(statement) => {
             relation_label_from_text_group_statement(statement)
         }
-        StatementBaseSyntax::ForethoughtStatement(_) => {
-            Err(unsupported("forethought statement relation label"))
+        StatementBaseSyntax::ForethoughtStatement(statement) => {
+            relation_label_from_forethought_statement(statement)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_forethought_statement(
+    statement: &ForethoughtStatementSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    let first = relation_label_from_statement(&statement.first)?;
+    let mut branches = Vec::with_capacity(1 + statement.additional_branches.len());
+    branches.push(ForethoughtRelationBranch::new(
+        generated_node_surface_text(&statement.first_branch.gik)?,
+        relation_label_from_statement(&statement.first_branch.statement)?,
+    ));
+    for branch in &statement.additional_branches {
+        branches.push(ForethoughtRelationBranch::new(
+            generated_node_surface_text(&branch.gik)?,
+            relation_label_from_statement(&branch.statement)?,
+        ));
+    }
+    Ok(RelationLabel::forethought_statement_connection(
+        generated_modal_forethought_connective_source(&statement.gek),
+        first,
+        branches,
+        statement.gihi.as_ref().map(token_text),
+    ))
 }
 
 #[requires(true)]
@@ -3908,8 +3931,8 @@ fn relation_label_from_statement_after_i_connective(
         StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
             relation_label_from_text_group_statement(statement)
         }
-        StatementAfterIConnectiveSyntax::ForethoughtStatement(_) => {
-            Err(unsupported("forethought statement relation label"))
+        StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+            relation_label_from_forethought_statement(statement)
         }
     }
 }
@@ -3985,8 +4008,8 @@ fn relation_label_from_generated_text_root(
         GeneratedTextRoot::TextGroupStatement(statement) => {
             relation_label_from_text_group_statement(statement)
         }
-        GeneratedTextRoot::ForethoughtStatement(_) => {
-            Err(unsupported("forethought statement relation label"))
+        GeneratedTextRoot::ForethoughtStatement(statement) => {
+            relation_label_from_forethought_statement(statement)
         }
         GeneratedTextRoot::ZantufaStatementTerms(statement) => {
             if !zantufa_statement_terms_tail_terms(&statement.tail).is_empty() {
@@ -4004,10 +4027,21 @@ fn relation_label_from_generated_text_root(
 fn relation_label_from_subbridi(
     subbridi: &SubbridiSyntax,
 ) -> Result<RelationLabel, SemanticsError> {
-    let SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) = subbridi else {
-        return Err(unsupported("prenex subbridi relation label"));
-    };
-    relation_label_from_bridi(bridi)
+    match subbridi {
+        SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) => {
+            relation_label_from_bridi(bridi)
+        }
+        SubbridiSyntax::PrenexSubbridi(prenex) => {
+            let terms = prenex
+                .prenex_terms
+                .iter()
+                .map(generated_node_surface_text)
+                .collect::<Result<Vec<_>, _>>()?;
+            let separator = token_text(&prenex.zohu.value);
+            let relation = relation_label_from_subbridi(&prenex.inner_subbridi)?;
+            Ok(RelationLabel::prenex(terms, separator, relation))
+        }
+    }
 }
 
 #[requires(true)]
@@ -8789,6 +8823,64 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn abstraction_prenex_keeps_relation_label_and_quantifier_scope_order() {
+        let labeled = semantic_graph_for("cy pa nu ba ku zo'u cy no fliba kei");
+        assert_eq!(
+            named_predication_ids(&labeled, "nu ba ku zo'u fliba").len(),
+            1,
+            "the abstraction relation label must retain the embedded prenex"
+        );
+        assert!(
+            named_predication_ids(&labeled, "nu fliba").is_empty(),
+            "dropping the prenex must not produce the same relation"
+        );
+
+        let scoped = semantic_graph_for("mi djica lo nu ro da su'o de zo'u da dunda de");
+        let abstraction_body = scoped
+            .objects
+            .values()
+            .find_map(|object| object.as_eventuality().and_then(|node| node.content))
+            .expect("the NU abstraction has a formula body");
+        let data!(FormulaNode::Quantified(outer)) = scoped.objects[&abstraction_body]
+            .as_formula()
+            .expect("abstraction body is a formula")
+            .as_data()
+        else {
+            panic!("first prenex term must introduce the outer quantifier");
+        };
+        assert_eq!(outer.operator, FormulaOperator::Forall);
+        let data!(FormulaNode::Quantified(inner)) = scoped.objects[&outer.body]
+            .as_formula()
+            .expect("outer quantifier body is a formula")
+            .as_data()
+        else {
+            panic!("second prenex term must introduce the inner quantifier");
+        };
+        assert_eq!(inner.operator, FormulaOperator::Cardinality);
+
+        let dunda = named_predication_ids(&scoped, "dunda");
+        assert_eq!(dunda.len(), 1);
+        let dunda_id = dunda[0];
+        let dunda = scoped.objects[&dunda_id]
+            .as_predication()
+            .expect("dunda predication");
+        assert_eq!(
+            dunda.arguments[&argument_key(1)].value,
+            Some(outer.variable)
+        );
+        assert_eq!(
+            dunda.arguments[&argument_key(2)].value,
+            Some(inner.variable)
+        );
+        assert_eq!(
+            scoped.objects[&inner.body].formula_predication(),
+            Some(dunda_id)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn zantufa_statement_abstractions_preserve_connection_and_group_labels() {
         let dialect =
             jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
@@ -8796,6 +8888,7 @@ mod tests {
         for (source, relation) in [
             ("nu broda i je brode kei", "nu (broda) je (brode)"),
             ("nu broda je i brode kei", "nu (broda) je (brode)"),
+            ("nu ga broda gi brode kei", "nu ga (broda) gi (brode)"),
             (
                 "nu tu'e broda i je brode tu'u kei",
                 "nu tu'e (broda) je (brode) tu'u",
@@ -9931,6 +10024,139 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn keha_is_typed_outside_relatives_and_crosses_abstraction_boundaries() {
+        let property = semantic_graph_for("ka ke'a pilno ce'u");
+        let pilno = named_predication_ids(&property, "pilno");
+        assert_eq!(pilno.len(), 1);
+        let pilno = property.objects[&pilno[0]]
+            .as_predication()
+            .expect("pilno predication");
+        let relative_head = pilno.arguments[&argument_key(1)]
+            .value
+            .expect("ke'a fills pilno x1");
+        let property_slot = pilno.arguments[&argument_key(2)]
+            .value
+            .expect("ce'u fills pilno x2");
+        assert_ne!(relative_head, property_slot);
+        assert_eq!(
+            property.objects[&relative_head]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::RelativeClauseHead)
+        );
+        assert_eq!(
+            property.objects[&property_slot]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::PropertySlot)
+        );
+
+        let nested = semantic_graph_for("lo mlatu poi mi djica lo nu do viska ke'a ku'o cu melbi");
+        let mlatu = named_predication_ids(&nested, "mlatu");
+        assert_eq!(mlatu.len(), 1);
+        let head = nested.objects[&mlatu[0]]
+            .as_predication()
+            .and_then(|predication| predication.arguments[&argument_key(1)].value)
+            .expect("mlatu description head");
+        let viska = named_predication_ids(&nested, "viska");
+        assert_eq!(viska.len(), 1);
+        let nested_keha = nested.objects[&viska[0]]
+            .as_predication()
+            .and_then(|predication| predication.arguments[&argument_key(2)].value)
+            .expect("nested ke'a fills viska x2");
+        assert_eq!(
+            nested_keha, head,
+            "CLL 8.1 ke'a must retain the concrete relative head through NU"
+        );
+        assert_eq!(nested_keha.object_kind(), SemanticObjectKind::Referent);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_statement_relative_keeps_both_branches_and_connection_claim() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        let graph = semantic_result_for_with_parse_options(
+            "lo sinxa noi cukla milxe .i ba bo vi fa'u va punji lo ro mei lo pluta ku'o cu se finti",
+            &options,
+        )
+        .expect("modal statement relative should build semantics");
+        let sinxa = named_predication_ids(&graph, "sinxa");
+        assert_eq!(sinxa.len(), 1);
+        let head = graph.objects[&sinxa[0]]
+            .as_predication()
+            .and_then(|predication| predication.arguments[&argument_key(1)].value)
+            .expect("sinxa description head");
+        let relative = graph.objects[&head]
+            .descriptor()
+            .and_then(|descriptor| descriptor.relative_clauses.first())
+            .expect("NOI statement relative clause");
+        let data!(FormulaNode::Connective(body)) = graph.objects[&relative.body]
+            .as_formula()
+            .expect("relative body formula")
+            .as_data()
+        else {
+            panic!("modal statement relative must have a connective formula body");
+        };
+        assert_eq!(body.operator, FormulaOperator::And);
+        assert_eq!(body.children.len(), 3);
+
+        let milxe = named_predication_ids(&graph, "milxe");
+        let punji = named_predication_ids(&graph, "punji");
+        let after = named_predication_ids(&graph, "after");
+        assert_eq!((milxe.len(), punji.len(), after.len()), (1, 1, 1));
+        assert!(formula_contains_predication(
+            &graph,
+            body.children[0],
+            milxe[0]
+        ));
+        assert!(formula_contains_predication(
+            &graph,
+            body.children[1],
+            punji[0]
+        ));
+        assert_eq!(
+            graph.objects[&body.children[2]].formula_predication(),
+            Some(after[0])
+        );
+        assert_eq!(
+            graph.objects[&milxe[0]]
+                .as_predication()
+                .and_then(|predication| predication.arguments[&argument_key(1)].value),
+            Some(head),
+            "the relative head fills the first branch rather than the connection claim"
+        );
+
+        let leading_event = graph.objects[&milxe[0]]
+            .as_predication()
+            .and_then(|predication| predication.eventuality)
+            .expect("milxe event");
+        let trailing_event = graph.objects[&punji[0]]
+            .as_predication()
+            .and_then(|predication| predication.eventuality)
+            .expect("punji event");
+        let after = graph.objects[&after[0]]
+            .as_predication()
+            .expect("after connection claim");
+        assert_eq!(
+            after.arguments[&argument_key(1)].value,
+            Some(trailing_event)
+        );
+        assert_eq!(after.arguments[&argument_key(2)].value, Some(leading_event));
+        assert_eq!(
+            graph.objects[&trailing_event]
+                .as_eventuality()
+                .map(|event| event.space_path.len()),
+            Some(2),
+            "vi fa'u va remains attached to the trailing branch event"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn naku_relative_phrase_negates_the_association_restriction() {
         let graph = semantic_graph_for("le gerku pe naku cu klama ti");
         let klama = graph
@@ -10582,23 +10808,66 @@ mod tests {
                 "the shared mi term must fill x1 in {relation}"
             );
         }
-        assert!(graph.objects.values().any(|object| {
-            object.formula_operator() == Some(FormulaOperator::And)
-                && object.formula_children().iter().any(|formula| {
-                    graph.objects[formula]
-                        .formula_predication()
-                        .is_some_and(|predication| {
-                            named_predication_ids(&graph, "brode").contains(&predication)
-                        })
-                })
-                && object.formula_children().iter().any(|formula| {
-                    graph.objects[formula]
-                        .formula_predication()
-                        .is_some_and(|predication| {
-                            named_predication_ids(&graph, "brodi").contains(&predication)
-                        })
-                })
-        }));
+        let content = graph.objects[&graph.root]
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .expect("forethought bridi assertion content");
+        let data!(FormulaNode::Connective(outer)) = graph.objects[&content]
+            .as_formula()
+            .expect("forethought connection formula")
+            .as_data()
+        else {
+            panic!("GA forethought bridi must remain a connective formula");
+        };
+        assert_eq!(outer.operator, FormulaOperator::Or);
+        assert_eq!(outer.children.len(), 2);
+        assert_eq!(
+            outer
+                .connector
+                .as_ref()
+                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
+            Some(("ga gi", "bridi"))
+        );
+        assert_eq!(
+            graph.objects[&outer.children[0]].formula_predication(),
+            Some(named_predication_ids(&graph, "broda")[0])
+        );
+
+        let data!(FormulaNode::Connective(grouped_tail)) = graph.objects[&outer.children[1]]
+            .as_formula()
+            .expect("nested GIhE/BO branch formula")
+            .as_data()
+        else {
+            panic!("the right forethought branch must retain GIhE/BO grouping");
+        };
+        assert_eq!(grouped_tail.operator, FormulaOperator::And);
+        assert_eq!(grouped_tail.children.len(), 3);
+        assert_eq!(
+            grouped_tail
+                .connector
+                .as_ref()
+                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
+            Some(("gi'e ba bo", "bridiTail"))
+        );
+        assert_eq!(
+            graph.objects[&grouped_tail.children[0]].formula_predication(),
+            Some(named_predication_ids(&graph, "brode")[0])
+        );
+        assert_eq!(
+            graph.objects[&grouped_tail.children[1]].formula_predication(),
+            Some(named_predication_ids(&graph, "brodi")[0])
+        );
+        assert_eq!(
+            graph.objects[&grouped_tail.children[2]]
+                .formula_predication()
+                .and_then(|predication| graph.objects.get(&predication))
+                .and_then(SemanticObject::as_predication)
+                .and_then(|predication| match predication.relation.as_data() {
+                    data!(PredicationRelation::Named { relation }) => Some(relation.as_str()),
+                    data!(PredicationRelation::Parameter { .. }) => None,
+                }),
+            Some("after")
+        );
     }
 
     #[test]

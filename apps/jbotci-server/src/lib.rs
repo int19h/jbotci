@@ -2038,8 +2038,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn tersmu_default_preserves_unsupported_construct_diagnostics() {
-        const INPUT: &str = "girzu le ka mi pu traji nelci le nu kelci ke'a";
-        const EXPECTED_ERROR: &str = "semantic error: generated semantic builder does not yet support relative head pro-sumti outside relative clause\n";
+        const INPUT: &str = "mi klama je'i i do klama";
+        const EXPECTED_ERROR: &str = "semantic error: generated semantic builder does not yet support nonlogical generated statement connective\n";
 
         let app = router(test_config(test_static_dir()));
         let response = app

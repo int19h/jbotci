@@ -1398,6 +1398,63 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    pub(super) fn subordinate_formula_for_generated_discourse_item(
+        &mut self,
+        item: SemanticObjectId,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        if let Some(formula) = self.content_formula_for_generated_discourse_item(item) {
+            self.mark_generated_discourse_item_subordinated(item);
+            return Ok(Some(formula));
+        }
+        let Some(sequence) = self
+            .objects
+            .get(&item)
+            .and_then(SemanticObject::as_sequence)
+            .cloned()
+        else {
+            return Ok(None);
+        };
+        if sequence.connection_claims.is_empty() {
+            return Ok(None);
+        }
+
+        let mut children =
+            Vec::with_capacity(sequence.items.len() + sequence.connection_claims.len());
+        for child_item in sequence.items.iter().copied() {
+            let Some(formula) =
+                self.subordinate_formula_for_generated_discourse_item(child_item)?
+            else {
+                return Ok(None);
+            };
+            children.push(formula);
+        }
+        children.extend(sequence.connection_claims.iter().copied());
+
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                children,
+                None,
+                sequence.common.source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        if let Some(object) = self.objects.get_mut(&item) {
+            object.update_sequence(|node| {
+                node.with_data(data! {
+                    force: Some(UtteranceForce::Subordinated),
+                    content: Some(formula),
+                })
+            });
+        }
+        self.set_generated_pro_bridi_formula_predication_mode(formula, PredicationMode::Inert);
+        Ok(Some(formula))
+    }
+
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.is_none_or(semantic_id_is_eventuality))]
     pub(super) fn primary_eventuality_for_generated_formula(
