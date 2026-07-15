@@ -8977,6 +8977,70 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn derived_renderings_descend_into_formula_valued_arguments() {
+        let graph = semantic_graph_for("gy prane cukla .i se ni'i bo lo nabmi cu nadycai");
+        let sequence = graph
+            .objects
+            .get(&graph.root)
+            .and_then(SemanticObject::as_sequence)
+            .expect("modal statement connection builds a sequence");
+        let claim_formula = sequence.connection_claims[0];
+        let claim_predication = graph
+            .objects
+            .get(&claim_formula)
+            .and_then(SemanticObject::formula_predication)
+            .expect("modal statement connection claim is atomic");
+        let claim = graph
+            .objects
+            .get(&claim_predication)
+            .and_then(SemanticObject::as_predication)
+            .expect("modal statement connection has a predication");
+        let branch_formulas = [
+            claim.arguments[&argument_key(1)]
+                .value
+                .expect("connection x1 is present"),
+            claim.arguments[&argument_key(2)]
+                .value
+                .expect("connection x2 is present"),
+        ];
+        assert_ne!(branch_formulas[0], branch_formulas[1]);
+        assert!(branch_formulas.iter().all(|id| {
+            id.object_kind() == SemanticObjectKind::Formula && graph.objects.contains_key(id)
+        }));
+
+        for render in [
+            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
+            crate::render::render_tree,
+        ] {
+            let rendered = render(&graph);
+            let lines: Vec<_> = rendered.lines().collect();
+            let claim_index = lines
+                .iter()
+                .position(|line| line.contains(&format!("[{claim_predication}]")))
+                .expect("connection claim predication is rendered");
+            let claim_indent = lines[claim_index]
+                .bytes()
+                .take_while(|byte| *byte == b' ')
+                .count();
+            let descendants: Vec<_> = lines[claim_index + 1..]
+                .iter()
+                .take_while(|line| {
+                    line.bytes().take_while(|byte| *byte == b' ').count() > claim_indent
+                })
+                .copied()
+                .collect();
+            for branch in branch_formulas {
+                assert!(descendants.iter().any(|line| {
+                    line.trim_start().starts_with("formula argument: ")
+                        && line.ends_with(&format!(" [{branch}]"))
+                }));
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");
