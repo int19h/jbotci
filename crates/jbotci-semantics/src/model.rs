@@ -2272,6 +2272,7 @@ pub enum ParameterRole {
     ConnectiveQuestion,
     TenseQuestion,
     MathOperatorQuestion,
+    QuantityQuestion,
     AttitudeQuestion,
     RespectiveSlot,
 }
@@ -3535,6 +3536,7 @@ pub enum QuantityForm {
 }
 
 #[invariant((integer.is_some() as usize + text.is_some() as usize + math_expression.is_some() as usize) == 1)]
+#[invariant(question_parameters.iter().all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuantityValue {
@@ -3544,6 +3546,8 @@ pub struct QuantityValue {
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub math_expression: Option<SemanticObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub question_parameters: Vec<SemanticObjectId>,
 }
 
 impl QuantityValue {
@@ -3554,6 +3558,7 @@ impl QuantityValue {
             integer: Some(integer),
             text: None,
             math_expression: None,
+            question_parameters: Vec::new(),
         }))
     }
 
@@ -3564,6 +3569,7 @@ impl QuantityValue {
             integer: None,
             text: Some(text),
             math_expression: None,
+            question_parameters: Vec::new(),
         }))
     }
 
@@ -3574,13 +3580,22 @@ impl QuantityValue {
             integer: None,
             text: None,
             math_expression: Some(math_expression),
+            question_parameters: Vec::new(),
         }))
+    }
+
+    #[requires(!question_parameters.is_empty())]
+    #[requires(question_parameters.iter().all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
+    #[ensures(ret.question_parameters == old(question_parameters.clone()))]
+    pub fn with_question_parameters(self, question_parameters: Vec<SemanticObjectId>) -> Self {
+        self.with_data(data! { question_parameters: question_parameters })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
         extend_optional(out, self.math_expression);
+        out.extend(self.question_parameters.iter().copied());
     }
 }
 
@@ -3675,6 +3690,7 @@ pub enum QuestionKind {
     MathOperator,
     Attitude,
     Quantity,
+    Multiple,
 }
 
 #[invariant(true)]
@@ -3685,12 +3701,78 @@ pub enum QuestionMode {
     Indirect,
 }
 
-#[invariant(parameter.object_kind() == SemanticObjectKind::Parameter)]
+#[invariant(::Homogeneous { parameter, .. } => parameter.object_kind() == SemanticObjectKind::Parameter)]
+#[invariant(::Typed { parameter, kind, domain, .. } => *kind != QuestionKind::Multiple && question_kind_domain_are_coherent(*kind, *domain) && (*kind == QuestionKind::Truth) == parameter.is_none() && parameter.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QuestionSlot {
-    pub parameter: SemanticObjectId,
-    pub role: QuestionSlotRole,
+#[serde(rename_all = "camelCase", untagged)]
+pub enum QuestionSlot {
+    /// A slot whose kind and domain are inherited from a homogeneous question.
+    Homogeneous {
+        parameter: SemanticObjectId,
+        role: QuestionSlotRole,
+    },
+    /// A self-describing slot in a question with multiple answer domains.
+    Typed {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        parameter: Option<SemanticObjectId>,
+        role: QuestionSlotRole,
+        kind: QuestionKind,
+        domain: SemanticSort,
+    },
+}
+
+impl QuestionSlot {
+    #[requires(parameter.object_kind() == SemanticObjectKind::Parameter)]
+    #[ensures(ret.parameter() == Some(parameter))]
+    pub fn homogeneous(parameter: SemanticObjectId, role: QuestionSlotRole) -> Self {
+        new!(QuestionSlot::Homogeneous { parameter, role })
+    }
+
+    #[requires(question_kind_domain_are_coherent(kind, domain))]
+    #[requires(kind != QuestionKind::Multiple)]
+    #[requires((kind == QuestionKind::Truth) == parameter.is_none())]
+    #[requires(parameter.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
+    #[ensures(ret.kind_and_domain() == Some((kind, domain)))]
+    pub fn typed(
+        parameter: Option<SemanticObjectId>,
+        role: QuestionSlotRole,
+        kind: QuestionKind,
+        domain: SemanticSort,
+    ) -> Self {
+        new!(QuestionSlot::Typed {
+            parameter,
+            role,
+            kind,
+            domain,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none() == matches!(self.as_data(), data!(QuestionSlot::Typed { parameter: None, .. })))]
+    pub fn parameter(&self) -> Option<SemanticObjectId> {
+        match self.as_data() {
+            data!(QuestionSlot::Homogeneous { parameter, .. }) => Some(*parameter),
+            data!(QuestionSlot::Typed { parameter, .. }) => *parameter,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn role(&self) -> QuestionSlotRole {
+        match self.as_data() {
+            data!(QuestionSlot::Homogeneous { role, .. })
+            | data!(QuestionSlot::Typed { role, .. }) => *role,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(QuestionSlot::Typed { .. })))]
+    pub fn kind_and_domain(&self) -> Option<(QuestionKind, SemanticSort)> {
+        match self.as_data() {
+            data!(QuestionSlot::Homogeneous { .. }) => None,
+            data!(QuestionSlot::Typed { kind, domain, .. }) => Some((*kind, *domain)),
+        }
+    }
 }
 
 #[invariant(true)]
@@ -3844,30 +3926,140 @@ fn semantic_object_references_match_roles_for_object(_object: &SemanticObject) -
 pub fn semantic_object_question_slots_are_valid(
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> bool {
-    objects.values().all(|object| match object.as_data() {
-        data!(SemanticObject::Eventuality(node)) => node.tense_modal.is_none_or(|parameter| {
-            parameter_has_sort_and_role(
-                objects,
-                parameter,
-                SemanticSort::TenseModal,
-                ParameterRole::TenseQuestion,
-            )
-        }),
-        data!(SemanticObject::MathExpression(node)) => match node.kind.as_data() {
-            data!(MathExpressionNodeKind::QuestionedOperator {
-                operator_parameter,
-                ..
-            }) => parameter_has_sort_and_role(
-                objects,
-                *operator_parameter,
-                SemanticSort::MathOperator,
-                ParameterRole::MathOperatorQuestion,
-            ),
+    semantic_object_question_slots_validation_error(objects).is_none()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn semantic_object_question_slots_validation_error(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> Option<String> {
+    for (id, object) in objects {
+        let valid = match object.as_data() {
+            data!(SemanticObject::Eventuality(node)) => node.tense_modal.is_none_or(|parameter| {
+                parameter_has_sort_and_role(
+                    objects,
+                    parameter,
+                    SemanticSort::TenseModal,
+                    ParameterRole::TenseQuestion,
+                )
+            }),
+            data!(SemanticObject::MathExpression(node)) => match node.kind.as_data() {
+                data!(MathExpressionNodeKind::QuestionedOperator {
+                    operator_parameter,
+                    ..
+                }) => parameter_has_sort_and_role(
+                    objects,
+                    *operator_parameter,
+                    SemanticSort::MathOperator,
+                    ParameterRole::MathOperatorQuestion,
+                ),
+                _ => true,
+            },
+            data!(SemanticObject::Quantity(node)) => {
+                node.value.question_parameters.iter().all(|parameter| {
+                    parameter_has_sort_and_role(
+                        objects,
+                        *parameter,
+                        SemanticSort::Number,
+                        ParameterRole::QuantityQuestion,
+                    )
+                })
+            }
+            data!(SemanticObject::Formula(node)) => formula_question_slots_are_valid(objects, node),
+            data!(SemanticObject::Question(node)) => {
+                for (slot_index, slot) in node.slots.iter().enumerate() {
+                    if !question_slot_parameter_is_valid(objects, node, slot) {
+                        return Some(format!(
+                            "{id} answer slot {slot_index} has kind/domain {:?} but parameter {:?} has an incompatible sort or role",
+                            slot.kind_and_domain().unwrap_or((node.kind, node.domain)),
+                            slot.parameter(),
+                        ));
+                    }
+                    if let Some(parameter) = slot.parameter()
+                        && !semantic_object_reaches(objects, node.body, parameter)
+                    {
+                        let question_text = node
+                            .common
+                            .source
+                            .as_ref()
+                            .and_then(|source| source.text.as_deref())
+                            .unwrap_or("<unknown source>");
+                        let parameter_text = objects
+                            .get(&parameter)
+                            .and_then(SemanticObject::source)
+                            .and_then(|source| source.text.as_deref())
+                            .unwrap_or("<unknown source>");
+                        return Some(format!(
+                            "{id} for `{question_text}` answer slot {slot_index} parameter {parameter} from `{parameter_text}` is not reachable from question body {}",
+                            node.body,
+                        ));
+                    }
+                }
+                true
+            }
             _ => true,
-        },
-        data!(SemanticObject::Formula(node)) => formula_question_slots_are_valid(objects, node),
-        _ => true,
-    })
+        };
+        if !valid {
+            return Some(format!(
+                "{id} contains a question parameter with an incompatible sort, role, or structural host"
+            ));
+        }
+    }
+    None
+}
+
+#[requires(objects.contains_key(&root))]
+#[ensures(true)]
+pub(crate) fn semantic_object_reaches(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    root: SemanticObjectId,
+    target: SemanticObjectId,
+) -> bool {
+    let mut pending = vec![root];
+    let mut visited = BTreeSet::new();
+    while let Some(current) = pending.pop() {
+        if current == target {
+            return true;
+        }
+        if !visited.insert(current) {
+            continue;
+        }
+        if let Some(object) = objects.get(&current) {
+            object.references_into(&mut pending);
+        }
+    }
+    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn question_slot_parameter_is_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+    question: &QuestionNode,
+    slot: &QuestionSlot,
+) -> bool {
+    let (kind, domain) = slot
+        .kind_and_domain()
+        .unwrap_or((question.kind, question.domain));
+    if kind == QuestionKind::Truth {
+        return slot.parameter().is_none();
+    }
+    let Some(parameter) = slot.parameter() else {
+        return false;
+    };
+    let role = match kind {
+        QuestionKind::Argument => ParameterRole::ArgumentQuestion,
+        QuestionKind::Relation => ParameterRole::RelationQuestion,
+        QuestionKind::Place => ParameterRole::PlaceQuestion,
+        QuestionKind::Connective => ParameterRole::ConnectiveQuestion,
+        QuestionKind::Tense => ParameterRole::TenseQuestion,
+        QuestionKind::MathOperator => ParameterRole::MathOperatorQuestion,
+        QuestionKind::Attitude => ParameterRole::AttitudeQuestion,
+        QuestionKind::Quantity => ParameterRole::QuantityQuestion,
+        QuestionKind::Truth | QuestionKind::Multiple => return false,
+    };
+    parameter_has_sort_and_role(objects, parameter, domain, role)
 }
 
 #[requires(true)]
@@ -3974,6 +4166,35 @@ fn parameter_has_sort_and_role(
 }
 
 #[requires(true)]
+#[ensures(ret == matches!((kind, domain),
+    (QuestionKind::Truth, SemanticSort::TruthValue)
+        | (QuestionKind::Argument, SemanticSort::Entity)
+        | (QuestionKind::Relation, SemanticSort::Relation)
+        | (QuestionKind::Place, SemanticSort::Place)
+        | (QuestionKind::Connective, SemanticSort::Connective)
+        | (QuestionKind::Tense, SemanticSort::TenseModal)
+        | (QuestionKind::MathOperator, SemanticSort::MathOperator)
+        | (QuestionKind::Attitude, SemanticSort::Entity)
+        | (QuestionKind::Quantity, SemanticSort::Number)
+        | (QuestionKind::Multiple, SemanticSort::ArgumentBundle)
+))]
+pub(crate) fn question_kind_domain_are_coherent(kind: QuestionKind, domain: SemanticSort) -> bool {
+    matches!(
+        (kind, domain),
+        (QuestionKind::Truth, SemanticSort::TruthValue)
+            | (QuestionKind::Argument, SemanticSort::Entity)
+            | (QuestionKind::Relation, SemanticSort::Relation)
+            | (QuestionKind::Place, SemanticSort::Place)
+            | (QuestionKind::Connective, SemanticSort::Connective)
+            | (QuestionKind::Tense, SemanticSort::TenseModal)
+            | (QuestionKind::MathOperator, SemanticSort::MathOperator)
+            | (QuestionKind::Attitude, SemanticSort::Entity)
+            | (QuestionKind::Quantity, SemanticSort::Number)
+            | (QuestionKind::Multiple, SemanticSort::ArgumentBundle)
+    )
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<ParameterRole>) -> bool {
     match role {
@@ -3988,6 +4209,7 @@ fn parameter_role_matches_sort(sort: Option<SemanticSort>, role: Option<Paramete
         Some(ParameterRole::ConnectiveQuestion) => sort == Some(SemanticSort::Connective),
         Some(ParameterRole::TenseQuestion) => sort == Some(SemanticSort::TenseModal),
         Some(ParameterRole::MathOperatorQuestion) => sort == Some(SemanticSort::MathOperator),
+        Some(ParameterRole::QuantityQuestion) => sort == Some(SemanticSort::Number),
         Some(ParameterRole::RespectiveSlot) => sort.is_some(),
         None => false,
     }

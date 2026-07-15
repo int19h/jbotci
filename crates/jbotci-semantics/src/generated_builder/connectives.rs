@@ -1469,7 +1469,7 @@ pub(super) fn generated_sumti_base_has_current_kau_focus(sumti: &SumtiBaseSyntax
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|operator| matches!(operator, FormulaOperator::And | FormulaOperator::Or | FormulaOperator::Iff | FormulaOperator::WhetherOrNot)) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|operator| matches!(operator, FormulaOperator::And | FormulaOperator::Or | FormulaOperator::Iff | FormulaOperator::WhetherOrNot | FormulaOperator::ConnectiveQuestion)) || ret.is_err())]
 pub(super) fn generated_statement_connective_formula_operator(
     connective: &IStatementConnectiveSyntax,
 ) -> Result<FormulaOperator, SemanticsError> {
@@ -1482,6 +1482,7 @@ pub(super) fn generated_statement_connective_formula_operator(
             Some(Cmavo::E | Cmavo::Je) => FormulaOperator::And,
             Some(Cmavo::O | Cmavo::Jo) => FormulaOperator::Iff,
             Some(Cmavo::U | Cmavo::Ju) => FormulaOperator::WhetherOrNot,
+            Some(Cmavo::Ji | Cmavo::Jehi) => FormulaOperator::ConnectiveQuestion,
             _ => FormulaOperator::And,
         },
     )
@@ -1520,6 +1521,9 @@ pub(super) fn generated_statement_connective_core_truth_table(
         return None;
     }
     let operator = generated_statement_connective_formula_operator_for_core(connective);
+    if operator == FormulaOperator::ConnectiveQuestion {
+        return None;
+    }
     let left_negated = generated_statement_connective_negates_left(connective);
     let right_negated = generated_statement_connective_negates_right(connective);
     let se = generated_statement_connective_has_se(connective);
@@ -1695,6 +1699,8 @@ pub(super) fn generated_statement_connective_core_has_logical_component(
                     | Cmavo::Je
                     | Cmavo::Jo
                     | Cmavo::Ju
+                    | Cmavo::Ji
+                    | Cmavo::Jehi
             )
         )
     })
@@ -1764,6 +1770,7 @@ pub(super) fn generated_statement_connective_formula_operator_for_core(
         Some(Cmavo::E | Cmavo::Je) => FormulaOperator::And,
         Some(Cmavo::O | Cmavo::Jo) => FormulaOperator::Iff,
         Some(Cmavo::U | Cmavo::Ju) => FormulaOperator::WhetherOrNot,
+        Some(Cmavo::Ji | Cmavo::Jehi) => FormulaOperator::ConnectiveQuestion,
         _ => FormulaOperator::And,
     }
 }
@@ -1887,6 +1894,8 @@ pub(super) fn generated_statement_connective_is_logical(
                 | Cmavo::Je
                 | Cmavo::Jo
                 | Cmavo::Ju
+                | Cmavo::Ji
+                | Cmavo::Jehi
         )
     )
 }

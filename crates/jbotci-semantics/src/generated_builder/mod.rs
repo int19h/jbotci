@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_dictionary::Dictionary;
 use jbotci_morphology::{
     Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, push_stripped_diacritics_to,
@@ -190,12 +190,7 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     current_here: SemanticObjectId,
     content_eventualities: BTreeMap<SemanticObjectId, SemanticObjectId>,
     scoped_argument_variables: BTreeMap<(usize, usize), SemanticObjectId>,
-    argument_question_parameters: Vec<SemanticObjectId>,
-    place_question_parameters: Vec<SemanticObjectId>,
-    relation_question_parameters: Vec<SemanticObjectId>,
-    tense_question_parameters: Vec<SemanticObjectId>,
-    connective_question_parameters: Vec<SemanticObjectId>,
-    math_operator_question_parameters: Vec<SemanticObjectId>,
+    direct_question_slots: Vec<GeneratedDirectQuestionSlot>,
     relation_variable_parameters: BTreeMap<(usize, usize), SemanticObjectId>,
     implicit_existential_variables: Vec<GeneratedImplicitExistential>,
     recorded_implicit_existential_variables: HashSet<SemanticObjectId>,
@@ -254,8 +249,20 @@ struct GeneratedRecentSumtiReferent {
     referent: SemanticObjectId,
 }
 
+#[invariant(crate::model::question_kind_domain_are_coherent(*kind, *domain))]
+#[invariant(*kind != QuestionKind::Multiple)]
+#[invariant((*kind == QuestionKind::Truth) == parameter.is_none())]
+#[invariant(parameter.is_none_or(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[derive(Debug, Clone)]
+struct GeneratedDirectQuestionSlot {
+    parameter: Option<SemanticObjectId>,
+    kind: QuestionKind,
+    domain: SemanticSort,
+    source_order: usize,
+}
+
 #[invariant(focus.object_kind() == crate::model::SemanticObjectKind::Parameter || focus.object_kind() == crate::model::SemanticObjectKind::Referent)]
-#[invariant(slots.iter().all(|slot| slot.parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+#[invariant(slots.iter().all(|slot| slot.parameter().is_some_and(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)))]
 #[derive(Debug, Clone)]
 struct GeneratedIndirectQuestionFocus {
     focus: SemanticObjectId,
@@ -1442,12 +1449,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             current_here: SemanticObjectId::here(),
             content_eventualities: BTreeMap::new(),
             scoped_argument_variables: BTreeMap::new(),
-            argument_question_parameters: Vec::new(),
-            place_question_parameters: Vec::new(),
-            relation_question_parameters: Vec::new(),
-            tense_question_parameters: Vec::new(),
-            connective_question_parameters: Vec::new(),
-            math_operator_question_parameters: Vec::new(),
+            direct_question_slots: Vec::new(),
             relation_variable_parameters: BTreeMap::new(),
             implicit_existential_variables: Vec::new(),
             recorded_implicit_existential_variables: HashSet::new(),
@@ -10024,6 +10026,309 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mixed_argument_relation_question_preserves_every_ordered_answer_slot() {
+        let graph = semantic_graph_for("ma mo ma");
+        let question = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_question)
+            .expect("mixed direct question");
+        assert_eq!(question.kind, QuestionKind::Multiple);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        assert_eq!(question.domain, SemanticSort::ArgumentBundle);
+        assert_eq!(
+            question
+                .slots
+                .iter()
+                .map(|slot| {
+                    let (kind, domain) = slot
+                        .kind_and_domain()
+                        .expect("mixed slots must carry their own type");
+                    (kind, domain, slot.parameter())
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    QuestionKind::Argument,
+                    SemanticSort::Entity,
+                    question.slots[0].parameter(),
+                ),
+                (
+                    QuestionKind::Relation,
+                    SemanticSort::Relation,
+                    question.slots[1].parameter(),
+                ),
+                (
+                    QuestionKind::Argument,
+                    SemanticSort::Entity,
+                    question.slots[2].parameter(),
+                ),
+            ]
+        );
+        let first_argument = question.slots[0].parameter().expect("first ma parameter");
+        let relation = question.slots[1].parameter().expect("mo parameter");
+        let second_argument = question.slots[2].parameter().expect("second ma parameter");
+        let predication = graph
+            .objects
+            .values()
+            .filter_map(SemanticObject::as_predication)
+            .find(|predication| matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Parameter { parameter }) if **parameter == *relation.as_data()))
+            .expect("mo must remain the predication relation");
+        assert!(
+            predication
+                .arguments
+                .values()
+                .any(|argument| argument.value == Some(first_argument))
+        );
+        assert!(
+            predication
+                .arguments
+                .values()
+                .any(|argument| argument.value == Some(second_argument))
+        );
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn truth_quantity_argument_and_relation_question_preserves_all_domains() {
+        let graph = semantic_graph_for("pau xo ma mo xu");
+        let question = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_question)
+            .expect("four-domain direct question");
+        assert_eq!(question.kind, QuestionKind::Multiple);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        assert_eq!(
+            question
+                .slots
+                .iter()
+                .map(|slot| {
+                    let (kind, domain) = slot
+                        .kind_and_domain()
+                        .expect("mixed slots must carry their own type");
+                    (kind, domain, slot.parameter().is_some())
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (QuestionKind::Quantity, SemanticSort::Number, true),
+                (QuestionKind::Argument, SemanticSort::Entity, true),
+                (QuestionKind::Relation, SemanticSort::Relation, true),
+                (QuestionKind::Truth, SemanticSort::TruthValue, false),
+            ]
+        );
+        let quantity_parameter = question.slots[0].parameter().expect("xo parameter");
+        assert!(graph.objects.values().any(|object| {
+            object.as_quantity().is_some_and(|quantity| {
+                quantity.value.question_parameters == vec![quantity_parameter]
+            })
+        }));
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn direct_question_parameters_inside_abstraction_remain_outer_answer_slots() {
+        let graph = semantic_graph_for("mi djuno le du'u ma mo");
+        let question = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_question)
+            .expect("outer direct question");
+        assert_eq!(question.kind, QuestionKind::Multiple);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        assert_eq!(question.slots.len(), 2);
+        assert_eq!(
+            question.slots[0].kind_and_domain(),
+            Some((QuestionKind::Argument, SemanticSort::Entity))
+        );
+        assert_eq!(
+            question.slots[1].kind_and_domain(),
+            Some((QuestionKind::Relation, SemanticSort::Relation))
+        );
+        let argument = question.slots[0].parameter().expect("ma parameter");
+        let relation = question.slots[1].parameter().expect("mo parameter");
+        assert!(graph.objects.values().any(|object| {
+            object.as_predication().is_some_and(|predication| {
+                predication.mode == PredicationMode::Inert
+                    && matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Parameter { parameter }) if **parameter == *relation.as_data())
+                    && predication
+                        .arguments
+                        .values()
+                        .any(|value| value.value == Some(argument))
+            })
+        }));
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn statement_question_composes_connective_truth_and_bridi_answer_slots() {
+        let graph = semantic_graph_for(".ije'ibo xu xo ma mo pei");
+        let question = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_question)
+            .expect("composed statement question");
+        assert_eq!(question.kind, QuestionKind::Multiple);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        assert_eq!(
+            question
+                .slots
+                .iter()
+                .map(|slot| {
+                    let (kind, domain) = slot
+                        .kind_and_domain()
+                        .expect("mixed slots must carry their own type");
+                    (kind, domain, slot.parameter().is_some())
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (QuestionKind::Connective, SemanticSort::Connective, true),
+                (QuestionKind::Truth, SemanticSort::TruthValue, false),
+                (QuestionKind::Quantity, SemanticSort::Number, true),
+                (QuestionKind::Argument, SemanticSort::Entity, true),
+                (QuestionKind::Relation, SemanticSort::Relation, true),
+            ]
+        );
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn leading_i_indicator_truth_question_composes_with_fragment_domains() {
+        let graph = semantic_graph_for(".i pei xu cu'e xo ma mo");
+        let question = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_question)
+            .expect("leading-I mixed question");
+        assert_eq!(question.kind, QuestionKind::Multiple);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        assert_eq!(
+            question
+                .slots
+                .iter()
+                .map(|slot| {
+                    let (kind, domain) = slot
+                        .kind_and_domain()
+                        .expect("mixed slots must carry their own type");
+                    (kind, domain, slot.parameter().is_some())
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (QuestionKind::Truth, SemanticSort::TruthValue, false),
+                (QuestionKind::Tense, SemanticSort::TenseModal, true),
+                (QuestionKind::Quantity, SemanticSort::Number, true),
+                (QuestionKind::Argument, SemanticSort::Entity, true),
+                (QuestionKind::Relation, SemanticSort::Relation, true),
+            ]
+        );
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_sumti_fragment_keeps_its_question_inside_typed_scope() {
+        let graph = semantic_graph_for(".i pa mlana be ma");
+        let question = graph
+            .objects
+            .values()
+            .find_map(SemanticObject::as_question)
+            .expect("quantified fragment direct question");
+        assert_eq!(question.kind, QuestionKind::Argument);
+        assert_eq!(question.mode, QuestionMode::Direct);
+        assert_eq!(question.slots.len(), 1);
+        let parameter = question.slots[0].parameter().expect("ma parameter");
+        let data!(FormulaNode::Quantified(scope)) = graph.objects[&question.body]
+            .as_formula()
+            .expect("quantified fragment formula")
+            .as_data()
+        else {
+            panic!("fragment content must retain its cardinality scope");
+        };
+        assert_eq!(scope.operator, FormulaOperator::Cardinality);
+        assert!(graph.objects.values().any(|object| {
+            object.as_predication().is_some_and(|predication| {
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "mlana")
+                    && predication
+                        .arguments
+                        .values()
+                        .any(|argument| argument.value == Some(parameter))
+            })
+        }));
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_and_connected_quantified_sumti_fragments_keep_their_scopes() {
+        for source in ["tu'a so'i da", "mi joi noda"] {
+            let graph = semantic_graph_for(source);
+            let content = graph
+                .objects
+                .get(&graph.root)
+                .and_then(SemanticObject::as_utterance)
+                .and_then(|utterance| utterance.content)
+                .expect("sumti fragment content");
+            assert_eq!(content.object_kind(), SemanticObjectKind::Formula);
+            assert!(graph.objects.values().any(|object| {
+                matches!(
+                    object.as_formula().map(FormulaNode::as_data),
+                    Some(data!(FormulaNode::Quantified(_)))
+                )
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pro_bridi_replay_drops_an_overridden_question_argument_slot() {
+        let graph = semantic_graph_for("lu ma do tavla .i mi go'i li'u");
+        let questions = graph
+            .objects
+            .values()
+            .filter_map(SemanticObject::as_question)
+            .collect::<Vec<_>>();
+        assert_eq!(questions.len(), 1);
+        assert_eq!(questions[0].kind, QuestionKind::Argument);
+        assert_eq!(questions[0].slots.len(), 1);
+        assert_eq!(
+            questions[0]
+                .common
+                .source
+                .as_ref()
+                .and_then(|source| source.text.as_deref()),
+            Some("ma do tavla")
+        );
+        assert!(crate::model::semantic_object_question_slots_are_valid(
+            &graph.objects
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn keha_is_typed_outside_relatives_and_crosses_abstraction_boundaries() {
         let property = semantic_graph_for("ka ke'a pilno ce'u");
         let pilno = named_predication_ids(&property, "pilno");
@@ -10619,10 +10924,9 @@ mod tests {
         );
         assert!(indirect.objects.values().any(|object| {
             object.as_question().is_some_and(|question| {
-                question
-                    .slots
-                    .iter()
-                    .any(|slot| slot.parameter == makau && slot.role == QuestionSlotRole::Answer)
+                question.slots.iter().any(|slot| {
+                    slot.parameter() == Some(makau) && slot.role() == QuestionSlotRole::Answer
+                })
             })
         }));
 

@@ -2003,10 +2003,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedIndirectQuestionFocus::from_data(data!(GeneratedIndirectQuestionFocus {
                     focus: parameter,
                     presupposed_answer: None,
-                    slots: vec![new!(QuestionSlot {
+                    slots: vec![QuestionSlot::homogeneous(
                         parameter,
-                        role: QuestionSlotRole::Answer,
-                    })],
+                        QuestionSlotRole::Answer,
+                    )],
                     kind: QuestionKind::Connective,
                     domain: SemanticSort::Connective,
                     source: self.source_for_token(&token, "indirect-question"),
@@ -2015,7 +2015,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             return Ok(Some(parameter));
         }
-        self.connective_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Connective,
+            SemanticSort::Connective,
+        );
         Ok(Some(parameter))
     }
 
@@ -2071,12 +2075,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.source_for_relation_question(question, "parameter"),
             ),
         )?;
-        self.relation_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Relation,
+            SemanticSort::Relation,
+        );
         let eventuality = match eventuality {
             Some(eventuality) => eventuality,
             None => self.build_generated_predication_eventuality(source.clone())?,
         };
         let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
+        let visible_arguments_for_place_questions = assignments.visible_arguments.clone();
         self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
         let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms_for_event(
             eventuality,
@@ -2091,6 +2100,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )));
             }
         }
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+        let place_questions = self.build_generated_place_question_bindings(
+            &assignments.place_questions,
+            &visible_arguments_for_place_questions
+                .into_iter()
+                .map(|(place, argument)| (argument_key(place), argument))
+                .collect(),
+            None,
+            highest_argument,
+        )?;
         let predication = self.next_predication_id();
         let mut object = SemanticObject::relation_parameter_predication(
             parameter,
@@ -2100,7 +2119,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.set_predication_modal_arguments(modal_arguments);
+        object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(

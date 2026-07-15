@@ -2086,20 +2086,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'tree SumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let argument_object = if generated_sumti_has_argument_formula_scope(sumti)? {
-            let mut formula_scopes = Vec::new();
-            let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
-                sumti,
-                &mut formula_scopes,
-            )?;
-            if !formula_scopes.is_empty() {
-                let text = token_list_text(self.tokens_for_node(sumti).iter());
-                return Err(requires_discourse_context(&format!(
-                    "the truth-bearing scope of quantified sumti fragment `{text}`"
-                )));
+            if generated_argument_quantifier_source_from_sumti(sumti)?.is_some() {
+                self.build_generated_sumti_operand_denotation(sumti)?
+            } else {
+                let mut formula_scopes = Vec::new();
+                let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
+                    sumti,
+                    &mut formula_scopes,
+                )?;
+                if !formula_scopes.is_empty() {
+                    let argument_object = argument
+                        .value
+                        .ok_or_else(|| unsupported("sumti fragment without an argument object"))?;
+                    return self.build_generated_scoped_sumti_fragment_denotation(
+                        argument_object,
+                        formula_scopes,
+                        self.source_for_node(sumti, "sumti-fragment-scope"),
+                    );
+                }
+                argument
+                    .value
+                    .ok_or_else(|| unsupported("sumti fragment without an argument object"))?
             }
-            argument
-                .value
-                .ok_or_else(|| unsupported("sumti fragment without an argument object"))?
         } else {
             self.build_sumti_referent(sumti)?
         };
@@ -2107,6 +2115,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.attach_generated_relative_clauses_to_referent(argument_object, sumti)?;
         }
         Ok(argument_object)
+    }
+
+    #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
+    #[requires(!formula_scopes.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_scoped_sumti_fragment_denotation<'syntax: 'tree>(
+        &mut self,
+        argument_object: SemanticObjectId,
+        formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            argument_key(1),
+            ArgumentValue::filled(argument_object, None),
+        );
+        let body = self.build_structural_formula_from_arguments(
+            "sumtiOperand",
+            arguments,
+            PredicationMode::Restrictive,
+            source,
+        )?;
+        self.wrap_formula_with_generated_argument_scopes(body, formula_scopes)
     }
 
     #[requires(true)]
@@ -5090,7 +5121,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_mekso_surface_text(expression)?;
-        let value = generated_simple_pa_quantity_value_for_mekso(expression).map_or_else(
+        let mut value = generated_simple_pa_quantity_value_for_mekso(expression).map_or_else(
             || {
                 self.build_generated_math_expression(
                     expression,
@@ -5103,6 +5134,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             },
             Ok,
         )?;
+        let question_parameters =
+            self.build_quantity_question_parameters_for_generated_node(expression)?;
+        if !question_parameters.is_empty() {
+            value = value.with_question_parameters(question_parameters);
+        }
         let quantity = self.next_quantity_id();
         self.insert(
             quantity,
@@ -6406,7 +6442,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.source_for_token(token, "parameter"),
             ),
         )?;
-        self.math_operator_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::MathOperator,
+            SemanticSort::MathOperator,
+        );
         Ok(parameter)
     }
 
@@ -7345,10 +7385,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedIndirectQuestionFocus::from_data(data!(GeneratedIndirectQuestionFocus {
                     focus: parameter,
                     presupposed_answer: None,
-                    slots: vec![new!(QuestionSlot {
+                    slots: vec![QuestionSlot::homogeneous(
                         parameter,
-                        role: QuestionSlotRole::Answer,
-                    })],
+                        QuestionSlotRole::Answer,
+                    )],
                     kind: QuestionKind::Argument,
                     domain: SemanticSort::Entity,
                     source: self.source_for_node(pro_sumti, "indirect-question"),
@@ -7357,7 +7397,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             return Ok(parameter);
         }
-        self.argument_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Argument,
+            SemanticSort::Entity,
+        );
         Ok(parameter)
     }
 
@@ -7378,7 +7422,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source,
             ),
         )?;
-        self.place_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Place,
+            SemanticSort::Place,
+        );
         Ok(parameter)
     }
 
@@ -7435,10 +7483,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             data!(GeneratedIndirectQuestionFocus {
                 focus: parameter,
                 presupposed_answer: None,
-                slots: vec![new!(QuestionSlot {
+                slots: vec![QuestionSlot::homogeneous(
                     parameter,
-                    role: QuestionSlotRole::Answer,
-                })],
+                    QuestionSlotRole::Answer,
+                )],
                 kind: QuestionKind::Argument,
                 domain: SemanticSort::Entity,
                 source: self.source_for_node(pro_sumti, "indirect-question"),
@@ -7446,7 +7494,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )) {
             return Ok(parameter);
         }
-        self.argument_question_parameters.push(parameter);
+        self.record_generated_direct_question_parameter(
+            parameter,
+            QuestionKind::Argument,
+            SemanticSort::Entity,
+        );
         Ok(parameter)
     }
 
@@ -9134,20 +9186,26 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_bound_or_simple_mekso_operand_surface_text(operand)?;
-        let value = generated_simple_pa_quantity_value_for_bound_or_simple_mekso_operand(operand)
-            .map_or_else(
-            || {
-                self.build_generated_bound_or_simple_mekso_operand(
-                    operand,
-                    source.clone().map(|source| crate::model::SemanticSource {
-                        construct: Some("math-expression".to_owned()),
-                        ..source
-                    }),
-                )
-                .map(QuantityValue::math_expression)
-            },
-            Ok,
-        )?;
+        let mut value =
+            generated_simple_pa_quantity_value_for_bound_or_simple_mekso_operand(operand)
+                .map_or_else(
+                    || {
+                        self.build_generated_bound_or_simple_mekso_operand(
+                            operand,
+                            source.clone().map(|source| crate::model::SemanticSource {
+                                construct: Some("math-expression".to_owned()),
+                                ..source
+                            }),
+                        )
+                        .map(QuantityValue::math_expression)
+                    },
+                    Ok,
+                )?;
+        let question_parameters =
+            self.build_quantity_question_parameters_for_generated_node(operand)?;
+        if !question_parameters.is_empty() {
+            value = value.with_question_parameters(question_parameters);
+        }
         let quantity = self.next_quantity_id();
         self.insert(
             quantity,
@@ -9189,10 +9247,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         text: &str,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let value = parse_generated_relational_pa_integer(text)
+        let mut value = parse_generated_relational_pa_integer(text)
             .or_else(|| simple_pa_integer_from_tokens(&words))
             .map(QuantityValue::integer)
             .unwrap_or_else(|| QuantityValue::text(text.to_owned()));
+        let question_parameters = self.build_quantity_question_parameters_for_tokens(words)?;
+        if !question_parameters.is_empty() {
+            value = value.with_question_parameters(question_parameters);
+        }
         let quantity = self.next_quantity_id();
         self.insert(
             quantity,
@@ -9204,6 +9266,72 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         Ok(quantity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|parameters| parameters.iter().all(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    pub(super) fn build_quantity_question_parameters_for_generated_node<N: TreeNode>(
+        &mut self,
+        node: &N,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        let mut collector = GeneratedSpanCollector::default();
+        node.visit_in_order(&mut collector);
+        self.build_quantity_question_parameters_for_tokens(&collector.tokens)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|parameters| parameters.iter().all(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    fn build_quantity_question_parameters_for_tokens<T>(
+        &mut self,
+        words: &[T],
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError>
+    where
+        T: std::borrow::Borrow<Token>,
+    {
+        let mut parameters = Vec::new();
+        for word in words {
+            let token = word.borrow();
+            if token.cmavo() != Some(Cmavo::Xo) {
+                continue;
+            }
+            let parameter = self.next_parameter_id();
+            self.insert(
+                parameter,
+                SemanticObject::parameter(
+                    SemanticSort::Number,
+                    ParameterRole::QuantityQuestion,
+                    token_text(token),
+                    self.source_for_token(token, "parameter"),
+                ),
+            )?;
+            if token_has_indicator_cmavo(token, Cmavo::Kau)
+                && self.record_generated_indirect_question_focus(
+                    GeneratedIndirectQuestionFocus::from_data(data!(
+                        GeneratedIndirectQuestionFocus {
+                            focus: parameter,
+                            presupposed_answer: None,
+                            slots: vec![QuestionSlot::homogeneous(
+                                parameter,
+                                QuestionSlotRole::Answer,
+                            )],
+                            kind: QuestionKind::Quantity,
+                            domain: SemanticSort::Number,
+                            source: self.source_for_token(token, "indirect-question"),
+                        }
+                    )),
+                )
+            {
+                parameters.push(parameter);
+                continue;
+            }
+            self.record_generated_direct_question_parameter(
+                parameter,
+                QuestionKind::Quantity,
+                SemanticSort::Number,
+            );
+            parameters.push(parameter);
+        }
+        Ok(parameters)
     }
 
     #[requires(!text.is_empty())]
