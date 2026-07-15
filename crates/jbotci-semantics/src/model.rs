@@ -98,6 +98,10 @@ const RELATION_LABEL_DU_TEXT: &str = "du";
         && !opener.is_empty()
         && relation.is_displayable()
         && closer.as_ref().is_none_or(|closer| !closer.is_empty()))]
+#[invariant(::Prenex { terms, separator, relation } =>
+    terms.iter().all(|term| !term.is_empty())
+        && !separator.is_empty()
+        && relation.is_displayable())]
 #[invariant(::Constructed { text } => !text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelationLabel {
@@ -134,6 +138,11 @@ pub enum RelationLabel {
         opener: String,
         relation: Box<RelationLabel>,
         closer: Option<String>,
+    },
+    Prenex {
+        terms: Vec<String>,
+        separator: String,
+        relation: Box<RelationLabel>,
     },
     Constructed {
         text: String,
@@ -226,6 +235,18 @@ impl RelationLabel {
         })
     }
 
+    #[requires(terms.iter().all(|term| !term.is_empty()))]
+    #[requires(!separator.is_empty())]
+    #[requires(relation.is_displayable())]
+    #[ensures(ret.is_displayable())]
+    pub fn prenex(terms: Vec<String>, separator: String, relation: Self) -> Self {
+        new!(RelationLabel::Prenex {
+            terms,
+            separator,
+            relation: Box::new(relation),
+        })
+    }
+
     #[requires(!text.is_empty())]
     #[ensures(ret.is_displayable())]
     pub fn constructed(text: String) -> Self {
@@ -266,6 +287,15 @@ impl RelationLabel {
                     && !opener.is_empty()
                     && relation.is_displayable()
                     && closer.as_ref().is_none_or(|closer| !closer.is_empty())
+            }
+            data!(RelationLabel::Prenex {
+                terms,
+                separator,
+                relation,
+            }) => {
+                terms.iter().all(|term| !term.is_empty())
+                    && !separator.is_empty()
+                    && relation.is_displayable()
             }
             data!(RelationLabel::ZeiCompound { text })
             | data!(RelationLabel::Constructed { text }) => !text.is_empty(),
@@ -313,6 +343,19 @@ impl RelationLabel {
                     .as_ref()
                     .map_or_else(String::new, |closer| format!(" {closer}"));
                 format!("{modifier}{opener} {}{closer}", relation.display_text())
+            }
+            data!(RelationLabel::Prenex {
+                terms,
+                separator,
+                relation,
+            }) => {
+                let terms = terms.join(" ");
+                let separator = if terms.is_empty() {
+                    separator.clone()
+                } else {
+                    format!("{terms} {separator}")
+                };
+                format!("{separator} {}", relation.display_text())
             }
         }
     }

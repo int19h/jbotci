@@ -4004,10 +4004,21 @@ fn relation_label_from_generated_text_root(
 fn relation_label_from_subbridi(
     subbridi: &SubbridiSyntax,
 ) -> Result<RelationLabel, SemanticsError> {
-    let SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) = subbridi else {
-        return Err(unsupported("prenex subbridi relation label"));
-    };
-    relation_label_from_bridi(bridi)
+    match subbridi {
+        SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) => {
+            relation_label_from_bridi(bridi)
+        }
+        SubbridiSyntax::PrenexSubbridi(prenex) => {
+            let terms = prenex
+                .prenex_terms
+                .iter()
+                .map(generated_node_surface_text)
+                .collect::<Result<Vec<_>, _>>()?;
+            let separator = token_text(&prenex.zohu.value);
+            let relation = relation_label_from_subbridi(&prenex.inner_subbridi)?;
+            Ok(RelationLabel::prenex(terms, separator, relation))
+        }
+    }
 }
 
 #[requires(true)]
@@ -8783,6 +8794,64 @@ mod tests {
                 .and_then(|formula| grouped.objects.get(&formula))
                 .and_then(SemanticObject::formula_operator),
             Some(FormulaOperator::And)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstraction_prenex_keeps_relation_label_and_quantifier_scope_order() {
+        let labeled = semantic_graph_for("cy pa nu ba ku zo'u cy no fliba kei");
+        assert_eq!(
+            named_predication_ids(&labeled, "nu ba ku zo'u fliba").len(),
+            1,
+            "the abstraction relation label must retain the embedded prenex"
+        );
+        assert!(
+            named_predication_ids(&labeled, "nu fliba").is_empty(),
+            "dropping the prenex must not produce the same relation"
+        );
+
+        let scoped = semantic_graph_for("mi djica lo nu ro da su'o de zo'u da dunda de");
+        let abstraction_body = scoped
+            .objects
+            .values()
+            .find_map(|object| object.as_eventuality().and_then(|node| node.content))
+            .expect("the NU abstraction has a formula body");
+        let data!(FormulaNode::Quantified(outer)) = scoped.objects[&abstraction_body]
+            .as_formula()
+            .expect("abstraction body is a formula")
+            .as_data()
+        else {
+            panic!("first prenex term must introduce the outer quantifier");
+        };
+        assert_eq!(outer.operator, FormulaOperator::Forall);
+        let data!(FormulaNode::Quantified(inner)) = scoped.objects[&outer.body]
+            .as_formula()
+            .expect("outer quantifier body is a formula")
+            .as_data()
+        else {
+            panic!("second prenex term must introduce the inner quantifier");
+        };
+        assert_eq!(inner.operator, FormulaOperator::Cardinality);
+
+        let dunda = named_predication_ids(&scoped, "dunda");
+        assert_eq!(dunda.len(), 1);
+        let dunda_id = dunda[0];
+        let dunda = scoped.objects[&dunda_id]
+            .as_predication()
+            .expect("dunda predication");
+        assert_eq!(
+            dunda.arguments[&argument_key(1)].value,
+            Some(outer.variable)
+        );
+        assert_eq!(
+            dunda.arguments[&argument_key(2)].value,
+            Some(inner.variable)
+        );
+        assert_eq!(
+            scoped.objects[&inner.body].formula_predication(),
+            Some(dunda_id)
         );
     }
 
