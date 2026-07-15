@@ -653,7 +653,7 @@ enum GeneratedLogicalTagConnectionBranch<'syntax> {
 }
 
 #[invariant(::Named { introduced_by, relation, visible_place } => !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0)]
-#[invariant(::AdHoc { .. } => true)]
+#[invariant(::AdHoc { fiho } => fiho.fiho.value.is_cmavo(Cmavo::Fiho) && fiho.fehu.as_ref().is_none_or(|fehu| fehu.value.is_cmavo(Cmavo::Fehu)))]
 #[derive(Debug, Clone)]
 enum GeneratedConnectedModalTermKind<'syntax> {
     Named {
@@ -662,7 +662,7 @@ enum GeneratedConnectedModalTermKind<'syntax> {
         visible_place: usize,
     },
     AdHoc {
-        selbri: &'syntax SelbriSyntax,
+        fiho: &'syntax jbotci_syntax::generated_model::FihoTenseSyntax,
     },
 }
 

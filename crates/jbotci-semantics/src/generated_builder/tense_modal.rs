@@ -221,9 +221,7 @@ pub(super) fn generated_connected_modal_term_from_atom<'syntax>(
         return Err(unsupported("event tense in logical modal connection"));
     }
     let kind = if let TenseModalAtomSyntax::FihoTense(fiho) = atom {
-        new!(GeneratedConnectedModalTermKind::AdHoc {
-            selbri: fiho.selbri.as_ref(),
-        })
+        new!(GeneratedConnectedModalTermKind::AdHoc { fiho })
     } else {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(&tense_modal)
