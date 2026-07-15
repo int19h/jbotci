@@ -378,6 +378,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let place_question_assignments = assignments.place_questions.clone();
         let mut visible_arguments = assignments.visible_arguments;
         let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         let mut bare_jai_raised_participant = None;
         let mut jai_modal_visible_arguments = None;
@@ -444,8 +445,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             };
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
+            linkarg_event_modifiers = adjusted.event_modifiers;
             linkarg_formula_scopes = adjusted.formula_scopes;
         }
+        self.apply_generated_linked_event_modifiers(eventuality, &linkarg_event_modifiers)?;
         if let Some(unit) = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()) {
             let raised_referent = jai_modal_visible_arguments
                 .as_ref()
@@ -2561,6 +2564,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 2,
             )?;
             visible_arguments = adjusted.visible_arguments;
+            let eventuality = match (eventuality, adjusted.event_modifiers.is_empty()) {
+                (eventuality, true) => eventuality,
+                (Some(eventuality), false) => Some(eventuality),
+                (None, false) => {
+                    Some(self.build_generated_predication_eventuality(source.clone())?)
+                }
+            };
+            if let Some(eventuality) = eventuality {
+                self.apply_generated_linked_event_modifiers(
+                    eventuality,
+                    &adjusted.event_modifiers,
+                )?;
+            }
             let mut result = self.build_tanru_unit_formula_for_visible_arguments(
                 base,
                 visible_arguments,
@@ -2691,6 +2707,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let visible_x1_argument = visible_arguments.get(&1).cloned();
         let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
             let adjusted = if let Some(linkarg_assignments) = prebuilt_linkarg_assignments {
@@ -2704,8 +2721,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             };
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
+            linkarg_event_modifiers = adjusted.event_modifiers;
             linkarg_formula_scopes = adjusted.formula_scopes;
         }
+        self.apply_generated_linked_event_modifiers(eventuality, &linkarg_event_modifiers)?;
         if let Some(unit) = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base()) {
             linkarg_modal_arguments.push(self.build_generated_jai_modal_argument(
                 unit,
@@ -3055,6 +3074,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .collect()
         };
         let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_event_modifiers = Vec::new();
         let mut formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
             let adjusted = self.visible_arguments_adjusted_for_linkargs(
@@ -3064,12 +3084,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
+            linkarg_event_modifiers = adjusted.event_modifiers;
             formula_scopes = adjusted.formula_scopes;
         }
         let eventuality = match eventuality {
             Some(eventuality) => eventuality,
             None => self.build_generated_predication_eventuality(source.clone())?,
         };
+        self.apply_generated_linked_event_modifiers(eventuality, &linkarg_event_modifiers)?;
         self.apply_generated_tagged_term_event_modifiers(eventuality, modal_terms)?;
         let relation = match moi_relation {
             Some(relation) => relation,
@@ -4643,6 +4665,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 2,
             )?;
             visible_arguments = adjusted.visible_arguments;
+            let eventuality = if adjusted.event_modifiers.is_empty() {
+                eventuality
+            } else {
+                let eventuality = eventuality
+                    .resolve(self, predication_source.clone())?
+                    .unwrap_or(
+                        self.build_generated_predication_eventuality(predication_source.clone())?,
+                    );
+                self.apply_generated_linked_event_modifiers(
+                    eventuality,
+                    &adjusted.event_modifiers,
+                )?;
+                GeneratedPredicationEventuality::from_data(data!(
+                    GeneratedPredicationEventuality::Existing(eventuality)
+                ))
+            };
             let formula = self.build_property_formula_for_tanru_unit_with_visible_arguments(
                 base,
                 visible_arguments,
@@ -4674,6 +4712,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .formula);
         }
         let mut modal_arguments = Vec::new();
+        let mut event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         apply_generated_bare_jai_visible_argument(
             self,
@@ -4685,6 +4724,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
             visible_arguments = adjusted.visible_arguments;
             modal_arguments = adjusted.modal_arguments;
+            event_modifiers = adjusted.event_modifiers;
             linkarg_formula_scopes = adjusted.formula_scopes;
         }
         let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
@@ -4696,11 +4736,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let eventuality = eventuality.resolve(self, predication_source.clone())?;
-        let eventuality = if jai_modal.is_some() && eventuality.is_none() {
-            Some(self.build_eventuality(predication_source.clone())?)
-        } else {
-            eventuality
-        };
+        let eventuality =
+            if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none() {
+                Some(self.build_eventuality(predication_source.clone())?)
+            } else {
+                eventuality
+            };
+        if let Some(eventuality) = eventuality {
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+        }
         if let (Some(unit), Some(eventuality)) = (jai_modal, eventuality) {
             modal_arguments.push(self.build_generated_jai_modal_argument(
                 unit,
@@ -4806,13 +4850,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 2,
             )?;
             visible_arguments = adjusted.visible_arguments;
+            let predication_eventuality = if adjusted.event_modifiers.is_empty() {
+                None
+            } else {
+                let eventuality =
+                    self.build_generated_predication_eventuality(predication_source.clone())?;
+                self.apply_generated_linked_event_modifiers(
+                    eventuality,
+                    &adjusted.event_modifiers,
+                )?;
+                Some(eventuality)
+            };
             let formula = self.build_property_formula_for_tanru_unit_with_visible_arguments(
                 base,
                 visible_arguments,
                 formula_source,
-                GeneratedPredicationEventuality::from_data(data!(
-                    GeneratedPredicationEventuality::Absent
-                )),
+                predication_eventuality.map_or_else(
+                    || {
+                        GeneratedPredicationEventuality::from_data(data!(
+                            GeneratedPredicationEventuality::Absent
+                        ))
+                    },
+                    |eventuality| {
+                        GeneratedPredicationEventuality::from_data(data!(
+                            GeneratedPredicationEventuality::Existing(eventuality)
+                        ))
+                    },
+                ),
             )?;
             for modal_argument in &adjusted.modal_arguments {
                 self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
@@ -4838,20 +4902,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .formula);
         }
         let mut modal_arguments = Vec::new();
+        let mut event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
             let adjusted =
                 self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
             visible_arguments = adjusted.visible_arguments;
             modal_arguments = adjusted.modal_arguments;
+            event_modifiers = adjusted.event_modifiers;
             linkarg_formula_scopes = adjusted.formula_scopes;
         }
         let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
-        let predication_eventuality = if jai_modal.is_some() {
+        let predication_eventuality = if jai_modal.is_some() || !event_modifiers.is_empty() {
             Some(self.build_eventuality(predication_source.clone())?)
         } else {
             None
         };
+        if let Some(eventuality) = predication_eventuality {
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+        }
         if let (Some(unit), Some(eventuality)) = (jai_modal, predication_eventuality) {
             modal_arguments.push(self.build_generated_jai_modal_argument(
                 unit,
@@ -5175,6 +5244,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
             modal_arguments,
+            event_modifiers,
             formula_scopes,
         }) = branches.into_data();
         let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
@@ -5194,13 +5264,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &relation_text,
             predication_source.clone(),
         )?;
+        if let Some(eventuality) = eventuality {
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+        }
         let mut formulas = Vec::with_capacity(visible_argument_branches.len());
         for visible_arguments in visible_argument_branches {
-            let branch_eventuality = if jai_modal.is_some() && eventuality.is_none() {
-                Some(self.build_eventuality(predication_source.clone())?)
-            } else {
-                eventuality
-            };
+            let branch_eventuality =
+                if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none() {
+                    Some(self.build_eventuality(predication_source.clone())?)
+                } else {
+                    eventuality
+                };
+            if eventuality.is_none()
+                && let Some(branch_eventuality) = branch_eventuality
+            {
+                self.apply_generated_linked_event_modifiers(branch_eventuality, &event_modifiers)?;
+            }
             let mut branch_modal_arguments = modal_arguments.clone();
             if let (Some(unit), Some(eventuality)) = (jai_modal, branch_eventuality) {
                 branch_modal_arguments.push(self.build_generated_jai_modal_argument(
@@ -5299,9 +5378,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut visible_arguments = BTreeMap::new();
         insert_visible_argument(&mut visible_arguments, 1, argument)?;
         let mut modal_arguments = Vec::new();
+        let mut event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
-            (modal_arguments, linkarg_formula_scopes) =
+            (modal_arguments, event_modifiers, linkarg_formula_scopes) =
                 self.extend_visible_arguments_with_linkargs(&mut visible_arguments, linkargs, 2)?;
         }
         let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
@@ -5342,11 +5422,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let eventuality =
             self.build_generated_tense_eventuality(tense_modal, predication_source.clone())?;
-        let eventuality = if jai_modal.is_some() && eventuality.is_none() {
-            Some(self.build_eventuality(predication_source.clone())?)
-        } else {
-            eventuality
-        };
+        let eventuality =
+            if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none() {
+                Some(self.build_eventuality(predication_source.clone())?)
+            } else {
+                eventuality
+            };
+        if let Some(eventuality) = eventuality {
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+        }
         if let (Some(unit), Some(eventuality_id)) = (jai_modal, eventuality) {
             modal_arguments.push(
                 self.build_generated_jai_modal_argument(
@@ -5406,6 +5490,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut assignments = GeneratedLinkargsAssignments {
             visible_arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
+            event_modifiers: Vec::new(),
             formula_scopes: Vec::new(),
             next_visible_place: first_visible_place,
         };
@@ -5414,6 +5499,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.add_linked_sumti_assignment(&mut assignments, &link.link)?;
         }
         Ok(assignments)
+    }
+
+    #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[ensures(true)]
+    pub(super) fn apply_generated_linked_event_modifiers(
+        &mut self,
+        eventuality: SemanticObjectId,
+        modifiers: &[GeneratedLinkedEventModifier<'tree>],
+    ) -> Result<(), SemanticsError> {
+        for modifier in modifiers {
+            self.apply_generated_tense_modal_event_modifier_to_eventuality(
+                eventuality,
+                modifier.tense_modal,
+                modifier.anchor,
+            )?;
+        }
+        Ok(())
     }
 
     #[requires(first_visible_place > 0)]
@@ -5427,6 +5529,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<
         (
             Vec<ModalArgument>,
+            Vec<GeneratedLinkedEventModifier<'tree>>,
             Vec<GeneratedArgumentQuantifierScope<'tree>>,
         ),
         SemanticsError,
@@ -5438,6 +5541,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         Ok((
             linkargs_assignments.modal_arguments,
+            linkargs_assignments.event_modifiers,
             linkargs_assignments.formula_scopes,
         ))
     }
@@ -5455,6 +5559,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(new!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches: vec![visible_arguments],
                 modal_arguments: Vec::new(),
+                event_modifiers: Vec::new(),
                 formula_scopes: Vec::new(),
             }));
         };
@@ -5480,6 +5585,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(new!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches: branches,
             modal_arguments: linkarg_assignments.modal_arguments,
+            event_modifiers: linkarg_assignments.event_modifiers,
             formula_scopes: linkarg_assignments.formula_scopes,
         }))
     }
@@ -5512,6 +5618,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         first_visible_place: usize,
     ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
         let mut outer_modal_arguments = Vec::new();
+        let mut outer_event_modifiers = Vec::new();
         let mut outer_formula_scopes = Vec::new();
         let visible_arguments = match outer_linkargs {
             Some(linkargs) => {
@@ -5521,6 +5628,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     first_visible_place,
                 )?;
                 outer_modal_arguments = adjusted.modal_arguments;
+                outer_event_modifiers = adjusted.event_modifiers;
                 outer_formula_scopes = adjusted.formula_scopes;
                 adjusted.visible_arguments
             }
@@ -5532,6 +5640,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut preposed_assignments = GeneratedLinkargsAssignments {
             visible_arguments: BTreeMap::new(),
             modal_arguments: Vec::new(),
+            event_modifiers: Vec::new(),
             formula_scopes: Vec::new(),
             next_visible_place: first_visible_place,
         };
@@ -5547,8 +5656,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             first_visible_place,
         )?;
         outer_modal_arguments.append(&mut adjusted.modal_arguments);
+        outer_event_modifiers.append(&mut adjusted.event_modifiers);
         outer_formula_scopes.append(&mut adjusted.formula_scopes);
         adjusted.modal_arguments = outer_modal_arguments;
+        adjusted.event_modifiers = outer_event_modifiers;
         adjusted.formula_scopes = outer_formula_scopes;
         Ok(adjusted)
     }
@@ -5593,6 +5704,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(GeneratedLinkargsAssignments {
             visible_arguments: adjusted_arguments,
             modal_arguments: linkarg_assignments.modal_arguments,
+            event_modifiers: linkarg_assignments.event_modifiers,
             formula_scopes: linkarg_assignments.formula_scopes,
             next_visible_place: next_tail_place,
         })
@@ -5671,12 +5783,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
                     }
                 };
-                let modal_argument = self
-                    .build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
-                        sumti.tense_modal.as_ref(),
-                        argument,
-                    )?;
-                assignments.modal_arguments.push(modal_argument);
+                if generated_tense_modal_has_event_modifier(sumti.tense_modal.as_ref()) {
+                    assignments
+                        .event_modifiers
+                        .push(new!(GeneratedLinkedEventModifier {
+                            tense_modal: sumti.tense_modal.as_ref(),
+                            anchor: argument.value,
+                        }));
+                } else {
+                    let modal_argument = self
+                        .build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
+                            sumti.tense_modal.as_ref(),
+                            argument,
+                        )?;
+                    assignments.modal_arguments.push(modal_argument);
+                }
             }
             LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
         }

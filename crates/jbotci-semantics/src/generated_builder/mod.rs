@@ -852,6 +852,7 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 struct GeneratedLinkargsAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     modal_arguments: Vec<ModalArgument>,
+    event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     next_visible_place: usize,
 }
@@ -862,7 +863,15 @@ struct GeneratedLinkargsAssignments<'syntax> {
 struct GeneratedLinkargsArgumentBranches<'syntax> {
     visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
     modal_arguments: Vec<ModalArgument>,
+    event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+}
+
+#[invariant(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[derive(Debug, Clone)]
+struct GeneratedLinkedEventModifier<'syntax> {
+    tense_modal: &'syntax TenseModalSyntax,
+    anchor: Option<SemanticObjectId>,
 }
 
 #[invariant(::Negation { .. } => true)]
@@ -10532,6 +10541,51 @@ mod tests {
         for source in ["lo broda be cu melbi", "lo broda be mi bei cu melbi"] {
             semantic_result_for(source).expect("a trailing empty linkarg should be zero-width");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tense_tagged_linkarg_constrains_the_relation_event_without_consuming_a_place() {
+        let graph = semantic_graph_for("le viska be mi bei ca le nu do klama cu melbi");
+        let viska = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "viska")
+                    .then_some(predication)
+            })
+            .expect("viska restriction should exist");
+        assert_eq!(
+            viska.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker()),
+            "the ordinary BE argument must remain x2"
+        );
+        assert_eq!(
+            viska.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Filled
+        );
+
+        let event = viska
+            .eventuality
+            .and_then(|eventuality| graph.objects.get(&eventuality))
+            .and_then(SemanticObject::as_eventuality)
+            .expect("the tense-tagged link must allocate a viska eventuality");
+        let anchor = event
+            .time
+            .as_ref()
+            .map(|time| time.anchor)
+            .expect("ca must constrain the viska eventuality");
+        assert_eq!(
+            graph
+                .objects
+                .get(&anchor)
+                .and_then(SemanticObject::source)
+                .and_then(|source| source.text.as_deref()),
+            Some("le nu do klama"),
+            "the linked sumti must be the temporal anchor rather than being dropped"
+        );
     }
 
     #[test]

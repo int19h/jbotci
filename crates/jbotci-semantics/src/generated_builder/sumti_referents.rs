@@ -8563,9 +8563,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut diagnostics = Vec::new();
         let mut visible_arguments = BTreeMap::new();
         let mut modal_arguments = Vec::new();
+        let mut event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         if let Some(linkargs) = linkargs {
-            (modal_arguments, linkarg_formula_scopes) =
+            (modal_arguments, event_modifiers, linkarg_formula_scopes) =
                 self.extend_visible_arguments_with_linkargs(&mut visible_arguments, linkargs, 2)?;
         }
         let event_modifier_anchor = jai_unit
@@ -8613,6 +8614,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let source = self.source_for_node(selbri, "restrictive-predication");
         let eventuality = self.build_eventuality(source.clone())?;
+        self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
         if let Some(tense_modal) = jai_unit.tense_modal.as_deref()
             && generated_tense_modal_has_event_modifier(tense_modal)
         {
