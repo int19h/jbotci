@@ -756,6 +756,8 @@ pub struct TersmuInput {
     pub trace: Option<Option<String>>,
     #[arg(long = "dialect")]
     pub dialect: Option<String>,
+    #[arg(long = "show-defs")]
+    pub show_defs: bool,
     #[arg(long = "story-time")]
     pub story_time: bool,
     #[arg(long = "indent")]
@@ -1814,6 +1816,18 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
                 "`--show-spans` is only supported with `--turtai tree`",
             )?;
         }
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_tersmu_options(input: &TersmuInput) -> Result<()> {
+    if input.format == TersmuFormat::Json {
+        validate_not_present(
+            input.show_defs,
+            "`--show-defs` is not supported with `--format json`",
+        )?;
     }
     Ok(())
 }

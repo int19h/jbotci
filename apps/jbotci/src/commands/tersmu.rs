@@ -35,6 +35,7 @@ fn render_tersmu(
     diagnostic_terminal_width: usize,
     stdin_text: Option<&str>,
 ) -> Result<TersmuRendered> {
+    validate_tersmu_options(&input)?;
     let morphology_trace_options =
         trace_options(&input.trace, TracePhase::Syntax, DEFAULT_TRACE_LIMIT)?;
     let syntax_trace_options =
@@ -164,7 +165,15 @@ fn render_tersmu(
             }));
         }
     };
-    let mut rendered = match input.format {
+    let mut stdout = String::new();
+    if input.show_defs {
+        stdout.push_str(&render_dictionary_definitions_for_word_likes(
+            words.as_slice(),
+            color_policy.stdout,
+            glyphs,
+        ));
+    }
+    let rendered = match input.format {
         TersmuFormat::Json => json_string_with_options(
             &graph,
             JsonRenderOptions {
@@ -176,10 +185,11 @@ fn render_tersmu(
         TersmuFormat::Tree => render_tree(&graph),
         TersmuFormat::TreeProj => render_tree_proj(&graph),
     };
-    rendered.push('\n');
+    stdout.push_str(&rendered);
+    stdout.push('\n');
     Ok(new!(TersmuRendered {
         status: CliStatus::Success,
-        stdout: rendered.into_bytes(),
+        stdout: stdout.into_bytes(),
         stderr,
     }))
 }

@@ -248,9 +248,11 @@ pub struct ToolGentufaRequest {
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
-    /// Prepend the full dictionary definition of every word before the tree.
-    /// Informative but verbose; off by default.
-    #[serde(default)]
+    /// Prepend full dictionary definitions to the human-readable `tree`,
+    /// `brackets`, and `raw` formats. Definitions ground the parse and are on
+    /// by default; set this to `false` to save tokens. The flag is suppressed
+    /// for `json`, `svg`, and `png` so those formats remain pure documents.
+    #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
     /// Annotate each node with its source byte span. Off by default.
     #[serde(default)]
@@ -285,6 +287,12 @@ struct ToolGentufaCommandFormat {
 }
 
 impl ToolGentufaFormat {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Tree | Self::Brackets | Self::Raw))]
+    fn supports_definitions(self) -> bool {
+        matches!(self, Self::Tree | Self::Brackets | Self::Raw)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn command_format(self) -> ToolGentufaCommandFormat {
@@ -335,6 +343,7 @@ impl From<ToolGentufaRequest> for Command {
         let show_refs = request
             .show_refs
             .unwrap_or(matches!(request.format, ToolGentufaFormat::Tree));
+        let show_defs = request.show_defs && request.format.supports_definitions();
         let command_format = request.format.command_format();
         Self::Gentufa(GentufaInput {
             file: None,
@@ -348,7 +357,7 @@ impl From<ToolGentufaRequest> for Command {
             format: command_format.format,
             trace: None,
             dialect: request.dialect,
-            show_defs: request.show_defs,
+            show_defs,
             indent: request.indent,
             mark_stress: None,
             mark_glides: None,
@@ -1510,6 +1519,12 @@ impl Default for ToolTersmuFormat {
 
 impl ToolTersmuFormat {
     #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Tree | Self::TreeProj))]
+    fn supports_definitions(self) -> bool {
+        matches!(self, Self::Tree | Self::TreeProj)
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     fn command_format(self) -> TersmuFormat {
         match self {
@@ -1552,6 +1567,12 @@ pub struct ToolTersmuRequest {
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
+    /// Prepend full dictionary definitions to the human-readable `tree` and
+    /// `tree+proj` formats. Definitions ground the interpretation and are on
+    /// by default; set this to `false` to save tokens. The flag is suppressed
+    /// for `json` so the canonical graph remains a pure JSON document.
+    #[serde(default = "tool_show_defs_default")]
+    pub show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative "story
     /// time", instead of anchoring every sentence to speech time. Off by
     /// default.
@@ -1567,18 +1588,26 @@ impl From<ToolTersmuRequest> for Command {
     #[requires(true)]
     #[ensures(true)]
     fn from(request: ToolTersmuRequest) -> Self {
+        let show_defs = request.show_defs && request.format.supports_definitions();
         Self::Tersmu(TersmuInput {
             file: None,
             format: request.format.command_format(),
             max_errors: DEFAULT_MAX_ERRORS,
             trace: None,
             dialect: request.dialect,
+            show_defs,
             story_time: request.story_time,
             // Explicit JSON remains pretty-printed by default; `0` opts into compact.
             indent: Some(request.indent.unwrap_or(2)),
             text: vec![request.text],
         })
     }
+}
+
+#[requires(true)]
+#[ensures(ret)]
+fn tool_show_defs_default() -> bool {
+    true
 }
 
 #[requires(true)]
@@ -1765,6 +1794,35 @@ const APPLICATION_JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 mod tests {
     use super::*;
 
+    #[requires(true)]
+    #[ensures(ret.format == format && ret.show_defs == show_defs)]
+    fn gentufa_request(format: ToolGentufaFormat, show_defs: bool) -> ToolGentufaRequest {
+        ToolGentufaRequest {
+            text: "mi klama".to_owned(),
+            format,
+            dialect: None,
+            show_defs,
+            show_spans: false,
+            show_refs: None,
+            show_elided: false,
+            decompose_lujvo: false,
+            indent: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.format == format && ret.show_defs == show_defs)]
+    fn tersmu_request(format: ToolTersmuFormat, show_defs: bool) -> ToolTersmuRequest {
+        ToolTersmuRequest {
+            text: "mi klama".to_owned(),
+            format,
+            dialect: None,
+            show_defs,
+            story_time: false,
+            indent: None,
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1775,5 +1833,136 @@ mod tests {
         assert!(!json_value_contains_key(&schema, "$defs"));
         assert_eq!(schema["properties"]["format"]["type"], "string");
         assert!(schema["properties"]["format"]["oneOf"].is_array());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn definition_grounding_defaults_to_true_when_requests_omit_the_field() {
+        let gentufa: ToolGentufaRequest =
+            serde_json::from_value(serde_json::json!({ "text": "mi klama" }))
+                .expect("gentufa request without show-defs");
+        let tersmu: ToolTersmuRequest =
+            serde_json::from_value(serde_json::json!({ "text": "mi klama" }))
+                .expect("tersmu request without show-defs");
+
+        assert!(gentufa.show_defs);
+        assert!(tersmu.show_defs);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn definition_grounding_schema_documents_true_defaults() {
+        for schema in [
+            tool_request_schema::<ToolGentufaRequest>(),
+            tool_request_schema::<ToolTersmuRequest>(),
+        ] {
+            assert_eq!(schema["properties"]["show-defs"]["default"], true);
+            let description = schema["properties"]["show-defs"]["description"]
+                .as_str()
+                .expect("show-defs description");
+            assert!(description.contains("by default"), "{description}");
+            assert!(description.contains("suppressed"), "{description}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_json_suppresses_definitions_and_remains_one_document() {
+        let grounded =
+            run_tool_tersmu(tersmu_request(ToolTersmuFormat::Json, true)).expect("grounded JSON");
+        let ungrounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Json, false))
+            .expect("ungrounded JSON");
+
+        assert_eq!(grounded.status, ToolStatus::Success);
+        assert_eq!(grounded.stdout, ungrounded.stdout);
+        let _: serde_json::Value =
+            serde_json::from_slice(&grounded.stdout).expect("single pure JSON document");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_human_formats_prepend_definitions() {
+        for format in [ToolTersmuFormat::Tree, ToolTersmuFormat::TreeProj] {
+            let grounded = run_tool_tersmu(tersmu_request(format, true))
+                .expect("grounded human tersmu output");
+            let ungrounded = run_tool_tersmu(tersmu_request(format, false))
+                .expect("ungrounded human tersmu output");
+            let grounded = grounded.stdout_text().expect("UTF-8 tersmu output");
+            let ungrounded = ungrounded.stdout_text().expect("UTF-8 tersmu output");
+
+            assert!(
+                grounded.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
+                "{format:?}"
+            );
+            assert!(
+                grounded.contains("\n2. klama | by: officialdata | gismu"),
+                "{format:?}"
+            );
+            assert!(!ungrounded.starts_with("1. mi |"), "{format:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_machine_formats_suppress_definitions() {
+        for format in [
+            ToolGentufaFormat::Json,
+            ToolGentufaFormat::Svg,
+            ToolGentufaFormat::Png,
+        ] {
+            let grounded = run_tool_gentufa(gentufa_request(format, true))
+                .expect("grounded machine gentufa output");
+            let ungrounded = run_tool_gentufa(gentufa_request(format, false))
+                .expect("ungrounded machine gentufa output");
+
+            assert_eq!(grounded.status, ToolStatus::Success, "{format:?}");
+            assert_eq!(grounded.stdout, ungrounded.stdout, "{format:?}");
+            match format {
+                ToolGentufaFormat::Json => {
+                    let _: serde_json::Value = serde_json::from_slice(&grounded.stdout)
+                        .expect("single pure JSON document");
+                }
+                ToolGentufaFormat::Svg => {
+                    let svg = grounded.stdout_text().expect("UTF-8 SVG");
+                    let document = roxmltree::Document::parse(svg).expect("valid SVG XML");
+                    assert_eq!(document.root_element().tag_name().name(), "svg");
+                }
+                ToolGentufaFormat::Png => {
+                    assert!(grounded.stdout.starts_with(b"\x89PNG\r\n\x1a\n"));
+                }
+                ToolGentufaFormat::Tree | ToolGentufaFormat::Brackets | ToolGentufaFormat::Raw => {
+                    unreachable!("human format excluded from loop")
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_human_formats_prepend_definitions() {
+        for format in [
+            ToolGentufaFormat::Tree,
+            ToolGentufaFormat::Brackets,
+            ToolGentufaFormat::Raw,
+        ] {
+            let grounded = run_tool_gentufa(gentufa_request(format, true))
+                .expect("grounded human gentufa output");
+            let grounded = grounded.stdout_text().expect("UTF-8 gentufa output");
+
+            assert!(
+                grounded.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
+                "{format:?}"
+            );
+            assert!(
+                grounded.contains("\n2. klama | by: officialdata | gismu"),
+                "{format:?}"
+            );
+        }
     }
 }
