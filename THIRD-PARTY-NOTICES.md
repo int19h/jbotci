@@ -11,7 +11,9 @@ redistribute jbotci. It covers:
 1. **Fonts** bundled into the UI, gentufa rendering, and the web asset bundle.
 2. **Reference data** embedded into the binaries (the CLL grammar reference and
    the Lojban dictionary).
-3. **Rust crate dependencies** compiled into the shipped binaries and the web
+3. **Bundled native libraries** — C/C++ code (llama.cpp and its dependencies)
+   compiled directly into the native binaries through a vendored `-sys` crate.
+4. **Rust crate dependencies** compiled into the shipped binaries and the web
    bundle.
 
 Fonts and reference data that live only in the `vendor/cll` submodule for
@@ -179,7 +181,66 @@ public-domain terms.
 
 ---
 
-## 3. Rust crate dependencies
+## 3. Bundled native libraries
+
+The native jbotci binaries include local inference support built on
+[llama.cpp](https://github.com/ggml-org/llama.cpp). This is reached through the
+`llama-cpp-4` / `llama-cpp-sys-4` Rust crates (listed among the Rust
+dependencies below), but the `-sys` crate is vendored at
+`crates/vendor/llama-cpp-sys-4` and **compiles llama.cpp's C/C++ source directly
+into the binary** at build time. That native code carries its own copyright
+notices, which the standard Rust dependency tooling does not capture, so they
+are reproduced here.
+
+The following native components are compiled into and linked with the shipped
+native binaries (the `native-llama` build; the WebAssembly bundle does not
+include them):
+
+- **llama.cpp**, including the **ggml** tensor library —
+  Copyright © 2023–2026 The ggml authors.
+- **nlohmann/json** — bundled within the llama.cpp source tree and compiled into
+  the `common` support library — Copyright © 2013–2025 Niels Lohmann
+  (<https://nlohmann.me>).
+
+Both are distributed under the MIT License:
+
+```
+MIT License
+
+Copyright (c) 2023-2026 The ggml authors
+Copyright (c) 2013-2025 Niels Lohmann <https://nlohmann.me>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+The vendored llama.cpp source tree also contains additional third-party
+libraries (`cpp-httplib` © 2017 yhirose, MIT; `stb` by Sean Barrett, public
+domain / MIT; `miniaudio` by David Reid, public domain / MIT-0; and
+`sheredom` single-file utilities, released to the public domain). These are
+present in source distributions but are **not** compiled into jbotci's default
+native binaries — jbotci builds llama.cpp with the server, examples, tests, and
+multimodal (`mtmd`) targets disabled and with OpenSSL/TLS off — so they are not
+part of the redistributable binaries.
+
+---
+
+## 4. Rust crate dependencies
 
 The jbotci binaries and web bundle statically link a number of third-party Rust
 crates. Every such crate is distributed under a permissive license (variants of
