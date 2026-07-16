@@ -3086,13 +3086,14 @@ pub mod generated_model {
         pub warnings: Vec<SyntaxWarning>,
     }
 
-    #[bityzba::invariant(true)]
+    #[bityzba::invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
     pub(crate) struct GeneratedRecoveredParsedTextAttempt {
         pub result: Result<GeneratedRecoveredParsedText, GeneratedParseFailure>,
         pub trace: Option<TraceReport>,
         pub unconsumed_directives: usize,
         pub recovery_directives: Vec<RecoveryDirective>,
         pub effective_fail_token_indices: Vec<usize>,
+        pub continuation_expectations: Vec<crate::SyntaxExpectation>,
     }
 
     #[bityzba::invariant(true)]
@@ -3300,6 +3301,12 @@ pub mod generated_model {
         recovery_session: &mut GeneratedRecoveryParseSession<'tokens>,
     ) -> GeneratedRecoveredParsedTextAttempt {
         let eoi_offset = parser_tokens.last().map_or(0, |token| token.span.end);
+        // Completion candidates belong to one recovery reading. Reusing memoized
+        // diagnostics across trials would import contexts from abandoned readings
+        // into the trial that ultimately reaches the requested cut.
+        if recovery_session.continuation_sentinel_index.is_some() {
+            recovery_session.memo_session.clear();
+        }
         let memo_trial = recovery_session.memo_session.begin_trial();
         let trial_id = memo_trial.trial_id.get();
         let mut state = ParserState::new_with_recovery(
@@ -3323,6 +3330,11 @@ pub mod generated_model {
                 state.diagnostic_candidates_snapshot(),
             )
         });
+        let continuation_expectations = if recovery_session.continuation_sentinel_index.is_some() {
+            state.continuation_expectations()
+        } else {
+            Vec::new()
+        };
         let finish = state.finish();
         recovery_session.memo_session.finish_trial(trial_id);
         let result = match result {
@@ -3345,13 +3357,14 @@ pub mod generated_model {
                 })
             }
         };
-        GeneratedRecoveredParsedTextAttempt {
+        bityzba::new!(GeneratedRecoveredParsedTextAttempt {
             result,
             trace: finish.trace,
             unconsumed_directives: finish.unconsumed_recovery_directives,
             recovery_directives: finish.recovery_directives,
             effective_fail_token_indices: finish.effective_fail_token_indices,
-        }
+            continuation_expectations,
+        })
     }
 
     #[bityzba::requires(true)]

@@ -3222,7 +3222,9 @@ mod tests {
 
         assert!(contains_expected_token(
             &expectations,
-            &new!(SyntaxExpectedToken::Cmavo(Cmavo::Peho)),
+            &new!(SyntaxExpectedToken::WordCategory(
+                SyntaxWordCategory::SelbriWord,
+            )),
         ));
         assert!(!contains_expected_token(
             &expectations,

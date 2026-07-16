@@ -2291,14 +2291,11 @@ pub(crate) fn expected_continuations(
     }
     let recovered =
         recover_after_strict_failure(tokens, None, options, failure, trace, Some(sentinel_index));
-    recovered
-        .result
-        .errors
-        .iter()
-        .rev()
-        .find(|error| syntax_error_start(error) == cut_byte)
-        .or_else(|| recovered.result.errors.last())
-        .map_or_else(Vec::new, syntax_error_expectations)
+    let data!(RecoveryParseOutcome {
+        recovered: _,
+        continuation_expectations,
+    }) = recovered.into_data();
+    continuation_expectations
 }
 
 #[requires(true)]
@@ -2354,6 +2351,10 @@ pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
     };
 
     let recovered = recover_after_strict_failure(tokens, source, options, failure, trace, None);
+    let data!(RecoveryParseOutcome {
+        recovered,
+        continuation_expectations: _,
+    }) = recovered.into_data();
     SyntaxRecoveryParseAttempt {
         result: new!(SyntaxRecoveryParse::Recovered {
             parse: recovered.result,
@@ -2383,7 +2384,8 @@ fn valid_syntax_recovery_attempt(
 }
 
 #[requires(continuation_sentinel_index.is_none_or(|index| index < tokens.len()))]
-#[ensures(true)]
+#[ensures(!ret.recovered.result.errors.is_empty())]
+#[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 fn recover_after_strict_failure(
     tokens: Vec<Token>,
     source: Option<&str>,
@@ -2391,7 +2393,7 @@ fn recover_after_strict_failure(
     mut failure: generated::generated_model::GeneratedParseFailure,
     mut trace: Option<TraceReport>,
     continuation_sentinel_index: Option<usize>,
-) -> RecoveredSyntaxParseAttempt {
+) -> RecoveryParseOutcome {
     let cap = options.max_recovery_errors.get();
     let parser_tokens = tokens::spanned_tokens(&tokens);
     let recovery_token_scan = RecoveryTokenScan::new(&tokens);
@@ -2406,6 +2408,7 @@ fn recover_after_strict_failure(
     let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
+    let mut continuation_expectations = Vec::new();
 
     while errors.len() < cap {
         let candidates = select_recovery_directives(
@@ -2463,13 +2466,16 @@ fn recover_after_strict_failure(
                     &trial_directives,
                     &mut recovery_session,
                 );
-                let generated::generated_model::GeneratedRecoveredParsedTextAttempt {
-                    result,
-                    trace: attempt_trace,
-                    unconsumed_directives,
-                    recovery_directives: applied_directives,
-                    effective_fail_token_indices: applied_effective_fail_token_indices,
-                } = attempt;
+                let data!(
+                    generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+                        result,
+                        trace: attempt_trace,
+                        unconsumed_directives,
+                        recovery_directives: applied_directives,
+                        effective_fail_token_indices: applied_effective_fail_token_indices,
+                        continuation_expectations: mut attempt_continuation_expectations,
+                    }
+                ) = attempt.into_data();
                 let fired_left_of_declared_failure = applied_directives
                     .last()
                     .zip(applied_effective_fail_token_indices.last())
@@ -2478,12 +2484,26 @@ fn recover_after_strict_failure(
                     });
                 match result {
                     Ok(parsed) if unconsumed_directives == 0 => {
+                        let winning_expectations = if continuation_expectations.is_empty() {
+                            attempt_continuation_expectations
+                        } else {
+                            continuation_expectations.clone()
+                        };
                         if !natural_stop_enabled || fired_left_of_declared_failure {
                             recovery_session.clear_memo();
-                            return recovered_success(parsed, &errors, attempt_trace);
+                            return recovered_success(
+                                parsed,
+                                &errors,
+                                attempt_trace,
+                                winning_expectations,
+                            );
                         }
                         if !directives.is_empty() && exact_position_success.is_none() {
-                            exact_position_success = Some((parsed, attempt_trace));
+                            exact_position_success = Some(new!(RecoverySuccessTrial {
+                                parsed,
+                                trace: attempt_trace,
+                                continuation_expectations: winning_expectations,
+                            }));
                         }
                     }
                     Ok(_) => {
@@ -2502,10 +2522,17 @@ fn recover_after_strict_failure(
                             continue;
                         }
                         if accepted_progress.is_none() {
+                            if continuation_sentinel_index.is_some_and(|sentinel_index| {
+                                next_error_start == recovery_byte_at(&tokens, sentinel_index)
+                            }) {
+                                attempt_continuation_expectations
+                                    .extend(syntax_error_expectations(&next_failure.public_error));
+                            }
                             accepted_progress = Some(new!(RecoveryProgressTrial {
                                 directives: applied_directives,
                                 failure: next_failure,
                                 trace: attempt_trace,
+                                continuation_expectations: attempt_continuation_expectations,
                             }));
                         }
                         if !natural_stop_enabled {
@@ -2520,9 +2547,14 @@ fn recover_after_strict_failure(
         // priority. After prior progress, if none fires left of the next
         // declared failure, a late exact-site success is still a complete
         // recovery and is preferable to degrading the entire parse.
-        if let Some((parsed, attempt_trace)) = exact_position_success {
+        if let Some(success) = exact_position_success {
+            let data!(RecoverySuccessTrial {
+                parsed,
+                trace: attempt_trace,
+                continuation_expectations,
+            }) = success.into_data();
             recovery_session.clear_memo();
-            return recovered_success(parsed, &errors, attempt_trace);
+            return recovered_success(parsed, &errors, attempt_trace, continuation_expectations);
         }
 
         let Some(progress) = accepted_progress else {
@@ -2532,11 +2564,13 @@ fn recover_after_strict_failure(
             directives: trial_directives,
             failure: next_failure,
             trace: progress_trace,
+            continuation_expectations: progress_continuation_expectations,
         }) = progress.into_data();
         directives = trial_directives;
         errors.push(next_failure.public_error.clone());
         failure = next_failure;
         trace = progress_trace;
+        continuation_expectations = progress_continuation_expectations;
     }
 
     if initial_has_anchor_candidates && errors.len() > 1 {
@@ -2555,35 +2589,48 @@ fn recover_after_strict_failure(
 
     recovery_session.clear_memo();
     let parse_tree = degraded_recovered_text(&tokens, source, &errors);
-    RecoveredSyntaxParseAttempt {
-        result: new!(RecoveredSyntaxParse {
-            parse_tree: Box::new(parse_tree),
-            errors,
-            warnings: Vec::new(),
-        }),
-        trace,
+    if continuation_sentinel_index.is_some() && continuation_expectations.is_empty() {
+        continuation_expectations = errors
+            .last()
+            .map_or_else(Vec::new, syntax_error_expectations);
     }
+    new!(RecoveryParseOutcome {
+        recovered: RecoveredSyntaxParseAttempt {
+            result: new!(RecoveredSyntaxParse {
+                parse_tree: Box::new(parse_tree),
+                errors,
+                warnings: Vec::new(),
+            }),
+            trace,
+        },
+        continuation_expectations,
+    })
 }
 
 #[requires(!errors.is_empty())]
-#[ensures(!ret.result.errors.is_empty())]
+#[ensures(!ret.recovered.result.errors.is_empty())]
+#[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 fn recovered_success(
     parsed: generated::generated_model::GeneratedRecoveredParsedText,
     errors: &[SyntaxError],
     trace: Option<TraceReport>,
-) -> RecoveredSyntaxParseAttempt {
-    RecoveredSyntaxParseAttempt {
-        result: new!(RecoveredSyntaxParse {
-            parse_tree: Box::new(parsed.text.into_owned()),
-            errors: errors.to_vec(),
-            warnings: parsed.warnings,
-        }),
-        trace,
-    }
+    continuation_expectations: Vec<SyntaxExpectation>,
+) -> RecoveryParseOutcome {
+    new!(RecoveryParseOutcome {
+        recovered: RecoveredSyntaxParseAttempt {
+            result: new!(RecoveredSyntaxParse {
+                parse_tree: Box::new(parsed.text.into_owned()),
+                errors: errors.to_vec(),
+                warnings: parsed.warnings,
+            }),
+            trace,
+        },
+        continuation_expectations,
+    })
 }
 
 #[requires(!errors.is_empty())]
-#[ensures(ret.as_ref().is_none_or(|attempt| !attempt.result.errors.is_empty()))]
+#[ensures(ret.as_ref().is_none_or(|attempt| !attempt.recovered.result.errors.is_empty()))]
 fn try_final_recovery_from_initial_failure<'tokens>(
     tokens: &[Token],
     source: Option<&str>,
@@ -2592,7 +2639,7 @@ fn try_final_recovery_from_initial_failure<'tokens>(
     errors: &[SyntaxError],
     parser_tokens: &'tokens [SpannedToken],
     recovery_session: &mut generated::generated_model::GeneratedRecoveryParseSession<'tokens>,
-) -> Option<RecoveredSyntaxParseAttempt> {
+) -> Option<RecoveryParseOutcome> {
     for directive in select_final_recovery_directives(tokens, initial_failure, 0) {
         let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
             tokens,
@@ -2602,24 +2649,25 @@ fn try_final_recovery_from_initial_failure<'tokens>(
             std::slice::from_ref(&directive),
             recovery_session,
         );
-        let generated::generated_model::GeneratedRecoveredParsedTextAttempt {
-            result,
-            trace,
-            unconsumed_directives,
-            ..
-        } = attempt;
+        let data!(
+            generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+                result,
+                trace,
+                unconsumed_directives,
+                continuation_expectations,
+                ..
+            }
+        ) = attempt.into_data();
         if let Ok(parsed) = result
             && unconsumed_directives == 0
         {
             recovery_session.clear_memo();
-            return Some(RecoveredSyntaxParseAttempt {
-                result: new!(RecoveredSyntaxParse {
-                    parse_tree: Box::new(parsed.text.into_owned()),
-                    errors: errors.to_vec(),
-                    warnings: parsed.warnings,
-                }),
+            return Some(recovered_success(
+                parsed,
+                errors,
                 trace,
-            });
+                continuation_expectations,
+            ));
         }
     }
     None
@@ -2647,10 +2695,25 @@ struct RecoveryClaim {
 }
 
 #[invariant(!directives.is_empty())]
+#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
 struct RecoveryProgressTrial {
     directives: Vec<RecoveryDirective>,
     failure: generated::generated_model::GeneratedParseFailure,
     trace: Option<TraceReport>,
+    continuation_expectations: Vec<SyntaxExpectation>,
+}
+
+#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+struct RecoverySuccessTrial {
+    parsed: generated::generated_model::GeneratedRecoveredParsedText,
+    trace: Option<TraceReport>,
+    continuation_expectations: Vec<SyntaxExpectation>,
+}
+
+#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+struct RecoveryParseOutcome {
+    recovered: RecoveredSyntaxParseAttempt,
+    continuation_expectations: Vec<SyntaxExpectation>,
 }
 
 #[invariant(cmavo.len() == opens_subtext_container.len())]
