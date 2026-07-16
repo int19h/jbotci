@@ -64,6 +64,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wall-time stats are derived from non-empty iteration measurements by wall_time_stats",
     ),
     (
+        "apps/jbotci/src/lsp.rs:DocumentState",
+        "document state is mutable under the document-store lock and its transition methods enforce text, version, generation, and snapshot coherence",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:DocumentStore",
+        "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:ServerState",
+        "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
+    ),
+    (
+        "apps/jbotci/tests/lsp.rs:LspClient",
+        "protocol test harness permits stdin to become absent during orderly shutdown while ownership of the remaining child handles stays independent",
+    ),
+    (
         "apps/jbotci/tests/support/cli.rs:CapturedCliRun",
         "test helper records CLI process output after run_cli returns a status",
     ),
