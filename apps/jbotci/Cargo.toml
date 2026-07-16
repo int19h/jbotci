@@ -21,6 +21,7 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow.workspace = true
+async-lsp.workspace = true
 bityzba.workspace = true
 clap.workspace = true
 clx.workspace = true
@@ -34,6 +35,7 @@ jbotci-dictionary-data.workspace = true
 jbotci-embeddings = { workspace = true, features = ["native-llama"] }
 jbotci-gentufa.workspace = true
 jbotci-gimfihi.workspace = true
+jbotci-ide.workspace = true
 jbotci-jvozba.workspace = true
 jbotci-morphology.workspace = true
 jbotci-output.workspace = true
@@ -47,7 +49,12 @@ schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 terminal_size.workspace = true
+tokio = { workspace = true, features = ["io-std", "io-util", "time"] }
+tower.workspace = true
 unicode-width.workspace = true
+
+[target.'cfg(not(unix))'.dependencies]
+tokio-util.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true

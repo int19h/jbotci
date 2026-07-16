@@ -1,6 +1,12 @@
+// The LSP moves immutable generated syntax snapshots across the analysis worker
+// boundary. Proving their recursive generated model is `Send + Sync` requires
+// the same kind of deep auto-trait traversal as generating that model itself.
+#![recursion_limit = "2048"]
+
 mod benchmark;
 mod cli;
 mod commands;
+mod lsp;
 mod output;
 mod tool;
 
@@ -235,6 +241,7 @@ pub struct Cli {
 #[invariant(::Cukta(..) => true)]
 #[invariant(::Zbasu(..) => true)]
 #[invariant(::Setup(..) => true)]
+#[invariant(::Lsp => true)]
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
@@ -263,6 +270,9 @@ pub enum Command {
     Zbasu(TextInput),
     #[command(name = "setup")]
     Setup(SetupInput),
+    /// Run the Language Server Protocol server over standard input/output.
+    #[command(name = "lsp")]
+    Lsp,
 }
 
 #[invariant(true)]
