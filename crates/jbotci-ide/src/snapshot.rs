@@ -11,13 +11,16 @@ use jbotci_web_core::{GentufaWebOptions, analyze_gentufa_source};
 use crate::{LineIndex, PositionEncoding, PositionRange};
 
 mod hover;
+mod semantic_tokens;
 
 pub use hover::HoverContent;
+pub use semantic_tokens::{SemanticToken, SemanticTokenKind};
 
 /// Immutable recovery-capable analysis of one document version.
 #[invariant(words.words.len() == word_spans.len(), "every segmented word has one query span")]
 #[invariant(text.len() == line_index.byte_len(), "text and line index byte lengths must agree")]
 #[expensive_invariant(text.as_ref() == line_index.text(), "text and line index content must agree")]
+#[expensive_invariant(semantic_tokens.windows(2).all(|tokens| tokens[0].span.char_end <= tokens[1].span.char_start), "semantic tokens must be in source order and non-overlapping")]
 #[derive(Debug, Clone)]
 pub struct DocumentSnapshot {
     pub text: Arc<str>,
@@ -27,6 +30,7 @@ pub struct DocumentSnapshot {
     pub parse: SyntaxRecoveryParse,
     pub diagnostics: Vec<Diagnostic>,
     word_spans: Vec<SourceSpan>,
+    semantic_tokens: Vec<SemanticToken>,
 }
 
 impl DocumentSnapshot {
@@ -42,6 +46,7 @@ impl DocumentSnapshot {
         let parse = analysis.parse;
         let diagnostics = analysis.diagnostics;
         let word_spans = word_spans(&words.words);
+        let semantic_tokens = semantic_tokens::build_semantic_tokens(&words.words, &word_spans);
         let text: Arc<str> = Arc::from(text);
         let line_index = LineIndex::new(Arc::clone(&text));
         new!(DocumentSnapshot {
@@ -52,6 +57,7 @@ impl DocumentSnapshot {
             parse,
             diagnostics,
             word_spans,
+            semantic_tokens,
         })
     }
 
@@ -87,6 +93,16 @@ impl DocumentSnapshot {
             span,
             index,
         }))
+    }
+
+    /// Iterate morphology-derived semantic tokens in source order.
+    ///
+    /// Token spans stay in source coordinates so transport adapters can resolve
+    /// them through [`LineIndex`] using their negotiated position encoding.
+    #[requires(true)]
+    #[ensures(ret.len() == self.semantic_tokens.len())]
+    pub fn semantic_tokens(&self) -> impl ExactSizeIterator<Item = &SemanticToken> {
+        self.semantic_tokens.iter()
     }
 }
 
@@ -231,6 +247,83 @@ mod tests {
             snapshot.version, -4,
             "document versions are opaque signed values"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_token_fixtures_cover_the_complete_legend() {
+        let fixtures: &[(&str, &[SemanticTokenKind])] = &[
+            ("klama", &[SemanticTokenKind::Gismu]),
+            ("lojybau", &[SemanticTokenKind::Lujvo]),
+            ("djarspageti", &[SemanticTokenKind::Fuhivla]),
+            (".alis.", &[SemanticTokenKind::Cmevla]),
+            ("mi", &[SemanticTokenKind::SumtiWord]),
+            ("go'i", &[SemanticTokenKind::SelbriWord]),
+            ("je", &[SemanticTokenKind::Connective]),
+            ("ku", &[SemanticTokenKind::Terminator]),
+            (
+                "zo klama",
+                &[
+                    SemanticTokenKind::QuotationMarker,
+                    SemanticTokenKind::String,
+                ],
+            ),
+            ("pa", &[SemanticTokenKind::Number]),
+            ("by", &[SemanticTokenKind::Letteral]),
+            ("ui", &[SemanticTokenKind::Attitudinal]),
+            ("pu", &[SemanticTokenKind::TenseModal]),
+            ("cu", &[SemanticTokenKind::Cmavo]),
+            (
+                "zoi gy non-Lojban text gy",
+                &[
+                    SemanticTokenKind::QuotationMarker,
+                    SemanticTokenKind::QuotationMarker,
+                    SemanticTokenKind::String,
+                    SemanticTokenKind::QuotationMarker,
+                ],
+            ),
+        ];
+
+        let mut covered = Vec::new();
+        for (source, expected) in fixtures {
+            let snapshot = DocumentSnapshot::new((*source).to_owned(), 1);
+            let actual = snapshot
+                .semantic_tokens()
+                .map(|token| token.kind)
+                .collect::<Vec<_>>();
+            assert_eq!(actual, *expected, "{source:?}");
+            for kind in actual {
+                if !covered.contains(&kind) {
+                    covered.push(kind);
+                }
+            }
+        }
+        assert!(
+            SemanticTokenKind::ALL
+                .iter()
+                .all(|kind| covered.contains(kind)),
+            "fixtures must exercise every advertised token kind: {covered:?}",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn semantic_tokens_preserve_spaceless_boundaries_and_skip_erased_words() {
+        let snapshot = DocumentSnapshot::new("lenu".to_owned(), 1);
+        let tokens = snapshot.semantic_tokens().collect::<Vec<_>>();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, SemanticTokenKind::SumtiWord);
+        assert_eq!((tokens[0].span.char_start, tokens[0].span.char_end), (0, 2),);
+        assert_eq!(tokens[1].kind, SemanticTokenKind::SelbriWord);
+        assert_eq!((tokens[1].span.char_start, tokens[1].span.char_end), (2, 4),);
+
+        let erased = DocumentSnapshot::new("mi si do".to_owned(), 1);
+        let tokens = erased.semantic_tokens().collect::<Vec<_>>();
+        assert_eq!(tokens.len(), 1, "SI and the word it erases stay unstyled");
+        assert_eq!(tokens[0].kind, SemanticTokenKind::SumtiWord);
+        assert_eq!((tokens[0].span.char_start, tokens[0].span.char_end), (6, 8),);
     }
 
     #[test]
