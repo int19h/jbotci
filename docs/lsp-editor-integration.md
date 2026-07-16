@@ -141,25 +141,29 @@ Producer exists; M1 is mapping. `Diagnostic`
 ## Feature: hover
 
 - **Word at cursor** from the snapshot's segmented word stream via span
-  containment — never from raw text. Hover on any letter of `lenu` identifies
-  the right one of the two words. **Hover range = the word's full span**, so
-  the editor highlights the true word extent.
+  containment — never from raw text. **Hover range = the rendered dictionary
+  unit's full span**: normally one morphology word, the full attested cmavo
+  sequence when that card replaces a constituent, or the full ZEI compound.
 - Content by classification (`Word` / `ValsiAnalysis`):
   - **gismu** — definition with indexed place rendering (the vlacku
     `sumti_places`-style rendering), rafsi, gloss keywords.
   - **lujvo** — veljvo decomposition (already carried by `Word::lujvo(parts)`)
     rendered `rafsi·rafsi → gismu + gismu`; jbovlaste entry if present, else
-    stacked component definitions.
-  - **cmavo sequences** — lead with the hovered constituent's definition and
-    selma'o, then render every dictionary-attested contiguous subsequence that
-    contains it. Contiguity follows the segmented word stream, independent of
-    whitespace or pauses; sequence cards are ordered longest-first, with
-    equal-length sequences in source order.
+    stacked component cards separated by horizontal rules.
+  - **ZEI compounds** — the canonical compound headword and classification;
+    its own dictionary card when attested, otherwise the attested component
+    cards separated by horizontal rules.
+  - **cmavo sequences** — replace the constituent card with only the longest
+    dictionary-attested contiguous sequence that contains it. Contiguity
+    follows the segmented word stream, independent of whitespace or pauses;
+    equal-length candidates retain source order.
   - **fu'ivla** — dictionary entry if present, else morphological
     classification.
   - **cmevla** — classification only (binding info is M2).
   - **Quote payloads** — none inside `zoi`/`la'o` payloads; morphology-only
     inside `lo'u…le'u`.
+- Card headings keep the classification compact on the headword line, including
+  cmavo selma'o; pure layout labels are omitted.
 - Lookup reuses the vlacku pipeline
   (`run_vlacku_requests(dictionary, requests, options) → VlackuSearchOutput`
   cards); the new work is a **card/segments → Markdown renderer** (the existing

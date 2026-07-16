@@ -3,16 +3,16 @@ use std::collections::HashMap;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{LujvoPart, Word, WordKind, WordLike, WordLikeData, canonicalize_text};
-use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_decomposition_markdown};
+use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_headword_markdown};
 use jbotci_search::vlacku::{
     VlackuCard, VlackuCompositionKind, VlackuCompositionPiece, VlackuRequest, VlackuSearchOptions,
-    normalize_word_type_filter, run_vlacku_requests,
+    normalize_word_type_filter, run_vlacku_requests, word_like_lookup_text,
 };
 use jbotci_source::SourceSpan;
 
 use super::DocumentSnapshot;
 
-/// Markdown hover documentation and its full half-open morphology word span.
+/// Markdown hover documentation and its full half-open source span.
 #[invariant(!markdown.is_empty())]
 #[invariant(span.byte_start < span.byte_end && span.char_start < span.char_end)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,11 +29,20 @@ struct HoverWord<'snapshot> {
     semantics: HoverSemantics,
 }
 
-#[invariant(!word.is_empty() && !cards.is_empty())]
+#[invariant(!word.is_empty() && start < end)]
+#[derive(Debug, Clone, PartialEq)]
+struct CmavoSequenceCandidate {
+    word: String,
+    start: usize,
+    end: usize,
+}
+
+#[invariant(!cards.is_empty())]
+#[invariant(span.byte_start < span.byte_end && span.char_start < span.char_end)]
 #[derive(Debug, Clone, PartialEq)]
 struct CmavoSequenceDocumentation {
-    word: String,
     cards: Vec<VlackuCard>,
+    span: SourceSpan,
 }
 
 #[invariant(true)]
@@ -48,32 +57,40 @@ impl DocumentSnapshot {
     ///
     /// The returned source span remains in source coordinates. Callers choose their
     /// position encoding through [`crate::LineIndex`], as they do for diagnostics.
-    /// For a cmavo, dictionary-attested sequences containing that constituent follow
-    /// its lead card longest-first; equal-length sequences retain source order.
+    /// For a cmavo in a dictionary-attested sequence, the longest containing
+    /// sequence replaces the constituent card and supplies the hover span.
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|hover| hover.span.char_start <= char_offset && char_offset < hover.span.char_end))]
     pub fn hover(&self, char_offset: usize) -> Option<HoverContent> {
         let word_at = self.word_at(char_offset)?;
+
+        if matches!(word_at.word.as_data(), data!(WordLike::ZeiCompound { .. })) {
+            return Some(new!(HoverContent {
+                markdown: zei_compound_hover_markdown(word_at.word),
+                span: word_at.span.clone(),
+            }));
+        }
+
         let target =
             hover_word_in_word_like(word_at.word, char_offset, HoverSemantics::Dictionary)?;
-        let mut markdown = match target.semantics {
-            HoverSemantics::Dictionary => dictionary_hover_markdown(target.word),
-            HoverSemantics::MorphologyOnly => word_classification_markdown(target.word),
-        };
-
         if target.semantics == HoverSemantics::Dictionary
             && word_at
                 .word
                 .bare_word()
                 .is_some_and(|word| std::ptr::eq(word, target.word))
+            && let Some(sequence) = self.cmavo_sequence_documentation(word_at.index)
         {
-            for sequence in self.cmavo_sequence_documentation(word_at.index) {
-                markdown.push_str("\n\n---\n\n## Cmavo sequence ");
-                markdown.push_str(&format!("`{}`", sequence.word));
-                markdown.push_str("\n\n");
-                markdown.push_str(&render_vlacku_cards_markdown(&sequence.cards));
-            }
+            let sequence = sequence.into_data();
+            return Some(new!(HoverContent {
+                markdown: render_vlacku_cards_markdown(&sequence.cards),
+                span: sequence.span,
+            }));
         }
+
+        let markdown = match target.semantics {
+            HoverSemantics::Dictionary => dictionary_hover_markdown(target.word),
+            HoverSemantics::MorphologyOnly => word_classification_markdown(target.word),
+        };
 
         Some(new!(HoverContent {
             markdown,
@@ -82,10 +99,11 @@ impl DocumentSnapshot {
     }
 
     #[requires(index < self.words.words.len())]
-    #[ensures(ret.iter().all(|sequence| !sequence.cards.is_empty()))]
-    fn cmavo_sequence_documentation(&self, index: usize) -> Vec<CmavoSequenceDocumentation> {
+    #[ensures(ret.as_ref().is_none_or(|sequence| !sequence.cards.is_empty()))]
+    #[ensures(ret.as_ref().is_none_or(|sequence| sequence.span.char_start <= self.word_spans[index].char_start && self.word_spans[index].char_end <= sequence.span.char_end))]
+    fn cmavo_sequence_documentation(&self, index: usize) -> Option<CmavoSequenceDocumentation> {
         if plain_cmavo_word(&self.words.words[index]).is_none() {
-            return Vec::new();
+            return None;
         }
         let mut run_start = index;
         while run_start > 0 && plain_cmavo_word(&self.words.words[run_start - 1]).is_some() {
@@ -103,11 +121,10 @@ impl DocumentSnapshot {
             cmavo_sequence_candidates(&self.words.words[run_start..run_end], index - run_start);
         let requests = candidates
             .iter()
-            .cloned()
-            .map(VlackuRequest::valsi)
+            .map(|candidate| VlackuRequest::valsi(candidate.word.clone()))
             .collect::<Vec<_>>();
         if requests.is_empty() {
-            return Vec::new();
+            return None;
         }
         let output = run_vlacku_requests(
             jbotci_dictionary_data::english(),
@@ -117,7 +134,7 @@ impl DocumentSnapshot {
         let mut candidate_indexes = HashMap::new();
         for (candidate_index, candidate) in candidates.iter().enumerate() {
             candidate_indexes
-                .entry(candidate.as_str())
+                .entry(candidate.word.as_str())
                 .or_insert(candidate_index);
         }
         let mut card_groups = (0..candidates.len())
@@ -140,18 +157,36 @@ impl DocumentSnapshot {
         candidates
             .into_iter()
             .zip(card_groups)
-            .filter_map(|(word, cards)| {
-                (!cards.is_empty()).then(|| new!(CmavoSequenceDocumentation { word, cards }))
+            .find_map(|(candidate, cards)| {
+                if cards.is_empty() {
+                    return None;
+                }
+                let first = &self.word_spans[run_start + candidate.start];
+                let last = &self.word_spans[run_start + candidate.end - 1];
+                let span = SourceSpan::new(
+                    first.source_id.clone(),
+                    first.byte_start,
+                    last.byte_end,
+                    first.char_start,
+                    last.char_end,
+                )
+                .expect("ordered cmavo words must produce an ordered sequence span");
+                Some(new!(CmavoSequenceDocumentation { cards, span }))
             })
-            .collect()
     }
 }
 
 /// Enumerate every word-stream-contiguous cmavo sequence containing
 /// `hovered_index`, ordered by decreasing constituent count and then source order.
 #[requires(hovered_index < words.len() && words.iter().all(|word| plain_cmavo_word(word).is_some()))]
-#[ensures(ret.iter().all(|candidate| !candidate.is_empty()))]
-fn cmavo_sequence_candidates(words: &[WordLike], hovered_index: usize) -> Vec<String> {
+#[ensures(ret.iter().all(|candidate| !candidate.word.is_empty()
+    && candidate.start <= hovered_index
+    && hovered_index < candidate.end
+    && candidate.end <= words.len()))]
+fn cmavo_sequence_candidates(
+    words: &[WordLike],
+    hovered_index: usize,
+) -> Vec<CmavoSequenceCandidate> {
     let mut candidates = Vec::new();
     for length in (2..=words.len()).rev() {
         let first_start = (hovered_index + 1).saturating_sub(length);
@@ -165,7 +200,11 @@ fn cmavo_sequence_candidates(words: &[WordLike], hovered_index: usize) -> Vec<St
                         .canonical_phonemes(),
                 );
             }
-            candidates.push(candidate);
+            candidates.push(new!(CmavoSequenceCandidate {
+                word: candidate,
+                start,
+                end: start + length,
+            }));
         }
     }
     candidates
@@ -284,6 +323,133 @@ fn inherited_semantics(inherited: HoverSemantics, requested: HoverSemantics) -> 
     }
 }
 
+#[requires(matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })))]
+#[ensures(!ret.is_empty())]
+fn zei_compound_hover_markdown(word_like: &WordLike) -> String {
+    let lookup_text = word_like_headword(word_like);
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[VlackuRequest::valsi(lookup_text.clone())],
+        &hover_vlacku_options(false),
+    );
+    let canonical_lookup = canonicalize_text(&lookup_text);
+    let own_cards = output
+        .cards
+        .into_iter()
+        .filter(|card| card.author.is_some() && canonicalize_text(&card.word) == canonical_lookup)
+        .map(zei_compound_card_for_hover)
+        .collect::<Vec<_>>();
+    if !own_cards.is_empty() {
+        return render_vlacku_cards_markdown(&own_cards);
+    }
+
+    let mut markdown = render_vlacku_headword_markdown(&lookup_text, "ZEI compound", None);
+    let mut component_cards = Vec::new();
+    append_zei_component_cards(word_like, &mut component_cards);
+    if !component_cards.is_empty() {
+        markdown.push_str("\n\n---\n\n");
+        markdown.push_str(&render_vlacku_cards_markdown(&component_cards));
+    }
+    markdown
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn word_like_headword(word_like: &WordLike) -> String {
+    if let Some(lookup_text) = word_like_lookup_text(word_like) {
+        return lookup_text;
+    }
+
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => word.canonical_phonemes(),
+        data!(WordLike::QuotedWord { zo, word }) => {
+            format!("{} {}", zo.canonical_phonemes(), word.canonical_phonemes())
+        }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => format!(
+            "{} {}",
+            mahoi.canonical_phonemes(),
+            word.canonical_phonemes()
+        ),
+        data!(WordLike::DelimitedNonLojbanQuote {
+            zoi,
+            opening_delimiter,
+            quoted_text,
+            closing_delimiter,
+        }) => format!(
+            "{} {} {} {}",
+            zoi.canonical_phonemes(),
+            opening_delimiter.canonical_phonemes(),
+            quoted_text.text,
+            closing_delimiter.canonical_phonemes(),
+        ),
+        data!(WordLike::QuotedWords {
+            lohu,
+            quoted_words,
+            lehu,
+        }) => {
+            let mut headword = lohu.canonical_phonemes();
+            for word in quoted_words {
+                headword.push(' ');
+                headword.push_str(&word.canonical_phonemes());
+            }
+            headword.push(' ');
+            headword.push_str(&lehu.canonical_phonemes());
+            headword
+        }
+        data!(WordLike::DelimitedWordQuote {
+            marker,
+            quoted_text,
+        }) => format!("{} {}", marker.canonical_phonemes(), quoted_text.text),
+        data!(WordLike::LerfuWord { base, bu }) => {
+            format!("{} {}", word_like_headword(base), bu.canonical_phonemes())
+        }
+        data!(WordLike::ZeiCompound { left, right, .. }) => format!(
+            "{} zei {}",
+            word_like_headword(left),
+            right.canonical_phonemes()
+        ),
+    }
+}
+
+#[requires(card.author.is_some())]
+#[ensures(ret.word_type == "ZEI compound")]
+fn zei_compound_card_for_hover(card: VlackuCard) -> VlackuCard {
+    card.with_data(data! {
+        word_type: "ZEI compound".to_owned(),
+    })
+}
+
+#[requires(true)]
+#[ensures(cards.len() >= old(cards.len()))]
+fn append_zei_component_cards(word_like: &WordLike, cards: &mut Vec<VlackuCard>) {
+    match word_like.as_data() {
+        data!(WordLike::ZeiCompound { left, right, .. }) => {
+            append_zei_component_cards(left, cards);
+            cards.extend(dictionary_cards_for_word(right));
+        }
+        _ => cards.extend(dictionary_cards_for_word_like_component(word_like)),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|card| card.author.is_some()))]
+fn dictionary_cards_for_word_like_component(word_like: &WordLike) -> Vec<VlackuCard> {
+    let Some(lookup_text) = word_like_lookup_text(word_like) else {
+        return Vec::new();
+    };
+    let canonical_lookup = canonicalize_text(&lookup_text);
+    let output = run_vlacku_requests(
+        jbotci_dictionary_data::english(),
+        &[VlackuRequest::valsi(lookup_text)],
+        &hover_vlacku_options(false),
+    );
+    output
+        .cards
+        .into_iter()
+        .filter(|card| card.author.is_some() && canonicalize_text(&card.word) == canonical_lookup)
+        .collect()
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn dictionary_hover_markdown(word: &Word) -> String {
@@ -311,36 +477,46 @@ fn lujvo_hover_markdown(word: &Word) -> String {
         &hover_vlacku_options(true),
     );
     let decomposition = morphology_lujvo_decomposition(word, &output.cards);
-    let mut markdown = String::from("**Word type:** lujvo");
-    if !decomposition.is_empty() {
-        markdown.push_str("\n\n**Decomposition:** ");
-        markdown.push_str(&render_vlacku_decomposition_markdown(&decomposition));
-    }
-
     let own_cards = output
         .cards
         .iter()
         .filter(|card| card.author.is_some() && canonicalize_text(&card.word) == lookup_text)
         .cloned()
-        .map(without_decomposition)
+        .map(|card| with_decomposition(card, decomposition.clone()))
         .collect::<Vec<_>>();
-    let cards = if own_cards.is_empty() {
-        markdown.push_str("\n\n**Component definitions**");
-        output
-            .cards
-            .iter()
-            .filter(|card| card.author.is_some() && canonicalize_text(&card.word) != lookup_text)
-            .cloned()
-            .map(without_decomposition)
-            .collect::<Vec<_>>()
-    } else {
+    let cards = if !own_cards.is_empty() {
         own_cards
+    } else {
+        let mut cards = vec![
+            output
+                .cards
+                .iter()
+                .find(|card| canonicalize_text(&card.word) == lookup_text)
+                .cloned()
+                .map(|card| with_decomposition(card, decomposition))
+                .expect("a morphology-valid lujvo search has a classification card"),
+        ];
+        cards.extend(
+            output
+                .cards
+                .iter()
+                .filter(|card| {
+                    card.author.is_some() && canonicalize_text(&card.word) != lookup_text
+                })
+                .cloned()
+                .map(without_decomposition),
+        );
+        cards
     };
-    if !cards.is_empty() {
-        markdown.push_str("\n\n---\n\n");
-        markdown.push_str(&render_vlacku_cards_markdown(&cards));
-    }
-    markdown
+    render_vlacku_cards_markdown(&cards)
+}
+
+#[requires(true)]
+#[ensures(ret.decomposition.len() == old(decomposition.len()))]
+fn with_decomposition(card: VlackuCard, decomposition: Vec<VlackuCompositionPiece>) -> VlackuCard {
+    card.with_data(data! {
+        decomposition: decomposition,
+    })
 }
 
 #[requires(true)]
@@ -387,20 +563,18 @@ fn morphology_lujvo_decomposition(
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn word_classification_markdown(word: &Word) -> String {
-    match word.kind() {
-        WordKind::Cmavo => match word.selmaho() {
-            Some(selmaho) => format!("**Word type:** cmavo\n\n**Selma'o:** `{selmaho}`"),
-            None => "**Word type:** cmavo".to_owned(),
-        },
-        WordKind::Gismu => "**Word type:** gismu".to_owned(),
-        WordKind::Lujvo => "**Word type:** lujvo".to_owned(),
-        WordKind::Fuhivla => "**Word type:** fu'ivla".to_owned(),
-        WordKind::Cmevla => "**Word type:** name word (cmevla)".to_owned(),
-    }
+    let word_type = match word.kind() {
+        WordKind::Cmavo => "cmavo",
+        WordKind::Gismu => "gismu",
+        WordKind::Lujvo => "lujvo",
+        WordKind::Fuhivla => "fu'ivla",
+        WordKind::Cmevla => "name word (cmevla)",
+    };
+    render_vlacku_headword_markdown(&word.canonical_phonemes(), word_type, word.selmaho())
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.iter().all(|card| card.author.is_some()))]
 fn dictionary_cards_for_word(word: &Word) -> Vec<VlackuCard> {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
@@ -441,10 +615,20 @@ mod tests {
     #[ensures(true)]
     fn sequence_candidates_include_every_containing_subsequence_in_documented_order() {
         let snapshot = DocumentSnapshot::new("bi no no vo".to_owned(), 1);
+        let candidates = cmavo_sequence_candidates(&snapshot.words.words, 1);
 
         assert_eq!(
-            cmavo_sequence_candidates(&snapshot.words.words, 1),
-            ["binonovo", "binono", "nonovo", "bino", "nono"],
+            candidates
+                .iter()
+                .map(|candidate| (candidate.word.as_str(), candidate.start, candidate.end))
+                .collect::<Vec<_>>(),
+            [
+                ("binonovo", 0, 4),
+                ("binono", 0, 3),
+                ("nonovo", 1, 4),
+                ("bino", 0, 2),
+                ("nono", 1, 3),
+            ],
         );
     }
 }

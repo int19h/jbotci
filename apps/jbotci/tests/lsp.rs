@@ -336,30 +336,29 @@ fn assert_hover_ranges(position_encoding: &str, le_start: u64, nu_start: u64) {
 
     let le = hover(&mut client, URI, le_start);
     assert_eq!(le["contents"]["kind"], "markdown");
-    assert!(
-        le["contents"]["value"]
-            .as_str()
-            .is_some_and(|markdown| markdown.contains("### `le`"))
+    assert_eq!(
+        le["contents"]["value"],
+        concat!(
+            "### `lenu` — *cmavo sequence* · **LE\\***\n\n",
+            "specific event descriptor: contraction of {le nu} and identical in meaning.\n\n",
+            "**Glosses:** `the specific event of`",
+        ),
     );
     assert_eq!(
         le["range"],
         json!({
             "start": { "line": 0, "character": le_start },
-            "end": { "line": 0, "character": le_start + 2 }
+            "end": { "line": 0, "character": nu_start + 2 }
         })
     );
 
     let nu = hover(&mut client, URI, nu_start);
     assert_eq!(nu["contents"]["kind"], "markdown");
-    assert!(
-        nu["contents"]["value"]
-            .as_str()
-            .is_some_and(|markdown| markdown.contains("### `nu`"))
-    );
+    assert_eq!(nu["contents"]["value"], le["contents"]["value"]);
     assert_eq!(
         nu["range"],
         json!({
-            "start": { "line": 0, "character": nu_start },
+            "start": { "line": 0, "character": le_start },
             "end": { "line": 0, "character": nu_start + 2 }
         })
     );
@@ -487,15 +486,46 @@ fn pull_diagnostics_fall_back_to_utf16_and_apply_utf16_edits() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn hover_uses_utf8_ranges_and_distinguishes_spaceless_words() {
+fn hover_uses_utf8_ranges_for_a_spaceless_sequence() {
     assert_hover_ranges("utf-8", 18, 20);
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn hover_uses_utf16_ranges_and_distinguishes_spaceless_words() {
+fn hover_uses_utf16_ranges_for_a_spaceless_sequence() {
     assert_hover_ranges("utf-16", 15, 17);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn hover_round_trip_exposes_compact_zei_compound_markdown() {
+    const URI: &str = "file:///hover-compact.jbo";
+    const TEXT: &str = "gleki zei py.";
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, URI, 1, TEXT);
+
+    let result = hover(&mut client, URI, 1);
+    assert_eq!(result["contents"]["kind"], "markdown");
+    let markdown = result["contents"]["value"]
+        .as_str()
+        .expect("hover contents are Markdown text");
+    assert!(markdown.starts_with("### `gleki zei py` — *ZEI compound*\n\n---\n\n"));
+    assert!(markdown.contains("### `gleki` — *gismu*"));
+    assert!(markdown.contains("\n\n---\n\n### `py` — *cmavo* · **BY2**"));
+    assert!(!markdown.contains("**Word type:**"));
+    assert!(!markdown.contains("Component definitions"));
+    assert_eq!(
+        result["range"],
+        json!({
+            "start": { "line": 0, "character": 0 },
+            "end": { "line": 0, "character": 12 }
+        }),
+    );
+    client.shutdown();
 }
 
 #[test]
