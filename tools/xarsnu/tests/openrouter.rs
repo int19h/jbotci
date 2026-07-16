@@ -137,6 +137,26 @@ fn write_json_response(stream: &mut TcpStream, response: MockResponse) {
 #[requires(cost.is_finite() && cost >= 0.0)]
 #[ensures(ret.status == 200)]
 fn tool_call_response(name: &str, cost: f64) -> MockResponse {
+    tool_calls_response(&[name], cost)
+}
+
+#[requires(!names.is_empty() && names.iter().all(|name| !name.trim().is_empty()))]
+#[requires(cost.is_finite() && cost >= 0.0)]
+#[ensures(ret.status == 200)]
+fn tool_calls_response(names: &[&str], cost: f64) -> MockResponse {
+    let tool_calls = names
+        .iter()
+        .map(|name| {
+            json!({
+                "id": format!("call-{name}"),
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "arguments": "{\"value\":1}"
+                }
+            })
+        })
+        .collect::<Vec<_>>();
     MockResponse {
         status: 200,
         body: json!({
@@ -144,14 +164,7 @@ fn tool_call_response(name: &str, cost: f64) -> MockResponse {
                 "message": {
                     "role": "assistant",
                     "content": null,
-                    "tool_calls": [{
-                        "id": format!("call-{name}"),
-                        "type": "function",
-                        "function": {
-                            "name": name,
-                            "arguments": "{\"value\":1}"
-                        }
-                    }]
+                    "tool_calls": tool_calls
                 }
             }],
             "usage": {
@@ -245,6 +258,23 @@ impl ToolDispatcher for ExactDispatcher {
     }
 }
 
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct FirstCallFails {
+    attempts: usize,
+}
+
+#[contract_trait]
+impl ToolDispatcher for FirstCallFails {
+    fn dispatch(&mut self, call: &ToolCall) -> Result<String, ToolDispatchError> {
+        self.attempts += 1;
+        Err(ToolDispatchError::new(
+            call.function.name.clone(),
+            "deliberate test failure".to_owned(),
+        ))
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -276,6 +306,7 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     assert_eq!(accounting.usage().cost_usd, 0.125);
     let captured = server.finish();
     assert_eq!(captured[0].body["tool_choice"], "required");
+    assert_eq!(captured[0].body["usage"], json!({ "include": true }));
 }
 
 #[test]
@@ -311,6 +342,152 @@ fn required_prose_is_correctively_reprompted_before_success() {
             && message["content"]
                 .as_str()
                 .is_some_and(|content| content.contains("must respond by calling"))
+    }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn invalid_arguments_reprompt_answers_every_tool_call_id() {
+    let server = MockServer::start(vec![
+        MockResponse {
+            status: 200,
+            body: json!({
+                "choices": [{
+                    "message": {
+                        "role": "assistant",
+                        "content": null,
+                        "tool_calls": [
+                            {
+                                "id": "call-malformed",
+                                "type": "function",
+                                "function": {
+                                    "name": "alpha",
+                                    "arguments": "{"
+                                }
+                            },
+                            {
+                                "id": "call-not-object",
+                                "type": "function",
+                                "function": {
+                                    "name": "beta",
+                                    "arguments": "[]"
+                                }
+                            }
+                        ]
+                    }
+                }],
+                "usage": {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 2,
+                    "total_tokens": 5,
+                    "cost": 0.01
+                }
+            }),
+        },
+        tool_call_response("alpha", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let tools = [tool("alpha").expect("alpha"), tool("beta").expect("beta")];
+    let turn = conversation
+        .request(&client, &tools, ToolChoice::Required, &mut accounting)
+        .expect("invalid arguments are corrected by tool results");
+    assert!(turn.tool_calls().is_some());
+
+    // Assert against the reprompt body received by the server. Retrying with
+    // bare user prose or omitting either call id necessarily fails this test.
+    let captured = server.finish();
+    let messages = captured[1].body["messages"]
+        .as_array()
+        .expect("reprompt messages");
+    let tool_messages = messages
+        .iter()
+        .filter(|message| message["role"] == "tool")
+        .collect::<Vec<_>>();
+    assert_eq!(tool_messages.len(), 2);
+    let malformed = tool_messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "call-malformed")
+        .expect("malformed call result");
+    assert!(
+        malformed["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("invalid call to tool `alpha`"))
+    );
+    let not_object = tool_messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "call-not-object")
+        .expect("non-object call result");
+    assert!(
+        not_object["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("must encode a JSON object"))
+    );
+    assert!(!messages.iter().any(|message| {
+        message["role"] == "user"
+            && message["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("must respond by calling"))
+    }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn dispatcher_failure_answers_failed_and_remaining_call_ids() {
+    let server = MockServer::start(vec![
+        tool_calls_response(&["alpha", "beta", "gamma"], 0.01),
+        tool_call_response("alpha", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let tools = [
+        tool("alpha").expect("alpha"),
+        tool("beta").expect("beta"),
+        tool("gamma").expect("gamma"),
+    ];
+    let first = conversation
+        .request(&client, &tools, ToolChoice::Required, &mut accounting)
+        .expect("first tool-call turn");
+    let mut dispatcher = FirstCallFails::default();
+    let error = conversation
+        .dispatch_tool_calls(first.tool_calls().expect("tool calls"), &mut dispatcher)
+        .expect_err("first dispatch must fail");
+    assert_eq!(dispatcher.attempts, 1, "remaining tools are not executed");
+    assert_eq!(error.tool_name, "alpha");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("alpha")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("answered call ids leave the conversation reusable");
+    let captured = server.finish();
+    let messages = captured[1].body["messages"]
+        .as_array()
+        .expect("second request messages");
+    let tool_messages = messages
+        .iter()
+        .filter(|message| message["role"] == "tool")
+        .collect::<Vec<_>>();
+    assert_eq!(tool_messages.len(), 3);
+    assert_eq!(tool_messages[0]["tool_call_id"], "call-alpha");
+    assert_eq!(tool_messages[1]["tool_call_id"], "call-beta");
+    assert_eq!(tool_messages[2]["tool_call_id"], "call-gamma");
+    assert!(
+        tool_messages[0]["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("deliberate test failure"))
+    );
+    assert!(tool_messages[1..].iter().all(|message| {
+        message["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("earlier tool call failed"))
     }));
 }
 

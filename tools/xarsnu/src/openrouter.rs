@@ -13,6 +13,7 @@ use thiserror::Error;
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
+const SKIPPED_INVALID_BATCH_CALL: &str = "This tool call was not executed because another tool call in the same response had invalid arguments.";
 
 /// Whether the model may answer with prose or must select a tool.
 #[invariant(::Auto => true)]
@@ -491,6 +492,7 @@ impl OpenRouterClient {
             messages,
             tools,
             tool_choice,
+            usage: new!(CompletionUsageRequest { include: true }),
         };
         let url = format!(
             "{}/chat/completions",
@@ -771,6 +773,19 @@ impl ParticipantConversation {
                 return Ok(new!(ModelTurn::Aborted { record }));
             }
             let invalid_call = tool_calls.iter().find_map(|call| call.arguments().err());
+            if invalid_call.is_some() {
+                for call in &tool_calls {
+                    let content = call.arguments().map_or_else(
+                        |error| error.to_string(),
+                        |_| SKIPPED_INVALID_BATCH_CALL.to_owned(),
+                    );
+                    self.messages.push(ChatMessage::tool(
+                        call.id.clone(),
+                        call.function.name.clone(),
+                        content,
+                    ));
+                }
+            }
             if !tool_calls.is_empty() && invalid_call.is_none() {
                 return Ok(new!(ModelTurn::ToolCalls { calls: tool_calls }));
             }
@@ -789,8 +804,10 @@ impl ParticipantConversation {
                     attempts: reprompts + 1,
                 });
             }
-            self.messages
-                .push(ChatMessage::user(REQUIRED_TOOL_CORRECTION.to_owned()));
+            if tool_calls.is_empty() {
+                self.messages
+                    .push(ChatMessage::user(REQUIRED_TOOL_CORRECTION.to_owned()));
+            }
             reprompts += 1;
         }
     }
@@ -803,13 +820,32 @@ impl ParticipantConversation {
         calls: &[ToolCall],
         dispatcher: &mut impl ToolDispatcher,
     ) -> Result<(), ToolDispatchError> {
-        for call in calls {
-            let content = dispatcher.dispatch(call)?;
-            self.messages.push(ChatMessage::tool(
-                call.id.clone(),
-                call.function.name.clone(),
-                content,
-            ));
+        for (index, call) in calls.iter().enumerate() {
+            match dispatcher.dispatch(call) {
+                Ok(content) => self.messages.push(ChatMessage::tool(
+                    call.id.clone(),
+                    call.function.name.clone(),
+                    content,
+                )),
+                Err(error) => {
+                    let failure = error.to_string();
+                    self.messages.push(ChatMessage::tool(
+                        call.id.clone(),
+                        call.function.name.clone(),
+                        failure.clone(),
+                    ));
+                    for remaining in &calls[index + 1..] {
+                        self.messages.push(ChatMessage::tool(
+                            remaining.id.clone(),
+                            remaining.function.name.clone(),
+                            format!(
+                                "This tool call was not executed because an earlier tool call failed: {failure}"
+                            ),
+                        ));
+                    }
+                    return Err(error);
+                }
+            }
         }
         Ok(())
     }
@@ -857,6 +893,13 @@ struct CompletionRequest<'a> {
     messages: &'a [ChatMessage],
     tools: &'a [ToolDefinition],
     tool_choice: ToolChoice,
+    usage: CompletionUsageRequest,
+}
+
+#[invariant(*include, "usage accounting must be explicitly requested")]
+#[derive(Debug, Serialize)]
+struct CompletionUsageRequest {
+    include: bool,
 }
 
 #[invariant(true)]
