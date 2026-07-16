@@ -150,8 +150,11 @@ Producer exists; M1 is mapping. `Diagnostic`
   - **lujvo** — veljvo decomposition (already carried by `Word::lujvo(parts)`)
     rendered `rafsi·rafsi → gismu + gismu`; jbovlaste entry if present, else
     stacked component definitions.
-  - **cmavo / compound cmavo** — definition + selma'o; one section per
-    constituent for compounds the segmenter splits.
+  - **cmavo sequences** — lead with the hovered constituent's definition and
+    selma'o, then render every dictionary-attested contiguous subsequence that
+    contains it. Contiguity follows the segmented word stream, independent of
+    whitespace or pauses; sequence cards are ordered longest-first, with
+    equal-length sequences in source order.
   - **fu'ivla** — dictionary entry if present, else morphological
     classification.
   - **cmevla** — classification only (binding info is M2).

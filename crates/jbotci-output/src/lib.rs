@@ -3,6 +3,7 @@
 mod brackets;
 mod diagnostics;
 mod json;
+mod markdown;
 mod places;
 pub mod qr_code;
 mod recovered;
@@ -23,6 +24,12 @@ use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 pub use jbotci_orthography::LojbanScript;
 use jbotci_syntax::TextSyntax;
+pub use markdown::{
+    DEFAULT_MARKDOWN_LINK_BASE, render_diagnostic_text_segments_markdown,
+    render_diagnostic_text_segments_markdown_with_link_base, render_vlacku_card_markdown,
+    render_vlacku_card_markdown_with_link_base, render_vlacku_cards_markdown,
+    render_vlacku_cards_markdown_with_link_base, render_vlacku_decomposition_markdown,
+};
 use owo_colors::OwoColorize;
 pub use places::{
     IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
