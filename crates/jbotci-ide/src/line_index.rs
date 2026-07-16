@@ -4,6 +4,9 @@ use std::sync::Arc;
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_source::{SourceId, SourceSpan};
 
+/// Largest line or column value representable by the LSP `uinteger` domain.
+pub const MAX_POSITION_VALUE: usize = 2_147_483_647;
+
 /// Column-unit encoding for zero-based editor positions.
 #[invariant(true, "all position encodings are valid")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,7 +20,8 @@ pub enum PositionEncoding {
 }
 
 /// A zero-based line and column position in a caller-selected encoding.
-#[invariant(true, "every zero-based line and column pair is a valid clamped input")]
+#[invariant(*line <= MAX_POSITION_VALUE, "line must fit the LSP uinteger domain")]
+#[invariant(*column <= MAX_POSITION_VALUE, "column must fit the LSP uinteger domain")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Position {
     pub line: usize,
@@ -26,9 +30,13 @@ pub struct Position {
 
 impl Position {
     #[requires(true)]
-    #[ensures(ret.line == line && ret.column == column)]
+    #[ensures(ret.line == line.min(MAX_POSITION_VALUE))]
+    #[ensures(ret.column == column.min(MAX_POSITION_VALUE))]
     pub fn new(line: usize, column: usize) -> Self {
-        Position { line, column }
+        new!(Position {
+            line: line.min(MAX_POSITION_VALUE),
+            column: column.min(MAX_POSITION_VALUE),
+        })
     }
 }
 
@@ -49,12 +57,22 @@ impl PositionRange {
 }
 
 /// Equivalent offsets at a Unicode scalar boundary in one document.
-#[invariant(true, "cross-encoding consistency is relative to the owning LineIndex")]
+#[invariant(byte >= char, "a UTF-8 byte offset cannot precede its scalar offset")]
+#[invariant(utf16 >= char, "a UTF-16 offset cannot precede its scalar offset")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextOffsets {
     pub byte: usize,
     pub char: usize,
     pub utf16: usize,
+}
+
+impl TextOffsets {
+    #[requires(byte >= char)]
+    #[requires(utf16 >= char)]
+    #[ensures(ret.byte == byte && ret.char == char && ret.utf16 == utf16)]
+    pub fn new(byte: usize, char: usize, utf16: usize) -> Self {
+        new!(TextOffsets { byte, char, utf16 })
+    }
 }
 
 #[invariant(byte_start <= byte_end && byte_end <= byte_next)]
@@ -399,7 +417,7 @@ impl LineIndex {
             utf16 += character.len_utf16();
         }
 
-        TextOffsets { byte, char, utf16 }
+        TextOffsets::new(byte, char, utf16)
     }
 
     #[requires(offsets.byte <= self.byte_len() && offsets.char <= self.char_len() && offsets.utf16 <= self.utf16_len())]
@@ -420,10 +438,7 @@ impl LineIndex {
                 PositionEncoding::Utf32 => offsets.char - line.char_start,
             }
         };
-        Position {
-            line: line_number,
-            column,
-        }
+        Position::new(line_number, column)
     }
 
     #[requires(byte_offset <= self.byte_len())]
@@ -463,11 +478,7 @@ impl LineIndex {
     #[requires(true)]
     #[ensures(ret.byte == self.byte_len() && ret.char == self.char_len() && ret.utf16 == self.utf16_len())]
     fn document_end(&self) -> TextOffsets {
-        TextOffsets {
-            byte: self.byte_len(),
-            char: self.char_len(),
-            utf16: self.utf16_len(),
-        }
+        TextOffsets::new(self.byte_len(), self.char_len(), self.utf16_len())
     }
 }
 
@@ -496,7 +507,7 @@ mod tests {
     fn assert_round_trip_properties(source: &str) {
         let index = LineIndex::new(Arc::from(source));
         for (byte, char, utf16) in scalar_boundaries(source) {
-            let expected = TextOffsets { byte, char, utf16 };
+            let expected = TextOffsets::new(byte, char, utf16);
             assert_eq!(
                 index.offsets_for_byte(byte),
                 expected,
@@ -575,19 +586,11 @@ mod tests {
         assert_eq!(index.line_count(), 4);
         assert_eq!(
             index.offsets_for_position(Position::new(0, usize::MAX), PositionEncoding::Utf16),
-            TextOffsets {
-                byte: 1,
-                char: 1,
-                utf16: 1
-            }
+            TextOffsets::new(1, 1, 1)
         );
         assert_eq!(
             index.offsets_for_position(Position::new(99, 7), PositionEncoding::Utf8),
-            TextOffsets {
-                byte: 7,
-                char: 7,
-                utf16: 7
-            }
+            TextOffsets::new(7, 7, 7)
         );
         assert_eq!(
             index.position_for_byte(2, PositionEncoding::Utf16),
@@ -603,19 +606,11 @@ mod tests {
         let index = LineIndex::new(Arc::from("«𝙰"));
         assert_eq!(
             index.offsets_for_position(Position::new(0, 1), PositionEncoding::Utf8),
-            TextOffsets {
-                byte: 0,
-                char: 0,
-                utf16: 0
-            }
+            TextOffsets::new(0, 0, 0)
         );
         assert_eq!(
             index.offsets_for_position(Position::new(0, 2), PositionEncoding::Utf16),
-            TextOffsets {
-                byte: 2,
-                char: 1,
-                utf16: 1
-            }
+            TextOffsets::new(2, 1, 1)
         );
     }
 

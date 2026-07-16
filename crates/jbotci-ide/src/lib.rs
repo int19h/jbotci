@@ -3,5 +3,7 @@
 mod line_index;
 mod snapshot;
 
-pub use line_index::{LineIndex, Position, PositionEncoding, PositionRange, TextOffsets};
+pub use line_index::{
+    LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, TextOffsets,
+};
 pub use snapshot::{DocumentSnapshot, ResolvedDiagnostic, ResolvedLabel, WordAt};
