@@ -43,8 +43,7 @@ pub enum CompletionInterpretation {
 /// This remains part of the result even when multiple expectations expand to
 /// the same spelling. For example, `i` is both a BY letter word and the I
 /// statement separator; callers must be able to distinguish those meanings.
-#[invariant(::Expected { .. } => true)]
-#[invariant(::UnfilteredQuote => true)]
+#[invariant(::Expected { token } => !token.summary_text().is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CompletionProvenance {
     Expected { token: SyntaxExpectedToken },
@@ -414,9 +413,9 @@ impl CompletionBuilder<'_, '_, '_> {
         token: &SyntaxExpectedToken,
         reason: &SyntaxExpectationReason,
     ) {
-        let provenance = CompletionProvenance::Expected {
+        let provenance = new!(CompletionProvenance::Expected {
             token: token.clone(),
-        };
+        });
         match token.as_data() {
             data!(SyntaxExpectedToken::Cmavo(cmavo)) => {
                 self.add_cmavo(*cmavo, CompletionKind::Cmavo, reason, &provenance);
@@ -452,7 +451,7 @@ impl CompletionBuilder<'_, '_, '_> {
     #[requires(true)]
     #[ensures(true)]
     fn add_unfiltered_candidates(&mut self, reason: SyntaxExpectationReason) {
-        let provenance = CompletionProvenance::UnfilteredQuote;
+        let provenance = new!(CompletionProvenance::UnfilteredQuote);
         for cmavo in Cmavo::ALL {
             self.add_cmavo(*cmavo, CompletionKind::Cmavo, &reason, &provenance);
         }
@@ -711,7 +710,7 @@ mod tests {
         if item.label != "i" {
             return false;
         }
-        let CompletionProvenance::Expected { token } = &item.provenance else {
+        let data!(CompletionProvenance::Expected { token }) = item.provenance.as_data() else {
             return false;
         };
         matches!(
