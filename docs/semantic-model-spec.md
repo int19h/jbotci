@@ -1527,7 +1527,12 @@ The relevant wrappers are:
 - `SEI [terms [CU]] selbri SEhU`, which is a metalinguistic bridi with a
   restricted surface syntax but ordinary predication semantics.
 
-The wrapper determines how the visible x1 or output value is supplied:
+The wrapper determines how the visible x1 or output value is supplied.  A
+tanru-unit without linked sumti exposes its converted base x1 as visible x1.
+When the unit carries a `be`/`bei` group, visible x1 instead means the first
+exposed place of the completed curried unit: the first converted, non-deleted
+base place not assigned inside that linkargs group.  The following wrappers
+therefore bind the curried unit, not base x1 unconditionally:
 
 - `le broda` uses the structural `skicu(speaker, referent, audience,
   ka ce'u broda)` characterization; `broda` is inside the `ka` body, not
@@ -1548,6 +1553,86 @@ The wrapper determines how the visible x1 or output value is supplied:
   still be represented structurally rather than as opaque text.
 - `sei ... <selbri>` builds a nested metalinguistic utterance or aside whose
   content is the lowered bridi body.
+
+#### linked-unit currying
+
+A tanru-unit atom denotes a predicate over its converted base places.  Apply
+SE, JAI/`fai`, NAhE scalar handling, and `zi'o` deletion before interpreting
+its linked sumti.  A single `be`/`bei` group then builds one partial assignment
+sigma over those base places:
+
+- an untagged first link assigns base x2;
+- each untagged `bei` continuation assigns the smallest unassigned base place
+  greater than the preceding link's target, following the CLL 9.3 skip
+  proviso;
+- a FA-tagged link assigns the named base place (`fa` through `fu`), with `fai`
+  addressing the JAI-displaced place in the converted structure; and
+- an explicitly tagged link may assign a place already assigned in the same
+  group.  This is the CLL 9.16 multi-claim case: lower the alternatives as a
+  conjunction and attach a warning diagnostic.
+
+CLL 5.7 deliberately omits `fa` from the tags available on linked sumti.
+`be fa` behavior is therefore a jbotci semantic ruling, not a consequence of
+that CLL rule.
+
+Numbering remains base-frame numbering throughout the entire linkargs group;
+do not renumber between `be` and a later `bei`.  Renumber exactly once after
+the batch assignment is complete.  The resulting curried predicate exposes
+the unassigned, non-deleted base places in base order as exposed x1 through
+xN.  Everything outside the group uses that exposed frame: untagged bridi
+terms fill it in order, bridi-level FA refers to exposed places, description
+and quantified-selbri heads and tanru-modifier parameters bind exposed x1, and
+an outer SE over a grouped unit permutes exposed places.  Public predication
+arguments nevertheless retain base-frame keys, so rendering continues to show
+`x1`, `x2`, and so on from the underlying predicate.
+
+If the linkargs group saturates every base place but an implicit head is still
+required, fall back to a multi-claim on base x1 and attach a saturation
+diagnostic.  Retain arguments beyond the known base arity and attach an
+overflow diagnostic.  An explicit linked `ce'u` is an ordinary linked
+argument, not a request to designate the head; retain it and attach a
+diagnostic.
+
+For example, `le nenri be fa lo xirma cu barda` assigns the horse to base x1
+inside the linkargs group.  The description parameter therefore binds exposed
+x1, which is base x2.  The description contains one `nenri` predication and no
+collision conjunction; the described referent used by `barda` is characterized
+by the relation containing that same parameter:
+
+```json
+{
+  "parameter:41": {
+    "type": "parameter",
+    "sort": "entity",
+    "role": "propertySlot",
+    "introducedBy": "ce'u"
+  },
+  "predication:42": {
+    "type": "predication",
+    "relation": "nenri",
+    "arguments": {
+      "x1": { "kind": "filled", "value": "entity:40" },
+      "x2": { "kind": "filled", "value": "parameter:41" }
+    },
+    "mode": "restrictive"
+  },
+  "relation:44": {
+    "type": "referent",
+    "sort": "relation",
+    "parameters": ["parameter:41"],
+    "arity": 1,
+    "body": "formula:43"
+  },
+  "predication:47": {
+    "type": "predication",
+    "relation": "barda",
+    "arguments": {
+      "x1": { "kind": "filled", "value": "entity:45" }
+    },
+    "mode": "asserted"
+  }
+}
+```
 
 When a wrapper needs a relation-valued object rather than an immediate
 predication body, use a relation-sorted referent with `relationKind = "selbri"`,
@@ -2725,7 +2810,10 @@ unfilled surface place as an implicit property focus.  Emit the same kind of
 parameter inside the body formula, with `introducedBy = "implicit ce'u"`.
 Surface place order matters after conversion: `ka se risna` fills the raw
 `risna` x2 slot, because that is the visible x1 of `se risna`, while raw
-`risna` x1 remains an elided heart.
+`risna` x1 remains an elided heart.  Description heads, bare quantified-selbri
+variables, and tanru-modifier heads follow this same first-unfilled-place rule;
+linked-unit currying generalizes it by removing every place assigned by the
+completed `be`/`bei` group before selecting visible x1.
 
 ```json
 {

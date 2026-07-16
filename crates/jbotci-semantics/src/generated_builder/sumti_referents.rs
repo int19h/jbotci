@@ -8903,7 +8903,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             linkargs,
             2,
             place_count,
-            GeneratedLinkargsApplicationContext::Ordinary,
+            None,
         )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
@@ -8924,8 +8924,40 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .filter(|tense_modal| generated_tense_modal_has_event_modifier(*tense_modal))
             .map(|_| referent);
         let visible_x1_place = mapped_place_for_generated_conversions(1, &atom.conversions)?;
+        let visible_x1_key = argument_key(visible_x1_place);
+        let mut prepared_arguments = Vec::with_capacity(visible_argument_branches.len());
+        for visible_arguments in visible_argument_branches {
+            let mut arguments = BTreeMap::new();
+            for (visible_place, argument) in visible_arguments {
+                let place =
+                    mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+                let key = argument_key(place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated restrictive jai arguments map to {key}"
+                    )));
+                }
+            }
+            if !arguments.contains_key(&visible_x1_key) {
+                arguments.insert(
+                    visible_x1_key.clone(),
+                    self.build_elided_argument_for_place(visible_x1_place)?,
+                );
+            }
+            prepared_arguments.push(arguments);
+        }
         let jai_modal_argument =
             self.build_generated_jai_modal_argument_for_argument_object(jai_unit, referent)?;
+        for arguments in &mut prepared_arguments {
+            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(visible_x1_place));
+            for place in 1..=place_limit.max(highest_argument).max(visible_x1_place) {
+                let key = argument_key(place);
+                if !arguments.contains_key(&key) {
+                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                }
+            }
+        }
         let source = self.source_for_node(selbri, "restrictive-predication");
         let eventuality = self.build_eventuality(source.clone())?;
         self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
@@ -8945,34 +8977,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
         )?;
         let formula_source = self.source_for_node(selbri, "restrictive-formula");
-        let mut formulas = Vec::with_capacity(visible_argument_branches.len());
-        for visible_arguments in visible_argument_branches {
-            let mut arguments = BTreeMap::new();
-            for (visible_place, argument) in visible_arguments {
-                let place =
-                    mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
-                let key = argument_key(place);
-                if arguments.insert(key.clone(), argument).is_some() {
-                    return Err(invalid_graph(format!(
-                        "multiple generated restrictive jai arguments map to {key}"
-                    )));
-                }
-            }
-            let visible_x1_key = argument_key(visible_x1_place);
-            if !arguments.contains_key(&visible_x1_key) {
-                arguments.insert(
-                    visible_x1_key,
-                    self.build_elided_argument_for_place(visible_x1_place)?,
-                );
-            }
-            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(visible_x1_place));
-            for place in 1..=place_limit.max(highest_argument).max(visible_x1_place) {
-                let key = argument_key(place);
-                if !arguments.contains_key(&key) {
-                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
-                }
-            }
+        let mut formulas = Vec::with_capacity(prepared_arguments.len());
+        for arguments in prepared_arguments {
             let mut branch_modal_arguments = modal_arguments.clone();
             if let Some(mut modal_argument) = jai_modal_argument.clone() {
                 self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);

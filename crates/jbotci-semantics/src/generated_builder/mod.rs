@@ -897,6 +897,7 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 
 #[invariant(numbered_argument_choices.iter().all(|(place, choices)| *place > 0 && !choices.is_empty()), "every linked numbered place has at least one argument choice")]
 #[invariant(explicit_multi_claim_places.iter().all(|place| numbered_argument_choices.get(place).is_some_and(|choices| choices.len() > 1)), "every recorded explicit multi-claim place has multiple choices")]
+#[invariant(*first_visible_place > 0, "the linked argument frame starts at a valid place")]
 #[invariant(*next_visible_place > 0, "the continuation cursor always names a valid place")]
 #[derive(Debug, Clone)]
 struct GeneratedLinkargsAssignments<'syntax> {
@@ -904,6 +905,7 @@ struct GeneratedLinkargsAssignments<'syntax> {
     modal_arguments: Vec<ModalArgument>,
     event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    first_visible_place: usize,
     next_visible_place: usize,
     explicit_multi_claim_places: BTreeSet<usize>,
     contains_explicit_cehu: bool,
@@ -924,12 +926,26 @@ struct GeneratedLinkargsArgumentBranches<'syntax> {
     saturated_head_fallback: bool,
 }
 
-#[invariant(::Ordinary => true)]
-#[invariant(::ImplicitHead => true)]
+#[invariant(arguments.keys().all(|place| place.get() > 0), "prepared predication arguments use valid base places")]
+#[invariant(jai_visible_arguments.as_ref().is_none_or(|arguments| arguments.keys().all(|place| *place > 0)), "prepared JAI arguments use valid visible places")]
+#[derive(Debug)]
+struct GeneratedPreparedArgumentBranch {
+    arguments: BTreeMap<PlaceIndex, ArgumentValue>,
+    jai_visible_arguments: Option<BTreeMap<usize, ArgumentValue>>,
+}
+
+#[invariant(*exposed_place == 1, "the implicit predicate head occupies the first exposed place")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum GeneratedLinkargsApplicationContext {
-    Ordinary,
-    ImplicitHead,
+struct GeneratedImplicitHeadPlacement {
+    exposed_place: usize,
+}
+
+#[invariant(existing.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Referent && eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))), "an existing predication eventuality has an eventuality sort")]
+#[invariant(existing.is_none() || tense_modal.is_none(), "an eventuality is either supplied or constructed from a tense, never both")]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedDeferredPredicationEventuality<'syntax> {
+    existing: Option<SemanticObjectId>,
+    tense_modal: Option<&'syntax TenseModalSyntax>,
 }
 
 #[invariant(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
@@ -1443,6 +1459,30 @@ impl GeneratedPredicationEventuality {
             data!(GeneratedPredicationEventuality::Fresh) => builder
                 .build_generated_predication_eventuality(source)
                 .map(Some),
+        }
+    }
+}
+
+impl<'tree> GeneratedDeferredPredicationEventuality<'tree> {
+    #[requires(true)]
+    #[ensures(ret == (self.existing.is_none() && self.tense_modal.is_none_or(|tense_modal| !generated_tense_modal_has_event_modifier(tense_modal))))]
+    fn is_absent(&self) -> bool {
+        self.existing.is_none()
+            && self
+                .tense_modal
+                .is_none_or(|tense_modal| !generated_tense_modal_has_event_modifier(tense_modal))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))) || ret.is_err())]
+    fn resolve<'a, 'dict>(
+        self,
+        builder: &mut GeneratedGraphBuilder<'a, 'dict, 'tree>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match self.tense_modal {
+            Some(tense_modal) => builder.build_generated_tense_eventuality(tense_modal, source),
+            None => Ok(self.existing),
         }
     }
 }
