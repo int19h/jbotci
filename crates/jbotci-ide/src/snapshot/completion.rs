@@ -115,18 +115,18 @@ enum CursorCompletionContext {
     SuppressedNonLojbanQuote,
 }
 
-// This is a short-lived mutable accumulator. Its referenced snapshot and
-// source span are already validated, and candidate insertion preserves the
-// map's key/value relationship locally.
-#[invariant(true)]
-struct CompletionBuilder<'snapshot, 'dictionary, 'entries> {
+// This short-lived context captures the immutable facts shared by one
+// cursor interpretation. Candidate accumulation remains an explicit mutable
+// parameter, so the validated wrapper never needs interior mutation.
+#[invariant(replacement_span.byte_end <= snapshot.text.len())]
+#[invariant(replacement_span.char_end <= snapshot.line_index.char_len())]
+struct CompletionContext<'snapshot, 'dictionary, 'entries> {
     snapshot: &'snapshot DocumentSnapshot,
     dictionary: &'dictionary Dictionary<'entries>,
     document_cmevla: &'snapshot BTreeSet<String>,
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     normalized_prefix: String,
-    items: &'snapshot mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
 }
 
 impl DocumentSnapshot {
@@ -246,37 +246,40 @@ impl DocumentSnapshot {
         preceding_awaits_zo_target: bool,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
-        let context = match self.cursor_completion_context(&replacement_span) {
+        let cursor_context = match self.cursor_completion_context(&replacement_span) {
             CursorCompletionContext::Grammar if preceding_awaits_zo_target => {
                 CursorCompletionContext::UnfilteredQuotedWord
             }
             context => context,
         };
-        let mut builder = CompletionBuilder {
+        let completion_context = new!(CompletionContext {
             snapshot: self,
             dictionary,
             document_cmevla,
             interpretation,
             replacement_span,
             normalized_prefix: normalize_lookup_query(prefix),
-            items,
-        };
-        match context {
+        });
+        match cursor_context {
             CursorCompletionContext::SuppressedNonLojbanQuote => {}
-            CursorCompletionContext::UnfilteredQuotedWord => {
-                builder.add_unfiltered_candidates(new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "quoted word".to_owned(),
-                }))
-            }
-            CursorCompletionContext::UnfilteredQuotedWords => {
-                builder.add_unfiltered_candidates(new!(SyntaxExpectationReason::ContinueCurrent {
-                    construct: "LOhU quote".to_owned(),
-                }))
-            }
+            CursorCompletionContext::UnfilteredQuotedWord => completion_context
+                .add_unfiltered_candidates(
+                    new!(SyntaxExpectationReason::ContinueCurrent {
+                        construct: "quoted word".to_owned(),
+                    }),
+                    items,
+                ),
+            CursorCompletionContext::UnfilteredQuotedWords => completion_context
+                .add_unfiltered_candidates(
+                    new!(SyntaxExpectationReason::ContinueCurrent {
+                        construct: "LOhU quote".to_owned(),
+                    }),
+                    items,
+                ),
             CursorCompletionContext::Grammar => {
                 let expectations =
                     expected_continuations(preceding_words, &ParseOptions::default());
-                builder.add_expected_candidates(&expectations);
+                completion_context.add_expected_candidates(&expectations, items);
             }
         }
     }
@@ -381,10 +384,14 @@ impl DocumentSnapshot {
     }
 }
 
-impl CompletionBuilder<'_, '_, '_> {
+impl CompletionContext<'_, '_, '_> {
     #[requires(true)]
     #[ensures(true)]
-    fn add_expected_candidates(&mut self, expectations: &[SyntaxExpectation]) {
+    fn add_expected_candidates(
+        &self,
+        expectations: &[SyntaxExpectation],
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
+    ) {
         let mut tokens = BTreeMap::<SyntaxExpectedToken, SyntaxExpectationReason>::new();
         for expectation in expectations {
             for token in &expectation.tokens {
@@ -402,45 +409,46 @@ impl CompletionBuilder<'_, '_, '_> {
             }
         }
         for (token, reason) in tokens {
-            self.add_expected_token(&token, &reason);
+            self.add_expected_token(&token, &reason, items);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn add_expected_token(
-        &mut self,
+        &self,
         token: &SyntaxExpectedToken,
         reason: &SyntaxExpectationReason,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let provenance = new!(CompletionProvenance::Expected {
             token: token.clone(),
         });
         match token.as_data() {
             data!(SyntaxExpectedToken::Cmavo(cmavo)) => {
-                self.add_cmavo(*cmavo, CompletionKind::Cmavo, reason, &provenance);
+                self.add_cmavo(*cmavo, CompletionKind::Cmavo, reason, &provenance, items);
             }
             data!(SyntaxExpectedToken::Selmaho(selmaho)) => {
-                self.add_selmaho(*selmaho, reason, &provenance);
+                self.add_selmaho(*selmaho, reason, &provenance, items);
             }
             data!(SyntaxExpectedToken::WordCategory(category)) => match category {
                 SyntaxWordCategory::Brivla | SyntaxWordCategory::SelbriWord => {
-                    self.add_dictionary_brivla(reason, &provenance);
+                    self.add_dictionary_brivla(reason, &provenance, items);
                 }
                 SyntaxWordCategory::ProSumti => {
-                    self.add_selmaho(Selmaho::Koha, reason, &provenance)
+                    self.add_selmaho(Selmaho::Koha, reason, &provenance, items)
                 }
                 SyntaxWordCategory::LetterWord => {
-                    self.add_selmaho(Selmaho::By, reason, &provenance)
+                    self.add_selmaho(Selmaho::By, reason, &provenance, items)
                 }
-                SyntaxWordCategory::Cmevla => self.add_document_cmevla(reason, &provenance),
+                SyntaxWordCategory::Cmevla => self.add_document_cmevla(reason, &provenance, items),
                 SyntaxWordCategory::Quote => {
                     for cmavo in Cmavo::ALL
                         .iter()
                         .copied()
                         .filter(|cmavo| cmavo.is_quote_opener())
                     {
-                        self.add_cmavo(cmavo, CompletionKind::Cmavo, reason, &provenance);
+                        self.add_cmavo(cmavo, CompletionKind::Cmavo, reason, &provenance, items);
                     }
                 }
             },
@@ -450,22 +458,27 @@ impl CompletionBuilder<'_, '_, '_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn add_unfiltered_candidates(&mut self, reason: SyntaxExpectationReason) {
+    fn add_unfiltered_candidates(
+        &self,
+        reason: SyntaxExpectationReason,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
+    ) {
         let provenance = new!(CompletionProvenance::UnfilteredQuote);
         for cmavo in Cmavo::ALL {
-            self.add_cmavo(*cmavo, CompletionKind::Cmavo, &reason, &provenance);
+            self.add_cmavo(*cmavo, CompletionKind::Cmavo, &reason, &provenance, items);
         }
-        self.add_dictionary_brivla(&reason, &provenance);
-        self.add_document_cmevla(&reason, &provenance);
+        self.add_dictionary_brivla(&reason, &provenance, items);
+        self.add_document_cmevla(&reason, &provenance, items);
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn add_selmaho(
-        &mut self,
+        &self,
         selmaho: Selmaho,
         reason: &SyntaxExpectationReason,
         provenance: &CompletionProvenance,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let kind = match selmaho {
             Selmaho::Koha => CompletionKind::ProSumti,
@@ -477,63 +490,73 @@ impl CompletionBuilder<'_, '_, '_> {
             .copied()
             .filter(|cmavo| selmaho.contains(*cmavo))
         {
-            self.add_cmavo(cmavo, kind, reason, provenance);
+            self.add_cmavo(cmavo, kind, reason, provenance, items);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn add_cmavo(
-        &mut self,
+        &self,
         cmavo: Cmavo,
         expected_kind: CompletionKind,
         reason: &SyntaxExpectationReason,
         provenance: &CompletionProvenance,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let kind = if is_elidable_terminator(cmavo) {
             CompletionKind::Terminator
         } else {
             expected_kind
         };
-        self.add_candidate(cmavo.canonical_text(), kind, reason, provenance);
+        self.add_candidate(cmavo.canonical_text(), kind, reason, provenance, items);
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn add_dictionary_brivla(
-        &mut self,
+        &self,
         reason: &SyntaxExpectationReason,
         provenance: &CompletionProvenance,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let dictionary = self.dictionary;
         for entry in dictionary
             .entries_by_word_prefix(&self.normalized_prefix)
             .filter(|entry| is_completion_brivla_type(entry.word_type))
         {
-            self.add_candidate(entry.word, CompletionKind::Brivla, reason, provenance);
+            self.add_candidate(
+                entry.word,
+                CompletionKind::Brivla,
+                reason,
+                provenance,
+                items,
+            );
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn add_document_cmevla(
-        &mut self,
+        &self,
         reason: &SyntaxExpectationReason,
         provenance: &CompletionProvenance,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         for word in self.document_cmevla {
-            self.add_candidate(word, CompletionKind::Cmevla, reason, provenance);
+            self.add_candidate(word, CompletionKind::Cmevla, reason, provenance, items);
         }
     }
 
     #[requires(!label.is_empty())]
     #[ensures(true)]
     fn add_candidate(
-        &mut self,
+        &self,
         label: &str,
         kind: CompletionKind,
         reason: &SyntaxExpectationReason,
         provenance: &CompletionProvenance,
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let normalized_label = normalize_lookup_query(label);
         if normalized_label.is_empty()
@@ -550,8 +573,7 @@ impl CompletionBuilder<'_, '_, '_> {
             normalized_label,
             provenance.clone(),
         );
-        if self
-            .items
+        if items
             .get(&key)
             .is_some_and(|existing| existing.reason <= *reason)
         {
@@ -564,7 +586,7 @@ impl CompletionBuilder<'_, '_, '_> {
             .map(|keyword| keyword.word)
             .find(|gloss| !gloss.is_empty())
             .map(str::to_owned);
-        self.items.insert(
+        items.insert(
             key,
             new!(CompletionItem {
                 label: label.to_owned(),
