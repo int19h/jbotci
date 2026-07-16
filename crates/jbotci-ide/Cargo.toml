@@ -1,0 +1,26 @@
+[package]
+name = "jbotci-ide"
+description = "Transport-agnostic document analysis for jbotci editor integrations."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+expensive_contracts = []
+
+[dependencies]
+bityzba.workspace = true
+jbotci-diagnostics.workspace = true
+jbotci-morphology.workspace = true
+jbotci-source.workspace = true
+jbotci-syntax.workspace = true
+jbotci-web-core.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true
