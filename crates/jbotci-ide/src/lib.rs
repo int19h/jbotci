@@ -6,4 +6,4 @@ mod snapshot;
 pub use line_index::{
     LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, TextOffsets,
 };
-pub use snapshot::{DocumentSnapshot, ResolvedDiagnostic, ResolvedLabel, WordAt};
+pub use snapshot::{DocumentSnapshot, HoverContent, ResolvedDiagnostic, ResolvedLabel, WordAt};

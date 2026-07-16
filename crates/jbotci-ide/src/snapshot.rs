@@ -10,6 +10,10 @@ use jbotci_web_core::{GentufaWebOptions, analyze_gentufa_source};
 
 use crate::{LineIndex, PositionEncoding, PositionRange};
 
+mod hover;
+
+pub use hover::HoverContent;
+
 /// Immutable recovery-capable analysis of one document version.
 #[invariant(words.words.len() == word_spans.len(), "every segmented word has one query span")]
 #[invariant(text.len() == line_index.byte_len(), "text and line index byte lengths must agree")]
@@ -81,6 +85,7 @@ impl DocumentSnapshot {
         Some(new!(WordAt {
             word: &self.words.words[index],
             span,
+            index,
         }))
     }
 }
@@ -125,6 +130,7 @@ pub struct ResolvedLabel<'snapshot> {
 pub struct WordAt<'snapshot> {
     pub word: &'snapshot WordLike,
     pub span: &'snapshot SourceSpan,
+    index: usize,
 }
 
 #[requires(true)]
@@ -225,5 +231,201 @@ mod tests {
             snapshot.version, -4,
             "document versions are opaque signed values"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gismu_hover_snapshots_dictionary_markdown_and_full_span() {
+        let hover = DocumentSnapshot::new("klama".to_owned(), 1)
+            .hover(0)
+            .expect("klama has hover documentation");
+
+        assert_eq!((hover.span.char_start, hover.span.char_end), (0, 5));
+        assert_eq!(
+            hover.markdown,
+            concat!(
+                "### `klama`\n\n",
+                "*gismu*\n\n",
+                "`x1` comes/goes to destination `x2` from origin `x3` via route `x4` ",
+                "using means/vehicle `x5`.\n\n",
+                "**Glosses:** `come`\n\n",
+                "**Rafsi:** `kla`",
+            ),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lujvo_hover_snapshots_morphology_decomposition_and_component_cards() {
+        let hover = DocumentSnapshot::new("sutykla".to_owned(), 1)
+            .hover(0)
+            .expect("sutykla has hover documentation");
+
+        assert_eq!((hover.span.char_start, hover.span.char_end), (0, 7));
+        assert_eq!(
+            hover.markdown,
+            concat!(
+                "**Word type:** lujvo\n\n",
+                "**Decomposition:** `sut`·`y`·`kla` → `sutra` + `klama`\n\n",
+                "**Component definitions**\n\n---\n\n",
+                "### `sutra`\n\n",
+                "*gismu*\n\n",
+                "`x1` is fast/swift/quick/hastes/rapid at doing/being/bringing about `x2` ",
+                "(event/state).\n\n",
+                "**Glosses:** `fast`, `quick (fast)`, `rapid`\n\n",
+                "**Rafsi:** `sut`\n\n---\n\n",
+                "### `klama`\n\n",
+                "*gismu*\n\n",
+                "`x1` comes/goes to destination `x2` from origin `x3` via route `x4` ",
+                "using means/vehicle `x5`.\n\n",
+                "**Glosses:** `come`\n\n",
+                "**Rafsi:** `kla`",
+            ),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_lujvo_hover_prefers_its_own_card() {
+        let hover = DocumentSnapshot::new("blari'o".to_owned(), 1)
+            .hover(0)
+            .expect("blari'o has hover documentation");
+
+        assert!(hover.markdown.starts_with(
+            "**Word type:** lujvo\n\n**Decomposition:** `bla`·`ri'o` → `blanu` + `crino`"
+        ));
+        assert!(hover.markdown.contains("### `blari'o`"));
+        assert!(!hover.markdown.contains("**Component definitions**"));
+        assert!(!hover.markdown.contains("### `blanu`"));
+        assert!(!hover.markdown.contains("### `crino`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compact_cmavo_hover_leads_with_constituent_and_appends_compound_card() {
+        let snapshot = DocumentSnapshot::new("a'acu'i".to_owned(), 1);
+        let first = snapshot.hover(0).expect("a'a has hover documentation");
+        let second = snapshot.hover(3).expect("cu'i has hover documentation");
+
+        assert_eq!((first.span.char_start, first.span.char_end), (0, 3));
+        assert_eq!((second.span.char_start, second.span.char_end), (3, 7));
+        assert_eq!(
+            first.markdown,
+            concat!(
+                "### `a'a`\n\n*cmavo* · **UI1**\n\n",
+                "attitudinal: attentive - inattentive - avoiding.\n\n",
+                "**Glosses:** `attentive`\n\n---\n\n",
+                "## Compact cmavo compound `a'acu'i`\n\n",
+                "### `a'acu'i`\n\n*cmavo-compound* · **UI\\*1**\n\n",
+                "attitudinal: attentive - inattentive - avoiding.\n\n",
+                "**Glosses:** `inattentive`",
+            ),
+        );
+        assert_eq!(
+            second.markdown,
+            concat!(
+                "### `cu'i`\n\n*cmavo* · **CAI**\n\n",
+                "attitudinal: neutral scalar attitude modifier.\n\n",
+                "**Glosses:** `neutral emotion`\n\n---\n\n",
+                "## Compact cmavo compound `a'acu'i`\n\n",
+                "### `a'acu'i`\n\n*cmavo-compound* · **UI\\*1**\n\n",
+                "attitudinal: attentive - inattentive - avoiding.\n\n",
+                "**Glosses:** `inattentive`",
+            ),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fuhivla_and_cmevla_hovers_follow_dictionary_boundary() {
+        let fuhivla = DocumentSnapshot::new("djarspageti".to_owned(), 1)
+            .hover(0)
+            .expect("dictionary fu'ivla has hover documentation");
+        assert_eq!(
+            fuhivla.markdown,
+            concat!(
+                "### `djarspageti`\n\n*fu'ivla*\n\n",
+                "`x1` is a quantity of spaghetti (long, thin cylindrical pasta).\n\n",
+                "**Glosses:** `spaghetti`",
+            ),
+        );
+
+        let cmevla = DocumentSnapshot::new(".alis.".to_owned(), 1)
+            .hover(1)
+            .expect("name word has morphology hover documentation");
+        assert_eq!(cmevla.markdown, "**Word type:** name word (cmevla)");
+        assert_eq!((cmevla.span.char_start, cmevla.span.char_end), (1, 5));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unknown_dictionary_word_returns_morphological_classification() {
+        let hover = DocumentSnapshot::new("brapu".to_owned(), 1)
+            .hover(0)
+            .expect("valid unknown gismu still has hover documentation");
+
+        assert_eq!(hover.markdown, "**Word type:** gismu");
+        assert_eq!((hover.span.char_start, hover.span.char_end), (0, 5));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn adjacent_lenu_hovers_stay_on_the_segmented_constituent() {
+        let snapshot = DocumentSnapshot::new("lenu".to_owned(), 1);
+        let le = snapshot.hover(0).expect("le has hover documentation");
+        let nu = snapshot.hover(2).expect("nu has hover documentation");
+
+        assert_eq!((le.span.char_start, le.span.char_end), (0, 2));
+        assert_eq!((nu.span.char_start, nu.span.char_end), (2, 4));
+        assert!(le.markdown.starts_with("### `le`\n"));
+        assert!(nu.markdown.starts_with("### `nu`\n"));
+        assert!(!le.markdown.contains("Compact cmavo compound"));
+        assert!(!nu.markdown.contains("Compact cmavo compound"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quote_payloads_enforce_semantic_hover_boundaries() {
+        for (source, payload_offset) in [("zoi gy klama gy", 8), ("la'o gy klama gy", 9)] {
+            let snapshot = DocumentSnapshot::new(source.to_owned(), 1);
+            assert!(
+                snapshot.word_at(payload_offset).is_some(),
+                "the outer morphology quote contains its payload in {source:?}",
+            );
+            assert!(
+                snapshot.hover(payload_offset).is_none(),
+                "non-Lojban quote payload has no hover in {source:?}",
+            );
+        }
+
+        let lohu = DocumentSnapshot::new("lo'u klama le'u".to_owned(), 1)
+            .hover(5)
+            .expect("LOhU payload has morphology-only hover");
+        assert_eq!(lohu.markdown, "**Word type:** gismu");
+        assert_eq!((lohu.span.char_start, lohu.span.char_end), (5, 10));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn whitespace_pause_and_erased_words_have_no_hover() {
+        let spaced = DocumentSnapshot::new("mi klama".to_owned(), 1);
+        assert!(spaced.hover(2).is_none());
+
+        let cmevla = DocumentSnapshot::new(".alis.".to_owned(), 1);
+        assert!(cmevla.hover(0).is_none());
+        assert!(cmevla.hover(5).is_none());
+
+        let erased = DocumentSnapshot::new("mi si do".to_owned(), 1);
+        assert!(erased.hover(0).is_none(), "SI erased its preceding word");
+        assert!(erased.hover(3).is_none(), "the SI eraser is not hoverable");
     }
 }
