@@ -380,7 +380,14 @@ async fn run_server() -> Result<()> {
             .notification::<notification::DidCloseTextDocument>(|state, params| {
                 state.did_close(params);
                 ControlFlow::Continue(())
-            });
+            })
+            // LSP requires servers to ignore notifications they do not handle
+            // (editors freely send didSave, willSave, workspace notifications,
+            // and extensions). async-lsp's default fallback instead breaks the
+            // main loop, which kills the server the first time an editor saves
+            // a file — so ignore unknown notifications explicitly. Unknown
+            // *requests* keep async-lsp's default METHOD_NOT_FOUND response.
+            .unhandled_notification(|_, _| ControlFlow::Continue(()));
 
         ServiceBuilder::new()
             .layer(LifecycleLayer::default())
@@ -389,16 +396,44 @@ async fn run_server() -> Result<()> {
             .service(router)
     });
 
+    // Editors wire server stdio through pipes, but also through socket pairs,
+    // ptys, or even regular files; async-lsp's zero-copy PipeStdin/PipeStdout
+    // fast path only accepts genuine pipes. Try it first on unix and fall back
+    // to tokio's thread-backed stdio, which accepts any fd type, so the server
+    // runs under every spawning strategy instead of dying at startup.
     #[cfg(unix)]
-    server
-        .run_buffered(
-            async_lsp::stdio::PipeStdin::lock_tokio()
-                .context("failed to open stdin for LSP transport")?,
-            async_lsp::stdio::PipeStdout::lock_tokio()
-                .context("failed to open stdout for LSP transport")?,
-        )
-        .await
-        .context("LSP transport failed")?;
+    {
+        use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+
+        // Bind the lock attempt outside the dispatch match: a partially
+        // successful pair must be fully dropped (restoring the original fd
+        // flags) before the fallback path reads the same fds, and scrutinee
+        // temporaries live for the whole match otherwise.
+        let pipes = match (
+            async_lsp::stdio::PipeStdin::lock_tokio(),
+            async_lsp::stdio::PipeStdout::lock_tokio(),
+        ) {
+            (Ok(stdin), Ok(stdout)) => Some((stdin, stdout)),
+            _ => None,
+        };
+        match pipes {
+            Some((stdin, stdout)) => {
+                server
+                    .run_buffered(stdin, stdout)
+                    .await
+                    .context("LSP transport failed")?;
+            }
+            None => {
+                server
+                    .run_buffered(
+                        tokio::io::stdin().compat(),
+                        tokio::io::stdout().compat_write(),
+                    )
+                    .await
+                    .context("LSP transport failed")?;
+            }
+        }
+    }
 
     #[cfg(not(unix))]
     {

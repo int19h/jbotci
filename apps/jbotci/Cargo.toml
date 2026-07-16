@@ -50,11 +50,9 @@ serde.workspace = true
 serde_json.workspace = true
 terminal_size.workspace = true
 tokio = { workspace = true, features = ["io-std", "io-util", "time"] }
+tokio-util.workspace = true
 tower.workspace = true
 unicode-width.workspace = true
-
-[target.'cfg(not(unix))'.dependencies]
-tokio-util.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
