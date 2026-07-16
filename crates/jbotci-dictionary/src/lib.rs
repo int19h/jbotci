@@ -169,6 +169,29 @@ impl<'a> Dictionary<'a> {
         targets.iter().map(|index| self.entry_at(*index))
     }
 
+    /// Return dictionary entries whose normalized word starts with `prefix`.
+    ///
+    /// The returned iterator is backed by the contiguous matching range in the
+    /// sorted word index. It stays lazy over both index keys and collision
+    /// targets, so callers do not have to scan or materialize the dictionary.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn entries_by_word_prefix<'lookup>(
+        &'lookup self,
+        prefix: &str,
+    ) -> impl Iterator<Item = &'lookup DictionaryEntry<'a>> + 'lookup {
+        let normalized = normalize_lookup_query(prefix);
+        let start = self
+            .word_index
+            .partition_point(|entry| entry.key < normalized.as_str());
+        let end = self.word_index.partition_point(|entry| {
+            entry.key < normalized.as_str() || entry.key.starts_with(&normalized)
+        });
+        self.word_index[start..end]
+            .iter()
+            .flat_map(|entry| entry.targets.iter().map(|index| self.entry_at(*index)))
+    }
+
     /// Return all dictionary entries associated with a rafsi query.
     #[requires(true)]
     #[ensures(true)]
@@ -1026,6 +1049,46 @@ mod tests {
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["INternet", "internet"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prefix_lookup_uses_normalized_sorted_range_and_preserves_collisions() {
+        let entries = &[
+            test_entry("barda", WordType::Gismu, &[], None),
+            test_entry("BÁJRA", WordType::Gismu, &[], None),
+            test_entry("bajra", WordType::Gismu, &[], None),
+            test_entry("cadzu", WordType::Gismu, &[], None),
+        ];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_selmaho_index(&indexes.selmaho_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+        );
+
+        assert!(dictionary.validate().is_ok());
+        assert_eq!(
+            dictionary
+                .entries_by_word_prefix("BÁ")
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>(),
+            vec!["BÁJRA", "bajra", "barda"],
+        );
+        assert!(
+            dictionary.entries_by_word_prefix("bas").next().is_none(),
+            "the partitioned range must stop before adjacent non-matches",
+        );
+        assert_eq!(
+            dictionary.entries_by_word_prefix("").count(),
+            entries.len(),
+            "an empty prefix covers the complete index without a separate scan",
         );
     }
 
