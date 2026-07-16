@@ -270,11 +270,15 @@ Purely token-level in M1 — no tree-derived modifiers yet.
 
 ## Feature: tier-1 permissive lexer
 
-Current behavior: the segmenter splits on `char::is_whitespace` and any other
-non-Lojban character is a `MorphologyErrorKind::InvalidCharacter` error
-(`crates/jbotci-morphology/src/lib.rs:1356`), which recovered segmentation
-survives by erroring-and-continuing. There is no silent-ignorable set yet
-(pandi §7.1 planned one; this generalizes it).
+Current behavior (corrected during #402 implementation): the segmenter already
+has a **legacy hand-selected separator set** — `segment::is_separator`
+(`crates/jbotci-morphology/src/segment.rs`) treats whitespace, periods, and a
+fixed list (`?` `!` `;` `:` `-` brackets, guillemets, quote marks, …) as
+word-boundary separators; characters outside that set are
+`MorphologyErrorKind::InvalidCharacter` errors, which recovered segmentation
+survives by erroring-and-continuing. This tier generalizes the legacy set
+(pandi §7.1 envisioned the same); the legacy set's behavior is frozen in both
+modes — fixtures pin it.
 
 New: a **dialect-gated ignorable tier** — characters in Unicode
 punctuation/symbol/emoji classes act as word-boundary whitespace. Makes
@@ -283,15 +287,18 @@ just work.
 
 - Defined as "Unicode P*/S*/emoji **minus an explicit reserved list**":
   everything with morphology or future-substitutive meaning is reserved —
-  `.` `,` `'` (morphology proper); digits, `$`, subscripts, `-` (pandi
-  substitutive families and `zei` compounds will claim them). A character-class
-  rule, not a heuristic.
+  `.` `,` `'` (morphology proper); digits, `$`, subscript characters (pandi
+  substitutive families will claim them). `-` is already a legacy separator
+  (and pandi's ignorable set includes between-word `-`), so it stays a
+  separator rather than reserved. The reserved list constrains only
+  *newly*-ignorable characters. A character-class rule, not a heuristic.
 - Lives **in the segmenter with native spans** (option in `jbotci-dialect`),
   never as a preprocessing strip — spans must point into the user's real text.
-- Masked-typo tradeoff: an accidental `;` mid-word now silently splits a word.
-  Strict dialects keep `InvalidCharacter`; the permissive dialect may emit a
-  single Advice-level "N non-Lojban characters ignored" note rather than
-  per-character spam.
+- Masked-typo tradeoff: an accidental `@` mid-word now silently splits a word
+  in permissive mode (legacy separators like `;` already did). Strict dialects
+  keep `InvalidCharacter` for newly-covered characters; the permissive dialect
+  emits a single Advice-level "N non-Lojban characters ignored" note (counting
+  only newly-ignorable characters) rather than per-character spam.
 - Explicitly **cannot** make real Markdown work by itself: link URLs, code
   fences, HTML blocks are *regions*, not characters (URLs are made of valid
   Lojban letters and would lex into garbage). That is M1.5's structural pass.
@@ -525,4 +532,6 @@ For implementers; verified in the brainstorm thread.
   `AssignmentSource` with query API (`assignments_for_sumti`,
   `frames_for_node`, `first_argument_for_place`).
 - **Current lexer strictness**: non-Lojban characters are
-  `MorphologyErrorKind::InvalidCharacter` errors; no ignorable set exists yet.
+  `MorphologyErrorKind::InvalidCharacter` errors; a legacy hand-selected
+  separator set already exists (`segment::is_separator` — whitespace, periods,
+  `?` `!` `;` `:` `-` brackets, guillemets, quotes) and is frozen by fixtures.
