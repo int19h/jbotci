@@ -16,7 +16,7 @@ use jbotci_diagnostics::{
     source_span_from_byte_offsets,
 };
 use jbotci_dialect::DialectFeature;
-use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
+use jbotci_morphology::{Cmavo, Phonemes, Selmaho, Word, WordKind, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_tree::{RecoveryItemState, TreeVisitor};
 use vec1::Vec1;
@@ -24,9 +24,9 @@ use vec1::Vec1;
 use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData};
 use crate::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
-    SyntaxError, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParse, SyntaxRecoveryParseAttempt,
-    SyntaxRecoveryParseData, SyntaxWarning, Token, WithIndicators, WithIndicatorsData,
-    syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParse,
+    SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxWarning, Token, WithIndicators,
+    WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
 mod generated;
@@ -500,6 +500,7 @@ pub(super) struct ParserState<'tokens> {
     replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     diagnostic_candidate_hash_buckets: HashMap<u64, Vec<usize>>,
+    continuation_diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
     active_syntax_contexts: Vec<SyntaxContextFrame>,
@@ -517,6 +518,7 @@ pub(super) struct ParserState<'tokens> {
     recovery_source: Option<Arc<str>>,
     track_recovery_branches: bool,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
+    continuation_sentinel_index: Option<usize>,
     _tokens: PhantomData<&'tokens ()>,
 }
 
@@ -526,6 +528,7 @@ pub(super) struct ParserState<'tokens> {
     "syntax location offsets include one EOF offset after token anchors"
 )]
 #[invariant(self.effective_fail_token_indices.len() == self.consumed_recovery_directives)]
+#[invariant(self.continuation_sentinel_index.is_some() || self.continuation_diagnostic_candidates.is_empty())]
 #[expensive_invariant(
     true,
     "syntax memo keys are protected by ParserState's private mutation APIs"
@@ -549,6 +552,7 @@ impl<'tokens> ParserState<'tokens> {
             replayed_syntax_diagnostic_observations: HashSet::new(),
             diagnostic_candidates: Vec::new(),
             diagnostic_candidate_hash_buckets: HashMap::new(),
+            continuation_diagnostic_candidates: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
             active_syntax_contexts: Vec::new(),
@@ -562,8 +566,22 @@ impl<'tokens> ParserState<'tokens> {
             recovery_source: None,
             track_recovery_branches: false,
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
+            continuation_sentinel_index: None,
             _tokens: PhantomData,
         }
+    }
+
+    #[requires(sentinel_index < words.len())]
+    #[ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
+    pub(super) fn new_for_expected_continuations(
+        words: &[Token],
+        options: &ParseOptions,
+        sentinel_index: usize,
+    ) -> Self {
+        let mut state = Self::new(words, options);
+        state.track_recovery_branches = true;
+        state.continuation_sentinel_index = Some(sentinel_index);
+        state
     }
 
     #[requires(true)]
@@ -575,15 +593,17 @@ impl<'tokens> ParserState<'tokens> {
         state
     }
 
-    #[requires(true)]
+    #[requires(continuation_sentinel_index.is_none_or(|index| index < words.len()))]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
+    #[ensures(ret.continuation_sentinel_index == continuation_sentinel_index)]
     pub(super) fn new_with_recovery(
         words: &[Token],
         source: Option<&str>,
         options: &ParseOptions,
         directives: &[RecoveryDirective],
         memo_trial: SyntaxRecoveryMemoTrial<'tokens>,
+        continuation_sentinel_index: Option<usize>,
     ) -> Self {
         let mut state = Self::new_with_recovery_branches(words, options);
         state.recovery_directives = directives.to_vec();
@@ -594,7 +614,14 @@ impl<'tokens> ParserState<'tokens> {
         state.recovery_tokens = words.to_vec();
         state.recovery_source = source.map(Arc::<str>::from);
         state.recovery_memo_trial = Some(memo_trial);
+        state.continuation_sentinel_index = continuation_sentinel_index;
         state
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.continuation_sentinel_index == Some(location)))]
+    pub(super) fn is_continuation_sentinel_location(&self, location: usize) -> bool {
+        self.continuation_sentinel_index == Some(location)
     }
 
     #[requires(true)]
@@ -1316,6 +1343,14 @@ impl<'tokens> ParserState<'tokens> {
         let error = error
             .with_active_contexts(&self.active_syntax_contexts)
             .with_active_rule_contexts(&self.active_syntax_rules);
+        if self.diagnostic_candidate_is_at_continuation_sentinel(&error)
+            && !self
+                .continuation_diagnostic_candidates
+                .iter()
+                .any(|candidate| candidate.same_report_content(&error))
+        {
+            self.continuation_diagnostic_candidates.push(error.clone());
+        }
         if self.recovery_memo_trial.is_none() {
             self.merge_strict_diagnostic_candidate(error);
             return;
@@ -1411,6 +1446,70 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.len() == self.diagnostic_candidates.len())]
     pub(super) fn diagnostic_candidates_snapshot(&self) -> Vec<SyntaxParseError<'tokens>> {
         self.diagnostic_candidates.clone()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+    pub(super) fn continuation_expectations(&self) -> Vec<SyntaxExpectation> {
+        self.continuation_diagnostic_candidates
+            .iter()
+            .cloned()
+            .flat_map(|error| error.into_report_error().expectations())
+            .collect()
+    }
+
+    #[requires(start_location <= failure_location)]
+    #[ensures(self.continuation_sentinel_index.is_none() -> self.continuation_diagnostic_candidates.is_empty())]
+    pub(super) fn record_continuation_rule_failure(
+        &mut self,
+        start_location: usize,
+        failure_location: usize,
+        error: &SyntaxParseError<'tokens>,
+    ) {
+        if !self.is_continuation_sentinel_location(failure_location)
+            || !self
+                .continuation_rule_or_enclosing_context_progressed(start_location, failure_location)
+            || self
+                .continuation_diagnostic_candidates
+                .iter()
+                .any(|candidate| candidate.same_report_content(&error))
+        {
+            return;
+        }
+        self.continuation_diagnostic_candidates.push(error.clone());
+    }
+
+    #[requires(start_location <= failure_location)]
+    #[ensures(ret -> self.continuation_sentinel_index == Some(failure_location))]
+    fn continuation_rule_or_enclosing_context_progressed(
+        &self,
+        start_location: usize,
+        failure_location: usize,
+    ) -> bool {
+        if failure_location > start_location {
+            return true;
+        }
+        let Some(cut_byte) = self
+            .continuation_sentinel_index
+            .filter(|index| *index == failure_location)
+            .and_then(|index| self.syntax_location_byte_offsets.get(index))
+        else {
+            return false;
+        };
+        self.active_syntax_contexts
+            .iter()
+            .any(|context| context.byte_start() < *cut_byte)
+    }
+
+    #[requires(true)]
+    #[ensures(ret -> self.continuation_sentinel_index.is_some())]
+    fn diagnostic_candidate_is_at_continuation_sentinel(
+        &self,
+        error: &SyntaxParseError<'_>,
+    ) -> bool {
+        self.continuation_sentinel_index
+            .and_then(|index| self.syntax_location_byte_offsets.get(index))
+            .is_some_and(|byte_offset| error.span().start == *byte_offset)
     }
 
     #[requires(true)]
@@ -2158,6 +2257,74 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
 }
 
 #[requires(true)]
+#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+pub(crate) fn expected_continuations(
+    words: &[WordLike],
+    options: &ParseOptions,
+) -> Vec<SyntaxExpectation> {
+    let mut tokens = syntax_tokens(words, options);
+    let cut_byte = tokens
+        .last()
+        .and_then(tokens::word_byte_range)
+        .map_or(0, |range| range.end);
+    tokens.push(expected_continuation_sentinel(cut_byte));
+    let sentinel_index = tokens.len() - 1;
+
+    let tracked_attempt =
+        generated::generated_model::parse_text_detailed_tracked_attempt_for_expected_continuations(
+            &tokens,
+            options,
+            sentinel_index,
+        );
+    let data!(generated::generated_model::GeneratedParsedTextDetailedAttempt {
+        result,
+        trace,
+        mut continuation_expectations,
+    }) = tracked_attempt.into_data();
+    let failure = match result {
+        Ok(_) => unreachable!("the completion sentinel cannot satisfy the root EOF parser"),
+        Err(failure) => failure,
+    };
+    if syntax_error_start(&failure.public_error) == cut_byte {
+        continuation_expectations.extend(syntax_error_expectations(&failure.public_error));
+        return continuation_expectations;
+    }
+    let recovered =
+        recover_after_strict_failure(tokens, None, options, failure, trace, Some(sentinel_index));
+    recovered
+        .result
+        .errors
+        .iter()
+        .rev()
+        .find(|error| syntax_error_start(error) == cut_byte)
+        .or_else(|| recovered.result.errors.last())
+        .map_or_else(Vec::new, syntax_error_expectations)
+}
+
+#[requires(true)]
+#[ensures(ret.core_word().byte_range().is_some_and(|range| range.start == byte_offset && range.end == byte_offset))]
+fn expected_continuation_sentinel(byte_offset: usize) -> Token {
+    let span = SourceSpan::new(None, byte_offset, byte_offset, 0, 1)
+        .expect("the completion sentinel has ordered byte and character spans");
+    let phonemes = Phonemes::from_canonical(Cmavo::Faho.canonical_text().to_owned())
+        .expect("the canonical FAhO spelling is valid phoneme text");
+    Token::bare(WordLike::bare(Word::from_kind(
+        WordKind::Cmavo,
+        phonemes,
+        span,
+    )))
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+fn syntax_error_expectations(error: &SyntaxError) -> Vec<SyntaxExpectation> {
+    match error {
+        SyntaxError::Parse { expectations, .. } => expectations.clone(),
+        SyntaxError::NotImplemented => Vec::new(),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
     words: &[WordLike],
@@ -2172,15 +2339,21 @@ pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
 
     let tracked_attempt =
         generated::generated_model::parse_text_detailed_tracked_attempt(&tokens, options);
-    let failure = match tracked_attempt.result {
+    let data!(
+        generated::generated_model::GeneratedParsedTextDetailedAttempt {
+            result,
+            trace,
+            continuation_expectations: _,
+        }
+    ) = tracked_attempt.into_data();
+    let failure = match result {
         Ok(parsed) => {
-            return valid_syntax_recovery_attempt(parsed, &tokens, tracked_attempt.trace);
+            return valid_syntax_recovery_attempt(parsed, &tokens, trace);
         }
         Err(failure) => failure,
     };
 
-    let recovered =
-        recover_after_strict_failure(tokens, source, options, failure, tracked_attempt.trace);
+    let recovered = recover_after_strict_failure(tokens, source, options, failure, trace, None);
     SyntaxRecoveryParseAttempt {
         result: new!(SyntaxRecoveryParse::Recovered {
             parse: recovered.result,
@@ -2209,7 +2382,7 @@ fn valid_syntax_recovery_attempt(
     }
 }
 
-#[requires(true)]
+#[requires(continuation_sentinel_index.is_none_or(|index| index < tokens.len()))]
 #[ensures(true)]
 fn recover_after_strict_failure(
     tokens: Vec<Token>,
@@ -2217,11 +2390,18 @@ fn recover_after_strict_failure(
     options: &ParseOptions,
     mut failure: generated::generated_model::GeneratedParseFailure,
     mut trace: Option<TraceReport>,
+    continuation_sentinel_index: Option<usize>,
 ) -> RecoveredSyntaxParseAttempt {
     let cap = options.max_recovery_errors.get();
     let parser_tokens = tokens::spanned_tokens(&tokens);
     let recovery_token_scan = RecoveryTokenScan::new(&tokens);
-    let mut recovery_session = generated::generated_model::GeneratedRecoveryParseSession::new();
+    let mut recovery_session = if let Some(sentinel_index) = continuation_sentinel_index {
+        generated::generated_model::GeneratedRecoveryParseSession::new_for_expected_continuations(
+            sentinel_index,
+        )
+    } else {
+        generated::generated_model::GeneratedRecoveryParseSession::new()
+    };
     let initial_failure = failure.clone();
     let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];

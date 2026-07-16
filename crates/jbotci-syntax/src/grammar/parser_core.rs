@@ -474,6 +474,17 @@ impl<'tokens, 'parse> InputRef<'tokens, 'parse> {
         Some(token.into_inner())
     }
 
+    /// Reports whether the next token is the unmatchable completion sentinel.
+    /// Terminal parsers reject it, while the root EOF parser sees the token and
+    /// therefore forces a parse failure at the completion cut.
+    #[requires(true)]
+    #[ensures(ret == self.state.is_continuation_sentinel_location(self.cursor.index))]
+    #[inline(always)]
+    pub(crate) fn next_is_continuation_sentinel(&self) -> bool {
+        self.state
+            .is_continuation_sentinel_location(self.cursor.index)
+    }
+
     #[requires(true)]
     #[ensures(self.cursor.index >= old(self.cursor.index))]
     #[inline(always)]

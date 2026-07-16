@@ -2318,6 +2318,26 @@ pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSynt
         .map(|parse_tree| *parse_tree)
 }
 
+/// Returns the grammar continuations expected at the end of `words`.
+///
+/// Syntax errors before the cut are recovered with the same machinery and
+/// `max_recovery_errors` limit as normal recovery parsing. If that limit is
+/// exhausted before reaching the cut, the expectations from the last viable
+/// recovery state are returned instead.
+#[requires(true)]
+#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[ensures(ret.iter().enumerate().all(|(index, expectation)| {
+    ret.iter()
+        .skip(index + 1)
+        .all(|other| expectation.reason != other.reason)
+}))]
+pub fn expected_continuations(
+    words: &[WordLike],
+    options: &ParseOptions,
+) -> Vec<SyntaxExpectation> {
+    merge_expectations_by_reason(&grammar::expected_continuations(words, options))
+}
+
 #[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
 #[expensive_invariant({
     let mut last_end = None;
@@ -3082,9 +3102,133 @@ mod tests {
     use std::collections::BTreeSet;
 
     #[allow(unused_imports)]
-    use bityzba::{data, ensures, new, requires};
+    use bityzba::{data, ensures, expensive_requires, new, requires};
+    use jbotci_morphology::WordLikeData;
 
     use super::*;
+
+    #[expensive_requires(jbotci_morphology::segment_words_with_modifiers(source).is_ok())]
+    #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+    fn expected_continuations_for(source: &str) -> Vec<SyntaxExpectation> {
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+        expected_continuations(&words, &ParseOptions::default())
+    }
+
+    #[requires(true)]
+    #[ensures(ret == expectations.iter().any(|expectation| expectation.tokens.contains(token)))]
+    fn contains_expected_token(
+        expectations: &[SyntaxExpectation],
+        token: &SyntaxExpectedToken,
+    ) -> bool {
+        expectations
+            .iter()
+            .any(|expectation| expectation.tokens.contains(token))
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_input_expects_text_starts_but_not_vau() {
+        let expectations = expected_continuations_for("");
+
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Cmavo(Cmavo::Nai)),
+        ));
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::WordCategory(
+                SyntaxWordCategory::Cmevla,
+            )),
+        ));
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Selmaho(Selmaho::Ui)),
+        ));
+        assert!(!contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Cmavo(Cmavo::Vau)),
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn incomplete_description_expects_selbri_content_but_not_statement_start() {
+        let expectations = expected_continuations_for("mi klama le");
+
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::WordCategory(
+                SyntaxWordCategory::SelbriWord,
+            )),
+        ));
+        assert!(!contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Cmavo(Cmavo::I)),
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn complete_text_expects_tail_terms_and_following_statements() {
+        let expectations = expected_continuations_for("mi klama le zarci");
+
+        assert!(!expectations.is_empty());
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Selmaho(Selmaho::Fa)),
+        ));
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Cmavo(Cmavo::I)),
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completed_zo_quotes_have_contextual_continuations() {
+        for source in ["mi cusku zo broda", "zo broda"] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+            assert!(matches!(
+                words.last().map(WordLike::as_data),
+                Some(data!(WordLike::QuotedWord { .. }))
+            ));
+
+            let expectations = expected_continuations(&words, &ParseOptions::default());
+            assert!(contains_expected_token(
+                &expectations,
+                &new!(SyntaxExpectedToken::Cmavo(Cmavo::I)),
+            ));
+            assert!(contains_expected_token(
+                &expectations,
+                &new!(SyntaxExpectedToken::Selmaho(Selmaho::Fa)),
+            ));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_prefix_keeps_expectations_at_the_final_cut() {
+        let source = "mi tarti li ka broda i do klama le";
+        let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+        assert!(parse_syntax_tree(&words).is_err());
+
+        let expectations = expected_continuations(&words, &ParseOptions::default());
+
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Cmavo(Cmavo::Peho)),
+        ));
+        assert!(!contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::Cmavo(Cmavo::I)),
+        ));
+    }
 
     #[test]
     #[requires(true)]

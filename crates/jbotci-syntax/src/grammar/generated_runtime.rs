@@ -384,8 +384,8 @@ where
                 Ok(output)
             }
             Err(error) => {
+                let failure_location = ParserInput::cursor_location(input.cursor().inner());
                 let error = if let Some(construct) = context {
-                    let failure_location = ParserInput::cursor_location(input.cursor().inner());
                     let span = failure_span.get().unwrap_or(*error.span());
                     trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
                     let error = error.with_rule_context_from_progress(
@@ -401,6 +401,11 @@ where
                 } else {
                     error
                 };
+                input.state().record_continuation_rule_failure(
+                    start_location,
+                    failure_location,
+                    &error,
+                );
                 if track_recovery_branches {
                     input.state().pop_syntax_rule();
                 }
@@ -1728,8 +1733,9 @@ pub(crate) fn text_leading_cmevla_word<'tokens>() -> BoxedParser<'tokens, Token>
             return Err(expected_found_at_current(input, "non-CBM leading CMEVLA"));
         }
 
+        let is_continuation_sentinel = input.next_is_continuation_sentinel();
         match input.next() {
-            Some(word) if is_cmevla_word(&word) => Ok(word),
+            Some(word) if !is_continuation_sentinel && is_cmevla_word(&word) => Ok(word),
             Some(_) | None => {
                 input.rewind(checkpoint);
                 Err(expected_found_tokens_at_current(
