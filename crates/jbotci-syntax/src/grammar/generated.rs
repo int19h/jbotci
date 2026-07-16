@@ -3073,10 +3073,11 @@ pub mod generated_model {
         pub branches: Vec<GeneratedRecoveryBranch>,
     }
 
-    #[bityzba::invariant(true)]
+    #[bityzba::invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
     pub(crate) struct GeneratedParsedTextDetailedAttempt {
         pub result: Result<GeneratedParsedText, GeneratedParseFailure>,
         pub trace: Option<TraceReport>,
+        pub continuation_expectations: Vec<crate::SyntaxExpectation>,
     }
 
     #[bityzba::invariant(true)]
@@ -3085,19 +3086,21 @@ pub mod generated_model {
         pub warnings: Vec<SyntaxWarning>,
     }
 
-    #[bityzba::invariant(true)]
+    #[bityzba::invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
     pub(crate) struct GeneratedRecoveredParsedTextAttempt {
         pub result: Result<GeneratedRecoveredParsedText, GeneratedParseFailure>,
         pub trace: Option<TraceReport>,
         pub unconsumed_directives: usize,
         pub recovery_directives: Vec<RecoveryDirective>,
         pub effective_fail_token_indices: Vec<usize>,
+        pub continuation_expectations: Vec<crate::SyntaxExpectation>,
     }
 
     #[bityzba::invariant(true)]
     pub(in crate::grammar) struct GeneratedRecoveryParseSession<'tokens> {
         memo_session: SyntaxRecoveryMemoSession<'tokens>,
         parser: BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>>,
+        continuation_sentinel_index: Option<usize>,
     }
 
     impl<'tokens> GeneratedRecoveryParseSession<'tokens> {
@@ -3107,6 +3110,17 @@ pub mod generated_model {
             Self {
                 memo_session: SyntaxRecoveryMemoSession::new(),
                 parser: recovered_generated_text_parser_with_eof(),
+                continuation_sentinel_index: None,
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
+        pub(in crate::grammar) fn new_for_expected_continuations(sentinel_index: usize) -> Self {
+            Self {
+                memo_session: SyntaxRecoveryMemoSession::new(),
+                parser: recovered_generated_text_parser_with_eof(),
+                continuation_sentinel_index: Some(sentinel_index),
             }
         }
 
@@ -3164,10 +3178,11 @@ pub mod generated_model {
     ) -> GeneratedParsedTextDetailedAttempt {
         let strict_attempt = parse_text_attempt(words, options);
         if let Ok(parsed) = strict_attempt.result {
-            return GeneratedParsedTextDetailedAttempt {
+            return bityzba::new!(GeneratedParsedTextDetailedAttempt {
                 result: Ok(parsed),
                 trace: strict_attempt.trace,
-            };
+                continuation_expectations: Vec::new(),
+            });
         }
 
         parse_text_detailed_tracked_attempt(words, options)
@@ -3179,9 +3194,33 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextDetailedAttempt {
+        parse_text_detailed_tracked_attempt_inner(words, options, None)
+    }
+
+    #[bityzba::requires(sentinel_index < words.len())]
+    #[bityzba::ensures(ret.result.is_err())]
+    pub(in crate::grammar) fn parse_text_detailed_tracked_attempt_for_expected_continuations(
+        words: &[Token],
+        options: &ParseOptions,
+        sentinel_index: usize,
+    ) -> GeneratedParsedTextDetailedAttempt {
+        parse_text_detailed_tracked_attempt_inner(words, options, Some(sentinel_index))
+    }
+
+    #[bityzba::requires(continuation_sentinel_index.is_none_or(|index| index < words.len()))]
+    #[bityzba::ensures(continuation_sentinel_index.is_some() -> ret.result.is_err())]
+    fn parse_text_detailed_tracked_attempt_inner(
+        words: &[Token],
+        options: &ParseOptions,
+        continuation_sentinel_index: Option<usize>,
+    ) -> GeneratedParsedTextDetailedAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
-        let mut state = ParserState::new_with_recovery_branches(words, options);
+        let mut state = if let Some(sentinel_index) = continuation_sentinel_index {
+            ParserState::new_for_expected_continuations(words, options, sentinel_index)
+        } else {
+            ParserState::new_with_recovery_branches(words, options)
+        };
         let result = strict_generated_text_parser_with_eof()
             .parse_with_state(
                 tokens
@@ -3196,6 +3235,11 @@ pub mod generated_model {
                 state.diagnostic_candidates_snapshot(),
             )
         });
+        let continuation_expectations = if continuation_sentinel_index.is_some() {
+            state.continuation_expectations()
+        } else {
+            Vec::new()
+        };
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedParsedText {
@@ -3217,10 +3261,11 @@ pub mod generated_model {
                 })
             }
         };
-        GeneratedParsedTextDetailedAttempt {
+        bityzba::new!(GeneratedParsedTextDetailedAttempt {
             result,
             trace: finish.trace,
-        }
+            continuation_expectations,
+        })
     }
 
     #[bityzba::requires(!directives.is_empty())]
@@ -3256,10 +3301,22 @@ pub mod generated_model {
         recovery_session: &mut GeneratedRecoveryParseSession<'tokens>,
     ) -> GeneratedRecoveredParsedTextAttempt {
         let eoi_offset = parser_tokens.last().map_or(0, |token| token.span.end);
+        // Completion candidates belong to one recovery reading. Reusing memoized
+        // diagnostics across trials would import contexts from abandoned readings
+        // into the trial that ultimately reaches the requested cut.
+        if recovery_session.continuation_sentinel_index.is_some() {
+            recovery_session.memo_session.clear();
+        }
         let memo_trial = recovery_session.memo_session.begin_trial();
         let trial_id = memo_trial.trial_id.get();
-        let mut state =
-            ParserState::new_with_recovery(words, source, options, directives, memo_trial);
+        let mut state = ParserState::new_with_recovery(
+            words,
+            source,
+            options,
+            directives,
+            memo_trial,
+            recovery_session.continuation_sentinel_index,
+        );
         let parser = recovery_session.parser.clone();
         let result = parser
             .parse_with_state(
@@ -3273,6 +3330,11 @@ pub mod generated_model {
                 state.diagnostic_candidates_snapshot(),
             )
         });
+        let continuation_expectations = if recovery_session.continuation_sentinel_index.is_some() {
+            state.continuation_expectations()
+        } else {
+            Vec::new()
+        };
         let finish = state.finish();
         recovery_session.memo_session.finish_trial(trial_id);
         let result = match result {
@@ -3295,13 +3357,14 @@ pub mod generated_model {
                 })
             }
         };
-        GeneratedRecoveredParsedTextAttempt {
+        bityzba::new!(GeneratedRecoveredParsedTextAttempt {
             result,
             trace: finish.trace,
             unconsumed_directives: finish.unconsumed_recovery_directives,
             recovery_directives: finish.recovery_directives,
             effective_fail_token_indices: finish.effective_fail_token_indices,
-        }
+            continuation_expectations,
+        })
     }
 
     #[bityzba::requires(true)]

@@ -111,9 +111,10 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
     custom::<_, Token>(move |input: &mut InputRef<'tokens, '_>| {
         let checkpoint = input.save();
         let cursor = input.cursor();
+        let is_continuation_sentinel = input.next_is_continuation_sentinel();
         match input.next() {
             Some(word)
-                if {
+                if !is_continuation_sentinel && {
                     let state = input.state();
                     bridi(&word, state)
                 } =>
