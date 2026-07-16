@@ -2,9 +2,10 @@
 """Verify the renderer-only issue #394 fixture migration.
 
 Issue #358 requires a two-sided gate for every changed existing fixture. This
-script reconstructs the one migrated document in both directions, reproduces
-all new and migrated derived expectations from the appropriate binaries, pins
-the unchanged ka guard, and proves canonical JSON byte identity on six inputs.
+script reconstructs every migrated document in both directions, reproduces all
+new and migrated derived expectations from the appropriate binaries, checks
+every full-Alice eventuality content edge, pins the unchanged ka guard, and
+proves canonical JSON byte identity on six inputs.
 """
 
 from __future__ import annotations
@@ -12,15 +13,18 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import json
 import subprocess
 import tomllib
 from pathlib import Path
 from typing import Any
 
 
-MIGRATED_FIXTURE = Path(
-    "tests/fixtures/adhoc/output/tersmu-derived-sequence-binding.toml"
+MIGRATED_FIXTURES = (
+    Path("tests/fixtures/adhoc/output/tersmu-derived-sequence-binding.toml"),
+    Path("tests/fixtures/corpus/alis/full-alice.toml"),
 )
+FULL_ALICE = Path("tests/fixtures/corpus/alis/full-alice.toml")
 NEW_FIXTURES = (
     Path("tests/fixtures/adhoc/output/tersmu-derived-eventuality-content.toml"),
     Path(
@@ -124,21 +128,66 @@ def normalized_expectation(fixture: dict[str, Any]) -> dict[str, Any]:
 
 
 def verify_two_sided_document(
-    old: dict[str, Any], current: dict[str, Any]
+    path: Path, old: dict[str, Any], current: dict[str, Any]
 ) -> None:
     forward = copy.deepcopy(old)
     forward["expectations"]["output"]["tersmu"] = copy.deepcopy(tersmu(current))
     if forward != current:
         raise ValueError(
-            f"{MIGRATED_FIXTURE}: base-to-PR reconstruction changed non-tersmu data"
+            f"{path}: base-to-PR reconstruction changed non-tersmu data"
         )
 
     reverse = copy.deepcopy(current)
     reverse["expectations"]["output"]["tersmu"] = copy.deepcopy(tersmu(old))
     if reverse != old:
         raise ValueError(
-            f"{MIGRATED_FIXTURE}: PR-to-base reconstruction changed non-tersmu data"
+            f"{path}: PR-to-base reconstruction changed non-tersmu data"
         )
+
+
+def verify_derived_expectations(
+    binary: Path, path: Path, fixture: dict[str, Any]
+) -> None:
+    expectation = tersmu(fixture)
+    for format_name in ("tree", "tree+proj"):
+        expected = expectation.get(format_name)
+        if expected is None:
+            continue
+        actual = render_format(binary, path, fixture, format_name)
+        if isinstance(expected, str):
+            matches = actual == expected
+        elif isinstance(expected, dict) and set(expected) == {"sha256"}:
+            matches = hashlib.sha256(actual.encode()).hexdigest() == expected["sha256"]
+        else:
+            raise ValueError(f"{path}: unsupported {format_name} expectation {expected!r}")
+        if not matches:
+            raise ValueError(f"{path}: {format_name} expectation is stale")
+
+
+def verify_full_alice_content_edges(current_binary: Path) -> None:
+    fixture = document(FULL_ALICE.read_text())
+    graph = json.loads(render_format(current_binary, FULL_ALICE, fixture, "json"))
+    objects = graph["objects"]
+    edges = [
+        (eventuality, object_["content"])
+        for eventuality, object_ in objects.items()
+        if object_.get("denotation") == "generated-bound" and "content" in object_
+    ]
+    if len(edges) != 58:
+        raise ValueError(f"full Alice: expected 58 eventuality content edges, got {len(edges)}")
+    target_types = [objects[target]["type"] for _, target in edges]
+    if target_types.count("formula") != 57 or target_types.count("sequence") != 1:
+        raise ValueError(f"full Alice: unexpected content target types {target_types!r}")
+    for format_name in ("tree", "tree+proj"):
+        rendered = render_format(current_binary, FULL_ALICE, fixture, format_name)
+        missing = [
+            (eventuality, target)
+            for eventuality, target in edges
+            if f"[{target}]" not in rendered
+        ]
+        if missing:
+            raise ValueError(f"full Alice {format_name}: missing content edges {missing!r}")
+        print(f"full Alice {format_name}: content targets 58/58")
 
 
 def verify_expected_surfaces(fixtures: dict[Path, dict[str, Any]]) -> None:
@@ -221,17 +270,12 @@ def main() -> None:
     parser.add_argument("--current-binary", type=Path, required=True)
     args = parser.parse_args()
 
-    old = document(git_source(args.base_ref, MIGRATED_FIXTURE))
-    current = document(MIGRATED_FIXTURE.read_text())
-    verify_two_sided_document(old, current)
-    if normalized_expectation(old) != render_derived(
-        args.base_binary, MIGRATED_FIXTURE, old
-    ):
-        raise ValueError(f"{MIGRATED_FIXTURE}: base expectation is stale")
-    if normalized_expectation(current) != render_derived(
-        args.current_binary, MIGRATED_FIXTURE, current
-    ):
-        raise ValueError(f"{MIGRATED_FIXTURE}: current expectation is stale")
+    for path in MIGRATED_FIXTURES:
+        old = document(git_source(args.base_ref, path))
+        current = document(path.read_text())
+        verify_two_sided_document(path, old, current)
+        verify_derived_expectations(args.base_binary, path, old)
+        verify_derived_expectations(args.current_binary, path, current)
 
     fixtures = {path: document(path.read_text()) for path in NEW_FIXTURES}
     for path, fixture in fixtures.items():
@@ -240,6 +284,7 @@ def main() -> None:
         ):
             raise ValueError(f"{path}: current expectation is stale")
     verify_expected_surfaces(fixtures)
+    verify_full_alice_content_edges(args.current_binary)
 
     if git_source(args.base_ref, KA_GUARD) != KA_GUARD.read_text():
         raise ValueError(f"{KA_GUARD}: negative guard fixture changed")
@@ -251,7 +296,7 @@ def main() -> None:
 
     verify_canonical_identity(args.base_binary, args.current_binary)
 
-    expected_paths = {MIGRATED_FIXTURE, *NEW_FIXTURES}
+    expected_paths = {*MIGRATED_FIXTURES, *NEW_FIXTURES}
     changed_paths = changed_fixture_paths(args.base_ref)
     if changed_paths != expected_paths:
         extra = sorted(changed_paths - expected_paths)
@@ -259,9 +304,9 @@ def main() -> None:
         raise ValueError(f"unexpected fixture drift: extra={extra}, missing={missing}")
 
     print("issue-394 fixture migration: verified")
-    print("existing expectations reproduced: base 1/1; current 1/1")
-    print("base-to-PR document reconstruction: 1/1")
-    print("PR-to-base document reconstruction: 1/1")
+    print("existing fixture documents reproduced: base 2/2; current 2/2")
+    print("base-to-PR document reconstruction: 2/2")
+    print("PR-to-base document reconstruction: 2/2")
     print("new derived fixtures reproduced: 4/4")
     print("ka relation-body guard: byte-identical")
     print("canonical JSON identity: 6/6")
