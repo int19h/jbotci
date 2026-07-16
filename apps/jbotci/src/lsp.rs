@@ -12,10 +12,10 @@ use async_lsp::lsp_types::{
     DocumentDiagnosticReport, DocumentDiagnosticReportResult, FullDocumentDiagnosticReport,
     InitializeParams, InitializeResult, Location, NumberOrString, PositionEncodingKind,
     PublishDiagnosticsParams, Range, RelatedFullDocumentDiagnosticReport,
-    RelatedUnchangedDocumentDiagnosticReport, ServerCapabilities, ServerInfo,
-    TextDocumentContentChangeEvent, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, UnchangedDocumentDiagnosticReport, Url, WorkDoneProgressOptions,
-    notification, request,
+    RelatedUnchangedDocumentDiagnosticReport, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, ServerCapabilities, ServerInfo, TextDocumentContentChangeEvent,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    UnchangedDocumentDiagnosticReport, Url, WorkDoneProgressOptions, notification, request,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
@@ -25,7 +25,9 @@ use jbotci_diagnostics::{
     Diagnostic as JbotciDiagnostic, DiagnosticPhase, DiagnosticSeverity as JbotciSeverity,
     diagnostic_text_segments_text,
 };
-use jbotci_ide::{DocumentSnapshot, LineIndex, Position, PositionEncoding};
+use jbotci_ide::{
+    DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, SemanticTokenKind,
+};
 use tokio::sync::watch;
 use tokio::task::AbortHandle;
 use tower::ServiceBuilder;
@@ -292,6 +294,16 @@ impl ServerState {
                         work_done_progress_options: WorkDoneProgressOptions::default(),
                     },
                 )),
+                hover_provider: Some(true.into()),
+                semantic_tokens_provider: Some(
+                    SemanticTokensOptions {
+                        work_done_progress_options: WorkDoneProgressOptions::default(),
+                        legend: semantic_tokens_legend(),
+                        range: None,
+                        full: Some(SemanticTokensFullOptions::Bool(true)),
+                    }
+                    .into(),
+                ),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
@@ -366,6 +378,16 @@ async fn run_server() -> Result<()> {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
                 async move { Ok(document_diagnostic(documents, encoding, params).await) }
+            })
+            .request::<request::HoverRequest, _>(|state, params| {
+                let documents = state.documents.clone();
+                let encoding = state.position_encoding;
+                async move { Ok(document_hover(documents, encoding, params).await) }
+            })
+            .request::<request::SemanticTokensFullRequest, _>(|state, params| {
+                let documents = state.documents.clone();
+                let encoding = state.position_encoding;
+                async move { Ok(document_semantic_tokens(documents, encoding, params).await) }
             })
             .notification::<notification::Initialized>(|_, _| ControlFlow::Continue(()))
             .notification::<notification::Exit>(|_, ()| ControlFlow::Continue(()))
@@ -489,6 +511,21 @@ fn lsp_position_encoding(encoding: PositionEncoding) -> PositionEncodingKind {
 }
 
 #[requires(true)]
+#[ensures(ret.token_types.len() == SemanticTokenKind::ALL.len())]
+#[ensures(ret.token_modifiers.is_empty())]
+fn semantic_tokens_legend() -> SemanticTokensLegend {
+    SemanticTokensLegend {
+        token_types: SemanticTokenKind::ALL
+            .iter()
+            .map(|kind| lsp_types::SemanticTokenType::new(kind.lsp_name()))
+            .collect(),
+        // M1 intentionally leaves modifiers empty. Erased-word and elidable-
+        // terminator modifiers belong to a later tree-aware milestone.
+        token_modifiers: Vec::new(),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn no_snapshot_publisher() -> SnapshotPublisher {
     Arc::new(|_, _, _| {})
@@ -537,6 +574,121 @@ fn apply_content_changes(
         index = LineIndex::new(Arc::from(text));
     }
     Some(index)
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(true)]
+async fn document_hover(
+    documents: DocumentStore,
+    encoding: PositionEncoding,
+    params: lsp_types::HoverParams,
+) -> Option<lsp_types::Hover> {
+    let position = params.text_document_position_params.position;
+    let uri = params.text_document_position_params.text_document.uri;
+    let snapshot = documents.snapshot_for_current(&uri).await?;
+    let char_offset = snapshot.line_index.char_offset_for_position(
+        Position::new(position.line as usize, position.character as usize),
+        encoding,
+    );
+    let hover = snapshot.hover(char_offset)?.into_data();
+    let range = snapshot
+        .line_index
+        .positions_for_span(&hover.span, encoding);
+    Some(lsp_types::Hover {
+        contents: lsp_types::HoverContents::Markup(lsp_types::MarkupContent {
+            kind: lsp_types::MarkupKind::Markdown,
+            value: hover.markdown,
+        }),
+        range: Some(lsp_range(range)),
+    })
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(true)]
+async fn document_semantic_tokens(
+    documents: DocumentStore,
+    encoding: PositionEncoding,
+    params: lsp_types::SemanticTokensParams,
+) -> Option<lsp_types::SemanticTokensResult> {
+    let snapshot = documents
+        .snapshot_for_current(&params.text_document.uri)
+        .await?;
+    Some(lsp_types::SemanticTokensResult::Tokens(
+        lsp_types::SemanticTokens {
+            result_id: None,
+            data: snapshot_semantic_tokens(&snapshot, encoding),
+        },
+    ))
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(true)]
+fn snapshot_semantic_tokens(
+    snapshot: &DocumentSnapshot,
+    encoding: PositionEncoding,
+) -> Vec<lsp_types::SemanticToken> {
+    let mut result = Vec::new();
+    let mut previous = None;
+    for token in snapshot.semantic_tokens() {
+        let positions = snapshot
+            .line_index
+            .positions_for_span(&token.span, encoding);
+        for line in positions.start.line..=positions.end.line {
+            let start = if line == positions.start.line {
+                positions.start
+            } else {
+                Position::new(line, 0)
+            };
+            let end = if line == positions.end.line {
+                positions.end
+            } else {
+                let offsets = snapshot
+                    .line_index
+                    .offsets_for_position(Position::new(line, MAX_POSITION_VALUE), encoding);
+                snapshot
+                    .line_index
+                    .position_for_byte(offsets.byte, encoding)
+            };
+            if start.column < end.column {
+                push_lsp_semantic_token(&mut result, &mut previous, start, end, token.kind);
+            }
+        }
+    }
+    result
+}
+
+#[requires(start.line == end.line && start.column < end.column)]
+#[ensures(tokens.len() == old(tokens.len()) + 1)]
+fn push_lsp_semantic_token(
+    tokens: &mut Vec<lsp_types::SemanticToken>,
+    previous: &mut Option<Position>,
+    start: Position,
+    end: Position,
+    kind: SemanticTokenKind,
+) {
+    let (delta_line, delta_start) = previous.map_or((start.line, start.column), |previous| {
+        let delta_line = start
+            .line
+            .checked_sub(previous.line)
+            .expect("semantic tokens are ordered by source position");
+        let delta_start = if delta_line == 0 {
+            start
+                .column
+                .checked_sub(previous.column)
+                .expect("same-line semantic tokens are ordered by source position")
+        } else {
+            start.column
+        };
+        (delta_line, delta_start)
+    });
+    tokens.push(lsp_types::SemanticToken {
+        delta_line: delta_line as u32,
+        delta_start: delta_start as u32,
+        length: (end.column - start.column) as u32,
+        token_type: kind.legend_index(),
+        token_modifiers_bitset: 0,
+    });
+    *previous = Some(start);
 }
 
 #[requires(true)]
@@ -747,5 +899,52 @@ mod tests {
         .expect("ordered edits are valid");
 
         assert_eq!(changed.text(), "𝙰«a do klama");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn multiline_quote_payloads_are_split_into_single_line_semantic_tokens() {
+        let snapshot = DocumentSnapshot::new("zoi gy one\ntwo gy".to_owned(), 1);
+        assert_eq!(
+            snapshot_semantic_tokens(&snapshot, PositionEncoding::Utf16),
+            vec![
+                lsp_types::SemanticToken {
+                    delta_line: 0,
+                    delta_start: 0,
+                    length: 3,
+                    token_type: SemanticTokenKind::QuotationMarker.legend_index(),
+                    token_modifiers_bitset: 0,
+                },
+                lsp_types::SemanticToken {
+                    delta_line: 0,
+                    delta_start: 4,
+                    length: 2,
+                    token_type: SemanticTokenKind::QuotationMarker.legend_index(),
+                    token_modifiers_bitset: 0,
+                },
+                lsp_types::SemanticToken {
+                    delta_line: 0,
+                    delta_start: 3,
+                    length: 3,
+                    token_type: SemanticTokenKind::String.legend_index(),
+                    token_modifiers_bitset: 0,
+                },
+                lsp_types::SemanticToken {
+                    delta_line: 1,
+                    delta_start: 0,
+                    length: 3,
+                    token_type: SemanticTokenKind::String.legend_index(),
+                    token_modifiers_bitset: 0,
+                },
+                lsp_types::SemanticToken {
+                    delta_line: 0,
+                    delta_start: 4,
+                    length: 2,
+                    token_type: SemanticTokenKind::QuotationMarker.legend_index(),
+                    token_modifiers_bitset: 0,
+                },
+            ]
+        );
     }
 }

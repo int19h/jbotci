@@ -37,6 +37,26 @@ fn parses_canonical_and_english_aliases() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn lsp_accepts_optional_stdio_and_rejects_other_transports() {
+    assert!(matches!(
+        Cli::try_parse_from(["jbotci", "lsp"])
+            .expect("bare lsp command")
+            .command,
+        Command::Lsp { stdio: false }
+    ));
+    assert!(matches!(
+        Cli::try_parse_from(["jbotci", "lsp", "--stdio"])
+            .expect("editor-compatible stdio flag")
+            .command,
+        Command::Lsp { stdio: true }
+    ));
+    assert!(Cli::try_parse_from(["jbotci", "lsp", "--socket"]).is_err());
+    assert!(Cli::try_parse_from(["jbotci", "lsp", "--tcp"]).is_err());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn vlatai_text_reports_lujvo_split_and_stdout_diagnostics() {
     let run = run_cli_capture(
         &["jbotci", "vlatai", "jetcybolxada", "coibroda", "aa"],
