@@ -777,9 +777,10 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
     }))
 }
 
+/// Return the canonical dictionary lookup spelling for one morphology word.
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
-fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
+pub fn word_like_lookup_text(word_like: &WordLike) -> Option<String> {
     match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => Some(word_lookup_text(word)),
         data!(WordLike::LerfuWord { base, .. }) => letteral_lookup_text(base),

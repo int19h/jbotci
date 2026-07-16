@@ -338,8 +338,7 @@ mod tests {
         assert_eq!(
             hover.markdown,
             concat!(
-                "### `klama`\n\n",
-                "*gismu*\n\n",
+                "### `klama` — *gismu*\n\n",
                 "`x1` comes/goes to destination `x2` from origin `x3` via route `x4` ",
                 "using means/vehicle `x5`.\n\n",
                 "**Glosses:** `come`\n\n",
@@ -360,17 +359,15 @@ mod tests {
         assert_eq!(
             hover.markdown,
             concat!(
-                "**Word type:** lujvo\n\n",
+                "### `sutykla` — *lujvo*\n\n",
                 "**Decomposition:** `sut`·`y`·`kla` → `sutra` + `klama`\n\n",
-                "**Component definitions**\n\n---\n\n",
-                "### `sutra`\n\n",
-                "*gismu*\n\n",
+                "---\n\n",
+                "### `sutra` — *gismu*\n\n",
                 "`x1` is fast/swift/quick/hastes/rapid at doing/being/bringing about `x2` ",
                 "(event/state).\n\n",
                 "**Glosses:** `fast`, `quick (fast)`, `rapid`\n\n",
                 "**Rafsi:** `sut`\n\n---\n\n",
-                "### `klama`\n\n",
-                "*gismu*\n\n",
+                "### `klama` — *gismu*\n\n",
                 "`x1` comes/goes to destination `x2` from origin `x3` via route `x4` ",
                 "using means/vehicle `x5`.\n\n",
                 "**Glosses:** `come`\n\n",
@@ -388,48 +385,117 @@ mod tests {
             .expect("blari'o has hover documentation");
 
         assert!(hover.markdown.starts_with(
-            "**Word type:** lujvo\n\n**Decomposition:** `bla`·`ri'o` → `blanu` + `crino`"
+            "### `blari'o` — *lujvo*\n\n**Decomposition:** `bla`·`ri'o` → `blanu` + `crino`"
         ));
-        assert!(hover.markdown.contains("### `blari'o`"));
         assert!(!hover.markdown.contains("**Component definitions**"));
         assert!(!hover.markdown.contains("### `blanu`"));
         assert!(!hover.markdown.contains("### `crino`"));
+        assert!(!hover.markdown.contains("**Word type:**"));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn cmavo_sequence_hover_leads_with_constituent_and_appends_sequence_card() {
+    fn cmavo_sequence_hover_replaces_constituents_and_uses_the_full_span() {
         let snapshot = DocumentSnapshot::new("a'acu'i".to_owned(), 1);
         let first = snapshot.hover(0).expect("a'a has hover documentation");
         let second = snapshot.hover(3).expect("cu'i has hover documentation");
 
-        assert_eq!((first.span.char_start, first.span.char_end), (0, 3));
-        assert_eq!((second.span.char_start, second.span.char_end), (3, 7));
+        assert_eq!((first.span.char_start, first.span.char_end), (0, 7));
+        assert_eq!((second.span.char_start, second.span.char_end), (0, 7));
         assert_eq!(
             first.markdown,
             concat!(
-                "### `a'a`\n\n*cmavo* · **UI1**\n\n",
-                "attitudinal: attentive - inattentive - avoiding.\n\n",
-                "**Glosses:** `attentive`\n\n---\n\n",
-                "## Cmavo sequence `a'acu'i`\n\n",
-                "### `a'acu'i`\n\n*cmavo sequence* · **UI\\*1**\n\n",
+                "### `a'acu'i` — *cmavo sequence* · **UI\\*1**\n\n",
                 "attitudinal: attentive - inattentive - avoiding.\n\n",
                 "**Glosses:** `inattentive`",
             ),
         );
+        assert_eq!(second.markdown, first.markdown);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unattested_zei_compound_hover_stacks_component_cards() {
+        let snapshot = DocumentSnapshot::new("gleki zei py.".to_owned(), 1);
+        let expected = concat!(
+            "### `gleki zei py` — *ZEI compound*\n\n",
+            "---\n\n",
+            "### `gleki` — *gismu*\n\n",
+            "`x1` is happy/merry/glad/gleeful about `x2` (event/state).\n\n",
+            "**Glosses:** `happy`\n\n",
+            "**Rafsi:** `gek`, `gei`\n\n",
+            "---\n\n",
+            "### `py` — *cmavo* · **BY2**\n\n",
+            "letteral for p.\n\n",
+            "**Glosses:** `p`",
+        );
+
+        for offset in [0, 7, 11] {
+            let hover = snapshot
+                .hover(offset)
+                .expect("every ZEI compound component has hover documentation");
+            assert_eq!((hover.span.char_start, hover.span.char_end), (0, 12));
+            assert_eq!(hover.markdown, expected);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn attested_zei_compound_hover_prefers_the_compound_card() {
+        let snapshot = DocumentSnapshot::new("a bu zei sance".to_owned(), 1);
+        let hover = snapshot
+            .hover(6)
+            .expect("the attested ZEI compound has hover documentation");
+
+        assert_eq!((hover.span.char_start, hover.span.char_end), (0, 14));
         assert_eq!(
-            second.markdown,
+            hover.markdown,
             concat!(
-                "### `cu'i`\n\n*cmavo* · **CAI**\n\n",
-                "attitudinal: neutral scalar attitude modifier.\n\n",
-                "**Glosses:** `neutral emotion`\n\n---\n\n",
-                "## Cmavo sequence `a'acu'i`\n\n",
-                "### `a'acu'i`\n\n*cmavo sequence* · **UI\\*1**\n\n",
-                "attitudinal: attentive - inattentive - avoiding.\n\n",
-                "**Glosses:** `inattentive`",
+                "### `abu zei sance` — *ZEI compound*\n\n",
+                "`x1` is an open/low central unrounded vowel sound produced by `x2`.\n\n",
+                "**Glosses:** `A sound (sound of the letter A in Lojban and many other languages)`, ",
+                "`low central unrounded vowel (phone)`, `open central unrounded vowel (phone)`, ",
+                "`open/low central unrounded vowel sound`",
             ),
         );
+        assert!(!hover.markdown.contains("### `abu`"));
+        assert!(!hover.markdown.contains("### `sance`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ziholafti_excerpts_distinguish_plain_and_zei_compound_gleki() {
+        const PLAIN_EXCERPT: &str = ".i pe'a lo gleki djedi zo'u";
+        const ZEI_EXCERPT: &str = "lo gleki zei py. ku zifre cilce";
+
+        let plain_start = PLAIN_EXCERPT.find("gleki").expect("plain excerpt");
+        let plain = DocumentSnapshot::new(PLAIN_EXCERPT.to_owned(), 1)
+            .hover(plain_start)
+            .expect("plain gleki has hover documentation");
+        assert_eq!(
+            (plain.span.char_start, plain.span.char_end),
+            (plain_start, plain_start + "gleki".len()),
+        );
+        assert!(plain.markdown.starts_with("### `gleki` — *gismu*"));
+        assert!(!plain.markdown.contains("ZEI compound"));
+
+        let zei_start = ZEI_EXCERPT.find("gleki").expect("ZEI excerpt");
+        let zei = DocumentSnapshot::new(ZEI_EXCERPT.to_owned(), 1)
+            .hover(zei_start)
+            .expect("ZEI compound gleki has hover documentation");
+        assert_eq!(
+            (zei.span.char_start, zei.span.char_end),
+            (zei_start, zei_start + "gleki zei py".len()),
+        );
+        assert!(
+            zei.markdown
+                .starts_with("### `gleki zei py` — *ZEI compound*")
+        );
+        assert!(zei.markdown.contains("### `gleki` — *gismu*"));
     }
 
     #[test]
@@ -442,7 +508,7 @@ mod tests {
         assert_eq!(
             fuhivla.markdown,
             concat!(
-                "### `djarspageti`\n\n*fu'ivla*\n\n",
+                "### `djarspageti` — *fu'ivla*\n\n",
                 "`x1` is a quantity of spaghetti (long, thin cylindrical pasta).\n\n",
                 "**Glosses:** `spaghetti`",
             ),
@@ -451,7 +517,7 @@ mod tests {
         let cmevla = DocumentSnapshot::new(".alis.".to_owned(), 1)
             .hover(1)
             .expect("name word has morphology hover documentation");
-        assert_eq!(cmevla.markdown, "**Word type:** name word (cmevla)");
+        assert_eq!(cmevla.markdown, "### `alis` — *name word (cmevla)*");
         assert_eq!((cmevla.span.char_start, cmevla.span.char_end), (1, 5));
     }
 
@@ -463,34 +529,39 @@ mod tests {
             .hover(0)
             .expect("valid unknown gismu still has hover documentation");
 
-        assert_eq!(hover.markdown, "**Word type:** gismu");
+        assert_eq!(hover.markdown, "### `brapu` — *gismu*");
         assert_eq!((hover.span.char_start, hover.span.char_end), (0, 5));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn lenu_hovers_lead_with_constituents_then_show_attested_sequence() {
+    fn morphology_invalid_cursor_text_has_no_hover() {
+        let snapshot = DocumentSnapshot::new("pruxrpóltyrgaiste".to_owned(), 1);
+
+        assert!(snapshot.hover(0).is_none());
+        assert!(snapshot.hover(8).is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lenu_hovers_show_only_the_attested_sequence_card_and_full_span() {
         let snapshot = DocumentSnapshot::new("lenu".to_owned(), 1);
         let le = snapshot.hover(0).expect("le has hover documentation");
         let nu = snapshot.hover(2).expect("nu has hover documentation");
 
-        assert_eq!((le.span.char_start, le.span.char_end), (0, 2));
-        assert_eq!((nu.span.char_start, nu.span.char_end), (2, 4));
-        assert!(le.markdown.starts_with("### `le`\n"));
-        assert!(nu.markdown.starts_with("### `nu`\n"));
-        for hover in [&le, &nu] {
-            let sequence_start = hover
-                .markdown
-                .find("## Cmavo sequence `lenu`")
-                .expect("dictionary-attested lenu has a secondary sequence section");
-            let lead_card_end = hover
-                .markdown
-                .find("\n\n---\n\n")
-                .expect("the constituent and sequence cards have a divider");
-            assert!(lead_card_end < sequence_start);
-            assert!(hover.markdown[sequence_start..].contains("### `lenu`"));
-        }
+        assert_eq!((le.span.char_start, le.span.char_end), (0, 4));
+        assert_eq!((nu.span.char_start, nu.span.char_end), (0, 4));
+        assert_eq!(le.markdown, nu.markdown);
+        assert_eq!(
+            le.markdown,
+            concat!(
+                "### `lenu` — *cmavo sequence* · **LE\\***\n\n",
+                "specific event descriptor: contraction of {le nu} and identical in meaning.\n\n",
+                "**Glosses:** `the specific event of`",
+            ),
+        );
     }
 
     #[test]
@@ -503,10 +574,25 @@ mod tests {
 
         assert_eq!((mi.span.char_start, mi.span.char_end), (0, 2));
         assert_eq!((nu.span.char_start, nu.span.char_end), (2, 4));
-        assert!(mi.markdown.starts_with("### `mi`\n"));
-        assert!(nu.markdown.starts_with("### `nu`\n"));
-        assert!(!mi.markdown.contains("Cmavo sequence"));
-        assert!(!nu.markdown.contains("Cmavo sequence"));
+        assert_eq!(
+            mi.markdown,
+            concat!(
+                "### `mi` — *cmavo* · **KOhA3**\n\n",
+                "pro-sumti: me/we the speaker(s)/author(s); identified by self-vocative.\n\n",
+                "**Glosses:** `me`, `I`\n\n",
+                "**Rafsi:** `mib`",
+            ),
+        );
+        assert_eq!(
+            nu.markdown,
+            concat!(
+                "### `nu` — *cmavo* · **NU**\n\n",
+                "abstractor: generalized event abstractor; `x1` is ",
+                "state/process/achievement/activity of \\[bridi\\].\n\n",
+                "**Glosses:** `event abstract`\n\n",
+                "**Rafsi:** `nun`",
+            ),
+        );
     }
 
     #[test]
@@ -520,52 +606,52 @@ mod tests {
             .hover(2)
             .expect("spaced je has hover documentation");
 
-        assert_eq!((solid.span.char_start, solid.span.char_end), (1, 3));
-        assert_eq!((spaced.span.char_start, spaced.span.char_end), (2, 4));
+        assert_eq!((solid.span.char_start, solid.span.char_end), (0, 3));
+        assert_eq!((spaced.span.char_start, spaced.span.char_end), (0, 4));
         assert_eq!(solid.markdown, spaced.markdown);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn ije_hover_includes_sentence_afterthought_sequence_definition() {
-        let hover = DocumentSnapshot::new("ije".to_owned(), 1)
-            .hover(1)
-            .expect("je has hover documentation");
-
-        assert!(hover.markdown.starts_with("### `je`\n"));
-        let sequence_start = hover
-            .markdown
-            .find("## Cmavo sequence `ije`")
-            .expect("ije is a dictionary-attested cmavo sequence");
-        assert!(sequence_start > 0);
-        assert!(
-            hover.markdown[sequence_start..]
-                .contains("logical connective: sentence afterthought and.")
+        assert_eq!(
+            solid.markdown,
+            concat!(
+                "### `ije` — *cmavo sequence* · **JA\\***\n\n",
+                "logical connective: sentence afterthought and.\n\n",
+                "**Glosses:** `sentence and`",
+            ),
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn containing_cmavo_sequences_render_longest_first() {
+    fn ije_hover_contains_no_constituent_card() {
+        let hover = DocumentSnapshot::new("ije".to_owned(), 1)
+            .hover(1)
+            .expect("je has hover documentation");
+
+        assert!(hover.markdown.starts_with("### `ije` — *cmavo sequence*"));
+        assert!(
+            hover
+                .markdown
+                .contains("logical connective: sentence afterthought and.")
+        );
+        assert!(!hover.markdown.contains("### `je`"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn containing_cmavo_sequences_render_only_the_longest_attested_match() {
         let hover = DocumentSnapshot::new("binonovo".to_owned(), 1)
             .hover(0)
             .expect("bi has hover documentation");
 
-        let longest = hover
-            .markdown
-            .find("## Cmavo sequence `binonovo`")
-            .expect("the four-constituent sequence is dictionary-attested");
-        let middle = hover
-            .markdown
-            .find("## Cmavo sequence `binono`")
-            .expect("the three-constituent sequence is dictionary-attested");
-        let shortest = hover
-            .markdown
-            .find("## Cmavo sequence `bino`")
-            .expect("the two-constituent sequence is dictionary-attested");
-        assert!(longest < middle && middle < shortest);
+        assert_eq!((hover.span.char_start, hover.span.char_end), (0, 8));
+        assert!(
+            hover
+                .markdown
+                .starts_with("### `binonovo` — *cmavo sequence*")
+        );
+        assert!(!hover.markdown.contains("### `binono`"));
+        assert!(!hover.markdown.contains("### `bino`"));
     }
 
     #[test]
@@ -587,7 +673,7 @@ mod tests {
         let lohu = DocumentSnapshot::new("lo'u klama le'u".to_owned(), 1)
             .hover(5)
             .expect("LOhU payload has morphology-only hover");
-        assert_eq!(lohu.markdown, "**Word type:** gismu");
+        assert_eq!(lohu.markdown, "### `klama` — *gismu*");
         assert_eq!((lohu.span.char_start, lohu.span.char_end), (5, 10));
     }
 

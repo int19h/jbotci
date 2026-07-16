@@ -53,23 +53,13 @@ pub fn render_vlacku_card_markdown(card: &VlackuCard) -> String {
 #[requires(!link_base.trim_end_matches('/').is_empty())]
 #[ensures(!ret.is_empty())]
 pub fn render_vlacku_card_markdown_with_link_base(card: &VlackuCard, link_base: &str) -> String {
-    let mut output = String::new();
-    output.push_str("### ");
-    output.push_str(&inline_code(&card.word));
-    output.push_str("\n\n");
-
-    output.push('*');
-    output.push_str(&escape_markdown_inline(&card.word_type));
-    output.push('*');
-    if let Some(selmaho) = card
-        .selmaho
-        .as_deref()
-        .filter(|selmaho| !selmaho.trim().is_empty())
-    {
-        output.push_str(" · **");
-        output.push_str(&escape_markdown_inline(selmaho));
-        output.push_str("**");
-    }
+    let mut output = render_vlacku_headword_markdown(
+        &card.word,
+        &card.word_type,
+        card.selmaho
+            .as_deref()
+            .filter(|selmaho| !selmaho.trim().is_empty()),
+    );
 
     if !card.decomposition.is_empty() {
         output.push_str("\n\n**Decomposition:** ");
@@ -86,6 +76,28 @@ pub fn render_vlacku_card_markdown_with_link_base(card: &VlackuCard, link_base: 
     if !card.rafsi.is_empty() {
         output.push_str("\n\n**Rafsi:** ");
         push_code_list(&mut output, &card.rafsi);
+    }
+    output
+}
+
+/// Render the compact headword line shared by dictionary and classification cards.
+#[requires(!word.is_empty())]
+#[requires(selmaho.is_none_or(|value| !value.trim().is_empty()))]
+#[ensures(!ret.is_empty())]
+pub fn render_vlacku_headword_markdown(
+    word: &str,
+    word_type: &str,
+    selmaho: Option<&str>,
+) -> String {
+    let mut output = String::from("### ");
+    output.push_str(&inline_code(word));
+    output.push_str(" — *");
+    output.push_str(&escape_markdown_inline(word_type));
+    output.push('*');
+    if let Some(selmaho) = selmaho {
+        output.push_str(" · **");
+        output.push_str(&escape_markdown_inline(selmaho));
+        output.push_str("**");
     }
     output
 }
@@ -410,8 +422,7 @@ mod tests {
         assert_eq!(
             markdown,
             concat!(
-                "### `klama`\n\n",
-                "*gismu*\n\n",
+                "### `klama` — *gismu*\n\n",
                 "`x1` comes/goes to destination `x2` from origin `x3` via route `x4` ",
                 "using means/vehicle `x5`.\n\n",
                 "**Glosses:** `come`\n\n",
