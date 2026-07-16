@@ -19,6 +19,13 @@ pub fn main_entry() -> ExitCode {
 #[ensures(true)]
 fn run() -> Result<CliStatus> {
     let cli = Cli::parse();
+    if matches!(&cli.command, Command::Lsp) {
+        if cli.benchmark.is_some() {
+            bail!("`--benchmark` is not supported with lsp");
+        }
+        super::lsp::run()?;
+        return Ok(CliStatus::Success);
+    }
     suppress_llama_logs_for_cli();
     let color_policy = CliColorPolicy {
         stdout: stream_supports_ansi_color(concolor::Stream::Stdout),
@@ -344,6 +351,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
             Ok(CliStatus::Success)
         }
         Command::Setup(input) => run_setup(input, stdout, progress_policy),
+        Command::Lsp => bail!("lsp requires the process standard input/output streams"),
     }
 }
 
