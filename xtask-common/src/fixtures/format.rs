@@ -115,6 +115,7 @@ fn push_expectations_toml(
         if let Some(recovered) = &morphology.recovered {
             output.push_str("\n[expectations.morphology.recovered]\n");
             push_field(output, "status", &recovered.status)?;
+            push_optional_field(output, "max-errors", &recovered.max_errors)?;
             if !recovered.diagnostics.is_empty() {
                 push_field(output, "diagnostics", &recovered.diagnostics)?;
             }
@@ -140,9 +141,11 @@ fn push_expectations_toml(
         if let Some(recovered) = &syntax.recovered {
             output.push_str("\n[expectations.syntax.recovered]\n");
             push_field(output, "status", &recovered.status)?;
+            push_optional_field(output, "max-errors", &recovered.max_errors)?;
             if !recovered.diagnostics.is_empty() {
                 push_field(output, "diagnostics", &recovered.diagnostics)?;
             }
+            push_optional_field(output, "tree", &recovered.tree)?;
         }
     }
     if let Some(semantics) = &expectations.semantics
@@ -269,4 +272,70 @@ fn format_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String, toml::s
     let mut output = String::new();
     value.serialize(toml::ser::ValueSerializer::new(&mut output))?;
     Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::format_test_case_toml;
+    use crate::fixtures::{TestCase, load_fixture_path};
+    use bityzba::requires;
+
+    #[test]
+    #[requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_syntax_max_errors_survives_fixture_formatting() {
+        let fixture =
+            load_repo_fixture("tests/fixtures/adhoc/recovery/syntax/error-cap-truncation.toml");
+        let formatted = format_test_case_toml(&fixture).unwrap();
+        let reparsed: TestCase = toml::from_str(&formatted).unwrap();
+
+        assert_eq!(
+            reparsed
+                .expectations
+                .syntax
+                .as_ref()
+                .and_then(|expectation| expectation.recovered.as_ref())
+                .and_then(|recovered| recovered.max_errors),
+            Some(3)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_syntax_tree_survives_fixture_formatting() {
+        let fixture = load_repo_fixture(
+            "tests/fixtures/adhoc/recovery/syntax/mid-input-token-conservation.toml",
+        );
+        let expected_tree = fixture
+            .expectations
+            .syntax
+            .as_ref()
+            .and_then(|expectation| expectation.recovered.as_ref())
+            .and_then(|recovered| recovered.tree.clone());
+        let formatted = format_test_case_toml(&fixture).unwrap();
+        let reparsed: TestCase = toml::from_str(&formatted).unwrap();
+
+        assert_eq!(
+            reparsed
+                .expectations
+                .syntax
+                .as_ref()
+                .and_then(|expectation| expectation.recovered.as_ref())
+                .and_then(|recovered| recovered.tree.clone()),
+            expected_tree
+        );
+    }
+
+    #[requires(!Path::new(relative).is_absolute())]
+    #[bityzba::ensures(ret.is_valid_fixture_metadata())]
+    fn load_repo_fixture(relative: &str) -> TestCase {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("xtask-common must be in the workspace root")
+            .join(relative);
+        load_fixture_path(&path).unwrap().test_case
+    }
 }
