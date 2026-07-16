@@ -8898,58 +8898,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             atom.base.as_ref(),
         )?);
         let place_count = relation_place_count(self.dictionary, &relation);
-        let mut diagnostics = Vec::new();
-        let mut visible_arguments = BTreeMap::new();
-        let mut modal_arguments = Vec::new();
-        let mut event_modifiers = Vec::new();
-        let mut linkarg_formula_scopes = Vec::new();
-        if let Some(linkargs) = linkargs {
-            (modal_arguments, event_modifiers, linkarg_formula_scopes) =
-                self.extend_visible_arguments_with_linkargs(&mut visible_arguments, linkargs, 2)?;
+        let adjusted = self.visible_argument_branches_with_linkargs(
+            BTreeMap::new(),
+            linkargs,
+            2,
+            place_count,
+            GeneratedLinkargsApplicationContext::Ordinary,
+        )?;
+        let data!(GeneratedLinkargsArgumentBranches {
+            visible_argument_branches,
+            modal_arguments,
+            event_modifiers,
+            formula_scopes,
+            mut diagnostics,
+            ..
+        }) = adjusted.into_data();
+        if place_count.is_none() && !relation_has_open_place_structure(&relation) {
+            diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only places required by explicit assignments are represented",
+            ));
         }
         let event_modifier_anchor = jai_unit
             .tense_modal
             .as_deref()
             .filter(|tense_modal| generated_tense_modal_has_event_modifier(*tense_modal))
             .map(|_| referent);
-        let mut arguments = BTreeMap::new();
-        for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
-            let key = argument_key(place);
-            if arguments.insert(key.clone(), argument).is_some() {
-                return Err(invalid_graph(format!(
-                    "multiple generated restrictive jai arguments map to {key}"
-                )));
-            }
-        }
         let visible_x1_place = mapped_place_for_generated_conversions(1, &atom.conversions)?;
-        let visible_x1_key = argument_key(visible_x1_place);
-        if !arguments.contains_key(&visible_x1_key) {
-            arguments.insert(
-                visible_x1_key,
-                self.build_elided_argument_for_place(visible_x1_place)?,
-            );
-        }
         let jai_modal_argument =
             self.build_generated_jai_modal_argument_for_argument_object(jai_unit, referent)?;
-        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let place_limit = match place_count {
-            Some(place_count) => place_count,
-            None => {
-                if !relation_has_open_place_structure(&relation) {
-                    diagnostics.push(diagnostic(
-                        "relation place structure is unavailable; only places required by explicit assignments are represented",
-                    ));
-                }
-                highest_argument.max(visible_x1_place)
-            }
-        };
-        for place in 1..=place_limit.max(highest_argument).max(visible_x1_place) {
-            let key = argument_key(place);
-            if !arguments.contains_key(&key) {
-                arguments.insert(key, self.build_elided_argument_for_place(place)?);
-            }
-        }
         let source = self.source_for_node(selbri, "restrictive-predication");
         let eventuality = self.build_eventuality(source.clone())?;
         self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
@@ -8962,38 +8938,83 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 event_modifier_anchor,
             )?;
         }
-        if let Some(mut modal_argument) = jai_modal_argument {
-            self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
-            modal_arguments.push(modal_argument);
-        }
         let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
             &relation_text,
             source.clone(),
         )?;
-        let predication = self.next_predication_id();
-        let mut object = SemanticObject::predication(
-            relation_text,
-            Some(eventuality),
-            arguments,
-            predication_mode_for_relation(&relation, PredicationMode::Restrictive),
-            source,
-            diagnostics,
-        );
-        object.set_predication_attachments(modal_arguments, Vec::new());
-        object.set_predication_relation_metadata(relation_metadata);
-        self.insert(predication, object)?;
-        let formula = self.next_formula_id();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(
-                predication,
-                self.source_for_node(selbri, "restrictive-formula"),
-                Vec::new(),
-            ),
-        )?;
-        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
+        let formula_source = self.source_for_node(selbri, "restrictive-formula");
+        let mut formulas = Vec::with_capacity(visible_argument_branches.len());
+        for visible_arguments in visible_argument_branches {
+            let mut arguments = BTreeMap::new();
+            for (visible_place, argument) in visible_arguments {
+                let place =
+                    mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+                let key = argument_key(place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated restrictive jai arguments map to {key}"
+                    )));
+                }
+            }
+            let visible_x1_key = argument_key(visible_x1_place);
+            if !arguments.contains_key(&visible_x1_key) {
+                arguments.insert(
+                    visible_x1_key,
+                    self.build_elided_argument_for_place(visible_x1_place)?,
+                );
+            }
+            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(visible_x1_place));
+            for place in 1..=place_limit.max(highest_argument).max(visible_x1_place) {
+                let key = argument_key(place);
+                if !arguments.contains_key(&key) {
+                    arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                }
+            }
+            let mut branch_modal_arguments = modal_arguments.clone();
+            if let Some(mut modal_argument) = jai_modal_argument.clone() {
+                self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
+                branch_modal_arguments.push(modal_argument);
+            }
+            let predication = self.next_predication_id();
+            let mut object = SemanticObject::predication(
+                relation_text.clone(),
+                Some(eventuality),
+                arguments,
+                predication_mode_for_relation(&relation, PredicationMode::Restrictive),
+                source.clone(),
+                diagnostics.clone(),
+            );
+            object.set_predication_attachments(branch_modal_arguments, Vec::new());
+            object.set_predication_relation_metadata(relation_metadata);
+            self.insert(predication, object)?;
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(predication, formula_source.clone(), Vec::new()),
+            )?;
+            formulas.push(formula);
+        }
+        let formula = match formulas.as_slice() {
+            [formula] => *formula,
+            _ => {
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        formulas,
+                        None,
+                        formula_source,
+                        Vec::new(),
+                    ),
+                )?;
+                formula
+            }
+        };
+        self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent || referent.object_kind() == crate::model::SemanticObjectKind::Parameter)]
