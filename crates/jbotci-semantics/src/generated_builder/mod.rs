@@ -908,7 +908,7 @@ struct GeneratedLinkargsAssignments<'syntax> {
     first_visible_place: usize,
     next_visible_place: usize,
     explicit_multi_claim_places: BTreeSet<usize>,
-    contains_explicit_cehu: bool,
+    contains_unbound_explicit_cehu: bool,
 }
 
 #[invariant(!visible_argument_branches.is_empty())]
@@ -12120,7 +12120,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn saturated_heads_and_explicit_linked_cehu_carry_diagnostics() {
+    fn saturated_heads_carry_diagnostics() {
         let saturated = semantic_graph_for("le nenri be fa mi bei do cu barda");
         let saturated_nenri = named_predication_ids(&saturated, "nenri");
         assert_eq!(saturated_nenri.len(), 2);
@@ -12146,15 +12146,30 @@ mod tests {
                 .as_parameter()
                 .is_some_and(|parameter| parameter.role == ParameterRole::PropertySlot)
         }));
+    }
 
-        let explicit_cehu = semantic_graph_for("le nenri be fa ce'u cu barda");
-        let explicit_cehu_nenri = named_predication_ids(&explicit_cehu, "nenri");
-        assert_eq!(explicit_cehu_nenri.len(), 1);
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linked_cehu_warning_only_reports_unbound_abstraction_focus() {
+        const WARNING: &str = "explicit ce'u in linked sumti is an ordinary linked argument and does not designate the predicate head";
+
+        for text in ["le nenri be fa ce'u cu barda", "le pixra be ce'u cu barda"] {
+            let graph = semantic_graph_for(text);
+            assert!(graph.objects.values().any(|object| {
+                object
+                    .diagnostics()
+                    .iter()
+                    .any(|diagnostic| diagnostic.message == WARNING)
+            }));
+        }
+
+        let bound = semantic_graph_for("mi ckaji lo ka le pixra be ce'u cu melbi");
         assert!(
-            explicit_cehu.objects[&explicit_cehu_nenri[0]]
-                .diagnostics()
-                .iter()
-                .any(|diagnostic| diagnostic.message.contains("explicit ce'u in linked sumti"))
+            bound
+                .objects
+                .values()
+                .all(|object| object.diagnostics().is_empty())
         );
     }
 

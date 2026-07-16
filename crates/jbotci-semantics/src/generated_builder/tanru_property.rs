@@ -6198,7 +6198,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             first_visible_place,
             next_visible_place: first_visible_place,
             explicit_multi_claim_places: BTreeSet::new(),
-            contains_explicit_cehu: false,
+            contains_unbound_explicit_cehu: false,
         });
         assignments = self.add_linked_sumti_assignment(assignments, &linkargs.first_link)?;
         for link in &linkargs.bei_links {
@@ -6382,7 +6382,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )));
             }
         }
-        if linkarg_assignments.contains_explicit_cehu {
+        if linkarg_assignments.contains_unbound_explicit_cehu {
             diagnostics.push(diagnostic(
                 "explicit ce'u in linked sumti is an ordinary linked argument and does not designate the predicate head",
             ));
@@ -6518,6 +6518,30 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok((next_tail_place, adjusted_arguments))
     }
 
+    #[requires(argument.value.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind())))]
+    #[ensures(ret -> argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+    fn generated_linked_argument_is_unbound_explicit_cehu(&self, argument: &ArgumentValue) -> bool {
+        let Some(parameter_id) = argument.value else {
+            return false;
+        };
+        let Some(parameter) = self
+            .objects
+            .get(&parameter_id)
+            .and_then(SemanticObject::as_parameter)
+        else {
+            return false;
+        };
+        // Explicit `ce'u` lowering gives the linked argument a property-slot parameter and
+        // registers it in the nearest active abstraction frame. Descriptions do not create a
+        // frame, so this also preserves binding through a nested description into its enclosing
+        // abstraction.
+        parameter.role == ParameterRole::PropertySlot
+            && !self
+                .abstraction_parameter_stack
+                .iter()
+                .any(|parameters| parameters.contains(&parameter_id))
+    }
+
     #[requires(assignments.next_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place > 0) || ret.is_err())]
     pub(super) fn add_linked_sumti_assignment<'syntax: 'tree>(
@@ -6538,12 +6562,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         match link {
             LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
-                assignments.contains_explicit_cehu |=
-                    generated_sumti_spine_cmavo(&sumti.0) == Some(Cmavo::Cehu);
                 let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
                     &sumti.0,
                     &mut assignments.formula_scopes,
                 )?;
+                assignments.contains_unbound_explicit_cehu |=
+                    self.generated_linked_argument_is_unbound_explicit_cehu(&argument);
                 let place = numbered_place.expect("plain linked sumti has a numbered place");
                 assignments
                     .numbered_argument_choices
@@ -6551,11 +6575,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
                 let place = numbered_place.expect("FA-tagged linked sumti has a numbered place");
-                assignments.contains_explicit_cehu |= matches!(
-                    sumti.sumti.as_ref(),
-                    TaggedOrElidedSumtiSyntax::Sumti(sumti)
-                        if generated_sumti_spine_cmavo(sumti) == Some(Cmavo::Cehu)
-                );
                 let argument = match sumti.sumti.as_ref() {
                     TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
                         .build_argument_for_generated_sumti_with_formula_scopes(
@@ -6566,6 +6585,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
                     }
                 };
+                assignments.contains_unbound_explicit_cehu |=
+                    self.generated_linked_argument_is_unbound_explicit_cehu(&argument);
                 let choices = assignments
                     .numbered_argument_choices
                     .entry(place)
@@ -6576,11 +6597,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 choices.push(argument);
             }
             LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
-                assignments.contains_explicit_cehu |= matches!(
-                    sumti.sumti.as_ref(),
-                    TaggedOrElidedSumtiSyntax::Sumti(sumti)
-                        if generated_sumti_spine_cmavo(sumti) == Some(Cmavo::Cehu)
-                );
                 let argument = match sumti.sumti.as_ref() {
                     TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
                         .build_argument_for_generated_sumti_with_formula_scopes(
@@ -6591,6 +6607,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
                     }
                 };
+                assignments.contains_unbound_explicit_cehu |=
+                    self.generated_linked_argument_is_unbound_explicit_cehu(&argument);
                 if generated_tense_modal_has_event_modifier(sumti.tense_modal.as_ref()) {
                     assignments
                         .event_modifiers
