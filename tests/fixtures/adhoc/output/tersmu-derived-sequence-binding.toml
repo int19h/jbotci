@@ -8,25 +8,33 @@ description = "Issue #349 sequence probe: shared event binding stays structural 
 
 [expectations.output.tersmu]
 tree = """
-sequence binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={content=formula:8; otherwise=unspecified}}, eventuality[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={content=formula:13; otherwise=unspecified}} [sequence:18]
+sequence binds=exists eventuality nelci[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, eventuality nelci[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [sequence:18]
   connection claim: atom binds=exists eventuality[eventuality:15] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:17]
-    after(x1=eventuality[eventuality:11], x2=eventuality[eventuality:6]) {event=eventuality[eventuality:15]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:16]
+    after(x1=eventuality nelci[eventuality:11], x2=eventuality nelci[eventuality:6]) {event=eventuality[eventuality:15]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:16]
+      abstraction content: atom [formula:13]
+        nelci(x1=speaker[entity:1], x2=audience[entity:2]) {event=eventuality nelci[eventuality:11]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:12]
+      abstraction content: atom [formula:8]
+        nelci(x1=audience[entity:2], x2=speaker[entity:1]) {event=eventuality nelci[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:7]
   item: utterance assert {event=eventuality/locution[eventuality/locution:9]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
     content: atom [formula:8]
-      nelci(x1=audience[entity:2], x2=speaker[entity:1]) {event=eventuality[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={content=formula:8; otherwise=unspecified}} [predication:7]
+      nelci(x1=audience[entity:2], x2=speaker[entity:1]) {event=eventuality nelci[eventuality:6]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:7]
   item: utterance assert {event=eventuality/locution[eventuality/locution:14]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:10]
     content: atom [formula:13]
-      nelci(x1=speaker[entity:1], x2=audience[entity:2]) {event=eventuality[eventuality:11]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={content=formula:13; otherwise=unspecified}} [predication:12]"""
+      nelci(x1=speaker[entity:1], x2=audience[entity:2]) {event=eventuality nelci[eventuality:11]; time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [predication:12]"""
 "tree+proj" = """
-sequence binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={content=formula:8; otherwise=unspecified}}, eventuality[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details={content=formula:13; otherwise=unspecified}} [sequence:18]
+sequence binds=exists eventuality nelci[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, eventuality nelci[eventuality:11] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [sequence:18]
   connection claim: atom binds=exists eventuality[eventuality:15] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:17]
-    after(x1=eventuality[eventuality:11], x2=eventuality[eventuality:6]) {event=eventuality[eventuality:15]} [predication:16]
+    after(x1=eventuality nelci[eventuality:11], x2=eventuality nelci[eventuality:6]) {event=eventuality[eventuality:15]} [predication:16]
+      abstraction content: atom [formula:13]
+        nelci(x1=speaker[entity:1], x2=audience[entity:2]) {event=eventuality nelci[eventuality:11]} [predication:12]
+      abstraction content: atom [formula:8]
+        nelci(x1=audience[entity:2], x2=speaker[entity:1]) {event=eventuality nelci[eventuality:6]} [predication:7]
   item: utterance assert {event=eventuality/locution[eventuality/locution:9]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
     content: atom [formula:8]
-      nelci(x1=audience[entity:2], x2=speaker[entity:1]) {event=eventuality[eventuality:6]} [predication:7]
+      nelci(x1=audience[entity:2], x2=speaker[entity:1]) {event=eventuality nelci[eventuality:6]} [predication:7]
   item: utterance assert {event=eventuality/locution[eventuality/locution:14]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:10]
     content: atom [formula:13]
-      nelci(x1=speaker[entity:1], x2=audience[entity:2]) {event=eventuality[eventuality:11]} [predication:12]
+      nelci(x1=speaker[entity:1], x2=audience[entity:2]) {event=eventuality nelci[eventuality:11]} [predication:12]
 
 projected:
 - frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:9], eventuality/locution[eventuality/locution:14]] [binder-dependence=fixed]"""
