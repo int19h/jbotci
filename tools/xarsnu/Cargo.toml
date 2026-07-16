@@ -1,0 +1,32 @@
+[package]
+name = "xarsnu"
+description = "Gated Lojban dialog simulation lab."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+expensive_contracts = []
+
+[[bin]]
+name = "xarsnu"
+path = "src/main.rs"
+
+[dependencies]
+bityzba.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+ureq.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true
