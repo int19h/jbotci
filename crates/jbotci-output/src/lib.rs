@@ -29,6 +29,7 @@ pub use markdown::{
     render_diagnostic_text_segments_markdown_with_link_base, render_vlacku_card_markdown,
     render_vlacku_card_markdown_with_link_base, render_vlacku_cards_markdown,
     render_vlacku_cards_markdown_with_link_base, render_vlacku_decomposition_markdown,
+    render_vlacku_headword_markdown,
 };
 use owo_colors::OwoColorize;
 pub use places::{
