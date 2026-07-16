@@ -1489,11 +1489,21 @@ impl<'tokens> ParserState<'tokens> {
         if failure_location > start_location {
             return true;
         }
-        let Some(cut_byte) = self
+        let Some(sentinel_index) = self
             .continuation_sentinel_index
             .filter(|index| *index == failure_location)
-            .and_then(|index| self.syntax_location_byte_offsets.get(index))
         else {
+            return false;
+        };
+        // At an empty document the grammar cannot consume a token before the
+        // sentinel, but descending from the root into a start construct is
+        // still meaningful grammar progress. Retain those rule failures so
+        // expected continuations cover ordinary statement starts such as a
+        // brivla, not only failures recorded directly by terminal parsers.
+        if sentinel_index == 0 {
+            return true;
+        }
+        let Some(cut_byte) = self.syntax_location_byte_offsets.get(sentinel_index) else {
             return false;
         };
         self.active_syntax_contexts

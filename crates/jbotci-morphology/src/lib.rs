@@ -2468,16 +2468,9 @@ fn apply_compiled_dialect_entry_to_word_like(
 #[requires(true)]
 #[ensures(true)]
 fn is_single_word_quote_marker(word: &Word) -> bool {
-    word.is_one_of_cmavo(&[
-        Cmavo::Zohoi,
-        Cmavo::Lahoi,
-        Cmavo::Rahoi,
-        Cmavo::Mehoi,
-        Cmavo::Gohoi,
-        Cmavo::Zehoi,
-        Cmavo::Tahai,
-        Cmavo::Bohei,
-    ])
+    word.cmavo()
+        .and_then(Cmavo::quote_opener_kind)
+        .is_some_and(|kind| kind == cmavo::QuoteOpenerKind::SingleWord)
 }
 
 #[requires(true)]
@@ -2706,6 +2699,28 @@ pub fn is_valid_phoneme(value: char) -> bool {
             | 'x'
             | 'z'
     )
+}
+
+/// Return whether `value` can participate in a morphology word spelling.
+///
+/// This deliberately follows the same script- and diacritic-aware source
+/// normalization as segmentation. Digits are excluded because they form PA
+/// words but are not identifier-style word characters for editor queries.
+#[requires(true)]
+#[ensures(!ret || !value.is_ascii_digit())]
+pub fn is_word_forming_character_with_options(value: char, options: &MorphologyOptions) -> bool {
+    if value.is_ascii_digit() {
+        return false;
+    }
+    let mut encoded = [0_u8; 4];
+    segment::normalize_word_checked_with_options(value.encode_utf8(&mut encoded), options).is_some()
+}
+
+/// Return whether `value` can participate in a default-dialect word spelling.
+#[requires(true)]
+#[ensures(!ret || !value.is_ascii_digit())]
+pub fn is_word_forming_character(value: char) -> bool {
+    is_word_forming_character_with_options(value, &MorphologyOptions::default())
 }
 
 #[requires(true)]
@@ -3795,6 +3810,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn word_forming_character_query_uses_source_orthography_normalization() {
+        for value in ['b', 'Y', '\'', ',', 'á', '\u{0301}', 'ж'] {
+            assert!(
+                is_word_forming_character(value),
+                "{value:?} is accepted inside a morphology word spelling",
+            );
+        }
+        for value in ['1', '.', ' ', '@', 'q'] {
+            assert!(
+                !is_word_forming_character(value),
+                "{value:?} is not an identifier-style morphology word character",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn normalizes_lojban_input_text_for_exact_lookups() {
         assert_eq!(
             normalize_lojban_input_text("ми клама").as_deref(),
@@ -4703,6 +4736,35 @@ mod tests {
                 "{cmavo:?} canonical text does not map back to the same variant"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quote_opener_classifier_covers_every_morphology_quote_form() {
+        let actual = Cmavo::ALL
+            .iter()
+            .copied()
+            .filter(|cmavo| cmavo.is_quote_opener())
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = std::collections::BTreeSet::from([
+            Cmavo::Lohu,
+            Cmavo::Zoi,
+            Cmavo::Laho,
+            Cmavo::Muhoi,
+            Cmavo::Zo,
+            Cmavo::Mahoi,
+            Cmavo::Zohoi,
+            Cmavo::Lahoi,
+            Cmavo::Rahoi,
+            Cmavo::Mehoi,
+            Cmavo::Gohoi,
+            Cmavo::Zehoi,
+            Cmavo::Tahai,
+            Cmavo::Bohei,
+        ]);
+
+        assert_eq!(actual, expected);
     }
 
     #[test]

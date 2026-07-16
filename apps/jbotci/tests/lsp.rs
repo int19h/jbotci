@@ -55,7 +55,7 @@ impl LspClient {
     }
 
     #[requires(!method.is_empty())]
-    #[ensures(ret.is_null() || ret.is_object())]
+    #[ensures(ret.is_null() || ret.is_object() || ret.is_array())]
     fn request(&mut self, method: &str, params: Value) -> Value {
         let id = self.next_id;
         self.next_id += 1;
@@ -197,7 +197,16 @@ fn initialize(client: &mut LspClient, position_encoding: &str, pull_diagnostics:
     assert_eq!(result["capabilities"]["textDocumentSync"]["change"], 2);
     assert!(result["capabilities"]["diagnosticProvider"].is_object());
     assert_eq!(result["capabilities"]["hoverProvider"], true);
-    assert!(result["capabilities"].get("completionProvider").is_none());
+    assert_eq!(
+        result["capabilities"]["completionProvider"]["resolveProvider"],
+        true
+    );
+    assert!(
+        result["capabilities"]["completionProvider"]
+            .get("triggerCharacters")
+            .is_none(),
+        "Lojban completion has no punctuation trigger characters",
+    );
     assert_eq!(
         result["capabilities"]["semanticTokensProvider"]["legend"]["tokenTypes"],
         json!([
@@ -284,6 +293,24 @@ fn hover(client: &mut LspClient, uri: &str, character: u64) -> Value {
 }
 
 #[requires(!uri.is_empty())]
+#[ensures(ret.is_array())]
+fn completion(client: &mut LspClient, uri: &str, character: u64) -> Value {
+    client.request(
+        "textDocument/completion",
+        json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": character }
+        }),
+    )
+}
+
+#[requires(item.is_object())]
+#[ensures(ret.is_object())]
+fn resolve_completion(client: &mut LspClient, item: Value) -> Value {
+    client.request("completionItem/resolve", item)
+}
+
+#[requires(!uri.is_empty())]
 #[ensures(ret.is_null() || ret.is_object())]
 fn semantic_tokens(client: &mut LspClient, uri: &str) -> Value {
     client.request(
@@ -361,6 +388,65 @@ fn assert_hover_ranges(position_encoding: &str, le_start: u64, nu_start: u64) {
             "start": { "line": 0, "character": le_start },
             "end": { "line": 0, "character": nu_start + 2 }
         })
+    );
+    client.shutdown();
+}
+
+#[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
+#[ensures(true)]
+fn assert_completion_encoding(position_encoding: &str) {
+    const URI: &str = "file:///completion-encoding.jbo";
+    const TEXT: &str = "mí klama le bar";
+    const SEED: &str = "bar";
+
+    let seed_byte_start = TEXT.rfind(SEED).expect("fixture contains completion seed");
+    let prefix = &TEXT[..seed_byte_start];
+    let seed_start = match position_encoding {
+        "utf-8" => prefix.len(),
+        "utf-16" => prefix.encode_utf16().count(),
+        _ => unreachable!("precondition limits position encodings"),
+    } as u64;
+    let cursor = seed_start + SEED.len() as u64;
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, position_encoding, true);
+    open_document_text(&mut client, URI, 1, TEXT);
+
+    let result = completion(&mut client, URI, cursor);
+    let item = result
+        .as_array()
+        .expect("completion array")
+        .iter()
+        .find(|item| item["label"] == "barda")
+        .expect("bar extends to dictionary brivla barda")
+        .clone();
+    assert_eq!(item["kind"], 3, "brivla map to Function");
+    assert_eq!(item["labelDetails"]["description"], "big");
+    assert_eq!(item["detail"], "starts tanru unit");
+    assert_eq!(item["sortText"], "11-barda");
+    assert!(
+        item.get("documentation").is_none(),
+        "completion lists defer documentation",
+    );
+    assert_eq!(item["data"]["jbotciWord"], "barda");
+    assert_eq!(
+        item["textEdit"],
+        json!({
+            "range": {
+                "start": { "line": 0, "character": seed_start },
+                "end": { "line": 0, "character": cursor }
+            },
+            "newText": "barda"
+        })
+    );
+
+    let resolved = resolve_completion(&mut client, item);
+    assert_eq!(resolved["documentation"]["kind"], "markdown");
+    assert!(
+        resolved["documentation"]["value"]
+            .as_str()
+            .is_some_and(|markdown| markdown.contains("### `barda`")),
+        "completion resolution uses the shared dictionary Markdown renderer",
     );
     client.shutdown();
 }
@@ -526,6 +612,20 @@ fn hover_round_trip_exposes_compact_zei_compound_markdown() {
         }),
     );
     client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn completion_uses_utf8_seed_edit_ranges_and_resolves_markdown() {
+    assert_completion_encoding("utf-8");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn completion_uses_utf16_seed_edit_ranges_and_resolves_markdown() {
+    assert_completion_encoding("utf-16");
 }
 
 #[test]

@@ -8,32 +8,39 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use async_lsp::ClientSocket;
 use async_lsp::lsp_types::{
-    self, DiagnosticRelatedInformation, DiagnosticServerCapabilities, DocumentDiagnosticParams,
-    DocumentDiagnosticReport, DocumentDiagnosticReportResult, FullDocumentDiagnosticReport,
-    InitializeParams, InitializeResult, Location, NumberOrString, PositionEncodingKind,
-    PublishDiagnosticsParams, Range, RelatedFullDocumentDiagnosticReport,
-    RelatedUnchangedDocumentDiagnosticReport, SemanticTokensFullOptions, SemanticTokensLegend,
-    SemanticTokensOptions, ServerCapabilities, ServerInfo, TextDocumentContentChangeEvent,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    UnchangedDocumentDiagnosticReport, Url, WorkDoneProgressOptions, notification, request,
+    self, CompletionItemKind, CompletionItemLabelDetails, CompletionOptions, CompletionResponse,
+    CompletionTextEdit, DiagnosticRelatedInformation, DiagnosticServerCapabilities,
+    DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentDiagnosticReportResult,
+    Documentation, FullDocumentDiagnosticReport, InitializeParams, InitializeResult, Location,
+    NumberOrString, PositionEncodingKind, PublishDiagnosticsParams, Range,
+    RelatedFullDocumentDiagnosticReport, RelatedUnchangedDocumentDiagnosticReport,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, ServerCapabilities,
+    ServerInfo, TextDocumentContentChangeEvent, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextEdit, UnchangedDocumentDiagnosticReport, Url,
+    WorkDoneProgressOptions, notification, request,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 use jbotci_diagnostics::{
     Diagnostic as JbotciDiagnostic, DiagnosticPhase, DiagnosticSeverity as JbotciSeverity,
     diagnostic_text_segments_text,
 };
 use jbotci_ide::{
+    CompletionDocumentationHandle, CompletionItem as JbotciCompletion, CompletionKind,
     DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, SemanticTokenKind,
+    completion_documentation_markdown,
 };
+use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
+use serde_json::json;
 use tokio::sync::watch;
 use tokio::task::AbortHandle;
 use tower::ServiceBuilder;
 
 const DIAGNOSTIC_IDENTIFIER: &str = "jbotci";
 const SERVER_NAME: &str = "jbotci";
+const COMPLETION_DATA_WORD: &str = "jbotciWord";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
 
 type SnapshotPublisher = Arc<dyn Fn(Url, i32, Arc<DocumentSnapshot>) + Send + Sync + 'static>;
@@ -295,6 +302,13 @@ impl ServerState {
                     },
                 )),
                 hover_provider: Some(true.into()),
+                completion_provider: Some(CompletionOptions {
+                    resolve_provider: Some(true),
+                    // Lojban completion has no punctuation trigger. Identifier
+                    // typing and explicit client invocation are sufficient.
+                    trigger_characters: None,
+                    ..CompletionOptions::default()
+                }),
                 semantic_tokens_provider: Some(
                     SemanticTokensOptions {
                         work_done_progress_options: WorkDoneProgressOptions::default(),
@@ -383,6 +397,14 @@ async fn run_server() -> Result<()> {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
                 async move { Ok(document_hover(documents, encoding, params).await) }
+            })
+            .request::<request::Completion, _>(|state, params| {
+                let documents = state.documents.clone();
+                let encoding = state.position_encoding;
+                async move { Ok(document_completion(documents, encoding, params).await) }
+            })
+            .request::<request::ResolveCompletionItem, _>(|_, item| async move {
+                Ok(resolve_completion_item(item))
             })
             .request::<request::SemanticTokensFullRequest, _>(|state, params| {
                 let documents = state.documents.clone();
@@ -601,6 +623,119 @@ async fn document_hover(
         }),
         range: Some(lsp_range(range)),
     })
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(true)]
+async fn document_completion(
+    documents: DocumentStore,
+    encoding: PositionEncoding,
+    params: lsp_types::CompletionParams,
+) -> Option<CompletionResponse> {
+    let position = params.text_document_position.position;
+    let uri = params.text_document_position.text_document.uri;
+    let snapshot = documents.snapshot_for_current(&uri).await?;
+    let char_offset = snapshot.line_index.char_offset_for_position(
+        Position::new(position.line as usize, position.character as usize),
+        encoding,
+    );
+    let items = snapshot
+        .completions(char_offset)
+        .into_iter()
+        .map(|item| completion_to_lsp(&snapshot, encoding, item))
+        .collect();
+    Some(CompletionResponse::Array(items))
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(ret.documentation.is_none())]
+fn completion_to_lsp(
+    snapshot: &DocumentSnapshot,
+    encoding: PositionEncoding,
+    item: JbotciCompletion,
+) -> lsp_types::CompletionItem {
+    let reason_sort_rank = item.reason_sort_rank();
+    let item = item.into_data();
+    let range = snapshot
+        .line_index
+        .positions_for_span(&item.replacement_span, encoding);
+    let label = item.label;
+    lsp_types::CompletionItem {
+        label: label.clone(),
+        label_details: item
+            .short_gloss
+            .map(|description| CompletionItemLabelDetails {
+                detail: None,
+                description: Some(description),
+            }),
+        kind: Some(completion_item_kind(item.kind)),
+        detail: Some(completion_reason_detail(&item.reason)),
+        sort_text: Some(format!(
+            "{}{}-{label}",
+            item.interpretation.sort_rank(),
+            reason_sort_rank,
+        )),
+        filter_text: Some(label.clone()),
+        text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+            range: lsp_range(range),
+            // Pause periods are pronunciation/rendering concerns. Completion
+            // inserts only the morphology word chosen by the user.
+            new_text: label,
+        })),
+        data: Some(json!({ (COMPLETION_DATA_WORD): item.documentation.word() })),
+        ..lsp_types::CompletionItem::default()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn resolve_completion_item(mut item: lsp_types::CompletionItem) -> lsp_types::CompletionItem {
+    let Some(word) = item
+        .data
+        .as_ref()
+        .and_then(|data| data.get(COMPLETION_DATA_WORD))
+        .and_then(serde_json::Value::as_str)
+        .filter(|word| !word.is_empty())
+    else {
+        return item;
+    };
+    let handle = CompletionDocumentationHandle::new(word.to_owned());
+    item.documentation = Some(Documentation::MarkupContent(lsp_types::MarkupContent {
+        kind: lsp_types::MarkupKind::Markdown,
+        value: completion_documentation_markdown(&handle),
+    }));
+    item
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn completion_item_kind(kind: CompletionKind) -> CompletionItemKind {
+    match kind {
+        CompletionKind::Brivla => CompletionItemKind::FUNCTION,
+        CompletionKind::ProSumti => CompletionItemKind::VARIABLE,
+        CompletionKind::LetterWord | CompletionKind::Cmavo => CompletionItemKind::KEYWORD,
+        CompletionKind::Cmevla => CompletionItemKind::VALUE,
+        CompletionKind::Terminator => CompletionItemKind::OPERATOR,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn completion_reason_detail(reason: &SyntaxExpectationReason) -> String {
+    match reason.as_data() {
+        data!(SyntaxExpectationReason::ContinueCurrent { construct }) => {
+            format!("continues {construct}")
+        }
+        data!(SyntaxExpectationReason::StartNested { construct }) => {
+            format!("starts {construct}")
+        }
+        data!(SyntaxExpectationReason::EndThenStart { starts, ends }) if ends.is_empty() => {
+            format!("starts {starts}")
+        }
+        data!(SyntaxExpectationReason::EndThenStart { starts, ends }) => {
+            format!("ends {}; starts {starts}", ends.join(", "))
+        }
+    }
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]

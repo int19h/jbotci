@@ -3145,6 +3145,12 @@ mod tests {
             &expectations,
             &new!(SyntaxExpectedToken::Selmaho(Selmaho::Ui)),
         ));
+        assert!(contains_expected_token(
+            &expectations,
+            &new!(SyntaxExpectedToken::WordCategory(
+                SyntaxWordCategory::SelbriWord,
+            )),
+        ));
         assert!(!contains_expected_token(
             &expectations,
             &new!(SyntaxExpectedToken::Cmavo(Cmavo::Vau)),
