@@ -377,7 +377,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn adjacent_lenu_hovers_stay_on_the_segmented_constituent() {
+    fn adjacent_lenu_hovers_lead_with_constituents_then_show_attested_compound() {
         let snapshot = DocumentSnapshot::new("lenu".to_owned(), 1);
         let le = snapshot.hover(0).expect("le has hover documentation");
         let nu = snapshot.hover(2).expect("nu has hover documentation");
@@ -386,7 +386,33 @@ mod tests {
         assert_eq!((nu.span.char_start, nu.span.char_end), (2, 4));
         assert!(le.markdown.starts_with("### `le`\n"));
         assert!(nu.markdown.starts_with("### `nu`\n"));
-        assert!(!le.markdown.contains("Compact cmavo compound"));
+        for hover in [&le, &nu] {
+            let compound_start = hover
+                .markdown
+                .find("## Compact cmavo compound `lenu`")
+                .expect("dictionary-attested lenu has a secondary compound section");
+            let lead_card_end = hover
+                .markdown
+                .find("\n\n---\n\n")
+                .expect("the constituent and compound cards have a divider");
+            assert!(lead_card_end < compound_start);
+            assert!(hover.markdown[compound_start..].contains("### `lenu`"));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn adjacent_minu_hovers_have_no_unattested_compound_section() {
+        let snapshot = DocumentSnapshot::new("minu".to_owned(), 1);
+        let mi = snapshot.hover(0).expect("mi has hover documentation");
+        let nu = snapshot.hover(2).expect("nu has hover documentation");
+
+        assert_eq!((mi.span.char_start, mi.span.char_end), (0, 2));
+        assert_eq!((nu.span.char_start, nu.span.char_end), (2, 4));
+        assert!(mi.markdown.starts_with("### `mi`\n"));
+        assert!(nu.markdown.starts_with("### `nu`\n"));
+        assert!(!mi.markdown.contains("Compact cmavo compound"));
         assert!(!nu.markdown.contains("Compact cmavo compound"));
     }
 

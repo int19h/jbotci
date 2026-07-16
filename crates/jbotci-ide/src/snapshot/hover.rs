@@ -108,12 +108,6 @@ impl DocumentSnapshot {
         for word_like in &self.words.words[run_start..run_end] {
             compact.push_str(&plain_cmavo_word(word_like)?.canonical_phonemes());
         }
-        // Issue #399 deliberately treats `lenu` as two independently hoverable
-        // grammar words. Lensisku's low-vote learner-search contraction entry must
-        // not override that source-level segmentation contract.
-        if compact == "lenu" {
-            return None;
-        }
 
         let output = run_vlacku_requests(
             jbotci_dictionary_data::english(),
