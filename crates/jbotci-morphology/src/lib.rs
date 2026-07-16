@@ -23,6 +23,7 @@ use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::ser::{SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use unicode_properties::{GeneralCategoryGroup, UnicodeEmoji, UnicodeGeneralCategory};
 use vec1::Vec1;
 
 pub use cmavo::{Cmavo, Selmaho};
@@ -75,6 +76,35 @@ pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "CMEVLA",
 ];
 
+/// Characters reserved from the permissive ignorable tier even when their
+/// Unicode properties classify them as punctuation, symbols, or emoji.
+///
+/// Period, comma, and apostrophe belong to morphology proper. ASCII digits,
+/// dollar, subscript digits/signs, and the pandi brackets are reserved for the
+/// substitutive families specified by issue #411. U+2011 NON-BREAKING HYPHEN
+/// remains reserved for those families and `zei` compound rendering. ASCII
+/// hyphen is deliberately absent: it is already part of the legacy separator
+/// set and must retain that behavior in every dialect.
+pub const PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS: &[char] = &[
+    '.', ',', '\'', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}', '\u{2081}',
+    '\u{2082}', '\u{2083}', '\u{2084}', '\u{2085}', '\u{2086}', '\u{2087}', '\u{2088}', '\u{2089}',
+    '\u{208a}', '\u{208b}', '\u{2e24}', '\u{2e25}', '\u{2011}',
+];
+
+/// Reports the Unicode UAX #44 punctuation/symbol or UTS #51 emoji characters
+/// admitted by the permissive tier after applying the explicit reservations.
+/// Emoji components are included so that joiners, variation selectors, and
+/// modifiers do not leave otherwise-ignored emoji sequences malformed.
+#[requires(true)]
+#[ensures(ret -> !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value))]
+pub fn is_permissive_ignorable_character(value: char) -> bool {
+    !PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS.contains(&value)
+        && (matches!(
+            value.general_category_group(),
+            GeneralCategoryGroup::Punctuation | GeneralCategoryGroup::Symbol
+        ) || value.is_emoji_char_or_emoji_component())
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -85,6 +115,8 @@ pub struct MorphologyOptions {
     #[serde(default)]
     pub compiled_dialect: CompiledDialectDefinition,
     pub cmevla_as_relation_words: bool,
+    #[serde(default)]
+    pub permissive_lexer: bool,
     pub uppercase_marks_stress: bool,
     pub max_recovery_errors: NonZeroUsize,
     #[serde(default)]
@@ -101,6 +133,7 @@ impl Default for MorphologyOptions {
             accept_zbalermorna: true,
             compiled_dialect: CompiledDialectDefinition::default(),
             cmevla_as_relation_words: false,
+            permissive_lexer: false,
             uppercase_marks_stress: true,
             max_recovery_errors: NonZeroUsize::new(20)
                 .expect("the default recovery error cap is non-zero"),
@@ -114,16 +147,22 @@ impl MorphologyOptions {
     #[ensures(ret.as_ref().is_ok_and(|options| options.compiled_dialect.entries.len() == definition.cmavo_entries.len()) || ret.is_err())]
     #[ensures(ret.as_ref().is_ok_and(|options| !definition.features.contains(&DialectFeature::Cbm) || options.cmevla_as_relation_words) || ret.is_err())]
     #[ensures(ret.as_ref().is_ok_and(|options| !definition.features.contains(&DialectFeature::CaseInsensitive) || !options.uppercase_marks_stress) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|options| !definition.features.contains(&DialectFeature::PermissiveLexer) || options.permissive_lexer) || ret.is_err())]
     pub fn try_with_dialect_definition(
         self,
         definition: &DialectDefinition,
     ) -> Result<Self, DialectCompilationError> {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
+        let permissive_lexer = self.permissive_lexer;
         let uppercase_marks_stress = self.uppercase_marks_stress;
         Ok(MorphologyOptions {
             compiled_dialect: CompiledDialectDefinition::compile(definition)?,
             cmevla_as_relation_words: cmevla_as_relation_words
                 || definition.features.contains(&DialectFeature::Cbm),
+            permissive_lexer: permissive_lexer
+                || definition
+                    .features
+                    .contains(&DialectFeature::PermissiveLexer),
             uppercase_marks_stress: uppercase_marks_stress
                 && !definition
                     .features
@@ -135,6 +174,7 @@ impl MorphologyOptions {
     #[requires(true)]
     #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
     #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
+    #[ensures(definition.features.contains(&DialectFeature::PermissiveLexer) -> ret.permissive_lexer)]
     pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
         self.try_with_dialect_definition(definition)
             .expect("dialect definition must compile")
@@ -1429,6 +1469,7 @@ pub enum MorphologyWarningKind {
     ExperimentalCgv,
     ExperimentalMz,
     BreveNotGlide,
+    IgnoredCharacters,
 }
 
 impl MorphologyWarningKind {
@@ -1439,6 +1480,7 @@ impl MorphologyWarningKind {
             Self::ExperimentalCgv => "morphology.warning.experimental-cgv",
             Self::ExperimentalMz => "morphology.warning.experimental-mz",
             Self::BreveNotGlide => "morphology.warning.breve-not-glide",
+            Self::IgnoredCharacters => "morphology.advice.ignored-characters",
         }
     }
 
@@ -1449,6 +1491,7 @@ impl MorphologyWarningKind {
             Self::ExperimentalCgv => "experimental morphology: consonant-glide-vowel sequence",
             Self::ExperimentalMz => "experimental morphology: MZ consonant pair",
             Self::BreveNotGlide => "breve-marked vowel is not in a glide position",
+            Self::IgnoredCharacters => "non-Lojban characters ignored",
         }
     }
 
@@ -1461,6 +1504,7 @@ impl MorphologyWarningKind {
             }
             Self::ExperimentalMz => "MZ consonant pair accepted as experimental morphology",
             Self::BreveNotGlide => "breve-marked vowel parsed as a vowel",
+            Self::IgnoredCharacters => "first ignored character",
         }
     }
 
@@ -1475,12 +1519,14 @@ impl MorphologyWarningKind {
             Self::BreveNotGlide => {
                 "Latin breve marks are optional glide hints and do not determine morphology"
             }
+            Self::IgnoredCharacters => "accepted by the permissive lexer as word-boundary noise",
         }
     }
 }
 
 #[invariant(self.char_start < self.char_end, "morphology warnings must cover a non-empty span")]
 #[invariant(!self.text.is_empty(), "morphology warnings must preserve offending source text")]
+#[invariant(matches!(*kind, MorphologyWarningKind::IgnoredCharacters) == ignored_character_count.is_some())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MorphologyWarning {
     pub kind: MorphologyWarningKind,
@@ -1488,9 +1534,12 @@ pub struct MorphologyWarning {
     pub char_end: usize,
     pub text: String,
     pub context: Option<MorphologyContext>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ignored_character_count: Option<NonZeroUsize>,
 }
 
 impl MorphologyWarning {
+    #[requires(kind != MorphologyWarningKind::IgnoredCharacters)]
     #[requires(char_start < char_end)]
     #[requires(!text.is_empty())]
     #[ensures(ret.kind == kind)]
@@ -1509,26 +1558,71 @@ impl MorphologyWarning {
             char_end: char_end,
             text: text,
             context: context,
+            ignored_character_count: None,
+        })
+    }
+
+    #[requires(char_start < char_end)]
+    #[requires(!text.is_empty())]
+    #[requires(ignored_character_count > 0)]
+    #[ensures(ret.kind == MorphologyWarningKind::IgnoredCharacters)]
+    #[ensures(ret.ignored_character_count.is_some_and(|count| count.get() == ignored_character_count))]
+    pub fn ignored_characters(
+        char_start: usize,
+        char_end: usize,
+        text: String,
+        ignored_character_count: usize,
+    ) -> Self {
+        new!(MorphologyWarning {
+            kind: MorphologyWarningKind::IgnoredCharacters,
+            char_start: char_start,
+            char_end: char_end,
+            text: text,
+            context: None,
+            ignored_character_count: Some(
+                NonZeroUsize::new(ignored_character_count)
+                    .expect("ignored character count precondition excludes zero")
+            ),
         })
     }
 
     #[requires(true)]
     #[ensures(!ret.code.is_empty())]
     pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
-        morphology_diagnostic(
+        let (severity, message) = match self.kind {
+            MorphologyWarningKind::IgnoredCharacters => {
+                let count = self
+                    .ignored_character_count
+                    .expect("the warning invariant gives ignored-character Advice a count");
+                let noun = if count.get() == 1 {
+                    "character"
+                } else {
+                    "characters"
+                };
+                (
+                    DiagnosticSeverity::Advice,
+                    format!("{} non-Lojban {noun} ignored", count.get()),
+                )
+            }
+            _ => (DiagnosticSeverity::Warning, self.kind.message().to_owned()),
+        };
+        let diagnostic = morphology_diagnostic(
             source_id,
             source,
             new!(MorphologyDiagnosticDetails {
-                severity: DiagnosticSeverity::Warning,
+                severity: severity,
                 code: self.kind.code(),
-                message: self.kind.message(),
+                message: message,
             }),
             self.char_start,
             self.char_end,
             self.kind.label(),
             self.context.as_ref(),
-        )
-        .with_styled_notes(vec![morphology_detail_note(
+        );
+        if self.kind == MorphologyWarningKind::IgnoredCharacters {
+            return diagnostic;
+        }
+        diagnostic.with_styled_notes(vec![morphology_detail_note(
             self.kind.message(),
             &self.text,
             self.kind.detail_reason(),
@@ -1850,7 +1944,7 @@ impl MorphologyError {
                     new!(MorphologyDiagnosticDetails {
                         severity: DiagnosticSeverity::Error,
                         code: kind.code(),
-                        message: kind.message(),
+                        message: kind.message().to_owned(),
                     }),
                     *char_start,
                     *char_end,
@@ -1871,7 +1965,7 @@ impl MorphologyError {
                     new!(MorphologyDiagnosticDetails {
                         severity: DiagnosticSeverity::Error,
                         code: "morphology.unterminated-zoi-quote",
-                        message: "unterminated ZOI quote",
+                        message: "unterminated ZOI quote".to_owned(),
                     }),
                     *char_offset,
                     source_end,
@@ -1969,7 +2063,7 @@ fn morphology_detail_note(message: &str, text: &str, reason: &str) -> Diagnostic
 struct MorphologyDiagnosticDetails {
     severity: DiagnosticSeverity,
     code: &'static str,
-    message: &'static str,
+    message: String,
 }
 
 #[requires(!label.is_empty())]
@@ -1984,6 +2078,7 @@ fn morphology_diagnostic(
     label: &str,
     context: Option<&MorphologyContext>,
 ) -> Diagnostic {
+    let details = details.into_data();
     let span = source_span_from_char_offsets(source_id.clone(), source, char_start, char_end)
         .expect("morphology errors store offsets derived from the same source text");
     let mut labels = vec![DiagnosticLabel::new(span, label.to_owned(), true)];
@@ -2003,7 +2098,7 @@ fn morphology_diagnostic(
         details.severity,
         DiagnosticPhase::Morphology,
         details.code.to_owned(),
-        details.message.to_owned(),
+        details.message,
         labels,
         Vec::new(),
         None,
@@ -3311,6 +3406,11 @@ mod tests {
                 "morphology.warning.breve-not-glide",
                 "breve-marked vowel is not in a glide position",
             ),
+            (
+                MorphologyWarningKind::IgnoredCharacters,
+                "morphology.advice.ignored-characters",
+                "non-Lojban characters ignored",
+            ),
         ];
 
         for (kind, code, message) in cases {
@@ -3771,6 +3871,339 @@ mod tests {
             .map(|word| base_word(word).expect("base word").phonemes().into_string())
             .collect();
         assert_eq!(phonemes, vec!["coĭ".to_owned(), "ŭi".to_owned()]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_ignorable_classifier_uses_unicode_properties_and_explicit_reservations() {
+        assert!(is_permissive_ignorable_character('@'));
+        assert!(is_permissive_ignorable_character('#'));
+        assert!(is_permissive_ignorable_character('*'));
+        assert!(is_permissive_ignorable_character('-'));
+        assert!(is_permissive_ignorable_character('🙂'));
+        assert!(is_permissive_ignorable_character('\u{200d}'));
+        assert!(!is_permissive_ignorable_character('漢'));
+
+        assert_eq!(
+            PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
+            &[
+                '.', ',', '\'', '$', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\u{2080}',
+                '\u{2081}', '\u{2082}', '\u{2083}', '\u{2084}', '\u{2085}', '\u{2086}', '\u{2087}',
+                '\u{2088}', '\u{2089}', '\u{208a}', '\u{208b}', '\u{2e24}', '\u{2e25}', '\u{2011}',
+            ]
+        );
+        for reserved in PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS {
+            assert!(
+                !is_permissive_ignorable_character(*reserved),
+                "reserved character U+{:04X} became ignorable",
+                *reserved as u32
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_segments_boundary_noise_with_native_source_spans() {
+        let options = permissive_lexer_options();
+        let cases = [
+            (
+                "coi! do",
+                vec!["coĭ", "do"],
+                vec![[0, 3, 0, 3], [5, 7, 5, 7]],
+            ),
+            (
+                "mi *klama*",
+                vec!["mi", "kláma"],
+                vec![[0, 2, 0, 2], [4, 9, 4, 9]],
+            ),
+            ("mi🙂do", vec!["mi", "do"], vec![[0, 2, 0, 2], [6, 8, 3, 5]]),
+        ];
+
+        for (source, expected_words, expected_spans) in cases {
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source, &options, None,
+            );
+            let data = attempt.into_data();
+            let words = data.result.expect("permissive segmentation");
+            assert_eq!(base_phoneme_texts(&words), expected_words, "{source}");
+            assert_eq!(
+                words
+                    .iter()
+                    .map(|word| {
+                        let span = base_word(word).expect("plain word").span();
+                        [
+                            span.byte_start,
+                            span.byte_end,
+                            span.char_start,
+                            span.char_end,
+                        ]
+                    })
+                    .collect::<Vec<_>>(),
+                expected_spans,
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_masks_at_sign_mid_word_typo_as_a_split() {
+        // This is the intentional masked-typo tradeoff of treating newly
+        // ignorable characters as real segmentation boundaries.
+        let strict_error = segment_words_with_modifiers("xu@no")
+            .expect_err("strict morphology must reject the at sign");
+        assert_invalid_error(
+            &strict_error,
+            MorphologyErrorKind::InvalidCharacter,
+            2,
+            3,
+            None,
+        );
+
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "xu@no",
+            &permissive_lexer_options(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("permissive morphology splits at @");
+        assert_eq!(base_phoneme_texts(&words), vec!["xu", "no"]);
+        assert_eq!(data.warnings.len(), 1);
+        assert_eq!(
+            data.warnings[0].kind,
+            MorphologyWarningKind::IgnoredCharacters
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_preserves_every_reserved_and_legacy_character_behavior() {
+        let options = permissive_lexer_options();
+        let cases = [
+            ("mi.do", None),
+            ("mi,do", None),
+            ("mi'do", Some(MorphologyErrorKind::InvalidApostrophe)),
+            ("mi 2 do", None),
+            ("mi $ do", Some(MorphologyErrorKind::InvalidCharacter)),
+            ("mi - do", None),
+            ("mi ₂ do", Some(MorphologyErrorKind::InvalidCharacter)),
+            ("mi ‑ do", Some(MorphologyErrorKind::InvalidCharacter)),
+            ("mi ⸤ do", Some(MorphologyErrorKind::InvalidCharacter)),
+            ("mi ⸥ do", Some(MorphologyErrorKind::InvalidCharacter)),
+        ];
+
+        for (source, expected_error_kind) in cases {
+            let strict = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source,
+                &MorphologyOptions::default(),
+                None,
+            )
+            .into_data();
+            let permissive = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source, &options, None,
+            )
+            .into_data();
+            match (&strict.result, expected_error_kind) {
+                (Ok(_), None) => {}
+                (Err(MorphologyError::Invalid { kind, .. }), Some(expected)) => {
+                    assert_eq!(*kind, expected, "{source}");
+                }
+                (actual, expected) => {
+                    panic!("unexpected strict behavior for {source}: {actual:?}, {expected:?}");
+                }
+            }
+            assert_eq!(permissive.result, strict.result, "{source}");
+            assert!(
+                permissive
+                    .warnings
+                    .iter()
+                    .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                "reserved or legacy character produced Advice: {source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_still_rejects_unknown_letter_characters() {
+        let error = segment_words_with_modifiers_with_options_and_source_id(
+            "mi 漢 do",
+            &permissive_lexer_options(),
+            None,
+        )
+        .expect_err("Letter-category characters are not ignorable");
+        assert_invalid_error(&error, MorphologyErrorKind::InvalidCharacter, 3, 4, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_leaves_zoi_and_laho_payload_text_untouched() {
+        let options = permissive_lexer_options();
+        let cases = [
+            ("zoi gy !?#🙂 gy", "!?#🙂"),
+            ("la'o gy !?#🙂 gy", "!?#🙂"),
+            ("zoi gy @gy gy", "@gy"),
+            ("zoi gy payload@gy gy", "payload@gy"),
+            ("zoi gy text gy@tail gy", "text gy@tail"),
+        ];
+        for (source, expected_payload) in cases {
+            for mode in [&MorphologyOptions::default(), &options] {
+                let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                    source, mode, None,
+                );
+                let data = attempt.into_data();
+                let words = data.result.expect("valid delimited quote");
+                let [word] = words.as_slice() else {
+                    panic!("expected one quote token: {source}");
+                };
+                let data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }) = word.as_data()
+                else {
+                    panic!("expected delimited quote: {source}");
+                };
+                assert_eq!(quoted_text.text, expected_payload, "{source}");
+                assert!(
+                    data.warnings
+                        .iter()
+                        .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                    "quote payload characters must not be counted as ignored: {source}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_keeps_lohu_content_and_lehu_delimiter_logic_structured() {
+        let source = "lo'u mi @ do le'u klama";
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &permissive_lexer_options(),
+            None,
+        );
+        let data = attempt.into_data();
+        let words = data.result.expect("valid permissive LOhU quote");
+        let [quoted, following] = words.as_slice() else {
+            panic!("expected a quote followed by one plain word");
+        };
+        let data!(WordLike::QuotedWords { quoted_words, .. }) = quoted.as_data() else {
+            panic!("expected LOhU quote");
+        };
+        assert_eq!(
+            quoted_words
+                .iter()
+                .map(|word| word.phonemes().into_string())
+                .collect::<Vec<_>>(),
+            vec!["mi", "do"]
+        );
+        assert_eq!(base_phonemes(following).as_deref(), Some("kláma"));
+        assert_eq!(
+            data.warnings
+                .iter()
+                .filter(|warning| warning.kind == MorphologyWarningKind::IgnoredCharacters)
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn permissive_lexer_emits_one_counted_advice_at_the_first_ignored_character() {
+        let source = "@mi🙂do#";
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            source,
+            &permissive_lexer_options(),
+            None,
+        );
+        let data = attempt.into_data();
+        data.result.expect("permissive morphology");
+        let ignored = data
+            .warnings
+            .iter()
+            .filter(|warning| warning.kind == MorphologyWarningKind::IgnoredCharacters)
+            .collect::<Vec<_>>();
+        let [ignored] = ignored.as_slice() else {
+            panic!("expected exactly one ignored-character Advice");
+        };
+        assert_eq!(
+            ignored.ignored_character_count.map(NonZeroUsize::get),
+            Some(3)
+        );
+
+        let diagnostic = ignored.to_diagnostic(None, source);
+        assert_eq!(diagnostic.severity, DiagnosticSeverity::Advice);
+        assert_eq!(diagnostic.code, "morphology.advice.ignored-characters");
+        assert_eq!(diagnostic.message, "3 non-Lojban characters ignored");
+        let label = diagnostic.primary_label();
+        assert_eq!(label.span.byte_start, 0);
+        assert_eq!(label.span.byte_end, 1);
+        assert_eq!(label.span.char_start, 0);
+        assert_eq!(label.span.char_end, 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ignored_character_advice_is_absent_without_newly_ignored_characters() {
+        let options = permissive_lexer_options();
+        for source in ["mi do", "coi! do", "mi - do"] {
+            let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+                source, &options, None,
+            );
+            let data = attempt.into_data();
+            data.result.expect("valid morphology");
+            assert!(
+                data.warnings
+                    .iter()
+                    .all(|warning| warning.kind != MorphologyWarningKind::IgnoredCharacters),
+                "legacy separators must stay silent: {source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn default_morphology_does_not_silently_enable_the_permissive_lexer() {
+        let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+            "mi @ do",
+            &MorphologyOptions::default(),
+            None,
+        );
+        let data = attempt.into_data();
+        let error = data
+            .result
+            .expect_err("the strict default must continue to reject @");
+        assert_invalid_error(&error, MorphologyErrorKind::InvalidCharacter, 3, 4, None);
+        assert!(data.warnings.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_permissive_morphology_uses_boundaries_without_error_regions() {
+        let recovered = segment_words_with_modifiers_recovered_with_options(
+            "mi @ do",
+            &permissive_lexer_options(),
+        );
+        assert_eq!(base_phoneme_texts(&recovered.words), vec!["mi", "do"]);
+        assert!(recovered.errors.is_empty());
+        assert!(recovered.error_regions.is_empty());
+        assert_eq!(
+            recovered
+                .warnings
+                .iter()
+                .filter(|warning| warning.kind == MorphologyWarningKind::IgnoredCharacters)
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -4431,6 +4864,15 @@ mod tests {
             test_word(WordKind::Cmavo, "bu", 2),
         );
         assert_eq!(letter.quote_marker_cmavo(), None);
+    }
+
+    #[requires(true)]
+    #[ensures(ret.permissive_lexer)]
+    fn permissive_lexer_options() -> MorphologyOptions {
+        MorphologyOptions::default().with_dialect_definition(&DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::PermissiveLexer]),
+        })
     }
 
     #[requires(!phonemes.is_empty())]

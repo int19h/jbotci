@@ -38,6 +38,7 @@ pub enum DialectFeature {
     Cbm,
     Gadganzu,
     CaseInsensitive,
+    PermissiveLexer,
     SoiAdverbials,
     TermHierarchy,
     ZantufaAdverbials,
@@ -57,6 +58,7 @@ impl DialectFeature {
             Self::Cbm,
             Self::Gadganzu,
             Self::CaseInsensitive,
+            Self::PermissiveLexer,
             Self::SoiAdverbials,
             Self::TermHierarchy,
             Self::ZantufaAdverbials,
@@ -76,6 +78,7 @@ impl DialectFeature {
             Self::Cbm => "cbm",
             Self::Gadganzu => "gadganzu",
             Self::CaseInsensitive => "case-insensitive",
+            Self::PermissiveLexer => "permissive-lexer",
             Self::SoiAdverbials => "soi-adverbials",
             Self::TermHierarchy => "term-hierarchy",
             Self::ZantufaAdverbials => "zantufa-adverbials",
@@ -1636,6 +1639,18 @@ mod tests {
                 .expect("dialect")
                 .features,
             BTreeSet::from([DialectFeature::CaseInsensitive])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_permissive_lexer_feature() {
+        assert_eq!(
+            parse_dialect_definition("(+PERMISSIVE-LEXER)")
+                .expect("dialect")
+                .features,
+            BTreeSet::from([DialectFeature::PermissiveLexer])
         );
     }
 
