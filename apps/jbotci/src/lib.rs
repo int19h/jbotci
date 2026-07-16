@@ -241,7 +241,7 @@ pub struct Cli {
 #[invariant(::Cukta(..) => true)]
 #[invariant(::Zbasu(..) => true)]
 #[invariant(::Setup(..) => true)]
-#[invariant(::Lsp => true)]
+#[invariant(::Lsp { .. } => true)]
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
@@ -272,7 +272,11 @@ pub enum Command {
     Setup(SetupInput),
     /// Run the Language Server Protocol server over standard input/output.
     #[command(name = "lsp")]
-    Lsp,
+    Lsp {
+        /// Accepted for editor compatibility; the LSP transport is always stdio.
+        #[arg(long)]
+        stdio: bool,
+    },
 }
 
 #[invariant(true)]

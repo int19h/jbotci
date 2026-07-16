@@ -19,7 +19,7 @@ pub fn main_entry() -> ExitCode {
 #[ensures(true)]
 fn run() -> Result<CliStatus> {
     let cli = Cli::parse();
-    if matches!(&cli.command, Command::Lsp) {
+    if matches!(&cli.command, Command::Lsp { .. }) {
         if cli.benchmark.is_some() {
             bail!("`--benchmark` is not supported with lsp");
         }
@@ -351,7 +351,7 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
             Ok(CliStatus::Success)
         }
         Command::Setup(input) => run_setup(input, stdout, progress_policy),
-        Command::Lsp => bail!("lsp requires the process standard input/output streams"),
+        Command::Lsp { .. } => bail!("lsp requires the process standard input/output streams"),
     }
 }
 
