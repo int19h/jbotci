@@ -2006,6 +2006,7 @@ mod tests {
                 text: "mi nitcu lo tanxe".to_owned(),
                 format,
                 dialect: None,
+                show_defs: true,
                 story_time: false,
                 indent: None,
             };
