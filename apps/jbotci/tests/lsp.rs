@@ -392,3 +392,104 @@ fn stale_versions_are_rejected_full_sync_is_accepted_and_close_drops_state() {
     assert!(closed.get("resultId").is_none());
     client.shutdown();
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn save_and_unknown_notifications_do_not_kill_the_server() {
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-8", true);
+    open_document(&mut client, 1);
+
+    // Editors freely send save and workspace notifications the server does not
+    // handle; LSP requires ignoring them. Before the unhandled-notification
+    // fallback was installed, the first didSave killed the main loop and the
+    // editor observed an EOF on stdout.
+    client.notify(
+        "textDocument/didSave",
+        json!({ "textDocument": { "uri": DOCUMENT_URI } }),
+    );
+    client.notify(
+        "textDocument/willSave",
+        json!({ "textDocument": { "uri": DOCUMENT_URI }, "reason": 1 }),
+    );
+    client.notify("workspace/didChangeConfiguration", json!({ "settings": {} }));
+    client.notify("custom/experimental", json!({ "payload": true }));
+
+    let report = pull_diagnostics(&mut client, None);
+    assert_eq!(report["kind"], "full");
+    assert!(
+        report["items"]
+            .as_array()
+            .is_some_and(|diagnostics| !diagnostics.is_empty()),
+        "server must still answer diagnostics after ignoring unknown notifications"
+    );
+    client.shutdown();
+}
+
+/// Editors also spawn LSP servers over socket pairs or ptys rather than
+/// pipes; the transport must fall back from the pipe-only fast path instead
+/// of dying at startup.
+#[cfg(unix)]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn server_survives_socketpair_stdio() {
+    use std::os::fd::OwnedFd;
+    use std::os::unix::net::UnixStream;
+
+    let (mut parent, child_end) = UnixStream::pair().expect("socketpair");
+    let child_stdin = child_end.try_clone().expect("clone socket for child stdin");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_jbotci"))
+        .arg("lsp")
+        .stdin(Stdio::from(OwnedFd::from(child_stdin)))
+        .stdout(Stdio::from(OwnedFd::from(child_end)))
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn jbotci lsp over socketpair");
+
+    let body = serde_json::to_vec(&json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "processId": null,
+            "capabilities": {
+                "general": { "positionEncodings": ["utf-8"] }
+            }
+        }
+    }))
+    .expect("serialize initialize");
+    write!(parent, "Content-Length: {}\r\n\r\n", body.len()).expect("write header");
+    parent.write_all(&body).expect("write body");
+    parent.flush().expect("flush initialize");
+
+    let mut reader = BufReader::new(parent.try_clone().expect("clone socket for reads"));
+    let mut content_length = None;
+    loop {
+        let mut header = String::new();
+        let read = reader.read_line(&mut header).expect("read response header");
+        assert_ne!(read, 0, "server closed the socket before responding");
+        if header == "\r\n" || header == "\n" {
+            break;
+        }
+        if let Some(value) = header
+            .strip_prefix("Content-Length:")
+            .map(str::trim)
+            .and_then(|value| value.parse::<usize>().ok())
+        {
+            content_length = Some(value);
+        }
+    }
+    let mut body = vec![0_u8; content_length.expect("Content-Length header")];
+    reader.read_exact(&mut body).expect("read response body");
+    let response: Value = serde_json::from_slice(&body).expect("parse response");
+    assert_eq!(response["id"], 1);
+    assert_eq!(
+        response["result"]["capabilities"]["positionEncoding"],
+        "utf-8"
+    );
+
+    child.kill().expect("kill server");
+    let _ = child.wait();
+}
