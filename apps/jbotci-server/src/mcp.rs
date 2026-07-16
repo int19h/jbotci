@@ -11,10 +11,8 @@ use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest,
     ToolJvozbaRequest, ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest,
     ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_tersmu,
-    run_tool_vlasei,
+    run_tool_vlasei, tool_request_schema,
 };
-use schemars::transform::{Transform, transform_subschemas};
-use schemars::{JsonSchema, Schema};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -330,79 +328,6 @@ fn tool_definition(name: &str, title: &str, description: &str, input_schema: Val
             "openWorldHint": false
         }
     })
-}
-
-#[requires(true)]
-#[ensures(ret.is_object())]
-#[ensures(!json_value_contains_key(&ret, "$ref"))]
-#[ensures(!json_value_contains_key(&ret, "$defs"))]
-fn tool_request_schema<T>() -> Value
-where
-    T: JsonSchema,
-{
-    // Inline every subschema. The MCP clients we target (including chatbot
-    // harnesses) do not resolve `$ref`/`$defs`, so each referenced enum and
-    // nested struct must be expanded in place. The tool request types are all
-    // non-recursive, so full inlining terminates. This also keeps every field's
-    // and enum variant's doc comment as an inline `description`.
-    //
-    // `StringEnumTypeTransform` then restores an explicit `type: "string"` on the
-    // inlined enums (schemars omits it on a documented `oneOf` of consts).
-    let mut settings = schemars::generate::SchemaSettings::default();
-    settings.inline_subschemas = true;
-    settings.transforms.push(Box::new(StringEnumTypeTransform));
-    let generator = schemars::generate::SchemaGenerator::new(settings);
-    serde_json::to_value(generator.into_root_schema_for::<T>())
-        .expect("generated MCP tool schema serializes to JSON")
-}
-
-/// schemars renders a *documented* unit enum as a `oneOf` of
-/// `{ "type": "string", "const": … }` — and, unlike the plain `{ "type":
-/// "string", "enum": [...] }` it emits for an *undocumented* enum, it omits the
-/// `type` at the enclosing level. The schema is still valid (the string type is
-/// implied by every branch), but schema viewers and tool layers that read the
-/// property-level `type` find none and present the field as untyped ("any").
-/// This schemars [`Transform`] declares an explicit `type: "string"` alongside
-/// the `oneOf`, keeping the per-variant descriptions.
-#[invariant(true)]
-#[derive(Clone, Debug)]
-struct StringEnumTypeTransform;
-
-impl Transform for StringEnumTypeTransform {
-    #[requires(true)]
-    #[ensures(true)]
-    fn transform(&mut self, schema: &mut Schema) {
-        if let Some(object) = schema.as_object_mut() {
-            let is_string_const_enum =
-                object
-                    .get("oneOf")
-                    .and_then(Value::as_array)
-                    .is_some_and(|variants| {
-                        !variants.is_empty()
-                            && variants.iter().all(|variant| {
-                                variant.get("const").is_some()
-                                    && variant.get("type").and_then(Value::as_str) == Some("string")
-                            })
-                    });
-            if is_string_const_enum && !object.contains_key("type") {
-                object.insert("type".to_owned(), Value::String("string".to_owned()));
-            }
-        }
-        // Recurse through nested subschemas (properties, array items, …).
-        transform_subschemas(self, schema);
-    }
-}
-
-#[requires(!key.is_empty())]
-#[ensures(true)]
-fn json_value_contains_key(value: &Value, key: &str) -> bool {
-    match value {
-        Value::Object(object) => object.iter().any(|(object_key, object_value)| {
-            object_key == key || json_value_contains_key(object_value, key)
-        }),
-        Value::Array(items) => items.iter().any(|item| json_value_contains_key(item, key)),
-        _ => false,
-    }
 }
 
 #[requires(!params.name.trim().is_empty())]

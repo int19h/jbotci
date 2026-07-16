@@ -1,9 +1,85 @@
 use super::*;
-use schemars::JsonSchema;
+use schemars::transform::{Transform, transform_subschemas};
+use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub use jbotci_embeddings::native::NativeEmbeddingSearchService as ToolEmbeddingSearchService;
 pub const TOOL_DEFAULT_EMBEDDING_MODEL_KEY: &str = DEFAULT_MODEL_KEY;
+
+/// Generate the model-facing JSON schema for a production tool request.
+#[requires(true)]
+#[ensures(ret.is_object())]
+#[ensures(!json_value_contains_key(&ret, "$ref"))]
+#[ensures(!json_value_contains_key(&ret, "$defs"))]
+pub fn tool_request_schema<T>() -> Value
+where
+    T: JsonSchema,
+{
+    // Inline every subschema. The MCP clients we target (including chatbot
+    // harnesses) do not resolve `$ref`/`$defs`, so each referenced enum and
+    // nested struct must be expanded in place. The tool request types are all
+    // non-recursive, so full inlining terminates. This also keeps every field's
+    // and enum variant's doc comment as an inline `description`.
+    //
+    // `StringEnumTypeTransform` then restores an explicit `type: "string"` on the
+    // inlined enums (schemars omits it on a documented `oneOf` of consts).
+    let mut settings = schemars::generate::SchemaSettings::default();
+    settings.inline_subschemas = true;
+    settings.transforms.push(Box::new(StringEnumTypeTransform));
+    let generator = schemars::generate::SchemaGenerator::new(settings);
+    serde_json::to_value(generator.into_root_schema_for::<T>())
+        .expect("generated tool request schema serializes to JSON")
+}
+
+/// schemars renders a *documented* unit enum as a `oneOf` of
+/// `{ "type": "string", "const": … }` — and, unlike the plain `{ "type":
+/// "string", "enum": [...] }` it emits for an *undocumented* enum, it omits the
+/// `type` at the enclosing level. The schema is still valid (the string type is
+/// implied by every branch), but schema viewers and tool layers that read the
+/// property-level `type` find none and present the field as untyped ("any").
+/// This schemars [`Transform`] declares an explicit `type: "string"` alongside
+/// the `oneOf`, keeping the per-variant descriptions.
+#[invariant(true)]
+#[derive(Clone, Debug)]
+struct StringEnumTypeTransform;
+
+impl Transform for StringEnumTypeTransform {
+    #[requires(true)]
+    #[ensures(true)]
+    fn transform(&mut self, schema: &mut Schema) {
+        if let Some(object) = schema.as_object_mut() {
+            let is_string_const_enum =
+                object
+                    .get("oneOf")
+                    .and_then(Value::as_array)
+                    .is_some_and(|variants| {
+                        !variants.is_empty()
+                            && variants.iter().all(|variant| {
+                                variant.get("const").is_some()
+                                    && variant.get("type").and_then(Value::as_str) == Some("string")
+                            })
+                    });
+            if is_string_const_enum && !object.contains_key("type") {
+                object.insert("type".to_owned(), Value::String("string".to_owned()));
+            }
+        }
+        // Recurse through nested subschemas (properties, array items, …).
+        transform_subschemas(self, schema);
+    }
+}
+
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn json_value_contains_key(value: &Value, key: &str) -> bool {
+    match value {
+        Value::Object(object) => object.iter().any(|(object_key, object_value)| {
+            object_key == key || json_value_contains_key(object_value, key)
+        }),
+        Value::Array(items) => items.iter().any(|item| json_value_contains_key(item, key)),
+        _ => false,
+    }
+}
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -1684,3 +1760,20 @@ fn run_tool_command_with_context(
 
 const TEXT_PLAIN_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
 const APPLICATION_JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_tool_request_schema_inlines_and_types_documented_enums() {
+        let schema = tool_request_schema::<ToolTersmuRequest>();
+
+        assert!(!json_value_contains_key(&schema, "$ref"));
+        assert!(!json_value_contains_key(&schema, "$defs"));
+        assert_eq!(schema["properties"]["format"]["type"], "string");
+        assert!(schema["properties"]["format"]["oneOf"].is_array());
+    }
+}

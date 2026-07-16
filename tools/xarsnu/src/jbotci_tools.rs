@@ -5,12 +5,9 @@ use bityzba::{ensures, invariant, new, requires};
 use jbotci_cli::{
     ToolCuktaRequest, ToolGentufaRequest, ToolJvozbaRequest, ToolRenderedOutput, ToolTersmuFormat,
     ToolTersmuRequest, ToolVlackuRequest, run_tool_cukta, run_tool_gentufa, run_tool_jvozba,
-    run_tool_tersmu, run_tool_vlacku,
+    run_tool_tersmu, run_tool_vlacku, tool_request_schema,
 };
-use schemars::transform::{Transform, transform_subschemas};
-use schemars::{JsonSchema, Schema};
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 use thiserror::Error;
 
 use crate::{TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError};
@@ -138,27 +135,27 @@ impl ReferenceTools {
             ToolDefinition::new(
                 "vlacku".to_owned(),
                 "Look up Lojban dictionary entries and lujvo decomposition.".to_owned(),
-                request_schema::<ToolVlackuRequest>(),
+                tool_request_schema::<ToolVlackuRequest>(),
             )?,
             ToolDefinition::new(
                 "gentufa".to_owned(),
                 "Parse Lojban text into the production syntax representation.".to_owned(),
-                request_schema::<ToolGentufaRequest>(),
+                tool_request_schema::<ToolGentufaRequest>(),
             )?,
             ToolDefinition::new(
                 "tersmu".to_owned(),
                 "Compute the production semantic representation of Lojban text.".to_owned(),
-                request_schema::<ToolTersmuRequest>(),
+                tool_request_schema::<ToolTersmuRequest>(),
             )?,
             ToolDefinition::new(
                 "jvozba".to_owned(),
                 "Build a Lojban compound word from source words or fixed rafsi.".to_owned(),
-                request_schema::<ToolJvozbaRequest>(),
+                tool_request_schema::<ToolJvozbaRequest>(),
             )?,
             ToolDefinition::new(
                 "cukta".to_owned(),
                 "Read or search The Complete Lojban Language reference book.".to_owned(),
-                request_schema::<ToolCuktaRequest>(),
+                tool_request_schema::<ToolCuktaRequest>(),
             )?,
         ])
     }
@@ -195,50 +192,6 @@ impl ReferenceTools {
                 name: name.to_owned(),
             }),
         }
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.is_object())]
-fn request_schema<T: JsonSchema>() -> Value {
-    let mut settings = schemars::generate::SchemaSettings::default();
-    settings.inline_subschemas = true;
-    settings.transforms.push(Box::new(StringEnumTypeTransform));
-    let generator = schemars::generate::SchemaGenerator::new(settings);
-    serde_json::to_value(generator.into_root_schema_for::<T>())
-        .expect("production tool request schema serializes to JSON")
-}
-
-/// Keep model-facing request schemas identical to the production MCP schema shape.
-///
-/// Schemars omits the enclosing string type for documented unit enums represented
-/// as a `oneOf` of string constants. The production MCP layer restores it because
-/// tool clients otherwise present those fields as untyped.
-#[invariant(true)]
-#[derive(Clone, Debug)]
-struct StringEnumTypeTransform;
-
-impl Transform for StringEnumTypeTransform {
-    #[requires(true)]
-    #[ensures(true)]
-    fn transform(&mut self, schema: &mut Schema) {
-        if let Some(object) = schema.as_object_mut() {
-            let is_string_const_enum =
-                object
-                    .get("oneOf")
-                    .and_then(Value::as_array)
-                    .is_some_and(|variants| {
-                        !variants.is_empty()
-                            && variants.iter().all(|variant| {
-                                variant.get("const").is_some()
-                                    && variant.get("type").and_then(Value::as_str) == Some("string")
-                            })
-                    });
-            if is_string_const_enum && !object.contains_key("type") {
-                object.insert("type".to_owned(), Value::String("string".to_owned()));
-            }
-        }
-        transform_subschemas(self, schema);
     }
 }
 
@@ -281,7 +234,7 @@ pub enum ReferenceToolError {
 mod tests {
     use super::*;
     use jbotci_cli::ToolStatus;
-    use serde_json::json;
+    use serde_json::{Value, json};
 
     // This private table row has no invalid structural combinations; each test
     // asserts the behavior its particular string values are meant to exercise.
@@ -375,11 +328,31 @@ mod tests {
     #[ensures(true)]
     fn reference_definitions_use_each_production_request_schema() {
         let definitions = ReferenceTools::definitions().expect("valid definitions");
-        assert_schema::<ToolVlackuRequest>(&definitions, "vlacku");
-        assert_schema::<ToolGentufaRequest>(&definitions, "gentufa");
-        assert_schema::<ToolTersmuRequest>(&definitions, "tersmu");
-        assert_schema::<ToolJvozbaRequest>(&definitions, "jvozba");
-        assert_schema::<ToolCuktaRequest>(&definitions, "cukta");
+        assert_schema(
+            &definitions,
+            "vlacku",
+            tool_request_schema::<ToolVlackuRequest>(),
+        );
+        assert_schema(
+            &definitions,
+            "gentufa",
+            tool_request_schema::<ToolGentufaRequest>(),
+        );
+        assert_schema(
+            &definitions,
+            "tersmu",
+            tool_request_schema::<ToolTersmuRequest>(),
+        );
+        assert_schema(
+            &definitions,
+            "jvozba",
+            tool_request_schema::<ToolJvozbaRequest>(),
+        );
+        assert_schema(
+            &definitions,
+            "cukta",
+            tool_request_schema::<ToolCuktaRequest>(),
+        );
     }
 
     #[test]
@@ -503,11 +476,11 @@ mod tests {
 
     #[requires(!name.trim().is_empty())]
     #[ensures(true)]
-    fn assert_schema<T: JsonSchema>(definitions: &[ToolDefinition], name: &str) {
+    fn assert_schema(definitions: &[ToolDefinition], name: &str, expected: Value) {
         let definition = definitions
             .iter()
             .find(|definition| definition.name() == name)
             .unwrap_or_else(|| panic!("missing {name} definition"));
-        assert_eq!(definition.function.parameters, request_schema::<T>());
+        assert_eq!(definition.function.parameters, expected);
     }
 }
