@@ -1893,16 +1893,19 @@ mod tests {
                 .expect("ungrounded human tersmu output");
             let grounded = grounded.stdout_text().expect("UTF-8 tersmu output");
             let ungrounded = ungrounded.stdout_text().expect("UTF-8 tersmu output");
+            let definitions = grounded
+                .strip_suffix(ungrounded)
+                .expect("show-defs only prepends definitions");
 
             assert!(
-                grounded.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
+                definitions.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
                 "{format:?}"
             );
             assert!(
-                grounded.contains("\n2. klama | by: officialdata | gismu"),
+                definitions.contains("\n2. klama | by: officialdata | gismu"),
                 "{format:?}"
             );
-            assert!(!ungrounded.starts_with("1. mi |"), "{format:?}");
+            assert!(definitions.ends_with('\n'), "{format:?}");
         }
     }
 
@@ -1953,16 +1956,23 @@ mod tests {
         ] {
             let grounded = run_tool_gentufa(gentufa_request(format, true))
                 .expect("grounded human gentufa output");
+            let ungrounded = run_tool_gentufa(gentufa_request(format, false))
+                .expect("ungrounded human gentufa output");
             let grounded = grounded.stdout_text().expect("UTF-8 gentufa output");
+            let ungrounded = ungrounded.stdout_text().expect("UTF-8 gentufa output");
+            let definitions = grounded
+                .strip_suffix(ungrounded)
+                .expect("show-defs only prepends definitions");
 
             assert!(
-                grounded.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
+                definitions.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
                 "{format:?}"
             );
             assert!(
-                grounded.contains("\n2. klama | by: officialdata | gismu"),
+                definitions.contains("\n2. klama | by: officialdata | gismu"),
                 "{format:?}"
             );
+            assert!(definitions.ends_with('\n'), "{format:?}");
         }
     }
 }
