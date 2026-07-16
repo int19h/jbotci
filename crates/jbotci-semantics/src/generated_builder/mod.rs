@@ -9093,6 +9093,93 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn derived_renderings_descend_eventuality_content_as_nonclaim_structure() {
+        let graph = semantic_graph_for("mi nitcu lo nu mi klama");
+        let (abstraction, content) = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                let eventuality = object.as_eventuality()?;
+                (eventuality
+                    .descriptor
+                    .as_ref()
+                    .is_some_and(|descriptor| descriptor.word == "lo"))
+                .then_some((id, eventuality.content?))
+            })
+            .expect("lo nu introduces a content-bearing eventuality");
+        let content_predication = graph
+            .objects
+            .get(&content)
+            .and_then(SemanticObject::formula_predication)
+            .expect("the probe abstraction content is atomic");
+        let expected_label = format!("lo klama[{abstraction}]");
+
+        for render in [
+            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
+            crate::render::render_tree,
+        ] {
+            let rendered = render(&graph);
+            assert!(rendered.contains(&format!("x2={expected_label}")));
+            assert!(rendered.lines().any(|line| {
+                line.trim_start().starts_with("abstraction content: atom ")
+                    && line.ends_with(&format!(" [{content}]"))
+            }));
+            assert!(rendered.contains(&format!("[{content_predication}]")));
+            assert!(!rendered.contains("content=formula:"));
+        }
+
+        let tree_proj = crate::render::render_tree_proj(&graph);
+        let (_, projected) = tree_proj
+            .split_once("\n\nprojected:\n")
+            .expect("tree+proj has a projected section");
+        assert!(projected.contains(&format!("denotes {expected_label}")));
+        assert!(projected.contains("details=unspecified"));
+        assert!(
+            !projected.contains(&format!("[{content_predication}]")),
+            "intensional abstraction content must not become a displaced commitment"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derived_eventuality_content_descent_is_cycle_safe() {
+        let graph = semantic_graph_for("do nelci mi .ibabo mi nelci do");
+        let content_edges = graph
+            .objects
+            .iter()
+            .filter_map(|(&id, object)| {
+                object
+                    .as_eventuality()?
+                    .content
+                    .map(|content| (id, content))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            content_edges.len(),
+            2,
+            "the temporal connection reifies both bridi"
+        );
+
+        for render in [
+            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
+            crate::render::render_tree,
+        ] {
+            let rendered = render(&graph);
+            for (eventuality, content) in &content_edges {
+                let expected = format!("abstraction content: atom [{content}]");
+                assert_eq!(
+                    rendered.matches(&expected).count(),
+                    1,
+                    "event {eventuality} content must expand once without recursing through itself"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");

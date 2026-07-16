@@ -66,18 +66,22 @@ connectives, `restriction`, and `body` remain separate nodes. Atomic leaves use
 the same typed predication and referent templates as tree+proj. A restricted
 universal is annotated `domain-import=projective` on its quantifier line, while
 the commitment itself remains visible in tree+proj's `projected:` section rather
-than as a fabricated formula child. Descriptor bodies, relation/abstraction bodies, and relative
-clauses retain their graph edge labels as nested formula branches. Restrictive,
-incidental, and non-veridical restrictive clauses have distinct branch labels;
-displayed asides are printed at their utterance attachment.
+than as a fabricated formula child. Descriptor bodies, relation/abstraction
+bodies, eventuality abstraction content, and relative clauses retain their
+graph edge labels as nested formula branches. Eventuality content uses
+`abstraction content:` and is structural non-claim intensional content; it is
+never reduced to an id in the event condition suffix. Restrictive, incidental,
+and non-veridical restrictive clauses have distinct branch labels; displayed
+asides are printed at their utterance attachment.
 
 The tree is deterministic in semantic child order: connective children keep
 their stored order, restrictions precede quantifier bodies, sequence connection
 claims precede items, and ties use object id. Repeated ids are intentionally
 shown; equality of ids, not repeated label text, expresses sharing.
-Referent expansion follows typed field order: descriptor content, an optional
-intensional body, then referent-level relative clauses. The traversal's active
-object/formula set stops cycles through body parameters and self-references.
+Referent expansion follows typed field order: descriptor body, eventuality
+abstraction content, an optional intensional body, then referent-level relative
+clauses. The traversal's active object/formula set stops cycles through content,
+body parameters, and self-references.
 
 ### `--format tree+proj`
 
@@ -94,11 +98,12 @@ projected:
 
 The tree spine is authoritative wherever commitment follows structural
 position. There is no at-issue ledger tier and no `context=` breadcrumb:
-indentation and branch labels are the context. At-issue predications,
-displayed content, and non-claim intensional relation/abstraction bodies occur
-only in the tree. Displayed asides already contain their full fixed payload;
-relation/abstraction branches retain their explicit `relation body:` or
-`abstraction body:` role marker.
+indentation and branch labels are the context. At-issue predications, displayed
+content, and non-claim intensional relation/abstraction bodies and eventuality
+content occur only in the tree. Displayed asides already contain their full
+fixed payload; relation/abstraction branches retain their explicit
+`relation body:` or `abstraction body:` role marker, and eventuality content
+retains its explicit `abstraction content:` role marker.
 
 The `projected:` section enumerates only commitments that escape their tree
 site:

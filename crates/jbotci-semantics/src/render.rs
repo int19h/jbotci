@@ -69,6 +69,7 @@ enum TraversalRole {
     DescriptorBody,
     RelationBody,
     AbstractionBody,
+    AbstractionContent,
     RestrictiveRelativeClause,
     IncidentalRelativeClause,
     NonveridicalRelativeClause,
@@ -678,9 +679,10 @@ impl<'graph> DerivedTraversal<'graph> {
         }
         let inserted = state.active.insert(id);
         debug_assert!(inserted, "referent active-set check and insertion agree");
-        // Referent expansion is stable typed-field order: descriptor content,
-        // intensional body, then referent-level clauses. Formula children and
-        // predication arguments retain their own stored/BTreeMap order.
+        // Referent expansion is stable typed-field order: descriptor body,
+        // eventuality abstraction content, intensional body, then
+        // referent-level clauses. Formula children and predication arguments
+        // retain their own stored/BTreeMap order.
         if let Some(descriptor) = object.descriptor() {
             self.walk_descriptor(
                 descriptor,
@@ -692,12 +694,30 @@ impl<'graph> DerivedTraversal<'graph> {
                 visitor,
             );
         }
-        let (body, clauses): (Option<SemanticObjectId>, &[RelativeClause]) = match object.as_data()
-        {
-            data!(SemanticObject::Eventuality(node)) => (node.body, &node.relative_clauses),
-            data!(SemanticObject::Referent(node)) => (node.body, &node.relative_clauses),
-            _ => (None, &[]),
+        let (content, body, clauses): (
+            Option<SemanticObjectId>,
+            Option<SemanticObjectId>,
+            &[RelativeClause],
+        ) = match object.as_data() {
+            data!(SemanticObject::Eventuality(node)) => {
+                (node.content, node.body, &node.relative_clauses)
+            }
+            data!(SemanticObject::Referent(node)) => (None, node.body, &node.relative_clauses),
+            _ => (None, None, &[]),
         };
+        if let Some(content) = content {
+            self.walk_object(
+                content,
+                TraversalLocation {
+                    commitment: CommitmentPlacement::NonCommitment,
+                    role: TraversalRole::AbstractionContent,
+                    depth: location.depth + 1,
+                    ..location
+                },
+                state,
+                visitor,
+            );
+        }
         if let Some(body) = body {
             self.walk_formula(
                 body,
@@ -1482,11 +1502,11 @@ fn format_eventuality_conditions_to(
         .and_then(SemanticObject::as_eventuality)
         .expect("validated eventuality reference has an eventuality object");
 
-    // Keep this projection aligned with serialize_eventuality's complete
-    // event-condition block: content, actuality, tense-modal, temporal and
-    // spatial placement, intervals, aspect, recurrence, and modifier stacks.
-    // Generic referent identity/body fields retain their established typed
-    // labels and traversal sites instead of being duplicated in this suffix.
+    // Keep this projection aligned with serialize_eventuality's event
+    // conditions: actuality, tense-modal, temporal and spatial placement,
+    // intervals, aspect, recurrence, and modifier stacks. Structural content
+    // and generic referent identity/body fields retain their typed traversal
+    // sites instead of being duplicated in this suffix.
     output.push_str("time=");
     format_anchor_dimension_to(graph, node.time.as_ref(), &node.time_path, output);
 
@@ -1586,8 +1606,7 @@ fn format_eventuality_details_to(
         || node.time_span.is_some()
         || !node.interval_modifiers.is_empty()
         || node.space_interval.is_some()
-        || !node.spatial_interval_modifiers.is_empty()
-        || node.content.is_some();
+        || !node.spatial_interval_modifiers.is_empty();
     output.push_str("; details=");
     if !has_details {
         output.push_str("unspecified");
@@ -1624,10 +1643,6 @@ fn format_eventuality_details_to(
         format_detail_separator(&mut first, output);
         output.push_str("spatial-interval-modifiers=");
         format_interval_modifiers_to(graph, &node.spatial_interval_modifiers, output);
-    }
-    if let Some(content) = node.content {
-        format_detail_separator(&mut first, output);
-        let _ = write!(output, "content={content}");
     }
     format_detail_separator(&mut first, output);
     output.push_str("otherwise=unspecified}");
@@ -2110,12 +2125,21 @@ fn referent_label(graph: &SemanticGraph, id: SemanticObjectId) -> String {
         .get(&id)
         .expect("validated semantic graph references are defined");
     let label = match object.as_data() {
-        data!(SemanticObject::Eventuality(node)) => node
-            .indexical
-            .map(indexical_label)
-            .map(str::to_owned)
-            .or_else(|| descriptor_label(graph, node.descriptor.as_ref(), None))
-            .unwrap_or_else(|| node.sort.label().to_owned()),
+        data!(SemanticObject::Eventuality(node)) => {
+            let content_relation = node
+                .content
+                .and_then(|content| single_atom_relation(graph, content));
+            node.indexical
+                .map(indexical_label)
+                .map(str::to_owned)
+                .or_else(|| {
+                    descriptor_label(graph, node.descriptor.as_ref(), content_relation.as_deref())
+                })
+                .or_else(|| {
+                    content_relation.map(|relation| format!("{} {relation}", node.sort.label()))
+                })
+                .unwrap_or_else(|| node.sort.label().to_owned())
+        }
         data!(SemanticObject::Referent(node)) => {
             let content_relation = node
                 .body
@@ -2451,6 +2475,7 @@ fn tree_role_prefix(role: TraversalRole) -> &'static str {
         TraversalRole::DescriptorBody => "descriptor body: ",
         TraversalRole::RelationBody => "relation body: ",
         TraversalRole::AbstractionBody => "abstraction body: ",
+        TraversalRole::AbstractionContent => "abstraction content: ",
         TraversalRole::RestrictiveRelativeClause => "restrictive relative clause: ",
         TraversalRole::IncidentalRelativeClause => "incidental relative clause: ",
         TraversalRole::NonveridicalRelativeClause => "non-claim restrictive relative clause: ",
