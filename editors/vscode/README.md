@@ -13,6 +13,9 @@ stacked alongside them. You can opt into jbotci for every Markdown document,
 but Markdown URLs, code fences, and HTML may produce noisy diagnostics until
 structural Markdown support is available.
 
+The editor word pattern treats apostrophes and commas as word-internal Lojban
+characters, while periods remain word delimiters.
+
 ## Requirements
 
 Install `jbotci` and make it available on `PATH`, or configure the absolute path
