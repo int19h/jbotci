@@ -2,6 +2,7 @@ use bityzba::{data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
+use crate::cmavo::QuoteOpenerKind;
 use crate::segment::{
     LujvoRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
     next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus,
@@ -546,7 +547,8 @@ impl<'a> Segmenter<'a> {
         let start = self.index;
         let word = self.next_plain_word()?;
         let word_cmavo = word.cmavo();
-        if word_cmavo == Some(Cmavo::Lohu) {
+        let quote_opener_kind = word_cmavo.and_then(Cmavo::quote_opener_kind);
+        if quote_opener_kind == Some(QuoteOpenerKind::QuotedWords) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "LOhU quote",
@@ -556,13 +558,13 @@ impl<'a> Segmenter<'a> {
             );
             return self.lohu_quote(word);
         }
-        if matches!(word_cmavo, Some(Cmavo::Zoi | Cmavo::Laho | Cmavo::Muhoi)) {
+        if quote_opener_kind == Some(QuoteOpenerKind::DelimitedNonLojban) {
             self.trace_step(TraceLevel::Detailed, "ZOI quote", start, self.index, || {
                 None
             });
             return self.zoi_quote(word);
         }
-        if is_single_word_quote_marker_cmavo(word_cmavo) {
+        if quote_opener_kind == Some(QuoteOpenerKind::SingleWord) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "single-word quote",
@@ -572,7 +574,7 @@ impl<'a> Segmenter<'a> {
             );
             return self.single_word_quote(word);
         }
-        if matches!(word_cmavo, Some(Cmavo::Zo | Cmavo::Mahoi)) {
+        if quote_opener_kind == Some(QuoteOpenerKind::ParsedWord) {
             let trace_label = if word_cmavo == Some(Cmavo::Zo) {
                 "ZO quote"
             } else {
@@ -1255,16 +1257,17 @@ impl<'a> Segmenter<'a> {
         }
         let word = self.next_plain_word()?;
         let word_cmavo = word.cmavo();
-        if word_cmavo == Some(Cmavo::Lohu) {
+        let quote_opener_kind = word_cmavo.and_then(Cmavo::quote_opener_kind);
+        if quote_opener_kind == Some(QuoteOpenerKind::QuotedWords) {
             return self.lohu_quote(word);
         }
-        if matches!(word_cmavo, Some(Cmavo::Zoi | Cmavo::Laho | Cmavo::Muhoi)) {
+        if quote_opener_kind == Some(QuoteOpenerKind::DelimitedNonLojban) {
             return self.zoi_quote(word);
         }
-        if is_single_word_quote_marker_cmavo(word_cmavo) {
+        if quote_opener_kind == Some(QuoteOpenerKind::SingleWord) {
             return self.single_word_quote(word);
         }
-        if matches!(word_cmavo, Some(Cmavo::Zo | Cmavo::Mahoi)) {
+        if quote_opener_kind == Some(QuoteOpenerKind::ParsedWord) {
             return self.parsed_word_quote(word);
         }
         if word_cmavo == Some(Cmavo::Faho) {
@@ -2357,24 +2360,6 @@ fn into_bare_word(word: WordLike) -> Option<Word> {
         data!(WordLike::PlainWord(word)) => Some(word),
         _ => None,
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_single_word_quote_marker_cmavo(cmavo: Option<Cmavo>) -> bool {
-    cmavo.is_some_and(|cmavo| {
-        matches!(
-            cmavo,
-            Cmavo::Zohoi
-                | Cmavo::Lahoi
-                | Cmavo::Rahoi
-                | Cmavo::Mehoi
-                | Cmavo::Gohoi
-                | Cmavo::Zehoi
-                | Cmavo::Tahai
-                | Cmavo::Bohei
-        )
-    })
 }
 
 #[requires(true)]

@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, requires};
+use bityzba::{ensures, invariant, requires};
 
 macro_rules! cmavo_table {
     ($callback:ident $(, $arg:expr)*) => {
@@ -1008,6 +1008,15 @@ macro_rules! cmavo_selmaho_contains {
 
 cmavo_table!(declare_cmavo_enum);
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum QuoteOpenerKind {
+    QuotedWords,
+    DelimitedNonLojban,
+    ParsedWord,
+    SingleWord,
+}
+
 impl Cmavo {
     /// Every known cmavo variant, in enum declaration order.
     pub const ALL: &'static [Self] = cmavo_table!(cmavo_all);
@@ -1031,6 +1040,32 @@ impl Cmavo {
     #[ensures(true)]
     pub fn is_selmaho(self, selmaho: Selmaho) -> bool {
         selmaho.contains(self)
+    }
+
+    /// Whether this cmavo opens any morphology-level quote construct.
+    #[requires(true)]
+    #[ensures(ret == self.quote_opener_kind().is_some())]
+    pub const fn is_quote_opener(self) -> bool {
+        self.quote_opener_kind().is_some()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) const fn quote_opener_kind(self) -> Option<QuoteOpenerKind> {
+        match self {
+            Self::Lohu => Some(QuoteOpenerKind::QuotedWords),
+            Self::Zoi | Self::Laho | Self::Muhoi => Some(QuoteOpenerKind::DelimitedNonLojban),
+            Self::Zo | Self::Mahoi => Some(QuoteOpenerKind::ParsedWord),
+            Self::Zohoi
+            | Self::Lahoi
+            | Self::Rahoi
+            | Self::Mehoi
+            | Self::Gohoi
+            | Self::Zehoi
+            | Self::Tahai
+            | Self::Bohei => Some(QuoteOpenerKind::SingleWord),
+            _ => None,
+        }
     }
 
     #[requires(true)]
