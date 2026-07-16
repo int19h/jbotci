@@ -401,6 +401,9 @@ struct CllFixtureMetadataAuditArgs {
 struct FixtureRewriteArgs {
     #[arg(default_value = "tests/fixtures")]
     roots: Vec<PathBuf>,
+    /// Report fixture and facet changes without writing any files.
+    #[arg(long)]
+    dry_run: bool,
     #[arg(long)]
     migrate_morphology_diagnostics: bool,
     #[arg(long)]
@@ -7157,6 +7160,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         let summary = fixture_rewrite_paths(
             args.paths,
             false,
+            args.dry_run,
             args.migrate_morphology_diagnostics,
             args.rederive_morphology_status,
             args.add_semantics_refs,
@@ -7173,6 +7177,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         let summary = fixture_rewrite_paths(
             args.paths,
             true,
+            args.dry_run,
             args.migrate_morphology_diagnostics,
             args.rederive_morphology_status,
             args.add_semantics_refs,
@@ -7182,11 +7187,13 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.gentufa_output_only,
             args.only_semantics_refs,
         )?;
-        println!("rewrote {} fixture(s)", summary.rewritten);
+        print_fixture_rewrite_report(&summary, args.dry_run);
+        ensure_fixture_rewrite_supported(&summary)?;
         return Ok(());
     }
     fixture_rewrite_subprocess_chunks(
         args.roots,
+        args.dry_run,
         args.migrate_morphology_diagnostics,
         args.rederive_morphology_status,
         args.add_semantics_refs,
@@ -7226,6 +7233,7 @@ fn ensure_clean_git_tree_for_fixture_rederive() -> Result<()> {
 #[ensures(true)]
 fn fixture_rewrite_subprocess_chunks(
     roots: Vec<PathBuf>,
+    dry_run: bool,
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
@@ -7249,6 +7257,7 @@ fn fixture_rewrite_subprocess_chunks(
         let output = fixture_rewrite_chunk_output(
             &exe,
             chunk,
+            dry_run,
             migrate_morphology_diagnostics,
             rederive_morphology_status,
             add_semantics_refs,
@@ -7278,7 +7287,8 @@ fn fixture_rewrite_subprocess_chunks(
             );
         }
     }
-    println!("rewrote {} fixture(s)", summary.rewritten);
+    print_fixture_rewrite_report(&summary, dry_run);
+    ensure_fixture_rewrite_supported(&summary)?;
     Ok(())
 }
 
@@ -7287,6 +7297,7 @@ fn fixture_rewrite_subprocess_chunks(
 fn fixture_rewrite_chunk_output(
     exe: &Path,
     chunk: &[PathBuf],
+    dry_run: bool,
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
@@ -7298,6 +7309,9 @@ fn fixture_rewrite_chunk_output(
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command.arg("fixture-rewrite").arg("--chunk-worker");
+    if dry_run {
+        command.arg("--dry-run");
+    }
     if migrate_morphology_diagnostics {
         command.arg("--migrate-morphology-diagnostics");
     }
@@ -7348,11 +7362,12 @@ fn parse_fixture_rewrite_summary(stdout: &str) -> Result<RewriteSummary> {
     Ok(summary.into_summary())
 }
 
-#[derive(Debug, Default, Clone, Copy)]
 #[invariant(true)]
+#[derive(Debug, Default, Clone)]
 struct RewriteSummary {
     processed: usize,
     rewritten: usize,
+    facet_coverage: BTreeMap<Facet, FacetRewriteCoverage>,
 }
 
 impl RewriteSummary {
@@ -7361,15 +7376,50 @@ impl RewriteSummary {
     fn merge(&mut self, other: Self) {
         self.processed += other.processed;
         self.rewritten += other.rewritten;
+        for (facet, coverage) in other.facet_coverage {
+            self.facet_coverage
+                .entry(facet)
+                .or_default()
+                .merge(coverage);
+        }
     }
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FacetRewriteCoverage {
+    present: usize,
+    absent: usize,
+    verified: usize,
+    rewritten: usize,
+    xfailed: usize,
+    skipped: usize,
+    unsupported: usize,
+}
+
+impl FacetRewriteCoverage {
+    #[requires(true)]
+    #[ensures(self.present == self.verified + self.rewritten + self.xfailed + self.skipped + self.unsupported)]
+    fn merge(&mut self, other: Self) {
+        self.present += other.present;
+        self.absent += other.absent;
+        self.verified += other.verified;
+        self.rewritten += other.rewritten;
+        self.xfailed += other.xfailed;
+        self.skipped += other.skipped;
+        self.unsupported += other.unsupported;
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FixtureRewriteSummaryLine {
     fixtures: usize,
     rewritten: usize,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    facet_coverage: BTreeMap<Facet, FacetRewriteCoverage>,
 }
 
 impl FixtureRewriteSummaryLine {
@@ -7379,6 +7429,7 @@ impl FixtureRewriteSummaryLine {
         Self {
             fixtures: summary.processed,
             rewritten: summary.rewritten,
+            facet_coverage: summary.facet_coverage.clone(),
         }
     }
 
@@ -7388,6 +7439,7 @@ impl FixtureRewriteSummaryLine {
         RewriteSummary {
             processed: self.fixtures,
             rewritten: self.rewritten,
+            facet_coverage: self.facet_coverage,
         }
     }
 }
@@ -7402,11 +7454,55 @@ fn print_fixture_rewrite_summary(summary: &RewriteSummary) {
     );
 }
 
+#[requires(summary.processed >= summary.rewritten)]
+#[ensures(true)]
+fn print_fixture_rewrite_report(summary: &RewriteSummary, dry_run: bool) {
+    let action = if dry_run { "would rewrite" } else { "rewrote" };
+    println!("{action} {} fixture(s)", summary.rewritten);
+    if summary.facet_coverage.is_empty() {
+        println!("facet coverage: not collected for this specialized rewrite mode");
+        return;
+    }
+    println!("facet coverage:");
+    for facet in Facet::all() {
+        let coverage = summary
+            .facet_coverage
+            .get(facet)
+            .copied()
+            .unwrap_or_default();
+        println!(
+            "  {facet}: present={} absent={} verified={} rewritten={} xfailed={} skipped={} unsupported={}",
+            coverage.present,
+            coverage.absent,
+            coverage.verified,
+            coverage.rewritten,
+            coverage.xfailed,
+            coverage.skipped,
+            coverage.unsupported,
+        );
+    }
+}
+
+#[requires(summary.processed >= summary.rewritten)]
+#[ensures(ret.is_ok() == summary.facet_coverage.values().all(|coverage| coverage.unsupported == 0))]
+fn ensure_fixture_rewrite_supported(summary: &RewriteSummary) -> Result<()> {
+    let unsupported = summary
+        .facet_coverage
+        .values()
+        .map(|coverage| coverage.unsupported)
+        .sum::<usize>();
+    if unsupported > 0 {
+        bail!("fixture regeneration left {unsupported} unsupported facet(s)");
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
 fn fixture_rewrite_paths(
     paths: Vec<PathBuf>,
     report_progress: bool,
+    dry_run: bool,
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
@@ -7416,13 +7512,16 @@ fn fixture_rewrite_paths(
     gentufa_output_only: bool,
     only_semantics_refs: bool,
 ) -> Result<RewriteSummary> {
-    let mut rewritten = 0usize;
+    let mut summary = RewriteSummary::default();
     let total = paths.len();
     for (index, path) in paths.into_iter().enumerate() {
         let processed = index + 1;
         if report_progress && total > 0 && should_report_fixture_rewrite_progress(processed, total)
         {
-            eprintln!("fixture-rewrite: {processed}/{total} processed, {rewritten} changed");
+            eprintln!(
+                "fixture-rewrite: {processed}/{total} processed, {} changed",
+                summary.rewritten
+            );
         }
         let before = fs::read_to_string(&path)
             .with_context(|| format!("reading fixture `{}`", path.display()))?;
@@ -7437,9 +7536,11 @@ fn fixture_rewrite_paths(
                     )
                 })?
             {
-                fs::write(&path, after)
-                    .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
-                rewritten += 1;
+                if !dry_run {
+                    fs::write(&path, after)
+                        .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
+                }
+                summary.rewritten += 1;
             }
             continue;
         } else if gentufa_output_only {
@@ -7448,29 +7549,44 @@ fn fixture_rewrite_paths(
                     format!("refreshing gentufa output fixture `{}`", path.display())
                 })?
             {
-                fs::write(&path, after)
-                    .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
-                rewritten += 1;
+                if !dry_run {
+                    fs::write(&path, after)
+                        .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
+                }
+                summary.rewritten += 1;
             }
             continue;
         } else if syntax_only {
+            let original_test_case = fixture.test_case.clone();
             refresh_syntax_expectations_only(&mut fixture)
                 .with_context(|| format!("refreshing syntax fixture `{}`", path.display()))?;
+            if fixture.test_case == original_test_case {
+                continue;
+            }
         } else if migrate_morphology_diagnostics {
+            let original_test_case = fixture.test_case.clone();
             migrate_legacy_morphology_diagnostics(&mut fixture).with_context(|| {
                 format!(
                     "migrating morphology diagnostics in fixture `{}`",
                     path.display()
                 )
             })?;
+            if fixture.test_case == original_test_case {
+                continue;
+            }
         } else if rederive_morphology_status {
+            let original_test_case = fixture.test_case.clone();
             rederive_morphology_status_expectation(&mut fixture, &path).with_context(|| {
                 format!(
                     "rederiving morphology status in fixture `{}`",
                     path.display()
                 )
             })?;
-        } else {
+            if fixture.test_case == original_test_case {
+                continue;
+            }
+        } else if add_semantics_refs || add_tersmu_json || only_semantics_refs {
+            let original_test_case = fixture.test_case.clone();
             refresh_fixture_expectations(
                 &mut fixture,
                 add_semantics_refs,
@@ -7478,19 +7594,683 @@ fn fixture_rewrite_paths(
                 only_semantics_refs,
             )
             .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+            if fixture.test_case == original_test_case {
+                continue;
+            }
+        } else {
+            let changed = refresh_available_fixture_facets(&mut fixture, &mut summary)
+                .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+            if !changed {
+                continue;
+            }
         }
-        write_fixture_file(&path, &fixture.test_case)
-            .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
-        let after = fs::read_to_string(&path)
-            .with_context(|| format!("reading rewritten fixture `{}`", path.display()))?;
-        if before != after {
-            rewritten += 1;
+        if dry_run {
+            eprintln!("fixture-rewrite: would rewrite {}", path.display());
+        } else {
+            write_fixture_file(&path, &fixture.test_case)
+                .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
+        }
+        summary.rewritten += 1;
+    }
+    summary.processed = total;
+    Ok(summary)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_err() || summary.facet_coverage.values().all(|coverage| coverage.present == coverage.verified + coverage.rewritten + coverage.xfailed + coverage.skipped + coverage.unsupported))]
+fn refresh_available_fixture_facets(
+    fixture: &mut LoadedTestCase,
+    summary: &mut RewriteSummary,
+) -> Result<bool> {
+    let available = fixture.test_case.available_facets();
+    let backend = RuntimeFixtureBackend;
+    let mut changed = false;
+    for facet in Facet::all() {
+        if !available.contains(facet) {
+            summary.facet_coverage.entry(*facet).or_default().absent += 1;
+            continue;
+        }
+
+        let initial = backend.run(fixture, *facet);
+        match initial.status {
+            fixtures::FacetStatus::Passed => {
+                let coverage = summary.facet_coverage.entry(*facet).or_default();
+                coverage.present += 1;
+                coverage.verified += 1;
+            }
+            fixtures::FacetStatus::Xfailed => {
+                let coverage = summary.facet_coverage.entry(*facet).or_default();
+                coverage.present += 1;
+                coverage.xfailed += 1;
+            }
+            fixtures::FacetStatus::Skipped => {
+                let coverage = summary.facet_coverage.entry(*facet).or_default();
+                coverage.present += 1;
+                coverage.skipped += 1;
+            }
+            fixtures::FacetStatus::Failed => {
+                // The fixture-test backend is the authority on both facet selection and runtime
+                // behavior. A regeneration adapter may propose a replacement, but the tool only
+                // accepts it after this exact backend verifies the replacement.
+                let original_test_case = fixture.test_case.clone();
+                let refresh_result = regenerate_fixture_facet(fixture, *facet);
+                let regenerated = refresh_result.is_ok()
+                    && matches!(
+                        backend.run(fixture, *facet).status,
+                        fixtures::FacetStatus::Passed | fixtures::FacetStatus::Xfailed
+                    );
+                let coverage = summary.facet_coverage.entry(*facet).or_default();
+                coverage.present += 1;
+                if regenerated {
+                    coverage.rewritten += 1;
+                    changed = true;
+                } else {
+                    fixture.test_case = original_test_case;
+                    coverage.unsupported += 1;
+                    let reason = refresh_result.err().unwrap_or_else(|| {
+                        "regenerated value still fails the fixture-test path".to_owned()
+                    });
+                    eprintln!(
+                        "fixture-rewrite: unsupported facet {} for {}: {}; fixture-test failure: {}",
+                        facet,
+                        fixture.path.display(),
+                        reason,
+                        initial.message.as_deref().unwrap_or("unknown failure"),
+                    );
+                }
+            }
         }
     }
-    Ok(RewriteSummary {
-        processed: total,
-        rewritten,
-    })
+    Ok(changed)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn regenerate_fixture_facet(
+    fixture: &mut LoadedTestCase,
+    facet: Facet,
+) -> std::result::Result<(), String> {
+    match facet {
+        Facet::Morphology => regenerate_morphology_fixture(fixture),
+        Facet::Jvozba => regenerate_jvozba_fixture(fixture),
+        Facet::Syntax => regenerate_syntax_fixture(fixture),
+        Facet::SemanticsRefs => {
+            let result = semantics_refs_fixture_result(fixture);
+            record_semantics_refs_expectation(&mut fixture.test_case.expectations, result);
+            Ok(())
+        }
+        Facet::VlaseiBrackets => regenerate_vlasei_brackets_fixture(fixture, LojbanScript::Latin),
+        Facet::VlaseiBracketsCyrillic => {
+            regenerate_vlasei_brackets_fixture(fixture, LojbanScript::Cyrillic)
+        }
+        Facet::VlaseiBracketsZbalermorna => {
+            regenerate_vlasei_brackets_fixture(fixture, LojbanScript::Zbalermorna)
+        }
+        Facet::VlaseiTree => {
+            let actual = render_vlasei_tree_fixture(fixture)?;
+            let expectation = fixture
+                .test_case
+                .expectations
+                .output
+                .as_mut()
+                .and_then(|output| output.vlasei.as_mut())
+                .and_then(|output| output.tree.as_mut())
+                .ok_or_else(|| "fixture has no vlasei tree expectation".to_owned())?;
+            refresh_existing_text_expectation(expectation, actual);
+            Ok(())
+        }
+        Facet::VlaseiJson => {
+            let actual = render_vlasei_json_fixture(fixture)?;
+            let expectation = fixture
+                .test_case
+                .expectations
+                .output
+                .as_mut()
+                .and_then(|output| output.vlasei.as_mut())
+                .and_then(|output| output.json.as_mut())
+                .ok_or_else(|| "fixture has no vlasei JSON expectation".to_owned())?;
+            refresh_existing_text_expectation(expectation, actual);
+            Ok(())
+        }
+        Facet::GentufaBrackets => {
+            let actual = render_gentufa_brackets_fixture(fixture, false)?;
+            regenerate_gentufa_text_fixture(fixture, facet, actual)
+        }
+        Facet::GentufaTree => {
+            let actual = render_gentufa_tree_fixture(fixture, false)?;
+            regenerate_gentufa_text_fixture(fixture, facet, actual)
+        }
+        Facet::GentufaJson => {
+            let actual = render_gentufa_json_fixture(fixture, false)?;
+            regenerate_gentufa_text_fixture(fixture, facet, actual)
+        }
+        Facet::GentufaBracketsShowElided => {
+            let actual = render_gentufa_brackets_fixture(fixture, true)?;
+            regenerate_gentufa_text_fixture(fixture, facet, actual)
+        }
+        Facet::GentufaTreeShowElided => {
+            let actual = render_gentufa_tree_fixture(fixture, true)?;
+            regenerate_gentufa_text_fixture(fixture, facet, actual)
+        }
+        Facet::GentufaJsonShowElided => {
+            let actual = render_gentufa_json_fixture(fixture, true)?;
+            regenerate_gentufa_text_fixture(fixture, facet, actual)
+        }
+        Facet::TersmuJson => {
+            let result = tersmu_json_fixture_result(fixture);
+            record_tersmu_json_expectation(&mut fixture.test_case.expectations, result);
+            Ok(())
+        }
+        Facet::TersmuTree => {
+            let actual = render_tersmu_derived_fixture(fixture, render_tree)?;
+            let expectation = fixture
+                .test_case
+                .expectations
+                .output
+                .as_mut()
+                .and_then(|output| output.tersmu.as_mut())
+                .and_then(|output| output.tree.as_mut())
+                .ok_or_else(|| "fixture has no tersmu tree expectation".to_owned())?;
+            refresh_existing_text_expectation(expectation, actual);
+            Ok(())
+        }
+        Facet::TersmuTreeProj => {
+            let actual = render_tersmu_derived_fixture(fixture, render_tree_proj)?;
+            let expectation = fixture
+                .test_case
+                .expectations
+                .output
+                .as_mut()
+                .and_then(|output| output.tersmu.as_mut())
+                .and_then(|output| output.tree_proj.as_mut())
+                .ok_or_else(|| "fixture has no tersmu tree+proj expectation".to_owned())?;
+            refresh_existing_text_expectation(expectation, actual);
+            Ok(())
+        }
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn regenerate_morphology_fixture(fixture: &mut LoadedTestCase) -> std::result::Result<(), String> {
+    let dialect = fixture
+        .test_case
+        .dialect_definition()
+        .map_err(|error| format!("dialect error: {error}"))?;
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let had_raw = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .and_then(|expectation| expectation.raw.as_ref())
+        .is_some();
+    let checks_diagnostics = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .is_some_and(|expectation| !expectation.diagnostics.is_empty());
+    let recovered_configuration = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .and_then(|expectation| expectation.recovered.as_ref())
+        .map(|recovered| (recovered.max_errors, recovered.tree.clone()));
+    let (status, raw, diagnostics) = match attempt.result {
+        Ok(words) => {
+            let raw = (had_raw || !checks_diagnostics).then(|| format_debug_value(&words));
+            let diagnostics = checks_diagnostics.then(|| {
+                morphology_warning_diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    &attempt.warnings,
+                )
+            });
+            (ExpectationStatus::Success, raw, diagnostics)
+        }
+        Err(error) => {
+            let diagnostics = checks_diagnostics.then(|| {
+                morphology_error_diagnostic_expectation_items(&fixture.test_case.lojban, &error)
+            });
+            (ExpectationStatus::Failure, None, diagnostics)
+        }
+    };
+    let expectation = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_mut()
+        .ok_or_else(|| "fixture has no morphology expectation".to_owned())?;
+    expectation.status = status;
+    expectation.raw = raw.map(|raw| refreshed_text_expectation(expectation.raw.as_ref(), raw));
+    if let Some(diagnostics) = diagnostics {
+        expectation.diagnostics = diagnostics;
+    }
+
+    if let Some((max_errors, tree)) = recovered_configuration {
+        let recovered = segment_words_with_modifiers_recovered_with_options_and_source_id(
+            &fixture.test_case.lojban,
+            &options,
+            Some(SourceId("<fixture>".to_owned())),
+        );
+        let status = if recovered.errors.is_empty() {
+            ExpectationStatus::Success
+        } else {
+            ExpectationStatus::Failure
+        };
+        let diagnostics = recovered_morphology_diagnostic_expectation_items(
+            &fixture.test_case.lojban,
+            &recovered,
+        );
+        expectation.recovered = Some(new!(fixtures::RecoveredExpectation {
+            status,
+            max_errors,
+            diagnostics,
+            tree,
+        }));
+    }
+    Ok(())
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn regenerate_jvozba_fixture(fixture: &mut LoadedTestCase) -> std::result::Result<(), String> {
+    let expectation = fixture
+        .test_case
+        .expectations
+        .jvozba
+        .as_mut()
+        .ok_or_else(|| "fixture has no jvozba expectation".to_owned())?;
+    let inputs = expectation
+        .inputs
+        .iter()
+        .map(jvozba_input_from_fixture)
+        .collect::<Vec<_>>();
+    match jbotci_jvozba::build_best_jvozba_detailed(
+        jvozba_mode_from_fixture(expectation.mode),
+        jbotci_dictionary_data::english(),
+        &inputs,
+    ) {
+        Ok(actual) => {
+            let actual = actual.into_data();
+            expectation.status = ExpectationStatus::Success;
+            expectation.output = Some(fixtures::JvozbaOutputExpectation {
+                word: actual.word,
+                segments: actual
+                    .segments
+                    .into_iter()
+                    .map(|segment| {
+                        let segment = segment.into_data();
+                        fixtures::JvozbaSegmentExpectation {
+                            kind: jvozba_segment_kind_to_fixture(segment.kind),
+                            text: segment.text,
+                        }
+                    })
+                    .collect(),
+            });
+            expectation.error = None;
+        }
+        Err(error) => {
+            expectation.status = ExpectationStatus::Failure;
+            expectation.output = None;
+            if expectation.error.is_some() {
+                expectation.error = Some(refreshed_text_expectation(
+                    expectation.error.as_ref(),
+                    error.to_string(),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn regenerate_syntax_fixture(fixture: &mut LoadedTestCase) -> std::result::Result<(), String> {
+    let expectation = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_ref()
+        .ok_or_else(|| "fixture has no syntax expectation".to_owned())?;
+    if expectation.xfail.is_some() {
+        return Err("syntax xfail expectations require manual review".to_owned());
+    }
+    let had_raw = expectation.raw.is_some();
+    let checks_diagnostics = !expectation.diagnostics.is_empty();
+    let recovered_configuration = expectation
+        .recovered
+        .as_ref()
+        .map(|recovered| (recovered.max_errors, recovered.tree.is_some()));
+
+    let dialect = fixture
+        .test_case
+        .dialect_definition()
+        .map_err(|error| format!("dialect error: {error}"))?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .into_data();
+    let morphology_warnings = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+    let words = match attempt.result {
+        Ok(words) => words,
+        Err(error) => {
+            if recovered_configuration.is_some() {
+                return Err("recovered syntax is blocked by morphology failure".to_owned());
+            }
+            let diagnostics = checks_diagnostics.then(|| {
+                let mut diagnostics = morphology_warnings;
+                diagnostics.extend(morphology_error_diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    &error,
+                ));
+                diagnostics
+            });
+            let expectation = fixture
+                .test_case
+                .expectations
+                .syntax
+                .as_mut()
+                .expect("syntax expectation was checked");
+            expectation.status = ExpectationStatus::Failure;
+            expectation.raw = None;
+            if let Some(diagnostics) = diagnostics {
+                expectation.diagnostics = diagnostics;
+            }
+            return Ok(());
+        }
+    };
+
+    let (status, raw, diagnostics) = match parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    ) {
+        Ok(parsed) => {
+            let raw =
+                (had_raw || !checks_diagnostics).then(|| format_debug_value(&parsed.parse_tree));
+            let diagnostics = checks_diagnostics.then(|| {
+                let mut diagnostics = morphology_warnings.clone();
+                diagnostics.extend(syntax_warning_diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    &parsed.warnings,
+                ));
+                diagnostics
+            });
+            (ExpectationStatus::Success, raw, diagnostics)
+        }
+        Err(error) => {
+            let diagnostics = checks_diagnostics.then(|| {
+                let mut diagnostics = morphology_warnings.clone();
+                diagnostics.extend(syntax_error_diagnostic_expectation_items(
+                    &fixture.test_case.lojban,
+                    &error,
+                ));
+                diagnostics
+            });
+            (ExpectationStatus::Failure, None, diagnostics)
+        }
+    };
+    let expectation = fixture
+        .test_case
+        .expectations
+        .syntax
+        .as_mut()
+        .expect("syntax expectation was checked");
+    expectation.status = status;
+    expectation.raw = raw.map(|raw| refreshed_text_expectation(expectation.raw.as_ref(), raw));
+    if let Some(diagnostics) = diagnostics {
+        expectation.diagnostics = diagnostics;
+    }
+
+    if let Some((max_errors, has_tree)) = recovered_configuration {
+        let mut recovered_options = ParseOptions::default().with_dialect_definition(&dialect);
+        if let Some(max_errors) = max_errors {
+            recovered_options = recovered_options.with_max_recovery_errors(max_errors);
+        }
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &recovered_options,
+        );
+        let status = if recovered.errors.is_empty() {
+            ExpectationStatus::Success
+        } else {
+            ExpectationStatus::Failure
+        };
+        let mut diagnostics = morphology_warnings;
+        diagnostics.extend(recovered_syntax_diagnostic_expectation_items(
+            &fixture.test_case.lojban,
+            &recovered,
+        ));
+        diagnostics.sort_by_key(|diagnostic| {
+            (
+                diagnostic.byte_span[0],
+                diagnostic.byte_span[1],
+                diagnostic.code.clone(),
+            )
+        });
+        let tree = has_tree.then(|| recovered_syntax_tree_expectation(&recovered));
+        expectation.recovered = Some(new!(fixtures::RecoveredExpectation {
+            status,
+            max_errors,
+            diagnostics,
+            tree,
+        }));
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(expectation.sha256.is_some() == old(expectation.sha256.is_some()))]
+fn refresh_existing_text_expectation(expectation: &mut TextExpectation, actual: String) {
+    *expectation = refreshed_text_expectation(Some(expectation), actual);
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_words_fixture(
+    fixture: &LoadedTestCase,
+) -> std::result::Result<Vec<WordLike>, String> {
+    let dialect = fixture
+        .test_case
+        .dialect_definition()
+        .map_err(|error| format!("dialect error: {error}"))?;
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .map_err(|error| format!("morphology error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_brackets_fixture(
+    fixture: &LoadedTestCase,
+    script: LojbanScript,
+) -> std::result::Result<String, String> {
+    let words = render_vlasei_words_fixture(fixture)?;
+    render_vlasei_brackets_words_fixture(fixture, &words, script)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_brackets_words_fixture(
+    fixture: &LoadedTestCase,
+    words: &[WordLike],
+    script: LojbanScript,
+) -> std::result::Result<String, String> {
+    pretty_morphology_brackets_with_options(
+        words,
+        &fixture.test_case.lojban,
+        BracketRenderOptions {
+            color: false,
+            script,
+            ..BracketRenderOptions::default()
+        },
+    )
+    .map_err(|error| format!("vlasei brackets render error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn regenerate_vlasei_brackets_fixture(
+    fixture: &mut LoadedTestCase,
+    script: LojbanScript,
+) -> std::result::Result<(), String> {
+    let actual = render_vlasei_brackets_fixture(fixture, script)?;
+    let expectation = fixture
+        .test_case
+        .expectations
+        .output
+        .as_mut()
+        .and_then(|output| output.vlasei.as_mut())
+        .and_then(|output| output.brackets.as_mut())
+        .and_then(|brackets| brackets.expectation_for_script_mut(script))
+        .ok_or_else(|| format!("fixture has no vlasei brackets expectation for {script:?}"))?;
+    refresh_existing_text_expectation(expectation, actual);
+    Ok(())
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_tree_fixture(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
+    let words = render_vlasei_words_fixture(fixture)?;
+    render_vlasei_tree_words_fixture(fixture, &words)
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_tree_words_fixture(
+    fixture: &LoadedTestCase,
+    words: &[WordLike],
+) -> std::result::Result<String, String> {
+    pretty_morphology_tree_with_options(
+        words,
+        &fixture.test_case.lojban,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+            show_spans: true,
+            ..TreeRenderOptions::default()
+        },
+    )
+    .map_err(|error| format!("vlasei tree render error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_json_fixture(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
+    let words = render_vlasei_words_fixture(fixture)?;
+    render_vlasei_json_words_fixture(&words)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_vlasei_json_words_fixture(words: &[WordLike]) -> std::result::Result<String, String> {
+    compact_morphology_json_string_with_options(
+        words,
+        JsonRenderOptions {
+            indent: 0,
+            ..JsonRenderOptions::default()
+        },
+    )
+    .map_err(|error| format!("vlasei JSON render error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_gentufa_brackets_fixture(
+    fixture: &LoadedTestCase,
+    show_elided: bool,
+) -> std::result::Result<String, String> {
+    let parsed = parse_gentufa_fixture_tree(fixture)?;
+    pretty_generated_fixture_brackets(fixture, &parsed, show_elided)
+        .map_err(|error| format!("gentufa brackets render error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_gentufa_tree_fixture(
+    fixture: &LoadedTestCase,
+    show_elided: bool,
+) -> std::result::Result<String, String> {
+    let parsed = parse_gentufa_fixture_tree(fixture)?;
+    pretty_generated_fixture_tree(fixture, &parsed, show_elided)
+        .map_err(|error| format!("gentufa tree render error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_gentufa_json_fixture(
+    fixture: &LoadedTestCase,
+    show_elided: bool,
+) -> std::result::Result<String, String> {
+    let parsed = parse_gentufa_fixture_tree(fixture)?;
+    compact_generated_fixture_json(&parsed, show_elided)
+        .map_err(|error| format!("gentufa JSON render error: {error}"))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn regenerate_gentufa_text_fixture(
+    fixture: &mut LoadedTestCase,
+    facet: Facet,
+    actual: String,
+) -> std::result::Result<(), String> {
+    let gentufa = fixture
+        .test_case
+        .expectations
+        .output
+        .as_mut()
+        .and_then(|output| output.gentufa.as_mut())
+        .ok_or_else(|| "fixture has no gentufa output expectation".to_owned())?;
+    let expectation = match facet {
+        Facet::GentufaBrackets => gentufa.brackets.as_mut(),
+        Facet::GentufaTree => gentufa.tree.as_mut(),
+        Facet::GentufaJson => gentufa.json.as_mut(),
+        Facet::GentufaBracketsShowElided => gentufa
+            .show_elided
+            .as_mut()
+            .and_then(|output| output.brackets.as_mut()),
+        Facet::GentufaTreeShowElided => gentufa
+            .show_elided
+            .as_mut()
+            .and_then(|output| output.tree.as_mut()),
+        Facet::GentufaJsonShowElided => gentufa
+            .show_elided
+            .as_mut()
+            .and_then(|output| output.json.as_mut()),
+        _ => None,
+    }
+    .ok_or_else(|| format!("fixture has no {facet} expectation"))?;
+    refresh_existing_text_expectation(expectation, actual);
+    Ok(())
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn render_tersmu_derived_fixture(
+    fixture: &LoadedTestCase,
+    renderer: fn(&SemanticGraph) -> String,
+) -> std::result::Result<String, String> {
+    tersmu_graph_fixture_result(fixture, "tersmu build error").map(|graph| renderer(&graph))
 }
 
 #[requires(total > 0)]
@@ -9055,7 +9835,7 @@ fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> 
 #[ensures(true)]
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
-    let backend = NotImplementedBackend;
+    let backend = RuntimeFixtureBackend;
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let jobs = args.jobs.unwrap_or_else(default_fixture_jobs);
@@ -10646,10 +11426,10 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
 }
 
 #[invariant(true)]
-struct NotImplementedBackend;
+struct RuntimeFixtureBackend;
 
 #[contract_trait]
-impl FixtureBackend for NotImplementedBackend {
+impl FixtureBackend for RuntimeFixtureBackend {
     #[requires(true)]
     #[ensures(true)]
     fn run(&self, fixture: &LoadedTestCase, facet: Facet) -> FacetResult {
@@ -10726,15 +11506,7 @@ fn run_vlasei_brackets_fixture(
         Ok(words) => words,
         Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
     };
-    match pretty_morphology_brackets_with_options(
-        &words,
-        &fixture.test_case.lojban,
-        BracketRenderOptions {
-            color: false,
-            script,
-            ..BracketRenderOptions::default()
-        },
-    ) {
+    match render_vlasei_brackets_words_fixture(fixture, &words, script) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => {
             run_vlasei_brackets_round_trip(fixture, &options, &words, &actual)
         }
@@ -10799,29 +11571,11 @@ fn run_vlasei_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
     else {
         return FacetResult::skipped("fixture has no vlasei tree expectation");
     };
-    let dialect = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => dialect,
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
-        &fixture.test_case.lojban,
-        &options,
-        Some(SourceId("<fixture>".to_owned())),
-    ) {
+    let words = match render_vlasei_words_fixture(fixture) {
         Ok(words) => words,
-        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+        Err(error) => return FacetResult::failed(error),
     };
-    match pretty_morphology_tree_with_options(
-        &words,
-        &fixture.test_case.lojban,
-        TreeRenderOptions {
-            color: false,
-            indent: 2,
-            show_spans: true,
-            ..TreeRenderOptions::default()
-        },
-    ) {
+    match render_vlasei_tree_words_fixture(fixture, &words) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "vlasei tree",
@@ -10845,26 +11599,11 @@ fn run_vlasei_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
     else {
         return FacetResult::skipped("fixture has no vlasei JSON expectation");
     };
-    let dialect = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => dialect,
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
-        &fixture.test_case.lojban,
-        &options,
-        Some(SourceId("<fixture>".to_owned())),
-    ) {
+    let words = match render_vlasei_words_fixture(fixture) {
         Ok(words) => words,
-        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
+        Err(error) => return FacetResult::failed(error),
     };
-    match compact_morphology_json_string_with_options(
-        &words,
-        JsonRenderOptions {
-            indent: 0,
-            ..JsonRenderOptions::default()
-        },
-    ) {
+    match render_vlasei_json_words_fixture(&words) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "vlasei JSON",
@@ -10910,14 +11649,7 @@ fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match pretty_generated_model_brackets_with_options(
-        &parsed,
-        &fixture.test_case.lojban,
-        BracketRenderOptions {
-            color: false,
-            ..BracketRenderOptions::default()
-        },
-    ) {
+    match pretty_generated_fixture_brackets(fixture, &parsed, false) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => {
             run_gentufa_brackets_round_trip(fixture, &options, &syntax_options, &parsed, &actual)
         }
@@ -11048,16 +11780,7 @@ fn run_gentufa_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match pretty_generated_model_tree_with_options(
-        &parsed,
-        &fixture.test_case.lojban,
-        TreeRenderOptions {
-            color: false,
-            indent: 2,
-            show_spans: true,
-            ..TreeRenderOptions::default()
-        },
-    ) {
+    match pretty_generated_fixture_tree(fixture, &parsed, false) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa tree",
@@ -11103,13 +11826,7 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match compact_generated_model_json_string_with_options(
-        &parsed,
-        JsonRenderOptions {
-            indent: 0,
-            ..JsonRenderOptions::default()
-        },
-    ) {
+    match compact_generated_fixture_json(&parsed, false) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa JSON",
@@ -11337,15 +12054,7 @@ fn run_gentufa_brackets_show_elided_fixture(fixture: &LoadedTestCase) -> FacetRe
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(error),
     };
-    match pretty_generated_model_brackets_with_options(
-        &parsed,
-        &fixture.test_case.lojban,
-        BracketRenderOptions {
-            color: false,
-            show_elided: true,
-            ..BracketRenderOptions::default()
-        },
-    ) {
+    match pretty_generated_fixture_brackets(fixture, &parsed, true) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa brackets show-elided",
@@ -11376,17 +12085,7 @@ fn run_gentufa_tree_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(error),
     };
-    match pretty_generated_model_tree_with_options(
-        &parsed,
-        &fixture.test_case.lojban,
-        TreeRenderOptions {
-            color: false,
-            indent: 2,
-            show_spans: true,
-            show_elided: true,
-            ..TreeRenderOptions::default()
-        },
-    ) {
+    match pretty_generated_fixture_tree(fixture, &parsed, true) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa tree show-elided",
@@ -11417,14 +12116,7 @@ fn run_gentufa_json_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(error),
     };
-    match compact_generated_model_json_string_with_options(
-        &parsed,
-        JsonRenderOptions {
-            indent: 0,
-            show_elided: true,
-            ..JsonRenderOptions::default()
-        },
-    ) {
+    match compact_generated_fixture_json(&parsed, true) {
         Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
         Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa JSON show-elided",
@@ -13500,12 +14192,77 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn fixture_regeneration_preserves_sha256_only_representation() {
+        let mut expectation = fixtures::TextExpectation {
+            text: String::new(),
+            sha256: Some(sha256_hex(b"old generated baseline")),
+        };
+
+        refresh_existing_text_expectation(&mut expectation, "new generated baseline".to_owned());
+
+        assert!(expectation.text.is_empty());
+        assert_eq!(
+            expectation.sha256.as_deref(),
+            Some(sha256_hex(b"new generated baseline").as_str())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn fixture_rewrite_summary_json_rejects_unknown_fields() {
         let summary = parse_fixture_rewrite_summary(r#"{"fixtures":3,"rewritten":2}"#).unwrap();
 
         assert_eq!(summary.processed, 3);
         assert_eq!(summary.rewritten, 2);
         assert!(parse_fixture_rewrite_summary(r#"{"fixtures":3,"rewritten":2,"typo":1}"#).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn default_fixture_rewrite_does_not_synthesize_missing_facets() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join(
+            "tests/fixtures/adhoc/morphology/camxes-compatible/cgv-warning-accepts-atkuila.toml",
+        );
+        let root = std::env::temp_dir().join(format!(
+            "jbotci-fixture-rewrite-missing-facets-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let target = root.join("fixture.toml");
+        fs::copy(&source, &target).unwrap();
+        let before = fs::read(&target).unwrap();
+
+        let summary = fixture_rewrite_paths(
+            vec![target.clone()],
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(summary.rewritten, 0);
+        assert_eq!(fs::read(&target).unwrap(), before);
+        assert_eq!(
+            summary
+                .facet_coverage
+                .get(&Facet::VlaseiBrackets)
+                .map(|coverage| coverage.absent),
+            Some(1)
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
