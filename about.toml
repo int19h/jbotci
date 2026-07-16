@@ -1,0 +1,42 @@
+# Generated notices cover only dependencies compiled into shipped artifacts.
+# These fields are supported by cargo-about 0.9.1.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "MIT-0",
+    "0BSD",
+    "BSL-1.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "bzip2-1.0.6",
+    "Apache-2.0 WITH LLVM-exception",
+]
+
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "wasm32-unknown-unknown",
+]
+
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# cargo-about 0.9.1 can directly ignore unpublished workspace crates. The
+# Markdown template filters the remaining first-party workspace crates while
+# retaining the vendored third-party llama-cpp-sys-4 workspace member. It also
+# excludes exact package versions reachable only from non-shipped workspace
+# tooling, as verified against the CLI, server, and app/web artifact roots.
+[private]
+ignore = true

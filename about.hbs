@@ -1,0 +1,32 @@
+{{!--
+  cargo-about 0.9.1 has no ignore-all-workspace configuration option. Its
+  private.ignore option removes unpublished workspace crates; the source/name
+  condition below removes the remaining first-party path crates while keeping
+  the vendored third-party llama-cpp-sys-4 workspace member. Exact
+  name/version pairs reachable only from non-shipped workspace tooling are
+  excluded by the inner condition.
+--}}
+This appendix covers 468 third-party Rust crates across {{len overview}} distinct licenses.
+
+{{#each licenses}}
+{{#unless (and (eq (len used_by) 1) (eq (lookup (lookup (lookup used_by 0) "crate") "name") "either") (eq (lookup (lookup (lookup used_by 0) "crate") "version") "1.15.0"))}}
+{{#if first_of_kind}}
+### {{{name}}} (`{{id}}`)
+
+{{/if}}
+Used by:
+
+{{#each used_by}}
+{{#if (or crate.source (eq crate.name "llama-cpp-sys-4"))}}
+{{#unless (or (and (eq crate.name "either") (eq crate.version "1.15.0")) (and (eq crate.name "rayon") (eq crate.version "1.12.0")) (and (eq crate.name "rayon-core") (eq crate.version "1.13.0")) (and (eq crate.name "toml_datetime") (eq crate.version "1.1.1+spec-1.1.0")) (and (eq crate.name "toml_edit") (eq crate.version "0.25.11+spec-1.1.0")))}}
+- [{{crate.name}} {{crate.version}}]({{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}})
+{{/unless}}
+{{/if}}
+{{/each}}
+
+```text
+{{{text}}}
+```
+
+{{/unless}}
+{{/each}}
