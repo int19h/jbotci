@@ -97,8 +97,8 @@ struct SourceChar {
     value: char,
 }
 
-#[derive(Debug)]
 #[invariant(true)]
+#[derive(Debug)]
 struct Segmenter<'a> {
     input: &'a str,
     options: &'a MorphologyOptions,
@@ -106,6 +106,12 @@ struct Segmenter<'a> {
     chars: Vec<SourceChar>,
     index: usize,
     warnings: Vec<MorphologyWarning>,
+    /// Source character positions actually consumed through the new tier.
+    /// A dense flag vector keeps speculative revisits idempotent.
+    ignored_character_flags: Vec<bool>,
+    /// Disabled only while probing for a ZOI closing delimiter, whose payload
+    /// boundaries must stay independent of the permissive tier.
+    permissive_boundaries_enabled: bool,
     trace: TraceRecorder,
 }
 
@@ -210,16 +216,20 @@ impl<'a> Segmenter<'a> {
     #[ensures(ret.index == 0)]
     #[ensures(ret.chars.len() == input.chars().count())]
     fn new(input: &'a str, options: &'a MorphologyOptions, source_id: Option<SourceId>) -> Self {
+        let chars = input
+            .char_indices()
+            .map(|(byte_offset, value)| SourceChar { byte_offset, value })
+            .collect::<Vec<_>>();
+        let ignored_character_flags = vec![false; chars.len()];
         Self {
             input,
             options,
             source_id,
-            chars: input
-                .char_indices()
-                .map(|(byte_offset, value)| SourceChar { byte_offset, value })
-                .collect(),
+            chars,
             index: 0,
             warnings: Vec::new(),
+            ignored_character_flags,
+            permissive_boundaries_enabled: options.permissive_lexer,
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Morphology),
         }
     }
@@ -229,6 +239,7 @@ impl<'a> Segmenter<'a> {
     fn segment_attempt(mut self) -> MorphologySegmentAttempt {
         self.trace_step(TraceLevel::Top, "morphology", 0, 0, || None);
         let result = self.segment_words();
+        self.push_ignored_characters_advice();
         let trace = self.trace.finish();
         new!(MorphologySegmentAttempt {
             result,
@@ -251,6 +262,7 @@ impl<'a> Segmenter<'a> {
     fn segment_display_attempt(mut self) -> MorphologySegmentAttempt {
         self.trace_step(TraceLevel::Top, "morphology display", 0, 0, || None);
         let result = self.segment_display();
+        self.push_ignored_characters_advice();
         let trace = self.trace.finish();
         new!(MorphologySegmentAttempt {
             result,
@@ -322,6 +334,7 @@ impl<'a> Segmenter<'a> {
                 break;
             }
         }
+        self.push_ignored_characters_advice();
         new!(RecoveredMorphologySegmentation {
             words,
             errors,
@@ -1362,7 +1375,7 @@ impl<'a> Segmenter<'a> {
         while cursor < self.chars.len() {
             let pause_start = cursor;
             let mut saw_separator = false;
-            while cursor < self.chars.len() && self.is_word_separator_at(cursor) {
+            while cursor < self.chars.len() && self.is_strict_word_separator_at(cursor) {
                 saw_separator = true;
                 cursor += 1;
             }
@@ -1394,7 +1407,10 @@ impl<'a> Segmenter<'a> {
         let saved = self.index;
         self.index = cursor;
         let warning_count = self.warnings.len();
+        let permissive_boundaries_enabled = self.permissive_boundaries_enabled;
+        self.permissive_boundaries_enabled = false;
         let maybe_word = self.next_plain_word();
+        self.permissive_boundaries_enabled = permissive_boundaries_enabled;
         self.warnings.truncate(warning_count);
         self.index = saved;
         if let Ok(word_with_modifiers) = maybe_word
@@ -1477,8 +1493,34 @@ impl<'a> Segmenter<'a> {
     #[ensures(self.index <= self.chars.len())]
     fn skip_separators(&mut self) {
         while self.index < self.chars.len() && self.is_magic_noise_at(self.index) {
+            if self.is_new_permissive_ignorable_at(self.index) {
+                self.ignored_character_flags[self.index] = true;
+            }
             self.index += 1;
         }
+    }
+
+    #[requires(!self.warnings.iter().any(|warning| warning.kind == MorphologyWarningKind::IgnoredCharacters))]
+    #[bityzba::expensive_ensures(self.warnings.iter().filter(|warning| warning.kind == MorphologyWarningKind::IgnoredCharacters).count() == usize::from(self.ignored_character_flags.iter().any(|ignored| *ignored)))]
+    fn push_ignored_characters_advice(&mut self) {
+        let Some(first_index) = self
+            .ignored_character_flags
+            .iter()
+            .position(|ignored| *ignored)
+        else {
+            return;
+        };
+        let ignored_character_count = self
+            .ignored_character_flags
+            .iter()
+            .filter(|ignored| **ignored)
+            .count();
+        self.warnings.push(MorphologyWarning::ignored_characters(
+            first_index,
+            first_index + 1,
+            self.slice(first_index, first_index + 1).to_owned(),
+            ignored_character_count,
+        ));
     }
 
     #[requires(start <= self.chars.len())]
@@ -1940,17 +1982,33 @@ impl<'a> Segmenter<'a> {
     #[requires(index <= self.chars.len())]
     #[ensures(true)]
     fn is_word_separator_at(&self, index: usize) -> bool {
+        self.is_strict_word_separator_at(index) || self.is_new_permissive_ignorable_at(index)
+    }
+
+    #[requires(index <= self.chars.len())]
+    #[ensures(true)]
+    fn is_strict_word_separator_at(&self, index: usize) -> bool {
         self.chars
             .get(index)
             .is_some_and(|source_char| crate::segment::is_separator(source_char.value))
     }
 
     #[requires(index <= self.chars.len())]
+    #[ensures(!ret || self.options.permissive_lexer)]
+    fn is_new_permissive_ignorable_at(&self, index: usize) -> bool {
+        self.permissive_boundaries_enabled
+            && self.chars.get(index).is_some_and(|source_char| {
+                !crate::segment::is_separator(source_char.value)
+                    && crate::is_permissive_ignorable_character(source_char.value)
+            })
+    }
+
+    #[requires(index <= self.chars.len())]
     #[ensures(true)]
     fn is_magic_noise_at(&self, index: usize) -> bool {
-        self.chars.get(index).is_some_and(|source_char| {
-            crate::segment::is_separator(source_char.value) || source_char.value == ','
-        })
+        self.chars
+            .get(index)
+            .is_some_and(|source_char| self.is_word_separator_at(index) || source_char.value == ',')
     }
 
     #[requires(start <= end && end <= self.chars.len())]
