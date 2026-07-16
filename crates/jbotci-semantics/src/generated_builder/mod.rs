@@ -9180,6 +9180,103 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn derived_renderings_reach_content_through_questions_and_parsed_quotations() {
+        let question = semantic_graph_for(
+            "ca ku la .alis. co'a sipydji lifri gi'e di'a senva sezysku lu xu lo mlatu cu \
+             citka lo volratcu .i xu lo mlatu cu citka lo volratcu li'u .e su'o roi bo lu \
+             xu lo volratcu cu citka lo mlatu li'u",
+        );
+        assert!(question.objects.values().any(|object| {
+            object
+                .as_question()
+                .is_some_and(|question| question.mode == QuestionMode::Direct)
+        }));
+        assert_eq!(
+            question
+                .objects
+                .values()
+                .filter(|object| object
+                    .as_eventuality()
+                    .is_some_and(|eventuality| eventuality.content.is_some()))
+                .count(),
+            2
+        );
+
+        let quotation = semantic_graph_for(
+            "la'e di'u madni'i la'e lu ko kurji lo smuni .i se va'o bo lo sance cu kurji \
+             vo'a li'u",
+        );
+        assert_eq!(
+            quotation
+                .objects
+                .values()
+                .filter(|object| object
+                    .as_eventuality()
+                    .is_some_and(|eventuality| eventuality.content.is_some()))
+                .count(),
+            2
+        );
+
+        for (graph, required_branch) in [
+            (&question, "question body:"),
+            (&quotation, "descriptor operand: sign quotation mode=parsed"),
+        ] {
+            for render in [
+                crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
+                crate::render::render_tree,
+            ] {
+                let rendered = render(graph);
+                assert!(rendered.contains(required_branch));
+                assert_eq!(
+                    crate::render::missing_eventuality_content_edges(graph, &rendered),
+                    Vec::new()
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derived_renderings_descend_sequence_typed_eventuality_content() {
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        let graph = semantic_result_for_with_parse_options(
+            "mi na me la .mabel. .i ki'u bo ge mi djuno lo so'i vrici gi my .y djuno lo \
+             tolmutce",
+            &options,
+        )
+        .expect("Zantufa statement connection should build semantics");
+        let sequence_content = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                object
+                    .as_eventuality()?
+                    .content
+                    .filter(|content| content.object_kind() == SemanticObjectKind::Sequence)
+            })
+            .expect("the statement connection reifies a sequence");
+
+        for render in [
+            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
+            crate::render::render_tree,
+        ] {
+            let rendered = render(&graph);
+            assert!(rendered.contains(&format!(
+                "abstraction content: sequence [{sequence_content}]"
+            )));
+            assert_eq!(
+                crate::render::missing_eventuality_content_edges(&graph, &rendered),
+                Vec::new()
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");

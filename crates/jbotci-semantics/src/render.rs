@@ -9,21 +9,23 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 
 use crate::model::{
     ArgumentValue, ArgumentValueKind, Descriptor, DescriptorKind, DisplayedContentAssertionEffect,
     DisplayedContentFamily, DisplayedContentNode, DisplayedContentPolarity, EventualityClass,
     FormulaNode, FormulaNodeData, FormulaOperator, GeneratedEventualityId, IndexicalKind,
     PlaceIndex, PredicationMode, PredicationNode, PredicationRelationData, QuantifiedFormulaNode,
-    ReferentCategory, RelativeClause, RelativeClauseKind, ScopeDependenceData, SemanticGraph,
-    SemanticObject, SemanticObjectData, SemanticObjectId, SemanticObjectKind, SemanticSort,
-    SequenceNode, UtteranceForce, UtteranceNode,
+    QuestionKind, QuestionMode, QuestionNode, ReferentCategory, RelativeClause, RelativeClauseKind,
+    ScopeDependenceData, SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId,
+    SemanticObjectKind, SemanticSort, SequenceNode, SignKind, SignNode, UtteranceForce,
+    UtteranceNode,
 };
 
 /// Render the graph as an indented formula/utterance tree.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
+#[expensive_ensures(missing_eventuality_content_edges(graph, &ret).is_empty())]
 pub fn render_tree(graph: &SemanticGraph) -> String {
     let mut visitor = TreeVisitor::new(graph, TreeEventConditionPolicy::EverySite);
     DerivedTraversal::new(graph).walk(&mut visitor);
@@ -33,6 +35,7 @@ pub fn render_tree(graph: &SemanticGraph) -> String {
 /// Render the structural tree followed by only commitments displaced from it.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
+#[expensive_ensures(missing_eventuality_content_edges(graph, &ret).is_empty())]
 pub fn render_tree_proj(graph: &SemanticGraph) -> String {
     let mut tree_visitor = TreeVisitor::new(graph, TreeEventConditionPolicy::StructuralSiteOnly);
     DerivedTraversal::new(graph).walk(&mut tree_visitor);
@@ -42,6 +45,22 @@ pub fn render_tree_proj(graph: &SemanticGraph) -> String {
     DerivedTraversal::new(graph).walk(&mut projected_visitor);
     let projected = projected_visitor.finish();
     format!("{tree}\n\n{projected}")
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn missing_eventuality_content_edges(
+    graph: &SemanticGraph,
+    rendered: &str,
+) -> Vec<(SemanticObjectId, SemanticObjectId)> {
+    graph
+        .objects
+        .iter()
+        .filter_map(|(&eventuality, object)| {
+            let content = object.as_eventuality()?.content?;
+            (!rendered.contains(&format!("[{content}]"))).then_some((eventuality, content))
+        })
+        .collect()
 }
 
 #[invariant(true)]
@@ -66,7 +85,10 @@ enum TraversalRole {
     FormulaArgument,
     Restriction,
     Body,
+    QuestionBody,
+    Quotation,
     DescriptorBody,
+    DescriptorOperand,
     RelationBody,
     AbstractionBody,
     AbstractionContent,
@@ -114,6 +136,30 @@ trait DerivedVisitor<'graph> {
     #[requires(true)]
     #[ensures(true)]
     fn exit_sequence(&mut self, _id: SemanticObjectId, _location: TraversalLocation) {}
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sign(
+        &mut self,
+        _id: SemanticObjectId,
+        _node: &'graph SignNode,
+        _location: TraversalLocation,
+    ) {
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_question(
+        &mut self,
+        _id: SemanticObjectId,
+        _node: &'graph QuestionNode,
+        _location: TraversalLocation,
+    ) {
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_question(&mut self, _id: SemanticObjectId, _location: TraversalLocation) {}
 
     #[requires(true)]
     #[ensures(true)]
@@ -378,7 +424,31 @@ impl<'graph> DerivedTraversal<'graph> {
                         visitor,
                     );
                 }
+                self.visit_bound_eventualities(id, location, state, visitor);
                 visitor.exit_sequence(id, location);
+            }
+            data!(SemanticObject::Question(node)) => {
+                visitor.enter_question(id, node, location);
+                let child_location = TraversalLocation {
+                    commitment: CommitmentPlacement::NonCommitment,
+                    role: TraversalRole::QuestionBody,
+                    depth: location.depth + 1,
+                };
+                self.visit_referent(node.asker, child_location, state, visitor);
+                self.visit_referent(node.respondent, child_location, state, visitor);
+                for slot in &node.slots {
+                    if let Some(parameter) = slot.parameter() {
+                        self.visit_referent(parameter, child_location, state, visitor);
+                    }
+                }
+                self.walk_formula(node.body, child_location, state, visitor);
+                if let Some(focus) = node.focus {
+                    self.visit_referent(focus, child_location, state, visitor);
+                }
+                if let Some(answer) = node.presupposed_answer {
+                    self.visit_referent(answer, child_location, state, visitor);
+                }
+                visitor.exit_question(id, location);
             }
             data!(SemanticObject::Formula(_)) => unreachable!("formula handled before object walk"),
             data!(SemanticObject::Predication(_)) => {
@@ -560,8 +630,23 @@ impl<'graph> DerivedTraversal<'graph> {
                 );
             }
         }
+        self.visit_bound_eventualities(id, location, state, visitor);
         visitor.exit_formula(id, location);
         state.active.remove(&id);
+    }
+
+    #[requires(matches!(owner.object_kind(), SemanticObjectKind::Formula | SemanticObjectKind::Sequence))]
+    #[ensures(true)]
+    fn visit_bound_eventualities<V: DerivedVisitor<'graph>>(
+        &self,
+        owner: SemanticObjectId,
+        location: TraversalLocation,
+        state: &mut TraversalState,
+        visitor: &mut V,
+    ) {
+        for eventuality in self.object(owner).bound_eventualities() {
+            self.visit_referent(eventuality.object_id(), location, state, visitor);
+        }
     }
 
     #[requires(id.object_kind() == SemanticObjectKind::Predication)]
@@ -679,10 +764,13 @@ impl<'graph> DerivedTraversal<'graph> {
         }
         let inserted = state.active.insert(id);
         debug_assert!(inserted, "referent active-set check and insertion agree");
-        // Referent expansion is stable typed-field order: descriptor body,
-        // eventuality abstraction content, intensional body, then
-        // referent-level clauses. Formula children and predication arguments
-        // retain their own stored/BTreeMap order.
+        if let Some(sign) = object.as_sign() {
+            visitor.sign(id, sign, location);
+        }
+        // Referent expansion is stable typed-field order: descriptor subgraph,
+        // parsed quotation content, eventuality abstraction content, an
+        // intensional body, then referent-level clauses. Formula children and
+        // predication arguments retain their own stored/BTreeMap order.
         if let Some(descriptor) = object.descriptor() {
             self.walk_descriptor(
                 descriptor,
@@ -694,17 +782,40 @@ impl<'graph> DerivedTraversal<'graph> {
                 visitor,
             );
         }
-        let (content, body, clauses): (
+        let (quotation, content, body, clauses): (
+            Option<SemanticObjectId>,
             Option<SemanticObjectId>,
             Option<SemanticObjectId>,
             &[RelativeClause],
         ) = match object.as_data() {
             data!(SemanticObject::Eventuality(node)) => {
-                (node.content, node.body, &node.relative_clauses)
+                (None, node.content, node.body, &node.relative_clauses)
             }
-            data!(SemanticObject::Referent(node)) => (None, node.body, &node.relative_clauses),
-            _ => (None, None, &[]),
+            data!(SemanticObject::Referent(node)) => {
+                (None, None, node.body, &node.relative_clauses)
+            }
+            data!(SemanticObject::Sign(node)) => (
+                node.quotation
+                    .as_ref()
+                    .and_then(|quotation| quotation.utterance),
+                None,
+                None,
+                &node.relative_clauses,
+            ),
+            _ => (None, None, None, &[]),
         };
+        if let Some(quotation) = quotation {
+            self.walk_object(
+                quotation,
+                TraversalLocation {
+                    commitment: CommitmentPlacement::NonCommitment,
+                    role: TraversalRole::Quotation,
+                    depth: location.depth + 1,
+                },
+                state,
+                visitor,
+            );
+        }
         if let Some(content) = content {
             self.walk_object(
                 content,
@@ -771,6 +882,18 @@ impl<'graph> DerivedTraversal<'graph> {
                 TraversalLocation {
                     commitment,
                     role: TraversalRole::DescriptorBody,
+                    ..location
+                },
+                state,
+                visitor,
+            );
+        }
+        if let Some(operand) = descriptor.operand {
+            self.walk_object(
+                operand,
+                TraversalLocation {
+                    commitment: CommitmentPlacement::NonCommitment,
+                    role: TraversalRole::DescriptorOperand,
                     ..location
                 },
                 state,
@@ -1306,6 +1429,40 @@ impl<'graph> DerivedVisitor<'graph> for TreeVisitor<'graph> {
                 } else {
                     format!(" {binding}")
                 }
+            ),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn sign(&mut self, id: SemanticObjectId, node: &'graph SignNode, location: TraversalLocation) {
+        let mut line = format!(
+            "{}sign {}",
+            tree_role_prefix(location.role),
+            node.sign_kind.map_or("unspecified", sign_kind_label)
+        );
+        if let Some(quotation) = &node.quotation {
+            let _ = write!(line, " mode={}", quotation.mode);
+        }
+        let _ = write!(line, " [{id}]");
+        self.line(location.depth, &line);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_question(
+        &mut self,
+        id: SemanticObjectId,
+        node: &'graph QuestionNode,
+        location: TraversalLocation,
+    ) {
+        self.line(
+            location.depth,
+            &format!(
+                "{}question {} {} [{id}]",
+                tree_role_prefix(location.role),
+                question_mode_label(node.mode),
+                question_kind_label(node.kind)
             ),
         );
     }
@@ -2472,7 +2629,10 @@ fn tree_role_prefix(role: TraversalRole) -> &'static str {
         TraversalRole::FormulaArgument => "formula argument: ",
         TraversalRole::Restriction => "restriction: ",
         TraversalRole::Body => "body: ",
+        TraversalRole::QuestionBody => "question body: ",
+        TraversalRole::Quotation => "quotation: ",
         TraversalRole::DescriptorBody => "descriptor body: ",
+        TraversalRole::DescriptorOperand => "descriptor operand: ",
         TraversalRole::RelationBody => "relation body: ",
         TraversalRole::AbstractionBody => "abstraction body: ",
         TraversalRole::AbstractionContent => "abstraction content: ",
@@ -2522,6 +2682,45 @@ fn utterance_force_label(force: UtteranceForce) -> &'static str {
         UtteranceForce::Parenthetical => "parenthetical",
         UtteranceForce::Subordinated => "subordinated",
         UtteranceForce::Vocative => "vocative",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn sign_kind_label(kind: SignKind) -> &'static str {
+    match kind {
+        SignKind::Quotation => "quotation",
+        SignKind::Letteral => "letteral",
+        SignKind::MathExpression => "math-expression",
+        SignKind::Connective => "connective",
+        SignKind::Word => "word",
+        SignKind::Text => "text",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn question_mode_label(mode: QuestionMode) -> &'static str {
+    match mode {
+        QuestionMode::Direct => "direct",
+        QuestionMode::Indirect => "indirect",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn question_kind_label(kind: QuestionKind) -> &'static str {
+    match kind {
+        QuestionKind::Truth => "truth",
+        QuestionKind::Argument => "argument",
+        QuestionKind::Relation => "relation",
+        QuestionKind::Place => "place",
+        QuestionKind::Connective => "connective",
+        QuestionKind::Tense => "tense",
+        QuestionKind::MathOperator => "math-operator",
+        QuestionKind::Attitude => "attitude",
+        QuestionKind::Quantity => "quantity",
+        QuestionKind::Multiple => "multiple",
     }
 }
 

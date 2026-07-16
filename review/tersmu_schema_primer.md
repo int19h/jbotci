@@ -72,16 +72,24 @@ graph edge labels as nested formula branches. Eventuality content uses
 `abstraction content:` and is structural non-claim intensional content; it is
 never reduced to an id in the event condition suffix. Restrictive, incidental,
 and non-veridical restrictive clauses have distinct branch labels; displayed
-asides are printed at their utterance attachment.
+asides are printed at their utterance attachment. Question objects render an
+explicit `question body:` branch, and parsed quotation signs render their
+structured utterance below `quotation:`. Both regions are non-claim content.
+Descriptor operands use `descriptor operand:`; this is the typed bridge that
+keeps a parsed quotation reachable through forms such as `la'e lu ... li'u`.
 
 The tree is deterministic in semantic child order: connective children keep
 their stored order, restrictions precede quantifier bodies, sequence connection
 claims precede items, and ties use object id. Repeated ids are intentionally
 shown; equality of ids, not repeated label text, expresses sharing.
-Referent expansion follows typed field order: descriptor body, eventuality
-abstraction content, an optional intensional body, then referent-level relative
-clauses. The traversal's active object/formula set stops cycles through content,
-body parameters, and self-references.
+Referent expansion follows typed field order: the descriptor subgraph (body,
+operand, then relative clauses), parsed quotation content for sign referents,
+eventuality abstraction content, an optional intensional body, then
+referent-level relative clauses. Formula and sequence binding owners descend
+their `boundEventualities` after their ordinary children; this makes content on
+an owner-only generated event structurally reachable without moving its
+existential scope. The traversal's active object/formula set stops cycles
+through content, body parameters, quotations, and self-references.
 
 ### `--format tree+proj`
 
