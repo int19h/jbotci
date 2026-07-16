@@ -44,8 +44,8 @@ use jbotci_jvozba::{
     build_best_jvozba_detailed, word_can_enter_jvozba_pane,
 };
 use jbotci_morphology::{
-    MorphologyOptions, PhonemeRenderOptions, WordLike, canonical_text_eq,
-    normalize_lojban_input_text,
+    MorphologyOptions, PhonemeRenderOptions, RecoveredMorphologySegmentation, WordLike,
+    canonical_text_eq, normalize_lojban_input_text,
     segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -71,7 +71,7 @@ use jbotci_semantics::references::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, RecoveredSyntaxParse, SyntaxRecoveryParseData,
+    ParseOptions, RecoveredSyntaxParse, SyntaxRecoveryParse, SyntaxRecoveryParseData,
     parse_syntax_tree_with_recovery_with_source_and_options_attempt,
 };
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
@@ -395,45 +395,61 @@ pub enum GentufaWebError {
     Dialect(String),
 }
 
+/// Recovery-capable morphology and syntax analysis shared by web and editor consumers.
+///
+/// Syntax analysis is retained even when morphology reports errors so immutable editor
+/// snapshots always have a tree-shaped analysis substrate. In that case `diagnostics`
+/// intentionally contains only morphology diagnostics, matching the web facade's
+/// morphology-first behavior.
+#[invariant(morphology.errors.is_empty() || diagnostics.len() >= morphology.errors.len())]
+#[derive(Debug, Clone)]
+pub struct GentufaSourceAnalysis {
+    pub morphology_options: MorphologyOptions,
+    pub morphology: RecoveredMorphologySegmentation,
+    pub parse: SyntaxRecoveryParse,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+#[invariant(morphology.errors.is_empty() || diagnostics.len() >= morphology.errors.len())]
+#[derive(Debug, Clone)]
+struct GentufaMorphologyAnalysis {
+    dialect: DialectDefinition,
+    morphology_options: MorphologyOptions,
+    morphology: RecoveredMorphologySegmentation,
+    diagnostics: Vec<Diagnostic>,
+}
+
+/// Build the recovery-capable source analysis used by the Gentufa web facade.
 #[requires(true)]
-#[ensures(matches!(ret, GentufaWebResult::Blank) == request.text.trim().is_empty())]
-pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
-    let source = request.text.as_str();
-    if source.trim().is_empty() {
-        return GentufaWebResult::Blank;
-    }
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
+pub fn analyze_gentufa_source(
+    source: &str,
+    options: &GentufaWebOptions,
+) -> Result<GentufaSourceAnalysis, GentufaWebError> {
+    let morphology = analyze_gentufa_morphology_source(source, options)?;
+    Ok(complete_gentufa_source_analysis(
+        source, options, morphology,
+    ))
+}
 
-    let dialect = match dialect_definition(request.options.dialect.as_deref()) {
-        Ok(dialect) => dialect,
-        Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
-                phase: None,
-                message: error.to_string(),
-                diagnostics: Vec::new(),
-            });
-        }
-    };
-
+#[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
+fn analyze_gentufa_morphology_source(
+    source: &str,
+    options: &GentufaWebOptions,
+) -> Result<GentufaMorphologyAnalysis, GentufaWebError> {
+    let dialect = dialect_definition(options.dialect.as_deref())?;
     let source_id = Some(SourceId("<web-input>".to_owned()));
-    let morphology_options =
-        match MorphologyOptions::default().try_with_dialect_definition(&dialect) {
-            Ok(options) => options,
-            Err(error) => {
-                return GentufaWebResult::Error(GentufaError {
-                    phase: None,
-                    message: GentufaWebError::Dialect(error.to_string()).to_string(),
-                    diagnostics: Vec::new(),
-                });
-            }
-        };
-    let morphology_attempt =
-        segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
-            source,
-            &morphology_options,
-            source_id.clone(),
-        )
-        .into_data();
-    let morphology = morphology_attempt.result.into_data();
+    let morphology_options = MorphologyOptions::default()
+        .try_with_dialect_definition(&dialect)
+        .map_err(|error| GentufaWebError::Dialect(error.to_string()))?;
+    let morphology = segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+        source,
+        &morphology_options,
+        source_id.clone(),
+    )
+    .into_data()
+    .result;
     let mut diagnostics = morphology
         .warnings
         .iter()
@@ -445,44 +461,116 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             .iter()
             .map(|error| error.to_diagnostic(source_id.clone(), source)),
     );
-    if let Some(error) = morphology.errors.first() {
-        return GentufaWebResult::Error(GentufaError {
-            phase: Some(DiagnosticPhase::Morphology),
-            message: error.to_string(),
-            diagnostics,
-        });
-    }
-    let words = morphology.words;
+
+    Ok(new!(GentufaMorphologyAnalysis {
+        dialect,
+        morphology_options,
+        morphology,
+        diagnostics,
+    }))
+}
+
+#[requires(true)]
+#[ensures(ret.morphology.errors.is_empty() || ret.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology))]
+fn complete_gentufa_source_analysis(
+    source: &str,
+    options: &GentufaWebOptions,
+    morphology: GentufaMorphologyAnalysis,
+) -> GentufaSourceAnalysis {
+    let data!(GentufaMorphologyAnalysis {
+        dialect,
+        morphology_options,
+        morphology,
+        mut diagnostics,
+    }) = morphology.into_data();
+    let source_id = Some(SourceId("<web-input>".to_owned()));
 
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
-        .with_error_context_depth(request.options.error_context_depth);
-    let syntax_attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
-        &words,
+        .with_error_context_depth(options.error_context_depth);
+    let parse = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+        &morphology.words,
         source,
         &parse_options,
-    );
-    let generated_model = match syntax_attempt.result.into_data() {
+    )
+    .result;
+
+    if morphology.errors.is_empty()
+        && let data!(SyntaxRecoveryParse::Recovered { parse }) = parse.as_data()
+    {
+        let mut recovered_diagnostics = parse
+            .errors
+            .iter()
+            .map(|error| error.to_diagnostic(source_id.clone(), source))
+            .collect::<Vec<_>>();
+        recovered_diagnostics.append(&mut diagnostics);
+        recovered_diagnostics.extend(
+            parse
+                .warnings
+                .iter()
+                .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
+        );
+        diagnostics = recovered_diagnostics;
+    }
+
+    new!(GentufaSourceAnalysis {
+        morphology_options,
+        morphology,
+        parse,
+        diagnostics,
+    })
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, GentufaWebResult::Blank) == request.text.trim().is_empty())]
+pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
+    let source = request.text.as_str();
+    if source.trim().is_empty() {
+        return GentufaWebResult::Blank;
+    }
+
+    let morphology = match analyze_gentufa_morphology_source(source, &request.options) {
+        Ok(morphology) => morphology,
+        Err(error) => {
+            return GentufaWebResult::Error(GentufaError {
+                phase: None,
+                message: error.to_string(),
+                diagnostics: Vec::new(),
+            });
+        }
+    };
+    if let Some(message) = morphology
+        .morphology
+        .errors
+        .first()
+        .map(ToString::to_string)
+    {
+        let data!(GentufaMorphologyAnalysis { diagnostics, .. }) = morphology.into_data();
+        return GentufaWebResult::Error(GentufaError {
+            phase: Some(DiagnosticPhase::Morphology),
+            message,
+            diagnostics,
+        });
+    }
+
+    let analysis = complete_gentufa_source_analysis(source, &request.options, morphology);
+
+    let data!(GentufaSourceAnalysis {
+        morphology_options,
+        morphology,
+        parse,
+        diagnostics,
+    }) = analysis.into_data();
+    let words = morphology.into_data().words;
+    let generated_model = match parse.into_data() {
         data!(SyntaxRecoveryParse::Valid { parse }) => parse.into_data().parse_tree,
         data!(SyntaxRecoveryParse::Recovered { parse }) => {
-            let mut recovered_diagnostics = parse
-                .errors
-                .iter()
-                .map(|error| error.to_diagnostic(source_id.clone(), source))
-                .collect::<Vec<_>>();
-            recovered_diagnostics.append(&mut diagnostics);
-            recovered_diagnostics.extend(
-                parse
-                    .warnings
-                    .iter()
-                    .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
-            );
             return recovered_gentufa_success_for_web(
                 source,
                 &words,
                 &morphology_options,
                 &parse,
-                recovered_diagnostics,
+                diagnostics,
                 &request.options,
             );
         }
