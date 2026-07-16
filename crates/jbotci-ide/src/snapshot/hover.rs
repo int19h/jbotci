@@ -1,9 +1,9 @@
+use std::collections::HashMap;
+
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{LujvoPart, Word, WordKind, WordLike, WordLikeData, canonicalize_text};
-use jbotci_output::{
-    render_vlacku_card_markdown, render_vlacku_cards_markdown, render_vlacku_decomposition_markdown,
-};
+use jbotci_output::{render_vlacku_cards_markdown, render_vlacku_decomposition_markdown};
 use jbotci_search::vlacku::{
     VlackuCard, VlackuCompositionKind, VlackuCompositionPiece, VlackuRequest, VlackuSearchOptions,
     normalize_word_type_filter, run_vlacku_requests,
@@ -29,6 +29,13 @@ struct HoverWord<'snapshot> {
     semantics: HoverSemantics,
 }
 
+#[invariant(!word.is_empty() && !cards.is_empty())]
+#[derive(Debug, Clone, PartialEq)]
+struct CmavoSequenceDocumentation {
+    word: String,
+    cards: Vec<VlackuCard>,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HoverSemantics {
@@ -41,6 +48,8 @@ impl DocumentSnapshot {
     ///
     /// The returned source span remains in source coordinates. Callers choose their
     /// position encoding through [`crate::LineIndex`], as they do for diagnostics.
+    /// For a cmavo, dictionary-attested sequences containing that constituent follow
+    /// its lead card longest-first; equal-length sequences retain source order.
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|hover| hover.span.char_start <= char_offset && char_offset < hover.span.char_end))]
     pub fn hover(&self, char_offset: usize) -> Option<HoverContent> {
@@ -57,12 +66,13 @@ impl DocumentSnapshot {
                 .word
                 .bare_word()
                 .is_some_and(|word| std::ptr::eq(word, target.word))
-            && let Some(compound_card) = self.compact_cmavo_card(word_at.index)
         {
-            markdown.push_str("\n\n---\n\n## Compact cmavo compound ");
-            markdown.push_str(&format!("`{}`", compound_card.word));
-            markdown.push_str("\n\n");
-            markdown.push_str(&render_vlacku_card_markdown(&compound_card));
+            for sequence in self.cmavo_sequence_documentation(word_at.index) {
+                markdown.push_str("\n\n---\n\n## Cmavo sequence ");
+                markdown.push_str(&format!("`{}`", sequence.word));
+                markdown.push_str("\n\n");
+                markdown.push_str(&render_vlacku_cards_markdown(&sequence.cards));
+            }
         }
 
         Some(new!(HoverContent {
@@ -72,52 +82,107 @@ impl DocumentSnapshot {
     }
 
     #[requires(index < self.words.words.len())]
-    #[ensures(ret.as_ref().is_none_or(|card| normalize_word_type_filter(&card.word_type) == "cmavo-compound"))]
-    fn compact_cmavo_card(&self, index: usize) -> Option<VlackuCard> {
-        plain_cmavo_word(&self.words.words[index])?;
+    #[ensures(ret.iter().all(|sequence| !sequence.cards.is_empty()))]
+    fn cmavo_sequence_documentation(&self, index: usize) -> Vec<CmavoSequenceDocumentation> {
+        if plain_cmavo_word(&self.words.words[index]).is_none() {
+            return Vec::new();
+        }
         let mut run_start = index;
-        while run_start > 0 {
-            let previous_index = run_start - 1;
-            let Some(previous) = plain_cmavo_word(&self.words.words[previous_index]) else {
-                break;
-            };
-            if !spans_are_adjacent(
-                previous.span(),
-                current_span_at(&self.words.words, run_start),
-            ) {
-                break;
-            }
-            run_start = previous_index;
+        while run_start > 0 && plain_cmavo_word(&self.words.words[run_start - 1]).is_some() {
+            run_start -= 1;
         }
 
         let mut run_end = index + 1;
-        while run_end < self.words.words.len() {
-            let Some(next) = plain_cmavo_word(&self.words.words[run_end]) else {
-                break;
-            };
-            if !spans_are_adjacent(current_span_at(&self.words.words, run_end - 1), next.span()) {
-                break;
-            }
+        while run_end < self.words.words.len()
+            && plain_cmavo_word(&self.words.words[run_end]).is_some()
+        {
             run_end += 1;
         }
-        if run_end - run_start < 2 {
-            return None;
-        }
 
-        let mut compact = String::new();
-        for word_like in &self.words.words[run_start..run_end] {
-            compact.push_str(&plain_cmavo_word(word_like)?.canonical_phonemes());
+        let candidates =
+            cmavo_sequence_candidates(&self.words.words[run_start..run_end], index - run_start);
+        let requests = candidates
+            .iter()
+            .cloned()
+            .map(VlackuRequest::valsi)
+            .collect::<Vec<_>>();
+        if requests.is_empty() {
+            return Vec::new();
         }
-
         let output = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::valsi(compact)],
+            &requests,
             &hover_vlacku_options(false),
         );
-        output.cards.into_iter().find(|card| {
-            card.author.is_some() && normalize_word_type_filter(&card.word_type) == "cmavo-compound"
-        })
+        let mut candidate_indexes = HashMap::new();
+        for (candidate_index, candidate) in candidates.iter().enumerate() {
+            candidate_indexes
+                .entry(candidate.as_str())
+                .or_insert(candidate_index);
+        }
+        let mut card_groups = (0..candidates.len())
+            .map(|_| Vec::new())
+            .collect::<Vec<Vec<VlackuCard>>>();
+        for card in output.cards {
+            if !is_dictionary_cmavo_sequence_card(&card) {
+                continue;
+            }
+            let canonical_word = canonicalize_text(&card.word);
+            let Some(&candidate_index) = candidate_indexes.get(canonical_word.as_str()) else {
+                continue;
+            };
+            let card = cmavo_sequence_card_for_hover(card);
+            if !card_groups[candidate_index].contains(&card) {
+                card_groups[candidate_index].push(card);
+            }
+        }
+
+        candidates
+            .into_iter()
+            .zip(card_groups)
+            .filter_map(|(word, cards)| {
+                (!cards.is_empty()).then(|| new!(CmavoSequenceDocumentation { word, cards }))
+            })
+            .collect()
     }
+}
+
+/// Enumerate every word-stream-contiguous cmavo sequence containing
+/// `hovered_index`, ordered by decreasing constituent count and then source order.
+#[requires(hovered_index < words.len() && words.iter().all(|word| plain_cmavo_word(word).is_some()))]
+#[ensures(ret.iter().all(|candidate| !candidate.is_empty()))]
+fn cmavo_sequence_candidates(words: &[WordLike], hovered_index: usize) -> Vec<String> {
+    let mut candidates = Vec::new();
+    for length in (2..=words.len()).rev() {
+        let first_start = (hovered_index + 1).saturating_sub(length);
+        let last_start = hovered_index.min(words.len() - length);
+        for start in first_start..=last_start {
+            let mut candidate = String::new();
+            for word_like in &words[start..start + length] {
+                candidate.push_str(
+                    &plain_cmavo_word(word_like)
+                        .expect("cmavo sequence candidates come from a plain-cmavo run")
+                        .canonical_phonemes(),
+                );
+            }
+            candidates.push(candidate);
+        }
+    }
+    candidates
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_dictionary_cmavo_sequence_card(card: &VlackuCard) -> bool {
+    card.author.is_some() && normalize_word_type_filter(&card.word_type) == "cmavo-compound"
+}
+
+#[requires(is_dictionary_cmavo_sequence_card(&card))]
+#[ensures(ret.word_type == "cmavo sequence")]
+fn cmavo_sequence_card_for_hover(card: VlackuCard) -> VlackuCard {
+    card.with_data(data! {
+        word_type: "cmavo sequence".to_owned(),
+    })
 }
 
 #[requires(true)]
@@ -367,16 +432,19 @@ fn plain_cmavo_word(word_like: &WordLike) -> Option<&Word> {
         .filter(|word| word.kind() == WordKind::Cmavo)
 }
 
-#[requires(index < words.len())]
-#[ensures(ret.char_start < ret.char_end)]
-fn current_span_at(words: &[WordLike], index: usize) -> &SourceSpan {
-    plain_cmavo_word(&words[index])
-        .expect("cmavo-run indexes only advance across plain cmavo")
-        .span()
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[requires(true)]
-#[ensures(ret == (left.byte_end == right.byte_start && left.char_end == right.char_start))]
-fn spans_are_adjacent(left: &SourceSpan, right: &SourceSpan) -> bool {
-    left.byte_end == right.byte_start && left.char_end == right.char_start
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sequence_candidates_include_every_containing_subsequence_in_documented_order() {
+        let snapshot = DocumentSnapshot::new("bi no no vo".to_owned(), 1);
+
+        assert_eq!(
+            cmavo_sequence_candidates(&snapshot.words.words, 1),
+            ["binonovo", "binono", "nonovo", "bino", "nono"],
+        );
+    }
 }

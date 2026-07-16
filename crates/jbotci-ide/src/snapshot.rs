@@ -306,7 +306,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn compact_cmavo_hover_leads_with_constituent_and_appends_compound_card() {
+    fn cmavo_sequence_hover_leads_with_constituent_and_appends_sequence_card() {
         let snapshot = DocumentSnapshot::new("a'acu'i".to_owned(), 1);
         let first = snapshot.hover(0).expect("a'a has hover documentation");
         let second = snapshot.hover(3).expect("cu'i has hover documentation");
@@ -319,8 +319,8 @@ mod tests {
                 "### `a'a`\n\n*cmavo* · **UI1**\n\n",
                 "attitudinal: attentive - inattentive - avoiding.\n\n",
                 "**Glosses:** `attentive`\n\n---\n\n",
-                "## Compact cmavo compound `a'acu'i`\n\n",
-                "### `a'acu'i`\n\n*cmavo-compound* · **UI\\*1**\n\n",
+                "## Cmavo sequence `a'acu'i`\n\n",
+                "### `a'acu'i`\n\n*cmavo sequence* · **UI\\*1**\n\n",
                 "attitudinal: attentive - inattentive - avoiding.\n\n",
                 "**Glosses:** `inattentive`",
             ),
@@ -331,8 +331,8 @@ mod tests {
                 "### `cu'i`\n\n*cmavo* · **CAI**\n\n",
                 "attitudinal: neutral scalar attitude modifier.\n\n",
                 "**Glosses:** `neutral emotion`\n\n---\n\n",
-                "## Compact cmavo compound `a'acu'i`\n\n",
-                "### `a'acu'i`\n\n*cmavo-compound* · **UI\\*1**\n\n",
+                "## Cmavo sequence `a'acu'i`\n\n",
+                "### `a'acu'i`\n\n*cmavo sequence* · **UI\\*1**\n\n",
                 "attitudinal: attentive - inattentive - avoiding.\n\n",
                 "**Glosses:** `inattentive`",
             ),
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn adjacent_lenu_hovers_lead_with_constituents_then_show_attested_compound() {
+    fn lenu_hovers_lead_with_constituents_then_show_attested_sequence() {
         let snapshot = DocumentSnapshot::new("lenu".to_owned(), 1);
         let le = snapshot.hover(0).expect("le has hover documentation");
         let nu = snapshot.hover(2).expect("nu has hover documentation");
@@ -387,23 +387,23 @@ mod tests {
         assert!(le.markdown.starts_with("### `le`\n"));
         assert!(nu.markdown.starts_with("### `nu`\n"));
         for hover in [&le, &nu] {
-            let compound_start = hover
+            let sequence_start = hover
                 .markdown
-                .find("## Compact cmavo compound `lenu`")
-                .expect("dictionary-attested lenu has a secondary compound section");
+                .find("## Cmavo sequence `lenu`")
+                .expect("dictionary-attested lenu has a secondary sequence section");
             let lead_card_end = hover
                 .markdown
                 .find("\n\n---\n\n")
-                .expect("the constituent and compound cards have a divider");
-            assert!(lead_card_end < compound_start);
-            assert!(hover.markdown[compound_start..].contains("### `lenu`"));
+                .expect("the constituent and sequence cards have a divider");
+            assert!(lead_card_end < sequence_start);
+            assert!(hover.markdown[sequence_start..].contains("### `lenu`"));
         }
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn adjacent_minu_hovers_have_no_unattested_compound_section() {
+    fn minu_hovers_have_no_unattested_sequence_section() {
         let snapshot = DocumentSnapshot::new("minu".to_owned(), 1);
         let mi = snapshot.hover(0).expect("mi has hover documentation");
         let nu = snapshot.hover(2).expect("nu has hover documentation");
@@ -412,8 +412,67 @@ mod tests {
         assert_eq!((nu.span.char_start, nu.span.char_end), (2, 4));
         assert!(mi.markdown.starts_with("### `mi`\n"));
         assert!(nu.markdown.starts_with("### `nu`\n"));
-        assert!(!mi.markdown.contains("Compact cmavo compound"));
-        assert!(!nu.markdown.contains("Compact cmavo compound"));
+        assert!(!mi.markdown.contains("Cmavo sequence"));
+        assert!(!nu.markdown.contains("Cmavo sequence"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn spaced_and_solid_ije_have_identical_je_hover_content() {
+        let solid = DocumentSnapshot::new("ije".to_owned(), 1)
+            .hover(1)
+            .expect("solid je has hover documentation");
+        let spaced = DocumentSnapshot::new("i je".to_owned(), 1)
+            .hover(2)
+            .expect("spaced je has hover documentation");
+
+        assert_eq!((solid.span.char_start, solid.span.char_end), (1, 3));
+        assert_eq!((spaced.span.char_start, spaced.span.char_end), (2, 4));
+        assert_eq!(solid.markdown, spaced.markdown);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ije_hover_includes_sentence_afterthought_sequence_definition() {
+        let hover = DocumentSnapshot::new("ije".to_owned(), 1)
+            .hover(1)
+            .expect("je has hover documentation");
+
+        assert!(hover.markdown.starts_with("### `je`\n"));
+        let sequence_start = hover
+            .markdown
+            .find("## Cmavo sequence `ije`")
+            .expect("ije is a dictionary-attested cmavo sequence");
+        assert!(sequence_start > 0);
+        assert!(
+            hover.markdown[sequence_start..]
+                .contains("logical connective: sentence afterthought and.")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn containing_cmavo_sequences_render_longest_first() {
+        let hover = DocumentSnapshot::new("binonovo".to_owned(), 1)
+            .hover(0)
+            .expect("bi has hover documentation");
+
+        let longest = hover
+            .markdown
+            .find("## Cmavo sequence `binonovo`")
+            .expect("the four-constituent sequence is dictionary-attested");
+        let middle = hover
+            .markdown
+            .find("## Cmavo sequence `binono`")
+            .expect("the three-constituent sequence is dictionary-attested");
+        let shortest = hover
+            .markdown
+            .find("## Cmavo sequence `bino`")
+            .expect("the two-constituent sequence is dictionary-attested");
+        assert!(longest < middle && middle < shortest);
     }
 
     #[test]
