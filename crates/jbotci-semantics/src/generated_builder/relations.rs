@@ -906,38 +906,33 @@ pub(super) fn linked_sumti_assigns_visible_place_before(
     }
 }
 
-#[requires(first_visible_place > 0)]
-#[ensures(ret.as_ref().is_ok_and(|place| *place >= first_visible_place) || ret.is_err())]
-pub(super) fn next_visible_place_after_linkargs(
-    linkargs: &LinkargsSyntax,
-    first_visible_place: usize,
-) -> Result<usize, SemanticsError> {
-    let mut next_visible_place = first_visible_place;
-    advance_visible_place_after_linked_sumti(&mut next_visible_place, &linkargs.first_link)?;
-    for link in &linkargs.bei_links {
-        advance_visible_place_after_linked_sumti(&mut next_visible_place, &link.link)?;
-    }
-    Ok(next_visible_place)
-}
-
+#[requires(occupied_places.iter().all(|place| *place > 0))]
 #[requires(*next_visible_place > 0)]
-#[ensures(true)]
-pub(super) fn advance_visible_place_after_linked_sumti(
+#[ensures(*next_visible_place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| place.is_none_or(|place| place > 0)) || ret.is_err())]
+pub(super) fn generated_linked_sumti_numbered_place(
+    occupied_places: &BTreeSet<usize>,
     next_visible_place: &mut usize,
     link: &LinkedSumtiSyntax,
-) -> Result<(), SemanticsError> {
+) -> Result<Option<usize>, SemanticsError> {
     match link {
         LinkedSumtiSyntax::PlainLinkedSumti(_) => {
-            *next_visible_place += 1;
+            while occupied_places.contains(next_visible_place) {
+                *next_visible_place += 1;
+            }
+            let place = *next_visible_place;
+            *next_visible_place = place + 1;
+            Ok(Some(place))
         }
         LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
             let place = linked_sumti_place(&sumti.fa.value)?;
-            *next_visible_place = (*next_visible_place).max(place + 1);
+            *next_visible_place = place + 1;
+            Ok(Some(place))
         }
-        LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) => {}
-        LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
+        LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) | LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
+            Ok(None)
+        }
     }
-    Ok(())
 }
 
 #[requires(place > 0)]
@@ -1828,22 +1823,13 @@ pub(super) fn add_generated_linked_sumti_visible_places(
     next_visible_place: &mut usize,
     link: &LinkedSumtiSyntax,
 ) -> Result<(), SemanticsError> {
-    match link {
-        LinkedSumtiSyntax::PlainLinkedSumti(_) => {
-            places.insert(*next_visible_place);
-            *next_visible_place += 1;
-        }
-        LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
-            let place = linked_sumti_place(&sumti.fa.value)?;
-            places.insert(place);
-            *next_visible_place = (*next_visible_place).max(place + 1);
-        }
-        LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) => {}
-        LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
-            return Err(invalid_graph(
-                "generated empty linked sumti has no visible place".to_owned(),
-            ));
-        }
+    if matches!(link, LinkedSumtiSyntax::EmptyLinkedSumti(_)) {
+        return Err(invalid_graph(
+            "generated empty linked sumti has no visible place".to_owned(),
+        ));
+    }
+    if let Some(place) = generated_linked_sumti_numbered_place(places, next_visible_place, link)? {
+        places.insert(place);
     }
     Ok(())
 }

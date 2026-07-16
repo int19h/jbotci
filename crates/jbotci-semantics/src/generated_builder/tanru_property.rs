@@ -7,6 +7,26 @@ const LINKED_UNKNOWN_PLACE_STRUCTURE_WARNING: &str =
     "relation place structure is unavailable; only explicit assigned places are represented";
 const GENERATED_UNKNOWN_PLACE_STRUCTURE_WARNING: &str = "relation place structure is unavailable; only places required by explicit assignments are represented";
 
+#[requires(exposed_place > 0)]
+#[requires(occupied_places.iter().all(|place| *place > 0))]
+#[ensures(ret > 0 && !occupied_places.contains(&ret))]
+fn generated_base_place_for_exposed_place(
+    exposed_place: usize,
+    occupied_places: &BTreeSet<usize>,
+) -> usize {
+    let mut remaining = exposed_place;
+    let mut base_place = 1;
+    loop {
+        if !occupied_places.contains(&base_place) {
+            remaining -= 1;
+            if remaining == 0 {
+                return base_place;
+            }
+        }
+        base_place += 1;
+    }
+}
+
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
@@ -480,20 +500,41 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?;
             }
         }
+        let mut visible_argument_branches = vec![visible_arguments];
         if let Some(linkargs) = linkargs {
             let adjusted = if let Some(linkarg_assignments) = prebuilt_linkarg_assignments {
-                Self::visible_arguments_adjusted_for_linkarg_assignments(
-                    visible_arguments,
+                Self::visible_argument_branches_for_linkarg_assignments(
+                    visible_argument_branches
+                        .pop()
+                        .expect("one unadjusted visible-argument branch"),
                     linkarg_assignments,
-                    2,
+                    place_count,
+                    None,
                 )?
             } else {
-                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?
+                self.visible_argument_branches_with_linkargs(
+                    visible_argument_branches
+                        .pop()
+                        .expect("one unadjusted visible-argument branch"),
+                    Some(linkargs),
+                    2,
+                    place_count,
+                    None,
+                )?
             };
-            visible_arguments = adjusted.visible_arguments;
-            linkarg_modal_arguments = adjusted.modal_arguments;
-            linkarg_event_modifiers = adjusted.event_modifiers;
-            linkarg_formula_scopes = adjusted.formula_scopes;
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches: adjusted_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes,
+                diagnostics: linkarg_diagnostics,
+                ..
+            }) = adjusted.into_data();
+            visible_argument_branches = adjusted_branches;
+            linkarg_modal_arguments = modal_arguments;
+            linkarg_event_modifiers = event_modifiers;
+            linkarg_formula_scopes = formula_scopes;
+            diagnostics.extend(linkarg_diagnostics);
         }
         self.apply_generated_linked_event_modifiers(eventuality, &linkarg_event_modifiers)?;
         if let Some(unit) = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()) {
@@ -521,7 +562,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && let Some(binding) = self.assigned_pro_bridi_bindings.get(&label).cloned()
         {
             let current_visible_arguments = map_visible_arguments_for_generated_conversions(
-                visible_arguments.clone(),
+                visible_argument_branches[0].clone(),
                 &atom.conversions,
             )?;
             let formula = self.build_generated_assigned_pro_bridi_reference_formula(
@@ -545,108 +586,125 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 assignments.term_formula_scopes,
             );
         }
-        let mut arguments = BTreeMap::new();
-        for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
-            let key = argument_key(place);
-            if arguments.insert(key.clone(), argument).is_some() {
-                return Err(invalid_graph(format!(
-                    "multiple generated bridi arguments map to {key}"
-                )));
-            }
+        if place_count.is_none() && !relation_has_open_place_structure(&relation) {
+            diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only places required by explicit assignments are represented",
+            ));
         }
-        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let mut modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
-                eventuality,
-                &assignments.modal_terms,
-                Some(&arguments),
-            )?;
-        modal_arguments.extend(linkarg_modal_arguments);
-        let place_limit = match place_count {
-            Some(place_count) => place_count,
-            None => {
-                if !relation_has_open_place_structure(&relation) {
-                    diagnostics.push(diagnostic(
-                        "relation place structure is unavailable; only places required by explicit assignments are represented",
-                    ));
+        let mut branch_formulas = Vec::with_capacity(visible_argument_branches.len());
+        for visible_arguments in visible_argument_branches {
+            let mut arguments = BTreeMap::new();
+            for (visible_place, argument) in visible_arguments {
+                let place =
+                    mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+                let key = argument_key(place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated bridi arguments map to {key}"
+                    )));
                 }
-                highest_argument.max(1)
             }
-        };
-        let place_questions = self.build_generated_place_question_bindings(
-            &place_question_assignments,
-            &arguments,
-            place_count,
-            highest_argument,
-        )?;
-        for place in 1..=place_limit.max(highest_argument) {
-            let key = argument_key(place);
-            if !arguments.contains_key(&key) {
-                let referent = self.build_elided_referent("zo'e".to_owned())?;
-                arguments.insert(
-                    key,
-                    ArgumentValue::elided(referent, "zo'e".to_owned(), None),
-                );
-            }
-        }
-        let predication_mode = predication_mode_for_relation(&relation, mode);
-        let predication = self.next_predication_id();
-        let bare_jai_involvement =
-            bare_jai_raised_participant.and_then(|(jai_unit, moved_place, raised_operand)| {
-                arguments
-                    .get(&argument_key(moved_place))
-                    .and_then(|argument| argument.value)
-                    .map(|moved_operand| (jai_unit, moved_operand, raised_operand))
-            });
-        let mut predication_object = SemanticObject::predication(
-            relation_text,
-            Some(eventuality),
-            arguments,
-            predication_mode,
-            predication_source,
-            diagnostics,
-        );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
-        self.insert(predication, predication_object)?;
-        if let Some(scalar_unit) = scalar_unit {
-            let scalar_negation_scope =
-                if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
-                    GeneratedScalarNegationScope::MarkerOnly
-                } else {
-                    GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
-                };
-            let scalar_negation = scalar_negation_for_generated_scalar_tanru_unit_atom(
-                atom,
-                scalar_unit,
-                linkargs,
-                scalar_negation_scope,
+            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+            let mut modal_arguments = self
+                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                    eventuality,
+                    &assignments.modal_terms,
+                    Some(&arguments),
+                )?;
+            modal_arguments.extend(linkarg_modal_arguments.clone());
+            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(1));
+            let place_questions = self.build_generated_place_question_bindings(
+                &place_question_assignments,
+                &arguments,
+                place_count,
+                highest_argument,
             )?;
-            self.set_scalar_negation(predication, scalar_negation)?;
-        }
-        self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
-        let formula = self.next_formula_id();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(predication, formula_source, Vec::new()),
-        )?;
-        let formula = match bare_jai_involvement {
-            Some((jai_unit, moved_operand, raised_operand))
-                if moved_operand != raised_operand
-                    && !self.generated_referent_is_abstraction_about_operand(
-                        moved_operand,
-                        "jai",
-                        raised_operand,
-                    ) =>
-            {
-                self.conjoin_generated_bare_jai_involvement_formula(
-                    formula,
-                    moved_operand,
-                    raised_operand,
-                    self.source_for_node(jai_unit, "bare-jai-raised-participant"),
-                )?
+            for place in 1..=place_limit.max(highest_argument) {
+                let key = argument_key(place);
+                if !arguments.contains_key(&key) {
+                    let referent = self.build_elided_referent("zo'e".to_owned())?;
+                    arguments.insert(
+                        key,
+                        ArgumentValue::elided(referent, "zo'e".to_owned(), None),
+                    );
+                }
             }
-            _ => formula,
+            let predication_mode = predication_mode_for_relation(&relation, mode);
+            let predication = self.next_predication_id();
+            let bare_jai_involvement =
+                bare_jai_raised_participant.and_then(|(jai_unit, moved_place, raised_operand)| {
+                    arguments
+                        .get(&argument_key(moved_place))
+                        .and_then(|argument| argument.value)
+                        .map(|moved_operand| (jai_unit, moved_operand, raised_operand))
+                });
+            let mut predication_object = SemanticObject::predication(
+                relation_text.clone(),
+                Some(eventuality),
+                arguments,
+                predication_mode,
+                predication_source.clone(),
+                diagnostics.clone(),
+            );
+            predication_object.set_predication_attachments(modal_arguments, place_questions);
+            self.insert(predication, predication_object)?;
+            if let Some(scalar_unit) = scalar_unit {
+                let scalar_negation_scope =
+                    if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
+                        GeneratedScalarNegationScope::MarkerOnly
+                    } else {
+                        GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
+                    };
+                let scalar_negation = scalar_negation_for_generated_scalar_tanru_unit_atom(
+                    atom,
+                    scalar_unit,
+                    linkargs,
+                    scalar_negation_scope,
+                )?;
+                self.set_scalar_negation(predication, scalar_negation)?;
+            }
+            self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(predication, formula_source.clone(), Vec::new()),
+            )?;
+            let formula = match bare_jai_involvement {
+                Some((jai_unit, moved_operand, raised_operand))
+                    if moved_operand != raised_operand
+                        && !self.generated_referent_is_abstraction_about_operand(
+                            moved_operand,
+                            "jai",
+                            raised_operand,
+                        ) =>
+                {
+                    self.conjoin_generated_bare_jai_involvement_formula(
+                        formula,
+                        moved_operand,
+                        raised_operand,
+                        self.source_for_node(jai_unit, "bare-jai-raised-participant"),
+                    )?
+                }
+                _ => formula,
+            };
+            branch_formulas.push(formula);
+        }
+        let formula = match branch_formulas.as_slice() {
+            [formula] => *formula,
+            _ => {
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        branch_formulas,
+                        None,
+                        formula_source,
+                        Vec::new(),
+                    ),
+                )?;
+                formula
+            }
         };
         let mut formula_scopes = assignments.formula_scopes;
         formula_scopes.extend(fai_formula_scopes);
@@ -2918,18 +2976,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let scalar_unit = atom.base().scalar_negated_base();
         if let Some((preposed_linkargs, base)) = atom.base().preposed_linkargs_base() {
-            let mut visible_arguments = map_visible_arguments_for_generated_conversions(
+            let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
                 atom.conversions(),
             )?;
-            let adjusted = self.visible_arguments_adjusted_for_preposed_linkargs(
+            let adjusted = self.visible_argument_branches_with_preposed_linkargs(
                 visible_arguments,
                 linkargs,
                 preposed_linkargs,
                 2,
+                None,
+                None,
             )?;
-            visible_arguments = adjusted.visible_arguments;
-            let eventuality = match (eventuality, adjusted.event_modifiers.is_empty()) {
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes,
+                diagnostics,
+                ..
+            }) = adjusted.into_data();
+            let eventuality = match (eventuality, event_modifiers.is_empty()) {
                 (eventuality, true) => eventuality,
                 (Some(eventuality), false) => Some(eventuality),
                 (None, false) => {
@@ -2937,28 +3004,55 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
             };
             if let Some(eventuality) = eventuality {
-                self.apply_generated_linked_event_modifiers(
+                self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+            }
+            let mut results = Vec::with_capacity(visible_argument_branches.len());
+            for visible_arguments in visible_argument_branches {
+                let result = self.build_tanru_unit_formula_for_visible_arguments(
+                    base,
+                    visible_arguments,
+                    source.clone(),
+                    "selbri",
                     eventuality,
-                    &adjusted.event_modifiers,
                 )?;
+                for modal_argument in &modal_arguments {
+                    self.attach_modal_argument_to_generated_formula(
+                        result.formula,
+                        modal_argument,
+                    )?;
+                }
+                if let Some(object) = self.objects.get_mut(&result.formula) {
+                    for diagnostic in diagnostics.clone() {
+                        object.push_diagnostic(diagnostic);
+                    }
+                }
+                self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
+                results.push(result);
             }
-            let mut result = self.build_tanru_unit_formula_for_visible_arguments(
-                base,
-                visible_arguments,
-                source.clone(),
-                "selbri",
-                eventuality,
-            )?;
-            for modal_argument in &adjusted.modal_arguments {
-                self.attach_modal_argument_to_generated_formula(result.formula, modal_argument)?;
-            }
-            self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
-            let formula = self.wrap_formula_with_generated_argument_scopes(
-                result.formula,
-                adjusted.formula_scopes,
-            )?;
-            result = result.with_data(data! { formula: formula });
-            return Ok(result);
+            let formula = match results.as_slice() {
+                [result] => result.formula,
+                _ => {
+                    let formula = self.next_formula_id();
+                    self.insert(
+                        formula,
+                        SemanticObject::connective_formula(
+                            FormulaOperator::And,
+                            results.iter().map(|result| result.formula).collect(),
+                            None,
+                            source,
+                            Vec::new(),
+                        ),
+                    )?;
+                    formula
+                }
+            };
+            let formula =
+                self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)?;
+            let result = results
+                .into_iter()
+                .next()
+                .expect("linkarg application always produces at least one argument branch");
+            return Ok(result.with_data(data! { formula: formula }));
         }
         if let Some(scalar_unit) = scalar_unit
             && let Some((grouped, inner_conversions)) =
@@ -3079,120 +3173,165 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut linkarg_modal_arguments = Vec::new();
         let mut linkarg_event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
+        let mut visible_argument_branches = vec![visible_arguments];
         if let Some(linkargs) = linkargs {
             let adjusted = if let Some(linkarg_assignments) = prebuilt_linkarg_assignments {
-                Self::visible_arguments_adjusted_for_linkarg_assignments(
-                    visible_arguments,
+                Self::visible_argument_branches_for_linkarg_assignments(
+                    visible_argument_branches
+                        .pop()
+                        .expect("one unadjusted tanru-head argument branch"),
                     linkarg_assignments,
-                    2,
+                    place_count,
+                    None,
                 )?
             } else {
-                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?
+                self.visible_argument_branches_with_linkargs(
+                    visible_argument_branches
+                        .pop()
+                        .expect("one unadjusted tanru-head argument branch"),
+                    Some(linkargs),
+                    2,
+                    place_count,
+                    None,
+                )?
             };
-            visible_arguments = adjusted.visible_arguments;
-            linkarg_modal_arguments = adjusted.modal_arguments;
-            linkarg_event_modifiers = adjusted.event_modifiers;
-            linkarg_formula_scopes = adjusted.formula_scopes;
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches: adjusted_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes,
+                diagnostics: linkarg_diagnostics,
+                ..
+            }) = adjusted.into_data();
+            visible_argument_branches = adjusted_branches;
+            linkarg_modal_arguments = modal_arguments;
+            linkarg_event_modifiers = event_modifiers;
+            linkarg_formula_scopes = formula_scopes;
+            diagnostics.extend(linkarg_diagnostics);
         }
         self.apply_generated_linked_event_modifiers(eventuality, &linkarg_event_modifiers)?;
-        if let Some(unit) = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base()) {
-            linkarg_modal_arguments.push(self.build_generated_jai_modal_argument(
-                unit,
-                &visible_arguments,
-                eventuality,
-            )?);
+        if place_count.is_none() && !relation_has_open_place_structure(&relation) {
+            diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only places required by explicit assignments are represented",
+            ));
         }
-        let mut arguments = BTreeMap::new();
-        for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
-            let key = argument_key(place);
-            if arguments.insert(key.clone(), argument).is_some() {
-                return Err(invalid_graph(format!(
-                    "multiple generated tanru head arguments map to {key}"
-                )));
-            }
-        }
-        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let place_limit = match place_count {
-            Some(place_count) => place_count,
-            None => {
-                if !relation_has_open_place_structure(&relation) {
-                    diagnostics.push(diagnostic(
-                        "relation place structure is unavailable; only places required by explicit assignments are represented",
-                    ));
-                }
-                highest_argument.max(1)
-            }
-        };
         self.apply_generated_tagged_term_event_modifiers(eventuality, modal_terms)?;
-        let mut modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
-                eventuality,
-                modal_terms,
-                Some(&arguments),
-            )?;
-        modal_arguments.extend(linkarg_modal_arguments);
-        for place in 1..=place_limit.max(highest_argument) {
-            let key = argument_key(place);
-            if arguments.contains_key(&key) {
-                continue;
-            }
-            let referent = self.build_elided_referent("zo'e".to_owned())?;
-            arguments.insert(
-                key,
-                ArgumentValue::elided(referent, "zo'e".to_owned(), None),
-            );
-        }
-        let x1_argument = visible_x1_argument
-            .or_else(|| arguments.get(&argument_key(1)).cloned())
-            .ok_or_else(|| {
-                invalid_graph("tanru predication lowering produced no visible x1".to_owned())
-            })?;
         let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
             atom.base(),
             &relation_text,
             source.clone(),
         )?;
-        let predication = self.next_predication_id();
-        let mut predication_object = SemanticObject::predication(
-            relation_text,
-            Some(eventuality),
-            arguments,
-            PredicationMode::Asserted,
-            source.clone(),
-            diagnostics,
-        );
-        predication_object.set_predication_modal_arguments(modal_arguments);
-        predication_object.set_predication_relation_metadata(relation_metadata);
-        self.insert(predication, predication_object)?;
-        if let Some(scalar_unit) = scalar_unit {
-            let scalar_negation_scope =
-                if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
-                    GeneratedScalarNegationScope::MarkerOnly
-                } else {
-                    GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
-                };
-            let scalar_negation = scalar_negation_for_generated_scalar_tanru_atom_view(
-                atom,
-                scalar_unit,
-                linkargs,
-                scalar_negation_scope,
+        let mut x1_argument = visible_x1_argument;
+        let mut formulas = Vec::with_capacity(visible_argument_branches.len());
+        let mut head_predication = None;
+        for visible_arguments in visible_argument_branches {
+            let mut branch_modal_arguments = linkarg_modal_arguments.clone();
+            if let Some(unit) = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base()) {
+                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                    unit,
+                    &visible_arguments,
+                    eventuality,
+                )?);
+            }
+            let mut arguments = BTreeMap::new();
+            for (visible_place, argument) in visible_arguments {
+                let place =
+                    mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
+                let key = argument_key(place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated tanru head arguments map to {key}"
+                    )));
+                }
+            }
+            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(1));
+            let mut modal_arguments = self
+                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                    eventuality,
+                    modal_terms,
+                    Some(&arguments),
+                )?;
+            modal_arguments.extend(branch_modal_arguments);
+            for place in 1..=place_limit.max(highest_argument) {
+                let key = argument_key(place);
+                if arguments.contains_key(&key) {
+                    continue;
+                }
+                let referent = self.build_elided_referent("zo'e".to_owned())?;
+                arguments.insert(
+                    key,
+                    ArgumentValue::elided(referent, "zo'e".to_owned(), None),
+                );
+            }
+            if x1_argument.is_none() {
+                x1_argument = arguments.get(&argument_key(1)).cloned();
+            }
+            let predication = self.next_predication_id();
+            let mut predication_object = SemanticObject::predication(
+                relation_text.clone(),
+                Some(eventuality),
+                arguments,
+                PredicationMode::Asserted,
+                source.clone(),
+                diagnostics.clone(),
+            );
+            predication_object.set_predication_modal_arguments(modal_arguments);
+            predication_object.set_predication_relation_metadata(relation_metadata);
+            self.insert(predication, predication_object)?;
+            head_predication.get_or_insert(predication);
+            if let Some(scalar_unit) = scalar_unit {
+                let scalar_negation_scope =
+                    if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
+                        GeneratedScalarNegationScope::MarkerOnly
+                    } else {
+                        GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
+                    };
+                let scalar_negation = scalar_negation_for_generated_scalar_tanru_atom_view(
+                    atom,
+                    scalar_unit,
+                    linkargs,
+                    scalar_negation_scope,
+                )?;
+                self.set_scalar_negation(predication, scalar_negation)?;
+            }
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
             )?;
-            self.set_scalar_negation(predication, scalar_negation)?;
+            formulas.push(formula);
         }
-        let formula = self.next_formula_id();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(predication, source, Vec::new()),
-        )?;
+        let formula = match formulas.as_slice() {
+            [formula] => *formula,
+            _ => {
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        formulas,
+                        None,
+                        source.clone(),
+                        Vec::new(),
+                    ),
+                )?;
+                formula
+            }
+        };
+        let head_predication = head_predication
+            .expect("linkarg application always produces at least one argument branch");
+        let x1_argument = x1_argument.ok_or_else(|| {
+            invalid_graph("tanru predication lowering produced no visible x1".to_owned())
+        })?;
         let formula =
             self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)?;
         Ok(GeneratedTanruFormulaForArgument::from_data(data!(
             GeneratedTanruFormulaForArgument {
                 formula,
                 x1_argument,
-                head_predication: predication,
+                head_predication,
             }
         )))
     }
@@ -3448,16 +3587,35 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut linkarg_modal_arguments = Vec::new();
         let mut linkarg_event_modifiers = Vec::new();
         let mut formula_scopes = Vec::new();
+        let mut linkarg_diagnostics = Vec::new();
         if let Some(linkargs) = linkargs {
-            let adjusted = self.visible_arguments_adjusted_for_linkargs(
+            let linkarg_place_count = match &moi_relation {
+                Some(relation) => relation_place_count(self.dictionary, relation),
+                None => Some(2),
+            };
+            let adjusted = self.visible_argument_branches_with_linkargs(
                 visible_arguments,
-                linkargs,
+                Some(linkargs),
                 if moi_relation.is_some() { 2 } else { 3 },
+                linkarg_place_count,
+                None,
             )?;
-            visible_arguments = adjusted.visible_arguments;
-            linkarg_modal_arguments = adjusted.modal_arguments;
-            linkarg_event_modifiers = adjusted.event_modifiers;
-            formula_scopes = adjusted.formula_scopes;
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes: adjusted_formula_scopes,
+                diagnostics,
+                ..
+            }) = adjusted.into_data();
+            let [adjusted_arguments] = visible_argument_branches.try_into().map_err(|_| {
+                invalid_graph("sumti-derived selbri linkargs produced multiple claims".to_owned())
+            })?;
+            visible_arguments = adjusted_arguments;
+            linkarg_modal_arguments = modal_arguments;
+            linkarg_event_modifiers = event_modifiers;
+            formula_scopes = adjusted_formula_scopes;
+            linkarg_diagnostics = diagnostics;
         }
         let eventuality = match eventuality {
             Some(eventuality) => eventuality,
@@ -3521,7 +3679,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             arguments,
             predication_mode_for_relation(&relation, mode),
             source.clone(),
-            Vec::new(),
+            linkarg_diagnostics,
         );
         predication_object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, predication_object)?;
@@ -5082,18 +5240,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         eventuality: GeneratedPredicationEventuality,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some((preposed_linkargs, base)) = atom.base().preposed_linkargs_base() {
-            let mut visible_arguments = map_visible_arguments_for_generated_conversions(
+            let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
                 atom.conversions(),
             )?;
-            let adjusted = self.visible_arguments_adjusted_for_preposed_linkargs(
+            let adjusted = self.visible_argument_branches_with_preposed_linkargs(
                 visible_arguments,
                 linkargs,
                 preposed_linkargs,
                 2,
+                None,
+                None,
             )?;
-            visible_arguments = adjusted.visible_arguments;
-            let eventuality = if adjusted.event_modifiers.is_empty() {
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes,
+                diagnostics,
+                ..
+            }) = adjusted.into_data();
+            let eventuality = if event_modifiers.is_empty() {
                 eventuality
             } else {
                 let eventuality = eventuality
@@ -5101,25 +5268,47 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .unwrap_or(
                         self.build_generated_predication_eventuality(predication_source.clone())?,
                     );
-                self.apply_generated_linked_event_modifiers(
-                    eventuality,
-                    &adjusted.event_modifiers,
-                )?;
+                self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
                 GeneratedPredicationEventuality::from_data(data!(
                     GeneratedPredicationEventuality::Existing(eventuality)
                 ))
             };
-            let formula = self.build_property_formula_for_tanru_unit_with_visible_arguments(
-                base,
-                visible_arguments,
-                formula_source,
-                eventuality,
-            )?;
-            for modal_argument in &adjusted.modal_arguments {
-                self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
+            let mut formulas = Vec::with_capacity(visible_argument_branches.len());
+            for visible_arguments in visible_argument_branches {
+                let formula = self.build_property_formula_for_tanru_unit_with_visible_arguments(
+                    base,
+                    visible_arguments,
+                    formula_source.clone(),
+                    eventuality,
+                )?;
+                for modal_argument in &modal_arguments {
+                    self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
+                }
+                if let Some(object) = self.objects.get_mut(&formula) {
+                    for diagnostic in diagnostics.clone() {
+                        object.push_diagnostic(diagnostic);
+                    }
+                }
+                formulas.push(formula);
             }
-            return self
-                .wrap_formula_with_generated_argument_scopes(formula, adjusted.formula_scopes);
+            let formula = match formulas.as_slice() {
+                [formula] => *formula,
+                _ => {
+                    let formula = self.next_formula_id();
+                    self.insert(
+                        formula,
+                        SemanticObject::connective_formula(
+                            FormulaOperator::And,
+                            formulas,
+                            None,
+                            formula_source,
+                            Vec::new(),
+                        ),
+                    )?;
+                    formula
+                }
+            };
+            return self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes);
         }
         if let Some(sumti_selbri) = atom.base().sumti_selbri_base() {
             let visible_arguments = map_visible_arguments_for_generated_conversions(
@@ -5139,81 +5328,90 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?
                 .formula);
         }
-        let mut modal_arguments = Vec::new();
-        let mut event_modifiers = Vec::new();
-        let mut linkarg_formula_scopes = Vec::new();
         apply_generated_bare_jai_visible_argument(
             self,
             &mut visible_arguments,
             bare_generated_jai_modal_tanru_atom_base_view(atom.base()),
         )?;
-        if let Some(linkargs) = linkargs {
-            let adjusted =
-                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
-            visible_arguments = adjusted.visible_arguments;
-            modal_arguments = adjusted.modal_arguments;
-            event_modifiers = adjusted.event_modifiers;
-            linkarg_formula_scopes = adjusted.formula_scopes;
-        }
-        let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
         let scalar_unit = atom.base().scalar_negated_base();
         let relation = semantic_relation_label(match scalar_unit {
             Some(unit) => relation_label_from_scalar_negated_tanru_unit(unit)?,
             None => relation_label_from_tanru_atom_base_view(atom.base())?,
         });
         let place_count = relation_place_count(self.dictionary, &relation);
-        let mut diagnostics = Vec::new();
+        let adjusted = self.visible_argument_branches_with_linkargs(
+            visible_arguments,
+            linkargs,
+            2,
+            place_count,
+            None,
+        )?;
+        let data!(GeneratedLinkargsArgumentBranches {
+            visible_argument_branches,
+            modal_arguments,
+            event_modifiers,
+            formula_scopes,
+            mut diagnostics,
+            ..
+        }) = adjusted.into_data();
+        let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
+        if place_count.is_none() && !relation_has_open_place_structure(&relation) {
+            diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only places required by explicit assignments are represented",
+            ));
+        }
         let eventuality = eventuality.resolve(self, predication_source.clone())?;
-        let eventuality =
-            if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none() {
-                Some(self.build_eventuality(predication_source.clone())?)
-            } else {
-                eventuality
-            };
         if let Some(eventuality) = eventuality {
             self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
         }
-        if let (Some(unit), Some(eventuality)) = (jai_modal, eventuality) {
-            modal_arguments.push(self.build_generated_jai_modal_argument(
-                unit,
-                &visible_arguments,
-                eventuality,
-            )?);
-        }
-        let mut arguments = BTreeMap::new();
-        for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
-            let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
-                Some(inner_atom) => {
-                    mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
-                }
-                None => place,
-            };
-            let key = argument_key(place);
-            if arguments.insert(key.clone(), argument).is_some() {
-                return Err(invalid_graph(format!(
-                    "multiple generated tanru arguments map to {key}"
-                )));
-            }
-        }
-        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let place_limit = match place_count {
-            Some(place_count) => place_count,
-            None => {
-                if !relation_has_open_place_structure(&relation) {
-                    diagnostics.push(diagnostic(
-                        "relation place structure is unavailable; only places required by explicit assignments are represented",
-                    ));
-                }
-                highest_argument.max(1)
-            }
+        let single_branch_eventuality = if eventuality.is_none()
+            && visible_argument_branches.len() == 1
+            && (jai_modal.is_some() || !event_modifiers.is_empty())
+        {
+            let eventuality = self.build_eventuality(predication_source.clone())?;
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+            Some(eventuality)
+        } else {
+            None
         };
-        for place in 1..=place_limit {
-            let key = argument_key(place);
-            if !arguments.contains_key(&key) {
-                let elided = self.build_elided_referent("zo'e".to_owned())?;
-                arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
+        let mut prepared_branches = Vec::with_capacity(visible_argument_branches.len());
+        for visible_arguments in visible_argument_branches {
+            let jai_visible_arguments = jai_modal.and_then(|_| {
+                visible_arguments
+                    .get(&1)
+                    .cloned()
+                    .map(|argument| BTreeMap::from([(1, argument)]))
+            });
+            let mut arguments = BTreeMap::new();
+            for (visible_place, argument) in visible_arguments {
+                let place =
+                    mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
+                let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
+                    Some(inner_atom) => {
+                        mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
+                    }
+                    None => place,
+                };
+                let key = argument_key(place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated tanru arguments map to {key}"
+                    )));
+                }
             }
+            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(1));
+            for place in 1..=place_limit {
+                let key = argument_key(place);
+                if !arguments.contains_key(&key) {
+                    let elided = self.build_elided_referent("zo'e".to_owned())?;
+                    arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
+                }
+            }
+            prepared_branches.push(new!(GeneratedPreparedArgumentBranch {
+                arguments,
+                jai_visible_arguments,
+            }));
         }
         let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
@@ -5221,19 +5419,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &relation_text,
             predication_source.clone(),
         )?;
-        let predication = self.next_predication_id();
-        let mut predication_object = SemanticObject::predication(
-            relation_text,
-            eventuality,
-            arguments,
-            predication_mode_for_relation(&relation, mode),
-            predication_source,
-            diagnostics,
-        );
-        predication_object.set_predication_modal_arguments(modal_arguments);
-        predication_object.set_predication_relation_metadata(relation_metadata);
-        self.insert(predication, predication_object)?;
-        if let Some(scalar_negation) = scalar_unit
+        let scalar_negation = scalar_unit
             .map(|unit| {
                 scalar_negation_for_generated_scalar_tanru_atom_view(
                     atom,
@@ -5242,16 +5428,76 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     GeneratedScalarNegationScope::MarkerOnly,
                 )
             })
-            .transpose()?
-        {
-            self.set_scalar_negation(predication, scalar_negation)?;
+            .transpose()?;
+        let mut formulas = Vec::with_capacity(prepared_branches.len());
+        for prepared_branch in prepared_branches {
+            let data!(GeneratedPreparedArgumentBranch {
+                arguments,
+                jai_visible_arguments,
+            }) = prepared_branch.into_data();
+            let branch_eventuality = if let Some(eventuality) = single_branch_eventuality {
+                Some(eventuality)
+            } else if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none()
+            {
+                Some(self.build_eventuality(predication_source.clone())?)
+            } else {
+                eventuality
+            };
+            if eventuality.is_none()
+                && single_branch_eventuality.is_none()
+                && let Some(branch_eventuality) = branch_eventuality
+            {
+                self.apply_generated_linked_event_modifiers(branch_eventuality, &event_modifiers)?;
+            }
+            let mut branch_modal_arguments = modal_arguments.clone();
+            if let (Some(unit), Some(eventuality)) = (jai_modal, branch_eventuality) {
+                let visible_arguments = jai_visible_arguments.unwrap_or_default();
+                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                    unit,
+                    &visible_arguments,
+                    eventuality,
+                )?);
+            }
+            let predication = self.next_predication_id();
+            let mut predication_object = SemanticObject::predication(
+                relation_text.clone(),
+                branch_eventuality,
+                arguments,
+                predication_mode_for_relation(&relation, mode),
+                predication_source.clone(),
+                diagnostics.clone(),
+            );
+            predication_object.set_predication_modal_arguments(branch_modal_arguments);
+            predication_object.set_predication_relation_metadata(relation_metadata);
+            self.insert(predication, predication_object)?;
+            if let Some(scalar_negation) = scalar_negation.clone() {
+                self.set_scalar_negation(predication, scalar_negation)?;
+            }
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(predication, formula_source.clone(), Vec::new()),
+            )?;
+            formulas.push(formula);
         }
-        let formula = self.next_formula_id();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(predication, formula_source, Vec::new()),
-        )?;
-        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
+        let formula = match formulas.as_slice() {
+            [formula] => *formula,
+            _ => {
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        formulas,
+                        None,
+                        formula_source,
+                        Vec::new(),
+                    ),
+                )?;
+                formula
+            }
+        };
+        self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)
     }
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
@@ -5262,55 +5508,87 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         atom: GeneratedTanruAtomView<'syntax>,
         linkargs: Option<&'syntax LinkargsSyntax>,
-        mut visible_arguments: BTreeMap<usize, ArgumentValue>,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some((preposed_linkargs, base)) = atom.base().preposed_linkargs_base() {
-            let mut visible_arguments = map_visible_arguments_for_generated_conversions(
+            let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
                 atom.conversions(),
             )?;
-            let adjusted = self.visible_arguments_adjusted_for_preposed_linkargs(
+            let adjusted = self.visible_argument_branches_with_preposed_linkargs(
                 visible_arguments,
                 linkargs,
                 preposed_linkargs,
                 2,
+                None,
+                Some(new!(GeneratedImplicitHeadPlacement { exposed_place: 1 })),
             )?;
-            visible_arguments = adjusted.visible_arguments;
-            let predication_eventuality = if adjusted.event_modifiers.is_empty() {
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes,
+                diagnostics,
+                ..
+            }) = adjusted.into_data();
+            let predication_eventuality = if event_modifiers.is_empty() {
                 None
             } else {
                 let eventuality =
                     self.build_generated_predication_eventuality(predication_source.clone())?;
-                self.apply_generated_linked_event_modifiers(
-                    eventuality,
-                    &adjusted.event_modifiers,
-                )?;
+                self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
                 Some(eventuality)
             };
-            let formula = self.build_property_formula_for_tanru_unit_with_visible_arguments(
-                base,
-                visible_arguments,
-                formula_source,
-                predication_eventuality.map_or_else(
-                    || {
-                        GeneratedPredicationEventuality::from_data(data!(
-                            GeneratedPredicationEventuality::Absent
-                        ))
-                    },
-                    |eventuality| {
-                        GeneratedPredicationEventuality::from_data(data!(
-                            GeneratedPredicationEventuality::Existing(eventuality)
-                        ))
-                    },
-                ),
-            )?;
-            for modal_argument in &adjusted.modal_arguments {
-                self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
+            let eventuality = predication_eventuality.map_or_else(
+                || {
+                    GeneratedPredicationEventuality::from_data(data!(
+                        GeneratedPredicationEventuality::Absent
+                    ))
+                },
+                |eventuality| {
+                    GeneratedPredicationEventuality::from_data(data!(
+                        GeneratedPredicationEventuality::Existing(eventuality)
+                    ))
+                },
+            );
+            let mut formulas = Vec::with_capacity(visible_argument_branches.len());
+            for visible_arguments in visible_argument_branches {
+                let formula = self.build_property_formula_for_tanru_unit_with_visible_arguments(
+                    base,
+                    visible_arguments,
+                    formula_source.clone(),
+                    eventuality,
+                )?;
+                for modal_argument in &modal_arguments {
+                    self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
+                }
+                if let Some(object) = self.objects.get_mut(&formula) {
+                    for diagnostic in diagnostics.clone() {
+                        object.push_diagnostic(diagnostic);
+                    }
+                }
+                formulas.push(formula);
             }
-            return self
-                .wrap_formula_with_generated_argument_scopes(formula, adjusted.formula_scopes);
+            let formula = match formulas.as_slice() {
+                [formula] => *formula,
+                _ => {
+                    let formula = self.next_formula_id();
+                    self.insert(
+                        formula,
+                        SemanticObject::connective_formula(
+                            FormulaOperator::And,
+                            formulas,
+                            None,
+                            formula_source,
+                            Vec::new(),
+                        ),
+                    )?;
+                    formula
+                }
+            };
+            return self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes);
         }
         if let Some(sumti_selbri) = atom.base().sumti_selbri_base() {
             let visible_arguments = map_visible_arguments_for_generated_conversions(
@@ -5329,94 +5607,40 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?
                 .formula);
         }
-        let mut modal_arguments = Vec::new();
-        let mut event_modifiers = Vec::new();
-        let mut linkarg_formula_scopes = Vec::new();
-        if let Some(linkargs) = linkargs {
-            let adjusted =
-                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
-            visible_arguments = adjusted.visible_arguments;
-            modal_arguments = adjusted.modal_arguments;
-            event_modifiers = adjusted.event_modifiers;
-            linkarg_formula_scopes = adjusted.formula_scopes;
-        }
-        let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
-        let predication_eventuality = if jai_modal.is_some() || !event_modifiers.is_empty() {
-            Some(self.build_eventuality(predication_source.clone())?)
-        } else {
-            None
-        };
-        if let Some(eventuality) = predication_eventuality {
-            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
-        }
-        if let (Some(unit), Some(eventuality)) = (jai_modal, predication_eventuality) {
-            modal_arguments.push(self.build_generated_jai_modal_argument(
-                unit,
-                &visible_arguments,
-                eventuality,
-            )?);
-        }
         let scalar_unit = atom.base().scalar_negated_base();
         let relation = semantic_relation_label(match scalar_unit {
             Some(unit) => relation_label_from_scalar_negated_tanru_unit(unit)?,
             None => relation_label_from_tanru_atom_base_view(atom.base())?,
         });
         let place_count = relation_place_count(self.dictionary, &relation);
-        let mut diagnostics = Vec::new();
-        let mut arguments = BTreeMap::new();
-        for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
-            let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
-                Some(inner_atom) => {
-                    mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
-                }
-                None => place,
-            };
-            let key = argument_key(place);
-            if arguments.insert(key.clone(), argument).is_some() {
-                return Err(invalid_graph(format!(
-                    "multiple generated description tanru arguments map to {key}"
-                )));
-            }
+        let adjusted = self.visible_argument_branches_with_linkargs(
+            visible_arguments,
+            linkargs,
+            2,
+            place_count,
+            Some(new!(GeneratedImplicitHeadPlacement { exposed_place: 1 })),
+        )?;
+        let data!(GeneratedLinkargsArgumentBranches {
+            visible_argument_branches,
+            modal_arguments,
+            event_modifiers,
+            formula_scopes,
+            mut diagnostics,
+            ..
+        }) = adjusted.into_data();
+        if place_count.is_none() && !relation_has_open_place_structure(&relation) {
+            diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only places required by explicit assignments are represented",
+            ));
         }
-        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let place_limit = match place_count {
-            Some(place_count) => place_count,
-            None => {
-                if !relation_has_open_place_structure(&relation) {
-                    diagnostics.push(diagnostic(
-                        "relation place structure is unavailable; only places required by explicit assignments are represented",
-                    ));
-                }
-                highest_argument.max(1)
-            }
-        };
-        for place in 1..=place_limit.max(highest_argument) {
-            let key = argument_key(place);
-            if !arguments.contains_key(&key) {
-                let elided = self.build_elided_referent("zo'e".to_owned())?;
-                arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
-            }
-        }
+        let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
         let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
             atom.base(),
             &relation_text,
             predication_source.clone(),
         )?;
-        let predication = self.next_predication_id();
-        let mut predication_object = SemanticObject::predication(
-            relation_text,
-            predication_eventuality,
-            arguments,
-            PredicationMode::Restrictive,
-            predication_source,
-            diagnostics,
-        );
-        predication_object.set_predication_modal_arguments(modal_arguments);
-        predication_object.set_predication_relation_metadata(relation_metadata);
-        self.insert(predication, predication_object)?;
-        if let Some(scalar_negation) = scalar_unit
+        let scalar_negation = scalar_unit
             .map(|unit| {
                 scalar_negation_for_generated_scalar_tanru_atom_view(
                     atom,
@@ -5425,16 +5649,122 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     GeneratedScalarNegationScope::MarkerOnly,
                 )
             })
-            .transpose()?
+            .transpose()?;
+        // Preserve the established object order for the overwhelmingly common single-branch
+        // case: an event introduced by a linked modal precedes any generated place fillers.
+        // Multi-claim branches keep their eventualities branch-local below.
+        let single_branch_eventuality = if visible_argument_branches.len() == 1
+            && (jai_modal.is_some() || !event_modifiers.is_empty())
         {
-            self.set_scalar_negation(predication, scalar_negation)?;
+            let eventuality = self.build_eventuality(predication_source.clone())?;
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+            Some(eventuality)
+        } else {
+            None
+        };
+        let mut prepared_branches = Vec::with_capacity(visible_argument_branches.len());
+        for visible_arguments in visible_argument_branches {
+            let jai_visible_arguments = jai_modal.and_then(|_| {
+                visible_arguments
+                    .get(&1)
+                    .cloned()
+                    .map(|argument| BTreeMap::from([(1, argument)]))
+            });
+            let mut arguments = BTreeMap::new();
+            for (visible_place, argument) in visible_arguments {
+                let place =
+                    mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
+                let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
+                    Some(inner_atom) => {
+                        mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
+                    }
+                    None => place,
+                };
+                let key = argument_key(place);
+                if arguments.insert(key.clone(), argument).is_some() {
+                    return Err(invalid_graph(format!(
+                        "multiple generated description tanru arguments map to {key}"
+                    )));
+                }
+            }
+            let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
+            let place_limit = place_count.unwrap_or_else(|| highest_argument.max(1));
+            for place in 1..=place_limit.max(highest_argument) {
+                let key = argument_key(place);
+                if !arguments.contains_key(&key) {
+                    let elided = self.build_elided_referent("zo'e".to_owned())?;
+                    arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
+                }
+            }
+            prepared_branches.push(new!(GeneratedPreparedArgumentBranch {
+                arguments,
+                jai_visible_arguments,
+            }));
         }
-        let formula = self.next_formula_id();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(predication, formula_source, Vec::new()),
-        )?;
-        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
+        let mut formulas = Vec::with_capacity(prepared_branches.len());
+        for prepared_branch in prepared_branches {
+            let data!(GeneratedPreparedArgumentBranch {
+                arguments,
+                jai_visible_arguments,
+            }) = prepared_branch.into_data();
+            let predication_eventuality = if let Some(eventuality) = single_branch_eventuality {
+                Some(eventuality)
+            } else if jai_modal.is_some() || !event_modifiers.is_empty() {
+                let eventuality = self.build_eventuality(predication_source.clone())?;
+                self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+                Some(eventuality)
+            } else {
+                None
+            };
+            let mut branch_modal_arguments = modal_arguments.clone();
+            if let (Some(unit), Some(eventuality)) = (jai_modal, predication_eventuality) {
+                let visible_arguments = jai_visible_arguments.unwrap_or_default();
+                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                    unit,
+                    &visible_arguments,
+                    eventuality,
+                )?);
+            }
+            let predication = self.next_predication_id();
+            let mut predication_object = SemanticObject::predication(
+                relation_text.clone(),
+                predication_eventuality,
+                arguments,
+                PredicationMode::Restrictive,
+                predication_source.clone(),
+                diagnostics.clone(),
+            );
+            predication_object.set_predication_modal_arguments(branch_modal_arguments);
+            predication_object.set_predication_relation_metadata(relation_metadata);
+            self.insert(predication, predication_object)?;
+            if let Some(scalar_negation) = scalar_negation.clone() {
+                self.set_scalar_negation(predication, scalar_negation)?;
+            }
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::atom_formula(predication, formula_source.clone(), Vec::new()),
+            )?;
+            formulas.push(formula);
+        }
+        let formula = match formulas.as_slice() {
+            [formula] => *formula,
+            _ => {
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        formulas,
+                        None,
+                        formula_source,
+                        Vec::new(),
+                    ),
+                )?;
+                formula
+            }
+        };
+        self.wrap_formula_with_generated_argument_scopes(formula, formula_scopes)
     }
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
@@ -5543,7 +5873,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             LINKED_UNKNOWN_PLACE_STRUCTURE_WARNING,
             self.source_for_node(unit, "abstraction-about"),
             argument,
-            eventuality,
+            new!(GeneratedDeferredPredicationEventuality {
+                existing: eventuality,
+                tense_modal: None,
+            }),
             mode,
             scalar_negation,
             predication_source,
@@ -5571,7 +5904,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             GENERATED_UNKNOWN_PLACE_STRUCTURE_WARNING,
             self.source_for_node(generated_linked_tanru_unit(unit)?, "abstraction-about"),
             argument,
-            eventuality,
+            new!(GeneratedDeferredPredicationEventuality {
+                existing: eventuality,
+                tense_modal: None,
+            }),
             mode,
             scalar_negation,
             predication_source,
@@ -5580,7 +5916,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
-    #[requires(eventuality.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))]
     #[requires(!unknown_place_structure_warning.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_relation_formula_for_tanru_atom_argument_with_eventuality<
@@ -5592,7 +5927,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unknown_place_structure_warning: &'static str,
         jai_source: Option<crate::model::SemanticSource>,
         argument: ArgumentValue,
-        eventuality: Option<SemanticObjectId>,
+        eventuality: GeneratedDeferredPredicationEventuality<'syntax>,
         mode: PredicationMode,
         scalar_negation: Option<ScalarNegation>,
         predication_source: Option<crate::model::SemanticSource>,
@@ -5605,6 +5940,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     | TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_)
             )
         {
+            let eventuality = eventuality.resolve(self, predication_source.clone())?;
             let eventuality = match eventuality {
                 Some(eventuality) => GeneratedPredicationEventuality::from_data(data!(
                     GeneratedPredicationEventuality::Existing(eventuality)
@@ -5629,12 +5965,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             None => relation_label_from_tanru_unit_atom_base(atom.base.as_ref())?,
         });
         let place_count = relation_place_count(self.dictionary, &relation);
-        let diagnostics = if place_count.is_none() && !relation_has_open_place_structure(&relation)
-        {
-            vec![diagnostic(unknown_place_structure_warning)]
-        } else {
-            Vec::new()
-        };
+        let mut diagnostics =
+            if place_count.is_none() && !relation_has_open_place_structure(&relation) {
+                vec![diagnostic(unknown_place_structure_warning)]
+            } else {
+                Vec::new()
+            };
         let mut visible_arguments = BTreeMap::new();
         insert_visible_argument(&mut visible_arguments, 1, argument)?;
         apply_generated_bare_jai_visible_argument_with_source(
@@ -5643,7 +5979,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             bare_generated_jai_modal_tanru_unit(atom.base.as_ref()),
             jai_source,
         )?;
-        if eventuality.is_none()
+        if eventuality.is_absent()
             && scalar_unit.is_none()
             && generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()).is_none()
             && let Some(linkargs) = linkargs
@@ -5667,55 +6003,36 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
             }
         }
-        let branches =
-            self.visible_argument_branches_with_linkargs(visible_arguments, linkargs, 2)?;
+        let branches = self.visible_argument_branches_with_linkargs(
+            visible_arguments,
+            linkargs,
+            2,
+            place_count,
+            Some(new!(GeneratedImplicitHeadPlacement { exposed_place: 1 })),
+        )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
             modal_arguments,
             event_modifiers,
             formula_scopes,
+            diagnostics: linkarg_diagnostics,
+            ..
         }) = branches.into_data();
+        diagnostics.extend(linkarg_diagnostics);
         let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
-        let relation_text = relation.display_text();
-        let scalar_negation = match (scalar_negation, scalar_unit) {
-            (Some(scalar_negation), _) => Some(scalar_negation),
-            (None, Some(unit)) => Some(scalar_negation_for_generated_scalar_tanru_unit_atom(
-                atom,
-                unit,
-                linkargs,
-                GeneratedScalarNegationScope::MarkerOnly,
-            )?),
-            (None, None) => None,
-        };
-        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
-            atom.base.as_ref(),
-            &relation_text,
-            predication_source.clone(),
-        )?;
-        if let Some(eventuality) = eventuality {
+        let single_branch_eventuality = if eventuality.is_absent()
+            && visible_argument_branches.len() == 1
+            && (jai_modal.is_some() || !event_modifiers.is_empty())
+        {
+            let eventuality = self.build_eventuality(predication_source.clone())?;
             self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
-        }
-        let mut formulas = Vec::with_capacity(visible_argument_branches.len());
+            Some(eventuality)
+        } else {
+            None
+        };
+        let mut prepared_branches = Vec::with_capacity(visible_argument_branches.len());
         for visible_arguments in visible_argument_branches {
-            let branch_eventuality =
-                if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none() {
-                    Some(self.build_eventuality(predication_source.clone())?)
-                } else {
-                    eventuality
-                };
-            if eventuality.is_none()
-                && let Some(branch_eventuality) = branch_eventuality
-            {
-                self.apply_generated_linked_event_modifiers(branch_eventuality, &event_modifiers)?;
-            }
-            let mut branch_modal_arguments = modal_arguments.clone();
-            if let (Some(unit), Some(eventuality)) = (jai_modal, branch_eventuality) {
-                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
-                    unit,
-                    &visible_arguments,
-                    eventuality,
-                )?);
-            }
+            let jai_visible_arguments = jai_modal.map(|_| visible_arguments.clone());
             let mut arguments = BTreeMap::new();
             for (visible_place, argument) in visible_arguments {
                 let place =
@@ -5744,6 +6061,59 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     let elided = self.build_elided_referent("zo'e".to_owned())?;
                     arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
                 }
+            }
+            prepared_branches.push(new!(GeneratedPreparedArgumentBranch {
+                arguments,
+                jai_visible_arguments,
+            }));
+        }
+        let eventuality = eventuality.resolve(self, predication_source.clone())?;
+        if let Some(eventuality) = eventuality {
+            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
+        }
+        let relation_text = relation.display_text();
+        let scalar_negation = match (scalar_negation, scalar_unit) {
+            (Some(scalar_negation), _) => Some(scalar_negation),
+            (None, Some(unit)) => Some(scalar_negation_for_generated_scalar_tanru_unit_atom(
+                atom,
+                unit,
+                linkargs,
+                GeneratedScalarNegationScope::MarkerOnly,
+            )?),
+            (None, None) => None,
+        };
+        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
+            atom.base.as_ref(),
+            &relation_text,
+            predication_source.clone(),
+        )?;
+        let mut formulas = Vec::with_capacity(prepared_branches.len());
+        for prepared_branch in prepared_branches {
+            let data!(GeneratedPreparedArgumentBranch {
+                arguments,
+                jai_visible_arguments,
+            }) = prepared_branch.into_data();
+            let branch_eventuality = if let Some(eventuality) = single_branch_eventuality {
+                Some(eventuality)
+            } else if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none()
+            {
+                Some(self.build_eventuality(predication_source.clone())?)
+            } else {
+                eventuality
+            };
+            if eventuality.is_none()
+                && single_branch_eventuality.is_none()
+                && let Some(branch_eventuality) = branch_eventuality
+            {
+                self.apply_generated_linked_event_modifiers(branch_eventuality, &event_modifiers)?;
+            }
+            let mut branch_modal_arguments = modal_arguments.clone();
+            if let (Some(unit), Some(eventuality)) = (jai_modal, branch_eventuality) {
+                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                    unit,
+                    &jai_visible_arguments.unwrap_or_default(),
+                    eventuality,
+                )?);
             }
             let predication = self.next_predication_id();
             let mut predication_object = SemanticObject::predication(
@@ -5796,135 +6166,43 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
-        let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
-        let relation = semantic_relation_label(match scalar_unit {
-            Some(unit) => relation_label_from_scalar_negated_tanru_unit(unit)?,
-            None => relation_label_from_tanru_unit_atom_base(atom.base.as_ref())?,
-        });
-        let place_count = relation_place_count(self.dictionary, &relation);
-        let mut diagnostics = Vec::new();
-        let mut visible_arguments = BTreeMap::new();
-        insert_visible_argument(&mut visible_arguments, 1, argument)?;
-        let mut modal_arguments = Vec::new();
-        let mut event_modifiers = Vec::new();
-        let mut linkarg_formula_scopes = Vec::new();
-        if let Some(linkargs) = linkargs {
-            (modal_arguments, event_modifiers, linkarg_formula_scopes) =
-                self.extend_visible_arguments_with_linkargs(&mut visible_arguments, linkargs, 2)?;
-        }
-        let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
-        let mut arguments = BTreeMap::new();
-        for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
-            let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
-                Some(inner_atom) => {
-                    mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
-                }
-                None => place,
-            };
-            let key = argument_key(place);
-            if arguments.insert(key.clone(), argument).is_some() {
-                return Err(invalid_graph(format!(
-                    "multiple generated tagged tanru arguments map to {key}"
-                )));
-            }
-        }
-        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let place_limit = match place_count {
-            Some(place_count) => place_count,
-            None => {
-                if !relation_has_open_place_structure(&relation) {
-                    diagnostics.push(diagnostic(
-                        "relation place structure is unavailable; only places required by explicit assignments are represented",
-                    ));
-                }
-                highest_argument.max(1)
-            }
-        };
-        for place in 1..=place_limit.max(highest_argument) {
-            let key = argument_key(place);
-            if !arguments.contains_key(&key) {
-                let elided = self.build_elided_referent("zo'e".to_owned())?;
-                arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
-            }
-        }
-        let eventuality =
-            self.build_generated_tense_eventuality(tense_modal, predication_source.clone())?;
-        let eventuality =
-            if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none() {
-                Some(self.build_eventuality(predication_source.clone())?)
-            } else {
-                eventuality
-            };
-        if let Some(eventuality) = eventuality {
-            self.apply_generated_linked_event_modifiers(eventuality, &event_modifiers)?;
-        }
-        if let (Some(unit), Some(eventuality_id)) = (jai_modal, eventuality) {
-            modal_arguments.push(
-                self.build_generated_jai_modal_argument(
-                    unit,
-                    &arguments
-                        .iter()
-                        .filter_map(|(place, argument)| Some((place.get(), argument.clone())))
-                        .collect(),
-                    eventuality_id,
-                )?,
-            );
-        }
-        let relation_text = relation.display_text();
-        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
-            atom.base.as_ref(),
-            &relation_text,
-            predication_source.clone(),
-        )?;
-        let predication = self.next_predication_id();
-        let mut predication_object = SemanticObject::predication(
-            relation_text,
-            eventuality,
-            arguments,
-            predication_mode_for_relation(&relation, mode),
+        self.build_relation_formula_for_tanru_atom_argument_with_eventuality(
+            atom,
+            linkargs,
+            GENERATED_UNKNOWN_PLACE_STRUCTURE_WARNING,
+            self.source_for_node(generated_linked_tanru_unit(unit)?, "abstraction-about"),
+            argument,
+            new!(GeneratedDeferredPredicationEventuality {
+                existing: None,
+                tense_modal: Some(tense_modal),
+            }),
+            mode,
+            None,
             predication_source,
-            diagnostics,
-        );
-        predication_object.set_predication_modal_arguments(modal_arguments);
-        predication_object.set_predication_relation_metadata(relation_metadata);
-        self.insert(predication, predication_object)?;
-        if let Some(unit) = scalar_unit {
-            self.set_scalar_negation(
-                predication,
-                scalar_negation_for_generated_scalar_tanru_unit_atom(
-                    atom,
-                    unit,
-                    linkargs,
-                    GeneratedScalarNegationScope::MarkerOnly,
-                )?,
-            )?;
-        }
-        let formula = self.next_formula_id();
-        self.insert(
-            formula,
-            SemanticObject::atom_formula(predication, formula_source, Vec::new()),
-        )?;
-        self.wrap_formula_with_generated_argument_scopes(formula, linkarg_formula_scopes)
+            formula_source,
+        )
     }
 
     #[requires(first_visible_place > 0)]
-    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place > 0 && assignments.numbered_argument_choices.iter().all(|(place, choices)| *place > 0 && !choices.is_empty())) || ret.is_err())]
     pub(super) fn build_linkargs_assignments<'syntax: 'tree>(
         &mut self,
         linkargs: &'syntax LinkargsSyntax,
         first_visible_place: usize,
     ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
-        let mut assignments = GeneratedLinkargsAssignments {
-            visible_arguments: BTreeMap::new(),
+        let mut assignments = new!(GeneratedLinkargsAssignments {
+            numbered_argument_choices: BTreeMap::new(),
             modal_arguments: Vec::new(),
             event_modifiers: Vec::new(),
             formula_scopes: Vec::new(),
+            first_visible_place,
             next_visible_place: first_visible_place,
-        };
-        self.add_linked_sumti_assignment(&mut assignments, &linkargs.first_link)?;
+            explicit_multi_claim_places: BTreeSet::new(),
+            contains_unbound_explicit_cehu: false,
+        });
+        assignments = self.add_linked_sumti_assignment(assignments, &linkargs.first_link)?;
         for link in &linkargs.bei_links {
-            self.add_linked_sumti_assignment(&mut assignments, &link.link)?;
+            assignments = self.add_linked_sumti_assignment(assignments, &link.link)?;
         }
         Ok(assignments)
     }
@@ -5947,41 +6225,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(first_visible_place > 0)]
-    #[requires(arguments.keys().all(|place| *place > 0))]
-    #[ensures(true)]
-    pub(super) fn extend_visible_arguments_with_linkargs(
-        &mut self,
-        arguments: &mut BTreeMap<usize, ArgumentValue>,
-        linkargs: &'tree LinkargsSyntax,
-        first_visible_place: usize,
-    ) -> Result<
-        (
-            Vec<ModalArgument>,
-            Vec<GeneratedLinkedEventModifier<'tree>>,
-            Vec<GeneratedArgumentQuantifierScope<'tree>>,
-        ),
-        SemanticsError,
-    > {
-        let linkargs_assignments =
-            self.build_linkargs_assignments(linkargs, first_visible_place)?;
-        for (place, argument) in linkargs_assignments.visible_arguments {
-            insert_visible_argument(arguments, place, argument)?;
-        }
-        Ok((
-            linkargs_assignments.modal_arguments,
-            linkargs_assignments.event_modifiers,
-            linkargs_assignments.formula_scopes,
-        ))
-    }
-
-    #[requires(first_visible_place > 0)]
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(place_count.is_none_or(|count| count > 0))]
     #[ensures(ret.as_ref().is_ok_and(|branches| !branches.visible_argument_branches.is_empty() && branches.visible_argument_branches.iter().all(|branch| branch.keys().all(|place| *place > 0))) || ret.is_err())]
     pub(super) fn visible_argument_branches_with_linkargs<'syntax: 'tree>(
         &mut self,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         linkargs: Option<&'syntax LinkargsSyntax>,
         first_visible_place: usize,
+        place_count: Option<usize>,
+        implicit_head: Option<GeneratedImplicitHeadPlacement>,
     ) -> Result<GeneratedLinkargsArgumentBranches<'syntax>, SemanticsError> {
         let Some(linkargs) = linkargs else {
             return Ok(new!(GeneratedLinkargsArgumentBranches {
@@ -5989,153 +6242,250 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 modal_arguments: Vec::new(),
                 event_modifiers: Vec::new(),
                 formula_scopes: Vec::new(),
+                diagnostics: Vec::new(),
+                linkarg_assigned_places: BTreeSet::new(),
+                external_assigned_places: BTreeSet::new(),
+                saturated_head_fallback: false,
             }));
         };
         let linkarg_assignments = self.build_linkargs_assignments(linkargs, first_visible_place)?;
-        let mut branches = vec![visible_arguments];
-        for (place, argument) in linkarg_assignments.visible_arguments {
-            if branches[0].contains_key(&place) {
-                let alternatives = branches
-                    .iter()
-                    .cloned()
-                    .map(|mut branch| {
-                        branch.insert(place, argument.clone());
-                        branch
-                    })
-                    .collect::<Vec<_>>();
-                branches.extend(alternatives);
-            } else {
-                for branch in &mut branches {
-                    branch.insert(place, argument.clone());
+        Self::visible_argument_branches_for_linkarg_assignments(
+            visible_arguments,
+            linkarg_assignments,
+            place_count,
+            implicit_head,
+        )
+    }
+
+    #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(linkarg_assignments.next_visible_place > 0)]
+    #[requires(linkarg_assignments.numbered_argument_choices.iter().all(|(place, choices)| *place > 0 && !choices.is_empty()))]
+    #[requires(place_count.is_none_or(|count| count > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|branches| !branches.visible_argument_branches.is_empty() && (branches.saturated_head_fallback || branches.linkarg_assigned_places.is_disjoint(&branches.external_assigned_places))) || ret.is_err())]
+    pub(super) fn visible_argument_branches_for_linkarg_assignments<'syntax>(
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        linkarg_assignments: GeneratedLinkargsAssignments<'syntax>,
+        place_count: Option<usize>,
+        implicit_head: Option<GeneratedImplicitHeadPlacement>,
+    ) -> Result<GeneratedLinkargsArgumentBranches<'syntax>, SemanticsError> {
+        let mut linkarg_assignments = linkarg_assignments.into_data();
+        let linkarg_assigned_places = linkarg_assignments
+            .numbered_argument_choices
+            .keys()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let mut external_assigned_places = BTreeSet::new();
+        let mut newly_overflowed_places = BTreeSet::new();
+        let mut remaining_visible_arguments = visible_arguments;
+        let saturated_head_fallback_place = implicit_head
+            .as_ref()
+            .map(|head| head.exposed_place)
+            .filter(|exposed_place| {
+                place_count.is_some_and(|count| {
+                    (1..=count).all(|place| linkarg_assigned_places.contains(&place))
+                }) && remaining_visible_arguments.contains_key(exposed_place)
+            });
+        let saturated_head_fallback = saturated_head_fallback_place.is_some();
+        if let Some(fallback_place) = saturated_head_fallback_place {
+            let head = remaining_visible_arguments
+                .remove(&fallback_place)
+                .expect("the fallback condition requires an implicit head");
+            linkarg_assignments
+                .numbered_argument_choices
+                .entry(fallback_place)
+                .or_default()
+                .push(head);
+            external_assigned_places.insert(fallback_place);
+        }
+
+        let occupied_places = linkarg_assignments
+            .numbered_argument_choices
+            .keys()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let mut mapped_external_arguments = BTreeMap::new();
+        if implicit_head.is_some() {
+            for (exposed_place, argument) in remaining_visible_arguments {
+                let base_place =
+                    generated_base_place_for_exposed_place(exposed_place, &occupied_places);
+                insert_visible_argument(&mut mapped_external_arguments, base_place, argument)?;
+                external_assigned_places.insert(base_place);
+                if place_count.is_some_and(|count| exposed_place <= count && base_place > count) {
+                    newly_overflowed_places.insert(base_place);
                 }
             }
+        } else {
+            let mut displaced_arguments = Vec::new();
+            for (place, argument) in remaining_visible_arguments {
+                if place < linkarg_assignments.first_visible_place
+                    && !occupied_places.contains(&place)
+                {
+                    insert_visible_argument(&mut mapped_external_arguments, place, argument)?;
+                    external_assigned_places.insert(place);
+                } else {
+                    displaced_arguments.push((place, argument));
+                }
+            }
+            let mut next_tail_place = linkarg_assignments.next_visible_place;
+            for (original_place, argument) in displaced_arguments {
+                while occupied_places.contains(&next_tail_place)
+                    || mapped_external_arguments.contains_key(&next_tail_place)
+                {
+                    next_tail_place += 1;
+                }
+                insert_visible_argument(&mut mapped_external_arguments, next_tail_place, argument)?;
+                external_assigned_places.insert(next_tail_place);
+                if place_count
+                    .is_some_and(|count| original_place <= count && next_tail_place > count)
+                {
+                    newly_overflowed_places.insert(next_tail_place);
+                }
+                next_tail_place += 1;
+            }
         }
+
+        let mut visible_argument_branches = vec![mapped_external_arguments];
+        for (place, choices) in &linkarg_assignments.numbered_argument_choices {
+            let mut expanded = Vec::with_capacity(visible_argument_branches.len() * choices.len());
+            for branch in &visible_argument_branches {
+                for choice in choices {
+                    let mut branch = branch.clone();
+                    insert_visible_argument(&mut branch, *place, choice.clone())?;
+                    expanded.push(branch);
+                }
+            }
+            visible_argument_branches = expanded;
+        }
+
+        let mut diagnostics = linkarg_assignments
+            .explicit_multi_claim_places
+            .iter()
+            .map(|place| {
+                diagnostic(format!(
+                    "explicit FA-tagged linked sumti assigns occupied base place x{place}; emitting conjoined multiple claims"
+                ))
+            })
+            .collect::<Vec<_>>();
+        if saturated_head_fallback {
+            diagnostics.push(diagnostic(
+                "linked sumti saturate the relation frame; the implicit head falls back to a conjoined claim on base place x1",
+            ));
+        }
+        // This issue makes base x1 available to a linkargs group and can therefore push an
+        // outside filler beyond a previously visible frame.  Preserve established placement for
+        // non-x1 linkargs (including explicit higher-place extensions such as `be fi`) exactly;
+        // those do not acquire a new overflow warning merely by passing through this shared path.
+        if let Some(place_count) = place_count.filter(|_| linkarg_assigned_places.contains(&1)) {
+            for place in newly_overflowed_places {
+                diagnostics.push(diagnostic(format!(
+                    "argument occupies base place x{place} beyond the relation arity of {place_count}; retaining the overflow argument"
+                )));
+            }
+        }
+        if linkarg_assignments.contains_unbound_explicit_cehu {
+            diagnostics.push(diagnostic(
+                "explicit ce'u in linked sumti is an ordinary linked argument and does not designate the predicate head",
+            ));
+        }
+
         Ok(new!(GeneratedLinkargsArgumentBranches {
-            visible_argument_branches: branches,
+            visible_argument_branches,
             modal_arguments: linkarg_assignments.modal_arguments,
             event_modifiers: linkarg_assignments.event_modifiers,
             formula_scopes: linkarg_assignments.formula_scopes,
+            diagnostics,
+            linkarg_assigned_places,
+            external_assigned_places,
+            saturated_head_fallback,
         }))
     }
 
     #[requires(first_visible_place > 0)]
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
-    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn visible_arguments_adjusted_for_linkargs<'syntax: 'tree>(
-        &mut self,
-        visible_arguments: BTreeMap<usize, ArgumentValue>,
-        linkargs: &'syntax LinkargsSyntax,
-        first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
-        let linkarg_assignments = self.build_linkargs_assignments(linkargs, first_visible_place)?;
-        Self::visible_arguments_adjusted_for_linkarg_assignments(
-            visible_arguments,
-            linkarg_assignments,
-            first_visible_place,
-        )
-    }
-
-    #[requires(first_visible_place > 0)]
-    #[requires(visible_arguments.keys().all(|place| *place > 0))]
-    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn visible_arguments_adjusted_for_preposed_linkargs<'syntax: 'tree>(
+    #[requires(place_count.is_none_or(|count| count > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|branches| !branches.visible_argument_branches.is_empty()) || ret.is_err())]
+    pub(super) fn visible_argument_branches_with_preposed_linkargs<'syntax: 'tree>(
         &mut self,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         outer_linkargs: Option<&'syntax LinkargsSyntax>,
         preposed_linkargs: &'syntax LinkargsSyntax,
         first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
-        let mut outer_modal_arguments = Vec::new();
-        let mut outer_event_modifiers = Vec::new();
-        let mut outer_formula_scopes = Vec::new();
-        let visible_arguments = match outer_linkargs {
-            Some(linkargs) => {
-                let adjusted = self.visible_arguments_adjusted_for_linkargs(
-                    visible_arguments,
-                    linkargs,
-                    first_visible_place,
-                )?;
-                outer_modal_arguments = adjusted.modal_arguments;
-                outer_event_modifiers = adjusted.event_modifiers;
-                outer_formula_scopes = adjusted.formula_scopes;
-                adjusted.visible_arguments
-            }
-            None => visible_arguments,
-        };
-
-        // An empty BE/BEI slot contributes no argument and does not consume a visible place; any
-        // following non-empty slot still starts at the first linkarg place.
-        let mut preposed_assignments = GeneratedLinkargsAssignments {
-            visible_arguments: BTreeMap::new(),
-            modal_arguments: Vec::new(),
-            event_modifiers: Vec::new(),
-            formula_scopes: Vec::new(),
-            next_visible_place: first_visible_place,
-        };
-        for link in std::iter::once(&preposed_linkargs.first_link)
-            .chain(preposed_linkargs.bei_links.iter().map(|link| &link.link))
-            .filter(|link| !matches!(link, LinkedSumtiSyntax::EmptyLinkedSumti(_)))
-        {
-            self.add_linked_sumti_assignment(&mut preposed_assignments, link)?;
-        }
-        let mut adjusted = Self::visible_arguments_adjusted_for_linkarg_assignments(
+        place_count: Option<usize>,
+        implicit_head: Option<GeneratedImplicitHeadPlacement>,
+    ) -> Result<GeneratedLinkargsArgumentBranches<'syntax>, SemanticsError> {
+        let outer = self.visible_argument_branches_with_linkargs(
             visible_arguments,
-            preposed_assignments,
+            outer_linkargs,
             first_visible_place,
+            place_count,
+            None,
         )?;
-        outer_modal_arguments.append(&mut adjusted.modal_arguments);
-        outer_event_modifiers.append(&mut adjusted.event_modifiers);
-        outer_formula_scopes.append(&mut adjusted.formula_scopes);
-        adjusted.modal_arguments = outer_modal_arguments;
-        adjusted.event_modifiers = outer_event_modifiers;
-        adjusted.formula_scopes = outer_formula_scopes;
-        Ok(adjusted)
-    }
-
-    #[requires(first_visible_place > 0)]
-    #[requires(visible_arguments.keys().all(|place| *place > 0))]
-    #[requires(linkarg_assignments.next_visible_place >= first_visible_place)]
-    #[requires(linkarg_assignments.visible_arguments.keys().all(|place| *place > 0))]
-    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn visible_arguments_adjusted_for_linkarg_assignments<'syntax>(
-        visible_arguments: BTreeMap<usize, ArgumentValue>,
-        linkarg_assignments: GeneratedLinkargsAssignments<'syntax>,
-        first_visible_place: usize,
-    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
-        let mut next_tail_place = linkarg_assignments.next_visible_place;
-        let mut adjusted_arguments = BTreeMap::new();
-        let mut displaced_arguments = Vec::new();
-        for (place, argument) in visible_arguments
-            .iter()
-            .filter(|(place, _)| **place < first_visible_place)
+        let data!(GeneratedLinkargsArgumentBranches {
+            visible_argument_branches: outer_branches,
+            mut modal_arguments,
+            mut event_modifiers,
+            mut formula_scopes,
+            mut diagnostics,
+            ..
+        }) = outer.into_data();
+        let preposed_assignments =
+            self.build_linkargs_assignments(preposed_linkargs, first_visible_place)?;
+        let mut combined_branches = Vec::new();
+        let mut preposed_metadata = None;
+        for branch in outer_branches {
+            let adjusted = Self::visible_argument_branches_for_linkarg_assignments(
+                branch,
+                preposed_assignments.clone(),
+                place_count,
+                implicit_head,
+            )?;
+            let data!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches,
+                modal_arguments: branch_modal_arguments,
+                event_modifiers: branch_event_modifiers,
+                formula_scopes: branch_formula_scopes,
+                diagnostics: branch_diagnostics,
+                linkarg_assigned_places: branch_linkarg_places,
+                external_assigned_places: branch_external_places,
+                saturated_head_fallback: branch_fallback,
+            }) = adjusted.into_data();
+            combined_branches.extend(visible_argument_branches);
+            preposed_metadata.get_or_insert((
+                branch_modal_arguments,
+                branch_event_modifiers,
+                branch_formula_scopes,
+                branch_diagnostics,
+                branch_linkarg_places,
+                branch_external_places,
+                branch_fallback,
+            ));
+        }
+        if let Some((
+            mut branch_modal_arguments,
+            mut branch_event_modifiers,
+            mut branch_formula_scopes,
+            mut branch_diagnostics,
+            branch_linkarg_places,
+            branch_external_places,
+            branch_fallback,
+        )) = preposed_metadata
         {
-            if linkarg_assignments.visible_arguments.contains_key(place) {
-                displaced_arguments.push((*place, argument.clone()));
-            } else {
-                insert_visible_argument(&mut adjusted_arguments, *place, argument.clone())?;
-            }
+            modal_arguments.append(&mut branch_modal_arguments);
+            event_modifiers.append(&mut branch_event_modifiers);
+            formula_scopes.append(&mut branch_formula_scopes);
+            diagnostics.append(&mut branch_diagnostics);
+            return Ok(new!(GeneratedLinkargsArgumentBranches {
+                visible_argument_branches: combined_branches,
+                modal_arguments,
+                event_modifiers,
+                formula_scopes,
+                diagnostics,
+                linkarg_assigned_places: branch_linkarg_places,
+                external_assigned_places: branch_external_places,
+                saturated_head_fallback: branch_fallback,
+            }));
         }
-        for (place, argument) in linkarg_assignments.visible_arguments {
-            insert_visible_argument(&mut adjusted_arguments, place, argument)?;
-        }
-        for (_, argument) in displaced_arguments.into_iter().chain(
-            visible_arguments
-                .into_iter()
-                .filter(|(place, _)| *place >= first_visible_place),
-        ) {
-            while adjusted_arguments.contains_key(&next_tail_place) {
-                next_tail_place += 1;
-            }
-            insert_visible_argument(&mut adjusted_arguments, next_tail_place, argument)?;
-            next_tail_place += 1;
-        }
-        Ok(GeneratedLinkargsAssignments {
-            visible_arguments: adjusted_arguments,
-            modal_arguments: linkarg_assignments.modal_arguments,
-            event_modifiers: linkarg_assignments.event_modifiers,
-            formula_scopes: linkarg_assignments.formula_scopes,
-            next_visible_place: next_tail_place,
-        })
+        unreachable!("linkarg application always produces at least one argument branch")
     }
 
     #[requires(first_visible_place > 0)]
@@ -6147,7 +6497,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         linkargs: &'tree LinkargsSyntax,
         first_visible_place: usize,
     ) -> Result<(usize, BTreeMap<usize, ArgumentValue>), SemanticsError> {
-        let mut next_tail_place = next_visible_place_after_linkargs(linkargs, first_visible_place)?;
+        let occupied_places = generated_linkargs_visible_places(linkargs, first_visible_place)?;
+        let mut next_tail_place = occupied_places
+            .last()
+            .map_or(first_visible_place, |place| place + 1);
         let mut adjusted_arguments = BTreeMap::new();
         for (place, argument) in visible_arguments
             .iter()
@@ -6165,28 +6518,63 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok((next_tail_place, adjusted_arguments))
     }
 
+    #[requires(argument.value.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind())))]
+    #[ensures(ret -> argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+    fn generated_linked_argument_is_unbound_explicit_cehu(&self, argument: &ArgumentValue) -> bool {
+        let Some(parameter_id) = argument.value else {
+            return false;
+        };
+        let Some(parameter) = self
+            .objects
+            .get(&parameter_id)
+            .and_then(SemanticObject::as_parameter)
+        else {
+            return false;
+        };
+        // Explicit `ce'u` lowering gives the linked argument a property-slot parameter and
+        // registers it in the nearest active abstraction frame. Descriptions do not create a
+        // frame, so this also preserves binding through a nested description into its enclosing
+        // abstraction.
+        parameter.role == ParameterRole::PropertySlot
+            && !self
+                .abstraction_parameter_stack
+                .iter()
+                .any(|parameters| parameters.contains(&parameter_id))
+    }
+
     #[requires(assignments.next_visible_place > 0)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place > 0) || ret.is_err())]
     pub(super) fn add_linked_sumti_assignment<'syntax: 'tree>(
         &mut self,
-        assignments: &mut GeneratedLinkargsAssignments<'syntax>,
+        assignments: GeneratedLinkargsAssignments<'syntax>,
         link: &'syntax LinkedSumtiSyntax,
-    ) -> Result<(), SemanticsError> {
+    ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
+        let mut assignments = assignments.into_data();
+        let occupied_places = assignments
+            .numbered_argument_choices
+            .keys()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        let numbered_place = generated_linked_sumti_numbered_place(
+            &occupied_places,
+            &mut assignments.next_visible_place,
+            link,
+        )?;
         match link {
             LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
                 let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
                     &sumti.0,
                     &mut assignments.formula_scopes,
                 )?;
-                insert_visible_argument(
-                    &mut assignments.visible_arguments,
-                    assignments.next_visible_place,
-                    argument,
-                )?;
-                assignments.next_visible_place += 1;
+                assignments.contains_unbound_explicit_cehu |=
+                    self.generated_linked_argument_is_unbound_explicit_cehu(&argument);
+                let place = numbered_place.expect("plain linked sumti has a numbered place");
+                assignments
+                    .numbered_argument_choices
+                    .insert(place, vec![argument]);
             }
             LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
-                let place = linked_sumti_place(&sumti.fa.value)?;
+                let place = numbered_place.expect("FA-tagged linked sumti has a numbered place");
                 let argument = match sumti.sumti.as_ref() {
                     TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
                         .build_argument_for_generated_sumti_with_formula_scopes(
@@ -6197,8 +6585,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
                     }
                 };
-                insert_visible_argument(&mut assignments.visible_arguments, place, argument)?;
-                assignments.next_visible_place = assignments.next_visible_place.max(place + 1);
+                assignments.contains_unbound_explicit_cehu |=
+                    self.generated_linked_argument_is_unbound_explicit_cehu(&argument);
+                let choices = assignments
+                    .numbered_argument_choices
+                    .entry(place)
+                    .or_default();
+                if !choices.is_empty() {
+                    assignments.explicit_multi_claim_places.insert(place);
+                }
+                choices.push(argument);
             }
             LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
                 let argument = match sumti.sumti.as_ref() {
@@ -6211,6 +6607,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?
                     }
                 };
+                assignments.contains_unbound_explicit_cehu |=
+                    self.generated_linked_argument_is_unbound_explicit_cehu(&argument);
                 if generated_tense_modal_has_event_modifier(sumti.tense_modal.as_ref()) {
                     assignments
                         .event_modifiers
@@ -6229,7 +6627,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
         }
-        Ok(())
+        Ok(GeneratedLinkargsAssignments::from_data(assignments))
     }
 
     #[requires(true)]

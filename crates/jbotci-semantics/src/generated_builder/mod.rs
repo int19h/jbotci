@@ -895,24 +895,57 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
     source: Option<crate::model::SemanticSource>,
 }
 
-#[invariant(true)]
-#[derive(Debug)]
+#[invariant(numbered_argument_choices.iter().all(|(place, choices)| *place > 0 && !choices.is_empty()), "every linked numbered place has at least one argument choice")]
+#[invariant(explicit_multi_claim_places.iter().all(|place| numbered_argument_choices.get(place).is_some_and(|choices| choices.len() > 1)), "every recorded explicit multi-claim place has multiple choices")]
+#[invariant(*first_visible_place > 0, "the linked argument frame starts at a valid place")]
+#[invariant(*next_visible_place > 0, "the continuation cursor always names a valid place")]
+#[derive(Debug, Clone)]
 struct GeneratedLinkargsAssignments<'syntax> {
-    visible_arguments: BTreeMap<usize, ArgumentValue>,
+    numbered_argument_choices: BTreeMap<usize, Vec<ArgumentValue>>,
     modal_arguments: Vec<ModalArgument>,
     event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    first_visible_place: usize,
     next_visible_place: usize,
+    explicit_multi_claim_places: BTreeSet<usize>,
+    contains_unbound_explicit_cehu: bool,
 }
 
 #[invariant(!visible_argument_branches.is_empty())]
 #[invariant(visible_argument_branches.iter().all(|branch| branch.keys().all(|place| *place > 0)))]
+#[invariant(*saturated_head_fallback || linkarg_assigned_places.is_disjoint(&external_assigned_places), "outside fillers skip every place assigned inside the linkargs group")]
 #[derive(Debug)]
 struct GeneratedLinkargsArgumentBranches<'syntax> {
     visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
     modal_arguments: Vec<ModalArgument>,
     event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    diagnostics: Vec<crate::model::SemanticDiagnostic>,
+    linkarg_assigned_places: BTreeSet<usize>,
+    external_assigned_places: BTreeSet<usize>,
+    saturated_head_fallback: bool,
+}
+
+#[invariant(arguments.keys().all(|place| place.get() > 0), "prepared predication arguments use valid base places")]
+#[invariant(jai_visible_arguments.as_ref().is_none_or(|arguments| arguments.keys().all(|place| *place > 0)), "prepared JAI arguments use valid visible places")]
+#[derive(Debug)]
+struct GeneratedPreparedArgumentBranch {
+    arguments: BTreeMap<PlaceIndex, ArgumentValue>,
+    jai_visible_arguments: Option<BTreeMap<usize, ArgumentValue>>,
+}
+
+#[invariant(*exposed_place == 1, "the implicit predicate head occupies the first exposed place")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GeneratedImplicitHeadPlacement {
+    exposed_place: usize,
+}
+
+#[invariant(existing.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Referent && eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))), "an existing predication eventuality has an eventuality sort")]
+#[invariant(existing.is_none() || tense_modal.is_none(), "an eventuality is either supplied or constructed from a tense, never both")]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedDeferredPredicationEventuality<'syntax> {
+    existing: Option<SemanticObjectId>,
+    tense_modal: Option<&'syntax TenseModalSyntax>,
 }
 
 #[invariant(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
@@ -1426,6 +1459,30 @@ impl GeneratedPredicationEventuality {
             data!(GeneratedPredicationEventuality::Fresh) => builder
                 .build_generated_predication_eventuality(source)
                 .map(Some),
+        }
+    }
+}
+
+impl<'tree> GeneratedDeferredPredicationEventuality<'tree> {
+    #[requires(true)]
+    #[ensures(ret == (self.existing.is_none() && self.tense_modal.is_none_or(|tense_modal| !generated_tense_modal_has_event_modifier(tense_modal))))]
+    fn is_absent(&self) -> bool {
+        self.existing.is_none()
+            && self
+                .tense_modal
+                .is_none_or(|tense_modal| !generated_tense_modal_has_event_modifier(tense_modal))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))) || ret.is_err())]
+    fn resolve<'a, 'dict>(
+        self,
+        builder: &mut GeneratedGraphBuilder<'a, 'dict, 'tree>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match self.tense_modal {
+            Some(tense_modal) => builder.build_generated_tense_eventuality(tense_modal, source),
+            None => Ok(self.existing),
         }
     }
 }
@@ -11791,35 +11848,329 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn duplicate_linkarg_x1_expands_to_conjoined_restrictions() {
-        let graph = semantic_graph_for("le gadri be fa zo le");
-        let gadri = graph
+    fn description_linkargs_curry_the_implicit_head_into_the_first_exposed_place() {
+        let graph = semantic_graph_for("le nenri be fa lo xirma cu barda");
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(
+            nenri.len(),
+            1,
+            "the implicit head must not create a second claim"
+        );
+        let nenri_node = graph.objects[&nenri[0]]
+            .as_predication()
+            .expect("nenri predication");
+        let horse = nenri_node.arguments[&argument_key(1)]
+            .value
+            .expect("linked lo xirma fills base x1");
+        assert_eq!(
+            graph.objects[&horse]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("lo xirma")
+        );
+        let property_slot = nenri_node.arguments[&argument_key(2)]
+            .value
+            .expect("the implicit description head fills exposed x1/base x2");
+        assert_eq!(
+            graph.objects[&property_slot]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::PropertySlot)
+        );
+
+        let skicu = named_predication_ids(&graph, "skicu");
+        assert_eq!(skicu.len(), 1);
+        let skicu = graph.objects[&skicu[0]]
+            .as_predication()
+            .expect("description relation");
+        let described = skicu.arguments[&argument_key(2)]
+            .value
+            .expect("skicu x2 is the described referent");
+        let relation = skicu.arguments[&argument_key(4)]
+            .value
+            .and_then(|id| graph.objects[&id].as_referent())
+            .expect("skicu x4 is the description property");
+        assert_eq!(relation.parameters, vec![property_slot]);
+        let relation_body = relation.body.expect("description property has a body");
+        assert_eq!(
+            graph.objects[&relation_body].formula_operator(),
+            Some(FormulaOperator::Atom),
+            "the descriptor property must not contain the old collision conjunction"
+        );
+        assert!(formula_contains_predication(
+            &graph,
+            relation_body,
+            nenri[0]
+        ));
+
+        let barda = named_predication_ids(&graph, "barda");
+        assert_eq!(barda.len(), 1);
+        assert_eq!(
+            graph.objects[&barda[0]]
+                .as_predication()
+                .expect("barda predication")
+                .arguments[&argument_key(1)]
+                .value,
+            Some(described),
+            "the outer bridi must use the same described referent"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_selbri_linkargs_bind_the_bound_variable_to_the_first_exposed_place() {
+        let graph = semantic_graph_for("ro nenri be fa mi cu barda");
+        let variable = forall_variable(&graph);
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(nenri.len(), 1);
+        let nenri = graph.objects[&nenri[0]]
+            .as_predication()
+            .expect("nenri restriction");
+        assert_eq!(
+            nenri.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(nenri.arguments[&argument_key(2)].value, Some(variable));
+        let barda = named_predication_ids(&graph, "barda");
+        assert_eq!(barda.len(), 1);
+        assert_eq!(
+            graph.objects[&barda[0]]
+                .as_predication()
+                .expect("barda predication")
+                .arguments[&argument_key(1)]
+                .value,
+            Some(variable),
+            "the quantified restriction and body must share the bound variable"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_modifier_linkargs_bind_the_modifier_slot_to_the_first_exposed_place() {
+        let graph = semantic_graph_for("lo nenri be fa lo xirma be'o kumfa cu barda");
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(nenri.len(), 1);
+        let nenri_node = graph.objects[&nenri[0]]
+            .as_predication()
+            .expect("nenri modifier predication");
+        let horse = nenri_node.arguments[&argument_key(1)]
+            .value
+            .expect("linked horse fills base x1");
+        assert_eq!(
+            graph.objects[&horse]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("lo xirma")
+        );
+        let property_slot = nenri_node.arguments[&argument_key(2)]
+            .value
+            .expect("tanru modifier head fills exposed x1/base x2");
+        assert_eq!(
+            graph.objects[&property_slot]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::PropertySlot)
+        );
+        let link = graph
             .objects
             .values()
-            .filter_map(SemanticObject::as_predication)
-            .filter(|predication| {
-                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "gadri")
+            .find_map(SemanticObject::predication_tanru_link)
+            .expect("the tanru keeps its modifier relation");
+        let modifier = graph.objects[&link.modifier]
+            .as_referent()
+            .expect("tanru modifier is a property");
+        assert_eq!(modifier.parameters, vec![property_slot]);
+        assert!(formula_contains_predication(
+            &graph,
+            modifier.body.expect("modifier property has a body"),
+            nenri[0]
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bridi_terms_see_the_curried_frame_and_report_arity_overflow() {
+        let graph = semantic_graph_for("mi nenri be fa do");
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(nenri.len(), 1);
+        let nenri = graph.objects[&nenri[0]]
+            .as_predication()
+            .expect("nenri predication");
+        assert_eq!(
+            nenri.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::addressee())
+        );
+        assert_eq!(
+            nenri.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker())
+        );
+
+        let overflow = semantic_graph_for("mi nenri be fa do fe ti");
+        let overflow_nenri = named_predication_ids(&overflow, "nenri");
+        assert_eq!(overflow_nenri.len(), 1);
+        let overflow_id = overflow_nenri[0];
+        let overflow_node = overflow.objects[&overflow_id]
+            .as_predication()
+            .expect("overflow nenri predication");
+        assert_eq!(
+            overflow_node.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::addressee())
+        );
+        assert_eq!(
+            overflow_node.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        let overflow_argument = overflow_node.arguments[&argument_key(3)]
+            .value
+            .expect("overflow x3 is retained");
+        assert_eq!(
+            overflow.objects[&overflow_argument]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("ti")
+        );
+        assert!(
+            overflow.objects[&overflow_id]
+                .diagnostics()
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("beyond the relation arity"))
+        );
+
+        let backward_tag = semantic_graph_for("mi klama be fu do bei fe ti bei ta");
+        let klama = named_predication_ids(&backward_tag, "klama");
+        assert_eq!(klama.len(), 1);
+        let klama_id = klama[0];
+        let klama = backward_tag.objects[&klama_id]
+            .as_predication()
+            .expect("klama predication");
+        assert_eq!(
+            klama.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker())
+        );
+        assert_eq!(
+            klama.arguments[&argument_key(5)].value,
+            Some(SemanticObjectId::addressee())
+        );
+        for (place, source_text) in [(2, "ti"), (3, "ta")] {
+            let argument = klama.arguments[&argument_key(place)]
+                .value
+                .expect("linked demonstrative argument");
+            assert_eq!(
+                backward_tag.objects[&argument]
+                    .source()
+                    .and_then(|source| source.text.as_deref()),
+                Some(source_text),
+                "untagged BEI resumes after the last targeted place and skips x5"
+            );
+        }
+        assert!(
+            !backward_tag.objects[&klama_id]
+                .diagnostics()
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("beyond the relation arity"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_duplicate_linkargs_remain_conjoined_and_carry_a_warning() {
+        let graph = semantic_graph_for("le nenri be fa mi bei fa do cu barda");
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(nenri.len(), 2);
+        let predications = nenri
+            .iter()
+            .map(|id| {
+                graph.objects[id]
+                    .as_predication()
+                    .expect("nenri predication")
             })
             .collect::<Vec<_>>();
-        assert_eq!(gadri.len(), 2);
-        assert!(
-            gadri
+        assert_eq!(
+            predications
                 .iter()
-                .all(|predication| predication.mode == PredicationMode::Restrictive)
+                .map(|predication| predication.arguments[&argument_key(1)].value)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                Some(SemanticObjectId::speaker()),
+                Some(SemanticObjectId::addressee()),
+            ])
         );
-        let x1s = gadri
+        let x2s = predications
             .iter()
-            .map(|predication| {
-                predication.arguments[&argument_key(1)]
-                    .value
-                    .expect("both restrictions have x1")
-            })
+            .map(|predication| predication.arguments[&argument_key(2)].value)
             .collect::<BTreeSet<_>>();
-        assert_eq!(x1s.len(), 2);
+        assert_eq!(x2s.len(), 1, "both explicit claims share the implicit head");
         assert!(graph.objects.values().any(|object| {
             object.formula_operator() == Some(FormulaOperator::And)
                 && object.formula_children().len() == 2
         }));
+        assert!(nenri.iter().all(|id| {
+            graph.objects[id].diagnostics().iter().any(|diagnostic| {
+                diagnostic
+                    .message
+                    .contains("explicit FA-tagged linked sumti assigns occupied base place")
+            })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn saturated_heads_carry_diagnostics() {
+        let saturated = semantic_graph_for("le nenri be fa mi bei do cu barda");
+        let saturated_nenri = named_predication_ids(&saturated, "nenri");
+        assert_eq!(saturated_nenri.len(), 2);
+        assert!(saturated_nenri.iter().all(|id| {
+            saturated.objects[id]
+                .diagnostics()
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("implicit head falls back"))
+        }));
+        let x1s = saturated_nenri
+            .iter()
+            .map(|id| {
+                saturated.objects[id]
+                    .as_predication()
+                    .expect("nenri predication")
+                    .arguments[&argument_key(1)]
+                    .value
+            })
+            .collect::<BTreeSet<_>>();
+        assert!(x1s.contains(&Some(SemanticObjectId::speaker())));
+        assert!(x1s.iter().flatten().any(|id| {
+            saturated.objects[id]
+                .as_parameter()
+                .is_some_and(|parameter| parameter.role == ParameterRole::PropertySlot)
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn linked_cehu_warning_only_reports_unbound_abstraction_focus() {
+        const WARNING: &str = "explicit ce'u in linked sumti is an ordinary linked argument and does not designate the predicate head";
+
+        for text in ["le nenri be fa ce'u cu barda", "le pixra be ce'u cu barda"] {
+            let graph = semantic_graph_for(text);
+            assert!(graph.objects.values().any(|object| {
+                object
+                    .diagnostics()
+                    .iter()
+                    .any(|diagnostic| diagnostic.message == WARNING)
+            }));
+        }
+
+        let bound = semantic_graph_for("mi ckaji lo ka le pixra be ce'u cu melbi");
+        assert!(
+            bound
+                .objects
+                .values()
+                .all(|object| object.diagnostics().is_empty())
+        );
     }
 
     #[test]

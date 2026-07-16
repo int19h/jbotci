@@ -900,10 +900,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedLinkargsAssignments",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedLogicalSumtiConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
