@@ -32,7 +32,7 @@ use jbotci_output::{
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, SemanticGraph,
+    SemanticBuildOptions, SemanticGraph, SemanticObjectId,
     build_generated_semantic_graph_with_dictionary_and_options,
     references::{
         FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
@@ -11276,15 +11276,47 @@ fn run_tersmu_derived_fixture(
     let Some(expectation) = expectation else {
         return FacetResult::skipped(format!("fixture has no {label} expectation"));
     };
-    match tersmu_graph_fixture_result(fixture, "tersmu build error").map(|graph| renderer(&graph)) {
-        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
+    let graph = match tersmu_graph_fixture_result(fixture, "tersmu build error") {
+        Ok(graph) => graph,
+        Err(error) => return FacetResult::failed(error),
+    };
+    let actual = renderer(&graph);
+    let missing = missing_eventuality_content_edges(&graph, &actual);
+    if !missing.is_empty() {
+        return FacetResult::failed(format!(
+            "{label} omits eventuality content edges: {}",
+            missing
+                .iter()
+                .map(|(eventuality, content)| format!("{eventuality}->{content}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    if text_expectation_matches(expectation, &actual) {
+        FacetResult::passed()
+    } else {
+        FacetResult::failed(format_text_expectation_mismatch(
             label,
             expectation,
             &actual,
-        )),
-        Err(error) => FacetResult::failed(error),
+        ))
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn missing_eventuality_content_edges(
+    graph: &SemanticGraph,
+    rendered: &str,
+) -> Vec<(SemanticObjectId, SemanticObjectId)> {
+    graph
+        .objects
+        .iter()
+        .filter_map(|(&eventuality, object)| {
+            let content = object.as_eventuality()?.content?;
+            (!rendered.contains(&format!("[{content}]"))).then_some((eventuality, content))
+        })
+        .collect()
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
