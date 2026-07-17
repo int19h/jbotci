@@ -224,6 +224,47 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 quote(&mut report, result);
                 report.push('\n');
             }
+            bityzba::data!(ProtocolEvent::ReferenceLookupRepeated {
+                participant,
+                tool_name,
+                repeat_number,
+                remaining_calls,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Repeated reference lookup — `{participant}` / `{tool_name}`\n\nExact-query occurrence: **{repeat_number}**; reference calls remaining in phase: **{remaining_calls}**.\n"
+                )
+                .expect("writing to String cannot fail");
+                summary.reference_repeats += 1;
+            }
+            bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted {
+                participant,
+                maximum,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Reference-call budget exhausted — `{participant}`\n\nPhase maximum: **{maximum}**; reference tools withdrawn.\n"
+                )
+                .expect("writing to String cannot fail");
+                summary.reference_budgets_exhausted += 1;
+            }
+            bityzba::data!(ProtocolEvent::ReferenceResearchNudge {
+                participant,
+                consecutive_calls,
+                message,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Reference-research nudge — `{participant}`\n\nConsecutive reference calls: **{consecutive_calls}**\n\nCorrection:\n"
+                )
+                .expect("writing to String cannot fail");
+                quote(&mut report, message);
+                report.push('\n');
+                summary.reference_nudges += 1;
+            }
             bityzba::data!(ProtocolEvent::ProtocolError {
                 participant,
                 tool_name,
@@ -355,6 +396,9 @@ struct ReportSummary {
     intents: BTreeMap<usize, String>,
     blind_turns: BTreeSet<usize>,
     discrepancy_acknowledgments: Vec<(usize, String, String)>,
+    reference_repeats: usize,
+    reference_budgets_exhausted: usize,
+    reference_nudges: usize,
     protocol_errors: usize,
     forfeits: usize,
     aborts: usize,
@@ -410,6 +454,15 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
         report,
         "\n### Revisions and mismatches\n\n- Intent revisions: {}\n- Confirmation mismatches: {}",
         summary.intent_revisions, summary.confirm_mismatches
+    )
+    .expect("writing to String cannot fail");
+
+    writeln!(
+        report,
+        "\n### Reference-loop mitigations\n\n- Memoized repeats: {}\n- Phase budgets exhausted: {}\n- Idle-research nudges: {}",
+        summary.reference_repeats,
+        summary.reference_budgets_exhausted,
+        summary.reference_nudges
     )
     .expect("writing to String cannot fail");
 

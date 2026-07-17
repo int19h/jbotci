@@ -1,6 +1,8 @@
+use std::cell::Cell;
 use std::collections::{BTreeSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
@@ -11,7 +13,7 @@ use xarsnu::{
     CapsConfig, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError,
     ProtocolRunner, ProtocolTool, ReferenceToolDispatcher, RunAccounting, RunConfig, RunHeader,
     ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
-    read_transcript,
+    ToolDispatchError, ToolDispatcher, read_transcript,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -36,6 +38,7 @@ fn temp_path(name: &str) -> PathBuf {
 #[derive(Debug)]
 struct ScriptStep {
     expected_protocol_tools: Vec<&'static str>,
+    reference_tools_expected: bool,
     tool_name: &'static str,
     arguments: Value,
 }
@@ -48,12 +51,39 @@ struct RecordedToolResult {
     content: String,
 }
 
+#[invariant(!result.is_empty())]
+#[derive(Debug, Clone)]
+struct CountingDispatcher {
+    calls: Rc<Cell<usize>>,
+    result: String,
+}
+
+impl CountingDispatcher {
+    #[requires(!result.is_empty())]
+    #[ensures(ret.calls.get() == 0)]
+    fn new(result: &str) -> Self {
+        new!(CountingDispatcher {
+            calls: Rc::new(Cell::new(0)),
+            result: result.to_owned(),
+        })
+    }
+}
+
+#[contract_trait]
+impl ToolDispatcher for CountingDispatcher {
+    fn dispatch(&mut self, _call: &ToolCall) -> Result<String, ToolDispatchError> {
+        self.calls.set(self.calls.get() + 1);
+        Ok(self.result.clone())
+    }
+}
+
 #[invariant(true, "constructed with a nonempty name and test-owned script")]
 #[derive(Debug)]
 struct ScriptedModel {
     name: String,
     steps: VecDeque<ScriptStep>,
     user_messages: Vec<String>,
+    request_user_messages: Vec<Vec<String>>,
     tool_results: Vec<RecordedToolResult>,
     calls_made: usize,
 }
@@ -66,6 +96,7 @@ impl ScriptedModel {
             name: name.to_owned(),
             steps: steps.into(),
             user_messages: Vec::new(),
+            request_user_messages: Vec::new(),
             tool_results: Vec::new(),
             calls_made: 0,
         }
@@ -95,12 +126,14 @@ impl ProtocolModel for ScriptedModel {
         _accounting: &mut RunAccounting,
     ) -> Result<ModelTurn, ProtocolModelError> {
         assert_eq!(tool_choice, ToolChoice::Required);
+        self.request_user_messages.push(self.user_messages.clone());
         let step = self
             .steps
             .pop_front()
             .unwrap_or_else(|| panic!("{} had no scripted response left", self.name));
         let bityzba::data!(ScriptStep {
             expected_protocol_tools,
+            reference_tools_expected,
             tool_name,
             arguments,
         }) = step.into_data();
@@ -111,7 +144,12 @@ impl ProtocolModel for ScriptedModel {
         let expected = expected_protocol_tools
             .iter()
             .copied()
-            .chain(REFERENCE_TOOLS)
+            .chain(
+                reference_tools_expected
+                    .then_some(REFERENCE_TOOLS)
+                    .into_iter()
+                    .flatten(),
+            )
             .collect::<BTreeSet<_>>();
         assert_eq!(actual, expected, "dynamic tools for {}", self.name);
         self.calls_made += 1;
@@ -139,6 +177,24 @@ fn step(
 ) -> ScriptStep {
     new!(ScriptStep {
         expected_protocol_tools: expected_protocol_tools.to_vec(),
+        reference_tools_expected: true,
+        tool_name,
+        arguments,
+    })
+}
+
+#[requires(!expected_protocol_tools.is_empty())]
+#[requires(!tool_name.trim().is_empty())]
+#[requires(arguments.is_object())]
+#[ensures(ret.tool_name == tool_name)]
+fn step_without_reference_tools(
+    expected_protocol_tools: &[&'static str],
+    tool_name: &'static str,
+    arguments: Value,
+) -> ScriptStep {
+    new!(ScriptStep {
+        expected_protocol_tools: expected_protocol_tools.to_vec(),
+        reference_tools_expected: false,
         tool_name,
         arguments,
     })
@@ -170,6 +226,9 @@ fn caps(max_parse_attempts: usize, max_intent_revisions: usize, max_turns: usize
         max_intent_revisions_per_turn: max_intent_revisions,
         max_turns,
         max_cost_usd: 10.0,
+        max_reference_calls_per_phase: 16,
+        reference_dedupe: true,
+        reference_nudge_after: 6,
     })
 }
 
@@ -214,6 +273,288 @@ fn count_rejections(events: &[ProtocolEvent]) -> usize {
             )
         })
         .count()
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reference_budget_withdraws_tools_on_the_wire_and_preserves_turn_forfeit() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                json!({ "word": "klama" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                json!({ "word": "cadzu" }),
+            ),
+            // Anti-no-op: this request asserts that all reference definitions
+            // disappeared while the legal protocol tools remained.
+            step_without_reference_tools(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi cu" }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new("bob", Vec::new());
+    let caps = caps(1, 1, 1).with_data(bityzba::data! {
+        max_reference_calls_per_phase: 2,
+        reference_nudge_after: 1,
+    });
+    let dispatcher = CountingDispatcher::new("reference payload\n");
+    let invocation_count = dispatcher.calls.clone();
+    let mut runner = ProtocolRunner::new(
+        vec![speaker, listener],
+        caps,
+        TersmuFormat::TreeProj,
+        dispatcher,
+    )
+    .expect("valid runner");
+
+    runner.run().expect("bounded reference run");
+
+    assert_eq!(invocation_count.get(), 2);
+    assert_eq!(
+        runner
+            .events()
+            .iter()
+            .filter(|event| matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted { maximum: 2, .. })
+            ))
+            .count(),
+        1
+    );
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::TurnForfeited {
+            reason,
+            ..
+        }) if matches!(reason.as_data(), bityzba::data!(TurnForfeitReason::ParseAttempts { maximum: 1 }))
+    )));
+    let final_request = runner.participants()[0]
+        .request_user_messages
+        .last()
+        .expect("post-budget request captured");
+    assert!(final_request.iter().any(|message| {
+        message.contains("reference-call budget for this phase is spent (2/2)")
+            && message.contains("composition or interpretation must proceed")
+    }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn duplicate_reference_lookup_reuses_prior_payload_byte_for_byte() {
+    let arguments = json!({ "word": "klama" });
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                arguments.clone(),
+            ),
+            step(&["register_intent", "submit_lojban"], "vlacku", arguments),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi cu" }),
+            ),
+        ],
+    );
+    let caps = caps(1, 1, 1).with_data(bityzba::data! {
+        max_reference_calls_per_phase: 4,
+        reference_nudge_after: 3,
+    });
+    let dispatcher = CountingDispatcher::new("first line\nsecond line\n");
+    let invocation_count = dispatcher.calls.clone();
+    let mut runner = ProtocolRunner::new(
+        vec![speaker, ScriptedModel::new("bob", Vec::new())],
+        caps,
+        TersmuFormat::TreeProj,
+        dispatcher,
+    )
+    .expect("valid runner");
+
+    runner.run().expect("memoized reference run");
+
+    assert_eq!(invocation_count.get(), 1, "repeat must not invoke jbotci");
+    let results = runner.participants()[0]
+        .tool_results
+        .iter()
+        .filter(|result| result.tool_name == "vlacku")
+        .collect::<Vec<_>>();
+    assert_eq!(results.len(), 2);
+    let expected_note = "(repeat lookup #2 of this exact query this phase — the result has not changed; you have 2 reference calls left)";
+    let repeated_payload = results[1]
+        .content
+        .strip_prefix(expected_note)
+        .and_then(|content| content.strip_prefix('\n'))
+        .expect("exact corrective note prefix");
+    assert_eq!(
+        repeated_payload.as_bytes(),
+        results[0].content.as_bytes(),
+        "stripping only the note line must recover the prior bytes"
+    );
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::ReferenceLookupRepeated {
+            repeat_number: 2,
+            remaining_calls: 2,
+            ..
+        })
+    )));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn disabling_reference_dedupe_reexecutes_exact_repeats() {
+    let arguments = json!({ "word": "klama" });
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                arguments.clone(),
+            ),
+            step(&["register_intent", "submit_lojban"], "vlacku", arguments),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi cu" }),
+            ),
+        ],
+    );
+    let caps = caps(1, 1, 1).with_data(bityzba::data! {
+        max_reference_calls_per_phase: 4,
+        reference_dedupe: false,
+        reference_nudge_after: 3,
+    });
+    let dispatcher = CountingDispatcher::new("reference payload");
+    let invocation_count = dispatcher.calls.clone();
+    let mut runner = ProtocolRunner::new(
+        vec![speaker, ScriptedModel::new("bob", Vec::new())],
+        caps,
+        TersmuFormat::TreeProj,
+        dispatcher,
+    )
+    .expect("valid runner");
+
+    runner.run().expect("non-deduped reference run");
+
+    assert_eq!(invocation_count.get(), 2);
+    assert!(!runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::ReferenceLookupRepeated { .. })
+    )));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn idle_reference_nudge_fires_once_at_threshold_in_each_phase() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(&["register_intent"], "vlacku", json!({ "word": "pa" })),
+            step(&["register_intent"], "vlacku", json!({ "word": "re" })),
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                json!({ "word": "ci" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                json!({ "word": "vo" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "vlacku",
+                json!({ "word": "mu" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi cu" }),
+            ),
+        ],
+    );
+    let caps = caps(1, 1, 1).with_data(bityzba::data! {
+        max_reference_calls_per_phase: 5,
+        reference_nudge_after: 2,
+    });
+    let dispatcher = CountingDispatcher::new("reference payload");
+    let mut runner = ProtocolRunner::new(
+        vec![speaker, ScriptedModel::new("bob", Vec::new())],
+        caps,
+        TersmuFormat::TreeProj,
+        dispatcher,
+    )
+    .expect("valid runner");
+
+    runner.run().expect("nudged reference run");
+
+    let nudges = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ReferenceResearchNudge {
+                phase,
+                consecutive_calls,
+                message,
+                ..
+            }) => Some((*phase, *consecutive_calls, message)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(nudges.len(), 2);
+    assert_eq!(nudges[0].1, 2);
+    assert_eq!(nudges[1].1, 2);
+    assert_ne!(nudges[0].0, nudges[1].0, "nudge allowance resets by phase");
+    for (_, _, message) in &nudges {
+        assert!(message.contains("Current phase protocol tools:"));
+        assert!(message.contains("Current phase intent:"));
+    }
+
+    // Anti-no-op: each corrective message was present before a later request,
+    // not merely appended after the scripted run ended.
+    for (_, _, message) in nudges {
+        assert!(
+            runner.participants()[0]
+                .request_user_messages
+                .iter()
+                .any(|request| request.contains(message))
+        );
+    }
 }
 
 #[test]
