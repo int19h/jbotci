@@ -412,7 +412,9 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
     }
     if !card.glosses.is_empty() {
         lines.push(format!("  {}", dark("glosses:", options.color)));
-        push_rendered_vlacku_detail_lines(&mut lines, &card.glosses.join("; "), options);
+        let glosses = card.glosses.join("; ");
+        let rendered = vlacku_reference_text_for_sumti_places(&glosses, &place_map, options);
+        push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
     }
     if !card.definition.trim().is_empty() {
         lines.push(format!("  {}", dark("definitions:", options.color)));
@@ -424,7 +426,7 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
     if !card.notes.trim().is_empty() {
         lines.push(format!("  {}", dark("notes:", options.color)));
         for line in card.notes.lines() {
-            let rendered = vlacku_notes_text_for_sumti_places(line, &place_map, options);
+            let rendered = vlacku_reference_text_for_sumti_places(line, &place_map, options);
             push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
         }
     }
@@ -436,7 +438,8 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
         {
             lines.push(format!("  {}", dark("etymology:", options.color)));
             for line in etymology.lines() {
-                push_rendered_vlacku_detail_lines(&mut lines, line, options);
+                let rendered = vlacku_reference_text_for_sumti_places(line, &place_map, options);
+                push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
             }
         }
     }
@@ -475,7 +478,7 @@ fn vlacku_definition_text_for_sumti_places(
 
 #[requires(true)]
 #[ensures(true)]
-fn vlacku_notes_text_for_sumti_places(
+fn vlacku_reference_text_for_sumti_places(
     text: &str,
     place_map: &DefinitionPlaceMap,
     options: &VlackuRenderOptions,
