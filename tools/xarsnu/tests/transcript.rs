@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[allow(unused_imports)]
@@ -132,7 +132,7 @@ fn corrupted_transcripts_report_the_exact_line() {
         .expect("write truncated transcript");
     let error = read_transcript(&truncated).expect_err("truncation must fail");
     assert_eq!(error.line, 2);
-    assert!(error.to_string().contains("no run-finished event"));
+    assert!(error.to_string().contains("no terminal event"));
 
     for path in [bad_json, missing_header, sequence_gap, truncated] {
         fs::remove_file(path).expect("remove temporary transcript");
@@ -164,5 +164,13 @@ fn report_subcommand_is_offline_and_matches_the_library() {
 #[requires(!name.trim().is_empty())]
 #[ensures(ret.file_name().is_some())]
 fn temp_path(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("xarsnu-{name}-{}.jsonl", std::process::id()))
+    let executable = std::env::current_exe().expect("current test executable");
+    let target_directory = executable
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .expect("Cargo target directory");
+    let directory = target_directory.join("xarsnu-test-tmp");
+    fs::create_dir_all(&directory).expect("create target temporary directory");
+    directory.join(format!("xarsnu-{name}-{}.jsonl", std::process::id()))
 }

@@ -23,7 +23,6 @@ pub enum PromptCaching {
 #[invariant(!model.trim().is_empty(), "participant model ids cannot be empty")]
 #[invariant(temperature.is_finite() && (0.0..=2.0).contains(temperature), "temperature must be finite and between 0 and 2")]
 #[invariant(!system_prompt.trim().is_empty(), "participant system prompts cannot be empty")]
-#[invariant(!private_brief.trim().is_empty(), "participant private briefs cannot be empty")]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ParticipantConfig {
@@ -33,7 +32,6 @@ pub struct ParticipantConfig {
     pub prompt_caching: PromptCaching,
     pub temperature: f64,
     pub system_prompt: String,
-    pub private_brief: String,
 }
 
 /// Hard limits that make a run bounded and reviewable.
@@ -114,14 +112,12 @@ name = "alice"
 model = "example/alice"
 temperature = 0.4
 system-prompt = "Speak only Lojban."
-private-brief = "You can attend on Tuesday."
 
 [[participants]]
 name = "bob"
 model = "example/bob"
 temperature = 0.6
 system-prompt = "Speak only Lojban."
-private-brief = "You can attend after noon."
 "#;
 
     #[test]
@@ -149,6 +145,20 @@ private-brief = "You can attend after noon."
         let config = RunConfig::from_toml(&source).expect("valid config");
         assert_eq!(config.participants[0].prompt_caching, PromptCaching::Off);
         assert_eq!(config.participants[1].prompt_caching, PromptCaching::Auto);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn participant_private_brief_is_rejected_as_an_unknown_field() {
+        let invalid = VALID_CONFIG.replacen(
+            "system-prompt = \"Speak only Lojban.\"",
+            "system-prompt = \"Speak only Lojban.\"\nprivate-brief = \"obsolete\"",
+            1,
+        );
+        let error = RunConfig::from_toml(&invalid).expect_err("removed field must be rejected");
+        assert!(matches!(error, ConfigError::Toml(_)));
+        assert!(error.to_string().contains("unknown field `private-brief`"));
     }
 
     #[test]

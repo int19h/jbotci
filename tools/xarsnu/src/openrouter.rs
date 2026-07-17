@@ -732,30 +732,52 @@ pub struct ParticipantConversation {
 }
 
 impl ParticipantConversation {
-    /// Seed a participant's private channel with its persona and private brief.
+    /// Seed a participant's private channel with its persona.
+    ///
+    /// The scenario runner appends the public setup and participant-scoped
+    /// scenario brief before the first model call.
     #[requires(true)]
-    #[ensures(ret.messages.len() == 2)]
+    #[ensures(ret.messages.len() == 1)]
     pub fn new(participant: &crate::ParticipantConfig) -> Self {
+        Self::from_system_prompt(
+            participant.name.clone(),
+            participant.model.clone(),
+            participant.prompt_caching,
+            participant.temperature,
+            participant.system_prompt.clone(),
+        )
+    }
+
+    /// Seed a participant with an explicitly composed system prompt.
+    #[requires(!participant_name.trim().is_empty())]
+    #[requires(!model.trim().is_empty())]
+    #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
+    #[requires(!system_prompt.trim().is_empty())]
+    #[ensures(ret.messages.len() == 1)]
+    pub fn from_system_prompt(
+        participant_name: String,
+        model: String,
+        prompt_caching: PromptCaching,
+        temperature: f64,
+        system_prompt: String,
+    ) -> Self {
         Self {
-            participant_name: participant.name.clone(),
-            model: participant.model.clone(),
-            prompt_caching: participant.prompt_caching,
-            temperature: participant.temperature,
-            messages: vec![
-                ChatMessage::system(participant.system_prompt.clone()),
-                ChatMessage::user(participant.private_brief.clone()),
-            ],
+            participant_name,
+            model,
+            prompt_caching,
+            temperature,
+            messages: vec![ChatMessage::system(system_prompt)],
             usage: UsageTotals::default(),
             pending_usage: Vec::new(),
         }
     }
 
-    /// Seed a conversation directly, primarily for protocol composition and offline tests.
+    /// Seed a conversation directly, primarily for lower-level runtime tests.
     #[requires(!participant_name.trim().is_empty())]
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
     #[requires(!system_prompt.trim().is_empty())]
-    #[requires(!private_brief.trim().is_empty())]
+    #[requires(!initial_user_prompt.trim().is_empty())]
     #[ensures(ret.messages.len() == 2)]
     pub fn from_parts(
         participant_name: String,
@@ -763,7 +785,7 @@ impl ParticipantConversation {
         prompt_caching: PromptCaching,
         temperature: f64,
         system_prompt: String,
-        private_brief: String,
+        initial_user_prompt: String,
     ) -> Self {
         Self {
             participant_name,
@@ -772,7 +794,7 @@ impl ParticipantConversation {
             temperature,
             messages: vec![
                 ChatMessage::system(system_prompt),
-                ChatMessage::user(private_brief),
+                ChatMessage::user(initial_user_prompt),
             ],
             usage: UsageTotals::default(),
             pending_usage: Vec::new(),
