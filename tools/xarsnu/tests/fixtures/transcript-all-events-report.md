@@ -225,6 +225,7 @@ Aggregate: **partial**
 - Protocol errors: 1
 - Forfeits: 1
 - Budget aborts: 1
+- Runtime failures: 0
 
 ### Usage
 

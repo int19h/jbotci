@@ -99,13 +99,12 @@ impl fmt::Debug for TranscriptWriter {
 }
 
 impl TranscriptWriter {
-    /// Create or truncate a transcript file. The caller must append a header first.
+    /// Create a new transcript file without replacing an existing artifact.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|writer| writer.next_sequence == 0) || ret.is_err())]
     pub fn create(path: &Path) -> Result<Self, TranscriptError> {
         let file = OpenOptions::new()
-            .create(true)
-            .truncate(true)
+            .create_new(true)
             .write(true)
             .open(path)
             .map_err(|error| TranscriptError::io(0, error))?;
@@ -200,7 +199,7 @@ pub fn read_transcript(path: &Path) -> Result<Vec<TranscriptRecord>, TranscriptE
     }
     if !records
         .last()
-        .is_some_and(|record| record.event.is_run_finished())
+        .is_some_and(|record| record.event.is_terminal())
     {
         return Err(new!(TranscriptError {
             line: records.len(),
@@ -305,7 +304,7 @@ impl fmt::Display for TranscriptError {
             bityzba::data!(TranscriptErrorKind::Truncated) => {
                 write!(
                     formatter,
-                    "transcript is truncated {location}: no run-finished event"
+                    "transcript is truncated {location}: no terminal event"
                 )
             }
         }
@@ -313,3 +312,38 @@ impl fmt::Display for TranscriptError {
 }
 
 impl std::error::Error for TranscriptError {}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn transcript_creation_never_replaces_an_existing_artifact() {
+        let executable = std::env::current_exe().expect("current test executable");
+        let target_directory = executable
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .expect("Cargo target directory");
+        let directory = target_directory.join("xarsnu-test-tmp");
+        fs::create_dir_all(&directory).expect("create target temporary directory");
+        let path = directory.join(format!("xarsnu-no-overwrite-{}.jsonl", std::process::id()));
+        fs::write(&path, b"sentinel\n").expect("write existing artifact");
+
+        let error = TranscriptWriter::create(&path).expect_err("existing path must be preserved");
+
+        assert!(matches!(
+            error.kind.as_data(),
+            bityzba::data!(TranscriptErrorKind::Io { .. })
+        ));
+        assert_eq!(
+            fs::read(&path).expect("read existing artifact"),
+            b"sentinel\n"
+        );
+        fs::remove_file(path).expect("remove existing artifact");
+    }
+}

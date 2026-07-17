@@ -321,6 +321,23 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 )
                 .expect("writing to String cannot fail");
             }
+            bityzba::data!(ProtocolEvent::RunFailed { failure }) => {
+                writeln!(
+                    report,
+                    "## Runtime failure\n\nCall site: **{}**\n\nTurn: {}\n",
+                    failure.call_site.as_str(),
+                    failure.turn_number,
+                )
+                .expect("writing to String cannot fail");
+                if let Some(participant) = &failure.participant {
+                    writeln!(report, "Participant: `{participant}`\n")
+                        .expect("writing to String cannot fail");
+                }
+                report.push_str("Error:\n\n");
+                quote(&mut report, &failure.message);
+                report.push('\n');
+                summary.runtime_failures += 1;
+            }
         }
     }
 
@@ -341,6 +358,7 @@ struct ReportSummary {
     protocol_errors: usize,
     forfeits: usize,
     aborts: usize,
+    runtime_failures: usize,
     task_status: Option<TaskStatus>,
     task_outcomes: BTreeMap<String, Option<bool>>,
     usage_by_participant: BTreeMap<String, UsageTotals>,
@@ -417,8 +435,8 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
 
     writeln!(
         report,
-        "\n### Protocol stops\n\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}",
-        summary.protocol_errors, summary.forfeits, summary.aborts
+        "\n### Protocol stops\n\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}\n- Runtime failures: {}",
+        summary.protocol_errors, summary.forfeits, summary.aborts, summary.runtime_failures
     )
     .expect("writing to String cannot fail");
 

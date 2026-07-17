@@ -371,6 +371,56 @@ pub enum TurnForfeitReason {
     IntentRevisions { maximum: usize },
 }
 
+/// In-process operation that failed after a run had started.
+#[invariant(::ProtocolConfiguration => true)]
+#[invariant(::ToolDefinitions => true)]
+#[invariant(::ModelRequest => true)]
+#[invariant(::JbotciGate => true)]
+#[invariant(::TersmuRendering => true)]
+#[invariant(::TranscriptWrite => true)]
+#[invariant(::RunnerReuse => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeFailureSite {
+    ProtocolConfiguration,
+    ToolDefinitions,
+    ModelRequest,
+    JbotciGate,
+    TersmuRendering,
+    TranscriptWrite,
+    RunnerReuse,
+}
+
+impl RuntimeFailureSite {
+    /// Stable human-readable call-site name.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ProtocolConfiguration => "protocol configuration",
+            Self::ToolDefinitions => "tool definition construction",
+            Self::ModelRequest => "model request",
+            Self::JbotciGate => "jbotci gate",
+            Self::TersmuRendering => "tersmu rendering",
+            Self::TranscriptWrite => "transcript write",
+            Self::RunnerReuse => "runner reuse",
+        }
+    }
+}
+
+/// Terminal record for an orderly run that stopped on a runtime error.
+#[invariant(*turn_number > 0)]
+#[invariant(participant.as_ref().is_none_or(|name| !name.trim().is_empty()))]
+#[invariant(!message.trim().is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RuntimeFailureRecord {
+    pub turn_number: usize,
+    pub participant: Option<String>,
+    pub call_site: RuntimeFailureSite,
+    pub message: String,
+}
+
 /// Typed private event stream consumed by the later transcript layer.
 #[invariant(::RunStarted { .. } => true)]
 #[invariant(::TurnStarted { turn_number, speaker } => *turn_number > 0 && !speaker.trim().is_empty())]
@@ -391,6 +441,7 @@ pub enum TurnForfeitReason {
 #[invariant(::UsageRecorded { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
 #[invariant(::RunAborted { .. } => true)]
 #[invariant(::RunFinished { .. } => true)]
+#[invariant(::RunFailed { failure } => failure.turn_number > 0 && !failure.message.trim().is_empty())]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum ProtocolEvent {
@@ -498,6 +549,9 @@ pub enum ProtocolEvent {
     RunFinished {
         outcome: ProtocolRunOutcome,
     },
+    RunFailed {
+        failure: RuntimeFailureRecord,
+    },
 }
 
 impl ProtocolEvent {
@@ -511,13 +565,14 @@ impl ProtocolEvent {
         )
     }
 
-    /// Whether this event closes a complete transcript.
+    /// Whether this event closes an orderly-shutdown transcript.
     #[requires(true)]
-    #[ensures(ret == matches!(self.as_data(), bityzba::data!(ProtocolEvent::RunFinished { .. })))]
-    pub(crate) fn is_run_finished(&self) -> bool {
+    #[ensures(ret == matches!(self.as_data(), bityzba::data!(ProtocolEvent::RunFinished { .. }) | bityzba::data!(ProtocolEvent::RunFailed { .. })))]
+    pub(crate) fn is_terminal(&self) -> bool {
         matches!(
             self.as_data(),
             bityzba::data!(ProtocolEvent::RunFinished { .. })
+                | bityzba::data!(ProtocolEvent::RunFailed { .. })
         )
     }
 
@@ -557,6 +612,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::ProtocolError { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. }) => None,
             bityzba::data!(ProtocolEvent::RunFinished { outcome }) => Some(outcome.turns().max(1)),
+            bityzba::data!(ProtocolEvent::RunFailed { failure }) => Some(failure.turn_number),
         }
     }
 
@@ -583,7 +639,8 @@ impl ProtocolEvent {
             bityzba::data!(ProtocolEvent::RunStarted { .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. })
-            | bityzba::data!(ProtocolEvent::RunFinished { .. }) => "harness",
+            | bityzba::data!(ProtocolEvent::RunFinished { .. })
+            | bityzba::data!(ProtocolEvent::RunFailed { .. }) => "harness",
         }
     }
 }
@@ -836,19 +893,21 @@ pub struct OpenRouterParticipant<'client> {
 }
 
 impl<'client> OpenRouterParticipant<'client> {
-    /// Build a live participant with persona, private brief, and standing rules.
+    /// Build a live participant with its persona and standing rules.
+    ///
+    /// [`ProtocolRunner::new_with_scenario`] supplies the sole scenario brief
+    /// before the first request.
     #[requires(true)]
     #[ensures(ret.conversation.participant_name() == participant.name)]
     pub fn new(participant: &ParticipantConfig, client: &'client OpenRouterClient) -> Self {
         let system_prompt = format!("{}\n\n{STANDING_PROTOCOL_RULES}", participant.system_prompt);
         Self {
-            conversation: ParticipantConversation::from_parts(
+            conversation: ParticipantConversation::from_system_prompt(
                 participant.name.clone(),
                 participant.model.clone(),
                 participant.prompt_caching,
                 participant.temperature,
                 system_prompt,
-                participant.private_brief.clone(),
             ),
             client,
         }
@@ -1032,6 +1091,40 @@ impl fmt::Display for ProtocolRunError {
 }
 
 impl std::error::Error for ProtocolRunError {}
+
+impl ProtocolRunError {
+    #[requires(turn_number > 0)]
+    #[ensures(ret.turn_number == turn_number)]
+    fn runtime_failure(&self, turn_number: usize) -> RuntimeFailureRecord {
+        let (participant, call_site) = match self.as_data() {
+            bityzba::data!(ProtocolRunError::InvalidConfiguration { .. }) => {
+                (None, RuntimeFailureSite::ProtocolConfiguration)
+            }
+            bityzba::data!(ProtocolRunError::ToolDefinitions { .. }) => {
+                (None, RuntimeFailureSite::ToolDefinitions)
+            }
+            bityzba::data!(ProtocolRunError::Model { participant, .. }) => {
+                (Some(participant.clone()), RuntimeFailureSite::ModelRequest)
+            }
+            bityzba::data!(ProtocolRunError::Gate { participant, .. }) => {
+                (Some(participant.clone()), RuntimeFailureSite::JbotciGate)
+            }
+            bityzba::data!(ProtocolRunError::InvalidTersmuEncoding { .. }) => {
+                (None, RuntimeFailureSite::TersmuRendering)
+            }
+            bityzba::data!(ProtocolRunError::Transcript { .. }) => {
+                (None, RuntimeFailureSite::TranscriptWrite)
+            }
+            bityzba::data!(ProtocolRunError::AlreadyRun) => (None, RuntimeFailureSite::RunnerReuse),
+        };
+        new!(RuntimeFailureRecord {
+            turn_number,
+            participant,
+            call_site,
+            message: self.to_string(),
+        })
+    }
+}
 
 #[invariant(
     true,
@@ -1296,10 +1389,16 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         }
         self.has_run = true;
         let result = self.run_inner();
-        if let Ok(outcome) = &result {
-            self.events.push(new!(ProtocolEvent::RunFinished {
+        match &result {
+            Ok(outcome) => self.events.push(new!(ProtocolEvent::RunFinished {
                 outcome: outcome.clone(),
-            }));
+            })),
+            Err(error) if self.turns_started > 0 => {
+                self.events.push(new!(ProtocolEvent::RunFailed {
+                    failure: error.runtime_failure(self.turns_started),
+                }));
+            }
+            Err(_) => {}
         }
         if let Some(error) = self.events.take_write_error() {
             return Err(new!(ProtocolRunError::Transcript {

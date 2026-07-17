@@ -1,4 +1,6 @@
 use std::collections::{BTreeSet, VecDeque};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
@@ -13,6 +15,20 @@ use xarsnu::{
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
+
+#[requires(!name.trim().is_empty())]
+#[ensures(ret.file_name().is_some())]
+fn temp_path(name: &str) -> PathBuf {
+    let executable = std::env::current_exe().expect("current test executable");
+    let target_directory = executable
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .expect("Cargo target directory");
+    let directory = target_directory.join("xarsnu-test-tmp");
+    fs::create_dir_all(&directory).expect("create target temporary directory");
+    directory.join(format!("xarsnu-{name}-{}.jsonl", std::process::id()))
+}
 
 #[invariant(!tool_name.trim().is_empty())]
 #[invariant(arguments.is_object())]
@@ -934,7 +950,6 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                     prompt_caching: xarsnu::PromptCaching::Auto,
                     temperature: 0.25,
                     system_prompt: "Use the gated protocol.".to_owned(),
-                    private_brief: format!("Private English brief for {name}."),
                 }))
                 .collect(),
             scenario: "schedule-negotiation-1.toml".to_owned(),
@@ -944,10 +959,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
         &scenario,
     )
     .expect("transcript header");
-    let transcript_path = std::env::temp_dir().join(format!(
-        "xarsnu-protocol-transcript-{}.jsonl",
-        std::process::id()
-    ));
+    let transcript_path = temp_path("protocol-transcript");
     let mut runner = ProtocolRunner::new_with_scenario(
         vec![alice, bob],
         caps(3, 2, 6),
