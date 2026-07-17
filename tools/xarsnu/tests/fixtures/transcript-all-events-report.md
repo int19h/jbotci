@@ -156,6 +156,22 @@ Result:
 
 > klama: to go or come
 
+### Repeated reference lookup — `alice` / `vlacku`
+
+Exact-query occurrence: **2**; reference calls remaining in phase: **14**.
+
+### Reference-call budget exhausted — `alice`
+
+Phase maximum: **16**; reference tools withdrawn.
+
+### Reference-research nudge — `alice`
+
+Consecutive reference calls: **6**
+
+Correction:
+
+> Reference research has not advanced the protocol. Current phase protocol tools: `register_intent`, `submit_lojban`. Current phase intent: compose or revise Lojban for the registered intent and submit it. Use a protocol tool now unless another reference lookup is essential.
+
 ### Protocol error — `bob` / `submit_lojban`
 
 > tool is not legal in the listener phase
@@ -214,6 +230,12 @@ Aggregate: **partial**
 
 - Intent revisions: 1
 - Confirmation mismatches: 1
+
+### Reference-loop mitigations
+
+- Memoized repeats: 1
+- Phase budgets exhausted: 1
+- Idle-research nudges: 1
 
 ### Divergence flags
 

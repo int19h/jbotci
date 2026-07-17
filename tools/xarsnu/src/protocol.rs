@@ -193,6 +193,35 @@ impl ProtocolPhase {
             Self::Listener { phase } => phase.allows(tool, submit_answer_available),
         }
     }
+
+    /// Human-readable goal of the current protocol state for corrective nudges.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    const fn intent(self) -> &'static str {
+        match self {
+            Self::Speaker {
+                phase: SpeakerPhase::AwaitingIntent,
+            } => "register the intended meaning before composing Lojban",
+            Self::Speaker {
+                phase: SpeakerPhase::Composing,
+            } => "compose or revise Lojban for the registered intent and submit it",
+            Self::Speaker {
+                phase: SpeakerPhase::AwaitingConfirmation,
+            } => "compare the accepted tersmu rendering with the registered intent",
+            Self::Speaker {
+                phase: SpeakerPhase::Posted,
+            } => "complete any available scenario answer",
+            Self::Listener {
+                phase: ListenerPhase::BlindInterpretation,
+            } => "commit an interpretation of the visible Lojban before seeing tersmu",
+            Self::Listener {
+                phase: ListenerPhase::TersmuRevealed,
+            } => "record final understanding after comparing the tersmu rendering",
+            Self::Listener {
+                phase: ListenerPhase::Acknowledged,
+            } => "complete any available scenario answer",
+        }
+    }
 }
 
 /// A confirmed visible-channel message. It cannot carry English private data.
@@ -434,6 +463,9 @@ pub struct RuntimeFailureRecord {
 #[invariant(::TersmuRevealed { turn_number, speaker, listener, message } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::Acknowledged { turn_number, speaker, listener, final_understanding_en, discrepancies } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !final_understanding_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[invariant(::ReferenceToolCompleted { participant, tool_name, arguments, result, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !arguments.trim().is_empty() && !result.is_empty())]
+#[invariant(::ReferenceLookupRepeated { participant, tool_name, arguments, repeat_number, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !arguments.trim().is_empty() && *repeat_number >= 2)]
+#[invariant(::ReferenceCallBudgetExhausted { participant, maximum, .. } => !participant.trim().is_empty() && *maximum > 0)]
+#[invariant(::ReferenceResearchNudge { participant, consecutive_calls, message, .. } => !participant.trim().is_empty() && *consecutive_calls > 0 && !message.trim().is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::TurnForfeited { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]
 #[invariant(::AnswerSubmitted { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
@@ -517,6 +549,25 @@ pub enum ProtocolEvent {
         arguments: String,
         result: String,
         succeeded: bool,
+    },
+    ReferenceLookupRepeated {
+        participant: String,
+        phase: ProtocolPhase,
+        tool_name: String,
+        arguments: String,
+        repeat_number: usize,
+        remaining_calls: usize,
+    },
+    ReferenceCallBudgetExhausted {
+        participant: String,
+        phase: ProtocolPhase,
+        maximum: usize,
+    },
+    ReferenceResearchNudge {
+        participant: String,
+        phase: ProtocolPhase,
+        consecutive_calls: usize,
+        message: String,
     },
     ProtocolError {
         participant: String,
@@ -609,6 +660,9 @@ impl ProtocolEvent {
                 Some(*turn_number)
             }
             bityzba::data!(ProtocolEvent::ReferenceToolCompleted { .. })
+            | bityzba::data!(ProtocolEvent::ReferenceLookupRepeated { .. })
+            | bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted { .. })
+            | bityzba::data!(ProtocolEvent::ReferenceResearchNudge { .. })
             | bityzba::data!(ProtocolEvent::ProtocolError { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. }) => None,
             bityzba::data!(ProtocolEvent::RunFinished { outcome }) => Some(outcome.turns().max(1)),
@@ -633,6 +687,9 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::TersmuRevealed { listener, .. })
             | bityzba::data!(ProtocolEvent::Acknowledged { listener, .. }) => listener,
             bityzba::data!(ProtocolEvent::ReferenceToolCompleted { participant, .. })
+            | bityzba::data!(ProtocolEvent::ReferenceLookupRepeated { participant, .. })
+            | bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted { participant, .. })
+            | bityzba::data!(ProtocolEvent::ReferenceResearchNudge { participant, .. })
             | bityzba::data!(ProtocolEvent::ProtocolError { participant, .. })
             | bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. })
             | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. }) => participant,
@@ -707,12 +764,13 @@ impl ProtocolTools {
         Ok(definitions)
     }
 
-    /// Exactly the legal phase tools plus all five reference tools.
+    /// Exactly the legal phase tools, plus reference tools while their budget remains.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|definitions| definitions.len() >= 5) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|definitions| !reference_tools_available || definitions.len() >= 5) || ret.is_err())]
     pub fn definitions_for_phase(
         phase: ProtocolPhase,
         answer_schema: Option<&Value>,
+        reference_tools_available: bool,
     ) -> Result<Vec<ToolDefinition>, ToolDefinitionError> {
         let answer_available = answer_schema.is_some();
         let mut definitions = Self::definitions(answer_schema)?
@@ -721,7 +779,9 @@ impl ProtocolTools {
                 phase.allows(tool, answer_available).then_some(definition)
             })
             .collect::<Vec<_>>();
-        definitions.extend(ReferenceTools::definitions()?);
+        if reference_tools_available {
+            definitions.extend(ReferenceTools::definitions()?);
+        }
         Ok(definitions)
     }
 }
@@ -1181,6 +1241,92 @@ impl ProtocolEventLog {
     }
 }
 
+/// Exact wire identity of one reference lookup within a protocol phase.
+#[invariant(!tool_name.trim().is_empty())]
+#[invariant(!arguments.trim().is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ReferenceLookupKey {
+    tool_name: String,
+    arguments: String,
+}
+
+/// First executed result retained for exact duplicate lookups in one phase.
+#[invariant(!result.is_empty())]
+#[invariant(*occurrences > 0)]
+#[derive(Debug, Clone)]
+struct ReferenceMemoEntry {
+    result: String,
+    succeeded: bool,
+    occurrences: usize,
+}
+
+/// Per-phase protocol state for bounded, loop-aware reference research.
+#[invariant(
+    true,
+    "all mutations are centralized in enter_phase, record_protocol_call, and dispatch_reference"
+)]
+#[derive(Debug)]
+struct ReferencePhaseState {
+    phase: ProtocolPhase,
+    calls: usize,
+    consecutive_calls: usize,
+    nudge_sent: bool,
+    memo: BTreeMap<ReferenceLookupKey, ReferenceMemoEntry>,
+}
+
+impl ReferencePhaseState {
+    /// Start tracking the initial protocol phase.
+    #[requires(true)]
+    #[ensures(ret.phase == phase)]
+    #[ensures(ret.calls == 0 && ret.consecutive_calls == 0 && ret.memo.is_empty())]
+    fn new(phase: ProtocolPhase) -> Self {
+        Self {
+            phase,
+            calls: 0,
+            consecutive_calls: 0,
+            nudge_sent: false,
+            memo: BTreeMap::new(),
+        }
+    }
+
+    /// Reset every reference concern when the typed protocol state changes.
+    #[requires(true)]
+    #[ensures(self.phase == phase)]
+    fn enter_phase(&mut self, phase: ProtocolPhase) {
+        if self.phase != phase {
+            self.phase = phase;
+            self.calls = 0;
+            self.consecutive_calls = 0;
+            self.nudge_sent = false;
+            self.memo.clear();
+        }
+    }
+
+    /// Whether the current phase may still offer the reference tools.
+    #[requires(maximum > 0)]
+    #[ensures(ret == (self.calls < maximum))]
+    fn reference_tools_available(&self, maximum: usize) -> bool {
+        self.calls < maximum
+    }
+
+    /// Break a run of idle research after any recognized protocol-tool call.
+    #[requires(true)]
+    #[ensures(self.phase == phase && self.consecutive_calls == 0)]
+    fn record_protocol_call(&mut self, phase: ProtocolPhase) {
+        self.enter_phase(phase);
+        self.consecutive_calls = 0;
+    }
+}
+
+/// One reference result plus an optional model-facing phase correction.
+#[invariant(!content.is_empty())]
+#[invariant(corrective_message.as_ref().is_none_or(|message| !message.trim().is_empty()))]
+#[derive(Debug)]
+struct ReferenceDispatch {
+    content: String,
+    corrective_message: Option<String>,
+}
+
 /// Sequential round-robin protocol runner.
 #[invariant(true, "validated on construction and mutated only through run")]
 #[derive(Debug)]
@@ -1550,17 +1696,25 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             .participant_name()
             .to_owned();
         let mut state = SpeakerState::awaiting_intent();
+        let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Speaker {
+            phase: state.phase(),
+        });
         loop {
             let phase = ProtocolPhase::Speaker {
                 phase: state.phase(),
             };
+            reference_state.enter_phase(phase);
             let answer_schema = self.answer_schema_if_available(turn_number, &speaker);
-            let tools = ProtocolTools::definitions_for_phase(phase, answer_schema.as_ref())
-                .map_err(|error| {
-                    new!(ProtocolRunError::ToolDefinitions {
-                        message: error.to_string(),
-                    })
-                })?;
+            let tools = ProtocolTools::definitions_for_phase(
+                phase,
+                answer_schema.as_ref(),
+                reference_state.reference_tools_available(self.caps.max_reference_calls_per_phase),
+            )
+            .map_err(|error| {
+                new!(ProtocolRunError::ToolDefinitions {
+                    message: error.to_string(),
+                })
+            })?;
             let request = self.participants[speaker_index].request(
                 &tools,
                 ToolChoice::Required,
@@ -1576,6 +1730,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             if let Some(calls) = turn.tool_calls() {
                 let calls = calls.to_vec();
                 let mut outcome = None;
+                let mut corrective_messages = Vec::new();
                 for call in &calls {
                     let action = if outcome.is_some() {
                         let phase = ProtocolPhase::Speaker {
@@ -1592,18 +1747,33 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                             ),
                         })
                     } else if is_reference_tool(&call.function.name) {
-                        new!(SpeakerAction::Continue {
-                            content: dispatch_reference(
-                                &mut self.reference_dispatcher,
-                                &mut self.events,
-                                &speaker,
-                                ProtocolPhase::Speaker {
-                                    phase: state.phase(),
-                                },
-                                call,
-                            ),
-                        })
+                        let dispatch = dispatch_reference(
+                            &mut self.reference_dispatcher,
+                            &mut self.events,
+                            &speaker,
+                            ProtocolPhase::Speaker {
+                                phase: state.phase(),
+                            },
+                            call,
+                            &mut reference_state,
+                            &self.caps,
+                            answer_schema.is_some(),
+                        );
+                        let bityzba::data!(ReferenceDispatch {
+                            content,
+                            corrective_message,
+                        }) = dispatch.into_data();
+                        if let Some(message) = corrective_message {
+                            corrective_messages.push(message);
+                        }
+                        new!(SpeakerAction::Continue { content })
                     } else {
+                        if ProtocolTool::from_name(&call.function.name).is_some() {
+                            reference_state.record_protocol_call(ProtocolPhase::Speaker {
+                                phase: state.phase(),
+                            });
+                            corrective_messages.clear();
+                        }
                         self.dispatch_speaker_protocol(turn_number, &speaker, &mut state, call)?
                     };
                     let content = action.content().to_owned();
@@ -1621,6 +1791,11 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         bityzba::data!(SpeakerAction::ScenarioCompleted { .. }) => {
                             outcome = Some(new!(SpeakerOutcome::ScenarioCompleted));
                         }
+                    }
+                }
+                if outcome.is_none() {
+                    for message in corrective_messages {
+                        self.participants[speaker_index].push_user(message);
                     }
                 }
                 if let Some(outcome) = outcome {
@@ -1663,17 +1838,25 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         let blind = message.blind();
         self.participants[listener_index].push_user(blind.prompt());
         let mut state = ListenerState::blind(blind);
+        let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Listener {
+            phase: state.phase(),
+        });
         loop {
             let phase = ProtocolPhase::Listener {
                 phase: state.phase(),
             };
+            reference_state.enter_phase(phase);
             let answer_schema = self.answer_schema_if_available(turn_number, &listener);
-            let tools = ProtocolTools::definitions_for_phase(phase, answer_schema.as_ref())
-                .map_err(|error| {
-                    new!(ProtocolRunError::ToolDefinitions {
-                        message: error.to_string(),
-                    })
-                })?;
+            let tools = ProtocolTools::definitions_for_phase(
+                phase,
+                answer_schema.as_ref(),
+                reference_state.reference_tools_available(self.caps.max_reference_calls_per_phase),
+            )
+            .map_err(|error| {
+                new!(ProtocolRunError::ToolDefinitions {
+                    message: error.to_string(),
+                })
+            })?;
             let request = self.participants[listener_index].request(
                 &tools,
                 ToolChoice::Required,
@@ -1690,6 +1873,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 let calls = calls.to_vec();
                 let mut acknowledged = false;
                 let mut scenario_completed = false;
+                let mut corrective_messages = Vec::new();
                 for call in &calls {
                     let action = if acknowledged || scenario_completed {
                         new!(ListenerAction::Continue {
@@ -1705,18 +1889,33 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                             ),
                         })
                     } else if is_reference_tool(&call.function.name) {
-                        new!(ListenerAction::Continue {
-                            content: dispatch_reference(
-                                &mut self.reference_dispatcher,
-                                &mut self.events,
-                                &listener,
-                                ProtocolPhase::Listener {
-                                    phase: state.phase(),
-                                },
-                                call,
-                            ),
-                        })
+                        let dispatch = dispatch_reference(
+                            &mut self.reference_dispatcher,
+                            &mut self.events,
+                            &listener,
+                            ProtocolPhase::Listener {
+                                phase: state.phase(),
+                            },
+                            call,
+                            &mut reference_state,
+                            &self.caps,
+                            answer_schema.is_some(),
+                        );
+                        let bityzba::data!(ReferenceDispatch {
+                            content,
+                            corrective_message,
+                        }) = dispatch.into_data();
+                        if let Some(message) = corrective_message {
+                            corrective_messages.push(message);
+                        }
+                        new!(ListenerAction::Continue { content })
                     } else {
+                        if ProtocolTool::from_name(&call.function.name).is_some() {
+                            reference_state.record_protocol_call(ProtocolPhase::Listener {
+                                phase: state.phase(),
+                            });
+                            corrective_messages.clear();
+                        }
                         self.dispatch_listener_protocol(
                             turn_number,
                             speaker,
@@ -1739,6 +1938,11 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         bityzba::data!(ListenerAction::ScenarioCompleted { .. }) => {
                             scenario_completed = true;
                         }
+                    }
+                }
+                if !acknowledged && !scenario_completed {
+                    for message in corrective_messages {
+                        self.participants[listener_index].push_user(message);
                     }
                 }
                 if scenario_completed {
@@ -2429,25 +2633,85 @@ fn record_protocol_error(
 
 #[requires(!participant.trim().is_empty())]
 #[requires(is_reference_tool(&call.function.name))]
-#[ensures(!ret.is_empty())]
+#[ensures(!ret.content.is_empty())]
 fn dispatch_reference(
     dispatcher: &mut impl ToolDispatcher,
     events: &mut ProtocolEventLog,
     participant: &str,
     phase: ProtocolPhase,
     call: &ToolCall,
-) -> String {
-    let (result, succeeded) = match dispatcher.dispatch(call) {
-        Ok(result) if !result.is_empty() => (result, true),
-        Ok(_) => (
-            format!(
-                "Reference tool `{}` returned an empty result.",
-                call.function.name
+    reference_state: &mut ReferencePhaseState,
+    caps: &CapsConfig,
+    submit_answer_available: bool,
+) -> ReferenceDispatch {
+    reference_state.enter_phase(phase);
+    if !reference_state.reference_tools_available(caps.max_reference_calls_per_phase) {
+        return new!(ReferenceDispatch {
+            content: record_protocol_error(
+                events,
+                participant,
+                phase,
+                &call.function.name,
+                reference_budget_message(caps.max_reference_calls_per_phase),
             ),
-            false,
-        ),
-        Err(error) => (error.to_string(), false),
+            corrective_message: None,
+        });
+    }
+
+    reference_state.calls += 1;
+    reference_state.consecutive_calls += 1;
+    let remaining_calls = caps
+        .max_reference_calls_per_phase
+        .saturating_sub(reference_state.calls);
+    let key = new!(ReferenceLookupKey {
+        tool_name: call.function.name.clone(),
+        arguments: call.function.arguments.clone(),
+    });
+
+    let execution = if caps.reference_dedupe {
+        if let Some(prior) = reference_state.memo.get(&key) {
+            let repeat_number = prior.occurrences + 1;
+            let result = prior.result.clone();
+            let succeeded = prior.succeeded;
+            reference_state.memo.insert(
+                key.clone(),
+                new!(ReferenceMemoEntry {
+                    result: result.clone(),
+                    succeeded,
+                    occurrences: repeat_number,
+                }),
+            );
+            events.push(new!(ProtocolEvent::ReferenceLookupRepeated {
+                participant: participant.to_owned(),
+                phase,
+                tool_name: call.function.name.clone(),
+                arguments: call.function.arguments.clone(),
+                repeat_number,
+                remaining_calls,
+            }));
+            new!(ReferenceExecution {
+                result: format!(
+                    "(repeat lookup #{repeat_number} of this exact query this phase — the result has not changed; you have {remaining_calls} reference calls left)\n{result}"
+                ),
+                succeeded,
+            })
+        } else {
+            let execution = execute_reference(dispatcher, call);
+            reference_state.memo.insert(
+                key,
+                new!(ReferenceMemoEntry {
+                    result: execution.result.clone(),
+                    succeeded: execution.succeeded,
+                    occurrences: 1,
+                }),
+            );
+            execution
+        }
+    } else {
+        execute_reference(dispatcher, call)
     };
+
+    let bityzba::data!(ReferenceExecution { result, succeeded }) = execution.into_data();
     events.push(new!(ProtocolEvent::ReferenceToolCompleted {
         participant: participant.to_owned(),
         phase,
@@ -2456,7 +2720,87 @@ fn dispatch_reference(
         result: result.clone(),
         succeeded,
     }));
-    result
+
+    let corrective_message = if reference_state.calls == caps.max_reference_calls_per_phase {
+        events.push(new!(ProtocolEvent::ReferenceCallBudgetExhausted {
+            participant: participant.to_owned(),
+            phase,
+            maximum: caps.max_reference_calls_per_phase,
+        }));
+        Some(reference_budget_message(caps.max_reference_calls_per_phase))
+    } else if !reference_state.nudge_sent
+        && reference_state.consecutive_calls == caps.reference_nudge_after
+    {
+        reference_state.nudge_sent = true;
+        let message = reference_nudge_message(phase, submit_answer_available);
+        events.push(new!(ProtocolEvent::ReferenceResearchNudge {
+            participant: participant.to_owned(),
+            phase,
+            consecutive_calls: reference_state.consecutive_calls,
+            message: message.clone(),
+        }));
+        Some(message)
+    } else {
+        None
+    };
+
+    new!(ReferenceDispatch {
+        content: result,
+        corrective_message,
+    })
+}
+
+/// One actual call through the production reference dispatcher.
+#[invariant(!result.is_empty())]
+#[derive(Debug)]
+struct ReferenceExecution {
+    result: String,
+    succeeded: bool,
+}
+
+#[requires(is_reference_tool(&call.function.name))]
+#[ensures(!ret.result.is_empty())]
+fn execute_reference(dispatcher: &mut impl ToolDispatcher, call: &ToolCall) -> ReferenceExecution {
+    match dispatcher.dispatch(call) {
+        Ok(result) if !result.is_empty() => new!(ReferenceExecution {
+            result,
+            succeeded: true,
+        }),
+        Ok(_) => new!(ReferenceExecution {
+            result: format!(
+                "Reference tool `{}` returned an empty result.",
+                call.function.name
+            ),
+            succeeded: false,
+        }),
+        Err(error) => new!(ReferenceExecution {
+            result: error.to_string(),
+            succeeded: false,
+        }),
+    }
+}
+
+#[requires(maximum > 0)]
+#[ensures(!ret.is_empty())]
+fn reference_budget_message(maximum: usize) -> String {
+    format!(
+        "The reference-call budget for this phase is spent ({maximum}/{maximum}). Reference tools are now unavailable; composition or interpretation must proceed with what is already known. Call one of the current phase's protocol tools."
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn reference_nudge_message(phase: ProtocolPhase, submit_answer_available: bool) -> String {
+    let tools = ProtocolTool::ALL
+        .into_iter()
+        .filter(|tool| phase.allows(*tool, submit_answer_available))
+        .map(|tool| format!("`{}`", tool.name()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "Reference research has not advanced the protocol. Current phase protocol tools: {tools}. Current phase intent: {}. Use a protocol tool now unless another reference lookup is essential.",
+        phase.intent()
+    )
 }
 
 #[requires(true)]
@@ -2499,60 +2843,64 @@ mod tests {
             "required": ["scene_index"]
         });
         for submit_answer_available in [false, true] {
-            for phase in ProtocolPhase::ALL {
-                let definitions = ProtocolTools::definitions_for_phase(
-                    phase,
-                    submit_answer_available.then_some(&answer_schema),
-                )
-                .expect("phase definitions must be valid");
-                let names = definitions
-                    .iter()
-                    .map(ToolDefinition::name)
-                    .collect::<BTreeSet<_>>();
-                for reference in REFERENCE_TOOL_NAMES {
-                    assert!(
-                        names.contains(reference),
-                        "{reference} missing in {phase:?}"
-                    );
-                }
-                for tool in ProtocolTool::ALL {
-                    examined += 1;
-                    assert_eq!(
-                        names.contains(tool.name()),
-                        phase.allows(tool, submit_answer_available)
-                    );
-                    let mut events = ProtocolEventLog::default();
-                    let result = validate_protocol_tool(
-                        &mut events,
-                        "tester",
+            for reference_tools_available in [false, true] {
+                for phase in ProtocolPhase::ALL {
+                    let definitions = ProtocolTools::definitions_for_phase(
                         phase,
-                        tool,
-                        submit_answer_available,
-                    );
-                    if phase.allows(tool, submit_answer_available) {
-                        assert!(result.is_ok(), "legal {phase:?} x {tool:?}");
-                        assert!(events.events.is_empty());
-                    } else {
-                        rejected += 1;
-                        assert!(result.is_err(), "illegal {phase:?} x {tool:?}");
-                        assert!(matches!(
-                            events.events.as_slice(),
-                            [event]
-                                if matches!(
-                                    event.as_data(),
-                                    bityzba::data!(ProtocolEvent::ProtocolError {
-                                        phase: event_phase,
-                                        tool_name,
-                                        ..
-                                    }) if *event_phase == phase && tool_name == tool.name()
-                                )
-                        ));
+                        submit_answer_available.then_some(&answer_schema),
+                        reference_tools_available,
+                    )
+                    .expect("phase definitions must be valid");
+                    let names = definitions
+                        .iter()
+                        .map(ToolDefinition::name)
+                        .collect::<BTreeSet<_>>();
+                    for reference in REFERENCE_TOOL_NAMES {
+                        assert_eq!(
+                            names.contains(reference),
+                            reference_tools_available,
+                            "reference availability for {reference} in {phase:?}"
+                        );
+                    }
+                    for tool in ProtocolTool::ALL {
+                        examined += 1;
+                        assert_eq!(
+                            names.contains(tool.name()),
+                            phase.allows(tool, submit_answer_available)
+                        );
+                        let mut events = ProtocolEventLog::default();
+                        let result = validate_protocol_tool(
+                            &mut events,
+                            "tester",
+                            phase,
+                            tool,
+                            submit_answer_available,
+                        );
+                        if phase.allows(tool, submit_answer_available) {
+                            assert!(result.is_ok(), "legal {phase:?} x {tool:?}");
+                            assert!(events.events.is_empty());
+                        } else {
+                            rejected += 1;
+                            assert!(result.is_err(), "illegal {phase:?} x {tool:?}");
+                            assert!(matches!(
+                                events.events.as_slice(),
+                                [event]
+                                    if matches!(
+                                        event.as_data(),
+                                        bityzba::data!(ProtocolEvent::ProtocolError {
+                                            phase: event_phase,
+                                            tool_name,
+                                            ..
+                                        }) if *event_phase == phase && tool_name == tool.name()
+                                    )
+                            ));
+                        }
                     }
                 }
             }
         }
-        assert_eq!(examined, 84);
-        assert_eq!(rejected, 65);
+        assert_eq!(examined, 168);
+        assert_eq!(rejected, 130);
     }
 
     #[test]

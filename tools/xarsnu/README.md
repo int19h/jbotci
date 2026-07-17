@@ -19,6 +19,9 @@ max-parse-attempts-per-turn = 3
 max-intent-revisions-per-turn = 2
 max-turns = 8
 max-cost-usd = 1.25
+max-reference-calls-per-phase = 16
+reference-dedupe = true
+reference-nudge-after = 6
 
 [[participants]]
 name = "alice"
@@ -46,6 +49,15 @@ directory, then against this crate's `tools/xarsnu/scenarios/` directory.
 
 `prompt-caching` is per participant. `auto` (the default) emits explicit cache
 breakpoints only for models that require them; `off` leaves the request alone.
+
+The reference-loop controls are run-wide caps applied independently to every
+protocol phase. `max-reference-calls-per-phase` defaults to 16 and withdraws
+all reference tools after that many calls in one phase. `reference-dedupe`
+defaults to `true`; repeated calls with the exact same tool name and argument
+bytes reuse the first local result while still consuming the reference-call
+budget. `reference-nudge-after` defaults to 6 and sends one phase-progress
+reminder after that many consecutive reference calls. Both numeric values must
+be positive, and the nudge threshold must be lower than the call cap.
 
 ## Transcript and exit behavior
 
