@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    time::Duration,
+};
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
@@ -13,7 +16,8 @@ use jbotci_search::vlacku::dictionary_entry_card;
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
     ParseOptions, SyntaxExpectation, SyntaxExpectationReason, SyntaxExpectationReasonData,
-    SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory, expected_continuations,
+    SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory,
+    expected_continuations_with_time_limit,
 };
 
 use super::{DocumentSnapshot, SemanticTokenKind};
@@ -47,8 +51,15 @@ pub enum CompletionInterpretation {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CompletionProvenance {
     Expected { token: SyntaxExpectedToken },
+    GrammarUnavailable,
     UnfilteredQuote,
 }
+
+// Completion needs only cut-point expectations. Recover through at most two
+// earlier syntax errors; beyond that, unfiltered completion is both safer and
+// cheaper than ranking from an incomplete recovery narrative.
+const COMPLETION_MAX_RECOVERY_ERRORS: usize = 3;
+const COMPLETION_GRAMMAR_TIME_LIMIT: Duration = Duration::from_secs(1);
 
 impl CompletionInterpretation {
     #[requires(true)]
@@ -133,14 +144,16 @@ impl DocumentSnapshot {
     /// Return grammar- and morphology-filtered completions at `char_offset`.
     ///
     /// The cursor is clamped through the snapshot's line index. Non-empty seeds
-    /// are interpreted both as an incomplete word and, when they segment
-    /// cleanly, as complete words before a new insertion point.
+    /// are interpreted both as an incomplete word and, when the cursor is at
+    /// the word end and the seed segments cleanly, as a complete word before a
+    /// new insertion point.
     #[requires(true)]
     #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
     pub fn completions(&self, char_offset: usize) -> Vec<CompletionItem> {
         let cursor = self.line_index.offsets_for_char(char_offset);
         let seed_span = self.completion_seed_span(cursor.byte, cursor.char);
         let seed = &self.text[seed_span.byte_start..seed_span.byte_end];
+        let replacement_span = self.completion_replacement_span(&seed_span);
         let preceding_source = &self.text[..seed_span.byte_start];
         let preceding_segmentation =
             segment_words_with_modifiers_recovered(preceding_source).into_data();
@@ -159,7 +172,7 @@ impl DocumentSnapshot {
                 dictionary,
                 &document_cmevla,
                 CompletionInterpretation::Extend,
-                seed_span.clone(),
+                replacement_span,
                 seed,
                 &preceding_words,
                 preceding_awaits_zo_target,
@@ -167,7 +180,12 @@ impl DocumentSnapshot {
             );
         }
 
-        let seed_is_complete = seed.is_empty() || segment_words_with_modifiers(seed).is_ok();
+        let cursor_ends_word = self.text[cursor.byte..]
+            .chars()
+            .next()
+            .is_none_or(|value| !is_word_forming_character(value));
+        let seed_is_complete =
+            seed.is_empty() || (cursor_ends_word && segment_words_with_modifiers(seed).is_ok());
         if seed_is_complete {
             // Segmenting `seed` alone establishes the Continue interpretation,
             // but those word spans start at zero. Re-segment the complete
@@ -231,6 +249,32 @@ impl DocumentSnapshot {
         .expect("the trailing seed is an ordered source slice")
     }
 
+    #[requires(seed_span.byte_end <= self.text.len())]
+    #[requires(seed_span.char_end <= self.line_index.char_len())]
+    #[ensures(ret.byte_start == seed_span.byte_start)]
+    #[ensures(ret.char_start == seed_span.char_start)]
+    #[ensures(ret.byte_end >= seed_span.byte_end)]
+    #[ensures(ret.char_end >= seed_span.char_end)]
+    fn completion_replacement_span(&self, seed_span: &SourceSpan) -> SourceSpan {
+        let mut byte_end = seed_span.byte_end;
+        let mut char_end = seed_span.char_end;
+        for value in self.text[seed_span.byte_end..].chars() {
+            if !is_word_forming_character(value) {
+                break;
+            }
+            byte_end += value.len_utf8();
+            char_end += 1;
+        }
+        SourceSpan::new(
+            None,
+            seed_span.byte_start,
+            byte_end,
+            seed_span.char_start,
+            char_end,
+        )
+        .expect("the current word is an ordered source slice")
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[requires(replacement_span.byte_end <= self.text.len())]
     #[requires(replacement_span.char_end <= self.line_index.char_len())]
@@ -267,6 +311,7 @@ impl DocumentSnapshot {
                     new!(SyntaxExpectationReason::ContinueCurrent {
                         construct: "quoted word".to_owned(),
                     }),
+                    new!(CompletionProvenance::UnfilteredQuote),
                     items,
                 ),
             CursorCompletionContext::UnfilteredQuotedWords => completion_context
@@ -274,12 +319,18 @@ impl DocumentSnapshot {
                     new!(SyntaxExpectationReason::ContinueCurrent {
                         construct: "LOhU quote".to_owned(),
                     }),
+                    new!(CompletionProvenance::UnfilteredQuote),
                     items,
                 ),
             CursorCompletionContext::Grammar => {
-                let expectations =
-                    expected_continuations(preceding_words, &ParseOptions::default());
-                completion_context.add_expected_candidates(&expectations, items);
+                let options = ParseOptions::default()
+                    .with_max_recovery_errors(COMPLETION_MAX_RECOVERY_ERRORS);
+                let expectations = expected_continuations_with_time_limit(
+                    preceding_words,
+                    &options,
+                    COMPLETION_GRAMMAR_TIME_LIMIT,
+                );
+                completion_context.add_grammar_candidates(&expectations, items);
             }
         }
     }
@@ -387,11 +438,21 @@ impl DocumentSnapshot {
 impl CompletionContext<'_, '_, '_> {
     #[requires(true)]
     #[ensures(true)]
-    fn add_expected_candidates(
+    fn add_grammar_candidates(
         &self,
         expectations: &[SyntaxExpectation],
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
+        if expectations.is_empty() {
+            self.add_unfiltered_candidates(
+                new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: "word".to_owned(),
+                }),
+                new!(CompletionProvenance::GrammarUnavailable),
+                items,
+            );
+            return;
+        }
         let mut tokens = BTreeMap::<SyntaxExpectedToken, SyntaxExpectationReason>::new();
         for expectation in expectations {
             for token in &expectation.tokens {
@@ -461,9 +522,9 @@ impl CompletionContext<'_, '_, '_> {
     fn add_unfiltered_candidates(
         &self,
         reason: SyntaxExpectationReason,
+        provenance: CompletionProvenance,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
-        let provenance = new!(CompletionProvenance::UnfilteredQuote);
         for cmavo in Cmavo::ALL {
             self.add_cmavo(*cmavo, CompletionKind::Cmavo, &reason, &provenance, items);
         }
@@ -814,6 +875,22 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn mid_word_seed_only_extends_the_current_word() {
+        let items = completions_at_marker("mi klama l|o nu");
+
+        assert!(has_label(&items, "lo"));
+        assert!(
+            items.iter().all(|item| {
+                item.interpretation == CompletionInterpretation::Extend
+                    && item.replacement_span.char_end == "mi klama lo".chars().count()
+            }),
+            "mid-word completion must replace the current word without a second insertion interpretation",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn earlier_recovered_error_does_not_disable_contextual_completion() {
         let items = completions_at_marker("mi ku .i do klama le |");
 
@@ -903,6 +980,82 @@ mod tests {
         assert!(
             started.elapsed() < Duration::from_secs(2),
             "completion unexpectedly took {:?}",
+            started.elapsed(),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_expectations_degrade_to_all_morphology_valid_candidate_sources() {
+        let text = "la .xunreblab. cu klama .i  mukti lo nu".to_owned();
+        let phrase_start = text
+            .find("mukti lo nu")
+            .expect("fixture contains the completion phrase");
+        let cursor = phrase_start - 1;
+        let snapshot = DocumentSnapshot::new(text, 1);
+        let dictionary = jbotci_dictionary_data::english();
+        let document_cmevla = snapshot.document_cmevla();
+        let replacement_span = SourceSpan::new(None, cursor, cursor, cursor, cursor)
+            .expect("the cursor is an ordered empty span");
+        let context = new!(CompletionContext {
+            snapshot: &snapshot,
+            dictionary,
+            document_cmevla: &document_cmevla,
+            interpretation: CompletionInterpretation::Continue,
+            replacement_span,
+            normalized_prefix: String::new(),
+        });
+        let mut items = BTreeMap::new();
+        context.add_grammar_candidates(&[], &mut items);
+
+        for label in ["ku", "barda", "xunreblab"] {
+            assert!(
+                items.values().any(|item| {
+                    item.label == label
+                        && matches!(
+                            item.provenance.as_data(),
+                            data!(CompletionProvenance::GrammarUnavailable)
+                        )
+                }),
+                "degraded completion must include {label}",
+            );
+        }
+
+        let mid_word_cursor = phrase_start + "mukti l".len();
+        let seed_span = snapshot.completion_seed_span(mid_word_cursor, mid_word_cursor);
+        let replacement_span = snapshot.completion_replacement_span(&seed_span);
+        let context = new!(CompletionContext {
+            snapshot: &snapshot,
+            dictionary,
+            document_cmevla: &document_cmevla,
+            interpretation: CompletionInterpretation::Extend,
+            replacement_span,
+            normalized_prefix: normalize_lookup_query("l"),
+        });
+        let mut items = BTreeMap::new();
+        context.add_grammar_candidates(&[], &mut items);
+        let lo = items
+            .values()
+            .find(|item| item.label == "lo")
+            .expect("degraded mid-word completion includes cmavo matching prefix l");
+        assert_eq!(lo.replacement_span.char_end, mid_word_cursor + 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_at_error_heavy_deep_cut_stays_interactive() {
+        let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
+        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let text = marked.replacen('|', "", 1);
+        let snapshot = DocumentSnapshot::new(text, 1);
+        let started = Instant::now();
+        let _items = snapshot.completions(cursor);
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "error-heavy deep-cut completion unexpectedly took {:?}",
             started.elapsed(),
         );
     }

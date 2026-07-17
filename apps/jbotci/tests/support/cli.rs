@@ -3072,6 +3072,69 @@ fn vlacku_exact_found_outputs_dictionary_card() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_uses_one_definition_place_map_for_definitions_and_notes() {
+    let cases = [
+        (
+            "baldakyxa'i",
+            "⟨1⟩ is a great sword for use against ⟨2⟩ by ⟨3⟩.",
+        ),
+        ("bircidni", "⟨1⟩ is an elbow of body ⟨2⟩."),
+        ("barku'a", "⟨2⟩ = bartu₂. For \"balcony\", see {balni}."),
+        ("brivla", "Derived from {bridi} and {valsi}, deleting b₃,"),
+    ];
+
+    for (word, expected) in cases {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", word], false);
+
+        assert_eq!(run.status, CliStatus::Success, "{word}: {}", run.stderr);
+        assert!(run.stderr.is_empty(), "{word}: {}", run.stderr);
+        assert!(run.stdout.contains(expected), "{word}: {}", run.stdout);
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_glosses_reference_indexed_definition_places() {
+    let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "seltictra"], false);
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(
+        run.stdout.lines().any(|line| {
+            line == "    known falsehood (⟨3⟩ may be aware of the falsehood, however the intended target of deception is ⟨4⟩)"
+        }),
+        "{}",
+        run.stdout
+    );
+    assert!(!run.stdout.contains("$x_3$"), "{}", run.stdout);
+    assert!(!run.stdout.contains("$x_4$"), "{}", run.stdout);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_etymology_references_indexed_definition_places() {
+    let run = run_cli_capture(
+        &["jbotci", "vlacku", "--show-etymology", "--valsi", "bu'ivla"],
+        false,
+    );
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(
+        run.stdout.lines().any(|line| {
+            line == "    bu + valsi. “valsi” was chosen because ⟨1⟩ quotes words and a “bu” also takes a single word."
+        }),
+        "{}",
+        run.stdout
+    );
+    assert!(!run.stdout.contains("$x_1$"), "{}", run.stdout);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn cukta_section_fetch_outputs_default_section() {
     let run = run_cli_capture(
         &["jbotci", "cukta", "--section", "section-what-is-lojban"],
@@ -3815,6 +3878,53 @@ fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
         "\x1b[90m$\x1b[39m\x1b[36mx_2\x1b[39m\x1b[90m=\x1b[39m\x1b[36mb_1\x1b[39m\x1b[90m$\x1b[39m"
     ));
     assert!(output.contains("\x1b[90m$\x1b[39m\x1b[36mx_3\x1b[39m\x1b[90m$\x1b[39m"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_raw_sumti_places_keep_gloss_and_etymology_references() {
+    let output = render_vlacku_output_with_options(
+        &VlackuSearchOutput {
+            cards: vec![new!(VlackuCard {
+                word: "example".to_owned(),
+                word_type: "lujvo".to_owned(),
+                selmaho: None,
+                author: None,
+                is_official: false,
+                similarity: Some(1.0),
+                votes: None,
+                rafsi: Vec::new(),
+                glosses: vec!["gloss reference $x_3$".to_owned()],
+                definition: "$x_1$ defines the place map.".to_owned(),
+                notes: String::new(),
+                etymology: Some("etymology reference $x_1$".to_owned()),
+                decomposition: Vec::new(),
+            })],
+            outcome: VlackuOutcome::Found,
+            diagnostics: Vec::new(),
+        },
+        new!(VlackuRenderOptions {
+            color: false,
+            glyphs: GlyphStyle::Unicode,
+            output_terminal_width: None,
+            sumti_places: CliSumtiPlaces::Raw,
+            show_etymology: true,
+        }),
+    );
+
+    assert!(
+        output
+            .lines()
+            .any(|line| line == "    gloss reference $x_3$"),
+        "{output}"
+    );
+    assert!(
+        output
+            .lines()
+            .any(|line| line == "    etymology reference $x_1$"),
+        "{output}"
+    );
 }
 
 #[test]

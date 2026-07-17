@@ -7,24 +7,47 @@ use jbotci_cli::{
     ToolTersmuRequest, ToolVlackuRequest, run_tool_cukta, run_tool_gentufa, run_tool_jvozba,
     run_tool_tersmu, run_tool_vlacku, tool_request_schema,
 };
+use jbotci_dialect::{DialectDefinition, DialectSettings, parse_dialect_selection_formula};
+use jbotci_morphology::{
+    MorphologyOptions, segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
+};
+use jbotci_syntax::{
+    ParseOptions, SyntaxRecoveryParseData,
+    parse_syntax_tree_with_recovery_with_source_and_options_attempt,
+};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError};
 
 /// Typed result of gating one candidate through the production tersmu tool.
-#[invariant(::ParseFailure { diagnostics_rendering } => !diagnostics_rendering.is_empty())]
+#[invariant(::ParseFailure { diagnostics_rendering, .. } => !diagnostics_rendering.is_empty())]
 #[invariant(::Success { tersmu_rendering } => !tersmu_rendering.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GateOutcome {
     ParseFailure {
         /// Exact production diagnostics channel, without trimming or annotation.
         diagnostics_rendering: String,
+        /// Parser phase determined from the same structured production parse path.
+        category: DiagnosticCategory,
     },
     Success {
         /// Exact production tersmu stdout bytes, without trimming or rewrapping.
         tersmu_rendering: Vec<u8>,
     },
+}
+
+/// Coarse phase used by transcript summaries for rejected gate attempts.
+#[invariant(::Morphology => true)]
+#[invariant(::Syntax => true)]
+#[invariant(::Other => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiagnosticCategory {
+    Morphology,
+    Syntax,
+    Other,
 }
 
 impl GateOutcome {
@@ -35,7 +58,18 @@ impl GateOutcome {
         match self.as_data() {
             bityzba::data!(GateOutcome::ParseFailure {
                 diagnostics_rendering,
+                ..
             }) => Some(diagnostics_rendering),
+            _ => None,
+        }
+    }
+
+    /// Structured failure phase for a rejected candidate.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(GateOutcome::ParseFailure { .. })))]
+    pub fn diagnostic_category(&self) -> Option<DiagnosticCategory> {
+        match self.as_data() {
+            bityzba::data!(GateOutcome::ParseFailure { category, .. }) => Some(*category),
             _ => None,
         }
     }
@@ -67,9 +101,9 @@ pub fn gate_lojban(
     dialect: Option<String>,
 ) -> Result<GateOutcome, GateError> {
     let request = ToolTersmuRequest {
-        text,
+        text: text.clone(),
         format: tool_tersmu_format(format.unwrap_or_default()),
-        dialect,
+        dialect: dialect.clone(),
         show_defs: true,
         story_time: false,
         indent: None,
@@ -95,9 +129,53 @@ pub fn gate_lojban(
             ),
         });
     }
+    let category = classify_gate_failure(&text, dialect.as_deref())?;
     Ok(new!(GateOutcome::ParseFailure {
         diagnostics_rendering: output.stderr,
+        category,
     }))
+}
+
+/// Re-run only the structured morphology/syntax classification used by tersmu.
+///
+/// This deliberately does not inspect rendered diagnostic text. A failure after
+/// valid morphology and syntax is classified as `Other` (for example, a semantic
+/// graph construction failure).
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn classify_gate_failure(
+    text: &str,
+    dialect: Option<&str>,
+) -> Result<DiagnosticCategory, GateError> {
+    let dialect = dialect
+        .map_or_else(
+            || Ok(DialectDefinition::default()),
+            |source| parse_dialect_selection_formula(&DialectSettings::default(), source),
+        )
+        .map_err(|error| GateError::ToolExecution {
+            message: error.to_string(),
+        })?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_attempt =
+        segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+            text,
+            &morphology_options,
+            None,
+        );
+    let morphology = &morphology_attempt.result;
+    if !morphology.errors.is_empty() {
+        return Ok(DiagnosticCategory::Morphology);
+    }
+    let syntax_attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+        &morphology.words,
+        text,
+        &ParseOptions::default().with_dialect_definition(&dialect),
+    );
+    let syntax = &syntax_attempt.result;
+    Ok(match syntax.as_data() {
+        bityzba::data!(SyntaxRecoveryParse::Recovered { .. }) => DiagnosticCategory::Syntax,
+        bityzba::data!(SyntaxRecoveryParse::Valid { .. }) => DiagnosticCategory::Other,
+    })
 }
 
 #[requires(true)]
@@ -322,6 +400,18 @@ mod tests {
                 fixture.name
             );
         }
+        assert_eq!(
+            gate_lojban("mi @ klama".to_owned(), None, None)
+                .expect("morphology failure")
+                .diagnostic_category(),
+            Some(DiagnosticCategory::Morphology)
+        );
+        assert_eq!(
+            gate_lojban("mi cu".to_owned(), None, None)
+                .expect("syntax failure")
+                .diagnostic_category(),
+            Some(DiagnosticCategory::Syntax)
+        );
     }
 
     #[test]

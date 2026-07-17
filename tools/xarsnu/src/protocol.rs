@@ -1,19 +1,24 @@
 //! Tool-gated speaker and listener protocol for xarsnu runs.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::path::Path;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use schemars::{JsonSchema, schema_for};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use thiserror::Error;
 
+use crate::transcript::TranscriptWriter;
 use crate::{
-    AbortRecord, CapsConfig, OpenRouterClient, ParticipantConfig, ParticipantConversation,
-    ReferenceTools, RunAccounting, TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
-    ToolDefinitionError, ToolDispatchError, ToolDispatcher,
+    AbortRecord, CapsConfig, DiagnosticCategory, OpenRouterClient, ParticipantConfig,
+    ParticipantConversation, ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ToolCall,
+    ToolChoice, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
+    TranscriptError, Usage,
 };
+use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
 
 const STANDING_PROTOCOL_RULES: &str = "You are participating in xarsnu's tool-gated Lojban discussion protocol. Think out loud about meaning in this private conversation before acting. English intents, paraphrases, interpretations, and reasoning are private and must never be written into the visible chat. The visible chat is constructed only from confirmed Lojban text and its jbotci tersmu rendering. Use the reference tools whenever they help, and finish each phase by calling the protocol tool currently offered.";
 const SPEAKER_TURN_INSTRUCTION: &str = "You are the speaker for this turn. First register your intended meaning in English. Then submit candidate Lojban until jbotci accepts one. Finally compare the returned tersmu rendering with your intent and call confirm_meaning with a mandatory English paraphrase. A mismatch requires revision; a match posts the Lojban and tersmu rendering.";
@@ -21,29 +26,33 @@ const LISTENER_BLIND_INSTRUCTION: &str = "Interpret the following visible Lojban
 const LISTENER_REVEAL_INSTRUCTION: &str = "The tersmu rendering is now revealed. Compare it with your blind reading, then call acknowledge with your final English understanding and any discrepancies.";
 const REFERENCE_TOOL_NAMES: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
 
-/// One of the five state-changing protocol tools.
+/// One of the six state-changing protocol tools.
 #[invariant(::RegisterIntent => true)]
 #[invariant(::SubmitLojban => true)]
 #[invariant(::ConfirmMeaning => true)]
 #[invariant(::InterpretBlind => true)]
 #[invariant(::Acknowledge => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[invariant(::SubmitAnswer => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ProtocolTool {
     RegisterIntent,
     SubmitLojban,
     ConfirmMeaning,
     InterpretBlind,
     Acknowledge,
+    SubmitAnswer,
 }
 
 impl ProtocolTool {
     /// Exhaustive protocol-tool list, used by legality checks and tests.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::RegisterIntent,
         Self::SubmitLojban,
         Self::ConfirmMeaning,
         Self::InterpretBlind,
         Self::Acknowledge,
+        Self::SubmitAnswer,
     ];
 
     /// Stable model-facing tool name.
@@ -56,6 +65,7 @@ impl ProtocolTool {
             Self::ConfirmMeaning => "confirm_meaning",
             Self::InterpretBlind => "interpret_blind",
             Self::Acknowledge => "acknowledge",
+            Self::SubmitAnswer => "submit_answer",
         }
     }
 
@@ -72,7 +82,8 @@ impl ProtocolTool {
 #[invariant(::Composing => true)]
 #[invariant(::AwaitingConfirmation => true)]
 #[invariant(::Posted => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum SpeakerPhase {
     AwaitingIntent,
     Composing,
@@ -92,14 +103,15 @@ impl SpeakerPhase {
     /// Whether this state admits the requested protocol tool.
     #[requires(true)]
     #[ensures(true)]
-    pub const fn allows(self, tool: ProtocolTool) -> bool {
-        matches!(
-            (self, tool),
-            (Self::AwaitingIntent, ProtocolTool::RegisterIntent)
-                | (Self::Composing, ProtocolTool::RegisterIntent)
-                | (Self::Composing, ProtocolTool::SubmitLojban)
-                | (Self::AwaitingConfirmation, ProtocolTool::ConfirmMeaning)
-        )
+    pub const fn allows(self, tool: ProtocolTool, submit_answer_available: bool) -> bool {
+        (submit_answer_available && matches!(tool, ProtocolTool::SubmitAnswer))
+            || matches!(
+                (self, tool),
+                (Self::AwaitingIntent, ProtocolTool::RegisterIntent)
+                    | (Self::Composing, ProtocolTool::RegisterIntent)
+                    | (Self::Composing, ProtocolTool::SubmitLojban)
+                    | (Self::AwaitingConfirmation, ProtocolTool::ConfirmMeaning)
+            )
     }
 }
 
@@ -107,7 +119,8 @@ impl SpeakerPhase {
 #[invariant(::BlindInterpretation => true)]
 #[invariant(::TersmuRevealed => true)]
 #[invariant(::Acknowledged => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ListenerPhase {
     BlindInterpretation,
     TersmuRevealed,
@@ -125,19 +138,21 @@ impl ListenerPhase {
     /// Whether this state admits the requested protocol tool.
     #[requires(true)]
     #[ensures(true)]
-    pub const fn allows(self, tool: ProtocolTool) -> bool {
-        matches!(
-            (self, tool),
-            (Self::BlindInterpretation, ProtocolTool::InterpretBlind)
-                | (Self::TersmuRevealed, ProtocolTool::Acknowledge)
-        )
+    pub const fn allows(self, tool: ProtocolTool, submit_answer_available: bool) -> bool {
+        (submit_answer_available && matches!(tool, ProtocolTool::SubmitAnswer))
+            || matches!(
+                (self, tool),
+                (Self::BlindInterpretation, ProtocolTool::InterpretBlind)
+                    | (Self::TersmuRevealed, ProtocolTool::Acknowledge)
+            )
     }
 }
 
 /// Unified state name stored in events and used by the tool gate.
 #[invariant(::Speaker { .. } => true)]
 #[invariant(::Listener { .. } => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "role", content = "phase", rename_all = "kebab-case")]
 pub enum ProtocolPhase {
     Speaker { phase: SpeakerPhase },
     Listener { phase: ListenerPhase },
@@ -172,10 +187,10 @@ impl ProtocolPhase {
     /// Whether this state admits the requested protocol tool.
     #[requires(true)]
     #[ensures(true)]
-    pub const fn allows(self, tool: ProtocolTool) -> bool {
+    pub const fn allows(self, tool: ProtocolTool, submit_answer_available: bool) -> bool {
         match self {
-            Self::Speaker { phase } => phase.allows(tool),
-            Self::Listener { phase } => phase.allows(tool),
+            Self::Speaker { phase } => phase.allows(tool, submit_answer_available),
+            Self::Listener { phase } => phase.allows(tool, submit_answer_available),
         }
     }
 }
@@ -183,7 +198,8 @@ impl ProtocolPhase {
 /// A confirmed visible-channel message. It cannot carry English private data.
 #[invariant(!text.trim().is_empty(), "visible Lojban text cannot be empty")]
 #[invariant(!tersmu_rendering.is_empty(), "visible tersmu rendering cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct VisibleMessage {
     pub text: String,
     pub tersmu_rendering: Vec<u8>,
@@ -212,7 +228,8 @@ impl VisibleMessage {
 
 /// Listener-visible content before interpretation; no tersmu field exists.
 #[invariant(!text.trim().is_empty(), "blind listener text cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct BlindMessage {
     pub text: String,
 }
@@ -232,7 +249,8 @@ impl BlindMessage {
 /// Listener-visible content after its blind interpretation is committed.
 #[invariant(!text.trim().is_empty(), "revealed listener text cannot be empty")]
 #[invariant(!tersmu_rendering.is_empty(), "revealed tersmu rendering cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct RevealedMessage {
     pub text: String,
     pub tersmu_rendering: Vec<u8>,
@@ -346,17 +364,19 @@ impl ListenerState {
 /// Why a bounded speaker turn was forfeited.
 #[invariant(::ParseAttempts { maximum } => *maximum > 0)]
 #[invariant(::IntentRevisions { maximum } => *maximum > 0)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum TurnForfeitReason {
     ParseAttempts { maximum: usize },
     IntentRevisions { maximum: usize },
 }
 
 /// Typed private event stream consumed by the later transcript layer.
+#[invariant(::RunStarted { .. } => true)]
 #[invariant(::TurnStarted { turn_number, speaker } => *turn_number > 0 && !speaker.trim().is_empty())]
 #[invariant(::IntentRegistered { turn_number, speaker, meaning_en, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !meaning_en.trim().is_empty())]
 #[invariant(::CandidateSubmitted { turn_number, speaker, text, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && *attempt > 0)]
-#[invariant(::CandidateRejected { turn_number, speaker, text, diagnostics, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && !diagnostics.is_empty() && *attempt > 0)]
+#[invariant(::CandidateRejected { turn_number, speaker, text, diagnostics, attempt, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && !diagnostics.is_empty() && *attempt > 0)]
 #[invariant(::CandidateAccepted { turn_number, speaker, message, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty() && *attempt > 0)]
 #[invariant(::MeaningConfirmed { turn_number, speaker, paraphrase_en, discrepancies, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !paraphrase_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[invariant(::MessagePosted { turn_number, speaker, message } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
@@ -366,9 +386,17 @@ pub enum TurnForfeitReason {
 #[invariant(::ReferenceToolCompleted { participant, tool_name, arguments, result, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !arguments.trim().is_empty() && !result.is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::TurnForfeited { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]
+#[invariant(::AnswerSubmitted { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
+#[invariant(::CheckerOutcome { turn_number, .. } => *turn_number > 0)]
+#[invariant(::UsageRecorded { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
 #[invariant(::RunAborted { .. } => true)]
-#[derive(Debug, Clone, PartialEq)]
+#[invariant(::RunFinished { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum ProtocolEvent {
+    RunStarted {
+        header: RunHeader,
+    },
     TurnStarted {
         turn_number: usize,
         speaker: String,
@@ -391,6 +419,7 @@ pub enum ProtocolEvent {
         speaker: String,
         text: String,
         diagnostics: String,
+        diagnostic_category: DiagnosticCategory,
         attempt: usize,
     },
     CandidateAccepted {
@@ -449,22 +478,129 @@ pub enum ProtocolEvent {
         speaker: String,
         reason: TurnForfeitReason,
     },
+    AnswerSubmitted {
+        turn_number: usize,
+        participant: String,
+        answer: ScenarioAnswer,
+    },
+    CheckerOutcome {
+        turn_number: usize,
+        outcome: TaskOutcome,
+    },
+    UsageRecorded {
+        turn_number: usize,
+        participant: String,
+        usage: Usage,
+    },
     RunAborted {
         record: AbortRecord,
     },
+    RunFinished {
+        outcome: ProtocolRunOutcome,
+    },
 }
 
-/// Stateless generator for the five protocol schemas and phase tool sets.
+impl ProtocolEvent {
+    /// Whether this event is the unique transcript header.
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), bityzba::data!(ProtocolEvent::RunStarted { .. })))]
+    pub(crate) fn is_run_started(&self) -> bool {
+        matches!(
+            self.as_data(),
+            bityzba::data!(ProtocolEvent::RunStarted { .. })
+        )
+    }
+
+    /// Whether this event closes a complete transcript.
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), bityzba::data!(ProtocolEvent::RunFinished { .. })))]
+    pub(crate) fn is_run_finished(&self) -> bool {
+        matches!(
+            self.as_data(),
+            bityzba::data!(ProtocolEvent::RunFinished { .. })
+        )
+    }
+
+    /// Turn number introduced by this event, if it starts a turn.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(ProtocolEvent::TurnStarted { .. })))]
+    pub(crate) fn started_turn_number(&self) -> Option<usize> {
+        match self.as_data() {
+            bityzba::data!(ProtocolEvent::TurnStarted { turn_number, .. }) => Some(*turn_number),
+            _ => None,
+        }
+    }
+
+    /// Payload turn when this event kind stores one directly.
+    #[requires(true)]
+    #[ensures(matches!(self.as_data(), bityzba::data!(ProtocolEvent::RunStarted { .. })) == (ret == Some(0)))]
+    pub(crate) fn explicit_turn_number(&self) -> Option<usize> {
+        match self.as_data() {
+            bityzba::data!(ProtocolEvent::RunStarted { .. }) => Some(0),
+            bityzba::data!(ProtocolEvent::TurnStarted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::IntentRegistered { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::CandidateSubmitted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::CandidateRejected { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::CandidateAccepted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::MeaningConfirmed { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::MessagePosted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::TersmuRevealed { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::Acknowledged { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::TurnForfeited { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::AnswerSubmitted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::CheckerOutcome { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::UsageRecorded { turn_number, .. }) => {
+                Some(*turn_number)
+            }
+            bityzba::data!(ProtocolEvent::ReferenceToolCompleted { .. })
+            | bityzba::data!(ProtocolEvent::ProtocolError { .. })
+            | bityzba::data!(ProtocolEvent::RunAborted { .. }) => None,
+            bityzba::data!(ProtocolEvent::RunFinished { outcome }) => Some(outcome.turns().max(1)),
+        }
+    }
+
+    /// Principal actor serialized in the transcript envelope.
+    #[requires(true)]
+    #[ensures(!ret.trim().is_empty())]
+    pub(crate) fn transcript_participant(&self) -> &str {
+        match self.as_data() {
+            bityzba::data!(ProtocolEvent::TurnStarted { speaker, .. })
+            | bityzba::data!(ProtocolEvent::IntentRegistered { speaker, .. })
+            | bityzba::data!(ProtocolEvent::CandidateSubmitted { speaker, .. })
+            | bityzba::data!(ProtocolEvent::CandidateRejected { speaker, .. })
+            | bityzba::data!(ProtocolEvent::CandidateAccepted { speaker, .. })
+            | bityzba::data!(ProtocolEvent::MeaningConfirmed { speaker, .. })
+            | bityzba::data!(ProtocolEvent::MessagePosted { speaker, .. })
+            | bityzba::data!(ProtocolEvent::TurnForfeited { speaker, .. }) => speaker,
+            bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { listener, .. })
+            | bityzba::data!(ProtocolEvent::TersmuRevealed { listener, .. })
+            | bityzba::data!(ProtocolEvent::Acknowledged { listener, .. }) => listener,
+            bityzba::data!(ProtocolEvent::ReferenceToolCompleted { participant, .. })
+            | bityzba::data!(ProtocolEvent::ProtocolError { participant, .. })
+            | bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. })
+            | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. }) => participant,
+            bityzba::data!(ProtocolEvent::RunStarted { .. })
+            | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
+            | bityzba::data!(ProtocolEvent::RunAborted { .. })
+            | bityzba::data!(ProtocolEvent::RunFinished { .. }) => "harness",
+        }
+    }
+}
+
+/// Stateless generator for protocol schemas and phase tool sets.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProtocolTools;
 
 impl ProtocolTools {
-    /// All five protocol definitions, generated from their typed argument models.
+    /// Protocol definitions, including `submit_answer` when a scenario schema is supplied.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|definitions| definitions.len() == 5) || ret.is_err())]
-    pub fn definitions() -> Result<Vec<(ProtocolTool, ToolDefinition)>, ToolDefinitionError> {
-        Ok(vec![
+    #[ensures(ret.as_ref().is_ok_and(|definitions| definitions.len() == 5 + usize::from(answer_schema.is_some())) || ret.is_err())]
+    pub fn definitions(
+        answer_schema: Option<&Value>,
+    ) -> Result<Vec<(ProtocolTool, ToolDefinition)>, ToolDefinitionError> {
+        let mut definitions = vec![
             (
                 ProtocolTool::RegisterIntent,
                 definition::<RegisterIntentArguments>(
@@ -500,7 +636,18 @@ impl ProtocolTools {
                     "Record final understanding after the tersmu rendering is revealed.",
                 )?,
             ),
-        ])
+        ];
+        if let Some(answer_schema) = answer_schema {
+            definitions.push((
+                ProtocolTool::SubmitAnswer,
+                ToolDefinition::new(
+                    ProtocolTool::SubmitAnswer.name().to_owned(),
+                    "Submit this participant's mechanically checked scenario answer.".to_owned(),
+                    answer_schema.clone(),
+                )?,
+            ));
+        }
+        Ok(definitions)
     }
 
     /// Exactly the legal phase tools plus all five reference tools.
@@ -508,10 +655,14 @@ impl ProtocolTools {
     #[ensures(ret.as_ref().is_ok_and(|definitions| definitions.len() >= 5) || ret.is_err())]
     pub fn definitions_for_phase(
         phase: ProtocolPhase,
+        answer_schema: Option<&Value>,
     ) -> Result<Vec<ToolDefinition>, ToolDefinitionError> {
-        let mut definitions = Self::definitions()?
+        let answer_available = answer_schema.is_some();
+        let mut definitions = Self::definitions(answer_schema)?
             .into_iter()
-            .filter_map(|(tool, definition)| phase.allows(tool).then_some(definition))
+            .filter_map(|(tool, definition)| {
+                phase.allows(tool, answer_available).then_some(definition)
+            })
             .collect::<Vec<_>>();
         definitions.extend(ReferenceTools::definitions()?);
         Ok(definitions)
@@ -662,6 +813,13 @@ pub trait ProtocolModel {
         accounting: &mut RunAccounting,
     ) -> Result<crate::ModelTurn, ProtocolModelError>;
 
+    /// Drain one usage record for every provider call made by the last request.
+    #[requires(true)]
+    #[ensures(true)]
+    fn take_usage(&mut self) -> Vec<Usage> {
+        Vec::new()
+    }
+
     /// Thread one result back to the originating tool call.
     #[requires(!call.id.trim().is_empty())]
     #[requires(!call.function.name.trim().is_empty())]
@@ -724,6 +882,10 @@ impl ProtocolModel for OpenRouterParticipant<'_> {
             .map_err(|error| ProtocolModelError::new(error.to_string()))
     }
 
+    fn take_usage(&mut self) -> Vec<Usage> {
+        self.conversation.take_pending_usage()
+    }
+
     fn push_tool_result(&mut self, call: &ToolCall, content: String) {
         self.conversation.push_tool_result(call, content);
     }
@@ -773,11 +935,27 @@ impl ToolDispatcher for ReferenceToolDispatcher {
 
 /// Successful completion or graceful runtime budget abort.
 #[invariant(::Completed { turns } => *turns > 0)]
+#[invariant(::ScenarioCompleted { turns } => *turns > 0)]
 #[invariant(::BudgetAborted { .. } => true)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
 pub enum ProtocolRunOutcome {
     Completed { turns: usize },
+    ScenarioCompleted { turns: usize },
     BudgetAborted { turns: usize, record: AbortRecord },
+}
+
+impl ProtocolRunOutcome {
+    /// Number of turns begun before this terminal outcome.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn turns(&self) -> usize {
+        match self.as_data() {
+            bityzba::data!(ProtocolRunOutcome::Completed { turns })
+            | bityzba::data!(ProtocolRunOutcome::ScenarioCompleted { turns })
+            | bityzba::data!(ProtocolRunOutcome::BudgetAborted { turns, .. }) => *turns,
+        }
+    }
 }
 
 /// Protocol orchestration failures; cap hits are events, not errors.
@@ -786,6 +964,7 @@ pub enum ProtocolRunOutcome {
 #[invariant(::Model { participant, message } => !participant.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::Gate { participant, message } => !participant.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::InvalidTersmuEncoding { message } => !message.trim().is_empty())]
+#[invariant(::Transcript { message } => !message.trim().is_empty())]
 #[invariant(::AlreadyRun => true)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum ProtocolRunError {
@@ -804,6 +983,9 @@ pub enum ProtocolRunError {
         message: String,
     },
     InvalidTersmuEncoding {
+        message: String,
+    },
+    Transcript {
         message: String,
     },
     AlreadyRun,
@@ -838,6 +1020,9 @@ impl fmt::Display for ProtocolRunError {
             bityzba::data!(ProtocolRunError::InvalidTersmuEncoding { message }) => {
                 write!(formatter, "tersmu rendering was not UTF-8: {message}")
             }
+            bityzba::data!(ProtocolRunError::Transcript { message }) => {
+                write!(formatter, "transcript write failed: {message}")
+            }
             bityzba::data!(ProtocolRunError::AlreadyRun) => {
                 formatter.write_str("a protocol runner can only be run once")
             }
@@ -846,6 +1031,61 @@ impl fmt::Display for ProtocolRunError {
 }
 
 impl std::error::Error for ProtocolRunError {}
+
+#[invariant(
+    true,
+    "events are appended in order and transcript failures are retained"
+)]
+#[derive(Debug, Default)]
+struct ProtocolEventLog {
+    events: Vec<ProtocolEvent>,
+    writer: Option<TranscriptWriter>,
+    write_error: Option<TranscriptError>,
+    current_turn: usize,
+}
+
+impl ProtocolEventLog {
+    #[requires(self.events.is_empty())]
+    #[ensures(ret.is_ok() -> self.events.len() == 1)]
+    fn attach(&mut self, path: &Path, header: RunHeader) -> Result<(), TranscriptError> {
+        self.writer = Some(TranscriptWriter::create(path)?);
+        self.push(new!(ProtocolEvent::RunStarted { header }));
+        self.take_write_error().map_or(Ok(()), Err)
+    }
+
+    #[requires(true)]
+    #[ensures(self.events.len() == old(self.events.len()) + 1)]
+    fn push(&mut self, event: ProtocolEvent) {
+        if let bityzba::data!(ProtocolEvent::TurnStarted { turn_number, .. }) = event.as_data() {
+            self.current_turn = *turn_number;
+        }
+        let turn_number = if matches!(
+            event.as_data(),
+            bityzba::data!(ProtocolEvent::RunStarted { .. })
+        ) {
+            0
+        } else {
+            self.current_turn.max(1)
+        };
+        if self.write_error.is_none()
+            && let Some(writer) = &mut self.writer
+            && let Err(error) = writer.append_at(
+                turn_number,
+                event.transcript_participant().to_owned(),
+                event.clone(),
+            )
+        {
+            self.write_error = Some(error);
+        }
+        self.events.push(event);
+    }
+
+    #[requires(true)]
+    #[ensures(self.write_error.is_none())]
+    fn take_write_error(&mut self) -> Option<TranscriptError> {
+        self.write_error.take()
+    }
+}
 
 /// Sequential round-robin protocol runner.
 #[invariant(true, "validated on construction and mutated only through run")]
@@ -857,7 +1097,10 @@ pub struct ProtocolRunner<M, D> {
     tersmu_format: TersmuFormat,
     accounting: RunAccounting,
     visible_chat: Vec<VisibleMessage>,
-    events: Vec<ProtocolEvent>,
+    events: ProtocolEventLog,
+    scenario: Option<ScenarioInstance>,
+    answers: BTreeMap<String, ScenarioAnswer>,
+    task_outcome: Option<TaskOutcome>,
     turns_started: usize,
     has_run: bool,
 }
@@ -871,6 +1114,43 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         caps: CapsConfig,
         tersmu_format: TersmuFormat,
         reference_dispatcher: D,
+    ) -> Result<Self, ProtocolRunError> {
+        Self::new_inner(
+            participants,
+            caps,
+            tersmu_format,
+            reference_dispatcher,
+            None,
+        )
+    }
+
+    /// Construct a bounded runner with scenario-specific prompts and answers.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|runner| runner.scenario.is_some()) || ret.is_err())]
+    pub fn new_with_scenario(
+        participants: Vec<M>,
+        caps: CapsConfig,
+        tersmu_format: TersmuFormat,
+        reference_dispatcher: D,
+        scenario: ScenarioInstance,
+    ) -> Result<Self, ProtocolRunError> {
+        Self::new_inner(
+            participants,
+            caps,
+            tersmu_format,
+            reference_dispatcher,
+            Some(scenario),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|runner| runner.participants.len() >= 2) || ret.is_err())]
+    fn new_inner(
+        participants: Vec<M>,
+        caps: CapsConfig,
+        tersmu_format: TersmuFormat,
+        reference_dispatcher: D,
+        scenario: Option<ScenarioInstance>,
     ) -> Result<Self, ProtocolRunError> {
         if participants.len() < 2 {
             return Err(new!(ProtocolRunError::InvalidConfiguration {
@@ -891,6 +1171,20 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 message: "participant names cannot be empty".to_owned(),
             }));
         }
+        if let Some(scenario) = &scenario {
+            let scenario_names = scenario
+                .participants()
+                .iter()
+                .map(|participant| participant.name.as_str())
+                .collect::<BTreeSet<_>>();
+            if names != scenario_names {
+                return Err(new!(ProtocolRunError::InvalidConfiguration {
+                    message:
+                        "protocol participants must exactly match the scenario participant names"
+                            .to_owned(),
+                }));
+            }
+        }
         let accounting = RunAccounting::new(caps.max_cost_usd).map_err(|error| {
             new!(ProtocolRunError::InvalidConfiguration {
                 message: error.to_string(),
@@ -903,7 +1197,10 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             tersmu_format,
             accounting,
             visible_chat: Vec::new(),
-            events: Vec::new(),
+            events: ProtocolEventLog::default(),
+            scenario,
+            answers: BTreeMap::new(),
+            task_outcome: None,
             turns_started: 0,
             has_run: false,
         })
@@ -925,9 +1222,68 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
 
     /// Complete typed private event stream.
     #[requires(true)]
-    #[ensures(ret.len() == self.events.len())]
+    #[ensures(ret.len() == self.events.events.len())]
     pub fn events(&self) -> &[ProtocolEvent] {
-        &self.events
+        &self.events.events
+    }
+
+    /// Attach a flushed append-only transcript before starting the run.
+    #[requires(true)]
+    #[ensures(ret.is_ok() -> self.events.events.len() == 1)]
+    pub fn attach_transcript(
+        &mut self,
+        path: &Path,
+        header: RunHeader,
+    ) -> Result<(), ProtocolRunError> {
+        if self.has_run || !self.events.events.is_empty() {
+            return Err(new!(ProtocolRunError::InvalidConfiguration {
+                message: "a transcript must be attached before the run starts".to_owned(),
+            }));
+        }
+        let configured_names = header
+            .config
+            .participants
+            .iter()
+            .map(|participant| participant.name.as_str())
+            .collect::<BTreeSet<_>>();
+        let runner_names = self
+            .participants
+            .iter()
+            .map(ProtocolModel::participant_name)
+            .collect::<BTreeSet<_>>();
+        let scenario_matches = self.scenario.as_ref().is_some_and(|scenario| {
+            scenario
+                .to_toml()
+                .is_ok_and(|snapshot| snapshot == header.scenario_instance_toml)
+        });
+        if configured_names != runner_names
+            || header.config.caps != self.caps
+            || header.config.tersmu_format != self.tersmu_format
+            || !scenario_matches
+        {
+            return Err(new!(ProtocolRunError::InvalidConfiguration {
+                message: "transcript header does not describe this protocol runner".to_owned(),
+            }));
+        }
+        self.events.attach(path, header).map_err(|error| {
+            new!(ProtocolRunError::Transcript {
+                message: error.to_string(),
+            })
+        })
+    }
+
+    /// Accepted typed scenario answers, keyed by participant name.
+    #[requires(true)]
+    #[ensures(ret.len() == self.answers.len())]
+    pub fn answers(&self) -> &BTreeMap<String, ScenarioAnswer> {
+        &self.answers
+    }
+
+    /// Final scenario checker outcome, once all answers arrive or a limit ends the run.
+    #[requires(true)]
+    #[ensures(ret.is_some() == self.task_outcome.is_some())]
+    pub fn task_outcome(&self) -> Option<&TaskOutcome> {
+        self.task_outcome.as_ref()
     }
 
     /// Run the configured number of round-robin speaker turns.
@@ -938,7 +1294,49 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             return Err(new!(ProtocolRunError::AlreadyRun));
         }
         self.has_run = true;
-        for turn_number in 1..=self.caps.max_turns {
+        let result = self.run_inner();
+        if let Ok(outcome) = &result {
+            self.events.push(new!(ProtocolEvent::RunFinished {
+                outcome: outcome.clone(),
+            }));
+        }
+        if let Some(error) = self.events.take_write_error() {
+            return Err(new!(ProtocolRunError::Transcript {
+                message: error.to_string(),
+            }));
+        }
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn run_inner(&mut self) -> Result<ProtocolRunOutcome, ProtocolRunError> {
+        if let Some(scenario) = &self.scenario {
+            let prompts = self
+                .participants
+                .iter()
+                .enumerate()
+                .map(|(index, participant)| {
+                    let name = participant.participant_name();
+                    let prompt = scenario.prompt_for(name).ok_or_else(|| {
+                        new!(ProtocolRunError::InvalidConfiguration {
+                            message: format!("scenario has no private brief for `{name}`"),
+                        })
+                    })?;
+                    Ok((index, prompt))
+                })
+                .collect::<Result<Vec<_>, ProtocolRunError>>()?;
+            for (index, prompt) in prompts {
+                self.participants[index].push_user(prompt);
+            }
+        }
+        let scenario_turn_limit = self.scenario.as_ref().map_or(usize::MAX, |scenario| {
+            scenario
+                .maximum_turns()
+                .min(scenario.maximum_rounds() * self.participants.len())
+        });
+        let turn_limit = self.caps.max_turns.min(scenario_turn_limit);
+        for turn_number in 1..=turn_limit {
             self.turns_started = turn_number;
             let speaker_index = (turn_number - 1) % self.participants.len();
             let speaker = self.participants[speaker_index]
@@ -954,18 +1352,31 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     self.visible_chat.push(message.clone());
                     for listener_index in 0..self.participants.len() {
                         if listener_index != speaker_index {
-                            if let Some(record) =
-                                self.run_listener(turn_number, &speaker, listener_index, message)?
-                            {
-                                return Ok(new!(ProtocolRunOutcome::BudgetAborted {
-                                    turns: turn_number,
-                                    record,
-                                }));
+                            let listener_outcome =
+                                self.run_listener(turn_number, &speaker, listener_index, message)?;
+                            match listener_outcome {
+                                ListenerRunOutcome::Acknowledged => {}
+                                ListenerRunOutcome::ScenarioCompleted => {
+                                    return Ok(new!(ProtocolRunOutcome::ScenarioCompleted {
+                                        turns: turn_number,
+                                    }));
+                                }
+                                ListenerRunOutcome::BudgetAborted { record } => {
+                                    return Ok(new!(ProtocolRunOutcome::BudgetAborted {
+                                        turns: turn_number,
+                                        record,
+                                    }));
+                                }
                             }
                         }
                     }
                 }
                 bityzba::data!(SpeakerOutcome::Forfeited) => {}
+                bityzba::data!(SpeakerOutcome::ScenarioCompleted) => {
+                    return Ok(new!(ProtocolRunOutcome::ScenarioCompleted {
+                        turns: turn_number,
+                    }));
+                }
                 bityzba::data!(SpeakerOutcome::BudgetAborted { record }) => {
                     return Ok(new!(ProtocolRunOutcome::BudgetAborted {
                         turns: turn_number,
@@ -974,9 +1385,56 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 }
             }
         }
+        if self.scenario.is_some() {
+            self.finish_scenario(turn_limit.max(1));
+        }
         Ok(new!(ProtocolRunOutcome::Completed {
             turns: self.turns_started,
         }))
+    }
+
+    #[requires(turn_number > 0)]
+    #[ensures(self.task_outcome.is_some())]
+    fn finish_scenario(&mut self, turn_number: usize) {
+        if self.task_outcome.is_some() {
+            return;
+        }
+        let scenario = self
+            .scenario
+            .as_ref()
+            .expect("finish_scenario is called only for scenario runs");
+        let outcome = scenario.check_answers(&self.answers);
+        self.events.push(new!(ProtocolEvent::CheckerOutcome {
+            turn_number,
+            outcome: outcome.clone(),
+        }));
+        self.task_outcome = Some(outcome);
+    }
+
+    #[requires(turn_number > 0)]
+    #[requires(!participant.trim().is_empty())]
+    #[ensures(ret.as_ref().is_none_or(Value::is_object))]
+    fn answer_schema_if_available(&self, turn_number: usize, participant: &str) -> Option<Value> {
+        let scenario = self.scenario.as_ref()?;
+        let completed_rounds = (turn_number - 1) / self.participants.len();
+        (completed_rounds >= scenario.minimum_rounds()
+            && scenario.answer_required(participant)
+            && !self.answers.contains_key(participant))
+        .then(|| scenario.answer_schema().clone())
+    }
+
+    #[requires(turn_number > 0)]
+    #[requires(participant_index < self.participants.len())]
+    #[requires(!participant.trim().is_empty())]
+    #[ensures(true)]
+    fn record_usage(&mut self, turn_number: usize, participant_index: usize, participant: &str) {
+        for usage in self.participants[participant_index].take_usage() {
+            self.events.push(new!(ProtocolEvent::UsageRecorded {
+                turn_number,
+                participant: participant.to_owned(),
+                usage,
+            }));
+        }
     }
 
     #[requires(turn_number > 0)]
@@ -996,19 +1454,25 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             let phase = ProtocolPhase::Speaker {
                 phase: state.phase(),
             };
-            let tools = ProtocolTools::definitions_for_phase(phase).map_err(|error| {
-                new!(ProtocolRunError::ToolDefinitions {
-                    message: error.to_string(),
-                })
-            })?;
-            let turn = self.participants[speaker_index]
-                .request(&tools, ToolChoice::Required, &mut self.accounting)
+            let answer_schema = self.answer_schema_if_available(turn_number, &speaker);
+            let tools = ProtocolTools::definitions_for_phase(phase, answer_schema.as_ref())
                 .map_err(|error| {
-                    new!(ProtocolRunError::Model {
-                        participant: speaker.clone(),
+                    new!(ProtocolRunError::ToolDefinitions {
                         message: error.to_string(),
                     })
                 })?;
+            let request = self.participants[speaker_index].request(
+                &tools,
+                ToolChoice::Required,
+                &mut self.accounting,
+            );
+            self.record_usage(turn_number, speaker_index, &speaker);
+            let turn = request.map_err(|error| {
+                new!(ProtocolRunError::Model {
+                    participant: speaker.clone(),
+                    message: error.to_string(),
+                })
+            })?;
             if let Some(calls) = turn.tool_calls() {
                 let calls = calls.to_vec();
                 let mut outcome = None;
@@ -1054,6 +1518,9 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         bityzba::data!(SpeakerAction::Forfeited { .. }) => {
                             outcome = Some(new!(SpeakerOutcome::Forfeited));
                         }
+                        bityzba::data!(SpeakerAction::ScenarioCompleted { .. }) => {
+                            outcome = Some(new!(SpeakerOutcome::ScenarioCompleted));
+                        }
                     }
                 }
                 if let Some(outcome) = outcome {
@@ -1089,7 +1556,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         speaker: &str,
         listener_index: usize,
         message: &VisibleMessage,
-    ) -> Result<Option<AbortRecord>, ProtocolRunError> {
+    ) -> Result<ListenerRunOutcome, ProtocolRunError> {
         let listener = self.participants[listener_index]
             .participant_name()
             .to_owned();
@@ -1100,24 +1567,31 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             let phase = ProtocolPhase::Listener {
                 phase: state.phase(),
             };
-            let tools = ProtocolTools::definitions_for_phase(phase).map_err(|error| {
-                new!(ProtocolRunError::ToolDefinitions {
-                    message: error.to_string(),
-                })
-            })?;
-            let turn = self.participants[listener_index]
-                .request(&tools, ToolChoice::Required, &mut self.accounting)
+            let answer_schema = self.answer_schema_if_available(turn_number, &listener);
+            let tools = ProtocolTools::definitions_for_phase(phase, answer_schema.as_ref())
                 .map_err(|error| {
-                    new!(ProtocolRunError::Model {
-                        participant: listener.clone(),
+                    new!(ProtocolRunError::ToolDefinitions {
                         message: error.to_string(),
                     })
                 })?;
+            let request = self.participants[listener_index].request(
+                &tools,
+                ToolChoice::Required,
+                &mut self.accounting,
+            );
+            self.record_usage(turn_number, listener_index, &listener);
+            let turn = request.map_err(|error| {
+                new!(ProtocolRunError::Model {
+                    participant: listener.clone(),
+                    message: error.to_string(),
+                })
+            })?;
             if let Some(calls) = turn.tool_calls() {
                 let calls = calls.to_vec();
                 let mut acknowledged = false;
+                let mut scenario_completed = false;
                 for call in &calls {
-                    let action = if acknowledged {
+                    let action = if acknowledged || scenario_completed {
                         new!(ListenerAction::Continue {
                             content: record_protocol_error(
                                 &mut self.events,
@@ -1162,10 +1636,16 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         bityzba::data!(ListenerAction::Acknowledged { .. }) => {
                             acknowledged = true;
                         }
+                        bityzba::data!(ListenerAction::ScenarioCompleted { .. }) => {
+                            scenario_completed = true;
+                        }
                     }
                 }
+                if scenario_completed {
+                    return Ok(ListenerRunOutcome::ScenarioCompleted);
+                }
                 if acknowledged {
-                    return Ok(None);
+                    return Ok(ListenerRunOutcome::Acknowledged);
                 }
             } else if turn.content().is_some() {
                 let correction = record_protocol_error(
@@ -1181,7 +1661,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 self.events.push(new!(ProtocolEvent::RunAborted {
                     record: record.clone(),
                 }));
-                return Ok(Some(record));
+                return Ok(ListenerRunOutcome::BudgetAborted { record });
             } else {
                 unreachable!("ModelTurn invariants cover all variants");
             }
@@ -1216,8 +1696,25 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 ),
             }));
         };
-        if let Err(content) = validate_protocol_tool(&mut self.events, speaker, phase, tool) {
+        let answer_available = self
+            .answer_schema_if_available(turn_number, speaker)
+            .is_some();
+        if let Err(content) =
+            validate_protocol_tool(&mut self.events, speaker, phase, tool, answer_available)
+        {
             return Ok(new!(SpeakerAction::Continue { content }));
+        }
+        if tool == ProtocolTool::SubmitAnswer {
+            let action = self.dispatch_submit_answer(turn_number, speaker, phase, call);
+            let bityzba::data!(AnswerSubmissionAction {
+                content,
+                scenario_completed,
+            }) = action.into_data();
+            return Ok(if scenario_completed {
+                new!(SpeakerAction::ScenarioCompleted { content })
+            } else {
+                new!(SpeakerAction::Continue { content })
+            });
         }
         match tool {
             ProtocolTool::RegisterIntent => {
@@ -1335,6 +1832,9 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     })?;
                 if let Some(diagnostics) = outcome.diagnostics_rendering() {
                     let diagnostics = diagnostics.to_owned();
+                    let diagnostic_category = outcome
+                        .diagnostic_category()
+                        .expect("rejected gate outcomes carry a structured category");
                     *state = new!(SpeakerState::Composing {
                         meaning_en,
                         intent_revisions,
@@ -1345,6 +1845,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         speaker: speaker.to_owned(),
                         text,
                         diagnostics: diagnostics.clone(),
+                        diagnostic_category,
                         attempt,
                     }));
                     if attempt >= self.caps.max_parse_attempts_per_turn {
@@ -1474,7 +1975,9 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     }
                 }
             }
-            ProtocolTool::InterpretBlind | ProtocolTool::Acknowledge => {
+            ProtocolTool::InterpretBlind
+            | ProtocolTool::Acknowledge
+            | ProtocolTool::SubmitAnswer => {
                 unreachable!("listener tools cannot pass speaker-state validation")
             }
         }
@@ -1512,8 +2015,25 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 ),
             }));
         };
-        if let Err(content) = validate_protocol_tool(&mut self.events, listener, phase, tool) {
+        let answer_available = self
+            .answer_schema_if_available(turn_number, listener)
+            .is_some();
+        if let Err(content) =
+            validate_protocol_tool(&mut self.events, listener, phase, tool, answer_available)
+        {
             return Ok(new!(ListenerAction::Continue { content }));
+        }
+        if tool == ProtocolTool::SubmitAnswer {
+            let action = self.dispatch_submit_answer(turn_number, listener, phase, call);
+            let bityzba::data!(AnswerSubmissionAction {
+                content,
+                scenario_completed,
+            }) = action.into_data();
+            return Ok(if scenario_completed {
+                new!(ListenerAction::ScenarioCompleted { content })
+            } else {
+                new!(ListenerAction::Continue { content })
+            });
         }
         match tool {
             ProtocolTool::InterpretBlind => {
@@ -1592,25 +2112,118 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             }
             ProtocolTool::RegisterIntent
             | ProtocolTool::SubmitLojban
-            | ProtocolTool::ConfirmMeaning => {
+            | ProtocolTool::ConfirmMeaning
+            | ProtocolTool::SubmitAnswer => {
                 unreachable!("speaker tools cannot pass listener-state validation")
             }
         }
+    }
+
+    #[requires(turn_number > 0)]
+    #[requires(!participant.trim().is_empty())]
+    #[requires(!call.function.name.trim().is_empty())]
+    #[ensures(!ret.content.is_empty())]
+    fn dispatch_submit_answer(
+        &mut self,
+        turn_number: usize,
+        participant: &str,
+        phase: ProtocolPhase,
+        call: &ToolCall,
+    ) -> AnswerSubmissionAction {
+        let value = match serde_json::from_str::<Value>(&call.function.arguments) {
+            Ok(value) if value.is_object() => value,
+            Ok(_) => {
+                return new!(AnswerSubmissionAction {
+                    content: record_protocol_error(
+                        &mut self.events,
+                        participant,
+                        phase,
+                        ProtocolTool::SubmitAnswer.name(),
+                        "Invalid arguments for protocol tool `submit_answer`: expected a JSON object."
+                            .to_owned(),
+                    ),
+                    scenario_completed: false,
+                });
+            }
+            Err(error) => {
+                return new!(AnswerSubmissionAction {
+                    content: record_protocol_error(
+                        &mut self.events,
+                        participant,
+                        phase,
+                        ProtocolTool::SubmitAnswer.name(),
+                        format!("Invalid arguments for protocol tool `submit_answer`: {error}"),
+                    ),
+                    scenario_completed: false,
+                });
+            }
+        };
+        let scenario = self
+            .scenario
+            .as_ref()
+            .expect("tool legality guarantees a scenario");
+        let answer = match scenario.parse_answer(value) {
+            Ok(answer) => answer,
+            Err(error) => {
+                return new!(AnswerSubmissionAction {
+                    content: record_protocol_error(
+                        &mut self.events,
+                        participant,
+                        phase,
+                        ProtocolTool::SubmitAnswer.name(),
+                        error.to_string(),
+                    ),
+                    scenario_completed: false,
+                });
+            }
+        };
+        self.answers.insert(participant.to_owned(), answer.clone());
+        self.events.push(new!(ProtocolEvent::AnswerSubmitted {
+            turn_number,
+            participant: participant.to_owned(),
+            answer,
+        }));
+        let scenario_completed = scenario.all_required_submitted(&self.answers);
+        if scenario_completed {
+            self.finish_scenario(turn_number);
+        }
+        new!(AnswerSubmissionAction {
+            content: if scenario_completed {
+                "Answer recorded; all required answers are present and the checker has completed."
+                    .to_owned()
+            } else {
+                "Answer recorded; continue the current protocol phase while other required participants answer."
+                    .to_owned()
+            },
+            scenario_completed,
+        })
     }
 }
 
 #[invariant(::Posted { message } => !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::Forfeited => true)]
+#[invariant(::ScenarioCompleted => true)]
 #[invariant(::BudgetAborted { .. } => true)]
 enum SpeakerOutcome {
     Posted { message: VisibleMessage },
     Forfeited,
+    ScenarioCompleted,
+    BudgetAborted { record: AbortRecord },
+}
+
+#[invariant(::Acknowledged => true)]
+#[invariant(::ScenarioCompleted => true)]
+#[invariant(::BudgetAborted { .. } => true)]
+enum ListenerRunOutcome {
+    Acknowledged,
+    ScenarioCompleted,
     BudgetAborted { record: AbortRecord },
 }
 
 #[invariant(::Continue { content } => !content.is_empty())]
 #[invariant(::Posted { content, message } => !content.is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::Forfeited { content } => !content.is_empty())]
+#[invariant(::ScenarioCompleted { content } => !content.is_empty())]
 enum SpeakerAction {
     Continue {
         content: String,
@@ -1622,6 +2235,9 @@ enum SpeakerAction {
     Forfeited {
         content: String,
     },
+    ScenarioCompleted {
+        content: String,
+    },
 }
 
 impl SpeakerAction {
@@ -1631,7 +2247,8 @@ impl SpeakerAction {
         match self.as_data() {
             bityzba::data!(SpeakerAction::Continue { content })
             | bityzba::data!(SpeakerAction::Posted { content, .. })
-            | bityzba::data!(SpeakerAction::Forfeited { content }) => content,
+            | bityzba::data!(SpeakerAction::Forfeited { content })
+            | bityzba::data!(SpeakerAction::ScenarioCompleted { content }) => content,
         }
     }
 }
@@ -1639,10 +2256,12 @@ impl SpeakerAction {
 #[invariant(::Continue { content } => !content.is_empty())]
 #[invariant(::Reveal { content, prompt } => !content.is_empty() && !prompt.trim().is_empty())]
 #[invariant(::Acknowledged { content } => !content.is_empty())]
+#[invariant(::ScenarioCompleted { content } => !content.is_empty())]
 enum ListenerAction {
     Continue { content: String },
     Reveal { content: String, prompt: String },
     Acknowledged { content: String },
+    ScenarioCompleted { content: String },
 }
 
 impl ListenerAction {
@@ -1652,20 +2271,28 @@ impl ListenerAction {
         match self.as_data() {
             bityzba::data!(ListenerAction::Continue { content })
             | bityzba::data!(ListenerAction::Reveal { content, .. })
-            | bityzba::data!(ListenerAction::Acknowledged { content }) => content,
+            | bityzba::data!(ListenerAction::Acknowledged { content })
+            | bityzba::data!(ListenerAction::ScenarioCompleted { content }) => content,
         }
     }
 }
 
+#[invariant(!content.is_empty())]
+struct AnswerSubmissionAction {
+    content: String,
+    scenario_completed: bool,
+}
+
 #[requires(!participant.trim().is_empty())]
-#[ensures(ret.is_ok() == phase.allows(tool))]
+#[ensures(ret.is_ok() == phase.allows(tool, submit_answer_available))]
 fn validate_protocol_tool(
-    events: &mut Vec<ProtocolEvent>,
+    events: &mut ProtocolEventLog,
     participant: &str,
     phase: ProtocolPhase,
     tool: ProtocolTool,
+    submit_answer_available: bool,
 ) -> Result<(), String> {
-    if phase.allows(tool) {
+    if phase.allows(tool, submit_answer_available) {
         return Ok(());
     }
     Err(record_protocol_error(
@@ -1685,7 +2312,7 @@ fn validate_protocol_tool(
 #[requires(!message.trim().is_empty())]
 #[ensures(!ret.is_empty())]
 fn record_protocol_error(
-    events: &mut Vec<ProtocolEvent>,
+    events: &mut ProtocolEventLog,
     participant: &str,
     phase: ProtocolPhase,
     tool_name: &str,
@@ -1705,7 +2332,7 @@ fn record_protocol_error(
 #[ensures(!ret.is_empty())]
 fn dispatch_reference(
     dispatcher: &mut impl ToolDispatcher,
-    events: &mut Vec<ProtocolEvent>,
+    events: &mut ProtocolEventLog,
     participant: &str,
     phase: ProtocolPhase,
     call: &ToolCall,
@@ -1766,47 +2393,66 @@ mod tests {
     fn state_tool_matrix_rejects_and_records_every_illegal_pair() {
         let mut examined = 0usize;
         let mut rejected = 0usize;
-        for phase in ProtocolPhase::ALL {
-            let definitions = ProtocolTools::definitions_for_phase(phase)
+        let answer_schema = serde_json::json!({
+            "type": "object",
+            "properties": { "scene_index": { "type": "integer" } },
+            "required": ["scene_index"]
+        });
+        for submit_answer_available in [false, true] {
+            for phase in ProtocolPhase::ALL {
+                let definitions = ProtocolTools::definitions_for_phase(
+                    phase,
+                    submit_answer_available.then_some(&answer_schema),
+                )
                 .expect("phase definitions must be valid");
-            let names = definitions
-                .iter()
-                .map(ToolDefinition::name)
-                .collect::<BTreeSet<_>>();
-            for reference in REFERENCE_TOOL_NAMES {
-                assert!(
-                    names.contains(reference),
-                    "{reference} missing in {phase:?}"
-                );
-            }
-            for tool in ProtocolTool::ALL {
-                examined += 1;
-                assert_eq!(names.contains(tool.name()), phase.allows(tool));
-                let mut events = Vec::new();
-                let result = validate_protocol_tool(&mut events, "tester", phase, tool);
-                if phase.allows(tool) {
-                    assert!(result.is_ok(), "legal {phase:?} x {tool:?}");
-                    assert!(events.is_empty());
-                } else {
-                    rejected += 1;
-                    assert!(result.is_err(), "illegal {phase:?} x {tool:?}");
-                    assert!(matches!(
-                        events.as_slice(),
-                        [event]
-                            if matches!(
-                                event.as_data(),
-                                bityzba::data!(ProtocolEvent::ProtocolError {
-                                    phase: event_phase,
-                                    tool_name,
-                                    ..
-                                }) if *event_phase == phase && tool_name == tool.name()
-                            )
-                    ));
+                let names = definitions
+                    .iter()
+                    .map(ToolDefinition::name)
+                    .collect::<BTreeSet<_>>();
+                for reference in REFERENCE_TOOL_NAMES {
+                    assert!(
+                        names.contains(reference),
+                        "{reference} missing in {phase:?}"
+                    );
+                }
+                for tool in ProtocolTool::ALL {
+                    examined += 1;
+                    assert_eq!(
+                        names.contains(tool.name()),
+                        phase.allows(tool, submit_answer_available)
+                    );
+                    let mut events = ProtocolEventLog::default();
+                    let result = validate_protocol_tool(
+                        &mut events,
+                        "tester",
+                        phase,
+                        tool,
+                        submit_answer_available,
+                    );
+                    if phase.allows(tool, submit_answer_available) {
+                        assert!(result.is_ok(), "legal {phase:?} x {tool:?}");
+                        assert!(events.events.is_empty());
+                    } else {
+                        rejected += 1;
+                        assert!(result.is_err(), "illegal {phase:?} x {tool:?}");
+                        assert!(matches!(
+                            events.events.as_slice(),
+                            [event]
+                                if matches!(
+                                    event.as_data(),
+                                    bityzba::data!(ProtocolEvent::ProtocolError {
+                                        phase: event_phase,
+                                        tool_name,
+                                        ..
+                                    }) if *event_phase == phase && tool_name == tool.name()
+                                )
+                        ));
+                    }
                 }
             }
         }
-        assert_eq!(examined, 35);
-        assert_eq!(rejected, 29);
+        assert_eq!(examined, 84);
+        assert_eq!(rejected, 65);
     }
 
     #[test]
@@ -1834,7 +2480,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn protocol_schemas_require_all_semantically_mandatory_fields() {
-        let definitions = ProtocolTools::definitions().expect("valid definitions");
+        let answer_schema = serde_json::json!({
+            "type": "object",
+            "properties": { "scene_index": { "type": "integer" } },
+            "required": ["scene_index"]
+        });
+        let definitions =
+            ProtocolTools::definitions(Some(&answer_schema)).expect("valid definitions");
         for (tool, definition) in definitions {
             let required = definition.function.parameters["required"]
                 .as_array()
@@ -1856,6 +2508,9 @@ mod tests {
                 }
                 ProtocolTool::Acknowledge => {
                     assert_eq!(required, BTreeSet::from(["final_understanding_en"]));
+                }
+                ProtocolTool::SubmitAnswer => {
+                    assert_eq!(required, BTreeSet::from(["scene_index"]));
                 }
             }
         }

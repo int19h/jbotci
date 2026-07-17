@@ -1,49 +1,238 @@
-use bityzba::{data, invariant, new, requires};
+use bityzba::{invariant, new, requires};
 
 use crate::GlyphStyle;
 
-#[invariant(!self.text.is_empty())]
+#[invariant(!text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexedPlaceSpan {
     pub text: String,
     pub place: Option<usize>,
 }
 
-#[invariant(!self.letter.is_empty())]
+#[invariant(!letter.is_empty())]
+#[invariant(*index > 0, "dictionary place indices are one-based")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PlaceId {
     letter: String,
     index: usize,
 }
 
+#[invariant(*place > 0, "mapped dictionary places are one-based")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DefinitionPlaceMapping {
+    id: PlaceId,
+    place: usize,
+}
+
+#[invariant(!ids.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DefinitionPlaceBlock {
+    ids: Vec<PlaceId>,
+}
+
+/// Place assignments and aliases established by all variable blocks in one definition.
+#[invariant(
+    definition_places
+        .iter()
+        .all(|mapping| mapping.id.letter != "x" || mapping.place == mapping.id.index),
+    "x_N definition blocks must always retain place N"
+)]
+#[invariant(
+    aliases
+        .iter()
+        .all(|mapping| mapping.id.letter != "x" || mapping.place == mapping.id.index),
+    "x_N aliases must always retain place N"
+)]
+#[expensive_invariant(definition_places.iter().enumerate().all(|(index, mapping)| {
+    definition_places[..index]
+        .iter()
+        .all(|earlier| earlier.id != mapping.id)
+}), "definition block place IDs must be unique")]
+#[expensive_invariant(
+    aliases.iter().enumerate().all(|(index, mapping)| {
+        aliases[..index]
+            .iter()
+            .all(|earlier| earlier.id != mapping.id)
+    }),
+    "definition place aliases must be unique"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DefinitionPlaceMap {
+    // Leading IDs determine how definition blocks display. Secondary aliases are deliberately
+    // excluded so a later block led by that ID can still establish its own displayed place.
+    definition_places: Vec<DefinitionPlaceMapping>,
+    // Notes use every ID in every definition block, with the first occurrence winning.
+    aliases: Vec<DefinitionPlaceMapping>,
+}
+
+impl DefinitionPlaceMap {
+    /// Build the single place map shared by every definition and notes line in an entry.
+    #[requires(true)]
+    #[ensures(
+        ret.definition_places
+            .iter()
+            .all(|mapping| mapping.id.letter != "x" || mapping.place == mapping.id.index)
+    )]
+    #[ensures(
+        ret.aliases
+            .iter()
+            .all(|mapping| mapping.id.letter != "x" || mapping.place == mapping.id.index)
+    )]
+    pub fn from_definition(definition: &str) -> Self {
+        let normalized = normalize_place_block_separators(definition);
+        let blocks = collect_definition_place_blocks(&normalized);
+        build_definition_place_map(&blocks)
+    }
+
+    #[requires(true)]
+    #[ensures(id.letter == "x" -> ret == Some(id.index))]
+    fn place_for(&self, id: &PlaceId) -> Option<usize> {
+        if id.letter == "x" {
+            return Some(id.index);
+        }
+        self.aliases
+            .iter()
+            .find(|mapping| mapping.id == *id)
+            .map(|mapping| mapping.place)
+    }
+
+    #[requires(true)]
+    #[ensures(id.letter == "x" -> ret == Some(id.index))]
+    fn definition_place_for(&self, id: &PlaceId) -> Option<usize> {
+        if id.letter == "x" {
+            return Some(id.index);
+        }
+        self.definition_places
+            .iter()
+            .find(|mapping| mapping.id == *id)
+            .map(|mapping| mapping.place)
+    }
+}
+
+/// Render one definition line using its entry's prebuilt place map.
 #[requires(true)]
-#[ensures(true)]
-pub fn format_definition_or_notes_line_with_indexed_places(
+#[ensures(input.is_empty() -> ret.is_empty())]
+pub fn format_definition_line_with_indexed_places(
     input: &str,
+    place_map: &DefinitionPlaceMap,
     glyphs: GlyphStyle,
 ) -> String {
-    indexed_place_spans_for_definition_or_notes_line(input, glyphs)
+    indexed_place_spans_for_definition_line(input, place_map, glyphs)
         .into_iter()
         .map(|span| span.into_data().text)
         .collect()
 }
 
+/// Render one notes line without deriving any new place assignments from it.
 #[requires(true)]
-#[ensures(true)]
-pub fn indexed_place_spans_for_definition_or_notes_line(
+#[ensures(input.is_empty() -> ret.is_empty())]
+pub fn format_notes_line_with_indexed_places(
     input: &str,
+    place_map: &DefinitionPlaceMap,
     glyphs: GlyphStyle,
-) -> Vec<IndexedPlaceSpan> {
-    replace_place_markers_with_indexed_place_spans(&substitute_definition_vars("x", input), glyphs)
+) -> String {
+    indexed_place_spans_for_notes_line(input, place_map, glyphs)
+        .into_iter()
+        .map(|span| span.into_data().text)
+        .collect()
 }
 
-#[requires(!target_letter.is_empty())]
-#[ensures(true)]
-fn substitute_definition_vars(target_letter: &str, input: &str) -> String {
-    let normalized = input.replace("$=$", "=");
-    let place_ids = collect_place_ids(&normalized);
-    let place_map = build_lujvo_place_map(&place_ids);
-    replace_place_blocks(target_letter, &place_map, &normalized)
+/// Split a definition line into plain and indexed-place spans.
+#[requires(true)]
+#[ensures(input.is_empty() -> ret.is_empty())]
+pub fn indexed_place_spans_for_definition_line(
+    input: &str,
+    place_map: &DefinitionPlaceMap,
+    glyphs: GlyphStyle,
+) -> Vec<IndexedPlaceSpan> {
+    indexed_place_spans_for_line(input, place_map, glyphs, IndexedPlaceLineKind::Definition)
+}
+
+/// Split a notes line, leaving unmapped variables in plain spans with no place metadata.
+#[requires(true)]
+#[ensures(input.is_empty() -> ret.is_empty())]
+pub fn indexed_place_spans_for_notes_line(
+    input: &str,
+    place_map: &DefinitionPlaceMap,
+    glyphs: GlyphStyle,
+) -> Vec<IndexedPlaceSpan> {
+    indexed_place_spans_for_line(input, place_map, glyphs, IndexedPlaceLineKind::Notes)
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IndexedPlaceLineKind {
+    Definition,
+    Notes,
+}
+
+#[requires(true)]
+#[ensures(input.is_empty() -> ret.is_empty())]
+fn indexed_place_spans_for_line(
+    input: &str,
+    place_map: &DefinitionPlaceMap,
+    glyphs: GlyphStyle,
+    line_kind: IndexedPlaceLineKind,
+) -> Vec<IndexedPlaceSpan> {
+    let normalized = normalize_place_block_separators(input);
+    let mut output = Vec::new();
+    let mut remaining = normalized.as_str();
+    while !remaining.is_empty() {
+        let Some(open_index) = remaining.find('$') else {
+            append_plain_text_spans(&mut output, remaining, glyphs);
+            break;
+        };
+        append_plain_text_spans(&mut output, &remaining[..open_index], glyphs);
+        let after_open = &remaining[open_index + 1..];
+        let Some(close_index) = after_open.find('$') else {
+            append_plain_text_spans(&mut output, &remaining[open_index..], glyphs);
+            break;
+        };
+        let block_text = &after_open[..close_index];
+        if let Some((place_id, _)) = find_place_var(block_text) {
+            let place = match line_kind {
+                IndexedPlaceLineKind::Definition => place_map.definition_place_for(&place_id),
+                IndexedPlaceLineKind::Notes => place_map.place_for(&place_id),
+            };
+            if let Some(place) = place {
+                push_indexed_place_span(
+                    &mut output,
+                    format!("{}{place}{}", glyphs.slot_open(), glyphs.slot_close()),
+                    Some(place),
+                );
+            } else if line_kind == IndexedPlaceLineKind::Notes {
+                push_indexed_place_span(
+                    &mut output,
+                    format_unmapped_place_id(&place_id, glyphs),
+                    None,
+                );
+            } else {
+                push_indexed_place_span(&mut output, format!("${block_text}$"), None);
+            }
+        } else {
+            push_indexed_place_span(&mut output, format!("${block_text}$"), None);
+        }
+        remaining = &after_open[close_index + 1..];
+    }
+    output
+}
+
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+fn append_plain_text_spans(output: &mut Vec<IndexedPlaceSpan>, input: &str, glyphs: GlyphStyle) {
+    for span in replace_place_markers_with_indexed_place_spans(input, glyphs) {
+        let span = span.into_data();
+        push_indexed_place_span(output, span.text, span.place);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.starts_with(&place_id.letter))]
+fn format_unmapped_place_id(place_id: &PlaceId, glyphs: GlyphStyle) -> String {
+    match glyphs {
+        GlyphStyle::Unicode => format!("{}{}", place_id.letter, subscript_number(place_id.index)),
+        GlyphStyle::Ascii => format!("{}_{}", place_id.letter, place_id.index),
+    }
 }
 
 #[requires(true)]
@@ -58,7 +247,7 @@ fn replace_place_markers_with_indexed_place_spans(
         if let Some(after_x) = remaining.strip_prefix('x') {
             let (subscripts, rest) = span_subscript_digits(after_x);
             if subscripts.is_empty() {
-                push_indexed_place_span(&mut output, "x", None);
+                push_indexed_place_span(&mut output, "x".to_owned(), None);
                 remaining = after_x;
                 continue;
             }
@@ -69,16 +258,16 @@ fn replace_place_markers_with_indexed_place_spans(
                     place_index,
                     glyphs.slot_close()
                 );
-                push_indexed_place_span(&mut output, &text, Some(place_index));
+                push_indexed_place_span(&mut output, text, Some(place_index));
             } else {
-                push_indexed_place_span(&mut output, &format!("x{subscripts}"), None);
+                push_indexed_place_span(&mut output, format!("x{subscripts}"), None);
             }
             remaining = rest;
             continue;
         }
         let mut chars = remaining.chars();
         if let Some(character) = chars.next() {
-            push_indexed_place_span(&mut output, &character.to_string(), None);
+            push_indexed_place_span(&mut output, character.to_string(), None);
         }
         remaining = chars.as_str();
     }
@@ -87,23 +276,23 @@ fn replace_place_markers_with_indexed_place_spans(
 
 #[requires(true)]
 #[ensures(output.len() >= old(output.len()))]
-fn push_indexed_place_span(output: &mut Vec<IndexedPlaceSpan>, text: &str, place: Option<usize>) {
+fn push_indexed_place_span(output: &mut Vec<IndexedPlaceSpan>, text: String, place: Option<usize>) {
     if text.is_empty() {
         return;
     }
-    if let Some(last) = output.last_mut()
-        && last.place == place
-    {
-        let merged_text = format!("{}{}", last.text, text);
-        *last = last.clone().with_data(data! {
+    if output.last().is_some_and(|last| last.place == place) {
+        let last = output
+            .pop()
+            .expect("a matching last span was observed immediately before pop");
+        let mut merged_text = last.into_data().text;
+        merged_text.push_str(&text);
+        output.push(new!(IndexedPlaceSpan {
             text: merged_text,
-        });
+            place,
+        }));
         return;
     }
-    output.push(new!(IndexedPlaceSpan {
-        text: text.to_owned(),
-        place,
-    }));
+    output.push(new!(IndexedPlaceSpan { text, place }));
 }
 
 #[requires(true)]
@@ -159,37 +348,116 @@ fn is_subscript_digit(character: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn collect_place_ids(input: &str) -> Vec<PlaceId> {
-    let mut place_ids = Vec::new();
+fn normalize_place_block_separators(input: &str) -> String {
+    input.replace("$=$", "=")
+}
+
+#[requires(true)]
+#[ensures(input.is_empty() -> ret.is_empty())]
+fn collect_definition_place_blocks(input: &str) -> Vec<DefinitionPlaceBlock> {
+    let mut blocks = Vec::new();
     let mut remaining = input;
     while !remaining.is_empty() {
-        let Some(after_open) = remaining.strip_prefix('$') else {
-            remaining = advance_one_char(remaining);
-            continue;
+        let Some(open_index) = remaining.find('$') else {
+            break;
         };
-        if let Some((place_id, after_block)) = extract_first_place_id(after_open) {
-            push_unique_place_id(&mut place_ids, place_id);
-            remaining = after_block;
-        } else {
-            remaining = drop_to_closing_dollar(after_open);
+        let after_open = &remaining[open_index + 1..];
+        let Some(close_index) = after_open.find('$') else {
+            break;
+        };
+        let ids = collect_place_ids_in_block(&after_open[..close_index]);
+        if !ids.is_empty() {
+            blocks.push(new!(DefinitionPlaceBlock { ids }));
+        }
+        remaining = &after_open[close_index + 1..];
+    }
+    blocks
+}
+
+#[requires(true)]
+#[ensures(input.is_empty() -> ret.is_empty())]
+fn collect_place_ids_in_block(input: &str) -> Vec<PlaceId> {
+    let mut ids = Vec::new();
+    let mut remaining = input;
+    while let Some((id, rest)) = find_place_var(remaining) {
+        ids.push(id);
+        remaining = rest;
+    }
+    ids
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn build_definition_place_map(blocks: &[DefinitionPlaceBlock]) -> DefinitionPlaceMap {
+    let mut used_places = Vec::new();
+    for block in blocks {
+        let first_id = block
+            .ids
+            .first()
+            .expect("definition place blocks are non-empty by invariant");
+        if first_id.letter == "x" && !used_places.contains(&first_id.index) {
+            used_places.push(first_id.index);
         }
     }
-    place_ids
-}
 
-#[requires(true)]
-#[ensures(true)]
-fn push_unique_place_id(place_ids: &mut Vec<PlaceId>, place_id: PlaceId) {
-    if !place_ids.contains(&place_id) {
-        place_ids.push(place_id);
+    let mut definition_places: Vec<DefinitionPlaceMapping> = Vec::new();
+    let mut aliases: Vec<DefinitionPlaceMapping> = Vec::new();
+    let mut next_place = 1usize;
+    for block in blocks {
+        let first_id = block
+            .ids
+            .first()
+            .expect("definition place blocks are non-empty by invariant");
+        let existing_place = definition_places
+            .iter()
+            .find(|mapping| mapping.id == *first_id)
+            .map(|mapping| mapping.place);
+        let block_place = if let Some(existing_place) = existing_place {
+            existing_place
+        } else if first_id.letter == "x" {
+            first_id.index
+        } else {
+            while used_places.contains(&next_place) {
+                next_place = next_place
+                    .checked_add(1)
+                    .expect("the number of definition place blocks cannot exhaust usize");
+            }
+            let place = next_place;
+            used_places.push(place);
+            next_place = next_place
+                .checked_add(1)
+                .expect("the number of definition place blocks cannot exhaust usize");
+            place
+        };
+
+        if existing_place.is_none() {
+            definition_places.push(new!(DefinitionPlaceMapping {
+                id: first_id.clone(),
+                place: block_place,
+            }));
+        }
+
+        for id in &block.ids {
+            if aliases
+                .iter()
+                .any(|mapping: &DefinitionPlaceMapping| mapping.id == *id)
+            {
+                continue;
+            }
+            aliases.push(new!(DefinitionPlaceMapping {
+                id: id.clone(),
+                place: if id.letter == "x" {
+                    id.index
+                } else {
+                    block_place
+                },
+            }));
+        }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn extract_first_place_id(input: &str) -> Option<(PlaceId, &str)> {
-    let (place_id, rest) = find_place_var(input)?;
-    Some((place_id, drop_to_closing_dollar(rest)))
+    new!(DefinitionPlaceMap {
+        definition_places,
+        aliases,
+    })
 }
 
 #[requires(true)]
@@ -239,6 +507,9 @@ fn find_place_var(input: &str) -> Option<(PlaceId, &str)> {
 #[ensures(ret.as_ref().is_none_or(|place_id| place_id.letter == letter))]
 fn place_id(letter: &str, digits: &str) -> Option<PlaceId> {
     let index = digits.parse::<usize>().ok()?;
+    if index == 0 {
+        return None;
+    }
     Some(new!(PlaceId {
         letter: letter.to_owned(),
         index,
@@ -319,91 +590,6 @@ fn is_var_letter(character: char) -> bool {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn drop_to_closing_dollar(input: &str) -> &str {
-    match input.find('$') {
-        Some(index) => &input[index + 1..],
-        None => "",
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn advance_one_char(input: &str) -> &str {
-    let mut chars = input.chars();
-    let _ = chars.next();
-    chars.as_str()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn build_lujvo_place_map(place_ids: &[PlaceId]) -> Vec<(PlaceId, usize)> {
-    let max_x_place = place_ids
-        .iter()
-        .filter(|place_id| place_id.letter == "x")
-        .map(|place_id| place_id.index)
-        .max()
-        .unwrap_or(0);
-    let mut mapping = Vec::new();
-    for place_id in place_ids {
-        if place_id.letter == "x" {
-            mapping.push((place_id.clone(), place_id.index));
-        }
-    }
-    let mut next_index = max_x_place + 1;
-    for place_id in place_ids {
-        if place_id.letter != "x" {
-            mapping.push((place_id.clone(), next_index));
-            next_index += 1;
-        }
-    }
-    mapping
-}
-
-#[requires(!target_letter.is_empty())]
-#[ensures(true)]
-fn replace_place_blocks(
-    target_letter: &str,
-    place_map: &[(PlaceId, usize)],
-    input: &str,
-) -> String {
-    let mut output = String::new();
-    let mut remaining = input;
-    while !remaining.is_empty() {
-        let Some(after_open) = remaining.strip_prefix('$') else {
-            let mut chars = remaining.chars();
-            if let Some(character) = chars.next() {
-                output.push(character);
-            }
-            remaining = chars.as_str();
-            continue;
-        };
-        if let Some((place_id, after_block)) = extract_first_place_id(after_open) {
-            if let Some((_place_id, mapped_index)) = place_map
-                .iter()
-                .find(|(candidate, _)| *candidate == place_id)
-            {
-                output.push_str(target_letter);
-                output.push_str(&subscript_number(*mapped_index));
-            } else {
-                output.push('$');
-            }
-            remaining = after_block;
-        } else if let Some(close_index) = after_open.find('$') {
-            output.push('$');
-            output.push_str(&after_open[..close_index]);
-            output.push('$');
-            remaining = &after_open[close_index + 1..];
-        } else {
-            output.push('$');
-            output.push_str(after_open);
-            break;
-        }
-    }
-    output
-}
-
-#[requires(true)]
 #[ensures(value == 0 || !ret.is_empty())]
 fn subscript_number(value: usize) -> String {
     value.to_string().chars().map(subscript_digit).collect()
@@ -434,39 +620,157 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn formats_simple_x_places_as_unicode_indices() {
+    fn preserves_terxra_appearance_order() {
+        let definition = concat!(
+            "$p_3$ makes an image of $p_2$ (object/concept) with result $p_1$ ",
+            "(picture) in medium $p_4$."
+        );
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
         assert_eq!(
-            format_definition_or_notes_line_with_indexed_places(
-                "$x_1$ is a loanword meaning $x_2$ in language $x_3$.",
-                GlyphStyle::Unicode,
-            ),
-            "⟨1⟩ is a loanword meaning ⟨2⟩ in language ⟨3⟩."
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
+            concat!(
+                "⟨1⟩ makes an image of ⟨2⟩ (object/concept) with result ⟨3⟩ ",
+                "(picture) in medium ⟨4⟩."
+            )
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn formats_lujvo_non_x_places_after_canonical_x_places() {
+    fn fills_baldakyxahi_blocks_around_reserved_pin() {
+        let definition = "$xa_1$ is a great sword for use against $xa_2$ by $x_3$.";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
         assert_eq!(
-            format_definition_or_notes_line_with_indexed_places(
-                "$x_1=p_2$ foo $x_2=p_1$ bar $p_3$ baz $bi_3=ba_2$",
-                GlyphStyle::Unicode,
-            ),
-            "⟨1⟩ foo ⟨2⟩ bar ⟨3⟩ baz ⟨4⟩"
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
+            "⟨1⟩ is a great sword for use against ⟨2⟩ by ⟨3⟩."
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn formats_ascii_indices_when_requested() {
+    fn maps_bircidni_blocks_and_all_aliases() {
+        let definition = "$c_1=b_1$ is an elbow of body $x_2=c_3=b_2$.";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
         assert_eq!(
-            format_definition_or_notes_line_with_indexed_places(
-                "$x_{12}$ and $x_2$",
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
+            "⟨1⟩ is an elbow of body ⟨2⟩."
+        );
+        assert_eq!(
+            format_notes_line_with_indexed_places("$b_2$", &place_map, GlyphStyle::Unicode),
+            "⟨2⟩"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn notes_leave_unmapped_variables_unindexed() {
+        let definition = "$x_1$ is a porch attached to building $x_2$.";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
+        assert_eq!(
+            indexed_place_spans_for_notes_line(
+                "$x_2$ = $bartu_2$.",
+                &place_map,
+                GlyphStyle::Unicode,
+            ),
+            vec![
+                new!(IndexedPlaceSpan {
+                    text: "⟨2⟩".to_owned(),
+                    place: Some(2),
+                }),
+                new!(IndexedPlaceSpan {
+                    text: " = bartu₂.".to_owned(),
+                    place: None,
+                }),
+            ]
+        );
+        assert_eq!(
+            format_notes_line_with_indexed_places(
+                "deleting $b_3$ must retain its source place",
+                &place_map,
+                GlyphStyle::Unicode,
+            ),
+            "deleting b₃ must retain its source place"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shares_one_place_map_across_definition_lines() {
+        let definition = "$a_1$ first.\n$c_1$ third.\n$x_2=b_1$ pinned second.";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+        let rendered = definition
+            .lines()
+            .map(|line| {
+                format_definition_line_with_indexed_places(line, &place_map, GlyphStyle::Unicode)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert_eq!(rendered, "⟨1⟩ first.\n⟨3⟩ third.\n⟨2⟩ pinned second.");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn formats_mapped_and_unmapped_places_as_ascii() {
+        let definition = "$x_{12}$ and $p_1$";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
+        assert_eq!(
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Ascii),
+            "<12> and <1>"
+        );
+        assert_eq!(
+            format_notes_line_with_indexed_places(
+                "$p_1$ / $x_7$ / $bartu_2$",
+                &place_map,
                 GlyphStyle::Ascii,
             ),
-            "<12> and <2>"
+            "<1> / <7> / bartu_2"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn repeated_first_id_does_not_consume_another_place() {
+        let definition = "$d_1=c_1$ is today; $d_1=c_1$ is the day of $c_2$, standard $d_3$.";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
+        assert_eq!(
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
+            "⟨1⟩ is today; ⟨1⟩ is the day of ⟨2⟩, standard ⟨3⟩."
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn definition_blocks_and_note_aliases_use_their_distinct_places() {
+        let definition = concat!(
+            "$b_1=c_2$ is a wind from direction $b_2$ with speed $b_3$, ",
+            "shoving $c_2$ at locus $c_3$."
+        );
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
+        assert_eq!(
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
+            concat!(
+                "⟨1⟩ is a wind from direction ⟨2⟩ with speed ⟨3⟩, ",
+                "shoving ⟨4⟩ at locus ⟨5⟩."
+            )
+        );
+        assert_eq!(
+            format_notes_line_with_indexed_places("$c_2$", &place_map, GlyphStyle::Unicode),
+            "⟨1⟩"
         );
     }
 
@@ -474,12 +778,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn preserves_malformed_blocks_and_normalizes_dollar_equals_typos() {
+        let definition = "$bad$ $x_0$ $x_1$=$p_2$";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
         assert_eq!(
-            format_definition_or_notes_line_with_indexed_places(
-                "$bad$ $x_1$=$p_2$",
-                GlyphStyle::Unicode,
-            ),
-            "$bad$ ⟨1⟩"
+            format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
+            "$bad$ $x_0$ ⟨1⟩"
         );
     }
 
@@ -487,10 +791,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exposes_indexed_place_spans_for_repeated_places() {
-        let spans = indexed_place_spans_for_definition_or_notes_line(
-            "$x_1$ sees $x_2$; $x_1$ again.",
-            GlyphStyle::Unicode,
-        );
+        let definition = "$x_1$ sees $x_2$; $x_1$ again.";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+        let spans =
+            indexed_place_spans_for_definition_line(definition, &place_map, GlyphStyle::Unicode);
 
         assert_eq!(
             spans,
@@ -518,38 +822,6 @@ mod tests {
                 new!(IndexedPlaceSpan {
                     text: " again.".to_owned(),
                     place: None,
-                }),
-            ]
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn exposes_mapped_lujvo_and_malformed_place_spans() {
-        let spans = indexed_place_spans_for_definition_or_notes_line(
-            "$bad$ $x_1=p_2$ foo $bi_3=ba_2$",
-            GlyphStyle::Ascii,
-        );
-
-        assert_eq!(
-            spans,
-            vec![
-                new!(IndexedPlaceSpan {
-                    text: "$bad$ ".to_owned(),
-                    place: None,
-                }),
-                new!(IndexedPlaceSpan {
-                    text: "<1>".to_owned(),
-                    place: Some(1),
-                }),
-                new!(IndexedPlaceSpan {
-                    text: " foo ".to_owned(),
-                    place: None,
-                }),
-                new!(IndexedPlaceSpan {
-                    text: "<2>".to_owned(),
-                    place: Some(2),
                 }),
             ]
         );

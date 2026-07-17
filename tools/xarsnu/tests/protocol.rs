@@ -4,11 +4,12 @@ use std::collections::{BTreeSet, VecDeque};
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use serde_json::{Value, json};
 use xarsnu::openrouter::ModelTurnData;
-use xarsnu::protocol::{ProtocolEventData, TurnForfeitReasonData};
+use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData};
 use xarsnu::{
-    CapsConfig, ModelTurn, ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolRunner,
-    ProtocolTool, ReferenceToolDispatcher, RunAccounting, TersmuFormat, ToolCall, ToolChoice,
-    ToolDefinition,
+    CapsConfig, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError,
+    ProtocolRunner, ProtocolTool, ReferenceToolDispatcher, RunAccounting, RunConfig, RunHeader,
+    ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
+    read_transcript,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -824,4 +825,181 @@ fn round_robin_starts_next_speaker_only_after_listener_acknowledges() {
         .expect("bob starts turn two");
     assert!(first_ack < second_turn);
     assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_answers() {
+    let scenario =
+        ScenarioInstance::from_toml(include_str!("../scenarios/schedule-negotiation-1.toml"))
+            .expect("schedule scenario");
+    let correct = json!({
+        "day": "tuesday",
+        "start_minute": 660,
+        "duration_minutes": 60
+    });
+    let alice = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I can meet on Tuesday." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Bob goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Bob goes." }),
+            ),
+            step(
+                &["register_intent", "submit_answer"],
+                "submit_answer",
+                correct.clone(),
+            ),
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "The meeting is agreed." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+        ],
+    );
+    let bob = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes." }),
+            ),
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I can meet later Tuesday." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+            step(
+                &["interpret_blind", "submit_answer"],
+                "submit_answer",
+                correct,
+            ),
+        ],
+    );
+    let header = RunHeader::new(
+        new!(RunConfig {
+            participants: ["alice", "bob"]
+                .into_iter()
+                .map(|name| new!(ParticipantConfig {
+                    name: name.to_owned(),
+                    model: format!("example/{name}"),
+                    temperature: 0.25,
+                    system_prompt: "Use the gated protocol.".to_owned(),
+                    private_brief: format!("Private English brief for {name}."),
+                }))
+                .collect(),
+            scenario: "schedule-negotiation-1.toml".to_owned(),
+            caps: caps(3, 2, 6),
+            tersmu_format: TersmuFormat::TreeProj,
+        }),
+        &scenario,
+    )
+    .expect("transcript header");
+    let transcript_path = std::env::temp_dir().join(format!(
+        "xarsnu-protocol-transcript-{}.jsonl",
+        std::process::id()
+    ));
+    let mut runner = ProtocolRunner::new_with_scenario(
+        vec![alice, bob],
+        caps(3, 2, 6),
+        TersmuFormat::TreeProj,
+        ReferenceToolDispatcher,
+        scenario,
+    )
+    .expect("scenario runner");
+    runner
+        .attach_transcript(&transcript_path, header)
+        .expect("attach transcript");
+
+    let outcome = runner.run().expect("scenario protocol run");
+
+    assert!(matches!(
+        outcome.as_data(),
+        ProtocolRunOutcomeData::ScenarioCompleted { turns: 3 }
+    ));
+    assert_eq!(runner.answers().len(), 2);
+    assert_eq!(
+        runner.task_outcome().expect("checker outcome").status,
+        TaskStatus::Success
+    );
+    assert_eq!(
+        runner
+            .events()
+            .iter()
+            .filter(|event| matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::AnswerSubmitted { .. })
+            ))
+            .count(),
+        2
+    );
+    assert!(matches!(
+        runner
+            .events()
+            .iter()
+            .rev()
+            .find(|event| matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
+            ))
+            .expect("checker outcome event")
+            .as_data(),
+        bityzba::data!(ProtocolEvent::CheckerOutcome { outcome, .. })
+            if outcome.status == TaskStatus::Success
+    ));
+    let records = read_transcript(&transcript_path).expect("runtime transcript validates");
+    assert_eq!(records.len(), runner.events().len());
+    assert_eq!(
+        records.last().expect("terminal record").sequence_number,
+        u64::try_from(records.len() - 1).unwrap()
+    );
+    std::fs::remove_file(transcript_path).expect("remove runtime transcript");
 }

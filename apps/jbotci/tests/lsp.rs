@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
+use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
@@ -626,6 +627,39 @@ fn completion_uses_utf8_seed_edit_ranges_and_resolves_markdown() {
 #[ensures(true)]
 fn completion_uses_utf16_seed_edit_ranges_and_resolves_markdown() {
     assert_completion_encoding("utf-16");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn error_heavy_completion_returns_before_followup_diagnostics() {
+    let text = format!("{}mukti lo nu", "mi ku .i ".repeat(14));
+    let cursor = text
+        .find("mukti lo nu")
+        .expect("fixture contains the completion phrase")
+        + "mukti l".len();
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, DOCUMENT_URI, 1, &text);
+
+    let started = Instant::now();
+    let completions = completion(&mut client, DOCUMENT_URI, cursor as u64);
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "error-heavy LSP completion unexpectedly took {:?}",
+        started.elapsed(),
+    );
+    assert!(completions.is_array(), "completion must return a response");
+
+    let diagnostics = pull_diagnostics(&mut client, None);
+    assert_eq!(diagnostics["kind"], "full");
+    assert!(
+        diagnostics["items"]
+            .as_array()
+            .is_some_and(|items| !items.is_empty()),
+        "the server must answer diagnostics after error-heavy completion",
+    );
+    client.shutdown();
 }
 
 #[test]

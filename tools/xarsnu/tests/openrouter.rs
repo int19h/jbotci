@@ -304,6 +304,10 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     assert_eq!(last["content"], "  exact tool payload\n");
     assert_eq!(conversation.usage().total_tokens, 18);
     assert_eq!(accounting.usage().cost_usd, 0.125);
+    let usage = conversation.take_pending_usage();
+    assert_eq!(usage.len(), 1);
+    assert_eq!(usage[0].cost, 0.125);
+    assert!(conversation.take_pending_usage().is_empty());
     let captured = server.finish();
     assert_eq!(captured[0].body["tool_choice"], "required");
     assert_eq!(captured[0].body["usage"], json!({ "include": true }));
@@ -329,6 +333,9 @@ fn required_prose_is_correctively_reprompted_before_success() {
         )
         .expect("reprompt reaches tool call");
     assert!(turn.tool_calls().is_some());
+    let usage = conversation.take_pending_usage();
+    assert_eq!(usage.len(), 2, "each provider call must remain distinct");
+    assert_eq!(usage.iter().map(|record| record.cost).sum::<f64>(), 0.03);
 
     // These are the messages received by the mock server, so the assertion
     // fails if the fallback loop retries without actually sending correction.
