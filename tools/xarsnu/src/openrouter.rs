@@ -736,6 +736,22 @@ impl ParticipantConversation {
         self.messages.push(ChatMessage::user(content));
     }
 
+    /// Append one already-dispatched tool result to this private conversation.
+    ///
+    /// Protocol orchestration uses this narrow hook so scripted and live model
+    /// boundaries can share the same tool-gating logic without duplicating the
+    /// OpenRouter request implementation.
+    #[requires(!call.id.trim().is_empty())]
+    #[requires(!call.function.name.trim().is_empty())]
+    #[ensures(self.messages.len() == old(self.messages.len()) + 1)]
+    pub fn push_tool_result(&mut self, call: &ToolCall, content: String) {
+        self.messages.push(ChatMessage::tool(
+            call.id.clone(),
+            call.function.name.clone(),
+            content,
+        ));
+    }
+
     /// Request one model turn using exactly the supplied tool list.
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
