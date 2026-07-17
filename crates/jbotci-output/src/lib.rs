@@ -33,8 +33,9 @@ pub use markdown::{
 };
 use owo_colors::OwoColorize;
 pub use places::{
-    IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
-    indexed_place_spans_for_definition_or_notes_line,
+    DefinitionPlaceMap, IndexedPlaceSpan, format_definition_line_with_indexed_places,
+    format_notes_line_with_indexed_places, indexed_place_spans_for_definition_line,
+    indexed_place_spans_for_notes_line,
 };
 pub use recovered::{
     compact_recovered_morphology_json_string_with_options,
