@@ -55,7 +55,7 @@ type BoxedParser<'tokens, O> = Boxed<'tokens, O>;
 const LEGACY_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR: usize = 8;
 const MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR: usize = 64;
 
-#[invariant(true)]
+#[invariant(!duration.is_zero(), "an active continuation time limit is nonzero")]
 #[derive(Debug, Clone, Copy)]
 struct ContinuationTimeLimit {
     started: Instant,
@@ -63,13 +63,13 @@ struct ContinuationTimeLimit {
 }
 
 impl ContinuationTimeLimit {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(!duration.is_zero())]
+    #[ensures(ret.duration == duration)]
     fn new(duration: Duration) -> Self {
-        Self {
+        new!(ContinuationTimeLimit {
             started: Instant::now(),
             duration,
-        }
+        })
     }
 
     #[requires(true)]
@@ -2298,6 +2298,9 @@ pub(crate) fn expected_continuations(
     options: &ParseOptions,
     time_limit: Option<Duration>,
 ) -> Vec<SyntaxExpectation> {
+    if time_limit.is_some_and(|duration| duration.is_zero()) {
+        return Vec::new();
+    }
     let time_limit = time_limit.map(ContinuationTimeLimit::new);
     if time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
         return Vec::new();
