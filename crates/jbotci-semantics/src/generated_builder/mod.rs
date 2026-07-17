@@ -509,6 +509,7 @@ struct GeneratedPendingRelationLabelConnection {
 }
 
 #[invariant(::Root { .. } => true)]
+#[invariant(::ParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneFreeModifiers(_) => true)]
 #[invariant(::PendingStatementConnection { .. } => true)]
@@ -519,6 +520,9 @@ enum GeneratedTextPlanItem<'syntax> {
         root: GeneratedTextRoot<'syntax>,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
         separator_i: Option<&'syntax Token>,
+    },
+    ParagraphBoundary {
+        markers: &'syntax Vec1<Token>,
     },
     StandaloneParagraphBoundary {
         markers: &'syntax Vec1<Token>,
@@ -533,6 +537,14 @@ enum GeneratedTextPlanItem<'syntax> {
         i: &'syntax Token,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
     },
+}
+
+// `Vec1` makes the marker-presence requirement true by construction.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedBuiltParagraphBoundary<'syntax> {
+    item_index: usize,
+    markers: &'syntax Vec1<Token>,
 }
 
 #[invariant(matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter))]
@@ -8654,6 +8666,60 @@ mod tests {
                 additional: Vec::new(),
             }
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonempty_niho_paragraphs_keep_their_ordered_topic_transitions() {
+        for (source, transition, additional) in [
+            (
+                "broda ni'o brode",
+                ParagraphTransition::NewTopic,
+                Vec::new(),
+            ),
+            (
+                "broda no'i brode",
+                ParagraphTransition::ResumePriorTopic,
+                Vec::new(),
+            ),
+            (
+                "broda ni'o no'i brode",
+                ParagraphTransition::NewTopic,
+                vec![ParagraphTransition::ResumePriorTopic],
+            ),
+        ] {
+            let graph = semantic_graph_for(source);
+            let sequence = graph.objects[&graph.root]
+                .as_sequence()
+                .expect("NIhO joins the surrounding paragraphs in a discourse sequence");
+            assert_eq!(sequence.items.len(), 2);
+            assert_eq!(
+                sequence.relation,
+                SequenceRelation::ParagraphBoundary {
+                    transition,
+                    additional,
+                },
+            );
+        }
+
+        let graph = semantic_graph_for("broda .i brode ni'o brodi .i brodo");
+        let outer = graph.objects[&graph.root]
+            .as_sequence()
+            .expect("NIhO is the outer paragraph grouping");
+        assert!(matches!(
+            outer.relation,
+            SequenceRelation::ParagraphBoundary {
+                transition: ParagraphTransition::NewTopic,
+                ..
+            }
+        ));
+        assert!(outer.items.iter().all(|item| {
+            graph.objects[item].as_sequence().is_some_and(|paragraph| {
+                paragraph.relation == SequenceRelation::SameTopicContinuation
+                    && paragraph.items.len() == 2
+            })
+        }));
     }
 
     #[test]

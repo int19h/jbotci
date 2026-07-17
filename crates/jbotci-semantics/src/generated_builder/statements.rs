@@ -2,9 +2,7 @@ use super::*;
 
 #[requires(!markers.is_empty())]
 #[ensures(ret.is_ok())]
-fn generated_standalone_paragraph_relation(
-    markers: &Vec1<Token>,
-) -> Result<SequenceRelation, SemanticsError> {
+fn generated_paragraph_relation(markers: &Vec1<Token>) -> Result<SequenceRelation, SemanticsError> {
     let mut transitions = markers.iter().map(|marker| match marker.cmavo() {
         Some(Cmavo::Niho) => Ok(ParagraphTransition::NewTopic),
         Some(Cmavo::Nohi) => Ok(ParagraphTransition::ResumePriorTopic),
@@ -265,6 +263,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         plan: GeneratedTextPlan<'tree>,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         let mut items = Vec::new();
+        let mut paragraph_boundaries = Vec::new();
         let mut leading_asides =
             self.build_generated_vocative_asides_from_refs(&plan.leading_free_modifiers)?;
         let truth_question = plan.leading_indicators.iter().any(|indicator| {
@@ -381,11 +380,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         items.push(item);
                     }
                 }
+                GeneratedTextPlanItem::ParagraphBoundary { markers } => {
+                    paragraph_boundaries.push(GeneratedBuiltParagraphBoundary {
+                        item_index: items.len(),
+                        markers,
+                    });
+                }
                 GeneratedTextPlanItem::StandaloneParagraphBoundary {
                     markers,
                     free_modifiers,
                 } => {
-                    let relation = generated_standalone_paragraph_relation(&markers)?;
+                    let relation = generated_paragraph_relation(markers)?;
                     let boundary = self.next_sequence_id();
                     self.insert(
                         boundary,
@@ -500,10 +505,112 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             items.push(item);
         }
 
+        items = self.group_generated_paragraph_items(items, &paragraph_boundaries)?;
+
         self.previous_utterance = None;
         self.current_utterance = None;
         self.next_utterance = None;
         Ok(items)
+    }
+
+    #[requires(items.iter().all(|item| matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence | crate::model::SemanticObjectKind::DisplayedContent)))]
+    #[requires(boundaries.iter().all(|boundary| boundary.item_index <= items.len()))]
+    #[requires(boundaries.windows(2).all(|pair| pair[0].item_index <= pair[1].item_index))]
+    #[ensures(ret.as_ref().is_ok_and(|result| (boundaries.is_empty() || result.len() <= 1) && result.iter().all(|item| matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence | crate::model::SemanticObjectKind::DisplayedContent))) || ret.is_err())]
+    fn group_generated_paragraph_items(
+        &mut self,
+        items: Vec<SemanticObjectId>,
+        boundaries: &[GeneratedBuiltParagraphBoundary<'tree>],
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        let Some(first_boundary) = boundaries.first() else {
+            return Ok(items);
+        };
+
+        let mut grouped =
+            self.collapse_generated_paragraph_items(&items[..first_boundary.item_index])?;
+        for (boundary_index, boundary) in boundaries.iter().enumerate() {
+            let following_item_index = boundaries
+                .get(boundary_index + 1)
+                .map_or(items.len(), |following| following.item_index);
+            let paragraph = self.collapse_generated_paragraph_items(
+                &items[boundary.item_index..following_item_index],
+            )?;
+            let mut boundary_items = Vec::with_capacity(2);
+            boundary_items.extend(grouped);
+            boundary_items.extend(paragraph);
+
+            let boundary_id = self.next_sequence_id();
+            self.insert(
+                boundary_id,
+                SemanticObject::sequence(
+                    boundary_items,
+                    generated_paragraph_relation(boundary.markers)?,
+                    self.source_for_tokens(boundary.markers.as_slice(), "paragraph-boundary"),
+                    Vec::new(),
+                ),
+            )?;
+            grouped = Some(boundary_id);
+        }
+        Ok(grouped.into_iter().collect())
+    }
+
+    #[requires(items.iter().all(|item| matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence | crate::model::SemanticObjectKind::DisplayedContent)))]
+    #[ensures(ret.as_ref().is_ok_and(|item| item.is_none_or(|item| matches!(item.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::Sequence | crate::model::SemanticObjectKind::DisplayedContent))) || ret.is_err())]
+    fn collapse_generated_paragraph_items(
+        &mut self,
+        items: &[SemanticObjectId],
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match items {
+            [] => Ok(None),
+            [item] => Ok(Some(*item)),
+            _ => {
+                let paragraph = self.next_sequence_id();
+                self.insert(
+                    paragraph,
+                    SemanticObject::sequence(
+                        items.to_vec(),
+                        SequenceRelation::SameTopicContinuation,
+                        self.source_for_generated_discourse_items(items, "paragraph"),
+                        Vec::new(),
+                    ),
+                )?;
+                Ok(Some(paragraph))
+            }
+        }
+    }
+
+    #[requires(!items.is_empty())]
+    #[requires(!construct.is_empty())]
+    #[ensures(ret.as_ref().is_none_or(|source| source.construct.as_deref() == Some(construct)))]
+    fn source_for_generated_discourse_items(
+        &self,
+        items: &[SemanticObjectId],
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut sources = items
+            .iter()
+            .filter_map(|item| self.objects.get(item))
+            .filter_map(SemanticObject::source);
+        let first = sources.next()?;
+        let mut byte_start = first.span.byte_start;
+        let mut byte_end = first.span.byte_end;
+        for source in sources {
+            byte_start = byte_start.min(source.span.byte_start);
+            byte_end = byte_end.max(source.span.byte_end);
+        }
+        let text = self
+            .options
+            .source_text
+            .and_then(|text| text.get(byte_start..byte_end))
+            .map(str::to_owned);
+        Some(crate::model::SemanticSource {
+            span: SourceByteSpan {
+                byte_start,
+                byte_end,
+            },
+            text,
+            construct: Some(construct.to_owned()),
+        })
     }
 
     #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
