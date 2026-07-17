@@ -1,11 +1,10 @@
 use std::error::Error;
-use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{OpenRouterClient, RunAccounting, RunConfig, report_file};
+use xarsnu::{OpenRouterClient, report_file, run as run_live};
 
 #[requires(true)]
 #[ensures(true)]
@@ -41,16 +40,19 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Err("usage: xarsnu <config.toml>".into());
     }
     let path = PathBuf::from(first);
-    let source = fs::read_to_string(&path)?;
-    let config = RunConfig::from_toml(&source)?;
-    let _client = OpenRouterClient::from_env()?;
-    let accounting = RunAccounting::new(config.caps.max_cost_usd)?;
-    println!(
-        "loaded scenario `{}` with {} participants and ${:.4} budget",
-        config.scenario,
-        config.participants.len(),
-        config.caps.max_cost_usd
-    );
-    debug_assert_eq!(accounting.usage().cost_usd, 0.0);
+    let summary = match run_live(&path, OpenRouterClient::from_env) {
+        Ok(summary) => summary,
+        Err(error) => {
+            if let Some(transcript_path) = error.transcript_path()
+                && transcript_path.exists()
+            {
+                println!("transcript: {}", transcript_path.display());
+                println!("outcome: runtime failure");
+            }
+            return Err(error.into());
+        }
+    };
+    println!("transcript: {}", summary.transcript_path.display());
+    println!("outcome: {}", summary.outcome_line());
     Ok(())
 }

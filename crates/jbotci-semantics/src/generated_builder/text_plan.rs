@@ -171,6 +171,7 @@ pub(super) fn push_generated_optional_niho_statement_sequence_items<'syntax>(
     free_modifiers: &'syntax [FreeModifierSyntax],
 ) -> Result<(), SemanticsError> {
     if let Some(sequence) = sequence {
+        items.push(GeneratedTextPlanItem::ParagraphBoundary { markers });
         push_generated_paragraph_statement_sequence_items(items, sequence, free_modifiers)
     } else {
         items.push(GeneratedTextPlanItem::StandaloneParagraphBoundary {

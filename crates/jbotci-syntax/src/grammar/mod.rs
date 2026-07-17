@@ -56,7 +56,7 @@ const LEGACY_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR: usize = 8;
 const MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR: usize = 64;
 
 #[invariant(!duration.is_zero(), "an active continuation time limit is nonzero")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ContinuationTimeLimit {
     started: Instant,
     duration: Duration,
@@ -544,6 +544,7 @@ pub(super) struct ParserState<'tokens> {
     track_recovery_branches: bool,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     continuation_sentinel_index: Option<usize>,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
     _tokens: PhantomData<&'tokens ()>,
 }
 
@@ -592,20 +593,24 @@ impl<'tokens> ParserState<'tokens> {
             track_recovery_branches: false,
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
             continuation_sentinel_index: None,
+            continuation_time_limit: None,
             _tokens: PhantomData,
         }
     }
 
     #[requires(sentinel_index < words.len())]
     #[ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
+    #[ensures(ret.continuation_time_limit == continuation_time_limit)]
     pub(super) fn new_for_expected_continuations(
         words: &[Token],
         options: &ParseOptions,
         sentinel_index: usize,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> Self {
         let mut state = Self::new(words, options);
         state.track_recovery_branches = true;
         state.continuation_sentinel_index = Some(sentinel_index);
+        state.continuation_time_limit = continuation_time_limit;
         state
     }
 
@@ -629,6 +634,7 @@ impl<'tokens> ParserState<'tokens> {
         directives: &[RecoveryDirective],
         memo_trial: SyntaxRecoveryMemoTrial<'tokens>,
         continuation_sentinel_index: Option<usize>,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> Self {
         let mut state = Self::new_with_recovery_branches(words, options);
         state.recovery_directives = directives.to_vec();
@@ -640,6 +646,7 @@ impl<'tokens> ParserState<'tokens> {
         state.recovery_source = source.map(Arc::<str>::from);
         state.recovery_memo_trial = Some(memo_trial);
         state.continuation_sentinel_index = continuation_sentinel_index;
+        state.continuation_time_limit = continuation_time_limit;
         state
     }
 
@@ -1312,12 +1319,22 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(ret && !self.recovery_enabled() -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
     #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.recovery_index)))]
+    // A completion deadline must be observable inside a single recovery
+    // trial. Keep the query in this existing non-generic descent boundary so
+    // ordinary generated rule frames retain their original stack shape.
+    #[inline(never)]
     pub(super) fn enter_syntax_memo_rule(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> bool {
+        if self
+            .continuation_time_limit
+            .is_some_and(ContinuationTimeLimit::exhausted)
+        {
+            return false;
+        }
         let entered = if self.recovery_enabled() {
             self.syntax_recovery_memo_in_progress.insert((
                 rule_name,
@@ -2318,6 +2335,7 @@ pub(crate) fn expected_continuations(
             &tokens,
             options,
             sentinel_index,
+            time_limit,
         );
     let data!(generated::generated_model::GeneratedParsedTextDetailedAttempt {
         result,
@@ -2347,6 +2365,7 @@ pub(crate) fn expected_continuations(
     let data!(RecoveryParseOutcome {
         recovered: _,
         continuation_expectations,
+        continuation_cut_reached: _,
         continuation_time_limit_exhausted,
     }) = recovered.into_data();
     if continuation_time_limit_exhausted {
@@ -2413,6 +2432,7 @@ pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
     let data!(RecoveryParseOutcome {
         recovered,
         continuation_expectations: _,
+        continuation_cut_reached: _,
         continuation_time_limit_exhausted: _,
     }) = recovered.into_data();
     SyntaxRecoveryParseAttempt {
@@ -2458,18 +2478,21 @@ fn recover_after_strict_failure(
     let cap = options.max_recovery_errors.get();
     let parser_tokens = tokens::spanned_tokens(&tokens);
     let recovery_token_scan = RecoveryTokenScan::new(&tokens);
-    let mut recovery_session = if let Some(sentinel_index) = continuation_sentinel_index {
-        generated::generated_model::GeneratedRecoveryParseSession::new_for_expected_continuations(
-            sentinel_index,
-        )
-    } else {
-        generated::generated_model::GeneratedRecoveryParseSession::new()
-    };
+    // Recovery selection depends only on parse results. Keep its memo session
+    // free of completion-specific observation state so recovery-insensitive
+    // entries can be shared across every trial. Once one directive chain
+    // reaches the requested cut, replay only that chain in a fresh session to
+    // capture its expectations in isolation.
+    let mut recovery_session =
+        generated::generated_model::GeneratedRecoveryParseSession::new_with_continuation_time_limit(
+            continuation_time_limit,
+        );
     let initial_failure = failure.clone();
     let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
     let mut continuation_expectations = Vec::new();
+    let mut continuation_cut_reached = false;
     let mut continuation_time_limit_exhausted = false;
 
     'recovery_errors: while errors.len() < cap {
@@ -2547,7 +2570,7 @@ fn recover_after_strict_failure(
                         unconsumed_directives,
                         recovery_directives: applied_directives,
                         effective_fail_token_indices: applied_effective_fail_token_indices,
-                        continuation_expectations: mut attempt_continuation_expectations,
+                        continuation_expectations: _,
                     }
                 ) = attempt.into_data();
                 let fired_left_of_declared_failure = applied_directives
@@ -2558,25 +2581,47 @@ fn recover_after_strict_failure(
                     });
                 match result {
                     Ok(parsed) if unconsumed_directives == 0 => {
-                        let winning_expectations = if continuation_expectations.is_empty() {
-                            attempt_continuation_expectations
-                        } else {
-                            continuation_expectations.clone()
-                        };
                         if !natural_stop_enabled || fired_left_of_declared_failure {
+                            let winning_expectations =
+                                if let Some(sentinel_index) = continuation_sentinel_index {
+                                    let expectations =
+                                        replay_winning_continuation_success_expectations(
+                                            &tokens,
+                                            &parser_tokens,
+                                            source,
+                                            options,
+                                            &applied_directives,
+                                            0,
+                                            &applied_effective_fail_token_indices,
+                                            sentinel_index,
+                                            continuation_time_limit,
+                                        )
+                                        .unwrap_or_default();
+                                    if continuation_time_limit
+                                        .is_some_and(ContinuationTimeLimit::exhausted)
+                                    {
+                                        continuation_time_limit_exhausted = true;
+                                        break 'recovery_errors;
+                                    }
+                                    expectations
+                                } else {
+                                    continuation_expectations
+                                };
                             recovery_session.clear_memo();
                             return recovered_success(
                                 parsed,
                                 &errors,
                                 attempt_trace,
                                 winning_expectations,
+                                continuation_sentinel_index.is_some(),
                             );
                         }
                         if !directives.is_empty() && exact_position_success.is_none() {
                             exact_position_success = Some(new!(RecoverySuccessTrial {
                                 parsed,
                                 trace: attempt_trace,
-                                continuation_expectations: winning_expectations,
+                                directives: applied_directives,
+                                effective_fail_token_indices: applied_effective_fail_token_indices,
                             }));
                         }
                     }
@@ -2596,17 +2641,12 @@ fn recover_after_strict_failure(
                             continue;
                         }
                         if accepted_progress.is_none() {
-                            if continuation_sentinel_index.is_some_and(|sentinel_index| {
-                                next_error_start == recovery_byte_at(&tokens, sentinel_index)
-                            }) {
-                                attempt_continuation_expectations
-                                    .extend(syntax_error_expectations(&next_failure.public_error));
-                            }
                             accepted_progress = Some(new!(RecoveryProgressTrial {
                                 directives: applied_directives,
                                 failure: next_failure,
                                 trace: attempt_trace,
-                                continuation_expectations: attempt_continuation_expectations,
+                                unconsumed_directives,
+                                effective_fail_token_indices: applied_effective_fail_token_indices,
                             }));
                         }
                         if !natural_stop_enabled {
@@ -2625,10 +2665,38 @@ fn recover_after_strict_failure(
             let data!(RecoverySuccessTrial {
                 parsed,
                 trace: attempt_trace,
-                continuation_expectations,
+                directives: success_directives,
+                effective_fail_token_indices,
             }) = success.into_data();
+            let winning_expectations = if let Some(sentinel_index) = continuation_sentinel_index {
+                let expectations = replay_winning_continuation_success_expectations(
+                    &tokens,
+                    &parser_tokens,
+                    source,
+                    options,
+                    &success_directives,
+                    0,
+                    &effective_fail_token_indices,
+                    sentinel_index,
+                    continuation_time_limit,
+                )
+                .unwrap_or_default();
+                if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+                    continuation_time_limit_exhausted = true;
+                    break 'recovery_errors;
+                }
+                expectations
+            } else {
+                continuation_expectations
+            };
             recovery_session.clear_memo();
-            return recovered_success(parsed, &errors, attempt_trace, continuation_expectations);
+            return recovered_success(
+                parsed,
+                &errors,
+                attempt_trace,
+                winning_expectations,
+                continuation_sentinel_index.is_some(),
+            );
         }
 
         let Some(progress) = accepted_progress else {
@@ -2638,16 +2706,51 @@ fn recover_after_strict_failure(
             directives: trial_directives,
             failure: next_failure,
             trace: progress_trace,
-            continuation_expectations: progress_continuation_expectations,
+            unconsumed_directives,
+            effective_fail_token_indices,
         }) = progress.into_data();
+        let trial_reached_continuation_cut =
+            continuation_sentinel_index.is_some_and(|sentinel_index| {
+                syntax_error_start(&next_failure.public_error)
+                    == recovery_byte_at(&tokens, sentinel_index)
+            });
+        if let Some(sentinel_index) =
+            continuation_sentinel_index.filter(|_| trial_reached_continuation_cut)
+        {
+            let replayed_expectations = replay_winning_continuation_expectations(
+                &tokens,
+                &parser_tokens,
+                source,
+                options,
+                &trial_directives,
+                unconsumed_directives,
+                &effective_fail_token_indices,
+                &next_failure,
+                sentinel_index,
+                continuation_time_limit,
+            );
+            continuation_expectations = replayed_expectations
+                .unwrap_or_else(|| syntax_error_expectations(&next_failure.public_error));
+            if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+                continuation_time_limit_exhausted = true;
+                break 'recovery_errors;
+            }
+        }
         directives = trial_directives;
         errors.push(next_failure.public_error.clone());
         failure = next_failure;
         trace = progress_trace;
-        continuation_expectations = progress_continuation_expectations;
+        if trial_reached_continuation_cut {
+            continuation_cut_reached = true;
+            break;
+        }
     }
 
-    if !continuation_time_limit_exhausted && initial_has_anchor_candidates && errors.len() > 1 {
+    if !continuation_time_limit_exhausted
+        && !continuation_cut_reached
+        && initial_has_anchor_candidates
+        && errors.len() > 1
+    {
         if let Some(recovered) = try_final_recovery_from_initial_failure(
             &tokens,
             source,
@@ -2656,6 +2759,7 @@ fn recover_after_strict_failure(
             &errors,
             &parser_tokens,
             &mut recovery_session,
+            continuation_sentinel_index,
             continuation_time_limit,
         ) {
             return recovered;
@@ -2685,6 +2789,7 @@ fn recover_after_strict_failure(
             trace,
         },
         continuation_expectations,
+        continuation_cut_reached,
         continuation_time_limit_exhausted,
     })
 }
@@ -2692,11 +2797,13 @@ fn recover_after_strict_failure(
 #[requires(!errors.is_empty())]
 #[ensures(!ret.recovered.result.errors.is_empty())]
 #[ensures(ret.continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[ensures(ret.continuation_cut_reached == continuation_cut_reached)]
 fn recovered_success(
     parsed: generated::generated_model::GeneratedRecoveredParsedText,
     errors: &[SyntaxError],
     trace: Option<TraceReport>,
     continuation_expectations: Vec<SyntaxExpectation>,
+    continuation_cut_reached: bool,
 ) -> RecoveryParseOutcome {
     new!(RecoveryParseOutcome {
         recovered: RecoveredSyntaxParseAttempt {
@@ -2708,8 +2815,128 @@ fn recovered_success(
             trace,
         },
         continuation_expectations,
+        continuation_cut_reached,
         continuation_time_limit_exhausted: false,
     })
+}
+
+#[requires(!directives.is_empty())]
+#[requires(expected_effective_fail_token_indices.len() + expected_unconsumed_directives == directives.len())]
+#[requires(continuation_sentinel_index < tokens.len())]
+#[ensures(ret.as_ref().is_none_or(|expectations| expectations.iter().all(|expectation| !expectation.tokens.is_empty())))]
+fn replay_winning_continuation_expectations<'tokens>(
+    tokens: &[Token],
+    parser_tokens: &'tokens [SpannedToken],
+    source: Option<&str>,
+    options: &ParseOptions,
+    directives: &[RecoveryDirective],
+    expected_unconsumed_directives: usize,
+    expected_effective_fail_token_indices: &[usize],
+    expected_failure: &generated::generated_model::GeneratedParseFailure,
+    continuation_sentinel_index: usize,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
+) -> Option<Vec<SyntaxExpectation>> {
+    let attempt = replay_winning_continuation_attempt(
+        tokens,
+        parser_tokens,
+        source,
+        options,
+        directives,
+        continuation_sentinel_index,
+        continuation_time_limit,
+    );
+    let data!(generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+        result,
+        mut continuation_expectations,
+        unconsumed_directives,
+        recovery_directives,
+        effective_fail_token_indices,
+        ..
+    }) = attempt.into_data();
+    let replay_matches = result.as_ref().is_err_and(|failure| {
+        failure.public_error == expected_failure.public_error
+            && syntax_error_start(&failure.public_error)
+                == recovery_byte_at(tokens, continuation_sentinel_index)
+            && unconsumed_directives == expected_unconsumed_directives
+            && recovery_directives == directives
+            && effective_fail_token_indices == expected_effective_fail_token_indices
+    });
+    if !replay_matches {
+        return None;
+    }
+    let Err(failure) = result else {
+        unreachable!("matching continuation replay is a failure");
+    };
+    continuation_expectations.extend(syntax_error_expectations(&failure.public_error));
+    Some(continuation_expectations)
+}
+
+#[requires(!directives.is_empty())]
+#[requires(expected_effective_fail_token_indices.len() + expected_unconsumed_directives == directives.len())]
+#[requires(continuation_sentinel_index < tokens.len())]
+#[ensures(ret.as_ref().is_none_or(|expectations| expectations.iter().all(|expectation| !expectation.tokens.is_empty())))]
+fn replay_winning_continuation_success_expectations<'tokens>(
+    tokens: &[Token],
+    parser_tokens: &'tokens [SpannedToken],
+    source: Option<&str>,
+    options: &ParseOptions,
+    directives: &[RecoveryDirective],
+    expected_unconsumed_directives: usize,
+    expected_effective_fail_token_indices: &[usize],
+    continuation_sentinel_index: usize,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
+) -> Option<Vec<SyntaxExpectation>> {
+    let attempt = replay_winning_continuation_attempt(
+        tokens,
+        parser_tokens,
+        source,
+        options,
+        directives,
+        continuation_sentinel_index,
+        continuation_time_limit,
+    );
+    let data!(
+        generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+            result,
+            continuation_expectations,
+            unconsumed_directives,
+            recovery_directives,
+            effective_fail_token_indices,
+            ..
+        }
+    ) = attempt.into_data();
+    (result.is_ok()
+        && unconsumed_directives == expected_unconsumed_directives
+        && recovery_directives == directives
+        && effective_fail_token_indices == expected_effective_fail_token_indices)
+        .then_some(continuation_expectations)
+}
+
+#[requires(!directives.is_empty())]
+#[requires(continuation_sentinel_index < tokens.len())]
+#[ensures(ret.recovery_directives == directives)]
+fn replay_winning_continuation_attempt<'tokens>(
+    tokens: &[Token],
+    parser_tokens: &'tokens [SpannedToken],
+    source: Option<&str>,
+    options: &ParseOptions,
+    directives: &[RecoveryDirective],
+    continuation_sentinel_index: usize,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
+) -> generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+    let mut recovery_session =
+        generated::generated_model::GeneratedRecoveryParseSession::new_for_expected_continuations(
+            continuation_sentinel_index,
+            continuation_time_limit,
+        );
+    generated::generated_model::parse_recovered_text_attempt_with_session(
+        tokens,
+        parser_tokens,
+        source,
+        options,
+        directives,
+        &mut recovery_session,
+    )
 }
 
 #[requires(!errors.is_empty())]
@@ -2722,6 +2949,7 @@ fn try_final_recovery_from_initial_failure<'tokens>(
     errors: &[SyntaxError],
     parser_tokens: &'tokens [SpannedToken],
     recovery_session: &mut generated::generated_model::GeneratedRecoveryParseSession<'tokens>,
+    continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<RecoveryParseOutcome> {
     for directive in select_final_recovery_directives(tokens, initial_failure, 0) {
@@ -2744,19 +2972,42 @@ fn try_final_recovery_from_initial_failure<'tokens>(
                 result,
                 trace,
                 unconsumed_directives,
-                continuation_expectations,
-                ..
+                continuation_expectations: _,
+                recovery_directives,
+                effective_fail_token_indices,
             }
         ) = attempt.into_data();
         if let Ok(parsed) = result
             && unconsumed_directives == 0
         {
+            let continuation_expectations =
+                if let Some(sentinel_index) = continuation_sentinel_index {
+                    let expectations = replay_winning_continuation_success_expectations(
+                        tokens,
+                        parser_tokens,
+                        source,
+                        options,
+                        &recovery_directives,
+                        0,
+                        &effective_fail_token_indices,
+                        sentinel_index,
+                        continuation_time_limit,
+                    )
+                    .unwrap_or_default();
+                    if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
+                        return None;
+                    }
+                    expectations
+                } else {
+                    Vec::new()
+                };
             recovery_session.clear_memo();
             return Some(recovered_success(
                 parsed,
                 errors,
                 trace,
                 continuation_expectations,
+                continuation_sentinel_index.is_some(),
             ));
         }
     }
@@ -2785,25 +3036,30 @@ struct RecoveryClaim {
 }
 
 #[invariant(!directives.is_empty())]
-#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[invariant(effective_fail_token_indices.len() + *unconsumed_directives == directives.len())]
 struct RecoveryProgressTrial {
     directives: Vec<RecoveryDirective>,
     failure: generated::generated_model::GeneratedParseFailure,
     trace: Option<TraceReport>,
-    continuation_expectations: Vec<SyntaxExpectation>,
+    unconsumed_directives: usize,
+    effective_fail_token_indices: Vec<usize>,
 }
 
-#[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[invariant(!directives.is_empty())]
+#[invariant(effective_fail_token_indices.len() == directives.len())]
 struct RecoverySuccessTrial {
     parsed: generated::generated_model::GeneratedRecoveredParsedText,
     trace: Option<TraceReport>,
-    continuation_expectations: Vec<SyntaxExpectation>,
+    directives: Vec<RecoveryDirective>,
+    effective_fail_token_indices: Vec<usize>,
 }
 
 #[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[invariant(!*continuation_cut_reached || !*continuation_time_limit_exhausted)]
 struct RecoveryParseOutcome {
     recovered: RecoveredSyntaxParseAttempt,
     continuation_expectations: Vec<SyntaxExpectation>,
+    continuation_cut_reached: bool,
     continuation_time_limit_exhausted: bool,
 }
 
@@ -3639,7 +3895,12 @@ mod tests {
     use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::{WordLikeData, segment_words_with_modifiers};
     use jbotci_tree::RecoveredFieldState;
-    use std::{fmt::Write as _, fs, path::Path};
+    use std::{
+        fmt::Write as _,
+        fs,
+        path::Path,
+        time::{Duration, Instant},
+    };
     use vec1::Vec1;
 
     use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, WithFreeModifiers};
@@ -3650,6 +3911,82 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/recovery-anchor-metadata.snapshot.txt"
     );
+
+    #[test]
+    #[ignore = "requires the owner document path in JBOTCI_ISSUE_463_REPRO"]
+    #[requires(true)]
+    #[ensures(true)]
+    fn owner_repro_unbounded_completion_reaches_the_deep_cut() {
+        run_on_fixture_worker_stack(|| {
+            let path = std::env::var_os("JBOTCI_ISSUE_463_REPRO")
+                .expect("set JBOTCI_ISSUE_463_REPRO to the private owner-document path");
+            let source = fs::read_to_string(path).expect("owner document should be readable");
+            let phrase_start = source
+                .find("mukti lo nu")
+                .expect("owner document should contain the issue #463 completion phrase");
+            let prefix_end = phrase_start + "mukti ".len();
+            let prefix = &source[..prefix_end];
+            let words = segment_words_with_modifiers(prefix)
+                .expect("the owner-document prefix should have valid morphology");
+            let options = ParseOptions::default();
+            let mut tokens = syntax_tokens(&words, &options);
+            let cut_byte = tokens
+                .last()
+                .and_then(tokens::word_byte_range)
+                .map(|range| range.end)
+                .expect("the non-empty prefix should have a final syntax token");
+            assert_eq!(
+                cut_byte,
+                phrase_start + "mukti".len(),
+                "the syntax cut must follow mukti immediately before the current lo seed",
+            );
+            tokens.push(expected_continuation_sentinel(cut_byte));
+            let sentinel_index = tokens.len() - 1;
+
+            let started = Instant::now();
+            let tracked_attempt = generated::generated_model::parse_text_detailed_tracked_attempt_for_expected_continuations(
+                &tokens,
+                &options,
+                sentinel_index,
+                None,
+            );
+            let data!(
+                generated::generated_model::GeneratedParsedTextDetailedAttempt {
+                    result,
+                    trace,
+                    continuation_expectations: _,
+                }
+            ) = tracked_attempt.into_data();
+            let failure = match result {
+                Ok(_) => panic!("the sentinel should fail the strict root parser"),
+                Err(failure) => failure,
+            };
+            let recovered = recover_after_strict_failure(
+                tokens,
+                None,
+                &options,
+                failure,
+                trace,
+                Some(sentinel_index),
+                None,
+            );
+            let elapsed = started.elapsed();
+
+            assert!(
+                recovered.continuation_cut_reached,
+                "unbounded recovery must reach the requested completion cut",
+            );
+            assert_eq!(
+                recovered.recovered.result.errors.len(),
+                14,
+                "the winning recovery must retain every prior owner-document error",
+            );
+            assert!(
+                elapsed <= Duration::from_secs(30),
+                "unbounded issue #463 recovery took {elapsed:?}; the generous ceiling guards memo-retention regressions",
+            );
+        });
+    }
 
     #[test]
     #[requires(true)]

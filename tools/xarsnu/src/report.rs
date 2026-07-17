@@ -224,6 +224,47 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 quote(&mut report, result);
                 report.push('\n');
             }
+            bityzba::data!(ProtocolEvent::ReferenceLookupRepeated {
+                participant,
+                tool_name,
+                repeat_number,
+                remaining_calls,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Repeated reference lookup — `{participant}` / `{tool_name}`\n\nExact-query occurrence: **{repeat_number}**; reference calls remaining in phase: **{remaining_calls}**.\n"
+                )
+                .expect("writing to String cannot fail");
+                summary.reference_repeats += 1;
+            }
+            bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted {
+                participant,
+                maximum,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Reference-call budget exhausted — `{participant}`\n\nPhase maximum: **{maximum}**; reference tools withdrawn.\n"
+                )
+                .expect("writing to String cannot fail");
+                summary.reference_budgets_exhausted += 1;
+            }
+            bityzba::data!(ProtocolEvent::ReferenceResearchNudge {
+                participant,
+                consecutive_calls,
+                message,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Reference-research nudge — `{participant}`\n\nConsecutive reference calls: **{consecutive_calls}**\n\nCorrection:\n"
+                )
+                .expect("writing to String cannot fail");
+                quote(&mut report, message);
+                report.push('\n');
+                summary.reference_nudges += 1;
+            }
             bityzba::data!(ProtocolEvent::ProtocolError {
                 participant,
                 tool_name,
@@ -287,11 +328,13 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
             }) => {
                 writeln!(
                     report,
-                    "### API usage — `{participant}`\n\n{} prompt + {} completion = {} tokens; ${:.6}\n",
+                    "### API usage — `{participant}`\n\n{} prompt + {} completion = {} tokens; ${:.6}; {} cached, {} cache-write tokens\n",
                     usage.prompt_tokens,
                     usage.completion_tokens,
                     usage.total_tokens,
-                    usage.cost
+                    usage.cost,
+                    usage.cached_tokens.unwrap_or(0),
+                    usage.cache_write_tokens.unwrap_or(0),
                 )
                 .expect("writing to String cannot fail");
                 summary
@@ -319,6 +362,23 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 )
                 .expect("writing to String cannot fail");
             }
+            bityzba::data!(ProtocolEvent::RunFailed { failure }) => {
+                writeln!(
+                    report,
+                    "## Runtime failure\n\nCall site: **{}**\n\nTurn: {}\n",
+                    failure.call_site.as_str(),
+                    failure.turn_number,
+                )
+                .expect("writing to String cannot fail");
+                if let Some(participant) = &failure.participant {
+                    writeln!(report, "Participant: `{participant}`\n")
+                        .expect("writing to String cannot fail");
+                }
+                report.push_str("Error:\n\n");
+                quote(&mut report, &failure.message);
+                report.push('\n');
+                summary.runtime_failures += 1;
+            }
         }
     }
 
@@ -336,9 +396,13 @@ struct ReportSummary {
     intents: BTreeMap<usize, String>,
     blind_turns: BTreeSet<usize>,
     discrepancy_acknowledgments: Vec<(usize, String, String)>,
+    reference_repeats: usize,
+    reference_budgets_exhausted: usize,
+    reference_nudges: usize,
     protocol_errors: usize,
     forfeits: usize,
     aborts: usize,
+    runtime_failures: usize,
     task_status: Option<TaskStatus>,
     task_outcomes: BTreeMap<String, Option<bool>>,
     usage_by_participant: BTreeMap<String, UsageTotals>,
@@ -393,6 +457,15 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
     )
     .expect("writing to String cannot fail");
 
+    writeln!(
+        report,
+        "\n### Reference-loop mitigations\n\n- Memoized repeats: {}\n- Phase budgets exhausted: {}\n- Idle-research nudges: {}",
+        summary.reference_repeats,
+        summary.reference_budgets_exhausted,
+        summary.reference_nudges
+    )
+    .expect("writing to String cannot fail");
+
     report.push_str("\n### Divergence flags\n\n");
     let intent_turns = summary.intents.keys().copied().collect::<BTreeSet<_>>();
     for turn in summary.blind_turns.intersection(&intent_turns) {
@@ -415,8 +488,8 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
 
     writeln!(
         report,
-        "\n### Protocol stops\n\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}",
-        summary.protocol_errors, summary.forfeits, summary.aborts
+        "\n### Protocol stops\n\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}\n- Runtime failures: {}",
+        summary.protocol_errors, summary.forfeits, summary.aborts, summary.runtime_failures
     )
     .expect("writing to String cannot fail");
 
@@ -428,6 +501,7 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
             usage.prompt_tokens, usage.completion_tokens, usage.total_tokens, usage.cost_usd
         )
         .expect("writing to String cannot fail");
+        render_cache_observability(report, usage);
     }
     writeln!(
         report,
@@ -438,6 +512,43 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
         summary.run_usage.cost_usd
     )
     .expect("writing to String cannot fail");
+    render_cache_observability(report, &summary.run_usage);
+}
+
+#[requires(true)]
+#[ensures(report.contains("Cache efficiency:") && report.contains("Call hit rate:"))]
+fn render_cache_observability(report: &mut String, usage: &UsageTotals) {
+    writeln!(
+        report,
+        "  - Cache totals: {} cached tokens; {} cache-write tokens",
+        usage.cached_tokens, usage.cache_write_tokens
+    )
+    .expect("writing to String cannot fail");
+    writeln!(
+        report,
+        "  - Cache efficiency: {} ({} / {} prompt tokens)",
+        percentage(usage.cache_efficiency()),
+        usage.cached_tokens,
+        usage.prompt_tokens,
+    )
+    .expect("writing to String cannot fail");
+    writeln!(
+        report,
+        "  - Call hit rate: {} ({} / {} provider calls)",
+        percentage(usage.cache_hit_rate()),
+        usage.cache_hit_calls,
+        usage.provider_calls,
+    )
+    .expect("writing to String cannot fail");
+}
+
+#[requires(rate.is_none_or(|value| value.is_finite() && (0.0..=1.0).contains(&value)))]
+#[ensures(!ret.is_empty())]
+fn percentage(rate: Option<f64>) -> String {
+    rate.map_or_else(
+        || "n/a".to_owned(),
+        |value| format!("{:.2}%", value * 100.0),
+    )
 }
 
 #[requires(true)]

@@ -6,14 +6,28 @@ use std::time::Duration;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
-use serde::{Deserialize, Serialize};
+use serde::ser::{Error as _, SerializeSeq};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use thiserror::Error;
+
+use crate::PromptCaching;
 
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
 const SKIPPED_INVALID_BATCH_CALL: &str = "This tool call was not executed because another tool call in the same response had invalid arguments.";
+
+/// Whether a model currently requires explicit provider prompt-cache breakpoints.
+///
+/// Keep provider policy centralized here: OpenRouter models under `anthropic/`
+/// require explicit management today, while other configured models retain the
+/// legacy request shape.
+#[requires(true)]
+#[ensures(ret == model.starts_with("anthropic/"))]
+fn model_requires_explicit_prompt_caching(model: &str) -> bool {
+    model.starts_with("anthropic/")
+}
 
 /// Whether the model may answer with prose or must select a tool.
 #[invariant(::Auto => true)]
@@ -207,6 +221,7 @@ impl ChatMessage {
 /// Usage reported for one non-streaming completion.
 #[invariant(cost.is_finite() && *cost >= 0.0, "reported cost must be finite and nonnegative")]
 #[invariant(prompt_tokens.checked_add(*completion_tokens) == Some(*total_tokens), "total tokens must equal prompt plus completion tokens")]
+#[invariant(cached_tokens.as_ref().is_none_or(|tokens| *tokens <= *prompt_tokens), "cached tokens cannot exceed prompt tokens")]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
     #[serde(default)]
@@ -215,6 +230,10 @@ pub struct Usage {
     pub completion_tokens: u64,
     #[serde(default)]
     pub total_tokens: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cached_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_tokens: Option<u64>,
     #[serde(default)]
     pub cost: f64,
 }
@@ -229,6 +248,10 @@ pub struct UsageTotals {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
+    pub cached_tokens: u64,
+    pub cache_write_tokens: u64,
+    pub provider_calls: u64,
+    pub cache_hit_calls: u64,
     pub cost_usd: f64,
 }
 
@@ -242,7 +265,33 @@ impl UsageTotals {
             .completion_tokens
             .saturating_add(usage.completion_tokens);
         self.total_tokens = self.total_tokens.saturating_add(usage.total_tokens);
+        self.cached_tokens = self
+            .cached_tokens
+            .saturating_add(usage.cached_tokens.unwrap_or(0));
+        self.cache_write_tokens = self
+            .cache_write_tokens
+            .saturating_add(usage.cache_write_tokens.unwrap_or(0));
+        self.provider_calls = self.provider_calls.saturating_add(1);
+        if usage.cached_tokens.unwrap_or(0) > 0 {
+            self.cache_hit_calls = self.cache_hit_calls.saturating_add(1);
+        }
         self.cost_usd += usage.cost;
+    }
+
+    /// Fraction of prompt tokens served from cache, when prompt usage exists.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self.prompt_tokens == 0))]
+    #[ensures(ret.is_none_or(|rate| (0.0..=1.0).contains(&rate)))]
+    pub fn cache_efficiency(&self) -> Option<f64> {
+        (self.prompt_tokens > 0).then(|| self.cached_tokens as f64 / self.prompt_tokens as f64)
+    }
+
+    /// Fraction of provider calls reporting at least one cached prompt token.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self.provider_calls == 0))]
+    #[ensures(ret.is_none_or(|rate| (0.0..=1.0).contains(&rate)))]
+    pub fn cache_hit_rate(&self) -> Option<f64> {
+        (self.provider_calls > 0).then(|| self.cache_hit_calls as f64 / self.provider_calls as f64)
     }
 }
 
@@ -483,15 +532,27 @@ impl OpenRouterClient {
     fn complete(
         &self,
         model: &str,
+        prompt_caching: PromptCaching,
         temperature: f64,
         messages: &[ChatMessage],
         tools: &[ToolDefinition],
         tool_choice: ToolChoice,
     ) -> Result<Completion, OpenRouterError> {
+        let explicit_prompt_caching =
+            prompt_caching == PromptCaching::Auto && model_requires_explicit_prompt_caching(model);
+
+        // OpenRouter's Anthropic-compatible prompt prefix places tool definitions
+        // before message content. Xarsnu deliberately keeps tools dynamic by phase,
+        // so a phase transition invalidates the cache even with these breakpoints.
+        // Within-phase loops carry the expected call volume; do not stabilize the
+        // tool array here because that would weaken protocol enforcement.
         let request = CompletionRequest {
             model,
             temperature,
-            messages,
+            messages: CompletionMessages {
+                messages,
+                explicit_prompt_caching,
+            },
             tools,
             tool_choice,
             usage: new!(CompletionUsageRequest { include: true }),
@@ -561,6 +622,7 @@ impl OpenRouterClient {
                         message: error.to_string(),
                     }
                 })?;
+            let usage = wire.usage.into_usage()?;
             let choice = wire.choices.into_iter().next().ok_or_else(|| {
                 OpenRouterError::InvalidResponse {
                     message: "OpenRouter returned no completion choices".to_owned(),
@@ -576,7 +638,7 @@ impl OpenRouterClient {
             return Ok(Completion {
                 content,
                 tool_calls: choice.message.tool_calls,
-                usage: wire.usage,
+                usage,
             });
         }
     }
@@ -662,6 +724,7 @@ impl ModelTurn {
 pub struct ParticipantConversation {
     participant_name: String,
     model: String,
+    prompt_caching: PromptCaching,
     temperature: f64,
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
@@ -669,44 +732,69 @@ pub struct ParticipantConversation {
 }
 
 impl ParticipantConversation {
-    /// Seed a participant's private channel with its persona and private brief.
+    /// Seed a participant's private channel with its persona.
+    ///
+    /// The scenario runner appends the public setup and participant-scoped
+    /// scenario brief before the first model call.
     #[requires(true)]
-    #[ensures(ret.messages.len() == 2)]
+    #[ensures(ret.messages.len() == 1)]
     pub fn new(participant: &crate::ParticipantConfig) -> Self {
+        Self::from_system_prompt(
+            participant.name.clone(),
+            participant.model.clone(),
+            participant.prompt_caching,
+            participant.temperature,
+            participant.system_prompt.clone(),
+        )
+    }
+
+    /// Seed a participant with an explicitly composed system prompt.
+    #[requires(!participant_name.trim().is_empty())]
+    #[requires(!model.trim().is_empty())]
+    #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
+    #[requires(!system_prompt.trim().is_empty())]
+    #[ensures(ret.messages.len() == 1)]
+    pub fn from_system_prompt(
+        participant_name: String,
+        model: String,
+        prompt_caching: PromptCaching,
+        temperature: f64,
+        system_prompt: String,
+    ) -> Self {
         Self {
-            participant_name: participant.name.clone(),
-            model: participant.model.clone(),
-            temperature: participant.temperature,
-            messages: vec![
-                ChatMessage::system(participant.system_prompt.clone()),
-                ChatMessage::user(participant.private_brief.clone()),
-            ],
+            participant_name,
+            model,
+            prompt_caching,
+            temperature,
+            messages: vec![ChatMessage::system(system_prompt)],
             usage: UsageTotals::default(),
             pending_usage: Vec::new(),
         }
     }
 
-    /// Seed a conversation directly, primarily for protocol composition and offline tests.
+    /// Seed a conversation directly, primarily for lower-level runtime tests.
     #[requires(!participant_name.trim().is_empty())]
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
     #[requires(!system_prompt.trim().is_empty())]
-    #[requires(!private_brief.trim().is_empty())]
+    #[requires(!initial_user_prompt.trim().is_empty())]
     #[ensures(ret.messages.len() == 2)]
     pub fn from_parts(
         participant_name: String,
         model: String,
+        prompt_caching: PromptCaching,
         temperature: f64,
         system_prompt: String,
-        private_brief: String,
+        initial_user_prompt: String,
     ) -> Self {
         Self {
             participant_name,
             model,
+            prompt_caching,
             temperature,
             messages: vec![
                 ChatMessage::system(system_prompt),
-                ChatMessage::user(private_brief),
+                ChatMessage::user(initial_user_prompt),
             ],
             usage: UsageTotals::default(),
             pending_usage: Vec::new(),
@@ -783,6 +871,7 @@ impl ParticipantConversation {
         loop {
             let completion = client.complete(
                 &self.model,
+                self.prompt_caching,
                 self.temperature,
                 &self.messages,
                 tools,
@@ -919,10 +1008,188 @@ pub enum OpenRouterError {
 struct CompletionRequest<'a> {
     model: &'a str,
     temperature: f64,
-    messages: &'a [ChatMessage],
+    messages: CompletionMessages<'a>,
     tools: &'a [ToolDefinition],
     tool_choice: ToolChoice,
     usage: CompletionUsageRequest,
+}
+
+/// Request-scoped view over stored history.
+///
+/// The plain path delegates to `ChatMessage` serialization byte-for-byte. The
+/// explicit path wraps only the two messages selected for this request; it does
+/// not mutate history, so the moving final breakpoint naturally advances.
+#[invariant(true, "constructed only for a nonempty participant history")]
+#[derive(Debug)]
+struct CompletionMessages<'a> {
+    messages: &'a [ChatMessage],
+    explicit_prompt_caching: bool,
+}
+
+impl Serialize for CompletionMessages<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if !self.explicit_prompt_caching {
+            return self.messages.serialize(serializer);
+        }
+
+        let final_index = self.messages.len().saturating_sub(1);
+        let mut sequence = serializer.serialize_seq(Some(self.messages.len()))?;
+        for (index, message) in self.messages.iter().enumerate() {
+            let cache_breakpoint = index == 0 || index == final_index;
+            let message = RequestChatMessage::from_message(message, cache_breakpoint)
+                .map_err(S::Error::custom)?;
+            sequence.serialize_element(&message)?;
+        }
+        sequence.end()
+    }
+}
+
+/// Borrowed message representation used only when a request has breakpoints.
+#[invariant(::System { .. } => true, "data is borrowed from an invariant-bearing ChatMessage")]
+#[invariant(::User { .. } => true, "data is borrowed from an invariant-bearing ChatMessage")]
+#[invariant(::Assistant { .. } => true, "data is borrowed from an invariant-bearing ChatMessage")]
+#[invariant(::Tool { .. } => true, "data is borrowed from an invariant-bearing ChatMessage")]
+#[derive(Debug, Serialize)]
+#[serde(tag = "role", rename_all = "lowercase")]
+enum RequestChatMessage<'a> {
+    System {
+        content: RequestMessageContent<'a>,
+    },
+    User {
+        content: RequestMessageContent<'a>,
+    },
+    Assistant {
+        content: Option<RequestMessageContent<'a>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tool_calls: Option<&'a [ToolCall]>,
+    },
+    Tool {
+        tool_call_id: &'a str,
+        name: &'a str,
+        content: RequestMessageContent<'a>,
+    },
+}
+
+impl<'a> RequestChatMessage<'a> {
+    #[requires(true)]
+    #[ensures(ret.is_ok() || cache_breakpoint)]
+    fn from_message(
+        message: &'a ChatMessage,
+        cache_breakpoint: bool,
+    ) -> Result<Self, &'static str> {
+        match message.as_data() {
+            bityzba::data!(ChatMessage::System { content }) => Ok(Self::System {
+                content: RequestMessageContent::new(content, cache_breakpoint),
+            }),
+            bityzba::data!(ChatMessage::User { content }) => Ok(Self::User {
+                content: RequestMessageContent::new(content, cache_breakpoint),
+            }),
+            bityzba::data!(ChatMessage::Assistant {
+                content,
+                tool_calls,
+            }) => {
+                if cache_breakpoint && content.is_none() {
+                    return Err(
+                        "the final prompt-cache breakpoint requires textual message content",
+                    );
+                }
+                Ok(Self::Assistant {
+                    content: content
+                        .as_deref()
+                        .map(|content| RequestMessageContent::new(content, cache_breakpoint)),
+                    tool_calls: (!tool_calls.is_empty()).then_some(tool_calls),
+                })
+            }
+            bityzba::data!(ChatMessage::Tool {
+                tool_call_id,
+                name,
+                content,
+            }) => Ok(Self::Tool {
+                tool_call_id,
+                name,
+                content: RequestMessageContent::new(content, cache_breakpoint),
+            }),
+        }
+    }
+}
+
+/// A string on the legacy path or one cacheable text part on the explicit path.
+#[invariant(true, "text is borrowed exactly from the stored ChatMessage")]
+#[derive(Debug)]
+struct RequestMessageContent<'a> {
+    text: &'a str,
+    cache_breakpoint: bool,
+}
+
+impl<'a> RequestMessageContent<'a> {
+    #[requires(true)]
+    #[ensures(ret.text == text && ret.cache_breakpoint == cache_breakpoint)]
+    fn new(text: &'a str, cache_breakpoint: bool) -> Self {
+        Self {
+            text,
+            cache_breakpoint,
+        }
+    }
+}
+
+impl Serialize for RequestMessageContent<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.cache_breakpoint {
+            [CacheableTextPart {
+                kind: ContentPartKind::Text,
+                text: self.text,
+                cache_control: CacheControl {
+                    kind: CacheControlKind::Ephemeral,
+                },
+            }]
+            .serialize(serializer)
+        } else {
+            self.text.serialize(serializer)
+        }
+    }
+}
+
+#[invariant(
+    true,
+    "all fields are fixed protocol constants or borrowed message text"
+)]
+#[derive(Debug, Serialize)]
+struct CacheableTextPart<'a> {
+    #[serde(rename = "type")]
+    kind: ContentPartKind,
+    text: &'a str,
+    cache_control: CacheControl,
+}
+
+#[invariant(::Text => true)]
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum ContentPartKind {
+    Text,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Serialize)]
+struct CacheControl {
+    #[serde(rename = "type")]
+    kind: CacheControlKind,
+}
+
+#[invariant(::Ephemeral => true)]
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum CacheControlKind {
+    Ephemeral,
 }
 
 #[invariant(*include, "usage accounting must be explicitly requested")]
@@ -936,7 +1203,52 @@ struct CompletionUsageRequest {
 struct CompletionResponse {
     choices: Vec<CompletionChoice>,
     #[serde(default)]
-    usage: Usage,
+    usage: ProviderUsage,
+}
+
+/// OpenRouter's provider response shape before transcript normalization.
+#[invariant(true, "provider data is validated while converting into Usage")]
+#[derive(Debug, Default, Deserialize)]
+struct ProviderUsage {
+    #[serde(default)]
+    prompt_tokens: u64,
+    #[serde(default)]
+    completion_tokens: u64,
+    #[serde(default)]
+    total_tokens: u64,
+    #[serde(default)]
+    prompt_tokens_details: Option<PromptTokensDetails>,
+    #[serde(default)]
+    cache_write_tokens: Option<u64>,
+    #[serde(default)]
+    cost: f64,
+}
+
+impl ProviderUsage {
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn into_usage(self) -> Result<Usage, OpenRouterError> {
+        Usage::try_from_data(bityzba::data!(Usage {
+            prompt_tokens: self.prompt_tokens,
+            completion_tokens: self.completion_tokens,
+            total_tokens: self.total_tokens,
+            cached_tokens: self
+                .prompt_tokens_details
+                .and_then(|details| details.cached_tokens),
+            cache_write_tokens: self.cache_write_tokens,
+            cost: self.cost,
+        }))
+        .map_err(|error| OpenRouterError::InvalidResponse {
+            message: error.to_string(),
+        })
+    }
+}
+
+#[invariant(true, "provider data is validated while converting into Usage")]
+#[derive(Debug, Default, Deserialize)]
+struct PromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: Option<u64>,
 }
 
 #[invariant(true)]

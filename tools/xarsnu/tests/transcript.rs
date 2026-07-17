@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[allow(unused_imports)]
@@ -38,6 +38,9 @@ fn golden_transcript_renders_every_event_kind() {
             "meaning-confirmed",
             "message-posted",
             "protocol-error",
+            "reference-call-budget-exhausted",
+            "reference-lookup-repeated",
+            "reference-research-nudge",
             "reference-tool-completed",
             "run-aborted",
             "run-finished",
@@ -64,9 +67,34 @@ fn golden_transcript_renders_every_event_kind() {
         "Recorded discrepancies:",
         "### Scenario answer",
         "### Scenario checker",
+        "### Repeated reference lookup",
+        "### Reference-call budget exhausted",
+        "### Reference-research nudge",
+        "80 cached, 40 cache-write tokens",
+        "Cache efficiency: 66.67%",
+        "Call hit rate: 100.00%",
     ] {
         assert!(report.contains(anti_no_op), "missing {anti_no_op}");
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn schema_v1_accepts_usage_without_additive_cache_fields() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let legacy = fixture.replace(",\"cached_tokens\":80,\"cache_write_tokens\":40", "");
+    assert_ne!(legacy, fixture, "fixture must exercise cache fields");
+    let path = temp_path("schema-v1-without-cache-fields");
+    fs::write(&path, legacy).expect("write legacy-compatible transcript");
+
+    let records = read_transcript(&path).expect("optional cache fields may be absent");
+    assert!(!records.is_empty());
+    let report = report_file(&path).expect("legacy-compatible transcript renders");
+    assert!(report.contains("Cache totals: 0 cached tokens; 0 cache-write tokens"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
 }
 
 #[test]
@@ -110,7 +138,7 @@ fn corrupted_transcripts_report_the_exact_line() {
         .expect("write truncated transcript");
     let error = read_transcript(&truncated).expect_err("truncation must fail");
     assert_eq!(error.line, 2);
-    assert!(error.to_string().contains("no run-finished event"));
+    assert!(error.to_string().contains("no terminal event"));
 
     for path in [bad_json, missing_header, sequence_gap, truncated] {
         fs::remove_file(path).expect("remove temporary transcript");
@@ -142,5 +170,13 @@ fn report_subcommand_is_offline_and_matches_the_library() {
 #[requires(!name.trim().is_empty())]
 #[ensures(ret.file_name().is_some())]
 fn temp_path(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("xarsnu-{name}-{}.jsonl", std::process::id()))
+    let executable = std::env::current_exe().expect("current test executable");
+    let target_directory = executable
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .expect("Cargo target directory");
+    let directory = target_directory.join("xarsnu-test-tmp");
+    fs::create_dir_all(&directory).expect("create target temporary directory");
+    directory.join(format!("xarsnu-{name}-{}.jsonl", std::process::id()))
 }

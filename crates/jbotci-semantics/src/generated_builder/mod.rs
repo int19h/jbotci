@@ -509,6 +509,7 @@ struct GeneratedPendingRelationLabelConnection {
 }
 
 #[invariant(::Root { .. } => true)]
+#[invariant(::ParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneParagraphBoundary { .. } => true)]
 #[invariant(::StandaloneFreeModifiers(_) => true)]
 #[invariant(::PendingStatementConnection { .. } => true)]
@@ -519,6 +520,9 @@ enum GeneratedTextPlanItem<'syntax> {
         root: GeneratedTextRoot<'syntax>,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
         separator_i: Option<&'syntax Token>,
+    },
+    ParagraphBoundary {
+        markers: &'syntax Vec1<Token>,
     },
     StandaloneParagraphBoundary {
         markers: &'syntax Vec1<Token>,
@@ -533,6 +537,14 @@ enum GeneratedTextPlanItem<'syntax> {
         i: &'syntax Token,
         free_modifiers: Vec<&'syntax FreeModifierSyntax>,
     },
+}
+
+// `Vec1` makes the marker-presence requirement true by construction.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedBuiltParagraphBoundary<'syntax> {
+    item_index: usize,
+    markers: &'syntax Vec1<Token>,
 }
 
 #[invariant(matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter))]
@@ -569,6 +581,13 @@ struct GeneratedPrenexRelationVariableBinding {
 enum GeneratedPrenexPushedBinding {
     ProSumti(String),
     RelationVariable(String),
+}
+
+#[invariant(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
+#[derive(Debug)]
+struct GeneratedPrenexContext {
+    pushed_bindings: Vec<GeneratedPrenexPushedBinding>,
+    topics: Vec<SemanticObjectId>,
 }
 
 #[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))]
@@ -7509,6 +7528,20 @@ fn generated_prenex_binding_sumti_for_term(
     }
 }
 
+/// Only an untagged sumti is a topic. FA- and modal-tagged prenex terms retain
+/// their ordinary term functions and must not be reinterpreted as topics.
+#[requires(true)]
+#[ensures(true)]
+fn generated_prenex_topic_sumti_for_term(
+    term: &TermSyntax,
+) -> Result<Option<&SumtiSyntax>, SemanticsError> {
+    let simple = generated_simple_term_for_assignment(term)?;
+    match simple {
+        SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => Ok(Some(sumti)),
+        _ => Ok(None),
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
 fn generated_prenex_binding_key_for_sumti(sumti: &SumtiSyntax) -> Option<String> {
@@ -8633,6 +8666,168 @@ mod tests {
                 additional: Vec::new(),
             }
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonempty_niho_paragraphs_keep_their_ordered_topic_transitions() {
+        for (source, transition, additional) in [
+            (
+                "broda ni'o brode",
+                ParagraphTransition::NewTopic,
+                Vec::new(),
+            ),
+            (
+                "broda no'i brode",
+                ParagraphTransition::ResumePriorTopic,
+                Vec::new(),
+            ),
+            (
+                "broda ni'o no'i brode",
+                ParagraphTransition::NewTopic,
+                vec![ParagraphTransition::ResumePriorTopic],
+            ),
+        ] {
+            let graph = semantic_graph_for(source);
+            let sequence = graph.objects[&graph.root]
+                .as_sequence()
+                .expect("NIhO joins the surrounding paragraphs in a discourse sequence");
+            assert_eq!(sequence.items.len(), 2);
+            assert_eq!(
+                sequence.relation,
+                SequenceRelation::ParagraphBoundary {
+                    transition,
+                    additional,
+                },
+            );
+        }
+
+        let graph = semantic_graph_for("broda .i brode ni'o brodi .i brodo");
+        let outer = graph.objects[&graph.root]
+            .as_sequence()
+            .expect("NIhO is the outer paragraph grouping");
+        assert!(matches!(
+            outer.relation,
+            SequenceRelation::ParagraphBoundary {
+                transition: ParagraphTransition::NewTopic,
+                ..
+            }
+        ));
+        assert!(outer.items.iter().all(|item| {
+            graph.objects[item].as_sequence().is_some_and(|paragraph| {
+                paragraph.relation == SequenceRelation::SameTopicContinuation
+                    && paragraph.items.len() == 2
+            })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_prenex_topic_links_its_referent_to_the_comment_eventuality() {
+        let graph = semantic_graph_for("lo cukta zo'u mi pinxe");
+        let topic_predication = named_predication_ids(&graph, "topicOf")
+            .into_iter()
+            .next()
+            .expect("zo'u adds a topic/comment relation");
+        let topic_predication_node = graph.objects[&topic_predication]
+            .as_predication()
+            .expect("topic/comment relation is a predication");
+        let topic = topic_predication_node.arguments[&argument_key(1)]
+            .value
+            .expect("topic/comment x1 is the topic referent");
+        let comment_eventuality = topic_predication_node.arguments[&argument_key(2)]
+            .value
+            .expect("topic/comment x2 is the comment eventuality");
+
+        let cukta = named_predication_ids(&graph, "cukta")
+            .into_iter()
+            .next()
+            .expect("the topic descriptor is retained");
+        assert_eq!(
+            graph.objects[&cukta]
+                .as_predication()
+                .expect("cukta predication")
+                .arguments[&argument_key(1)]
+                .value,
+            Some(topic),
+            "the retained cukta description constrains the topic referent",
+        );
+
+        let pinxe = named_predication_ids(&graph, "pinxe")
+            .into_iter()
+            .next()
+            .expect("the comment predication is retained");
+        assert_eq!(
+            graph.objects[&pinxe]
+                .predication_eventuality()
+                .expect("pinxe has an eventuality"),
+            comment_eventuality,
+            "the deliberately vague link targets the comment event without choosing an argument place",
+        );
+
+        let content = graph.objects[&graph.root]
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .expect("topic/comment statement has formula content");
+        assert!(formula_contains_predication(
+            &graph,
+            content,
+            topic_predication
+        ));
+        assert!(formula_contains_predication(&graph, content, pinxe));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn mixed_prenex_keeps_topic_link_inside_surface_order_quantifiers() {
+        let graph = semantic_graph_for("loi patfu ro da poi prenu ku'o su'o de zo'u de patfu da");
+        let topic_predication = named_predication_ids(&graph, "topicOf")
+            .into_iter()
+            .next()
+            .expect("mixed prenex retains its topic");
+        let topic = graph.objects[&topic_predication]
+            .as_predication()
+            .expect("topic/comment relation is a predication")
+            .arguments[&argument_key(1)]
+            .value
+            .expect("topic/comment relation has a topic");
+        assert_eq!(topic.referent_sort(), Some(SemanticSort::Mass));
+
+        let content = graph.objects[&graph.root]
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .expect("mixed prenex statement has formula content");
+        let data!(FormulaNode::Quantified(forall)) = graph.objects[&content]
+            .as_formula()
+            .expect("outer prenex scope is a formula")
+            .as_data()
+        else {
+            panic!("outer prenex scope is quantified");
+        };
+        assert_eq!(forall.operator, FormulaOperator::Forall);
+        let data!(FormulaNode::Quantified(exists)) = graph.objects[&forall.body]
+            .as_formula()
+            .expect("inner prenex scope is a formula")
+            .as_data()
+        else {
+            panic!("inner prenex scope is quantified");
+        };
+        assert_eq!(exists.operator, FormulaOperator::Cardinality);
+        assert!(formula_contains_predication(
+            &graph,
+            exists.body,
+            topic_predication,
+        ));
+        let comment = named_predication_ids(&graph, "patfu")
+            .into_iter()
+            .find(|predication| {
+                graph.objects[predication].predication_mode() == Some(PredicationMode::Asserted)
+            })
+            .expect("mixed prenex retains its comment predication");
+        assert!(formula_contains_predication(&graph, exists.body, comment));
     }
 
     #[test]

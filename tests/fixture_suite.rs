@@ -257,6 +257,13 @@ fn domain_import_marker_iff_holds_for_fixture_corpus() {
 #[requires(true)]
 #[ensures(true)]
 fn recovered_syntax_contracts_hold_for_fixture_corpus() {
+    run_on_fixture_worker_stack(recovered_syntax_contracts_hold_for_fixture_corpus_inner);
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_contracts_hold_for_fixture_corpus_inner() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let paths = fixture_paths(&root).expect("fixture paths should load");
     if let Some((start, end)) = recovered_syntax_contract_worker_range() {

@@ -156,6 +156,22 @@ Result:
 
 > klama: to go or come
 
+### Repeated reference lookup — `alice` / `vlacku`
+
+Exact-query occurrence: **2**; reference calls remaining in phase: **14**.
+
+### Reference-call budget exhausted — `alice`
+
+Phase maximum: **16**; reference tools withdrawn.
+
+### Reference-research nudge — `alice`
+
+Consecutive reference calls: **6**
+
+Correction:
+
+> Reference research has not advanced the protocol. Current phase protocol tools: `register_intent`, `submit_lojban`. Current phase intent: compose or revise Lojban for the registered intent and submit it. Use a protocol tool now unless another reference lookup is essential.
+
 ### Protocol error — `bob` / `submit_lojban`
 
 > tool is not legal in the listener phase
@@ -185,7 +201,7 @@ Aggregate status: **partial**
 
 ### API usage — `alice`
 
-120 prompt + 30 completion = 150 tokens; $0.012000
+120 prompt + 30 completion = 150 tokens; $0.012000; 80 cached, 40 cache-write tokens
 
 ### Run aborted
 
@@ -215,6 +231,12 @@ Aggregate: **partial**
 - Intent revisions: 1
 - Confirmation mismatches: 1
 
+### Reference-loop mitigations
+
+- Memoized repeats: 1
+- Phase budgets exhausted: 1
+- Idle-research nudges: 1
+
 ### Divergence flags
 
 - Turn 1: sender intent and blind interpretation are both recorded; review them side by side.
@@ -225,9 +247,19 @@ Aggregate: **partial**
 - Protocol errors: 1
 - Forfeits: 1
 - Budget aborts: 1
+- Runtime failures: 0
 
 ### Usage
 
 - `alice`: 120 prompt + 30 completion = 150 tokens; $0.012000
+  - Cache totals: 80 cached tokens; 40 cache-write tokens
+  - Cache efficiency: 66.67% (80 / 120 prompt tokens)
+  - Call hit rate: 100.00% (1 / 1 provider calls)
 - `bob`: 0 prompt + 0 completion = 0 tokens; $0.000000
+  - Cache totals: 0 cached tokens; 0 cache-write tokens
+  - Cache efficiency: n/a (0 / 0 prompt tokens)
+  - Call hit rate: n/a (0 / 0 provider calls)
 - Run total: 120 prompt + 30 completion = 150 tokens; $0.012000
+  - Cache totals: 80 cached tokens; 40 cache-write tokens
+  - Cache efficiency: 66.67% (80 / 120 prompt tokens)
+  - Call hit rate: 100.00% (1 / 1 provider calls)
