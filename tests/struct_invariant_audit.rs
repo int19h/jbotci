@@ -880,6 +880,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBuiltParagraphBoundary",
+        "the item index accepts every usize and Vec1 makes the paragraph marker list nonempty by construction",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDaSeriesScopeBinding",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
