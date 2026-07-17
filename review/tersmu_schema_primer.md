@@ -1,10 +1,11 @@
 # `tersmu` semantic graph and derived-rendering reference
 
 This is the authoritative reference for the JSON that `jbotci tersmu --format json` emits.
-It is generated from the Rust model in `crates/jbotci-semantics/src/model.rs` (the structural
-source of truth) and the builder in `crates/jbotci-semantics/src/builder.rs` (which maps Lojban
-syntax onto these objects). Use it to read a tersmu semantic graph and judge whether it correctly
-captures the meaning of a Lojban utterance.
+It is generated from the Rust model in `crates/jbotci-semantics/src/model.rs` and
+`crates/jbotci-semantics/src/model/semantic_object.rs` (the structural source of
+truth) and the builder in `crates/jbotci-semantics/src/generated_builder/`
+(which maps Lojban syntax onto these objects). Use it to read a tersmu semantic
+graph and judge whether it correctly captures the meaning of a Lojban utterance.
 
 The flat `lojban-semantics-json-1` id-graph is the canonical model and the only
 interchange form. `jbotci tersmu --format tree` and
@@ -170,58 +171,48 @@ explicitly whenever the canonical interchange graph is required.
 
 - **`version`** — always the literal string `"lojban-semantics-json-1"`.
 - **`root`** — the id of the entry-point object for this graph. It is typically an
-  `utterance:u1`, a `sequence:s1` (multiple top-level utterances), or for a bare fragment a
-  `formula:f1`.
+  `utterance:5`, a `sequence:17` (multiple top-level utterances), or for a bare fragment a
+  `formula:12`.
 - **`objects`** — a map from **id string** to object. Every object referenced anywhere in the
   graph is defined here (the graph is validated to have no dangling references), and `root` is
   always a key in this map.
 
 ### Object id conventions
 
-Ids are strings of the form `«kind»:«prefix»«index»`. The kind word before the colon and the
-prefix letter both encode the object's `type`. The validator enforces that the id prefix matches
-the object's `type` field. Indices are 1-based and assigned in build order; the index alone is not
-semantically meaningful, but identity (same id used twice) **is** — it means the same object.
+Ids are strings of the form `«prefix»:«global-index»`. The numeric suffix is
+globally unique across the graph and assigned in build order; it has no semantic
+meaning, but identity (the same complete id used twice) **does**. Referential
+prefixes are the serialized sort, including slash-separated eventuality
+subsorts. Structural prefixes are the object kind.
 
-| Id form           | `type`             | Notes |
-|-------------------|--------------------|-------|
-| `utterance:u«n»`  | `utterance`        | |
-| `sequence:s«n»`   | `sequence`         | |
-| `eventuality:e«n»`| `eventuality`      | index may be 0 |
-| `referent:r«n»`   | `referent`         | ordinary referents |
-| `referent:speaker`, `referent:addressee`, `referent:speech-time`, `referent:here` | `referent` | the four **special deictic referents** (note: kebab-case `speech-time`); shared/singleton across the graph |
-| `parameter:p«n»`  | `parameter`        | |
-| `predication:p«n»`| `predication`      | (prefix `p`, like parameter, but kind word `predication`) |
-| `formula:f«n»`    | `formula`          | |
-| `abstraction:a«n»`| `abstraction`      | |
-| `sign:s«n»`       | `sign`             | (kind word `sign`) |
-| `display:d«n»`    | `displayedContent` | note the id word is `display`, the `type` is `displayedContent` |
-| `math:m«n»`       | `mathExpression`   | |
-| `quantity:q«n»`   | `quantity`         | |
-| `relation:r«n»`   | `relationMetadata` | (kind word `relation`) |
-| `question:q«n»`   | `question`         | |
+| Id examples | public `type` | Meaning |
+|---|---|---|
+| `entity:1`, `mass:20`, `relation:14`, `sign:6` | `referent` | non-event referent; prefix is `sort` |
+| `eventuality:3`, `eventuality/state:20`, `eventuality/locution:15` | `referent` | eventuality referent; prefix is the complete sort path |
+| `utterance:5`, `sequence:17`, `parameter:8`, `predication:12`, `formula:13` | corresponding structural type | structural nodes |
+| `display:9`, `math:10`, `quantity:11`, `relationMetadata:12`, `question:13` | `displayedContent`, `mathExpression`, `quantity`, `relationMetadata`, `question` | remaining structural nodes |
 
-The set of `type` values (serde-`camelCase` of `SemanticObjectKind`) is exactly:
-`utterance`, `sequence`, `eventuality`, `referent`, `parameter`, `predication`, `formula`,
-`abstraction`, `sign`, `displayedContent`, `mathExpression`, `quantity`, `relationMetadata`,
-`question`.
+The public `type` values are exactly `utterance`, `sequence`, `referent`,
+`parameter`, `predication`, `formula`, `displayedContent`, `mathExpression`,
+`quantity`, `relationMetadata`, and `question`. Eventualities, signs, and
+abstraction outputs are specialized referent shapes rather than separate
+public `type` values.
 
 ---
 
 ## 2. Object types and their fields
 
-Every object is serialized from one flat Rust struct (`SemanticObject`); each `type` populates a
-characteristic subset of fields and leaves the rest absent. The `type` field is always present
-(serialized under the JSON key **`type`**). Below, each type lists the fields that are meaningful
-for it. Two fields are universal:
+`SemanticObject` is an enum of kind-specific validated node structs. A custom
+serializer exposes their common flat JSON boundary; it is not one permissive
+Rust struct with unrelated optional fields. The `type` field is always present.
+Two fields are universal:
 
 - **`source`** — optional `SemanticSource` (see §4); provenance/span. Present on most objects.
 - **`diagnostics`** — optional array of `{ "severity": ..., "message": ... }`; `severity` ∈
   `info` | `warning` | `error` (currently always `warning` in practice). Omitted when empty.
 
-The full inventory of fields and their enum domains follows by object type. Field keys not listed
-under a type may still appear if the builder reuses them, but the per-type lists below cover the
-intended population.
+The full inventory of fields and their enum domains follows by object type.
+Fields not listed for a type are not part of that node's public shape.
 
 ### 2.1 `utterance`
 
@@ -229,17 +220,17 @@ A complete speech act.
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `force` | `UtteranceForce` | illocutionary force; one of `assert`, `ask`, `command`, `mention`, `quote`, `parenthetical`, `vocative` |
-| `speaker` | id → `referent` | the speaker; normally `referent:speaker` |
-| `audience` | id → `referent` | the addressee; normally `referent:addressee` |
-| `eventuality` | id → `eventuality` | the locution eventuality of this utterance |
-| `content` | id | the asserted content. For ordinary utterances a `formula`, `sequence`, or `question`. For `force = mention`, may instead be any argument-fillable object (referent/sign/etc.) — a mentioned thing rather than a claim |
-| `deicticGround` | `DeicticGround` | `{ "time": "referent:speech-time", "place": "referent:here" }`; the deictic origin |
-| `asides` | array of id → `utterance` | parenthetical/vocative side-utterances attached here |
+| `force` | `UtteranceForce` | `assert`, `ask`, `command`, `mention`, `quote`, `parenthetical`, `subordinated`, or `vocative` |
+| `speaker` | id → `referent` | the speaker; normally an `indexical:"speaker"` entity |
+| `audience` | id → `referent` | the addressee; normally an `indexical:"audience"` entity |
+| `eventuality` | id → `referent` | the `eventuality/locution` referent for this utterance |
+| `content` | id | optional content. Ordinary utterances use a `formula`, `sequence`, or `question`; mention/quote/vocative content may be an argument-fillable object |
+| `deicticGround` | `DeicticGround` | `{ "time": "eventuality:3", "place": "entity:4" }`; this utterance's `now`/`here` indexicals |
+| `asides` | array of id → `utterance` or `displayedContent` | parenthetical/vocative/displayed side content attached here |
 | `vocativeKind` | string | present for vocative utterances |
 
-`deicticGround` is set on every utterance the builder produces (to speech-time/here), establishing
-the anchors that tense/space relations resolve against.
+`deicticGround` is set on every utterance. Top-level sibling utterances share
+the four frame indexicals; parsed quotations allocate a fresh frame.
 
 ### 2.2 `sequence`
 
@@ -249,24 +240,43 @@ text with multiple paragraphs).
 | Key | Type | Meaning |
 |-----|------|---------|
 | `items` | array of id | members, each an `utterance`, `sequence`, or `displayedContent` |
-| `relation` | `SequenceRelation` | serialized from `sequence_relation`; currently only `same-topic-continuation` (**kebab-case**) |
+| `force` | `UtteranceForce` | optional; when present, exactly `subordinated` |
+| `relation` | `SequenceRelation` | `same-topic-continuation`, or tagged `paragraph-boundary` with `transition` and ordered `additional` transitions (**kebab-case**) |
 | `connectionClaims` | array of id → `formula` | formulas asserting the logical connection between consecutive items (for `.i je`-style sentence connectives) |
-| `content` | id → `formula` | when the whole sequence carries one aggregate content formula |
+| `content` | id → `formula` or `question` | aggregate logical/question content, when present |
 | `boundEventualities` | array of id → generated eventuality | typed existential-binding edge used when the event's formula roots have no formula LCA |
+| `ordinalLabels` | array of `OrdinalLabel` | truth-inert `mai`/`mo'o` labels |
+| `nonlogicalConnection` | `{ operator, connector }` | JOI-family statement connection metadata; never a truth formula |
+| `elidedConnectionOperand` | `priorDiscourse` or `followingDiscourse` | missing outside operand of a leading/trailing statement connection |
 
-### 2.3 `eventuality`
+`SequenceRelation::ParagraphBoundary` serializes as
+`{"paragraph-boundary":{"transition":"new-topic","additional":[]}}`;
+transition values are `new-topic` (`ni'o`) and `resume-prior-topic` (`no'i`).
+As of this snapshot, the builder retains that relation on a standalone or
+trailing NIhO boundary but incorrectly falls back to
+`same-topic-continuation` when a nonempty following paragraph is present
+(#447). This is an implementation bug, not the intended meaning of the enum.
 
-The event/state/process introduced by a bridi (and the locution event of an utterance). Tense,
-aspect, and spatial information hang off the eventuality.
+### 2.3 eventuality `referent`
+
+The event/state/process introduced by a bridi (and the locution event of an
+utterance). Its public `type` is `referent`; `sort` distinguishes the broad
+eventuality and its slash-separated subsorts. Tense, aspect, and spatial
+information hang off this referent shape.
 
 | Key | Type | Meaning |
 |-----|------|---------|
 | `denotation` | `EventualityDenotation` | required: `generated-bound` for a generated witness, or `referential` for a denoted event |
+| `sort` | `SemanticSort` | `eventuality`, `eventuality/state`, `eventuality/process`, `eventuality/activity`, `eventuality/achievement`, `eventuality/experience`, or `eventuality/locution` |
 | `category` | `ReferentCategory` | present only for `denotation = referential` |
 | `scopeDependence` | `ScopeDependence` | present exactly for referential constants; generated-bound co-variation is structural |
-| `class` | `EventualityClass` | `locution`, `event`, `state`, `process`, `activity`, `achievement`. `locution` is the speech-act event of an utterance |
+| `indexical` | `IndexicalKind` | present for indexical `now` eventualities |
+| `descriptor` / `composition` / `relativeClauses` / `assignedNames` | referent metadata | the same roles as on non-event referents |
+| `modalArguments` | array of `ModalArgument` | event-level modal arguments |
 | `actuality` | `Actuality` = `{ "kind": ActualityKind }` | `kind` ∈ `actual`, `capable`, `potential`, `demonstrated` (from CAhA: ca'a/ka'e/nu'o/pu'i) |
 | `content` | id | the formula or sequence this eventuality is the occurrence of |
+| `body`, `parameters`, `arity`, `embeddedQuestions` | abstraction fields | direct event abstraction output; see §3.6 |
+| `experiencer`, `scale`, `target`, `subscript` | optional ids/metadata | abstraction, scalar, shift, and subscript details |
 | `tenseModal` | id → `parameter` | present when the tense itself is questioned (`cu'e`); the parameter has sort `tenseModal`, role `tenseQuestion` |
 | `time` | `AnchorRelation` | primary temporal placement (see §3.7) |
 | `timePath` | array of `TemporalPathStep` | chained temporal offsets |
@@ -292,7 +302,8 @@ omit `category` and `scopeDependence` entirely.
 
 `Recurrence` fields: `kind` ∈ `occurrenceCount`, `ordinalOccurrence`, `regular`, `typically`,
 `continuously`, `habitually`; plus `introducedBy`, optional `connection`
-(`{kind:"product", introducedBy}`), `value` (a `QuantityValue`), `interval` (id), `negation`
+(`{kind:"product", introducedBy}`), `quantity` (id → first-class `quantity`) or legacy/direct
+`value` (`QuantityValue`), `interval` (id), and `negation`
 (`ModalNegation` `{kind:"contradictory", introducedBy}`).
 
 ### 2.4 `referent`
@@ -304,11 +315,13 @@ A thing that can fill an argument place — the semantic value of a sumti.
 | `category` | `ReferentCategory` | `constant`, `variable`, `indexical`, `composite` |
 | `scopeDependence` | `ScopeDependence` | present exactly for constants: `{ "kind": "fixed" }` or `{ "kind": "underspecified", "mayDependOn": [id, ...] }` |
 | `sort` | `SemanticSort` | semantic sort (see full list below) |
-| `indexical` | `IndexicalKind` | present when `category = indexical`: `speaker`, `audience`, `speechTime`, `here`, `proximalDemonstrative`, `medialDemonstrative`, `distalDemonstrative` |
+| `indexical` | `IndexicalKind` | present when `category = indexical`: `speaker`, `audience`, `now`, `here`, `proximalDemonstrative`, `medialDemonstrative`, `distalDemonstrative` |
 | `descriptor` | `Descriptor` | how this referent was described (le/lo/la/pro-sumti/etc.); see §3.1 |
 | `composition` | `Composition` | for `category = composite` (set/mass/connected/interval sumti); see below |
 | `relativeClauses` | array of `RelativeClause` | poi/noi attached to the referent (see §3.8) |
 | `assignedNames` | array of `AssignedName` | goi/cei name assignments: `{ name, word, introducedBy, source? }` |
+| `body`, `parameters`, `arity`, `embeddedQuestions` | abstraction fields | direct non-event abstraction output; see §3.6 |
+| `experiencer`, `scale`, `target`, `subscript` | optional ids/metadata | abstraction, scalar, shift, and subscript details |
 
 **`ReferentCategory`** values: `constant` (a constant denotation, e.g. names,
 `lo`-descriptions, plain pro-sumti, and elided `zo'e`), `variable` (bound logical
@@ -333,22 +346,28 @@ generated graphs prune, are treated as ID-ordered roots at empty scope so valida
 is total.
 
 **`SemanticSort`** (the `sort` field, also used for `domain`): `entity`, `mass`, `set`,
-`sequence`, `eventuality`, `predication`, `truthValue`, `proposition`, `concept`, `amount`,
-`quantity`, `number`, `text`, `sign`, `relation`, `place`, `connective`, `tenseModal`,
-`mathOperator`, `argumentBundle`.
+`sequence`, `time`, `eventuality`, `eventuality/state`, `eventuality/process`,
+`eventuality/activity`, `eventuality/achievement`, `eventuality/experience`,
+`eventuality/locution`, `predication`, `truthValue`, `proposition`, `concept`, `amount`,
+`quantity`, `number`, `scale`, `text`, `sign`, `relation`, `place`, `connective`, `tenseModal`,
+`mathOperator`, `argumentBundle`, `abstractNature`.
 
 **`Descriptor`** struct keys: `kind` (string — see the enumerated values in §3.1), `word` (the
 source cmavo, e.g. `"le"`, `"lo"`, `"la"`, `"ti"`), optional `speaker` (id → referent, used by
 speaker-relative descriptions), optional `body` (id → formula: the selbri restriction, e.g. for
-`lo broda` the formula `broda(this)`), `relativeClauses`, optional `quantity` (id → quantity),
-optional `name` (string, for `la`-names), optional `operand` (id — the inner object a
+`lo broda` the formula `broda(this)`), optional `veridical`, `relativeClauses`,
+optional `quantity` (id → quantity), optional `name` (string, for `la`-names),
+optional `scale` (id → referent), optional `definiteness` (`affirmedPoint`,
+`indefiniteAlternative`, `neutralPoint`, or `uniqueExtreme`), and optional
+`operand` (id — the inner object a
 descriptor wraps/reuses; **not** only `li`/math operands: also the raised sumti of a
 `tu'a`/`jai` raising (`descriptor.kind: abstractionAbout`), the `la'e`/`lu'e`
 reference↔referent shift target, and the base referent of a `NAhE`/qualifier
 (`otherThan`/`oppositeOf`/`neutralOf`)).
 
-**`Composition`** struct keys: `operator` (string — e.g. `"set"`, `"mass"`, an `"...Interval"`
-operator, `"and"`/`"or"` style connectives, or `"connectiveQuestion"`), optional
+**`Composition`** struct keys: `operator` (`connectiveQuestion`, `joint`,
+`mass`, `set`, `sequence`, `respectively`, `union`, `intersection`,
+`crossProduct`, `unorderedInterval`, `orderedInterval`, or `centeredInterval`), optional
 `operatorParameter` (id → parameter, only and always present iff `operator == "connectiveQuestion"`),
 `members` (array of argument-fillable ids), `excludedMembers` (array), optional `collective`
 (bool), optional `scalarNegated` (bool), optional `complement` (bool, interval complement),
@@ -362,14 +381,15 @@ slots `ce'u`, relative heads `ke'a`, connective questions `je'i`, tense question
 | Key | Type | Meaning |
 |-----|------|---------|
 | `sort` | `SemanticSort` | the sort of value that fills it |
-| `role` | `ParameterRole` | `propertySlot`, `relativeClauseHead`, `argumentQuestion`, `relationQuestion`, `relationVariable`, `placeQuestion`, `connectiveQuestion`, `tenseQuestion`, `mathOperatorQuestion`, `attitudeQuestion` |
+| `role` | `ParameterRole` | `propertySlot`, `relativeClauseHead`, `argumentQuestion`, `relationQuestion`, `relationVariable`, `unspecifiedRelation`, `placeQuestion`, `connectiveQuestion`, `tenseQuestion`, `mathOperatorQuestion`, `quantityQuestion`, `attitudeQuestion`, `respectiveSlot` |
 | `introducedBy` | string | the source cmavo (e.g. `"ma"`, `"ce'u"`, `"ke'a"`, `"cu'e"`) |
 
 The validator enforces sort/role coherence: e.g. `relationQuestion`/`relationVariable` ⇒ sort
 `relation`; `placeQuestion` ⇒ sort `place`; `connectiveQuestion` ⇒ sort `connective`;
 `tenseQuestion` ⇒ sort `tenseModal`; `mathOperatorQuestion` ⇒ sort `mathOperator`;
-`argumentQuestion`/`relativeClauseHead`/`attitudeQuestion` ⇒ sort `entity`; `propertySlot` ⇒ any
-sort.
+`unspecifiedRelation` ⇒ sort `relation`; `quantityQuestion` ⇒ sort `number`;
+`argumentQuestion`/`relativeClauseHead`/`attitudeQuestion` ⇒ sort `entity`;
+`propertySlot` and `respectiveSlot` may use any semantic sort.
 
 ### 2.6 `predication`
 
@@ -409,6 +429,7 @@ A truth-valued logical formula. Its **`operator`** field selects the shape:
 | `operator` | Shape (which fields are populated) | Meaning |
 |-----------|-------------------------------------|---------|
 | `atom`     | `predication` (id → predication)    | an atomic claim |
+| `affirmed` | `children` (1 element)              | explicit bridi-level `ja'a` affirmation |
 | `not`      | `children` (1 element)              | logical negation (na, selbri negation, connective `nai`) |
 | `scoped`   | `children`                          | an explicit scope boundary |
 | `and`      | `children`, optional `connector`    | conjunction |
@@ -424,6 +445,8 @@ A truth-valued logical formula. Its **`operator`** field selects the shape:
 | `cardinality` | (same as exists) + `quantity`    | numeric quantification (`ci`, `re`, ...) |
 | `pluralExists` | (same as exists)                 | plural existential |
 | `pluralForall` | (same as exists), plus `domainImport` iff restricted | plural universal |
+| `quantifierBundle` | `bindings`, `body`, `coequalScope:true` | coequal grouping-termset binders |
+| `respectivelyDistribution` | `streams`, `body`, optional `distinctPartition` | truth-conditional `fa'u` zip |
 
 Every formula shape may carry **`boundEventualities`**, a nonempty array of
 generated-event IDs existentially bound at that exact formula. Each generated
@@ -452,33 +475,40 @@ Connective-formula field:
     (`operator = connectiveQuestion`); the parameter has sort `connective`, role
     `connectiveQuestion`.
 
-### 2.8 `abstraction`
+### 2.8 abstraction fields on referents
 
-The semantic object for a NU-abstraction (nu/ka/du'u/...).
+NU abstractions have no separate `abstraction` object. The abstraction output
+is an eventuality or non-event referent whose own fields carry the reified
+content.
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `abstractionKind` | `AbstractionKind` | `event`, `achievement`, `process`, `activity`, `state`, `property`, `amount`, `truthValue`, `proposition`, `sentenceSign`, `concept`, `experience`, `unspecified` |
-| `body` | id → formula | the abstracted formula |
+| `content` or `body` | id → formula/sequence | event abstractions use `content`; proposition/relation/etc. outputs use `body` |
 | `parameters` | array of id → parameter | the abstracted slots (e.g. `ce'u` slots for `ka`) |
 | `arity` | int | set for `property` (= number of parameters) |
+| `embeddedQuestions`, `experiencer`, `scale`, `target` | optional details | indirect questions and abstraction-specific payload |
 
-See §3.6 for the cmavo→`abstractionKind` mapping.
+Public JSON intentionally omits the internal `abstractionKind` and eventuality
+`class` discriminators. See §3.6 for the cmavo-to-sort/content mapping that
+identifies the output shape on the wire.
 
-### 2.9 `sign`
+### 2.9 sign `referent`
 
-A metalinguistic sign: a quotation, letteral string, math expression as text, connective word,
-single word, or text.
+A `type:"referent"`, `sort:"sign"` metalinguistic value: a quotation,
+letteral string, math expression as text, connective word, single word, or text.
 
 | Key | Type | Meaning |
 |-----|------|---------|
 | `category` | `ReferentCategory` | sign referents may be constants or another non-indexical category |
 | `scopeDependence` | `ScopeDependence` | present exactly when `category = constant`; see §2.4 |
+| `sort` | `SemanticSort` | always `sign` |
+| `descriptor` | `Descriptor` | optional descriptor metadata |
 | `kind` | `SignKind` | serialized from `sign_kind`: `quotation`, `letteral`, `mathExpression`, `connective`, `word`, `text` |
 | `text` | string | literal text for non-quotation signs |
 | `letterals` | array of `LetteralUnit` | for letteral strings (BY etc.); see below |
 | `quotation` | `Quotation` | for quotations: `{ mode, utterance?, delimiter?, text? }`. **`mode` is the structural category, not the delimiter cmavo**: `parsed` (structured `lu…li'u` — an `utterance` id is reachable from outside) or `opaque` (sealed `zo`/`lo'u`/`zoi` — no reachable referents). The surface delimiter is the separate `delimiter` field; `text` holds the raw source. |
 | `denotes` | id | what the sign denotes (referent or mathExpression) |
+| `relativeClauses`, `target`, `subscript` | optional metadata | clauses, shift target, and XI subscript |
 
 **`LetteralUnit`** keys: `kind` ∈ `glyph`, `digit`, `shift`, `characterCode`, `compound`;
 `sourceWords[]`; optional `text`, `value`, `modifier`, `buDepth` (only when > 0); `parts[]` (only
@@ -494,11 +524,12 @@ markers) — content that is *displayed* rather than asserted.
 | `family` | `DisplayedContentFamily` | `emotion`, `attitudeModifier`, `propositionalAttitude`, `evidential`, `discursive`, `metalinguistic`, `emphasis`, `questionPrompt` |
 | `relation` | string | the indicator's predicate name |
 | `polarity` | `DisplayedContentPolarity` | `positive`, `neutral`, `negative` (from nai/cu'i) |
-| `assertionEffect` | `DisplayedContentAssertionEffect` | `none`, `hostAsserted`, `hostSubordinated`, `performative` |
+| `assertionEffect` | `DisplayedContentAssertionEffect` | `none`, `hostAsserted`, `hostSubordinated`, `metalinguisticallyVoided`, `performative` |
 | `intensity` | string | intensity word (CAI: cai/sai/ru'e/...) |
 | `phase` | string | |
 | `experiencer` | id → referent | who holds the attitude (usually speaker) |
 | `target` | id | what it applies to (an utterance, or argument-fillable object) |
+| `targetFocus` | `bridi` or `selbri` | optional metalinguistic/surface focus |
 | `anchor` | id → utterance | the host utterance |
 | `modifiers` | array of `DisplayedContentModifier` | nested attitude modifiers `{ relation, family?, polarity?, intensity?, assertionEffect?, source? }` |
 
@@ -512,8 +543,10 @@ A MEX/`li` mathematical expression.
 | `operatorParameter` | id → parameter | when the operator is questioned (sort `mathOperator`, role `mathOperatorQuestion`); mutually exclusive with `operator`/`literal` |
 | `operands` | array of id → mathExpression | sub-expressions |
 | `literal` | `MathLiteral` = `{ kind, value }` | leaf value; `value` is an integer or a string (untagged). E.g. `mo'e`→`{kind:"sumtiOperand", value:"mo'e"}`, `ni'e`→`{kind:"selbriOperand", value:"ni'e"}`, plain numbers → `{kind:"integer", value: N}` |
-| `denotes` | id | for `mo'e`/`ni'e` operands: the referent or selbri-derived object the operand denotes |
+| `denotes` | id | for literal `mo'e`/`ni'e` operands: the referent or selbri-derived object the operand denotes |
+| `operatorDenotes` | id | denotation attached to an operator form |
 | `endpointInclusion` | `IntervalEndpointInclusion` = `{ left, right }` | each ∈ `inclusive`/`exclusive`; only for `"...Interval"` operators |
+| `scalarNegation`, `subscript` | optional metadata | scalar NAhE and XI structure |
 
 ### 2.12 `quantity`
 
@@ -522,7 +555,7 @@ A quantifier/number value with a form and scale.
 | Key | Type | Meaning |
 |-----|------|---------|
 | `form` | `QuantityForm` | `exact`, `all`, `atLeast`, `atMost`, `moreThan`, `lessThan`, `approximate`, `indefinite`, `enough`, `tooMany`, `tooFew` |
-| `value` | `QuantityValue` | exactly one of `integer` (int), `text` (string), or `mathExpression` (id) is present |
+| `value` | `QuantityValue` | exactly one of `integer` (int), `text` (string), or `mathExpression` (id) is present; `questionParameters` may additionally list number-sorted `quantityQuestion` parameters |
 | `scale` | `QuantityScale` | `count`, `fraction`, `ordinal`, `amount`, `extent`, `frequency` |
 | `comparisonSet` | id | for relative quantifiers |
 
@@ -538,22 +571,34 @@ annotation).
 | `placeStructure` | array of `PlaceDescription` = `{ place, description }` | per-place glosses |
 | `expansion` | `RelationExpansion` = `{ kind, sourceWords[], rafsiBindings[] }` | lujvo/expansion info; each `RafsiBinding` = `{ rafsi, sourceWord?, referent? }` |
 
+Current emission is narrower than the type permits: the builder creates this
+object for a lujvo only when it finds a context-sensitive pro-sumti rafsi
+binding. Ordinary lujvo such as `dalmikce`, `ctigau`, and `gerzda` currently
+have no `relationMetadata` link or object (#450). Consequently, `ctigau` also
+does not retain the implicit `nu citka` event content required for an
+implicit-abstraction lujvo (#451).
+
 ### 2.14 `question`
 
 An explicit question abstraction (truth questions, fill-in questions, etc.).
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `kind` | `QuestionKind` | serialized from `question_kind`: `truth`, `argument`, `relation`, `place`, `connective`, `tense`, `mathOperator`, `attitude`, `quantity` |
+| `kind` | `QuestionKind` | `truth`, `argument`, `relation`, `place`, `connective`, `tense`, `mathOperator`, `attitude`, `quantity`, or `multiple` |
 | `mode` | `QuestionMode` | serialized from `question_mode`: `direct`, `indirect` |
 | `domain` | `SemanticSort` | the sort being asked about |
 | `body` | id → formula | the question's open formula |
-| `slots` | array of `QuestionSlot` = `{ parameter, role }` | the questioned positions; `role` ∈ `answer` |
+| `slots` | array of `QuestionSlot` | homogeneous `{ parameter, role }` slots, or typed `{ parameter?, role, kind, domain }` slots for `kind:multiple` |
 | `asker` | id → referent | usually the speaker |
 | `respondent` | id → referent | usually the addressee |
 | `focus` | id → parameter \| referent | optional focused element |
 | `presupposedAnswer` | id → parameter \| referent | optional presupposition |
-| `embeddedQuestions` | array of id → question | nested indirect questions |
+
+Homogeneous slots inherit their question's `kind` and `domain`. Every slot in
+a `multiple` question is typed; a truth slot omits `parameter`. Slot roles are
+`answer` and `respectiveSlot`. Embedded indirect questions are referenced by
+the containing abstraction-output referent's `embeddedQuestions`, not by a
+question object.
 
 ---
 
@@ -587,14 +632,13 @@ is a *description* → `massNameDescription`/`setNameDescription`; over **cmevla
 is a bare *name* → `massName`/`setName`. (Plain `la` is `name` on both paths.) Do not flag this
 as an inconsistency.
 
-The table above lists the **article-bearing** kinds. `descriptor.kind` also takes
-**non-article** values for descriptors built by other constructs — these are valid, not
-defects: `abstractionAbout` (a `tu'a`/`jai` raising; carries `operand` = the raised sumti),
-`otherThan`/`oppositeOf`/`neutralOf` (`NAhE` scalar qualifiers over `operand`), the
-`la'e`/`lu'e` reference↔referent shifts, `proSumti` (KOhA / bound variables),
-`elided` (`zo'e`), `typicalPlaceValue` (`zu'i`), and `utteranceReference` (`di'u`-series).
-This is an open set; do not assume a referent is mis-built merely because its
-`descriptor.kind` is not in the article table.
+The table above lists the article-bearing kinds. The remaining exact enum
+values are `number`, `scale`, `proSumti`, `unloweredSumti`,
+`typicalPlaceValue`, `utteranceReference`, `elided`, `abstractionAbout`,
+`referentOfSymbol`, `symbolForReferent`, `memberOf`, `setFrom`, `massFrom`,
+`sequenceFrom`, `qualifiedSumti`, `oppositeOf`, `neutralOf`, `affirmedAs`, and
+`otherThan`. These are valid descriptor shapes, not fallbacks; an unrecognized
+value is schema drift rather than an open extension point.
 
 Reviewer expectations:
 - **`lo broda`** — `category: constant`, `descriptor.kind: veridicalDescription`, `descriptor.word: "lo"`,
@@ -604,16 +648,17 @@ Reviewer expectations:
   described as broda but not asserted to be.
 - **`la broda` / `la .cmevla.`** — `descriptor.kind: name`; for cmevla names the `descriptor.name`
   string and/or `assignedNames` carry the name; the body need not be a veridical claim.
-- When the selbri is itself a NU-abstraction (e.g. `lo nu broda`), `descriptor.body` is an
-  abstraction-description formula and the referent's `sort` follows the abstraction's output sort
-  (eventuality/proposition/etc.).
+- When the selbri is itself a NU-abstraction (e.g. `lo nu broda`), the direct
+  output referent's top-level `content` or `body` carries the abstraction; the
+  descriptor need not repeat that body. Its `sort` follows the abstraction's
+  output sort (eventuality/proposition/etc.).
 
 ### 3.2 Pro-sumti: `mi`, `do`, `ti`, `ta`, `tu`, da/de/di, zo'e, etc.
 
 | Word | Result |
 |------|--------|
-| `mi` | the shared `referent:speaker` (indexical `speaker`) |
-| `do`, `ko` | the shared `referent:addressee` (indexical `audience`) — `ko` is the imperative form, same referent |
+| `mi` | the current frame's entity referent with indexical `speaker` (normally `entity:1`) |
+| `do`, `ko` | the current frame's entity referent with indexical `audience` (normally `entity:2`) — `ko` is the imperative form, same referent |
 | `ti` | new referent, `category: indexical`, `indexical: proximalDemonstrative`, descriptor.kind `proSumti` |
 | `ta` | indexical `medialDemonstrative` |
 | `tu` | indexical `distalDemonstrative` |
@@ -626,9 +671,10 @@ Reviewer expectations:
 | `ti'u`/`di`-class utterance refs (`dei`,`di'u`,`de'u`,`da'u`,...) | descriptor.kind `utteranceReference` |
 | other KOhA (ko'a, etc.) | `category: constant`, descriptor.kind `proSumti`, word = the cmavo (subject to anaphora resolution) |
 
-The four indexical/deictic singletons `referent:speaker`, `referent:addressee`,
-`referent:speech-time`, `referent:here` are reused everywhere; seeing the same id twice means the
-same deictic entity.
+The top-level frame normally uses `entity:1` speaker, `entity:2` audience,
+`eventuality:3` now, and `entity:4` here. Top-level sibling utterances reuse
+that frame; each parsed quotation gets a fresh frame. Seeing the same complete
+id twice means the same deictic entity.
 
 ### 3.3 Logical/numeric quantifiers and scope
 
@@ -684,28 +730,29 @@ left in surface order.** Stacked SE (e.g. `te se`) composes the swaps. (Same con
 
 ### 3.6 Abstractions (NU)
 
-`nu`/`ka`/`du'u`/... produce an `abstraction` object. Cmavo → `abstractionKind`:
+`nu`/`ka`/`du'u`/... produce a direct output referent; there is no public
+`abstraction` wrapper object. Cmavo → output fields:
 
-| Cmavo | `abstractionKind` | output `sort` | link relation |
-|-------|-------------------|---------------|---------------|
-| `nu`   | `event`       | `eventuality` | `eventOf` |
-| `mu'e` | `achievement` | `eventuality` | `achievementOf` |
-| `pu'u` | `process`     | `eventuality` | `processOf` |
-| `zu'o` | `activity`    | `eventuality` | `activityOf` |
-| `za'i` | `state`       | `eventuality` | `stateOf` |
-| `ka`   | `property`    | `relation`    | `propertyOf` |
-| `ni`   | `amount`      | `amount`      | `amountOf` |
-| `jei`  | `truthValue`  | `truthValue`  | `truthValueOf` |
-| `du'u` | `proposition` | `proposition` | `propositionOf` |
-| `si'o` | `concept`     | `concept`     | `conceptOf` |
-| `li'i` | `experience`  | `eventuality` | `experienceOf` |
-| (other) | `unspecified` | `entity`     | `abstractionOf` |
+| Cmavo | output `sort` | content field |
+|-------|---------------|---------------|
+| `nu`   | `eventuality` | `content` |
+| `mu'e` | `eventuality/achievement` | `content` |
+| `pu'u` | `eventuality/process` | `content` |
+| `zu'o` | `eventuality/activity` | `content` |
+| `za'i` | `eventuality/state` | `content` |
+| `ka`   | `relation`    | `body` |
+| `ni`   | `amount`      | `body` |
+| `jei`  | `truthValue`  | `body` |
+| `du'u` | `proposition` | `body` |
+| `si'o` | `concept`     | `body` |
+| `li'i` | `eventuality/experience` | `content` |
+| `su'u` | `abstractNature` | `body` |
 
-The abstraction's `body` is the inner formula; the inner predication's `mode` is `restrictive`
-for `ka` (Property) and `inert` for the others. For `ka`, the `ce'u` slots become `parameters`
-and `arity` is set to their count. Abstractions that yield eventualities are linked to an
-eventuality via the relation name above; when used as a description body, the surrounding referent
-takes the abstraction's output sort.
+For `ka`, `ce'u` slots become `parameters` and `arity` is their count.
+Eventuality outputs are themselves the event used by inner predications and
+carry their intensional `content`; other outputs carry `body`. `kau` questions
+are retained in `embeddedQuestions`. No synthetic `eventOf`/`propertyOf`
+predication or wrapper is emitted merely to connect the body to its output.
 
 ### 3.7 Tense, space, modal tags and `deicticGround`
 
@@ -713,12 +760,14 @@ Tense/space/modal information attaches to the **eventuality**, anchored against 
 `deicticGround` (speech-time / here):
 
 - **Temporal tense** (PU): `time` is an `AnchorRelation` whose `relation` is `"before"` (`pu`),
-  `"at"` (`ca`), or `"after"` (`ba`); `anchor` defaults to `referent:speech-time`; `introducedBy`
-  records the cmavo. ZI distance adds `distance` ∈ `"short"`/`"medium"`/`"long"` (zi/za/zu).
+  `"at"` (`ca`), or `"after"` (`ba`); `anchor` points at the utterance's globally numbered
+  `now` eventuality (normally `eventuality:3` in a simple graph). ZI distance adds `distance`
+  ∈ `"short"`/`"medium"`/`"long"` (zi/za/zu). Ordered path steps, rather than the primary
+  `AnchorRelation`, carry `introducedBy` provenance.
 - **Spatial tense** (FAhA/VA): `space` is an `AnchorRelation`, with relation strings such as
   `"inFrontOf"` (ca'u), `"behind"` (ti'a), `"leftOf"` (zu'a), `"rightOf"` (ri'u), `"above"` (ga'u),
   `"below"` (ni'a), `"toward"` (fa'a), `"awayFrom"` (to'o), and many more; `anchor` defaults to
-  `referent:here`.
+  the utterance's globally numbered `here` entity (normally `entity:4` in a simple graph).
 - **Modals** (BAI / `fi'o`): become `modalArguments` on the predication (`relation` is the modal's
   name e.g. `"ki'u"`/`"mu'i"`, with its own numbered `arguments`).
 - **Questioned tense** (`cu'e`): sets the eventuality's `tenseModal` to a `tenseQuestion`
@@ -726,9 +775,10 @@ Tense/space/modal information attaches to the **eventuality**, anchored against 
 - **Negated tense** uses `scalarNegation` on the relation; intervals/spans use `timeInterval`/
   `timeSpan`/`spaceInterval`; aspect (ZAhO) uses `aspect`/`aspects`.
 
-`deicticGround` is set once per utterance to
-`{ "time": "referent:speech-time", "place": "referent:here" }` and is what unanchored tenses
-resolve against.
+`deicticGround` is set once per utterance to ordinary global ids such as
+`{ "time": "eventuality:3", "place": "entity:4" }` and is what unanchored
+tenses resolve against. The ids are allocated normally and are not symbolic
+special values.
 
 ### 3.8 Relative clauses (poi / noi / voi / pe / po / ...)
 
@@ -837,46 +887,46 @@ and are useful for correlating a JSON node back to a piece of the Lojban surface
 
 ## Appendix: complete enum value index (JSON spellings)
 
-- **`type` / `SemanticObjectKind`** (camelCase): utterance, sequence, eventuality, referent,
-  parameter, predication, formula, abstraction, sign, displayedContent, mathExpression, quantity,
-  relationMetadata, question.
-- **`force` / `UtteranceForce`**: assert, ask, command, mention, quote, parenthetical, vocative.
-- **`relation` / `SequenceRelation`** (kebab-case): same-topic-continuation.
-- **`class` / `EventualityClass`**: locution, event, state, process, activity, achievement.
+- **`type` (public JSON)**: utterance, sequence, referent, parameter, predication, formula,
+  displayedContent, mathExpression, quantity, relationMetadata, question.
+- **`force` / `UtteranceForce`**: assert, ask, command, mention, quote, parenthetical,
+  subordinated, vocative.
+- **`relation` / `SequenceRelation`** (kebab-case): same-topic-continuation; or tagged
+  paragraph-boundary with transition new-topic/resume-prior-topic.
 - **`actuality.kind` / `ActualityKind`**: actual, capable, potential, demonstrated.
 - **`category` / `ReferentCategory`**: constant, variable, indexical, composite.
-- **`sort` / `domain` / `SemanticSort`**: entity, mass, set, sequence, eventuality, predication,
-  truthValue, proposition, concept, amount, quantity, number, text, sign, relation, place,
-  connective, tenseModal, mathOperator, argumentBundle.
-- **`indexical` / `IndexicalKind`**: speaker, audience, speechTime, here, proximalDemonstrative,
+- **`sort` / `domain` / `SemanticSort`**: entity, mass, set, sequence, time, eventuality,
+  eventuality/state, eventuality/process, eventuality/activity, eventuality/achievement,
+  eventuality/experience, eventuality/locution, predication, truthValue, proposition, concept,
+  amount, quantity, number, scale, text, sign, relation, place, connective, tenseModal,
+  mathOperator, argumentBundle, abstractNature.
+- **`indexical` / `IndexicalKind`**: speaker, audience, now, here, proximalDemonstrative,
   medialDemonstrative, distalDemonstrative.
 - **`role` / `ParameterRole`**: propertySlot, relativeClauseHead, argumentQuestion,
-  relationQuestion, relationVariable, placeQuestion, connectiveQuestion, tenseQuestion,
-  mathOperatorQuestion, attitudeQuestion.
+  relationQuestion, relationVariable, unspecifiedRelation, placeQuestion, connectiveQuestion,
+  tenseQuestion, mathOperatorQuestion, quantityQuestion, attitudeQuestion, respectiveSlot.
 - **`ArgumentValue.kind` / `ArgumentValueKind`**: filled, elided, deleted.
 - **`mode` / `PredicationMode`**: asserted, definitional, restrictive, incidental, displayed,
   inert, performative.
 - **`scalarNegation.kind` / `ScalarNegationKind`**: otherThan, opposite, neutral, affirmed.
-- **`operator` (formula) / `FormulaOperator`**: atom, not, scoped, and, or, implies, iff,
+- **`operator` (formula) / `FormulaOperator`**: atom, affirmed, not, scoped, and, or, implies, iff,
   exclusiveOr, whetherOrNot, connectiveQuestion, exists, forall, none, cardinality, pluralExists,
-  pluralForall. (For `mathExpression`, `operator` is instead a free-form string.)
+  pluralForall, quantifierBundle, respectivelyDistribution.
 - **`domainImport` / `DomainImport`**: projective.
-- **`abstractionKind` / `AbstractionKind`**: event, achievement, process, activity, state,
-  property, amount, truthValue, proposition, sentenceSign, concept, experience, unspecified.
 - **`kind` (sign) / `SignKind`**: quotation, letteral, mathExpression, connective, word, text.
 - **`LetteralUnit.kind` / `LetteralUnitKind`**: glyph, digit, shift, characterCode, compound.
 - **`family` / `DisplayedContentFamily`**: emotion, attitudeModifier, propositionalAttitude,
   evidential, discursive, metalinguistic, emphasis, questionPrompt.
 - **`polarity` / `DisplayedContentPolarity`**: positive, neutral, negative.
 - **`assertionEffect` / `DisplayedContentAssertionEffect`**: none, hostAsserted, hostSubordinated,
-  performative.
+  metalinguisticallyVoided, performative.
 - **`form` / `QuantityForm`**: exact, all, atLeast, atMost, moreThan, lessThan, approximate,
   indefinite, enough, tooMany, tooFew.
 - **`scale` / `QuantityScale`**: count, fraction, ordinal, amount, extent, frequency.
 - **`kind` (question) / `QuestionKind`**: truth, argument, relation, place, connective, tense,
-  mathOperator, attitude, quantity.
+  mathOperator, attitude, quantity, multiple.
 - **`mode` (question) / `QuestionMode`**: direct, indirect.
-- **`QuestionSlot.role` / `QuestionSlotRole`**: answer.
+- **`QuestionSlot.role` / `QuestionSlotRole`**: answer, respectiveSlot.
 - **`EndpointInclusion`**: inclusive, exclusive.
 - **`RelativeClauseKind`**: incidental, restrictive.
 - **`RecurrenceKind`**: occurrenceCount, ordinalOccurrence, regular, typically, continuously,
@@ -889,7 +939,7 @@ and are useful for correlating a JSON node back to a piece of the Lojban surface
 
 ---
 
-## 5. Known divergences & do-not-flag (2026-06-23)
+## 5. Known divergences & do-not-flag (audited 2026-07-16)
 
 This primer documents **what `tersmu` emits today**. The authoritative *design* spec
 (what the model *should* be) is [`docs/semantic-model-spec.md`](../docs/semantic-model-spec.md)
@@ -897,7 +947,8 @@ This primer documents **what `tersmu` emits today**. The authoritative *design* 
 Divergences”** sections, and the conceptual rationale in
 [`docs/semantic-model-design.md`](../docs/semantic-model-design.md).
 
-**Status (updated 2026-06-24): the chapters 9–11/14 review findings have been FIXED.**
+**Status: the chapters 9–11/14 review findings and the semantics-coverage
+follow-ups have been fixed.**
 The model was overhauled to implement the adopted amendments. **Review against the amended
 spec** (`docs/semantic-model-spec.md`) and flag *genuine new* deviations. Do **not** re-file
 the items below — they are resolved; they are listed only so you recognize the **now-correct**
@@ -930,12 +981,35 @@ shapes and the deliberate gaps.
   separate field) — #19; `abstractionAbout`/`NAhE`/`la'e`/`lu'e` are valid `descriptor.kind`
   values, `operand` is the general inner-object field — #21; `ModalArgument` uses SE-remapped
   place numbers — #17.
+- **Fragments and text edges** retain typed denotations, structured relation
+  labels, `elidedConnectionOperand`, and paragraph-transition values; no empty
+  bridi is invented (PR #384).
+- **Composed questions** use `kind:multiple` with ordered typed slots;
+  quantity values retain `quantityQuestion` parameters, and truth slots have
+  no parameter (PR #414).
+- **Abstraction outputs** are direct referents, and derived trees descend into
+  reachable eventuality `content`; there is no public `abstraction` wrapper
+  object (PR #417).
+- **Unsupported-path retirement** is complete: valid standard constructs are
+  structurally lowered, undefined experimental semantics and missing discourse
+  context receive principled errors, and there is no `unsupported`
+  disposition/placeholder in the graph (PR #416).
+- **Linked-unit currying and grouped conversion** use the exposed-place frame
+  documented in the spec; `be fa` occupancy and outer `se`/`te`/`ve`/`xe`
+  conversions must not be compacted or silently discarded (PRs #441/#446).
 
-**Still genuinely open (flag if you hit them, reference the issue):** the *spec* extensions
-that were adopted but may not be fully realized — consult the open issues; and any construct not
-exercised by chapters 9–11/14.
+**Still genuinely open:** no accepted model/encoding divergence is currently
+listed in the normative spec. Flag a new mismatch; do not turn a product bug
+into a do-not-flag exception.
+
+**Open product bugs found by the current audit:** followed NIhO paragraph
+transitions are dropped (#447); non-quantified `zo'u` topics are discarded
+(#448); ordinary lujvo omit the specified relation metadata (#450); and
+implicit-abstraction lujvo omit their implicit event content (#451). These are
+descriptions of current output for reviewers, not accepted normative
+exceptions.
 
 **Snapshot freshness:** `out/` snapshots are **regenerated from the current binary per chapter
 run**, so they are not stale. (Historical note: the discourse-deictic-duplication bug was fixed
-in `f53ff7dcb9`; the current binary shares the `referent:speaker`/`referent:addressee` singletons
-across utterances — never flag duplicated indexical referents.)
+in `f53ff7dcb9`; the current binary shares the same globally numbered frame
+referents across sibling top-level utterances — never expect symbolic special ids.)

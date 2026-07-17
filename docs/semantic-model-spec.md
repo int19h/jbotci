@@ -138,11 +138,8 @@ Every object has a required `type`.  Other common fields are optional.
   "source": {
     "text": "klama",
     "span": { "byteStart": 3, "byteEnd": 8 },
-    "tokens": ["token:t2"],
     "construct": "selbri"
-  },
-  "labels": ["main predicate"],
-  "diagnostics": []
+  }
 }
 ```
 
@@ -208,8 +205,7 @@ For vocatives, use `vocativeKind` when known:
   "vocativeKind": "greeting",
   "speaker": "entity:1",
   "audience": "entity:1003",
-  "eventuality": "eventuality/locution:12",
-  "content": null
+  "eventuality": "eventuality/locution:12"
 }
 ```
 
@@ -250,9 +246,44 @@ truth-functional formula.
       "introducedBy": "mai"
     }
   ],
-  "relation": "same-topic-continuation"
+  "relation": "same-topic-continuation",
+  "nonlogicalConnection": {
+    "operator": "mass",
+    "connector": { "source": "joi", "locus": "statement" }
+  },
+  "elidedConnectionOperand": "priorDiscourse"
 }
 ```
+
+The optional `force` is present only as `"subordinated"`, for a sequence whose
+truth is carried by a surrounding object. `content` may reference a `formula`
+or a `question`. `elidedConnectionOperand` is `priorDiscourse` for a leading
+statement connection whose left operand is outside the input and
+`followingDiscourse` for a trailing connection whose right operand is outside
+the input. It must accompany connection content or metadata; it is not an
+invented empty utterance.
+
+`relation` is either the unit string `"same-topic-continuation"` or a tagged
+paragraph transition. The latter preserves the first NIhO marker and every
+additional marker in source order:
+
+```json
+{
+  "relation": {
+    "paragraph-boundary": {
+      "transition": "new-topic",
+      "additional": ["resume-prior-topic"]
+    }
+  }
+}
+```
+
+The transition values are `new-topic` (`ni'o`) and `resume-prior-topic`
+(`no'i`). `nonlogicalConnection` is independent of truth-valued `content` and
+records JOI-family statement connection metadata such as `mass`.
+Thus `broda ni'o brode` has a sequence relation whose paragraph transition is
+`new-topic`, rather than the unit `same-topic-continuation` relation used for a
+bare `.i` boundary.
 
 `boundEventualities`, when present, is the sequence's typed existential-binding
 edge for generated predication events whose formula use roots have no common
@@ -787,7 +818,7 @@ named, be quantified over, or be used as a discourse participant.
   "category": "constant",
   "sort": "entity",
   "descriptor": {
-    "kind": "described",
+    "kind": "speakerDescription",
     "word": "le",
     "speaker": "entity:1",
     "body": "formula:1022"
@@ -813,7 +844,14 @@ rather than as opaque pro-sumti constants.
 - `mass`
 - `set`
 - `sequence`
+- `time`
 - `eventuality`
+- `eventuality/state`
+- `eventuality/process`
+- `eventuality/activity`
+- `eventuality/achievement`
+- `eventuality/experience`
+- `eventuality/locution`
 - `predication`
 - `truthValue`
 - `proposition`
@@ -830,6 +868,7 @@ rather than as opaque pro-sumti constants.
 - `tenseModal`
 - `mathOperator`
 - `argumentBundle`
+- `abstractNature`
 
 Descriptor examples:
 
@@ -996,11 +1035,14 @@ formulas using quantities 3 and 4.  Shared surrounding semantic material such as
 `le zarci` remains shared by id.
 
 `me'o` is different: it refers to the written/expression sign, not to the
-numeric value.  Its sumti therefore emits a `sign` object:
+numeric value. Its sumti therefore emits a sign-sort `referent` object:
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "mathExpression",
   "text": "re su'i re",
   "denotes": "math:1030"
@@ -1419,11 +1461,14 @@ parameter; if it is `la .djan. kau`, the focus points at the `djan` referent.
 - `argumentQuestion`
 - `relationQuestion`
 - `relationVariable`
+- `unspecifiedRelation`
 - `placeQuestion`
 - `connectiveQuestion`
 - `tenseQuestion`
 - `mathOperatorQuestion`
+- `quantityQuestion`
 - `attitudeQuestion`
+- `respectiveSlot`
 
 A relation-question parameter has `sort = "relation"` and is used directly by
 a predication's `relationParameter` field.  It is not represented as a lexical
@@ -2393,6 +2438,7 @@ referent.  A bare relation variable has implicit existential force, while
 Operators include:
 
 - `atom`
+- `affirmed`
 - `not`
 - `scoped`
 - `and`
@@ -2988,10 +3034,11 @@ JSON keeps the reification content but places it on the output object itself,
 so `kau`, `ce'u`, scale, mind, experiencer, and expressed-by information are
 not lost and the graph does not contain an otherwise-semantic-empty wrapper.
 
-### sign
+### sign referents
 
-A sign object represents words, quotations, lerfu, opaque text, and structured
-text values.
+A sign is a `type:"referent"`, `sort:"sign"` object representing words,
+quotations, lerfu, opaque text, and structured text values. Constant signs
+carry the same `category` and `scopeDependence` fields as other constants.
 
 When a quotation is used as a sumti, the argument filler points directly at the
 `sign` object.  It should not be wrapped in an anonymous referent merely to make
@@ -2999,7 +3046,10 @@ it look entity-like, because a quote fills places as a text/sign value.
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "quotation",
   "quotation": {
     "mode": "parsed",
@@ -3012,7 +3062,10 @@ Opaque quotation:
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "quotation",
   "quotation": {
     "mode": "opaque",
@@ -3027,7 +3080,10 @@ payload.  This is distinct from `source.text`, which is only provenance:
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "text",
   "text": "lojban"
 }
@@ -3039,7 +3095,10 @@ point at that content.  Math-expression signs use the same `text` payload plus
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "mathExpression",
   "text": "re su'i re",
   "denotes": "math:1030"
@@ -3058,7 +3117,10 @@ connective choice itself rather than fabricating the omitted question:
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "connective",
   "text": "gi'e nai"
 }
@@ -3068,7 +3130,10 @@ Letteral signs need more structure than the earlier model provided:
 
 ```json
 {
-  "type": "sign",
+  "type": "referent",
+  "category": "constant",
+  "scopeDependence": { "kind": "fixed" },
+  "sort": "sign",
   "kind": "letteral",
   "text": "tanru",
   "letterals": [
@@ -3136,14 +3201,12 @@ emphasis, and metalinguistic operators live here.
 {
   "type": "displayedContent",
   "family": "emotion",
-  "relation": "happy",
+  "relation": "happiness",
   "experiencer": "entity:1",
-  "target": "eventuality:18",
+  "target": "formula:1117",
+  "targetFocus": "bridi",
   "anchor": "utterance:1004",
-  "intensity": null,
   "polarity": "positive",
-  "phase": null,
-  "modifiers": [],
   "assertionEffect": "none"
 }
 ```
@@ -3506,8 +3569,7 @@ approximate, comparative, indefinite, adequate, and scale-sensitive values.
   "type": "quantity",
   "form": "approximate",
   "value": { "integer": 5 },
-  "scale": "count",
-  "approximation": "near"
+  "scale": "count"
 }
 ```
 
@@ -3516,7 +3578,9 @@ Fields:
 - `form`: `exact`, `all`, `atLeast`, `atMost`, `moreThan`, `lessThan`,
   `approximate`, `indefinite`, `enough`, `tooMany`, `tooFew`
 - `scale`: `count`, `fraction`, `ordinal`, `amount`, `extent`, `frequency`
-- `value`: a literal or a `mathExpression`
+- `value`: exactly one of `integer`, `text`, or `mathExpression`; it may also
+  carry `questionParameters`, an ordered array of number-sorted
+  `quantityQuestion` parameter IDs for `xo`
 - `comparisonSet`: optional reference for relative quantities
 
 This is a new object type.  The earlier model had `MEX` and quantity-sorted
@@ -3583,6 +3647,48 @@ For direct `je'i`, use `kind = "connective"` and `domain = "connective"`; the
 body contains a `connectiveQuestion` formula whose connector points at the
 answer parameter.
 
+Homogeneous questions use the compact slot shape shown above; their `kind` and
+`domain` are inherited from the question. Heterogeneous simultaneous blanks
+use one `kind:"multiple"`, `domain:"argumentBundle"` question and ordered,
+self-describing slots. A truth slot has no parameter:
+
+```json
+{
+  "type": "question",
+  "kind": "multiple",
+  "mode": "direct",
+  "asker": "entity:1",
+  "respondent": "entity:2",
+  "domain": "argumentBundle",
+  "body": "formula:1140",
+  "slots": [
+    {
+      "parameter": "parameter:1137",
+      "role": "answer",
+      "kind": "quantity",
+      "domain": "number"
+    },
+    {
+      "parameter": "parameter:1138",
+      "role": "answer",
+      "kind": "argument",
+      "domain": "entity"
+    },
+    {
+      "parameter": "parameter:1139",
+      "role": "answer",
+      "kind": "relation",
+      "domain": "relation"
+    },
+    { "role": "answer", "kind": "truth", "domain": "truthValue" }
+  ]
+}
+```
+
+The other slot role is `respectiveSlot`, used for slots introduced by a
+respectively-distribution stream. Typed slots never use `kind:"multiple"`;
+that kind belongs only to the containing question.
+
 `kind` values include:
 
 - `truth`
@@ -3591,8 +3697,10 @@ answer parameter.
 - `place`
 - `connective`
 - `tense`
+- `mathOperator`
 - `attitude`
 - `quantity`
+- `multiple`
 
 This is the largest object-model amendment from the v0 review.  The v0 prelude
 and GitLab planning issues converged on a generic question model with typed
@@ -3616,7 +3724,6 @@ their expansion as discourse truth.
   "expansion": {
     "kind": "lujvo",
     "sourceWords": ["se", "jvajvo"],
-    "placeIdentifications": [],
     "rafsiBindings": []
   }
 }
@@ -3671,8 +3778,12 @@ structured filler shape.
       "force": "assert",
       "speaker": "entity:1",
       "audience": "entity:2",
-      "eventuality": "eventuality/locution:6",
-      "content": "formula:1135"
+      "eventuality": "eventuality/locution:15",
+      "content": "formula:14",
+      "deicticGround": {
+        "time": "eventuality:3",
+        "place": "entity:4"
+      }
     },
     "entity:1": {
       "type": "referent",
@@ -3686,70 +3797,80 @@ structured filler shape.
       "sort": "entity",
       "indexical": "audience"
     },
-    "entity:1136": {
+    "entity:7": {
       "type": "referent",
       "category": "constant",
+      "scopeDependence": { "kind": "fixed" },
       "sort": "entity",
       "descriptor": {
         "kind": "veridicalDescription",
         "word": "lo",
-        "body": "formula:1023"
+        "speaker": "entity:1",
+        "body": "formula:12"
       }
     },
-    "formula:1023": {
+    "formula:12": {
       "type": "formula",
       "operator": "atom",
-      "predication": "predication:1137"
+      "predication": "predication:11"
     },
-    "predication:1137": {
+    "predication:11": {
       "type": "predication",
       "relation": "botpi",
       "arguments": {
-        "x1": { "kind": "filled", "value": "entity:1136" },
+        "x1": { "kind": "filled", "value": "entity:7" },
         "x2": {
           "kind": "elided",
-          "value": "entity:1138",
+          "value": "entity:8",
           "introducedBy": "zo'e"
         },
         "x3": {
           "kind": "elided",
-          "value": "entity:1139",
+          "value": "entity:9",
           "introducedBy": "zo'e"
         },
         "x4": {
           "kind": "elided",
-          "value": "entity:1140",
+          "value": "entity:10",
           "introducedBy": "zo'e"
         }
       },
       "mode": "restrictive"
     },
-    "formula:1135": {
+    "formula:14": {
       "type": "formula",
       "operator": "atom",
-      "predication": "predication:1141"
+      "predication": "predication:13",
+      "boundEventualities": ["eventuality:6"]
     },
-    "predication:1141": {
+    "predication:13": {
       "type": "predication",
       "relation": "xunre",
-      "eventuality": "eventuality/state:18",
-      "arguments": { "x1": { "kind": "filled", "value": "entity:1136" } },
+      "eventuality": "eventuality:6",
+      "arguments": { "x1": { "kind": "filled", "value": "entity:7" } },
       "mode": "asserted"
     },
-    "eventuality/locution:6": {
+    "eventuality:6": {
       "type": "referent",
-      "sort": "eventuality/locution",
-      "category": "constant"
+      "denotation": "generated-bound",
+      "sort": "eventuality"
     },
-    "eventuality/state:18": {
+    "eventuality/locution:15": {
       "type": "referent",
-      "sort": "eventuality/state",
+      "denotation": "referential",
+      "sort": "eventuality/locution",
       "category": "constant",
+      "scopeDependence": { "kind": "fixed" },
       "actuality": { "kind": "actual" }
     }
   }
 }
 ```
+
+The sketch omits the definitions of `eventuality:3`, `entity:4`, and the three
+elided-place referents, plus provenance. The matrix event is generated-bound,
+has no default actuality, and is existentially owned by `formula:14`; only the
+referential locution event is actual by construction.
 
 ### `mi klama le zarci .i do cadzu le bisli`
 
@@ -4980,7 +5101,10 @@ These are the semantic object-model changes relative to
      ```json
      {
        "sign:1153": {
-         "type": "sign",
+         "type": "referent",
+         "category": "constant",
+         "scopeDependence": { "kind": "fixed" },
+         "sort": "sign",
          "kind": "letteral",
          "text": "tanru",
          "letterals": [
@@ -5543,18 +5667,13 @@ implementation gaps are listed separately in “Known Implementation Divergences
     to constrain the witness only when explicit. The wire version remains
     `lojban-semantics-json-1` because the notation is unreleased.
 
-## Known Implementation Divergences (2026-06-23)
+## Known Implementation Divergences (audited 2026-07-16)
 
-Where current `tersmu` output departs from this spec (amended above). These are the
-*model/encoding* divergences a future review should treat as **known**, not re-flag;
-each is tracked. (Pure builder-correctness crashes/bugs — e.g. the connective
-`na`/`nai` drops, termset Cartesian product, the `vo'a`-in-description stack overflow
-— are tracked as `bug` issues, not here.)
-
-- `fa'u` correspondence is unrepresentable (#4, amendment 14).
-- Selbri-wrapper constructs are still lowered piecemeal; in particular,
-  the shared `le`/`la`/vocative/`na'u`/`ni'e` lowering path is not implemented
-  yet (#126, #123).
+There are currently no accepted model/encoding divergences in this section.
+The former `fa'u` representation gap is closed by the typed
+`respectivelyDistribution` formula, and the former shared selbri-wrapper gaps
+tracked by #123/#126 are closed. Product bugs remain ordinary GitHub issues;
+they must not be converted into normative exceptions here.
 
 **Why the primer is a separate document.** `review/tersmu_schema_primer.md` is a
 consumer/agent-facing cheat-sheet of the *current* JSON shape (used by the review
