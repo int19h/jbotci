@@ -554,6 +554,9 @@ fn submit_without_registered_intent_is_rejected_before_gate() {
         count_protocol_errors(runner.events(), ProtocolTool::SubmitLojban),
         1
     );
+    assert!(runner.participants()[0].tool_results.iter().any(|result| {
+        result.tool_name == "submit_lojban" && result.content.contains("not legal")
+    }));
     let submissions = runner
         .events()
         .iter()
@@ -621,6 +624,9 @@ fn confirmation_without_current_success_is_rejected_before_posting() {
         count_protocol_errors(runner.events(), ProtocolTool::ConfirmMeaning),
         1
     );
+    assert!(runner.participants()[0].tool_results.iter().any(|result| {
+        result.tool_name == "confirm_meaning" && result.content.contains("not legal")
+    }));
     let accepted_index = runner
         .events()
         .iter()
