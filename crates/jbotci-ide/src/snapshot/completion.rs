@@ -151,6 +151,16 @@ impl DocumentSnapshot {
     #[requires(true)]
     #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
     pub fn completions(&self, char_offset: usize) -> Vec<CompletionItem> {
+        self.completions_with_grammar_time_limit(char_offset, COMPLETION_GRAMMAR_TIME_LIMIT)
+    }
+
+    #[requires(!grammar_time_limit.is_zero())]
+    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
+    fn completions_with_grammar_time_limit(
+        &self,
+        char_offset: usize,
+        grammar_time_limit: Duration,
+    ) -> Vec<CompletionItem> {
         let cursor = self.line_index.offsets_for_char(char_offset);
         let seed_span = self.completion_seed_span(cursor.byte, cursor.char);
         let seed = &self.text[seed_span.byte_start..seed_span.byte_end];
@@ -177,6 +187,7 @@ impl DocumentSnapshot {
                 seed,
                 &preceding_words,
                 preceding_awaits_zo_target,
+                grammar_time_limit,
                 &mut items,
             );
         }
@@ -218,6 +229,7 @@ impl DocumentSnapshot {
                 "",
                 continuation_words,
                 continuation_awaits_zo_target,
+                grammar_time_limit,
                 &mut items,
             );
         }
@@ -294,6 +306,7 @@ impl DocumentSnapshot {
     #[allow(clippy::too_many_arguments)]
     #[requires(replacement_span.byte_end <= self.text.len())]
     #[requires(replacement_span.char_end <= self.line_index.char_len())]
+    #[requires(!grammar_time_limit.is_zero())]
     #[ensures(true)]
     fn add_completion_interpretation<'dictionary, 'entries>(
         &self,
@@ -304,6 +317,7 @@ impl DocumentSnapshot {
         prefix: &str,
         preceding_words: &[WordLike],
         preceding_awaits_zo_target: bool,
+        grammar_time_limit: Duration,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         let cursor_context = match self.cursor_completion_context(&replacement_span) {
@@ -342,7 +356,7 @@ impl DocumentSnapshot {
                 let expectations = expected_continuations_with_time_limit(
                     preceding_words,
                     &ParseOptions::default(),
-                    COMPLETION_GRAMMAR_TIME_LIMIT,
+                    grammar_time_limit,
                 );
                 completion_context.add_grammar_candidates(&expectations, items);
             }
@@ -788,6 +802,22 @@ mod tests {
         DocumentSnapshot::new(text, 1).completions(cursor)
     }
 
+    #[requires(source.matches('|').count() == 1)]
+    #[requires(!grammar_time_limit.is_zero())]
+    #[ensures(true)]
+    fn completions_at_marker_with_grammar_time_limit(
+        source: &str,
+        grammar_time_limit: Duration,
+    ) -> Vec<CompletionItem> {
+        let marker_byte = source
+            .find('|')
+            .expect("precondition requires a cursor marker");
+        let cursor = source[..marker_byte].chars().count();
+        let text = source.replacen('|', "", 1);
+        DocumentSnapshot::new(text, 1)
+            .completions_with_grammar_time_limit(cursor, grammar_time_limit)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn has_label(items: &[CompletionItem], label: &str) -> bool {
@@ -1067,6 +1097,10 @@ mod tests {
         );
     }
 
+    // Deep contract instrumentation changes the work measured by this literal
+    // production wall-clock boundary. Its functional twin below exercises the
+    // same document and provenance assertion with an instrumentation budget.
+    #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1089,6 +1123,26 @@ mod tests {
         assert!(
             elapsed < Duration::from_secs(2),
             "mid-size completion unexpectedly took {elapsed:?}",
+        );
+    }
+
+    #[cfg(feature = "expensive_contracts")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn memoized_mid_size_recovery_remains_grammar_filtered_with_instrumentation() {
+        let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250),);
+        let items = completions_at_marker_with_grammar_time_limit(&marked, Duration::from_secs(30));
+
+        assert!(
+            items.iter().any(|item| {
+                item.label == "lo"
+                    && matches!(
+                        item.provenance.as_data(),
+                        data!(CompletionProvenance::Expected { .. })
+                    )
+            }),
+            "instrumented memoized recovery should reach the cut with an ample grammar budget: {items:#?}",
         );
     }
 }
