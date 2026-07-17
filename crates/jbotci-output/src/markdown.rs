@@ -5,7 +5,7 @@ use bityzba::{ensures, requires};
 use jbotci_diagnostics::{DiagnosticTextLink, DiagnosticTextRole, DiagnosticTextSegment};
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, VlackuCompositionPiece};
 
-use crate::{GlyphStyle, indexed_place_spans_for_definition_or_notes_line};
+use crate::{DefinitionPlaceMap, GlyphStyle, indexed_place_spans_for_definition_line};
 
 /// Canonical public jbotci base used for links in transport-neutral Markdown.
 pub const DEFAULT_MARKDOWN_LINK_BASE: &str = "https://jbotci.app";
@@ -53,6 +53,7 @@ pub fn render_vlacku_card_markdown(card: &VlackuCard) -> String {
 #[requires(!link_base.trim_end_matches('/').is_empty())]
 #[ensures(!ret.is_empty())]
 pub fn render_vlacku_card_markdown_with_link_base(card: &VlackuCard, link_base: &str) -> String {
+    let place_map = DefinitionPlaceMap::from_definition(&card.definition);
     let mut output = render_vlacku_headword_markdown(
         &card.word,
         &card.word_type,
@@ -67,7 +68,11 @@ pub fn render_vlacku_card_markdown_with_link_base(card: &VlackuCard, link_base: 
     }
     if !card.definition.trim().is_empty() {
         output.push_str("\n\n");
-        output.push_str(&render_vlacku_detail_markdown(&card.definition, link_base));
+        output.push_str(&render_vlacku_detail_markdown(
+            &card.definition,
+            &place_map,
+            link_base,
+        ));
     }
     if !card.glosses.is_empty() {
         output.push_str("\n\n**Glosses:** ");
@@ -174,13 +179,17 @@ fn render_diagnostic_segment_role(role: DiagnosticTextRole, text: &str) -> Strin
 
 #[requires(true)]
 #[ensures(input.is_empty() -> ret.is_empty())]
-fn render_vlacku_detail_markdown(input: &str, link_base: &str) -> String {
+fn render_vlacku_detail_markdown(
+    input: &str,
+    place_map: &DefinitionPlaceMap,
+    link_base: &str,
+) -> String {
     let mut output = String::new();
     for (line_index, line) in input.lines().enumerate() {
         if line_index > 0 {
             output.push_str("\n\n");
         }
-        let spans = indexed_place_spans_for_definition_or_notes_line(line, GlyphStyle::Unicode);
+        let spans = indexed_place_spans_for_definition_line(line, place_map, GlyphStyle::Unicode);
         for span in spans {
             let span = span.into_data();
             if let Some(place) = span.place {

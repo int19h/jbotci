@@ -361,6 +361,7 @@ pub(crate) fn render_dictionary_definitions_for_word_likes(
 #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(!ret.is_empty())]
 fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOptions) -> String {
+    let place_map = DefinitionPlaceMap::from_definition(&card.definition);
     let mut lines = Vec::new();
     let mut header = String::new();
     header.push_str(&dark(&format!("{index}."), options.color));
@@ -411,18 +412,20 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
     }
     if !card.glosses.is_empty() {
         lines.push(format!("  {}", dark("glosses:", options.color)));
-        push_vlacku_detail_lines(&mut lines, &card.glosses.join("; "), options);
+        push_rendered_vlacku_detail_lines(&mut lines, &card.glosses.join("; "), options);
     }
     if !card.definition.trim().is_empty() {
         lines.push(format!("  {}", dark("definitions:", options.color)));
         for line in card.definition.lines() {
-            push_vlacku_detail_lines(&mut lines, line, options);
+            let rendered = vlacku_definition_text_for_sumti_places(line, &place_map, options);
+            push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
         }
     }
     if !card.notes.trim().is_empty() {
         lines.push(format!("  {}", dark("notes:", options.color)));
         for line in card.notes.lines() {
-            push_vlacku_detail_lines(&mut lines, line, options);
+            let rendered = vlacku_notes_text_for_sumti_places(line, &place_map, options);
+            push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
         }
     }
     if options.show_etymology {
@@ -433,7 +436,7 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
         {
             lines.push(format!("  {}", dark("etymology:", options.color)));
             for line in etymology.lines() {
-                push_vlacku_detail_lines(&mut lines, line, options);
+                push_rendered_vlacku_detail_lines(&mut lines, line, options);
             }
         }
     }
@@ -442,9 +445,12 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
 
 #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(true)]
-fn push_vlacku_detail_lines(lines: &mut Vec<String>, text: &str, options: &VlackuRenderOptions) {
-    let rendered_text = vlacku_detail_text_for_sumti_places(text, options);
-    for line in wrap_vlacku_detail_line(&rendered_text, options.output_terminal_width) {
+fn push_rendered_vlacku_detail_lines(
+    lines: &mut Vec<String>,
+    rendered_text: &str,
+    options: &VlackuRenderOptions,
+) {
+    for line in wrap_vlacku_detail_line(rendered_text, options.output_terminal_width) {
         lines.push(format!(
             "{VLACKU_DETAIL_INDENT}{}",
             render_vlacku_rich_text(&line, options)
@@ -454,11 +460,30 @@ fn push_vlacku_detail_lines(lines: &mut Vec<String>, text: &str, options: &Vlack
 
 #[requires(true)]
 #[ensures(true)]
-fn vlacku_detail_text_for_sumti_places(text: &str, options: &VlackuRenderOptions) -> String {
+fn vlacku_definition_text_for_sumti_places(
+    text: &str,
+    place_map: &DefinitionPlaceMap,
+    options: &VlackuRenderOptions,
+) -> String {
     match options.sumti_places {
         CliSumtiPlaces::Raw => text.to_owned(),
         CliSumtiPlaces::Index => {
-            format_definition_or_notes_line_with_indexed_places(text, options.glyphs)
+            format_definition_line_with_indexed_places(text, place_map, options.glyphs)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_notes_text_for_sumti_places(
+    text: &str,
+    place_map: &DefinitionPlaceMap,
+    options: &VlackuRenderOptions,
+) -> String {
+    match options.sumti_places {
+        CliSumtiPlaces::Raw => text.to_owned(),
+        CliSumtiPlaces::Index => {
+            format_notes_line_with_indexed_places(text, place_map, options.glyphs)
         }
     }
 }

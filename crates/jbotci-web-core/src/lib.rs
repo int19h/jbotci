@@ -50,11 +50,11 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
-    GlyphStyle, TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
+    DefinitionPlaceMap, GlyphStyle, TreeRenderOptions, format_definition_line_with_indexed_places,
     generated_reference_display, generated_reference_slot_name_for_place_slot,
-    indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
-    phoneme_render_options_for_script, pretty_bracket_source_fragments_with_options,
-    pretty_generated_model_brackets_with_options,
+    indexed_place_spans_for_definition_line, indexed_place_spans_for_notes_line,
+    ipa_morphology_text, phoneme_render_options_for_script,
+    pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
     pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
 };
@@ -3491,13 +3491,14 @@ fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
 #[requires(true)]
 #[ensures(true)]
 fn vlacku_card_metadata_description(card: &VlackuCard) -> Option<String> {
+    let place_map = DefinitionPlaceMap::from_definition(&card.definition);
     let definition = card
         .definition
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())?;
     let formatted =
-        format_definition_or_notes_line_with_indexed_places(definition, GlyphStyle::Unicode);
+        format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode);
     let visible = inline_plain_text(&parse_vlacku_inline_text(
         jbotci_dictionary_data::english(),
         &formatted,
@@ -4896,13 +4897,21 @@ fn reference_tooltip_for_lookup_word(
     let raw_card = dictionary_tooltip_search_card_for_word(lookup_word);
     let dictionary = jbotci_dictionary_data::english();
     let (card, missing_word, definition, notes) = if let Some(raw_card) = raw_card {
+        let place_map = DefinitionPlaceMap::from_definition(&raw_card.definition);
         let definition = parse_reference_tooltip_inline_text(
             dictionary,
             &raw_card.definition,
+            &place_map,
+            ReferenceTooltipTextKind::Definition,
             &highlighted_places,
         );
-        let notes =
-            parse_reference_tooltip_inline_text(dictionary, &raw_card.notes, &highlighted_places);
+        let notes = parse_reference_tooltip_inline_text(
+            dictionary,
+            &raw_card.notes,
+            &place_map,
+            ReferenceTooltipTextKind::Notes,
+            &highlighted_places,
+        );
         (
             Some(dictionary_tooltip_card_from_search_card(
                 base_path, raw_card,
@@ -4929,15 +4938,32 @@ fn reference_tooltip_for_lookup_word(
     })
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReferenceTooltipTextKind {
+    Definition,
+    Notes,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn parse_reference_tooltip_inline_text(
     dictionary: &Dictionary<'_>,
     text: &str,
+    place_map: &DefinitionPlaceMap,
+    text_kind: ReferenceTooltipTextKind,
     highlighted_places: &[usize],
 ) -> Vec<ReferenceTooltipInline> {
     let mut output = Vec::new();
-    for span in indexed_place_spans_for_definition_or_notes_line(text, GlyphStyle::Unicode) {
+    let spans = match text_kind {
+        ReferenceTooltipTextKind::Definition => {
+            indexed_place_spans_for_definition_line(text, place_map, GlyphStyle::Unicode)
+        }
+        ReferenceTooltipTextKind::Notes => {
+            indexed_place_spans_for_notes_line(text, place_map, GlyphStyle::Unicode)
+        }
+    };
+    for span in spans {
         let span = span.into_data();
         if let Some(place) = span.place {
             output.push(new!(ReferenceTooltipInline::IndexedPlace {
