@@ -480,15 +480,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let bindings = self.push_generated_prenex_term_bindings(&prenex.prenex_terms)?;
+        let context = self.push_generated_prenex_term_bindings(&prenex.prenex_terms)?;
         let result = self.build_generated_subbridi_formula_with_options(
             &prenex.inner_subbridi,
             eventuality,
             mode,
         );
-        self.pop_generated_prenex_scope_bindings(bindings);
+        let data!(GeneratedPrenexContext {
+            pushed_bindings,
+            topics,
+        }) = context.into_data();
+        self.pop_generated_prenex_scope_bindings(pushed_bindings);
         let formula = result?;
-        self.wrap_formula_with_generated_prenex_terms(formula, &prenex.prenex_terms)
+        self.wrap_formula_with_generated_prenex_terms(
+            formula,
+            &prenex.prenex_terms,
+            topics,
+            self.source_for_node(prenex, "topic-comment"),
+        )
     }
 
     #[requires(true)]
@@ -5501,7 +5510,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     eventuality,
                 ),
             SubbridiSyntax::PrenexSubbridi(prenex) => {
-                let bindings = self.push_generated_prenex_term_bindings(&prenex.prenex_terms)?;
+                let prenex_context =
+                    self.push_generated_prenex_term_bindings(&prenex.prenex_terms)?;
                 let result = self.build_forethought_subbridi_branch_formula_with_deferred_prefix(
                     &prenex.inner_subbridi,
                     prefix_terms,
@@ -5509,10 +5519,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     suffix_terms,
                     eventuality,
                 );
-                self.pop_generated_prenex_scope_bindings(bindings);
+                let data!(GeneratedPrenexContext {
+                    pushed_bindings,
+                    topics,
+                }) = prenex_context.into_data();
+                self.pop_generated_prenex_scope_bindings(pushed_bindings);
                 let (formula, context) = result?;
-                let formula =
-                    self.wrap_formula_with_generated_prenex_terms(formula, &prenex.prenex_terms)?;
+                let formula = self.wrap_formula_with_generated_prenex_terms(
+                    formula,
+                    &prenex.prenex_terms,
+                    topics,
+                    self.source_for_node(prenex, "topic-comment"),
+                )?;
                 Ok((formula, context))
             }
         }
@@ -5695,7 +5713,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     branch_prenex_existentials,
                 ),
             SubbridiSyntax::PrenexSubbridi(prenex) => {
-                let bindings = self.push_generated_prenex_term_bindings(&prenex.prenex_terms)?;
+                let context = self.push_generated_prenex_term_bindings(&prenex.prenex_terms)?;
                 let result = self.build_forethought_subbridi_branch_formula(
                     &prenex.inner_subbridi,
                     preassigned_visible_arguments,
@@ -5704,9 +5722,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     eventuality,
                     branch_prenex_existentials,
                 );
-                self.pop_generated_prenex_scope_bindings(bindings);
+                let data!(GeneratedPrenexContext {
+                    pushed_bindings,
+                    topics,
+                }) = context.into_data();
+                self.pop_generated_prenex_scope_bindings(pushed_bindings);
                 let formula = result?;
-                self.wrap_formula_with_generated_prenex_terms(formula, &prenex.prenex_terms)
+                self.wrap_formula_with_generated_prenex_terms(
+                    formula,
+                    &prenex.prenex_terms,
+                    topics,
+                    self.source_for_node(prenex, "topic-comment"),
+                )
             }
         }
     }
