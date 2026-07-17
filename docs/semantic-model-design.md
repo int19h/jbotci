@@ -158,15 +158,15 @@ Primitives over constants:
 ## 0.D The gadri, expanded exactly
 
 Each lexical occurrence introduces a fresh `category=constant` referent plus a
-typed descriptor. Characterizing predications in a descriptor body use
-`mode=restrictive`; incidental mode is reserved for genuine `noi`-style side
-claims. `lo`, `le`, and `la` are plural constants, but their descriptor kinds
-and bodies differ.
+typed descriptor. Veridical descriptor restrictions and the property relation
+inside a speaker description use `mode=restrictive`; the speaker
+description's outer `skicu` predication is incidental. `lo`, `le`, and `la`
+are plural constants, but their descriptor kinds and bodies differ.
 
 | surface | objects introduced |
 |---|---|
 | `lo broda` | `REF x: category=constant, descriptor={kind:veridicalDescription, word:lo, body:f}`; `f` contains `broda(x)` in restrictive mode |
-| `le broda` | `REF x: category=constant, descriptor={kind:speakerDescription, word:le, body:f}`; `f` contains restrictive `skicu(speaker, x, audience, ⟨ka ce'u broda⟩)` — abbreviated **`LE-clause(x, broda)`** |
+| `le broda` | `REF x: category=constant, descriptor={kind:speakerDescription, word:le, body:f}`; `f` contains incidental `skicu(speaker, x, audience, ⟨ka ce'u broda⟩)`, whose direct relation-sort x4 has a restrictive `broda(ce'u)` body — abbreviated **`LE-clause(x, broda)`** |
 | `la cmevla` | `REF x: category=constant, descriptor={kind:name, word:la, name:cmevla}`; name-word lowering retains the corresponding `cmene` structure when applicable |
 | `lo PA broda` | as `lo`, with `descriptor.quantity` pointing at the first-class PA quantity |
 | `loi broda` | `REF m: category=constant, sort=mass, descriptor.kind=veridicalMassDescription`; its restrictive body relates the mass to the inner `lo broda` referent |
