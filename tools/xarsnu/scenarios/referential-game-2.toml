@@ -1,0 +1,38 @@
+id = "referential-game-2"
+title = "Minimal scene contrasts II"
+public-setup = "One speaker privately receives a target scene. Listeners must identify its one-based index from the speaker's descriptions."
+scenario-type = "referential-game"
+minimum-rounds = 1
+maximum-rounds = 3
+maximum-turns = 8
+target-scene-index = 2
+
+[answer-schema]
+type = "object"
+additionalProperties = false
+required = ["scene_index"]
+
+[answer-schema.properties.scene_index]
+type = "integer"
+minimum = 1
+
+[[scenes]]
+description = "A child is carrying two red boxes into a room."
+
+[[scenes]]
+description = "Two children are carrying one red box out of a room."
+
+[[scenes]]
+description = "A child wants two red boxes to be carried out of a room."
+
+[[participants]]
+name = "speaker"
+role = "speaker"
+
+[[participants]]
+name = "listener-a"
+role = "listener"
+
+[[participants]]
+name = "listener-b"
+role = "listener"
