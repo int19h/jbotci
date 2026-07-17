@@ -845,6 +845,7 @@ impl<'client> OpenRouterParticipant<'client> {
             conversation: ParticipantConversation::from_parts(
                 participant.name.clone(),
                 participant.model.clone(),
+                participant.prompt_caching,
                 participant.temperature,
                 system_prompt,
                 participant.private_brief.clone(),

@@ -64,9 +64,31 @@ fn golden_transcript_renders_every_event_kind() {
         "Recorded discrepancies:",
         "### Scenario answer",
         "### Scenario checker",
+        "80 cached, 40 cache-write tokens",
+        "Cache efficiency: 66.67%",
+        "Call hit rate: 100.00%",
     ] {
         assert!(report.contains(anti_no_op), "missing {anti_no_op}");
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn schema_v1_accepts_usage_without_additive_cache_fields() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let legacy = fixture.replace(",\"cached_tokens\":80,\"cache_write_tokens\":40", "");
+    assert_ne!(legacy, fixture, "fixture must exercise cache fields");
+    let path = temp_path("schema-v1-without-cache-fields");
+    fs::write(&path, legacy).expect("write legacy-compatible transcript");
+
+    let records = read_transcript(&path).expect("optional cache fields may be absent");
+    assert!(!records.is_empty());
+    let report = report_file(&path).expect("legacy-compatible transcript renders");
+    assert!(report.contains("Cache totals: 0 cached tokens; 0 cache-write tokens"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
 }
 
 #[test]

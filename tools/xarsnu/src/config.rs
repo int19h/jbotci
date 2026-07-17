@@ -5,6 +5,19 @@ use bityzba::{ensures, invariant, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Whether xarsnu should manage provider prompt-cache breakpoints.
+#[invariant(::Auto => true)]
+#[invariant(::Off => true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PromptCaching {
+    /// Enable explicit breakpoints only for models known to require them.
+    #[default]
+    Auto,
+    /// Never add prompt-cache breakpoints for this participant.
+    Off,
+}
+
 /// One model participating in the private side of a simulated discussion.
 #[invariant(!name.trim().is_empty(), "participant names cannot be empty")]
 #[invariant(!model.trim().is_empty(), "participant model ids cannot be empty")]
@@ -16,6 +29,8 @@ use thiserror::Error;
 pub struct ParticipantConfig {
     pub name: String,
     pub model: String,
+    #[serde(default)]
+    pub prompt_caching: PromptCaching,
     pub temperature: f64,
     pub system_prompt: String,
     pub private_brief: String,
@@ -115,6 +130,25 @@ private-brief = "You can attend after noon."
     fn config_defaults_to_tree_proj() {
         let config = RunConfig::from_toml(VALID_CONFIG).expect("valid config");
         assert_eq!(config.tersmu_format, TersmuFormat::TreeProj);
+        assert!(
+            config
+                .participants
+                .iter()
+                .all(|participant| participant.prompt_caching == PromptCaching::Auto)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn participant_can_disable_prompt_caching() {
+        let source = VALID_CONFIG.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\nprompt-caching = \"off\"",
+        );
+        let config = RunConfig::from_toml(&source).expect("valid config");
+        assert_eq!(config.participants[0].prompt_caching, PromptCaching::Off);
+        assert_eq!(config.participants[1].prompt_caching, PromptCaching::Auto);
     }
 
     #[test]

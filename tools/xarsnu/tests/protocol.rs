@@ -931,6 +931,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                 .map(|name| new!(ParticipantConfig {
                     name: name.to_owned(),
                     model: format!("example/{name}"),
+                    prompt_caching: xarsnu::PromptCaching::Auto,
                     temperature: 0.25,
                     system_prompt: "Use the gated protocol.".to_owned(),
                     private_brief: format!("Private English brief for {name}."),

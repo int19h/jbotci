@@ -185,7 +185,7 @@ Aggregate status: **partial**
 
 ### API usage — `alice`
 
-120 prompt + 30 completion = 150 tokens; $0.012000
+120 prompt + 30 completion = 150 tokens; $0.012000; 80 cached, 40 cache-write tokens
 
 ### Run aborted
 
@@ -229,5 +229,14 @@ Aggregate: **partial**
 ### Usage
 
 - `alice`: 120 prompt + 30 completion = 150 tokens; $0.012000
+  - Cache totals: 80 cached tokens; 40 cache-write tokens
+  - Cache efficiency: 66.67% (80 / 120 prompt tokens)
+  - Call hit rate: 100.00% (1 / 1 provider calls)
 - `bob`: 0 prompt + 0 completion = 0 tokens; $0.000000
+  - Cache totals: 0 cached tokens; 0 cache-write tokens
+  - Cache efficiency: n/a (0 / 0 prompt tokens)
+  - Call hit rate: n/a (0 / 0 provider calls)
 - Run total: 120 prompt + 30 completion = 150 tokens; $0.012000
+  - Cache totals: 80 cached tokens; 40 cache-write tokens
+  - Cache efficiency: 66.67% (80 / 120 prompt tokens)
+  - Call hit rate: 100.00% (1 / 1 provider calls)

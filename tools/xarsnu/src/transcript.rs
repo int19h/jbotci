@@ -12,6 +12,10 @@ use serde::{Deserialize, Serialize};
 use crate::{ProtocolEvent, RunConfig, ScenarioConfigError, ScenarioInstance};
 
 /// Current on-disk transcript schema version.
+///
+/// Schema v1 record payloads may gain additive optional fields. Readers must
+/// accept their absence with the documented default; incompatible shape or
+/// meaning changes require incrementing this version.
 pub const TRANSCRIPT_SCHEMA_VERSION: u32 = 1;
 
 /// Immutable experiment inputs recorded before the first model call.
