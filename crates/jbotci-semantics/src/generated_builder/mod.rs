@@ -897,6 +897,7 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 
 #[invariant(numbered_argument_choices.iter().all(|(place, choices)| *place > 0 && !choices.is_empty()), "every linked numbered place has at least one argument choice")]
 #[invariant(explicit_multi_claim_places.iter().all(|place| numbered_argument_choices.get(place).is_some_and(|choices| choices.len() > 1)), "every recorded explicit multi-claim place has multiple choices")]
+#[invariant(*first_visible_place > 0, "the linked argument frame starts at a valid place")]
 #[invariant(*next_visible_place > 0, "the continuation cursor always names a valid place")]
 #[derive(Debug, Clone)]
 struct GeneratedLinkargsAssignments<'syntax> {
@@ -904,6 +905,7 @@ struct GeneratedLinkargsAssignments<'syntax> {
     modal_arguments: Vec<ModalArgument>,
     event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    first_visible_place: usize,
     next_visible_place: usize,
     explicit_multi_claim_places: BTreeSet<usize>,
     contains_unbound_explicit_cehu: bool,
@@ -12280,6 +12282,33 @@ mod tests {
             "fa do targets converted x1, which is raw klama x2"
         );
         assert!(graph.objects[&klama_id].diagnostics().is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unconverted_grouped_linkargs_keep_established_tail_continuation() {
+        let graph =
+            semantic_graph_for("mi na'e ke sutra bo cadzu be fi le birka je masno klama le zarci");
+        let sutra = named_predication_ids(&graph, "sutra");
+        assert_eq!(sutra.len(), 1);
+        let sutra = graph.objects[&sutra[0]]
+            .as_predication()
+            .expect("sutra predication");
+        assert_eq!(
+            sutra.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Elided,
+            "an unconverted grouped unit keeps its established continuation hole"
+        );
+        let tail = sutra.arguments[&argument_key(4)]
+            .value
+            .expect("the post-group tail remains at base x4");
+        assert_eq!(
+            graph.objects[&tail]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("le zarci")
+        );
     }
 
     #[test]

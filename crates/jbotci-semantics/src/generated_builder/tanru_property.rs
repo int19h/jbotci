@@ -206,6 +206,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments,
                 inner_conversions,
             )?;
+            let visible_arguments = if conversions.is_empty() {
+                visible_arguments
+            } else {
+                self.materialize_grouped_conversion_holes(visible_arguments)?
+            };
             let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
                 grouped,
                 &[conversions.as_slice()],
@@ -250,6 +255,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 assignments.visible_arguments,
                 &atom.conversions,
             )?;
+            let visible_arguments = if atom.conversions.is_empty() {
+                visible_arguments
+            } else {
+                self.materialize_grouped_conversion_holes(visible_arguments)?
+            };
             let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
                 grouped,
                 &[atom.conversions.as_slice()],
@@ -3084,6 +3094,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments,
                 inner_conversions,
             )?;
+            if !atom.conversions().is_empty() || !inner_conversions.is_empty() {
+                visible_arguments = self.materialize_grouped_conversion_holes(visible_arguments)?;
+            }
             let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
                 grouped,
                 &[atom.conversions(), inner_conversions],
@@ -3127,6 +3140,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments,
                 atom.conversions(),
             )?;
+            let visible_arguments = if atom.conversions().is_empty() {
+                visible_arguments
+            } else {
+                self.materialize_grouped_conversion_holes(visible_arguments)?
+            };
             let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
                 grouped,
                 &[atom.conversions()],
@@ -5836,6 +5854,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             BTreeMap::from([(1, ArgumentValue::filled(parameter, None))]),
             &atom.conversions,
         )?;
+        let visible_arguments = self.materialize_grouped_conversion_holes(visible_arguments)?;
         self.build_property_formula_for_connected_selbri_with_visible_arguments(
             &grouped.selbri,
             visible_arguments,
@@ -6257,6 +6276,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             modal_arguments: Vec::new(),
             event_modifiers: Vec::new(),
             formula_scopes: Vec::new(),
+            first_visible_place,
             next_visible_place: first_visible_place,
             explicit_multi_claim_places: BTreeSet::new(),
             contains_unbound_explicit_cehu: false,
@@ -6283,6 +6303,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
         }
         Ok(())
+    }
+
+    #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.is_empty() || (1..=*arguments.keys().next_back().expect("nonempty argument map")).all(|place| arguments.contains_key(&place))) || ret.is_err())]
+    fn materialize_grouped_conversion_holes(
+        &mut self,
+        mut visible_arguments: BTreeMap<usize, ArgumentValue>,
+    ) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
+        let Some(last_place) = visible_arguments.keys().next_back().copied() else {
+            return Ok(visible_arguments);
+        };
+        for place in 1..last_place {
+            if visible_arguments.contains_key(&place) {
+                continue;
+            }
+            let elided = self.build_elided_referent("zo'e".to_owned())?;
+            visible_arguments.insert(
+                place,
+                ArgumentValue::elided(elided, "zo'e".to_owned(), None),
+            );
+        }
+        Ok(visible_arguments)
     }
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
@@ -6318,7 +6360,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     continue;
                 };
                 if target <= exposed_place_count
-                    || visible_arguments.contains_key(&target)
+                    || (target <= place_count
+                        && occupied_places.contains(&1)
+                        && visible_arguments.contains_key(&target))
                     || !diagnosed_targets.insert(target)
                 {
                     continue;
@@ -6428,18 +6472,44 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .keys()
             .copied()
             .collect::<BTreeSet<_>>();
-        // The complete linkargs batch defines the occupied base frame.  Every outside argument
-        // already uses the resulting exposed frame, including sparse assignments introduced by
-        // an outer SE conversion or an explicit bridi-level FA.  Map each exposed rank directly;
-        // compacting the map would silently erase any unfilled exposed places before it.
         let mut mapped_external_arguments = BTreeMap::new();
-        for (exposed_place, argument) in remaining_visible_arguments {
-            let base_place =
-                generated_base_place_for_exposed_place(exposed_place, &occupied_places);
-            insert_visible_argument(&mut mapped_external_arguments, base_place, argument)?;
-            external_assigned_places.insert(base_place);
-            if place_count.is_some_and(|count| base_place > count) {
-                newly_overflowed_places.insert((exposed_place, base_place));
+        if implicit_head.is_some() {
+            for (exposed_place, argument) in remaining_visible_arguments {
+                let base_place =
+                    generated_base_place_for_exposed_place(exposed_place, &occupied_places);
+                insert_visible_argument(&mut mapped_external_arguments, base_place, argument)?;
+                external_assigned_places.insert(base_place);
+                if place_count.is_some_and(|count| exposed_place <= count && base_place > count) {
+                    newly_overflowed_places.insert((exposed_place, base_place));
+                }
+            }
+        } else {
+            let mut displaced_arguments = Vec::new();
+            for (place, argument) in remaining_visible_arguments {
+                if place < linkarg_assignments.first_visible_place
+                    && !occupied_places.contains(&place)
+                {
+                    insert_visible_argument(&mut mapped_external_arguments, place, argument)?;
+                    external_assigned_places.insert(place);
+                } else {
+                    displaced_arguments.push((place, argument));
+                }
+            }
+            let mut next_tail_place = linkarg_assignments.next_visible_place;
+            for (exposed_place, argument) in displaced_arguments {
+                while occupied_places.contains(&next_tail_place)
+                    || mapped_external_arguments.contains_key(&next_tail_place)
+                {
+                    next_tail_place += 1;
+                }
+                insert_visible_argument(&mut mapped_external_arguments, next_tail_place, argument)?;
+                external_assigned_places.insert(next_tail_place);
+                if place_count
+                    .is_some_and(|count| exposed_place <= count && next_tail_place > count)
+                {
+                    newly_overflowed_places.insert((exposed_place, next_tail_place));
+                }
+                next_tail_place += 1;
             }
         }
 
@@ -6470,7 +6540,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "linked sumti saturate the relation frame; the implicit head falls back to a conjoined claim on base place x1",
             ));
         }
-        if let Some(place_count) = place_count {
+        // Linked base x1 can push an outside exposed-place filler beyond the base frame.  Keep
+        // established non-x1 continuation behavior byte-stable; invalid outer conversions over
+        // those groups are diagnosed explicitly before this shared lowering path.
+        if let Some(place_count) = place_count.filter(|_| linkarg_assigned_places.contains(&1)) {
             for (exposed_place, base_place) in newly_overflowed_places {
                 diagnostics.push(diagnostic(format!(
                     "exposed place x{exposed_place} maps to base place x{base_place} beyond the relation arity of {place_count}; retaining the overflow argument"
