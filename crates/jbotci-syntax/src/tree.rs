@@ -72,6 +72,18 @@ impl jbotci_tree::RecoveryItemState for SyntaxRecoveryItem {
     }
 }
 
+impl SyntaxRecoveryItem {
+    /// Return the syntax tokens retained by a skipped-token recovery item.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(SyntaxRecoveryItem::SkippedTokens { .. })))]
+    pub fn skipped_tokens(&self) -> Option<&[Token]> {
+        match self.as_data() {
+            data!(SyntaxRecoveryItem::SkippedTokens { tokens, .. }) => Some(tokens.as_slice()),
+            data!(SyntaxRecoveryItem::MissingRequiredField { .. }) => None,
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn syntax_recovery_tokens_have_ordered_spans(tokens: &Vec1<Token>) -> bool {
