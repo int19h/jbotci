@@ -651,13 +651,6 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(!ret || self.continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted))]
-    pub(super) fn continuation_time_limit_exhausted(&self) -> bool {
-        self.continuation_time_limit
-            .is_some_and(ContinuationTimeLimit::exhausted)
-    }
-
-    #[requires(true)]
     #[ensures(ret == (self.continuation_sentinel_index == Some(location)))]
     pub(super) fn is_continuation_sentinel_location(&self, location: usize) -> bool {
         self.continuation_sentinel_index == Some(location)
@@ -1326,12 +1319,22 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(ret && !self.recovery_enabled() -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
     #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.recovery_index)))]
+    // A completion deadline must be observable inside a single recovery
+    // trial. Keep the query in this existing non-generic descent boundary so
+    // ordinary generated rule frames retain their original stack shape.
+    #[inline(never)]
     pub(super) fn enter_syntax_memo_rule(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
         context: SyntaxMemoContext,
     ) -> bool {
+        if self
+            .continuation_time_limit
+            .is_some_and(ContinuationTimeLimit::exhausted)
+        {
+            return false;
+        }
         let entered = if self.recovery_enabled() {
             self.syntax_recovery_memo_in_progress.insert((
                 rule_name,
