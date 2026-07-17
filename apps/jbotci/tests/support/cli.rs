@@ -861,6 +861,7 @@ fn parses_tersmu_formats_with_tree_proj_default() {
         panic!("expected tersmu command")
     };
     assert_eq!(default_input.format, TersmuFormat::TreeProj);
+    assert!(!default_input.show_defs);
 
     let Command::Tersmu(json_input) =
         Cli::try_parse_from(["jbotci", "tersmu", "--format", "json", "coi"])
@@ -884,6 +885,21 @@ fn parses_tersmu_formats_with_tree_proj_default() {
         };
         assert_eq!(input.format, expected);
     }
+
+    let Command::Tersmu(defs_input) = Cli::try_parse_from([
+        "jbotci",
+        "tersmu",
+        "--show-defs",
+        "--format",
+        "tree+proj",
+        "coi",
+    ])
+    .expect("tersmu definitions")
+    .command
+    else {
+        panic!("expected tersmu command")
+    };
+    assert!(defs_input.show_defs);
 
     for removed in ["claims", "combined"] {
         assert!(
@@ -915,6 +931,72 @@ fn tersmu_help_pins_the_interpretation_contract() {
             "missing help contract marker {marker:?}"
         );
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_show_defs_rejects_json_cli_output() {
+    let cli = Cli::try_parse_from([
+        "jbotci",
+        "tersmu",
+        "--show-defs",
+        "--format",
+        "json",
+        "mi",
+        "klama",
+    ])
+    .expect("tersmu JSON definitions parse");
+    let error = run_cli(cli, &mut Vec::new(), &mut Vec::new(), false)
+        .expect_err("JSON definitions must be rejected");
+    assert_eq!(
+        error.to_string(),
+        "`--show-defs` is not supported with `--format json`"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_show_defs_tree_proj_snapshot_includes_full_place_structure() {
+    let output = run_success_stdout(&[
+        "jbotci",
+        "tersmu",
+        "--show-defs",
+        "--format",
+        "tree+proj",
+        "--color=never",
+        "ti",
+        "klupe",
+    ]);
+
+    assert_eq!(
+        output,
+        r#"1. ti | by: officialdata | cmavo: KOhA6 | similarity: 100% | votes: ∞
+  rafsi: tif
+  glosses:
+    this here
+  definitions:
+    pro-sumti: this here; immediate demonstrative it; indicated thing/place near speaker.
+
+2. klupe | by: officialdata | gismu | similarity: 100% | votes: ∞
+  rafsi: lup lu'e
+  glosses:
+    screw
+  definitions:
+    ⟨1⟩ is a screw [fastener] for purpose ⟨2⟩, threads [pitch, material] ⟨3⟩, frame [size, material] ⟨4⟩.
+  notes:
+    Also bolt.  See also {korcu}, {sarlu}, {tutci}.
+
+utterance assert {event=eventuality/locution[eventuality/locution:13]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
+  content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]
+    klupe(x1=proximal-demonstrative[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9], x4=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11]
+
+projected:
+- frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4], proximal-demonstrative[entity:7]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:13]] [binder-dependence=fixed]
+- denotes [zo'e[entity:8], zo'e[entity:9], zo'e[entity:10]] [binder-dependence=fixed; constant; descriptor-kind=elided]
+"#
+    );
 }
 
 #[test]

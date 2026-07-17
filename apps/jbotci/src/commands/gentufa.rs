@@ -178,24 +178,11 @@ fn render_gentufa(
     )?);
     let mut stdout = String::new();
     if input.show_defs {
-        let cards =
-            dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), words.as_slice());
-        if !cards.is_empty() {
-            stdout.push_str(&render_vlacku_output_with_options(
-                &VlackuSearchOutput {
-                    cards,
-                    outcome: VlackuOutcome::Found,
-                    diagnostics: Vec::new(),
-                },
-                new!(VlackuRenderOptions {
-                    color: color_policy.stdout,
-                    glyphs,
-                    output_terminal_width: None,
-                    sumti_places: CliSumtiPlaces::Index,
-                    show_etymology: false,
-                }),
-            ));
-        }
+        stdout.push_str(&render_dictionary_definitions_for_word_likes(
+            words.as_slice(),
+            color_policy.stdout,
+            glyphs,
+        ));
     }
     match input.format {
         GentufaFormat::Blocks => {

@@ -2006,6 +2006,7 @@ mod tests {
                 text: "mi nitcu lo tanxe".to_owned(),
                 format,
                 dialect: None,
+                show_defs: true,
                 story_time: false,
                 indent: None,
             };
@@ -2719,12 +2720,13 @@ mod tests {
         assert_eq!(tersmu.status(), StatusCode::OK);
         let tersmu_json = response_json(tersmu).await;
         assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        // tersmu defaults to readable tree+proj text only.
+        // tersmu defaults to definition-grounded, readable tree+proj text only.
         assert!(tersmu_json["result"]["structuredContent"].is_null());
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu tree+proj text");
-        assert!(tersmu_text.starts_with("utterance assert "));
+        assert!(tersmu_text.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
+        assert!(tersmu_text.contains("\n\nutterance assert "));
         assert!(tersmu_text.contains("\n\nprojected:\n- frame: "));
 
         let tersmu_tree_proj = post_json(
@@ -2749,7 +2751,8 @@ mod tests {
         let tree_proj_text = tersmu_tree_proj_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu tree+proj text");
-        assert!(tree_proj_text.starts_with("utterance assert "));
+        assert!(tree_proj_text.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
+        assert!(tree_proj_text.contains("\n\nutterance assert "));
         assert!(tree_proj_text.contains("\n\nprojected:\n- frame: "));
         assert!(!tree_proj_text.contains("context="));
         assert!(!tree_proj_text.contains("at-issue commitments:"));

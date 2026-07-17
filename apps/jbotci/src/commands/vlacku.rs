@@ -330,6 +330,33 @@ pub(crate) fn render_vlacku_output_with_options(
     rendered
 }
 
+#[requires(true)]
+#[ensures(words.is_empty() -> ret.is_empty())]
+pub(crate) fn render_dictionary_definitions_for_word_likes(
+    words: &[WordLike],
+    color: bool,
+    glyphs: GlyphStyle,
+) -> String {
+    let cards = dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), words);
+    if cards.is_empty() {
+        return String::new();
+    }
+    render_vlacku_output_with_options(
+        &VlackuSearchOutput {
+            cards,
+            outcome: VlackuOutcome::Found,
+            diagnostics: Vec::new(),
+        },
+        new!(VlackuRenderOptions {
+            color,
+            glyphs,
+            output_terminal_width: None,
+            sumti_places: CliSumtiPlaces::Index,
+            show_etymology: false,
+        }),
+    )
+}
+
 #[requires(index > 0)]
 #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
 #[ensures(!ret.is_empty())]

@@ -70,6 +70,7 @@ pub fn gate_lojban(
         text,
         format: tool_tersmu_format(format.unwrap_or_default()),
         dialect,
+        show_defs: true,
         story_time: false,
         indent: None,
     };
@@ -373,6 +374,7 @@ mod tests {
             text: "mi klama".to_owned(),
             format: ToolTersmuFormat::Json,
             dialect: None,
+            show_defs: true,
             story_time: false,
             indent: None,
         })
@@ -385,6 +387,7 @@ mod tests {
             text: "mi klama".to_owned(),
             format: ToolTersmuFormat::TreeProj,
             dialect: Some(invalid_dialect.clone()),
+            show_defs: true,
             story_time: false,
             indent: None,
         })
@@ -454,6 +457,7 @@ mod tests {
             text: text.to_owned(),
             format: ToolTersmuFormat::TreeProj,
             dialect: None,
+            show_defs: true,
             story_time: false,
             indent: None,
         }
