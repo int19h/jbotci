@@ -11394,6 +11394,104 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn nonce_lujvo_emits_only_mechanical_relation_metadata() {
+        const RELATION: &str = "mlatyzda";
+        const UNKNOWN_PLACE_STRUCTURE_WARNING: &str = "relation place structure is unavailable; only places required by explicit assignments are represented";
+
+        let dictionary = jbotci_dictionary_data::english();
+        assert!(
+            dictionary.lookup_word(RELATION).is_none(),
+            "the regression witness must remain absent from the dictionary",
+        );
+
+        let graph = semantic_graph_for("ti mlatyzda");
+        let predication = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == RELATION)
+                    .then_some(predication)
+            })
+            .expect("nonce lujvo predication should be present");
+        let argument_places = predication
+            .arguments
+            .keys()
+            .map(|place| place.get())
+            .collect::<Vec<_>>();
+        assert_eq!(argument_places, [1]);
+        assert_eq!(
+            predication
+                .common
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>(),
+            [UNKNOWN_PLACE_STRUCTURE_WARNING],
+        );
+
+        let metadata_id = predication
+            .relation_metadata
+            .expect("nonce lujvo predication should link relation metadata");
+        let metadata_object = graph
+            .objects
+            .get(&metadata_id)
+            .expect("linked relation metadata should be present");
+        let metadata = metadata_object
+            .as_relation_metadata()
+            .expect("linked object should be relation metadata");
+        assert_eq!(metadata.relation, RELATION);
+        assert_eq!(metadata.source_words, ["mlatu", "zdani"]);
+        assert!(metadata.place_structure.is_empty());
+        let expansion = metadata
+            .expansion
+            .as_ref()
+            .expect("nonce lujvo metadata should retain its rafsi expansion");
+        assert_eq!(expansion.kind, "lujvo");
+        assert_eq!(expansion.source_words, ["mlat", "zda"]);
+        assert!(expansion.rafsi_bindings.is_empty());
+        assert!(
+            serde_json::to_value(metadata_object)
+                .expect("relation metadata should serialize")
+                .get("placeStructure")
+                .is_none(),
+            "empty place structure claims must be omitted from public output",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_lujvo_do_not_emit_relation_metadata() {
+        let dictionary = jbotci_dictionary_data::english();
+        for relation in ["dalmikce", "ctigau", "gerzda"] {
+            assert!(
+                dictionary.lookup_word(relation).is_some(),
+                "the regression witness `{relation}` must remain dictionary-defined",
+            );
+
+            let graph = semantic_graph_for(&format!("ti {relation}"));
+            let predication = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication)
+                })
+                .unwrap_or_else(|| panic!("dictionary lujvo predication `{relation}` should exist"));
+            assert_eq!(predication.relation_metadata, None);
+            assert!(graph.objects.values().all(|object| {
+                object
+                    .as_relation_metadata()
+                    .is_none_or(|metadata| metadata.relation != relation)
+            }));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn connected_abstraction_implicit_property_slot_uses_branch_source() {
         const SOURCE: &str = "lo nu je ka broda cu brode";
 

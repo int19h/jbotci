@@ -2076,6 +2076,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         relation: &str,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        if self.dictionary.lookup_word(relation).is_some() {
+            return Ok(None);
+        }
         let Some(rafsis) = generated_lujvo_rafsi_parts_for_tanru_atom_base_view(base) else {
             return Ok(None);
         };
@@ -2083,29 +2086,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut rafsi_bindings = Vec::new();
         for rafsi in &rafsis {
             let Some(source_word) = self.source_word_for_generated_lujvo_rafsi(rafsi) else {
-                continue;
+                return Ok(None);
             };
-            source_words.push(source_word.clone());
-            let Some(_cmavo) = assignable_koha_cmavo_for_word(&source_word) else {
-                continue;
-            };
-            if let Some(referent) =
-                self.assigned_referents
-                    .get(&source_word)
-                    .copied()
-                    .filter(|referent| {
-                        referent.object_kind() == crate::model::SemanticObjectKind::Referent
-                    })
+            if assignable_koha_cmavo_for_word(&source_word).is_some()
+                && let Some(referent) =
+                    self.assigned_referents
+                        .get(&source_word)
+                        .copied()
+                        .filter(|referent| {
+                            referent.object_kind() == crate::model::SemanticObjectKind::Referent
+                        })
             {
                 rafsi_bindings.push(RafsiBinding::new(
                     rafsi.clone(),
-                    Some(source_word),
+                    Some(source_word.clone()),
                     Some(referent),
                 ));
             }
-        }
-        if rafsi_bindings.is_empty() {
-            return Ok(None);
+            source_words.push(source_word);
         }
         let id = self.next_relation_metadata_id();
         self.insert(
