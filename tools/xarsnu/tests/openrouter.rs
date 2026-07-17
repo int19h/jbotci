@@ -8,8 +8,8 @@ use bityzba::{contract_trait, ensures, invariant, requires};
 use serde_json::{Value, json};
 use xarsnu::{
     AbortKind, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError,
-    ToolDispatcher,
+    PromptCaching, RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition,
+    ToolDispatchError, ToolDispatcher,
 };
 
 #[invariant(true)]
@@ -225,9 +225,16 @@ fn client(
 #[requires(true)]
 #[ensures(ret.messages().len() == 2)]
 fn conversation() -> ParticipantConversation {
+    conversation_for_model("mock/model", PromptCaching::Auto)
+}
+
+#[requires(!model.trim().is_empty())]
+#[ensures(ret.messages().len() == 2)]
+fn conversation_for_model(model: &str, prompt_caching: PromptCaching) -> ParticipantConversation {
     ParticipantConversation::from_parts(
         "tester".to_owned(),
-        "mock/model".to_owned(),
+        model.to_owned(),
+        prompt_caching,
         0.3,
         "Use tools.".to_owned(),
         "Private task.".to_owned(),
@@ -338,6 +345,120 @@ fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
         captured[0].body_bytes,
         br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","usage":{"include":true}}"#
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn anthropic_breakpoints_cover_system_and_move_to_each_request_tail() {
+    let server = MockServer::start(vec![
+        tool_call_response("alpha", 0.01),
+        tool_call_response("beta", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation_for_model("anthropic/claude-test", PromptCaching::Auto);
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let first = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("first request");
+    let mut dispatcher = ExactDispatcher;
+    conversation
+        .dispatch_tool_calls(
+            first.tool_calls().expect("first request tool call"),
+            &mut dispatcher,
+        )
+        .expect("thread first tool result");
+    conversation
+        .request(
+            &client,
+            &[tool("beta").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("second request");
+
+    let captured = server.finish();
+    for request in &captured {
+        let messages = request.body["messages"]
+            .as_array()
+            .expect("request messages");
+        assert_eq!(cache_breakpoint_count(messages), 2);
+        assert!(has_cache_breakpoint(&messages[0]));
+        assert!(has_cache_breakpoint(
+            messages.last().expect("final message")
+        ));
+    }
+
+    let first_messages = captured[0].body["messages"]
+        .as_array()
+        .expect("first request messages");
+    assert_eq!(first_messages.last().expect("first tail")["role"], "user");
+
+    let second_messages = captured[1].body["messages"]
+        .as_array()
+        .expect("second request messages");
+    assert_eq!(
+        second_messages[1]["content"], "Private task.",
+        "the prior request tail must return to plain-string form"
+    );
+    assert_eq!(second_messages.last().expect("second tail")["role"], "tool");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn prompt_caching_off_suppresses_anthropic_breakpoints() {
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation_for_model("anthropic/claude-test", PromptCaching::Off);
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let captured = server.finish();
+    let messages = captured[0].body["messages"]
+        .as_array()
+        .expect("request messages");
+    assert_eq!(cache_breakpoint_count(messages), 0);
+    assert!(
+        messages
+            .iter()
+            .all(|message| message["content"].is_string())
+    );
+}
+
+#[requires(true)]
+#[ensures(ret <= messages.len())]
+fn cache_breakpoint_count(messages: &[Value]) -> usize {
+    messages
+        .iter()
+        .filter(|message| has_cache_breakpoint(message))
+        .count()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_cache_breakpoint(message: &Value) -> bool {
+    message["content"].as_array().is_some_and(|parts| {
+        parts.iter().any(|part| {
+            part["cache_control"]["type"]
+                .as_str()
+                .is_some_and(|kind| kind == "ephemeral")
+        })
+    })
 }
 
 #[test]
