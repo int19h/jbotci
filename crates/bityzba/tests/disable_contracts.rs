@@ -40,7 +40,6 @@ struct ExpensivePositive {
 
 #[test]
 fn cheap_function_contracts_follow_disable_switch() {
-    let precondition = std::panic::catch_unwind(|| require_positive(0));
     let postcondition = std::panic::catch_unwind(return_non_positive);
     let function_invariant = std::panic::catch_unwind(|| {
         let mut value = 0;
@@ -48,9 +47,21 @@ fn cheap_function_contracts_follow_disable_switch() {
     });
 
     let contracts_are_disabled = cfg!(feature = "disable_contracts");
-    assert_eq!(precondition.is_ok(), contracts_are_disabled);
     assert_eq!(postcondition.is_ok(), contracts_are_disabled);
     assert_eq!(function_invariant.is_ok(), contracts_are_disabled);
+}
+
+#[cfg(not(feature = "disable_contracts"))]
+#[test]
+#[should_panic(expected = "cheap precondition")]
+fn violated_contract_panics_without_disable_switch() {
+    let _ = require_positive(0);
+}
+
+#[cfg(feature = "disable_contracts")]
+#[test]
+fn violated_contract_passes_with_disable_switch() {
+    assert_eq!(require_positive(0), 0);
 }
 
 #[test]
