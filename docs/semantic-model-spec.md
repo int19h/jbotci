@@ -1586,6 +1586,21 @@ an outer SE over a grouped unit permutes exposed places.  Public predication
 arguments nevertheless retain base-frame keys, so rendering continues to show
 `x1`, `x2`, and so on from the underlying predicate.
 
+Apply an outer `se`, `te`, `ve`, or `xe` on `ke ... ke'e` only after the
+grouped unit has completed that currying step.  The conversion exchanges
+exposed x1 with exposed x2, x3, x4, or x5 respectively; it does not exchange
+the corresponding base places.  Preserve sparse results rather than
+compacting them.  Thus `mi se ke klama be fa do ke'e ti` assigns `do` to base
+x1, `ti` to base x2 (exposed x1), and `mi` to base x3 (exposed x2).
+
+If the converted place does not exist in the curried predicate, retain the
+argument at the corresponding overflow base place after skipping places
+assigned by the linkargs group, leave intervening exposed places elided, and
+attach a diagnostic naming both the unavailable exposed place and the retained
+base place.  For `mi se ke nenri be fa do ke'e`, `do` remains at base x1,
+exposed x1/base x2 remains elided, and `mi` is retained at overflow base x3
+with a diagnostic.  A grouped conversion must never be silently discarded.
+
 If the linkargs group saturates every base place but an implicit head is still
 required, fall back to a multi-claim on base x1 and attach a saturation
 diagnostic.  Retain arguments beyond the known base arity and attach an

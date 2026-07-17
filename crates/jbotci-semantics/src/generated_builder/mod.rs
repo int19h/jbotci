@@ -12077,6 +12077,243 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn outer_grouped_se_permutes_curried_exposed_places_without_compacting_holes() {
+        let graph = semantic_graph_for("mi se ke klama be fa do ke'e ti");
+        let klama = named_predication_ids(&graph, "klama");
+        assert_eq!(klama.len(), 1);
+        let klama = graph.objects[&klama[0]]
+            .as_predication()
+            .expect("klama predication");
+        assert_eq!(
+            klama.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::addressee()),
+            "the linked fa do fills base x1"
+        );
+        let destination = klama.arguments[&argument_key(2)]
+            .value
+            .expect("ti fills exposed x1/base x2 after outer se");
+        assert_eq!(
+            graph.objects[&destination]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("ti")
+        );
+        assert_eq!(
+            klama.arguments[&argument_key(3)].value,
+            Some(SemanticObjectId::speaker()),
+            "outer se moves mi to exposed x2/base x3"
+        );
+
+        let sparse = semantic_graph_for("mi se ke klama be fa do ke'e");
+        let sparse_klama = named_predication_ids(&sparse, "klama");
+        assert_eq!(sparse_klama.len(), 1);
+        let sparse_klama = sparse.objects[&sparse_klama[0]]
+            .as_predication()
+            .expect("sparse klama predication");
+        assert_eq!(
+            sparse_klama.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Elided,
+            "the unfilled exposed x1/base x2 must not be compacted away"
+        );
+        assert_eq!(
+            sparse_klama.arguments[&argument_key(3)].value,
+            Some(SemanticObjectId::speaker())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn outer_grouped_te_ve_and_xe_follow_the_curried_exposed_frame() {
+        for (conversion, speaker_base_place) in [("te", 4), ("ve", 5)] {
+            let text = format!("mi {conversion} ke klama be fa do ke'e");
+            let graph = semantic_graph_for(&text);
+            let klama = named_predication_ids(&graph, "klama");
+            assert_eq!(klama.len(), 1, "{conversion} keeps one klama claim");
+            let klama_id = klama[0];
+            let klama = graph.objects[&klama_id]
+                .as_predication()
+                .expect("klama predication");
+            assert_eq!(
+                klama.arguments[&argument_key(1)].value,
+                Some(SemanticObjectId::addressee())
+            );
+            for base_place in 2..speaker_base_place {
+                assert_eq!(
+                    klama.arguments[&argument_key(base_place)].kind,
+                    ArgumentValueKind::Elided,
+                    "{conversion} preserves the hole at base x{base_place}"
+                );
+            }
+            assert_eq!(
+                klama.arguments[&argument_key(speaker_base_place)].value,
+                Some(SemanticObjectId::speaker()),
+                "{conversion} moves mi to its target exposed place"
+            );
+            assert!(graph.objects[&klama_id].diagnostics().is_empty());
+        }
+
+        let xe = semantic_graph_for("mi xe ke klama be fa do ke'e");
+        let klama = named_predication_ids(&xe, "klama");
+        assert_eq!(klama.len(), 1);
+        let klama_id = klama[0];
+        let klama = xe.objects[&klama_id]
+            .as_predication()
+            .expect("xe klama predication");
+        assert_eq!(
+            klama.arguments[&argument_key(6)].value,
+            Some(SemanticObjectId::speaker()),
+            "missing exposed x5 is retained at overflow base x6"
+        );
+        assert!(xe.objects[&klama_id].diagnostics().iter().any(|diagnostic| {
+            diagnostic.message
+                == "exposed place x5 maps to base place x6 beyond the relation arity of 5; retaining the overflow argument"
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_outer_grouped_se_target_is_retained_with_a_diagnostic() {
+        let graph = semantic_graph_for("mi se ke nenri be fa do ke'e");
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(nenri.len(), 1);
+        let nenri_id = nenri[0];
+        let nenri = graph.objects[&nenri_id]
+            .as_predication()
+            .expect("nenri predication");
+        assert_eq!(
+            nenri.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::addressee())
+        );
+        assert_eq!(
+            nenri.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Elided,
+            "the missing exposed x1 remains visibly unfilled"
+        );
+        assert_eq!(
+            nenri.arguments[&argument_key(3)].value,
+            Some(SemanticObjectId::speaker()),
+            "the unavailable exposed x2 target is retained at overflow base x3"
+        );
+        assert!(graph.objects[&nenri_id]
+            .diagnostics()
+            .iter()
+            .any(|diagnostic| {
+                diagnostic.message
+                    == "exposed place x2 maps to base place x3 beyond the relation arity of 2; retaining the overflow argument"
+            }));
+
+        let description = semantic_graph_for("le se ke nenri be fa do ke'e cu barda");
+        let description_nenri = named_predication_ids(&description, "nenri");
+        assert_eq!(description_nenri.len(), 1);
+        let description_nenri_id = description_nenri[0];
+        let description_nenri = description.objects[&description_nenri_id]
+            .as_predication()
+            .expect("description nenri predication");
+        assert_eq!(
+            description_nenri.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::addressee()),
+            "the converted grouped property must preserve its inner linkarg"
+        );
+        let described_slot = description_nenri.arguments[&argument_key(3)]
+            .value
+            .expect("the converted description head is retained at overflow base x3");
+        assert_eq!(
+            description.objects[&described_slot]
+                .as_parameter()
+                .map(|parameter| parameter.role),
+            Some(ParameterRole::PropertySlot)
+        );
+        assert!(
+            description.objects[&description_nenri_id]
+                .diagnostics()
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("exposed place x2"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_outer_grouped_conversion_target_is_diagnosed_without_an_outer_filler() {
+        let graph = semantic_graph_for("se ke nenri be fa do ke'e");
+        let nenri = named_predication_ids(&graph, "nenri");
+        assert_eq!(nenri.len(), 1);
+        let nenri = graph.objects[&nenri[0]]
+            .as_predication()
+            .expect("nenri predication");
+        assert_eq!(
+            nenri.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::addressee())
+        );
+        assert_eq!(
+            nenri.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Elided
+        );
+        assert!(graph.objects.values().any(|object| {
+            object.diagnostics().iter().any(|diagnostic| {
+                diagnostic.message.contains(
+                    "se conversion targets unavailable exposed place x2, corresponding to overflow base place x3",
+                )
+            })
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inner_se_still_converts_the_base_frame_before_linkargs_curry_it() {
+        let graph = semantic_graph_for("mi se klama be fa do");
+        let klama = named_predication_ids(&graph, "klama");
+        assert_eq!(klama.len(), 1);
+        let klama_id = klama[0];
+        let klama = graph.objects[&klama_id]
+            .as_predication()
+            .expect("klama predication");
+        assert_eq!(
+            klama.arguments[&argument_key(1)].value,
+            Some(SemanticObjectId::speaker()),
+            "mi fills converted exposed x1, which is raw klama x1 after currying"
+        );
+        assert_eq!(
+            klama.arguments[&argument_key(2)].value,
+            Some(SemanticObjectId::addressee()),
+            "fa do targets converted x1, which is raw klama x2"
+        );
+        assert!(graph.objects[&klama_id].diagnostics().is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unconverted_grouped_linkargs_keep_established_tail_continuation() {
+        let graph =
+            semantic_graph_for("mi na'e ke sutra bo cadzu be fi le birka je masno klama le zarci");
+        let sutra = named_predication_ids(&graph, "sutra");
+        assert_eq!(sutra.len(), 1);
+        let sutra = graph.objects[&sutra[0]]
+            .as_predication()
+            .expect("sutra predication");
+        assert_eq!(
+            sutra.arguments[&argument_key(2)].kind,
+            ArgumentValueKind::Elided,
+            "an unconverted grouped unit keeps its established continuation hole"
+        );
+        let tail = sutra.arguments[&argument_key(4)]
+            .value
+            .expect("the post-group tail remains at base x4");
+        assert_eq!(
+            graph.objects[&tail]
+                .source()
+                .and_then(|source| source.text.as_deref()),
+            Some("le zarci")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn explicit_duplicate_linkargs_remain_conjoined_and_carry_a_warning() {
         let graph = semantic_graph_for("le nenri be fa mi bei fa do cu barda");
         let nenri = named_predication_ids(&graph, "nenri");

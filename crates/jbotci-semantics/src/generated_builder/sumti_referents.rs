@@ -8666,7 +8666,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         let body = if let Some(tanru) = tanru_selbri_from_selbri(selbri)?
-            && !tanru.additional_units.is_empty()
+            && (!tanru.additional_units.is_empty()
+                || generated_tanru_selbri_is_single_converted_group(tanru))
         {
             self.build_property_formula_for_tanru_selbri(
                 tanru,

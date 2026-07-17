@@ -206,6 +206,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments,
                 inner_conversions,
             )?;
+            let visible_arguments = if conversions.is_empty() {
+                visible_arguments
+            } else {
+                self.materialize_grouped_conversion_holes(visible_arguments)?
+            };
+            let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
+                grouped,
+                &[conversions.as_slice()],
+                &visible_arguments,
+            )?;
             let result = self
                 .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
                     &grouped.selbri,
@@ -214,6 +224,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     eventuality,
                 )?;
             let formula = result.formula;
+            self.attach_generated_diagnostics(formula, conversion_diagnostics);
             self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
             if mode != PredicationMode::Asserted {
                 self.set_formula_predication_mode(result.formula, mode);
@@ -244,6 +255,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 assignments.visible_arguments,
                 &atom.conversions,
             )?;
+            let visible_arguments = if atom.conversions.is_empty() {
+                visible_arguments
+            } else {
+                self.materialize_grouped_conversion_holes(visible_arguments)?
+            };
+            let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
+                grouped,
+                &[atom.conversions.as_slice()],
+                &visible_arguments,
+            )?;
             let result = self
                 .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
                     &grouped.selbri,
@@ -252,6 +273,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     eventuality,
                 )?;
             let formula = result.formula;
+            self.attach_generated_diagnostics(formula, conversion_diagnostics);
             self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
             if mode != PredicationMode::Asserted {
                 self.set_formula_predication_mode(result.formula, mode);
@@ -3072,6 +3094,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments,
                 inner_conversions,
             )?;
+            if !atom.conversions().is_empty() || !inner_conversions.is_empty() {
+                visible_arguments = self.materialize_grouped_conversion_holes(visible_arguments)?;
+            }
+            let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
+                grouped,
+                &[atom.conversions(), inner_conversions],
+                &visible_arguments,
+            )?;
             let result = self
                 .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
                     &grouped.selbri,
@@ -3079,6 +3109,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source.clone(),
                     eventuality,
                 )?;
+            self.attach_generated_diagnostics(result.formula, conversion_diagnostics);
             self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
             self.apply_scalar_negation_to_tanru_links(
                 result.formula,
@@ -3109,12 +3140,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_arguments,
                 atom.conversions(),
             )?;
+            let visible_arguments = if atom.conversions().is_empty() {
+                visible_arguments
+            } else {
+                self.materialize_grouped_conversion_holes(visible_arguments)?
+            };
+            let conversion_diagnostics = self.missing_grouped_linked_conversion_diagnostics(
+                grouped,
+                &[atom.conversions()],
+                &visible_arguments,
+            )?;
             let result = self.build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
                 &grouped.selbri,
                 visible_arguments,
                 source,
                 eventuality,
             )?;
+            self.attach_generated_diagnostics(result.formula, conversion_diagnostics);
             self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
             return Ok(result);
         }
@@ -4069,8 +4111,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return self
                 .build_property_formula_for_co_selbri(co_selbri, parameter, source, context);
         }
-        if let Some(tanru) = tanru_selbri_from_selbri(selbri)?
-            && !tanru.additional_units.is_empty()
+        let property_tanru = tanru_selbri_from_selbri(selbri)?;
+        if let Some(tanru) = property_tanru
+            && (!tanru.additional_units.is_empty()
+                || generated_tanru_selbri_is_single_converted_group(tanru))
         {
             return self.build_property_formula_for_tanru_selbri(tanru, parameter, source, context);
         }
@@ -4764,6 +4808,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .unwrap_or(formula));
         }
         if let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = unit.base.base.as_ref() {
+            if !unit.base.conversions.is_empty() {
+                return self.build_property_formula_for_converted_grouped_tanru_unit(
+                    &unit.base, parameter, source,
+                );
+            }
             return self.build_property_formula_for_grouped_tanru_unit(grouped, parameter, source);
         }
         let mut visible_arguments = BTreeMap::new();
@@ -5138,6 +5187,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .unwrap_or(formula));
         }
         if let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = unit.base.base.as_ref() {
+            if !unit.base.conversions.is_empty() {
+                return self.build_property_formula_for_converted_grouped_tanru_unit(
+                    &unit.base, parameter, source,
+                );
+            }
             return self.build_property_formula_for_grouped_tanru_unit(grouped, parameter, source);
         }
         self.build_eventful_relation_formula_for_linked_tanru_unit_argument(
@@ -5783,6 +5837,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )
     }
 
+    #[requires(matches!(atom.base.as_ref(), TanruUnitAtomBaseSyntax::GroupedTanruUnit(_)))]
+    #[requires(!atom.conversions.is_empty())]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_property_formula_for_converted_grouped_tanru_unit<'syntax: 'tree>(
+        &mut self,
+        atom: &'syntax TanruUnitAtomSyntax,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = atom.base.as_ref() else {
+            unreachable!("the contract requires a grouped tanru-unit atom")
+        };
+        let visible_arguments = map_visible_arguments_for_generated_conversions(
+            BTreeMap::from([(1, ArgumentValue::filled(parameter, None))]),
+            &atom.conversions,
+        )?;
+        let visible_arguments = self.materialize_grouped_conversion_holes(visible_arguments)?;
+        self.build_property_formula_for_connected_selbri_with_visible_arguments(
+            &grouped.selbri,
+            visible_arguments,
+            source,
+            GeneratedPropertyTanruContext::PropertyAbstraction,
+            None,
+        )
+    }
+
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_relation_formula_for_generated_tanru_unit_argument(
@@ -6224,6 +6305,94 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(())
     }
 
+    #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.is_empty() || (1..=*arguments.keys().next_back().expect("nonempty argument map")).all(|place| arguments.contains_key(&place))) || ret.is_err())]
+    fn materialize_grouped_conversion_holes(
+        &mut self,
+        mut visible_arguments: BTreeMap<usize, ArgumentValue>,
+    ) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
+        let Some(last_place) = visible_arguments.keys().next_back().copied() else {
+            return Ok(visible_arguments);
+        };
+        for place in 1..last_place {
+            if visible_arguments.contains_key(&place) {
+                continue;
+            }
+            let elided = self.build_elided_referent("zo'e".to_owned())?;
+            visible_arguments.insert(
+                place,
+                ArgumentValue::elided(elided, "zo'e".to_owned(), None),
+            );
+        }
+        Ok(visible_arguments)
+    }
+
+    #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[ensures(ret.as_ref().is_ok_and(|diagnostics| diagnostics.iter().all(|diagnostic| !diagnostic.message.is_empty())) || ret.is_err())]
+    fn missing_grouped_linked_conversion_diagnostics(
+        &self,
+        grouped: &GroupedTanruUnitSyntax,
+        conversion_groups: &[&[WithFreeModifiers<Token, FreeModifierSyntax>]],
+        visible_arguments: &BTreeMap<usize, ArgumentValue>,
+    ) -> Result<Vec<crate::model::SemanticDiagnostic>, SemanticsError> {
+        let mut occupied_places = BTreeSet::new();
+        add_generated_connected_selbri_visible_linkarg_places(
+            &mut occupied_places,
+            &grouped.selbri,
+            2,
+        )?;
+        if occupied_places.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let relation = semantic_relation_label(relation_label_from_grouped_tanru_unit(grouped)?);
+        let Some(place_count) = relation_place_count(self.dictionary, &relation) else {
+            return Ok(Vec::new());
+        };
+        let exposed_place_count = (1..=place_count)
+            .filter(|place| !occupied_places.contains(place))
+            .count();
+        let mut diagnosed_targets = BTreeSet::new();
+        let mut diagnostics = Vec::new();
+        for conversions in conversion_groups {
+            for conversion in *conversions {
+                let Some(target) = se_conversion_place(&conversion.value)? else {
+                    continue;
+                };
+                if target <= exposed_place_count
+                    || (target <= place_count
+                        && occupied_places.contains(&1)
+                        && visible_arguments.contains_key(&target))
+                    || !diagnosed_targets.insert(target)
+                {
+                    continue;
+                }
+                let base_place = generated_base_place_for_exposed_place(target, &occupied_places);
+                let marker = token_text(&conversion.value);
+                diagnostics.push(diagnostic(format!(
+                    "{marker} conversion targets unavailable exposed place x{target}, corresponding to overflow base place x{base_place} beyond the relation arity of {place_count}; retaining any assigned argument at that overflow place"
+                )));
+            }
+        }
+        Ok(diagnostics)
+    }
+
+    #[requires(self.objects.contains_key(&object))]
+    #[ensures(self.objects.get(&object).is_some_and(|value| value.diagnostics().len() >= old(diagnostics.len())))]
+    fn attach_generated_diagnostics(
+        &mut self,
+        object: SemanticObjectId,
+        diagnostics: Vec<crate::model::SemanticDiagnostic>,
+    ) {
+        let semantic_object = self
+            .objects
+            .get_mut(&object)
+            .expect("the generated semantic object must exist before diagnostics are attached");
+        for diagnostic in diagnostics {
+            semantic_object.push_diagnostic(diagnostic);
+        }
+    }
+
     #[requires(first_visible_place > 0)]
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[requires(place_count.is_none_or(|count| count > 0))]
@@ -6311,7 +6480,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 insert_visible_argument(&mut mapped_external_arguments, base_place, argument)?;
                 external_assigned_places.insert(base_place);
                 if place_count.is_some_and(|count| exposed_place <= count && base_place > count) {
-                    newly_overflowed_places.insert(base_place);
+                    newly_overflowed_places.insert((exposed_place, base_place));
                 }
             }
         } else {
@@ -6327,7 +6496,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
             }
             let mut next_tail_place = linkarg_assignments.next_visible_place;
-            for (original_place, argument) in displaced_arguments {
+            for (exposed_place, argument) in displaced_arguments {
                 while occupied_places.contains(&next_tail_place)
                     || mapped_external_arguments.contains_key(&next_tail_place)
                 {
@@ -6336,9 +6505,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 insert_visible_argument(&mut mapped_external_arguments, next_tail_place, argument)?;
                 external_assigned_places.insert(next_tail_place);
                 if place_count
-                    .is_some_and(|count| original_place <= count && next_tail_place > count)
+                    .is_some_and(|count| exposed_place <= count && next_tail_place > count)
                 {
-                    newly_overflowed_places.insert(next_tail_place);
+                    newly_overflowed_places.insert((exposed_place, next_tail_place));
                 }
                 next_tail_place += 1;
             }
@@ -6371,14 +6540,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "linked sumti saturate the relation frame; the implicit head falls back to a conjoined claim on base place x1",
             ));
         }
-        // This issue makes base x1 available to a linkargs group and can therefore push an
-        // outside filler beyond a previously visible frame.  Preserve established placement for
-        // non-x1 linkargs (including explicit higher-place extensions such as `be fi`) exactly;
-        // those do not acquire a new overflow warning merely by passing through this shared path.
+        // Linked base x1 can push an outside exposed-place filler beyond the base frame.  Keep
+        // established non-x1 continuation behavior byte-stable; invalid outer conversions over
+        // those groups are diagnosed explicitly before this shared lowering path.
         if let Some(place_count) = place_count.filter(|_| linkarg_assigned_places.contains(&1)) {
-            for place in newly_overflowed_places {
+            for (exposed_place, base_place) in newly_overflowed_places {
                 diagnostics.push(diagnostic(format!(
-                    "argument occupies base place x{place} beyond the relation arity of {place_count}; retaining the overflow argument"
+                    "exposed place x{exposed_place} maps to base place x{base_place} beyond the relation arity of {place_count}; retaining the overflow argument"
                 )));
             }
         }

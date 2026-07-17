@@ -618,6 +618,22 @@ pub(super) fn generated_linked_tanru_unit_parts(
 }
 
 #[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_tanru_selbri_is_single_converted_group(tanru: &TanruSelbriSyntax) -> bool {
+    if !tanru.additional_units.is_empty() || !tanru.first_unit.0.links.is_empty() {
+        return false;
+    }
+    let BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) = tanru.first_unit.0.first.as_ref() else {
+        return false;
+    };
+    !unit.base.conversions.is_empty()
+        && matches!(
+            unit.base.base.as_ref(),
+            TanruUnitAtomBaseSyntax::GroupedTanruUnit(_)
+        )
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|unit| unit.is_none_or(|unit| unit.tense_modal.is_none())) || ret.is_err())]
 pub(super) fn generated_bare_jai_modal_tanru_unit_from_tanru_unit(
     unit: &TanruUnitSyntax,
