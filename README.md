@@ -1,5 +1,14 @@
 # jbotci 
 
+## License
+
+jbotci is licensed under the [MIT License](LICENSE.md).
+
+It is distributed together with third-party fonts, reference data (the CLL
+grammar and the jbovlaste/Lensisku dictionary), and Rust crate dependencies that
+carry their own licenses. Those notices are collected in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 ## Local Commands
 
 ```sh
