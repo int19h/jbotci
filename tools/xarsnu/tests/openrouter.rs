@@ -23,6 +23,7 @@ struct MockResponse {
 #[derive(Debug)]
 struct CapturedRequest {
     body: Value,
+    body_bytes: Vec<u8>,
     received_at: Instant,
 }
 
@@ -45,9 +46,11 @@ impl MockServer {
             let mut captured = Vec::with_capacity(responses.len());
             for response in responses {
                 let (mut stream, _) = listener.accept().expect("accept mock request");
-                let body = read_json_request(&mut stream);
+                let body_bytes = read_request_body(&mut stream);
+                let body = serde_json::from_slice(&body_bytes).expect("JSON completion request");
                 captured.push(CapturedRequest {
                     body,
+                    body_bytes,
                     received_at: Instant::now(),
                 });
                 write_json_response(&mut stream, response);
@@ -69,8 +72,8 @@ impl MockServer {
 }
 
 #[requires(true)]
-#[ensures(ret.is_object())]
-fn read_json_request(stream: &mut TcpStream) -> Value {
+#[ensures(!ret.is_empty())]
+fn read_request_body(stream: &mut TcpStream) -> Vec<u8> {
     let mut bytes = Vec::new();
     let mut buffer = [0u8; 4096];
     let header_end = loop {
@@ -99,8 +102,7 @@ fn read_json_request(stream: &mut TcpStream) -> Value {
         assert!(count > 0, "request ended before its body");
         bytes.extend_from_slice(&buffer[..count]);
     }
-    serde_json::from_slice(&bytes[header_end..header_end + content_length])
-        .expect("JSON completion request")
+    bytes[header_end..header_end + content_length].to_vec()
 }
 
 #[requires(!needle.is_empty())]
@@ -311,6 +313,31 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     let captured = server.finish();
     assert_eq!(captured[0].body["tool_choice"], "required");
     assert_eq!(captured[0].body["usage"], json!({ "include": true }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let captured = server.finish();
+    assert_eq!(
+        captured[0].body_bytes,
+        br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","usage":{"include":true}}"#
+    );
 }
 
 #[test]
