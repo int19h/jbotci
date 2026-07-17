@@ -7155,6 +7155,40 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn reference_tooltip_notes_use_definition_aliases_without_inventing_places() {
+        let barkuha = reference_tooltip_for_lookup_word("", "barku'a", vec![2], Vec::new());
+        assert!(spans_highlight_place(&barkuha.notes, 2));
+        assert!(barkuha.notes.iter().any(|span| {
+            matches!(
+                span.as_data(),
+                data!(ReferenceTooltipInline::Text(text)) if text.contains("bartu₂")
+            )
+        }));
+        assert!(!barkuha.notes.iter().any(|span| {
+            matches!(
+                span.as_data(),
+                data!(ReferenceTooltipInline::IndexedPlace { place, .. }) if *place == 3
+            )
+        }));
+
+        let brivla = reference_tooltip_for_lookup_word("", "brivla", Vec::new(), Vec::new());
+        assert!(brivla.notes.iter().any(|span| {
+            matches!(
+                span.as_data(),
+                data!(ReferenceTooltipInline::Text(text)) if text.contains("deleting b₃")
+            )
+        }));
+        assert!(!brivla.notes.iter().any(|span| {
+            matches!(
+                span.as_data(),
+                data!(ReferenceTooltipInline::IndexedPlace { .. })
+            )
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_full_cards_include_author_and_etymology() {
         let result = build_vlacku_web_result(&VlackuWebState {
             mode: VlackuWebMode::Word,

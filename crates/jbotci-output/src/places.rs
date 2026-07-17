@@ -9,14 +9,15 @@ pub struct IndexedPlaceSpan {
     pub place: Option<usize>,
 }
 
-#[invariant(!self.letter.is_empty())]
+#[invariant(!letter.is_empty())]
+#[invariant(*index > 0, "dictionary place indices are one-based")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PlaceId {
     letter: String,
     index: usize,
 }
 
-#[invariant(true)]
+#[invariant(*place > 0, "mapped dictionary places are one-based")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DefinitionPlaceMapping {
     id: PlaceId,
@@ -27,13 +28,6 @@ struct DefinitionPlaceMapping {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DefinitionPlaceBlock {
     ids: Vec<PlaceId>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DefinitionPlaceAssignments {
-    definition_places: Vec<DefinitionPlaceMapping>,
-    aliases: Vec<DefinitionPlaceMapping>,
 }
 
 /// Place assignments and aliases established by all variable blocks in one definition.
@@ -87,11 +81,7 @@ impl DefinitionPlaceMap {
     pub fn from_definition(definition: &str) -> Self {
         let normalized = normalize_place_block_separators(definition);
         let blocks = collect_definition_place_blocks(&normalized);
-        let assignments = build_definition_place_assignments(&blocks);
-        new!(DefinitionPlaceMap {
-            definition_places: assignments.definition_places,
-            aliases: assignments.aliases,
-        })
+        build_definition_place_map(&blocks)
     }
 
     #[requires(true)]
@@ -398,9 +388,7 @@ fn collect_place_ids_in_block(input: &str) -> Vec<PlaceId> {
 
 #[requires(true)]
 #[ensures(true)]
-fn build_definition_place_assignments(
-    blocks: &[DefinitionPlaceBlock],
-) -> DefinitionPlaceAssignments {
+fn build_definition_place_map(blocks: &[DefinitionPlaceBlock]) -> DefinitionPlaceMap {
     let mut used_places = Vec::new();
     for block in blocks {
         let first_id = block
@@ -443,10 +431,10 @@ fn build_definition_place_assignments(
         };
 
         if existing_place.is_none() {
-            definition_places.push(DefinitionPlaceMapping {
+            definition_places.push(new!(DefinitionPlaceMapping {
                 id: first_id.clone(),
                 place: block_place,
-            });
+            }));
         }
 
         for id in &block.ids {
@@ -456,20 +444,20 @@ fn build_definition_place_assignments(
             {
                 continue;
             }
-            aliases.push(DefinitionPlaceMapping {
+            aliases.push(new!(DefinitionPlaceMapping {
                 id: id.clone(),
                 place: if id.letter == "x" {
                     id.index
                 } else {
                     block_place
                 },
-            });
+            }));
         }
     }
-    DefinitionPlaceAssignments {
+    new!(DefinitionPlaceMap {
         definition_places,
         aliases,
-    }
+    })
 }
 
 #[requires(true)]
@@ -519,6 +507,9 @@ fn find_place_var(input: &str) -> Option<(PlaceId, &str)> {
 #[ensures(ret.as_ref().is_none_or(|place_id| place_id.letter == letter))]
 fn place_id(letter: &str, digits: &str) -> Option<PlaceId> {
     let index = digits.parse::<usize>().ok()?;
+    if index == 0 {
+        return None;
+    }
     Some(new!(PlaceId {
         letter: letter.to_owned(),
         index,
@@ -787,12 +778,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn preserves_malformed_blocks_and_normalizes_dollar_equals_typos() {
-        let definition = "$bad$ $x_1$=$p_2$";
+        let definition = "$bad$ $x_0$ $x_1$=$p_2$";
         let place_map = DefinitionPlaceMap::from_definition(definition);
 
         assert_eq!(
             format_definition_line_with_indexed_places(definition, &place_map, GlyphStyle::Unicode),
-            "$bad$ ⟨1⟩"
+            "$bad$ $x_0$ ⟨1⟩"
         );
     }
 

@@ -439,4 +439,27 @@ mod tests {
             ),
         );
     }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_card_markdown_uses_the_whole_definition_place_map() {
+        let output = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("baldakyxa'i".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        let card = output
+            .cards
+            .first()
+            .expect("baldakyxa'i has a dictionary card");
+        let markdown = render_vlacku_card_markdown(card);
+
+        assert!(
+            markdown.contains("`x1` is a great sword for use against `x2` by `x3`."),
+            "{markdown}"
+        );
+        assert!(!markdown.contains("`x4`"), "{markdown}");
+        assert!(!markdown.contains("`x5`"), "{markdown}");
+    }
 }

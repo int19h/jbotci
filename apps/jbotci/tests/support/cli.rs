@@ -3072,6 +3072,29 @@ fn vlacku_exact_found_outputs_dictionary_card() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_uses_one_definition_place_map_for_definitions_and_notes() {
+    let cases = [
+        (
+            "baldakyxa'i",
+            "⟨1⟩ is a great sword for use against ⟨2⟩ by ⟨3⟩.",
+        ),
+        ("bircidni", "⟨1⟩ is an elbow of body ⟨2⟩."),
+        ("barku'a", "⟨2⟩ = bartu₂. For \"balcony\", see {balni}."),
+        ("brivla", "Derived from {bridi} and {valsi}, deleting b₃,"),
+    ];
+
+    for (word, expected) in cases {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", word], false);
+
+        assert_eq!(run.status, CliStatus::Success, "{word}: {}", run.stderr);
+        assert!(run.stderr.is_empty(), "{word}: {}", run.stderr);
+        assert!(run.stdout.contains(expected), "{word}: {}", run.stdout);
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn cukta_section_fetch_outputs_default_section() {
     let run = run_cli_capture(
         &["jbotci", "cukta", "--section", "section-what-is-lojban"],
