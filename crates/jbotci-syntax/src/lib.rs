@@ -12,7 +12,7 @@ mod grammar;
 
 extern crate self as jbotci_syntax;
 
-use std::{cmp::Ordering, num::NonZeroUsize};
+use std::{cmp::Ordering, num::NonZeroUsize, time::Duration};
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
@@ -1969,7 +1969,7 @@ fn syntax_detailed_segments(expectations: &[SyntaxExpectation]) -> Vec<Diagnosti
     segments
 }
 
-#[requires(!expectations.is_empty())]
+#[requires(true)]
 #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
 fn merge_expectations_by_reason(expectations: &[SyntaxExpectation]) -> Vec<SyntaxExpectation> {
     let mut merged = Vec::<SyntaxExpectation>::new();
@@ -2335,7 +2335,33 @@ pub fn expected_continuations(
     words: &[WordLike],
     options: &ParseOptions,
 ) -> Vec<SyntaxExpectation> {
-    merge_expectations_by_reason(&grammar::expected_continuations(words, options))
+    merge_expectations_by_reason(&grammar::expected_continuations(words, options, None))
+}
+
+/// Returns the grammar continuations expected at the end of `words`, subject
+/// to a wall-clock limit.
+///
+/// The limit is checked before parsing and between recovery trials. If it or
+/// the configured recovery-error budget is exhausted before the requested cut
+/// is reached, an empty result reports that grammar expectations are
+/// unavailable; callers can then fall back without failing the request.
+#[requires(true)]
+#[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]
+#[ensures(ret.iter().enumerate().all(|(index, expectation)| {
+    ret.iter()
+        .skip(index + 1)
+        .all(|other| expectation.reason != other.reason)
+}))]
+pub fn expected_continuations_with_time_limit(
+    words: &[WordLike],
+    options: &ParseOptions,
+    time_limit: Duration,
+) -> Vec<SyntaxExpectation> {
+    merge_expectations_by_reason(&grammar::expected_continuations(
+        words,
+        options,
+        Some(time_limit),
+    ))
 }
 
 #[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
@@ -3112,6 +3138,43 @@ mod tests {
     fn expected_continuations_for(source: &str) -> Vec<SyntaxExpectation> {
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
         expected_continuations(&words, &ParseOptions::default())
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_expectation_merging_is_an_identity() {
+        assert!(merge_expectations_by_reason(&[]).is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn time_limited_expectation_wrapper_preserves_empty_results() {
+        let words = jbotci_morphology::segment_words_with_modifiers("mi klama")
+            .expect("fixture has valid morphology");
+
+        assert!(
+            expected_continuations_with_time_limit(
+                &words,
+                &ParseOptions::default(),
+                Duration::ZERO,
+            )
+            .is_empty()
+        );
+
+        let recovered_words =
+            jbotci_morphology::segment_words_with_modifiers("mi ku .i do klama le zarci")
+                .expect("recovery fixture has valid morphology");
+        assert!(
+            expected_continuations_with_time_limit(
+                &recovered_words,
+                &ParseOptions::default().with_max_recovery_errors(1),
+                Duration::from_secs(1),
+            )
+            .is_empty(),
+            "bounded continuation parsing must not filter from an error before the cut",
+        );
     }
 
     #[requires(true)]
