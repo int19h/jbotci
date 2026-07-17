@@ -287,6 +287,13 @@ where
     custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
         let checkpoint = input.save();
         let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+        // A completion deadline must be observable inside a single recovery
+        // trial. Checking only between trials lets an expensive rule descent
+        // overrun the interactive wall-clock boundary before control returns
+        // to the recovery driver.
+        if input.state().continuation_time_limit_exhausted() {
+            return Err(expected_found_named_at_current(input, name.to_owned()));
+        }
         let memo_context = input.state().syntax_memo_context();
         input.state().begin_syntax_memo_rule_frame();
         if input.state().trace_enabled() {

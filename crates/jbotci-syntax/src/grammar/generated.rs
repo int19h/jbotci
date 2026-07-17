@@ -11,8 +11,8 @@ use super::tokens::{
     syntax_error_with_diagnostic_candidate,
 };
 use super::{
-    BoxedParser, ParserState, RecoveryDirective, SpannedToken, SyntaxParseError,
-    SyntaxRecoveryMemoSession, SyntaxRuleFrame,
+    BoxedParser, ContinuationTimeLimit, ParserState, RecoveryDirective, SpannedToken,
+    SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
 };
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
@@ -3101,6 +3101,7 @@ pub mod generated_model {
         memo_session: SyntaxRecoveryMemoSession<'tokens>,
         parser: BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<recovered::TextSyntax>>,
         continuation_sentinel_index: Option<usize>,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     }
 
     impl<'tokens> GeneratedRecoveryParseSession<'tokens> {
@@ -3111,16 +3112,35 @@ pub mod generated_model {
                 memo_session: SyntaxRecoveryMemoSession::new(),
                 parser: recovered_generated_text_parser_with_eof(),
                 continuation_sentinel_index: None,
+                continuation_time_limit: None,
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(ret.continuation_time_limit == continuation_time_limit)]
+        pub(in crate::grammar) fn new_with_continuation_time_limit(
+            continuation_time_limit: Option<ContinuationTimeLimit>,
+        ) -> Self {
+            Self {
+                memo_session: SyntaxRecoveryMemoSession::new(),
+                parser: recovered_generated_text_parser_with_eof(),
+                continuation_sentinel_index: None,
+                continuation_time_limit,
             }
         }
 
         #[bityzba::requires(true)]
         #[bityzba::ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
-        pub(in crate::grammar) fn new_for_expected_continuations(sentinel_index: usize) -> Self {
+        #[bityzba::ensures(ret.continuation_time_limit == continuation_time_limit)]
+        pub(in crate::grammar) fn new_for_expected_continuations(
+            sentinel_index: usize,
+            continuation_time_limit: Option<ContinuationTimeLimit>,
+        ) -> Self {
             Self {
                 memo_session: SyntaxRecoveryMemoSession::new(),
                 parser: recovered_generated_text_parser_with_eof(),
                 continuation_sentinel_index: Some(sentinel_index),
+                continuation_time_limit,
             }
         }
 
@@ -3194,7 +3214,7 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextDetailedAttempt {
-        parse_text_detailed_tracked_attempt_inner(words, options, None)
+        parse_text_detailed_tracked_attempt_inner(words, options, None, None)
     }
 
     #[bityzba::requires(sentinel_index < words.len())]
@@ -3203,8 +3223,14 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
         sentinel_index: usize,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> GeneratedParsedTextDetailedAttempt {
-        parse_text_detailed_tracked_attempt_inner(words, options, Some(sentinel_index))
+        parse_text_detailed_tracked_attempt_inner(
+            words,
+            options,
+            Some(sentinel_index),
+            continuation_time_limit,
+        )
     }
 
     #[bityzba::requires(continuation_sentinel_index.is_none_or(|index| index < words.len()))]
@@ -3213,11 +3239,17 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
         continuation_sentinel_index: Option<usize>,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> GeneratedParsedTextDetailedAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = if let Some(sentinel_index) = continuation_sentinel_index {
-            ParserState::new_for_expected_continuations(words, options, sentinel_index)
+            ParserState::new_for_expected_continuations(
+                words,
+                options,
+                sentinel_index,
+                continuation_time_limit,
+            )
         } else {
             ParserState::new_with_recovery_branches(words, options)
         };
@@ -3310,6 +3342,7 @@ pub mod generated_model {
             directives,
             memo_trial,
             recovery_session.continuation_sentinel_index,
+            recovery_session.continuation_time_limit,
         );
         let parser = recovery_session.parser.clone();
         let result = parser

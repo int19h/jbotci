@@ -56,7 +56,7 @@ const LEGACY_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR: usize = 8;
 const MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR: usize = 64;
 
 #[invariant(!duration.is_zero(), "an active continuation time limit is nonzero")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ContinuationTimeLimit {
     started: Instant,
     duration: Duration,
@@ -544,6 +544,7 @@ pub(super) struct ParserState<'tokens> {
     track_recovery_branches: bool,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     continuation_sentinel_index: Option<usize>,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
     _tokens: PhantomData<&'tokens ()>,
 }
 
@@ -592,20 +593,24 @@ impl<'tokens> ParserState<'tokens> {
             track_recovery_branches: false,
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
             continuation_sentinel_index: None,
+            continuation_time_limit: None,
             _tokens: PhantomData,
         }
     }
 
     #[requires(sentinel_index < words.len())]
     #[ensures(ret.continuation_sentinel_index == Some(sentinel_index))]
+    #[ensures(ret.continuation_time_limit == continuation_time_limit)]
     pub(super) fn new_for_expected_continuations(
         words: &[Token],
         options: &ParseOptions,
         sentinel_index: usize,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> Self {
         let mut state = Self::new(words, options);
         state.track_recovery_branches = true;
         state.continuation_sentinel_index = Some(sentinel_index);
+        state.continuation_time_limit = continuation_time_limit;
         state
     }
 
@@ -629,6 +634,7 @@ impl<'tokens> ParserState<'tokens> {
         directives: &[RecoveryDirective],
         memo_trial: SyntaxRecoveryMemoTrial<'tokens>,
         continuation_sentinel_index: Option<usize>,
+        continuation_time_limit: Option<ContinuationTimeLimit>,
     ) -> Self {
         let mut state = Self::new_with_recovery_branches(words, options);
         state.recovery_directives = directives.to_vec();
@@ -640,7 +646,15 @@ impl<'tokens> ParserState<'tokens> {
         state.recovery_source = source.map(Arc::<str>::from);
         state.recovery_memo_trial = Some(memo_trial);
         state.continuation_sentinel_index = continuation_sentinel_index;
+        state.continuation_time_limit = continuation_time_limit;
         state
+    }
+
+    #[requires(true)]
+    #[ensures(!ret || self.continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted))]
+    pub(super) fn continuation_time_limit_exhausted(&self) -> bool {
+        self.continuation_time_limit
+            .is_some_and(ContinuationTimeLimit::exhausted)
     }
 
     #[requires(true)]
@@ -2318,6 +2332,7 @@ pub(crate) fn expected_continuations(
             &tokens,
             options,
             sentinel_index,
+            time_limit,
         );
     let data!(generated::generated_model::GeneratedParsedTextDetailedAttempt {
         result,
@@ -2465,7 +2480,10 @@ fn recover_after_strict_failure(
     // entries can be shared across every trial. Once one directive chain
     // reaches the requested cut, replay only that chain in a fresh session to
     // capture its expectations in isolation.
-    let mut recovery_session = generated::generated_model::GeneratedRecoveryParseSession::new();
+    let mut recovery_session =
+        generated::generated_model::GeneratedRecoveryParseSession::new_with_continuation_time_limit(
+            continuation_time_limit,
+        );
     let initial_failure = failure.clone();
     let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];
@@ -2573,6 +2591,7 @@ fn recover_after_strict_failure(
                                             0,
                                             &applied_effective_fail_token_indices,
                                             sentinel_index,
+                                            continuation_time_limit,
                                         )
                                         .unwrap_or_default();
                                     if continuation_time_limit
@@ -2656,6 +2675,7 @@ fn recover_after_strict_failure(
                     0,
                     &effective_fail_token_indices,
                     sentinel_index,
+                    continuation_time_limit,
                 )
                 .unwrap_or_default();
                 if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
@@ -2704,6 +2724,7 @@ fn recover_after_strict_failure(
                 &effective_fail_token_indices,
                 &next_failure,
                 sentinel_index,
+                continuation_time_limit,
             );
             continuation_expectations = replayed_expectations
                 .unwrap_or_else(|| syntax_error_expectations(&next_failure.public_error));
@@ -2810,6 +2831,7 @@ fn replay_winning_continuation_expectations<'tokens>(
     expected_effective_fail_token_indices: &[usize],
     expected_failure: &generated::generated_model::GeneratedParseFailure,
     continuation_sentinel_index: usize,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<Vec<SyntaxExpectation>> {
     let attempt = replay_winning_continuation_attempt(
         tokens,
@@ -2818,6 +2840,7 @@ fn replay_winning_continuation_expectations<'tokens>(
         options,
         directives,
         continuation_sentinel_index,
+        continuation_time_limit,
     );
     let data!(generated::generated_model::GeneratedRecoveredParsedTextAttempt {
         result,
@@ -2858,6 +2881,7 @@ fn replay_winning_continuation_success_expectations<'tokens>(
     expected_unconsumed_directives: usize,
     expected_effective_fail_token_indices: &[usize],
     continuation_sentinel_index: usize,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<Vec<SyntaxExpectation>> {
     let attempt = replay_winning_continuation_attempt(
         tokens,
@@ -2866,6 +2890,7 @@ fn replay_winning_continuation_success_expectations<'tokens>(
         options,
         directives,
         continuation_sentinel_index,
+        continuation_time_limit,
     );
     let data!(
         generated::generated_model::GeneratedRecoveredParsedTextAttempt {
@@ -2894,10 +2919,12 @@ fn replay_winning_continuation_attempt<'tokens>(
     options: &ParseOptions,
     directives: &[RecoveryDirective],
     continuation_sentinel_index: usize,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> generated::generated_model::GeneratedRecoveredParsedTextAttempt {
     let mut recovery_session =
         generated::generated_model::GeneratedRecoveryParseSession::new_for_expected_continuations(
             continuation_sentinel_index,
+            continuation_time_limit,
         );
     generated::generated_model::parse_recovered_text_attempt_with_session(
         tokens,
@@ -2961,6 +2988,7 @@ fn try_final_recovery_from_initial_failure<'tokens>(
                         0,
                         &effective_fail_token_indices,
                         sentinel_index,
+                        continuation_time_limit,
                     )
                     .unwrap_or_default();
                     if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
@@ -3917,6 +3945,7 @@ mod tests {
                 &tokens,
                 &options,
                 sentinel_index,
+                None,
             );
             let data!(
                 generated::generated_model::GeneratedParsedTextDetailedAttempt {
