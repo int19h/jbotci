@@ -207,7 +207,7 @@ impl ChatMessage {
 /// Usage reported for one non-streaming completion.
 #[invariant(cost.is_finite() && *cost >= 0.0, "reported cost must be finite and nonnegative")]
 #[invariant(prompt_tokens.checked_add(*completion_tokens) == Some(*total_tokens), "total tokens must equal prompt plus completion tokens")]
-#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
     #[serde(default)]
     pub prompt_tokens: u64,
@@ -224,7 +224,7 @@ pub struct Usage {
     true,
     "mutated only by UsageTotals::record, which preserves nonnegative totals"
 )]
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct UsageTotals {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
@@ -248,7 +248,8 @@ impl UsageTotals {
 
 /// Why a bounded run stopped without a runtime failure.
 #[invariant(::CostBudgetExceeded => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum AbortKind {
     CostBudgetExceeded,
 }
@@ -256,7 +257,8 @@ pub enum AbortKind {
 /// Explicit record surfaced when a graceful run cap is hit.
 #[invariant(max_cost_usd.is_finite() && *max_cost_usd > 0.0)]
 #[invariant(actual_cost_usd.is_finite() && *actual_cost_usd >= *max_cost_usd)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct AbortRecord {
     pub kind: AbortKind,
     pub max_cost_usd: f64,
@@ -663,6 +665,7 @@ pub struct ParticipantConversation {
     temperature: f64,
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
+    pending_usage: Vec<Usage>,
 }
 
 impl ParticipantConversation {
@@ -679,6 +682,7 @@ impl ParticipantConversation {
                 ChatMessage::user(participant.private_brief.clone()),
             ],
             usage: UsageTotals::default(),
+            pending_usage: Vec::new(),
         }
     }
 
@@ -705,6 +709,7 @@ impl ParticipantConversation {
                 ChatMessage::user(private_brief),
             ],
             usage: UsageTotals::default(),
+            pending_usage: Vec::new(),
         }
     }
 
@@ -727,6 +732,13 @@ impl ParticipantConversation {
     #[ensures(ret.cost_usd >= 0.0)]
     pub fn usage(&self) -> &UsageTotals {
         &self.usage
+    }
+
+    /// Drain the exact provider usage records accumulated since the previous drain.
+    #[requires(true)]
+    #[ensures(self.pending_usage.is_empty())]
+    pub fn take_pending_usage(&mut self) -> Vec<Usage> {
+        std::mem::take(&mut self.pending_usage)
     }
 
     /// Add a private user/protocol instruction before the next inference.
@@ -777,6 +789,7 @@ impl ParticipantConversation {
                 tool_choice,
             )?;
             self.usage.record(&completion.usage);
+            self.pending_usage.push(completion.usage.clone());
             let abort = accounting.record(&completion.usage);
             let Completion {
                 content,

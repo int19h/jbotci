@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{OpenRouterClient, RunAccounting, RunConfig};
+use xarsnu::{OpenRouterClient, RunAccounting, RunConfig, report_file};
 
 #[requires(true)]
 #[ensures(true)]
@@ -22,10 +22,25 @@ fn main() -> ExitCode {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run() -> Result<(), Box<dyn Error>> {
-    let path = std::env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .ok_or("usage: xarsnu <config.toml>")?;
+    let mut arguments = std::env::args_os().skip(1);
+    let first = arguments
+        .next()
+        .ok_or("usage: xarsnu <config.toml> | xarsnu report <transcript.jsonl>")?;
+    if first == "report" {
+        let path = arguments
+            .next()
+            .map(PathBuf::from)
+            .ok_or("usage: xarsnu report <transcript.jsonl>")?;
+        if arguments.next().is_some() {
+            return Err("usage: xarsnu report <transcript.jsonl>".into());
+        }
+        print!("{}", report_file(&path)?);
+        return Ok(());
+    }
+    if arguments.next().is_some() {
+        return Err("usage: xarsnu <config.toml>".into());
+    }
+    let path = PathBuf::from(first);
     let source = fs::read_to_string(&path)?;
     let config = RunConfig::from_toml(&source)?;
     let _client = OpenRouterClient::from_env()?;

@@ -2,7 +2,7 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// One model participating in the private side of a simulated discussion.
@@ -11,7 +11,7 @@ use thiserror::Error;
 #[invariant(temperature.is_finite() && (0.0..=2.0).contains(temperature), "temperature must be finite and between 0 and 2")]
 #[invariant(!system_prompt.trim().is_empty(), "participant system prompts cannot be empty")]
 #[invariant(!private_brief.trim().is_empty(), "participant private briefs cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ParticipantConfig {
     pub name: String,
@@ -26,7 +26,7 @@ pub struct ParticipantConfig {
 #[invariant(*max_intent_revisions_per_turn > 0, "intent-revision cap must be positive")]
 #[invariant(*max_turns > 0, "turn cap must be positive")]
 #[invariant(max_cost_usd.is_finite() && *max_cost_usd > 0.0, "cost cap must be finite and positive")]
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct CapsConfig {
     pub max_parse_attempts_per_turn: usize,
@@ -39,7 +39,7 @@ pub struct CapsConfig {
 #[invariant(::TreeProj => true)]
 #[invariant(::Tree => true)]
 #[invariant(::Json => true)]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
     #[default]
@@ -53,7 +53,7 @@ pub enum TersmuFormat {
 #[invariant(participants.len() >= 2, "a discussion requires at least two participants")]
 #[invariant(!scenario.trim().is_empty(), "scenario reference cannot be empty")]
 #[invariant(participants.iter().enumerate().all(|(index, participant)| participants[..index].iter().all(|earlier| earlier.name != participant.name)), "participant names must be unique")]
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct RunConfig {
     pub participants: Vec<ParticipantConfig>,
