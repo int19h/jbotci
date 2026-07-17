@@ -1,7 +1,7 @@
 //! Tool-gated speaker and listener protocol for xarsnu runs.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
+use std::fmt::{self, Write as _};
 use std::path::Path;
 
 #[allow(unused_imports)]
@@ -24,6 +24,7 @@ const STANDING_PROTOCOL_RULES: &str = "You are participating in xarsnu's tool-ga
 const SPEAKER_TURN_INSTRUCTION: &str = "You are the speaker for this turn. First register your intended meaning in English. Then submit candidate Lojban until jbotci accepts one. Finally compare the returned tersmu rendering with your intent and call confirm_meaning with a mandatory English paraphrase. A mismatch requires revision; a match posts the Lojban and tersmu rendering.";
 const LISTENER_BLIND_INSTRUCTION: &str = "Interpret the following visible Lojban message without access to its tersmu rendering. Think privately, then call interpret_blind with your English interpretation.";
 const LISTENER_REVEAL_INSTRUCTION: &str = "The tersmu rendering is now revealed. Compare it with your blind reading, then call acknowledge with your final English understanding and any discrepancies.";
+const ANSWER_AVAILABLE_INSTRUCTION: &str = "You may now submit your scenario answer with `submit_answer`. The task is scored only from formal submissions; in-dialog agreement does not count.";
 const REFERENCE_TOOL_NAMES: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
 
 /// One of the six state-changing protocol tools.
@@ -1327,6 +1328,64 @@ struct ReferenceDispatch {
     corrective_message: Option<String>,
 }
 
+/// Turn position projected into model-facing protocol instructions.
+#[invariant(*turn_number > 0)]
+#[invariant(*turn_number <= *maximum_turns)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TurnDeadline {
+    turn_number: usize,
+    maximum_turns: usize,
+}
+
+/// Participant-specific scenario-answer state projected from the real gate.
+#[invariant(::Unavailable => true)]
+#[invariant(::Available => true)]
+#[invariant(::Recorded { submitted, required } => *submitted > 0 && submitted <= required)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AnswerAffordance {
+    Unavailable,
+    Available,
+    Recorded { submitted: usize, required: usize },
+}
+
+/// Append grounded turn and answer context to an existing phase instruction.
+#[requires(!base.trim().is_empty())]
+#[ensures(ret.starts_with(base))]
+#[ensures(!ret.trim().is_empty())]
+fn phase_instruction(
+    base: &str,
+    deadline: Option<TurnDeadline>,
+    answer_affordance: AnswerAffordance,
+) -> String {
+    let mut instruction = base.to_owned();
+    if let Some(deadline) = deadline {
+        write!(
+            instruction,
+            "\n\nThis is turn {} of at most {}.",
+            deadline.turn_number, deadline.maximum_turns
+        )
+        .expect("writing to a String cannot fail");
+    }
+    match answer_affordance.as_data() {
+        bityzba::data!(AnswerAffordance::Unavailable) => {}
+        bityzba::data!(AnswerAffordance::Available) => {
+            instruction.push_str("\n\n");
+            instruction.push_str(ANSWER_AVAILABLE_INSTRUCTION);
+        }
+        bityzba::data!(AnswerAffordance::Recorded {
+            submitted,
+            required,
+        }) => {
+            write!(
+                instruction,
+                "\n\nYour answer is recorded; {submitted} of {required} participants have submitted."
+            )
+            .expect("writing to a String cannot fail");
+        }
+    }
+    instruction
+}
+
 /// Sequential round-robin protocol runner.
 #[invariant(true, "validated on construction and mutated only through run")]
 #[derive(Debug)]
@@ -1576,12 +1635,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 self.participants[index].push_user(prompt);
             }
         }
-        let scenario_turn_limit = self.scenario.as_ref().map_or(usize::MAX, |scenario| {
-            scenario
-                .maximum_turns()
-                .min(scenario.maximum_rounds() * self.participants.len())
-        });
-        let turn_limit = self.caps.max_turns.min(scenario_turn_limit);
+        let turn_limit = self.effective_turn_limit();
         for turn_number in 1..=turn_limit {
             self.turns_started = turn_number;
             let speaker_index = (turn_number - 1) % self.participants.len();
@@ -1592,14 +1646,19 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 turn_number,
                 speaker: speaker.clone(),
             }));
-            let speaker_outcome = self.run_speaker(turn_number, speaker_index)?;
+            let speaker_outcome = self.run_speaker(turn_number, turn_limit, speaker_index)?;
             match speaker_outcome.as_data() {
                 bityzba::data!(SpeakerOutcome::Posted { message }) => {
                     self.visible_chat.push(message.clone());
                     for listener_index in 0..self.participants.len() {
                         if listener_index != speaker_index {
-                            let listener_outcome =
-                                self.run_listener(turn_number, &speaker, listener_index, message)?;
+                            let listener_outcome = self.run_listener(
+                                turn_number,
+                                turn_limit,
+                                &speaker,
+                                listener_index,
+                                message,
+                            )?;
                             match listener_outcome {
                                 ListenerRunOutcome::Acknowledged => {}
                                 ListenerRunOutcome::ScenarioCompleted => {
@@ -1639,6 +1698,22 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         }))
     }
 
+    /// Exact speaker-turn cap used by both loop termination and phase instructions.
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    #[ensures(ret <= self.caps.max_turns)]
+    fn effective_turn_limit(&self) -> usize {
+        self.scenario
+            .as_ref()
+            .map_or(self.caps.max_turns, |scenario| {
+                self.caps.max_turns.min(
+                    scenario
+                        .maximum_turns()
+                        .min(scenario.maximum_rounds() * self.participants.len()),
+                )
+            })
+    }
+
     #[requires(turn_number > 0)]
     #[ensures(self.task_outcome.is_some())]
     fn finish_scenario(&mut self, turn_number: usize) {
@@ -1661,12 +1736,47 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     #[requires(!participant.trim().is_empty())]
     #[ensures(ret.as_ref().is_none_or(Value::is_object))]
     fn answer_schema_if_available(&self, turn_number: usize, participant: &str) -> Option<Value> {
-        let scenario = self.scenario.as_ref()?;
+        matches!(
+            self.answer_affordance(turn_number, participant).as_data(),
+            bityzba::data!(AnswerAffordance::Available)
+        )
+        .then(|| {
+            self.scenario
+                .as_ref()
+                .expect("answer availability requires a scenario")
+                .answer_schema()
+                .clone()
+        })
+    }
+
+    /// Derive answer announcements and tool availability from one participant state.
+    #[requires(turn_number > 0)]
+    #[requires(!participant.trim().is_empty())]
+    #[ensures(true)]
+    fn answer_affordance(&self, turn_number: usize, participant: &str) -> AnswerAffordance {
+        let Some(scenario) = &self.scenario else {
+            return new!(AnswerAffordance::Unavailable);
+        };
+        if !scenario.answer_required(participant) {
+            return new!(AnswerAffordance::Unavailable);
+        }
+        if self.answers.contains_key(participant) {
+            let required = scenario
+                .participants()
+                .iter()
+                .filter(|participant| participant.answer_required)
+                .count();
+            return new!(AnswerAffordance::Recorded {
+                submitted: self.answers.len(),
+                required,
+            });
+        }
         let completed_rounds = (turn_number - 1) / self.participants.len();
-        (completed_rounds >= scenario.minimum_rounds()
-            && scenario.answer_required(participant)
-            && !self.answers.contains_key(participant))
-        .then(|| scenario.answer_schema().clone())
+        if completed_rounds >= scenario.minimum_rounds() {
+            new!(AnswerAffordance::Available)
+        } else {
+            new!(AnswerAffordance::Unavailable)
+        }
     }
 
     #[requires(turn_number > 0)]
@@ -1684,17 +1794,27 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     }
 
     #[requires(turn_number > 0)]
+    #[requires(turn_number <= turn_limit)]
     #[requires(speaker_index < self.participants.len())]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn run_speaker(
         &mut self,
         turn_number: usize,
+        turn_limit: usize,
         speaker_index: usize,
     ) -> Result<SpeakerOutcome, ProtocolRunError> {
-        self.participants[speaker_index].push_user(SPEAKER_TURN_INSTRUCTION.to_owned());
         let speaker = self.participants[speaker_index]
             .participant_name()
             .to_owned();
+        let instruction = phase_instruction(
+            SPEAKER_TURN_INSTRUCTION,
+            Some(new!(TurnDeadline {
+                turn_number,
+                maximum_turns: turn_limit,
+            })),
+            self.answer_affordance(turn_number, &speaker),
+        );
+        self.participants[speaker_index].push_user(instruction);
         let mut state = SpeakerState::awaiting_intent();
         let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Speaker {
             phase: state.phase(),
@@ -1823,11 +1943,13 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     }
 
     #[requires(turn_number > 0)]
+    #[requires(turn_number <= turn_limit)]
     #[requires(listener_index < self.participants.len())]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn run_listener(
         &mut self,
         turn_number: usize,
+        turn_limit: usize,
         speaker: &str,
         listener_index: usize,
         message: &VisibleMessage,
@@ -1836,7 +1958,15 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             .participant_name()
             .to_owned();
         let blind = message.blind();
-        self.participants[listener_index].push_user(blind.prompt());
+        let instruction = phase_instruction(
+            &blind.prompt(),
+            Some(new!(TurnDeadline {
+                turn_number,
+                maximum_turns: turn_limit,
+            })),
+            new!(AnswerAffordance::Unavailable),
+        );
+        self.participants[listener_index].push_user(instruction);
         let mut state = ListenerState::blind(blind);
         let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Listener {
             phase: state.phase(),
@@ -2076,7 +2206,11 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     revision_number,
                 }));
                 Ok(new!(SpeakerAction::Continue {
-                    content: "Intent registered. Compose Lojban and call submit_lojban.".to_owned(),
+                    content: phase_instruction(
+                        "Intent registered. Compose Lojban and call submit_lojban.",
+                        None,
+                        self.answer_affordance(turn_number, speaker),
+                    ),
                 }))
             }
             ProtocolTool::SubmitLojban => {
@@ -2377,7 +2511,11 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 Ok(new!(ListenerAction::Reveal {
                     content: "Blind interpretation recorded; the tersmu rendering has now been revealed privately."
                         .to_owned(),
-                    prompt: revealed.prompt()?,
+                    prompt: phase_instruction(
+                        &revealed.prompt()?,
+                        None,
+                        self.answer_affordance(turn_number, listener),
+                    ),
                 }))
             }
             ProtocolTool::Acknowledge => {
@@ -2491,14 +2629,17 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         if scenario_completed {
             self.finish_scenario(turn_number);
         }
+        let content = if scenario_completed {
+            "Answer recorded; all required answers are present and the checker has completed."
+        } else {
+            "Answer recorded; continue the current protocol phase while other required participants answer."
+        };
         new!(AnswerSubmissionAction {
-            content: if scenario_completed {
-                "Answer recorded; all required answers are present and the checker has completed."
-                    .to_owned()
-            } else {
-                "Answer recorded; continue the current protocol phase while other required participants answer."
-                    .to_owned()
-            },
+            content: phase_instruction(
+                content,
+                None,
+                self.answer_affordance(turn_number, participant),
+            ),
             scenario_completed,
         })
     }
@@ -2830,6 +2971,21 @@ fn decode_arguments<T: ProtocolArguments>(call: &ToolCall) -> Result<T, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn phase_instruction_omits_context_when_answer_and_deadline_are_unavailable() {
+        let instruction = phase_instruction(
+            "Continue the current phase.",
+            None,
+            new!(AnswerAffordance::Unavailable),
+        );
+
+        assert_eq!(instruction, "Continue the current phase.");
+        assert!(!instruction.contains("submit_answer"));
+        assert!(!instruction.contains("turn "));
+    }
 
     #[test]
     #[requires(true)]
