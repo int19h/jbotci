@@ -3301,12 +3301,6 @@ pub mod generated_model {
         recovery_session: &mut GeneratedRecoveryParseSession<'tokens>,
     ) -> GeneratedRecoveredParsedTextAttempt {
         let eoi_offset = parser_tokens.last().map_or(0, |token| token.span.end);
-        // Completion candidates belong to one recovery reading. Reusing memoized
-        // diagnostics across trials would import contexts from abandoned readings
-        // into the trial that ultimately reaches the requested cut.
-        if recovery_session.continuation_sentinel_index.is_some() {
-            recovery_session.memo_session.clear();
-        }
         let memo_trial = recovery_session.memo_session.begin_trial();
         let trial_id = memo_trial.trial_id.get();
         let mut state = ParserState::new_with_recovery(
