@@ -222,7 +222,22 @@ impl DocumentSnapshot {
             );
         }
 
-        let mut result = items.into_values().collect::<Vec<_>>();
+        let short_glosses = {
+            let labels = items
+                .values()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>();
+            dictionary.first_gloss_keywords_for_words(&labels)
+        };
+        let mut result = items
+            .into_values()
+            .zip(short_glosses)
+            .map(|(item, short_gloss)| {
+                item.with_data(data! {
+                    short_gloss: short_gloss.map(str::to_owned),
+                })
+            })
+            .collect::<Vec<_>>();
         result.sort_by(|left, right| completion_sort_key(left).cmp(&completion_sort_key(right)));
         result
     }
@@ -639,13 +654,6 @@ impl CompletionContext<'_, '_, '_> {
         {
             return;
         }
-        let short_gloss = self
-            .dictionary
-            .lookup_words(label)
-            .flat_map(|entry| entry.gloss_keywords)
-            .map(|keyword| keyword.word)
-            .find(|gloss| !gloss.is_empty())
-            .map(str::to_owned);
         items.insert(
             key,
             new!(CompletionItem {
@@ -655,7 +663,7 @@ impl CompletionContext<'_, '_, '_> {
                 provenance: provenance.clone(),
                 reason: reason.clone(),
                 replacement_span: self.replacement_span.clone(),
-                short_gloss,
+                short_gloss: None,
                 documentation: CompletionDocumentationHandle::new(label.to_owned()),
             }),
         );

@@ -169,6 +169,33 @@ impl<'a> Dictionary<'a> {
         targets.iter().map(|index| self.entry_at(*index))
     }
 
+    /// Return the first non-empty gloss keyword for each lookup word.
+    ///
+    /// This is the batch counterpart to repeatedly calling [`Self::lookup_words`].
+    /// Keeping the loop inside one dictionary operation also means the
+    /// dictionary-wide expensive invariant is checked once for the batch.
+    #[requires(true)]
+    #[ensures(ret.len() == words.len())]
+    pub fn first_gloss_keywords_for_words(&self, words: &[&str]) -> Vec<Option<&'a str>> {
+        words
+            .iter()
+            .map(|word| {
+                let normalized = normalize_lookup_query(word);
+                let targets = self
+                    .word_index
+                    .binary_search_by(|entry| entry.key.cmp(normalized.as_str()))
+                    .ok()
+                    .map_or(&[][..], |position| self.word_index[position].targets);
+                targets
+                    .iter()
+                    .map(|index| self.entry_at(*index))
+                    .flat_map(|entry| entry.gloss_keywords)
+                    .map(|keyword| keyword.word)
+                    .find(|gloss| !gloss.is_empty())
+            })
+            .collect()
+    }
+
     /// Return dictionary entries whose normalized word starts with `prefix`.
     ///
     /// The returned iterator is backed by the contiguous matching range in the
@@ -1049,6 +1076,35 @@ mod tests {
                 .map(|entry| entry.word)
                 .collect::<Vec<_>>(),
             vec!["INternet", "internet"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn batch_gloss_lookup_preserves_query_order_and_collision_order() {
+        static LARGE_GLOSS: [Keyword<'static>; 1] = [Keyword {
+            word: "large",
+            meaning: None,
+        }];
+        let mut second = test_entry("barda", WordType::Gismu, &[], None);
+        second.gloss_keywords = &LARGE_GLOSS;
+        let entries = &[test_entry("BÁRDA", WordType::Gismu, &[], None), second];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_selmaho_index(&indexes.selmaho_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+        );
+
+        assert!(dictionary.validate().is_ok());
+        assert_eq!(
+            dictionary.first_gloss_keywords_for_words(&[".bárda.", "missing"]),
+            vec![Some("large"), None],
         );
     }
 
