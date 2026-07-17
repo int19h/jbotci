@@ -6,9 +6,10 @@ use serde_json::{Value, json};
 use xarsnu::openrouter::ModelTurnData;
 use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData};
 use xarsnu::{
-    CapsConfig, ModelTurn, ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolRunner,
-    ProtocolTool, ReferenceToolDispatcher, RunAccounting, ScenarioInstance, TaskStatus,
-    TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
+    CapsConfig, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError,
+    ProtocolRunner, ProtocolTool, ReferenceToolDispatcher, RunAccounting, RunConfig, RunHeader,
+    ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
+    read_transcript,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -923,6 +924,29 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
             ),
         ],
     );
+    let header = RunHeader::new(
+        new!(RunConfig {
+            participants: ["alice", "bob"]
+                .into_iter()
+                .map(|name| new!(ParticipantConfig {
+                    name: name.to_owned(),
+                    model: format!("example/{name}"),
+                    temperature: 0.25,
+                    system_prompt: "Use the gated protocol.".to_owned(),
+                    private_brief: format!("Private English brief for {name}."),
+                }))
+                .collect(),
+            scenario: "schedule-negotiation-1.toml".to_owned(),
+            caps: caps(3, 2, 6),
+            tersmu_format: TersmuFormat::TreeProj,
+        }),
+        &scenario,
+    )
+    .expect("transcript header");
+    let transcript_path = std::env::temp_dir().join(format!(
+        "xarsnu-protocol-transcript-{}.jsonl",
+        std::process::id()
+    ));
     let mut runner = ProtocolRunner::new_with_scenario(
         vec![alice, bob],
         caps(3, 2, 6),
@@ -931,6 +955,9 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
         scenario,
     )
     .expect("scenario runner");
+    runner
+        .attach_transcript(&transcript_path, header)
+        .expect("attach transcript");
 
     let outcome = runner.run().expect("scenario protocol run");
 
@@ -955,8 +982,24 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
         2
     );
     assert!(matches!(
-        runner.events().last().expect("last event").as_data(),
+        runner
+            .events()
+            .iter()
+            .rev()
+            .find(|event| matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
+            ))
+            .expect("checker outcome event")
+            .as_data(),
         bityzba::data!(ProtocolEvent::CheckerOutcome { outcome, .. })
             if outcome.status == TaskStatus::Success
     ));
+    let records = read_transcript(&transcript_path).expect("runtime transcript validates");
+    assert_eq!(records.len(), runner.events().len());
+    assert_eq!(
+        records.last().expect("terminal record").sequence_number,
+        u64::try_from(records.len() - 1).unwrap()
+    );
+    std::fs::remove_file(transcript_path).expect("remove runtime transcript");
 }
