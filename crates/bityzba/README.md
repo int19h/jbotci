@@ -6,6 +6,21 @@ ordinary support APIs such as the optional source scanner. It is an MPL-2.0
 fork of `contracts 0.6.7` with first-class expensive contracts and
 valid-by-construction type invariants.
 
+## Disabling Cheap Contracts
+
+Cheap contracts are enabled by default in every build. The additive
+`disable_contracts` feature removes the runtime checks emitted by `requires`,
+`ensures`, and `invariant`. It also bypasses cheap type-invariant validation in
+the generated `new!`, `try_new!`, `from_data`, `try_from_data`, `with_data`,
+serde, and related `data!` construction paths while preserving their API and
+wrapper types.
+
+This feature is intended for profiling contract cost, not as a normal build
+default: code using invariant-bearing types can observe values that violate
+their declared cheap invariants. `test_*` contracts retain their existing test
+behavior, and the independent `expensive_contracts` feature retains its
+existing semantics whether or not `disable_contracts` is enabled.
+
 [bityzba](https://lojban.int19h.org/jbotci/vlacku/bityzba) is a word in the [Lojban](https://lojban.int19h.org/jbotci/cukta/section/section-what-is-lojban) language meaning "␣ ensures ␣ is true with means ␣". 
 
 ## Function And Trait Contracts

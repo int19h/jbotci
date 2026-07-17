@@ -27,6 +27,8 @@ pub(crate) use type_invariant::{invariant_enum, invariant_struct};
 pub(crate) enum ContractMode {
     /// Always check contract
     Always,
+    /// Do not emit a runtime check.
+    Disabled,
     /// Check contract only in `#[cfg(test)]` configurations
     Test,
     /// Check the contract only when the consuming crate enables its
@@ -38,7 +40,7 @@ impl ContractMode {
     /// Return the prefix of attributes of `self` mode.
     pub(crate) fn name(self) -> &'static str {
         match self {
-            ContractMode::Always => "",
+            ContractMode::Always | ContractMode::Disabled => "",
             ContractMode::Test => "test_",
             ContractMode::Expensive => "expensive_",
         }
@@ -46,7 +48,11 @@ impl ContractMode {
 
     /// Computes the runtime mode used for generated checks.
     pub(crate) fn final_mode(self) -> Self {
-        self
+        if cfg!(feature = "disable_contracts") && self == Self::Always {
+            Self::Disabled
+        } else {
+            self
+        }
     }
 }
 
@@ -195,6 +201,14 @@ impl FuncWithContracts {
     /// Generates the resulting tokens including all contract-checks
     pub(crate) fn generate(mut self) -> TokenStream {
         let doc_attrs = doc::generate_attributes(&self.contracts);
+        self.contracts
+            .retain(|contract| contract.mode.final_mode() != ContractMode::Disabled);
+
+        if self.contracts.is_empty() {
+            self.function.attrs.extend(doc_attrs);
+            return self.function.into_token_stream();
+        }
+
         codegen::extract_old_calls(&mut self.contracts);
 
         codegen::generate(self, doc_attrs)

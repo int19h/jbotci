@@ -128,6 +128,9 @@ fn get_assert_macro(
     match mode {
         ContractMode::Always | ContractMode::Expensive => Ident::new("assert", span),
         ContractMode::Test => Ident::new("debug_assert", span),
+        ContractMode::Disabled => {
+            unreachable!("disabled contracts are removed before code generation")
+        }
     }
 }
 
