@@ -796,6 +796,8 @@ fn invariant_expression(contracts: &[Contract], extra_check: TokenStream) -> Tok
             contract.assertions.iter().map(move |expr| {
                 if mode == ContractMode::Expensive {
                     quote! { (!cfg!(feature = "expensive_contracts") || (#expr)) }
+                } else if mode == ContractMode::Disabled {
+                    quote! { true }
                 } else {
                     quote! { (#expr) }
                 }
@@ -926,6 +928,8 @@ fn enum_variant_invariant_expression<'a>(
 
         if variant_arm.mode.final_mode() == ContractMode::Expensive {
             checks.push(quote! { (!cfg!(feature = "expensive_contracts") || (#check)) });
+        } else if variant_arm.mode.final_mode() == ContractMode::Disabled {
+            checks.push(quote! { true });
         } else {
             checks.push(quote! { (#check) });
         }
