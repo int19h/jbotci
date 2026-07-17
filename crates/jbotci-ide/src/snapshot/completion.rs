@@ -55,10 +55,11 @@ pub enum CompletionProvenance {
     UnfilteredQuote,
 }
 
-// Completion needs only cut-point expectations. Recover through at most two
-// earlier syntax errors; beyond that, unfiltered completion is both safer and
-// cheaper than ranking from an incomplete recovery narrative.
-const COMPLETION_MAX_RECOVERY_ERRORS: usize = 3;
+// The wall-clock limit is the completion-specific safety boundary. Recovery's
+// shared memo now makes a separate low error cap counterproductive: it would
+// discard grammar context even when the engine can reach the cut in time.
+// Parse-dominated documents may still exhaust this limit and deliberately
+// degrade to morphology-valid candidates.
 const COMPLETION_GRAMMAR_TIME_LIMIT: Duration = Duration::from_secs(1);
 
 impl CompletionInterpretation {
@@ -323,11 +324,9 @@ impl DocumentSnapshot {
                     items,
                 ),
             CursorCompletionContext::Grammar => {
-                let options = ParseOptions::default()
-                    .with_max_recovery_errors(COMPLETION_MAX_RECOVERY_ERRORS);
                 let expectations = expected_continuations_with_time_limit(
                     preceding_words,
-                    &options,
+                    &ParseOptions::default(),
                     COMPLETION_GRAMMAR_TIME_LIMIT,
                 );
                 completion_context.add_grammar_candidates(&expectations, items);
@@ -1057,6 +1056,31 @@ mod tests {
             started.elapsed() < Duration::from_secs(2),
             "error-heavy deep-cut completion unexpectedly took {:?}",
             started.elapsed(),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn memoized_mid_size_recovery_remains_grammar_filtered() {
+        let marked = format!("mi ku .i {}mukti l|o nu", "do klama .i ".repeat(250),);
+        let started = Instant::now();
+        let items = completions_at_marker(&marked);
+        let elapsed = started.elapsed();
+
+        assert!(
+            items.iter().any(|item| {
+                item.label == "lo"
+                    && matches!(
+                        item.provenance.as_data(),
+                        data!(CompletionProvenance::Expected { .. })
+                    )
+            }),
+            "memoized recovery should reach the cut before the one-second grammar guard: {items:#?}",
+        );
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "mid-size completion unexpectedly took {elapsed:?}",
         );
     }
 }
