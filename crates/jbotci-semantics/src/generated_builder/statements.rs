@@ -713,25 +713,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         statement: &'tree PrenexStatementSyntax,
         truth_question: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let bindings = self.push_generated_prenex_term_bindings(&statement.prenex_terms)?;
+        let context = self.push_generated_prenex_term_bindings(&statement.prenex_terms)?;
         let root = match semantic_root_from_statement(&statement.inner_statement) {
             Ok(root) => root,
             Err(error) => {
-                self.pop_generated_prenex_scope_bindings(bindings);
+                self.pop_generated_prenex_scope_bindings(context.into_data().pushed_bindings);
                 return Err(error);
             }
         };
         if !generated_text_root_is_utterance(&root) {
-            self.pop_generated_prenex_scope_bindings(bindings);
+            self.pop_generated_prenex_scope_bindings(context.into_data().pushed_bindings);
             return Err(invalid_graph(
                 "statement connection reached single-utterance prenex lowering".to_owned(),
             ));
         }
         let result =
             self.build_utterance_for_generated_text_root(utterance_id, root, truth_question);
-        self.pop_generated_prenex_scope_bindings(bindings);
+        let data!(GeneratedPrenexContext {
+            pushed_bindings,
+            topics,
+        }) = context.into_data();
+        self.pop_generated_prenex_scope_bindings(pushed_bindings);
         let item = result?;
-        self.apply_generated_prenex_terms_to_discourse_item(item, &statement.prenex_terms)?;
+        self.apply_generated_prenex_terms_to_discourse_item(
+            item,
+            &statement.prenex_terms,
+            topics,
+            self.source_for_node(statement, "topic-comment"),
+        )?;
         Ok(item)
     }
 
@@ -741,18 +750,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         statement: &'tree PrenexStatementSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let bindings = self.push_generated_prenex_term_bindings(&statement.prenex_terms)?;
+        let context = self.push_generated_prenex_term_bindings(&statement.prenex_terms)?;
         let root = match semantic_root_from_statement(&statement.inner_statement) {
             Ok(root) => root,
             Err(error) => {
-                self.pop_generated_prenex_scope_bindings(bindings);
+                self.pop_generated_prenex_scope_bindings(context.into_data().pushed_bindings);
                 return Err(error);
             }
         };
         let result = self.build_discourse_item_for_generated_text_root(root);
-        self.pop_generated_prenex_scope_bindings(bindings);
+        let data!(GeneratedPrenexContext {
+            pushed_bindings,
+            topics,
+        }) = context.into_data();
+        self.pop_generated_prenex_scope_bindings(pushed_bindings);
         let item = result?;
-        self.apply_generated_prenex_terms_to_discourse_item(item, &statement.prenex_terms)?;
+        self.apply_generated_prenex_terms_to_discourse_item(
+            item,
+            &statement.prenex_terms,
+            topics,
+            self.source_for_node(statement, "topic-comment"),
+        )?;
         Ok(item)
     }
 
@@ -3199,24 +3217,30 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[requires(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
     #[ensures(true)]
     pub(super) fn apply_generated_prenex_terms_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
         terms: &'tree [TermSyntax],
+        topics: Vec<SemanticObjectId>,
+        topic_source: Option<crate::model::SemanticSource>,
     ) -> Result<(), SemanticsError> {
         let scopes = self.generated_prenex_formula_scopes_for_terms(terms)?;
-        self.apply_generated_prenex_scopes_to_discourse_item(item, scopes)
+        self.apply_generated_prenex_semantics_to_discourse_item(item, scopes, topics, topic_source)
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[requires(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
     #[ensures(true)]
-    pub(super) fn apply_generated_prenex_scopes_to_discourse_item(
+    pub(super) fn apply_generated_prenex_semantics_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
         scopes: Vec<GeneratedPrenexFormulaScope>,
+        topics: Vec<SemanticObjectId>,
+        topic_source: Option<crate::model::SemanticSource>,
     ) -> Result<(), SemanticsError> {
-        if scopes.is_empty() {
+        if scopes.is_empty() && topics.is_empty() {
             return Ok(());
         }
         let Some(content) = self
@@ -3234,6 +3258,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let content =
             self.strip_generated_implicit_quantifiers_from_content(content, &variables)?;
         self.strip_generated_implicit_quantifiers_for_variables_everywhere(&variables)?;
+        let content =
+            self.add_generated_topic_comment_links_to_content(content, &topics, topic_source)?;
         let wrapped = self.wrap_generated_content_with_prenex_scopes(content, scopes)?;
         if let Some(object) = self.objects.get_mut(&item) {
             match object.object_kind() {
@@ -3247,6 +3273,159 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         Ok(())
+    }
+
+    #[requires(content.object_kind() == crate::model::SemanticObjectKind::Formula || content.object_kind() == crate::model::SemanticObjectKind::Question || content.object_kind() == crate::model::SemanticObjectKind::Referent || content.object_kind() == crate::model::SemanticObjectKind::DisplayedContent || content.object_kind() == crate::model::SemanticObjectKind::Sequence || content.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == content.object_kind()) || ret.is_err())]
+    pub(super) fn add_generated_topic_comment_links_to_content(
+        &mut self,
+        content: SemanticObjectId,
+        topics: &[SemanticObjectId],
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if topics.is_empty() {
+            return Ok(content);
+        }
+        match content.object_kind() {
+            crate::model::SemanticObjectKind::Formula => {
+                self.add_generated_topic_comment_links_to_formula(content, topics, source)
+            }
+            crate::model::SemanticObjectKind::Question => {
+                let body = self
+                    .objects
+                    .get(&content)
+                    .and_then(SemanticObject::as_question)
+                    .map(|question| question.body)
+                    .ok_or_else(|| {
+                        invalid_graph(format!(
+                            "semantic builder could not find topic/comment question {content}"
+                        ))
+                    })?;
+                let linked =
+                    self.add_generated_topic_comment_links_to_formula(body, topics, source)?;
+                if let Some(object) = self.objects.get_mut(&content) {
+                    object.update_question(|node| node.with_data(data! { body: linked }));
+                }
+                Ok(content)
+            }
+            crate::model::SemanticObjectKind::Sequence => {
+                self.add_generated_topic_comment_links_to_sequence(content, topics, source)?;
+                Ok(content)
+            }
+            _ => Err(invalid_graph(
+                "topic/comment prenex has no formula-, question-, or sequence-valued comment"
+                    .to_owned(),
+            )),
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn add_generated_topic_comment_links_to_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        topics: &[SemanticObjectId],
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if topics.is_empty() {
+            return Ok(formula);
+        }
+        let comment_eventuality = match self.primary_eventuality_for_generated_formula(formula) {
+            Some(eventuality) => eventuality,
+            None => self.reified_eventuality_for_generated_content(formula, source.clone())?,
+        };
+        let mut children = Vec::with_capacity(topics.len() + 1);
+        children.push(formula);
+        for topic in topics {
+            children.push(self.build_generated_topic_comment_formula(
+                *topic,
+                comment_eventuality,
+                source.clone(),
+            )?);
+        }
+        let linked = self.next_formula_id();
+        self.insert(
+            linked,
+            SemanticObject::connective_formula(
+                FormulaOperator::And,
+                children,
+                None,
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(linked)
+    }
+
+    #[requires(sequence.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[requires(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
+    #[ensures(true)]
+    pub(super) fn add_generated_topic_comment_links_to_sequence(
+        &mut self,
+        sequence: SemanticObjectId,
+        topics: &[SemanticObjectId],
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(), SemanticsError> {
+        if topics.is_empty() {
+            return Ok(());
+        }
+        let comment_eventuality =
+            self.reified_eventuality_for_generated_content(sequence, source.clone())?;
+        let mut claims = Vec::with_capacity(topics.len());
+        for topic in topics {
+            claims.push(self.build_generated_topic_comment_formula(
+                *topic,
+                comment_eventuality,
+                source.clone(),
+            )?);
+        }
+        let object = self.objects.get_mut(&sequence).ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder could not find topic/comment sequence {sequence}"
+            ))
+        })?;
+        object.update_sequence(|node| {
+            let mut data = node.into_data();
+            data.connection_claims.extend(claims);
+            SequenceNode::from_data(data)
+        });
+        Ok(())
+    }
+
+    #[requires(crate::model::argument_object_kind_can_fill(topic.object_kind()))]
+    #[requires(semantic_id_is_eventuality(comment_eventuality))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_topic_comment_formula(
+        &mut self,
+        topic: SemanticObjectId,
+        comment_eventuality: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert(argument_key(1), ArgumentValue::filled(topic, None));
+        arguments.insert(
+            argument_key(2),
+            ArgumentValue::filled(comment_eventuality, None),
+        );
+        let predication = self.build_generated_predication_from_arguments(
+            "topicOf".to_owned(),
+            source.clone(),
+            arguments,
+            Vec::new(),
+        )?;
+        if let Some(object) = self.objects.get_mut(&predication) {
+            object.update_predication(|node| {
+                node.with_data(data! { introduced_by: Some("zo'u".to_owned()) })
+            });
+        }
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        Ok(formula)
     }
 
     #[requires(content.object_kind() == crate::model::SemanticObjectKind::Formula || content.object_kind() == crate::model::SemanticObjectKind::Question || content.object_kind() == crate::model::SemanticObjectKind::Referent || content.object_kind() == crate::model::SemanticObjectKind::DisplayedContent || content.object_kind() == crate::model::SemanticObjectKind::Sequence || content.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -3595,16 +3774,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(topics.iter().all(|topic| crate::model::argument_object_kind_can_fill(topic.object_kind())))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn wrap_formula_with_generated_prenex_terms(
         &mut self,
         formula: SemanticObjectId,
         terms: &'tree [TermSyntax],
+        topics: Vec<SemanticObjectId>,
+        topic_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let scopes = self.generated_prenex_formula_scopes_for_terms(terms)?;
         let variables = generated_prenex_formula_scope_variables(&scopes);
         let body = self.strip_generated_implicit_quantifiers_for_variables(formula, &variables)?;
         self.strip_generated_implicit_quantifiers_for_variables_everywhere(&variables)?;
+        let body =
+            self.add_generated_topic_comment_links_to_formula(body, &topics, topic_source)?;
         self.wrap_formula_with_generated_prenex_scopes(body, scopes)
     }
 
@@ -3628,8 +3812,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn push_generated_prenex_term_bindings(
         &mut self,
         terms: &'tree [TermSyntax],
-    ) -> Result<Vec<GeneratedPrenexPushedBinding>, SemanticsError> {
+    ) -> Result<GeneratedPrenexContext, SemanticsError> {
         let mut pushed = Vec::new();
+        let mut topics = Vec::new();
         for term in terms {
             let Some(sumti) = generated_prenex_binding_sumti_for_term(term)? else {
                 continue;
@@ -3668,9 +3853,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         word: key.clone(),
                     }));
                 pushed.push(new!(GeneratedPrenexPushedBinding::RelationVariable(key)));
+                continue;
+            }
+            if generated_prenex_topic_sumti_for_term(term)?.is_some() {
+                topics.push(self.build_sumti_referent(sumti)?);
             }
         }
-        Ok(pushed)
+        Ok(new!(GeneratedPrenexContext {
+            pushed_bindings: pushed,
+            topics,
+        }))
     }
 
     #[requires(true)]
