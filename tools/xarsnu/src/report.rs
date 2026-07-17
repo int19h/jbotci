@@ -287,11 +287,13 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
             }) => {
                 writeln!(
                     report,
-                    "### API usage — `{participant}`\n\n{} prompt + {} completion = {} tokens; ${:.6}\n",
+                    "### API usage — `{participant}`\n\n{} prompt + {} completion = {} tokens; ${:.6}; {} cached, {} cache-write tokens\n",
                     usage.prompt_tokens,
                     usage.completion_tokens,
                     usage.total_tokens,
-                    usage.cost
+                    usage.cost,
+                    usage.cached_tokens.unwrap_or(0),
+                    usage.cache_write_tokens.unwrap_or(0),
                 )
                 .expect("writing to String cannot fail");
                 summary
@@ -428,6 +430,7 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
             usage.prompt_tokens, usage.completion_tokens, usage.total_tokens, usage.cost_usd
         )
         .expect("writing to String cannot fail");
+        render_cache_observability(report, usage);
     }
     writeln!(
         report,
@@ -438,6 +441,43 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
         summary.run_usage.cost_usd
     )
     .expect("writing to String cannot fail");
+    render_cache_observability(report, &summary.run_usage);
+}
+
+#[requires(true)]
+#[ensures(report.contains("Cache efficiency:") && report.contains("Call hit rate:"))]
+fn render_cache_observability(report: &mut String, usage: &UsageTotals) {
+    writeln!(
+        report,
+        "  - Cache totals: {} cached tokens; {} cache-write tokens",
+        usage.cached_tokens, usage.cache_write_tokens
+    )
+    .expect("writing to String cannot fail");
+    writeln!(
+        report,
+        "  - Cache efficiency: {} ({} / {} prompt tokens)",
+        percentage(usage.cache_efficiency()),
+        usage.cached_tokens,
+        usage.prompt_tokens,
+    )
+    .expect("writing to String cannot fail");
+    writeln!(
+        report,
+        "  - Call hit rate: {} ({} / {} provider calls)",
+        percentage(usage.cache_hit_rate()),
+        usage.cache_hit_calls,
+        usage.provider_calls,
+    )
+    .expect("writing to String cannot fail");
+}
+
+#[requires(rate.is_none_or(|value| value.is_finite() && (0.0..=1.0).contains(&value)))]
+#[ensures(!ret.is_empty())]
+fn percentage(rate: Option<f64>) -> String {
+    rate.map_or_else(
+        || "n/a".to_owned(),
+        |value| format!("{:.2}%", value * 100.0),
+    )
 }
 
 #[requires(true)]

@@ -142,6 +142,24 @@ fn tool_call_response(name: &str, cost: f64) -> MockResponse {
     tool_calls_response(&[name], cost)
 }
 
+#[requires(!name.trim().is_empty())]
+#[requires(cost.is_finite() && cost >= 0.0)]
+#[requires(cached_tokens <= 11)]
+#[ensures(ret.status == 200)]
+fn cached_tool_call_response(
+    name: &str,
+    cost: f64,
+    cached_tokens: u64,
+    cache_write_tokens: u64,
+) -> MockResponse {
+    let mut response = tool_call_response(name, cost);
+    response.body["usage"]["prompt_tokens_details"] = json!({
+        "cached_tokens": cached_tokens,
+    });
+    response.body["usage"]["cache_write_tokens"] = json!(cache_write_tokens);
+    response
+}
+
 #[requires(!names.is_empty() && names.iter().all(|name| !name.trim().is_empty()))]
 #[requires(cost.is_finite() && cost >= 0.0)]
 #[ensures(ret.status == 200)]
@@ -173,6 +191,8 @@ fn tool_calls_response(names: &[&str], cost: f64) -> MockResponse {
                 "prompt_tokens": 11,
                 "completion_tokens": 7,
                 "total_tokens": 18,
+                "prompt_tokens_details": null,
+                "cache_write_tokens": null,
                 "cost": cost
             }
         }),
@@ -316,10 +336,52 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     let usage = conversation.take_pending_usage();
     assert_eq!(usage.len(), 1);
     assert_eq!(usage[0].cost, 0.125);
+    assert_eq!(usage[0].cached_tokens, None);
+    assert_eq!(usage[0].cache_write_tokens, None);
     assert!(conversation.take_pending_usage().is_empty());
     let captured = server.finish();
     assert_eq!(captured[0].body["tool_choice"], "required");
     assert_eq!(captured[0].body["usage"], json!({ "include": true }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn provider_cache_usage_normalizes_and_round_trips_through_record_json() {
+    let server = MockServer::start(vec![cached_tool_call_response("alpha", 0.01, 8, 3)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let usage = conversation.take_pending_usage();
+    assert_eq!(usage.len(), 1);
+    assert_eq!(usage[0].cached_tokens, Some(8));
+    assert_eq!(usage[0].cache_write_tokens, Some(3));
+    assert_eq!(conversation.usage().cached_tokens, 8);
+    assert_eq!(conversation.usage().cache_write_tokens, 3);
+    assert_eq!(conversation.usage().provider_calls, 1);
+    assert_eq!(conversation.usage().cache_hit_calls, 1);
+    assert_eq!(conversation.usage().cache_efficiency(), Some(8.0 / 11.0));
+    assert_eq!(conversation.usage().cache_hit_rate(), Some(1.0));
+
+    let record_json = serde_json::to_value(&usage[0]).expect("usage record serializes");
+    assert_eq!(record_json["cached_tokens"], 8);
+    assert_eq!(record_json["cache_write_tokens"], 3);
+    assert!(record_json.get("prompt_tokens_details").is_none());
+    let round_tripped: xarsnu::Usage =
+        serde_json::from_value(record_json).expect("usage record deserializes");
+    assert_eq!(round_tripped, usage[0]);
+
+    assert_eq!(server.finish().len(), 1);
 }
 
 #[test]

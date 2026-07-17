@@ -221,6 +221,7 @@ impl ChatMessage {
 /// Usage reported for one non-streaming completion.
 #[invariant(cost.is_finite() && *cost >= 0.0, "reported cost must be finite and nonnegative")]
 #[invariant(prompt_tokens.checked_add(*completion_tokens) == Some(*total_tokens), "total tokens must equal prompt plus completion tokens")]
+#[invariant(cached_tokens.as_ref().is_none_or(|tokens| *tokens <= *prompt_tokens), "cached tokens cannot exceed prompt tokens")]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
     #[serde(default)]
@@ -229,6 +230,10 @@ pub struct Usage {
     pub completion_tokens: u64,
     #[serde(default)]
     pub total_tokens: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cached_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_write_tokens: Option<u64>,
     #[serde(default)]
     pub cost: f64,
 }
@@ -243,6 +248,10 @@ pub struct UsageTotals {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
+    pub cached_tokens: u64,
+    pub cache_write_tokens: u64,
+    pub provider_calls: u64,
+    pub cache_hit_calls: u64,
     pub cost_usd: f64,
 }
 
@@ -256,7 +265,33 @@ impl UsageTotals {
             .completion_tokens
             .saturating_add(usage.completion_tokens);
         self.total_tokens = self.total_tokens.saturating_add(usage.total_tokens);
+        self.cached_tokens = self
+            .cached_tokens
+            .saturating_add(usage.cached_tokens.unwrap_or(0));
+        self.cache_write_tokens = self
+            .cache_write_tokens
+            .saturating_add(usage.cache_write_tokens.unwrap_or(0));
+        self.provider_calls = self.provider_calls.saturating_add(1);
+        if usage.cached_tokens.unwrap_or(0) > 0 {
+            self.cache_hit_calls = self.cache_hit_calls.saturating_add(1);
+        }
         self.cost_usd += usage.cost;
+    }
+
+    /// Fraction of prompt tokens served from cache, when prompt usage exists.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self.prompt_tokens == 0))]
+    #[ensures(ret.is_none_or(|rate| (0.0..=1.0).contains(&rate)))]
+    pub fn cache_efficiency(&self) -> Option<f64> {
+        (self.prompt_tokens > 0).then(|| self.cached_tokens as f64 / self.prompt_tokens as f64)
+    }
+
+    /// Fraction of provider calls reporting at least one cached prompt token.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self.provider_calls == 0))]
+    #[ensures(ret.is_none_or(|rate| (0.0..=1.0).contains(&rate)))]
+    pub fn cache_hit_rate(&self) -> Option<f64> {
+        (self.provider_calls > 0).then(|| self.cache_hit_calls as f64 / self.provider_calls as f64)
     }
 }
 
@@ -587,6 +622,7 @@ impl OpenRouterClient {
                         message: error.to_string(),
                     }
                 })?;
+            let usage = wire.usage.into_usage()?;
             let choice = wire.choices.into_iter().next().ok_or_else(|| {
                 OpenRouterError::InvalidResponse {
                     message: "OpenRouter returned no completion choices".to_owned(),
@@ -602,7 +638,7 @@ impl OpenRouterClient {
             return Ok(Completion {
                 content,
                 tool_calls: choice.message.tool_calls,
-                usage: wire.usage,
+                usage,
             });
         }
     }
@@ -1145,7 +1181,52 @@ struct CompletionUsageRequest {
 struct CompletionResponse {
     choices: Vec<CompletionChoice>,
     #[serde(default)]
-    usage: Usage,
+    usage: ProviderUsage,
+}
+
+/// OpenRouter's provider response shape before transcript normalization.
+#[invariant(true, "provider data is validated while converting into Usage")]
+#[derive(Debug, Default, Deserialize)]
+struct ProviderUsage {
+    #[serde(default)]
+    prompt_tokens: u64,
+    #[serde(default)]
+    completion_tokens: u64,
+    #[serde(default)]
+    total_tokens: u64,
+    #[serde(default)]
+    prompt_tokens_details: Option<PromptTokensDetails>,
+    #[serde(default)]
+    cache_write_tokens: Option<u64>,
+    #[serde(default)]
+    cost: f64,
+}
+
+impl ProviderUsage {
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn into_usage(self) -> Result<Usage, OpenRouterError> {
+        Usage::try_from_data(bityzba::data!(Usage {
+            prompt_tokens: self.prompt_tokens,
+            completion_tokens: self.completion_tokens,
+            total_tokens: self.total_tokens,
+            cached_tokens: self
+                .prompt_tokens_details
+                .and_then(|details| details.cached_tokens),
+            cache_write_tokens: self.cache_write_tokens,
+            cost: self.cost,
+        }))
+        .map_err(|error| OpenRouterError::InvalidResponse {
+            message: error.to_string(),
+        })
+    }
+}
+
+#[invariant(true, "provider data is validated while converting into Usage")]
+#[derive(Debug, Default, Deserialize)]
+struct PromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: Option<u64>,
 }
 
 #[invariant(true)]
