@@ -759,8 +759,9 @@ fn completion_to_lsp(
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
             range: lsp_range(range),
             // Pause periods are pronunciation/rendering concerns. Completion
-            // inserts only the morphology word chosen by the user.
-            new_text: label,
+            // inserts the morphology word and any separator required by its
+            // cursor interpretation.
+            new_text: item.replacement_text,
         })),
         data: Some(json!({ (COMPLETION_DATA_WORD): item.documentation.word() })),
         ..lsp_types::CompletionItem::default()

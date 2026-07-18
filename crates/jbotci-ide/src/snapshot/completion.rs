@@ -134,11 +134,14 @@ impl CompletionDocumentationHandle {
 
 /// One completion candidate in document source coordinates.
 #[invariant(!label.is_empty())]
+#[invariant(!replacement_text.is_empty())]
+#[invariant(replacement_text == label || replacement_text.strip_prefix(' ').is_some_and(|text| text == label.as_str()))]
 #[invariant(replacement_span.byte_start <= replacement_span.byte_end)]
 #[invariant(replacement_span.char_start <= replacement_span.char_end)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompletionItem {
     pub label: String,
+    pub replacement_text: String,
     pub kind: CompletionKind,
     pub interpretation: CompletionInterpretation,
     pub provenance: CompletionProvenance,
@@ -171,6 +174,8 @@ enum CursorCompletionContext {
 // parameter, so the validated wrapper never needs interior mutation.
 #[invariant(replacement_span.byte_end <= snapshot.text.len())]
 #[invariant(replacement_span.char_end <= snapshot.line_index.char_len())]
+#[invariant(!*insert_leading_space || (*interpretation == CompletionInterpretation::Continue && replacement_span.byte_start == replacement_span.byte_end && replacement_span.char_start == replacement_span.char_end))]
+#[invariant(!*insert_leading_space || (snapshot.text[..replacement_span.byte_start].chars().next_back().is_some_and(is_word_forming_character) && snapshot.text[replacement_span.byte_end..].chars().next().is_none_or(|value| !is_word_forming_character(value))))]
 struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     snapshot: &'snapshot DocumentSnapshot,
     dictionary: &'dictionary Dictionary<'entries>,
@@ -178,6 +183,7 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     cancellation: &'cancellation CompletionCancellationToken,
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
+    insert_leading_space: bool,
     normalized_prefix: String,
     suffix_consistent_labels: BTreeSet<String>,
 }
@@ -444,6 +450,16 @@ impl DocumentSnapshot {
             )
             .map(|cmavo| normalize_lookup_query(cmavo.canonical_text()))
             .collect();
+        let insert_leading_space = interpretation == CompletionInterpretation::Continue
+            && replacement_span.byte_start == replacement_span.byte_end
+            && self.text[..replacement_span.byte_start]
+                .chars()
+                .next_back()
+                .is_some_and(is_word_forming_character)
+            && self.text[replacement_span.byte_end..]
+                .chars()
+                .next()
+                .is_none_or(|value| !is_word_forming_character(value));
         let completion_context = new!(CompletionContext {
             snapshot: self,
             dictionary,
@@ -451,6 +467,7 @@ impl DocumentSnapshot {
             cancellation,
             interpretation,
             replacement_span,
+            insert_leading_space,
             normalized_prefix: normalize_lookup_query(prefix),
             suffix_consistent_labels,
         });
@@ -540,8 +557,21 @@ impl DocumentSnapshot {
     #[requires(!label.is_empty())]
     #[requires(replacement_span.byte_end <= self.text.len())]
     #[requires(replacement_span.char_end <= self.line_index.char_len())]
+    #[requires(!insert_leading_space || (replacement_span.byte_start == replacement_span.byte_end && replacement_span.char_start == replacement_span.char_end && self.text[..replacement_span.byte_start].chars().next_back().is_some_and(is_word_forming_character) && self.text[replacement_span.byte_end..].chars().next().is_none_or(|value| !is_word_forming_character(value))))]
     #[ensures(true)]
-    fn completion_candidate_surfaces(&self, label: &str, replacement_span: &SourceSpan) -> bool {
+    fn completion_candidate_surfaces(
+        &self,
+        label: &str,
+        replacement_span: &SourceSpan,
+        insert_leading_space: bool,
+    ) -> bool {
+        // A leading ASCII space separates the inserted word from the completed
+        // word on the left by construction. `insert_leading_space` is selected
+        // only at a zero-width cut whose right side is already separated, so
+        // no candidate-specific morphology parse can reject this edit.
+        if insert_leading_space {
+            return true;
+        }
         let mut byte_start = replacement_span.byte_start;
         for (byte_offset, value) in self.text[..replacement_span.byte_start]
             .char_indices()
@@ -831,14 +861,24 @@ impl CompletionContext<'_, '_, '_, '_> {
         let normalized_label = normalize_lookup_query(label);
         if normalized_label.is_empty()
             || !normalized_label.starts_with(&self.normalized_prefix)
-            || !self
-                .snapshot
-                .completion_candidate_surfaces(label, &self.replacement_span)
+            || !self.snapshot.completion_candidate_surfaces(
+                label,
+                &self.replacement_span,
+                self.insert_leading_space,
+            )
         {
             return;
         }
 
         let suffix_consistent = self.suffix_consistent_labels.contains(&normalized_label);
+        let replacement_text = if self.insert_leading_space {
+            let mut text = String::with_capacity(label.len() + 1);
+            text.push(' ');
+            text.push_str(label);
+            text
+        } else {
+            label.to_owned()
+        };
         let key = (
             self.interpretation.sort_rank(),
             normalized_label,
@@ -856,6 +896,7 @@ impl CompletionContext<'_, '_, '_, '_> {
             key,
             new!(CompletionItem {
                 label: label.to_owned(),
+                replacement_text,
                 kind,
                 interpretation: self.interpretation,
                 provenance: provenance.clone(),
@@ -1237,6 +1278,119 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_sruma_end_of_word_completion(
+        grammar_time_limit: Duration,
+        literal_time_limit: Option<Duration>,
+    ) {
+        let marked = ".i la prux. ba'o sruma| lo du'u le ckule cipra ku frili ra";
+        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let text = marked.replacen('|', "", 1);
+        let snapshot = DocumentSnapshot::new(text, 1);
+        let started = Instant::now();
+        let items = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
+        let elapsed = started.elapsed();
+
+        let sruma_start = marked
+            .find("sruma")
+            .expect("fixture contains the completed word");
+        let sruma_start = marked[..sruma_start].chars().count();
+        assert!(
+            items.iter().any(|item| {
+                item.label == "sruma"
+                    && item.interpretation == CompletionInterpretation::Extend
+                    && item.replacement_span.char_start == sruma_start
+                    && item.replacement_span.char_end == cursor
+            }),
+            "the completed word itself must remain available as Extend: {items:#?}",
+        );
+
+        let control = completions_at_marker_with_grammar_time_limit(
+            ".i la prux. ba'o sruma |",
+            grammar_time_limit,
+        );
+        let continuation_signatures = |candidates: &[CompletionItem]| {
+            candidates
+                .iter()
+                .filter(|item| item.interpretation == CompletionInterpretation::Continue)
+                .map(|item| (item.label.clone(), item.provenance.clone()))
+                .collect::<BTreeSet<_>>()
+        };
+        let actual_continuations = continuation_signatures(&items);
+        let control_continuations = continuation_signatures(&control);
+        assert!(
+            control_continuations.is_subset(&actual_continuations),
+            "the adjacent completed-word cut must offer the full grammar Continue set from the equivalent separated cut: missing={:?}",
+            control_continuations
+                .difference(&actual_continuations)
+                .take(20)
+                .collect::<Vec<_>>(),
+        );
+        assert!(
+            items.iter().any(|item| {
+                item.interpretation == CompletionInterpretation::Continue
+                    && item.kind == CompletionKind::Brivla
+                    && item.replacement_text.starts_with(' ')
+            }),
+            "the Continue leg must include usable, separated content-word edits",
+        );
+        if let Some(limit) = literal_time_limit {
+            assert!(
+                elapsed < limit,
+                "completed-word completion took {elapsed:?}, limit {limit:?}",
+            );
+        }
+    }
+
+    // Contract instrumentation and shared CI timing are not representative of
+    // the production wall-clock budget. Those configurations run the semantic
+    // twin below with an ample grammar limit; local production builds enforce
+    // the interactive limit as well.
+    #[cfg(not(feature = "expensive_contracts"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sruma_end_of_word_offers_extend_and_full_continue_within_budget() {
+        let assert_literal_boundary = std::env::var_os("CI").is_none();
+        let grammar_time_limit = if assert_literal_boundary {
+            COMPLETION_GRAMMAR_TIME_LIMIT
+        } else {
+            Duration::from_secs(30)
+        };
+        assert_sruma_end_of_word_completion(
+            grammar_time_limit,
+            assert_literal_boundary.then_some(Duration::from_millis(150)),
+        );
+    }
+
+    #[cfg(feature = "expensive_contracts")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sruma_end_of_word_offers_extend_and_full_continue_with_instrumentation() {
+        assert_sruma_end_of_word_completion(Duration::from_secs(30), None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bahe_prefixed_partial_word_offers_brivla() {
+        let items = completions_at_marker(
+            ".i mi pensi .ibo li'adai lo nu ba'e f|anmo ciska le valsi kei narmipri se mukti .i da na nonseljmi",
+        );
+
+        assert!(
+            items.iter().any(|item| {
+                item.label == "fanmo"
+                    && item.kind == CompletionKind::Brivla
+                    && item.interpretation == CompletionInterpretation::Extend
+            }),
+            "the parser-accepted brivla after BAhE must be offered: {items:#?}",
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1399,22 +1553,29 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn morphology_filter_excludes_candidates_that_would_fuse() {
+    fn adjacent_continue_inserts_a_separator_and_preserves_the_full_set() {
         let separated = completions_at_marker("mi |")
             .into_iter()
             .filter(|item| item.interpretation == CompletionInterpretation::Continue)
             .map(|item| item.label.clone())
             .collect::<BTreeSet<_>>();
-        let attached = completions_at_marker("mi|")
-            .into_iter()
+        let attached_items = completions_at_marker("mi|");
+        let attached = attached_items
+            .iter()
             .filter(|item| item.interpretation == CompletionInterpretation::Continue)
             .map(|item| item.label.clone())
             .collect::<BTreeSet<_>>();
-        let excluded = separated.difference(&attached).collect::<Vec<_>>();
 
+        assert_eq!(
+            attached, separated,
+            "the adjacent cut must preserve the separated cut's full Continue set",
+        );
         assert!(
-            !excluded.is_empty(),
-            "at least one grammar-valid candidate must be rejected when it fuses with mi: {excluded:?}",
+            attached_items
+                .iter()
+                .filter(|item| item.interpretation == CompletionInterpretation::Continue)
+                .all(|item| item.replacement_text == format!(" {}", item.label)),
+            "every adjacent Continue edit must insert its own separator",
         );
     }
 
@@ -1457,6 +1618,7 @@ mod tests {
             cancellation: &cancellation,
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
+            insert_leading_space: false,
             normalized_prefix: String::new(),
             suffix_consistent_labels: BTreeSet::new(),
         });
@@ -1486,6 +1648,7 @@ mod tests {
             cancellation: &cancellation,
             interpretation: CompletionInterpretation::Extend,
             replacement_span,
+            insert_leading_space: false,
             normalized_prefix: normalize_lookup_query("l"),
             suffix_consistent_labels: BTreeSet::new(),
         });

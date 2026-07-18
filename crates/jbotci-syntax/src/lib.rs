@@ -3255,6 +3255,43 @@ mod tests {
         ));
     }
 
+    #[requires(!prefix.is_empty())]
+    #[requires(!accepted_word.is_empty())]
+    #[ensures(true)]
+    fn assert_parser_accepted_word_category_is_offered(
+        prefix: &str,
+        accepted_word: &str,
+        category: SyntaxWordCategory,
+    ) {
+        let complete_source = format!("{prefix} {accepted_word}");
+        let complete_words = jbotci_morphology::segment_words_with_modifiers(&complete_source)
+            .expect("the completeness witness has valid morphology");
+        parse_syntax_tree(&complete_words).unwrap_or_else(|error| {
+            panic!("{complete_source:?} must be a parser-accepted completeness witness: {error}")
+        });
+
+        let expectations = expected_continuations_for(prefix);
+        let expected_category = new!(SyntaxExpectedToken::WordCategory(category));
+        assert!(
+            contains_expected_token(&expectations, &expected_category),
+            "the parser accepts {accepted_word:?} after {prefix:?}, so completion must offer {}: {expectations:#?}",
+            category.display_name(),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_accepted_selbri_words_are_offered_after_bahe_and_ordinary_cuts() {
+        for prefix in ["mi ba'e", "mi"] {
+            assert_parser_accepted_word_category_is_offered(
+                prefix,
+                "fanmo",
+                SyntaxWordCategory::SelbriWord,
+            );
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
