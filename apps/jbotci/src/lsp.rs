@@ -1,6 +1,7 @@
 //! Language Server Protocol adapter for the `jbotci lsp` stdio subcommand.
 
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -28,9 +29,9 @@ use jbotci_diagnostics::{
     diagnostic_text_segments_text,
 };
 use jbotci_ide::{
-    CompletionDocumentationHandle, CompletionItem as JbotciCompletion, CompletionKind,
-    DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, SemanticTokenKind,
-    completion_documentation_markdown,
+    CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
+    CompletionKind, DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding,
+    SemanticTokenKind, completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde_json::json;
@@ -42,6 +43,7 @@ const DIAGNOSTIC_IDENTIFIER: &str = "jbotci";
 const SERVER_NAME: &str = "jbotci";
 const COMPLETION_DATA_WORD: &str = "jbotciWord";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
+const MIN_LSP_REQUEST_CONCURRENCY: NonZeroUsize = NonZeroUsize::new(2).unwrap();
 
 type SnapshotPublisher = Arc<dyn Fn(Url, i32, Arc<DocumentSnapshot>) + Send + Sync + 'static>;
 
@@ -71,6 +73,20 @@ struct DocumentState {
     latest_snapshot: Option<Arc<DocumentSnapshot>>,
     completed: watch::Sender<Option<Arc<DocumentSnapshot>>>,
     pending_rebuild: Option<AbortHandle>,
+}
+
+/// Cancels a detached blocking completion when its protocol future is dropped.
+#[invariant(true)]
+struct CompletionCancellationGuard {
+    cancellation: CompletionCancellationToken,
+}
+
+impl Drop for CompletionCancellationGuard {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        self.cancellation.cancel();
+    }
 }
 
 impl DocumentStore {
@@ -436,7 +452,13 @@ async fn run_server() -> Result<()> {
         ServiceBuilder::new()
             .layer(LifecycleLayer::default())
             .layer(async_lsp::panic::CatchUnwindLayer::default())
-            .layer(async_lsp::concurrency::ConcurrencyLayer::default())
+            // One blocking analysis request must never consume the only
+            // request slot and prevent shutdown on single-core hosts.
+            .layer(async_lsp::concurrency::ConcurrencyLayer::new(
+                std::thread::available_parallelism()
+                    .unwrap_or(MIN_LSP_REQUEST_CONCURRENCY)
+                    .max(MIN_LSP_REQUEST_CONCURRENCY),
+            ))
             .service(router)
     });
 
@@ -639,12 +661,24 @@ async fn document_completion(
         Position::new(position.line as usize, position.character as usize),
         encoding,
     );
-    let items = snapshot
-        .completions(char_offset)
-        .into_iter()
-        .map(|item| completion_to_lsp(&snapshot, encoding, item))
-        .collect();
-    Some(CompletionResponse::Array(items))
+    let cancellation = CompletionCancellationToken::new();
+    let _cancel_on_drop = CompletionCancellationGuard {
+        cancellation: cancellation.clone(),
+    };
+    tokio::task::spawn_blocking(move || {
+        let items = snapshot.completions_cancellable(char_offset, &cancellation);
+        if cancellation.is_cancelled() {
+            return None;
+        }
+        let items = items
+            .into_iter()
+            .map(|item| completion_to_lsp(&snapshot, encoding, item))
+            .collect();
+        Some(CompletionResponse::Array(items))
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -956,6 +990,20 @@ fn lsp_range(range: jbotci_ide::PositionRange) -> Range {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dropped_completion_request_cancels_its_worker() {
+        let cancellation = CompletionCancellationToken::new();
+        {
+            let _guard = CompletionCancellationGuard {
+                cancellation: cancellation.clone(),
+            };
+            assert!(!cancellation.is_cancelled());
+        }
+        assert!(cancellation.is_cancelled());
+    }
 
     #[tokio::test(flavor = "current_thread")]
     #[requires(true)]
