@@ -5,7 +5,7 @@ use std::fmt::{self, Write as _};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
@@ -216,15 +216,15 @@ struct LoadedRun {
 ///
 /// Loading and validation happen before the factory is called. Injection keeps
 /// the conductor offline-testable; production passes the environment-backed
-/// OpenRouter constructor.
+/// OpenRouter constructor and receives the validated run timeout.
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run<F>(config_path: &Path, client_factory: F) -> Result<RunSummary, RunError>
 where
-    F: FnOnce() -> Result<OpenRouterClient, OpenRouterError>,
+    F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
 {
     let loaded = load(config_path)?;
-    let client = client_factory().map_err(|error| {
+    let client = client_factory(loaded.config.client.http_timeout()).map_err(|error| {
         new!(RunError::Client {
             message: error.to_string(),
         })

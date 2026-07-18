@@ -1295,6 +1295,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                 .collect(),
             scenario: "schedule-negotiation-1.toml".to_owned(),
             caps: caps(3, 2, 6),
+            client: xarsnu::ClientConfig::default(),
             tersmu_format: TersmuFormat::TreeProj,
         }),
         &scenario,

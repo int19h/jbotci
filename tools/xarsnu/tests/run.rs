@@ -208,6 +208,26 @@ fn tool_response(id: usize, name: &str, arguments: Value) -> MockResponse {
 }
 
 #[requires(id > 0)]
+#[requires(!name.trim().is_empty())]
+#[requires(arguments.is_object())]
+#[requires(reasoning_tokens <= 2)]
+#[ensures(ret.status == 200)]
+fn reasoning_tool_response(
+    id: usize,
+    name: &str,
+    arguments: Value,
+    reasoning_tokens: u64,
+) -> MockResponse {
+    let response = tool_response(id, name, arguments);
+    let mut body = response.body.clone();
+    body["choices"][0]["message"]["reasoning"] = json!("private mock reasoning");
+    body["usage"]["completion_tokens_details"] = json!({
+        "reasoning_tokens": reasoning_tokens,
+    });
+    response.with_data(bityzba::data! { body: body })
+}
+
+#[requires(id > 0)]
 #[requires(arguments.is_object())]
 #[requires(!required_message_substring.trim().is_empty())]
 #[ensures(ret.status == 200)]
@@ -236,10 +256,11 @@ fn runtime_failure_response() -> MockResponse {
 fn complete_dialog_responses() -> Vec<MockResponse> {
     let wrong_answer = || json!({ "day": "tuesday", "start_minute": 600, "duration_minutes": 60 });
     vec![
-        tool_response(
+        reasoning_tool_response(
             1,
             "register_intent",
             json!({ "meaning_en": "I can meet on Tuesday." }),
+            2,
         ),
         tool_response(2, "submit_lojban", json!({ "text": "mi cu" })),
         tool_response(3, "submit_lojban", json!({ "text": "mi klama" })),
@@ -381,11 +402,20 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         &scenario_path,
     )
     .expect("copy local scenario");
-    let config_path = write_config(&directory, &config_source("scenario.toml", "bob"));
+    let config_source = config_source("scenario.toml", "bob")
+        .replace("[caps]", "[client]\nhttp-timeout-seconds = 90\n\n[caps]");
+    let config_path = write_config(&directory, &config_source);
     let server = MockServer::start(complete_dialog_responses());
 
-    let summary =
-        run(&config_path, || Ok(client(server.base_url.clone()))).expect("complete live run");
+    let summary = run(&config_path, |timeout| {
+        assert_eq!(
+            timeout,
+            Duration::from_secs(90),
+            "the run-configured timeout must reach the client factory"
+        );
+        Ok(client(server.base_url.clone()))
+    })
+    .expect("complete live run");
 
     assert_eq!(
         summary
@@ -418,10 +448,25 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
             .count(),
         2
     );
+    let reasoning_usage = records
+        .iter()
+        .find_map(|record| match record.event.as_data() {
+            ProtocolEventData::UsageRecorded { usage, .. } if usage.reasoning_present => {
+                Some(usage)
+            }
+            _ => None,
+        })
+        .expect("reasoning usage reaches the transcript");
+    assert_eq!(reasoning_usage.reasoning_tokens, Some(2));
+    let transcript = fs::read_to_string(&summary.transcript_path).expect("read transcript JSONL");
+    assert!(transcript.contains("\"reasoning_present\":true"));
+    assert!(transcript.contains("\"reasoning_tokens\":2"));
     let report = report_file(&summary.transcript_path).expect("offline report renders");
     assert!(report.contains("Aggregate status: **failure**"));
     assert!(report.contains("### Blind interpretation"));
     assert!(report.contains("**Gate result:** rejected"));
+    assert!(report.contains("Reasoning field present: true; reasoning tokens: 2"));
+    assert!(report.contains("Reasoning totals: 2 tokens across 1 provider calls"));
 
     let captured = server.finish();
     assert_eq!(captured.len(), 17);
@@ -502,7 +547,7 @@ fn participant_mismatch_and_missing_scenario_are_typed() {
     let fallback = config_source("schedule-negotiation-1.toml", "carol");
     let config_path = write_config(&directory, &fallback);
     let factory_called = Cell::new(false);
-    let error = run(&config_path, || {
+    let error = run(&config_path, |_| {
         factory_called.set(true);
         Ok(client("http://127.0.0.1:1".to_owned()))
     })
@@ -519,8 +564,10 @@ fn participant_mismatch_and_missing_scenario_are_typed() {
     assert!(error.to_string().contains("`bob`"));
 
     fs::write(&config_path, config_source("does-not-exist.toml", "bob")).expect("replace config");
-    let error = run(&config_path, || Ok(client("http://127.0.0.1:1".to_owned())))
-        .expect_err("missing scenario");
+    let error = run(&config_path, |_| {
+        Ok(client("http://127.0.0.1:1".to_owned()))
+    })
+    .expect_err("missing scenario");
     assert!(matches!(
         error.as_data(),
         RunErrorData::ScenarioNotFound { reference, searched }
@@ -550,7 +597,7 @@ fn mid_run_model_death_flushes_an_accepted_runtime_failure_transcript() {
     ]);
 
     let error =
-        run(&config_path, || Ok(client(server.base_url.clone()))).expect_err("runtime failure");
+        run(&config_path, |_| Ok(client(server.base_url.clone()))).expect_err("runtime failure");
     let transcript_path = error
         .transcript_path()
         .expect("runtime error retains transcript path")
@@ -590,7 +637,7 @@ fn config_private_brief_is_rejected_before_any_model_call() {
     let config_path = write_config(&directory, &source);
 
     let factory_called = Cell::new(false);
-    let error = run(&config_path, || {
+    let error = run(&config_path, |_| {
         factory_called.set(true);
         Ok(client("http://127.0.0.1:1".to_owned()))
     })

@@ -16,7 +16,32 @@ use crate::PromptCaching;
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
+const EMPTY_RESPONSE_CORRECTION: &str = "Your previous response supplied no visible content or tool call. Private reasoning, if any, is not received as a reply. Respond with visible content or call one of the provided tools.";
 const SKIPPED_INVALID_BATCH_CALL: &str = "This tool call was not executed because another tool call in the same response had invalid arguments.";
+
+#[requires(true)]
+#[ensures(ret == !*value)]
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+/// Whether a request or response-body failure is an explicit transport timeout.
+#[requires(true)]
+#[ensures(!ret || matches!(error, ureq::Error::Timeout(_) | ureq::Error::Io(_)))]
+fn is_retriable_transport_timeout(error: &ureq::Error) -> bool {
+    match error {
+        ureq::Error::Timeout(_) => true,
+        ureq::Error::Io(error) => error.kind() == std::io::ErrorKind::TimedOut,
+        _ => false,
+    }
+}
+
+/// Whether an OpenRouter error code denotes a transient provider condition.
+#[requires(true)]
+#[ensures(ret == (code == 408 || code == 429 || (500..=599).contains(&code)))]
+fn is_transient_provider_code(code: u16) -> bool {
+    code == 408 || code == 429 || (500..=599).contains(&code)
+}
 
 /// Whether a model currently requires explicit provider prompt-cache breakpoints.
 ///
@@ -222,6 +247,7 @@ impl ChatMessage {
 #[invariant(cost.is_finite() && *cost >= 0.0, "reported cost must be finite and nonnegative")]
 #[invariant(prompt_tokens.checked_add(*completion_tokens) == Some(*total_tokens), "total tokens must equal prompt plus completion tokens")]
 #[invariant(cached_tokens.as_ref().is_none_or(|tokens| *tokens <= *prompt_tokens), "cached tokens cannot exceed prompt tokens")]
+#[invariant(reasoning_tokens.as_ref().is_none_or(|tokens| *tokens <= *completion_tokens), "reasoning tokens cannot exceed completion tokens")]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
     #[serde(default)]
@@ -234,6 +260,10 @@ pub struct Usage {
     pub cached_tokens: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_write_tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub reasoning_present: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u64>,
     #[serde(default)]
     pub cost: f64,
 }
@@ -250,8 +280,10 @@ pub struct UsageTotals {
     pub total_tokens: u64,
     pub cached_tokens: u64,
     pub cache_write_tokens: u64,
+    pub reasoning_tokens: u64,
     pub provider_calls: u64,
     pub cache_hit_calls: u64,
+    pub reasoning_calls: u64,
     pub cost_usd: f64,
 }
 
@@ -271,9 +303,15 @@ impl UsageTotals {
         self.cache_write_tokens = self
             .cache_write_tokens
             .saturating_add(usage.cache_write_tokens.unwrap_or(0));
+        self.reasoning_tokens = self
+            .reasoning_tokens
+            .saturating_add(usage.reasoning_tokens.unwrap_or(0));
         self.provider_calls = self.provider_calls.saturating_add(1);
         if usage.cached_tokens.unwrap_or(0) > 0 {
             self.cache_hit_calls = self.cache_hit_calls.saturating_add(1);
+        }
+        if usage.reasoning_present || usage.reasoning_tokens.is_some() {
+            self.reasoning_calls = self.reasoning_calls.saturating_add(1);
         }
         self.cost_usd += usage.cost;
     }
@@ -524,6 +562,57 @@ impl OpenRouterClient {
         Ok(Self::new(OpenRouterClientConfig::from_env()?))
     }
 
+    /// Construct the real OpenRouter client with a run-configured timeout.
+    #[requires(timeout > Duration::ZERO)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn from_env_with_timeout(timeout: Duration) -> Result<Self, OpenRouterError> {
+        let config = OpenRouterClientConfig::from_env()?.with_data(bityzba::data! {
+            timeout: timeout,
+        });
+        Ok(Self::new(config))
+    }
+
+    /// Sleep for the next exponential-backoff slot when retry capacity remains.
+    #[requires(true)]
+    #[ensures(ret == (old(*retries) < self.config.retry_policy.max_retries))]
+    #[ensures(ret -> *retries == old(*retries) + 1)]
+    #[ensures(!ret -> *retries == old(*retries))]
+    fn back_off_before_retry(&self, retries: &mut usize) -> bool {
+        if *retries >= self.config.retry_policy.max_retries {
+            return false;
+        }
+        let factor = 1u32
+            .checked_shl((*retries).min(31) as u32)
+            .unwrap_or(u32::MAX);
+        let delay = self
+            .config
+            .retry_policy
+            .initial_backoff
+            .saturating_mul(factor);
+        thread::sleep(delay);
+        *retries += 1;
+        true
+    }
+
+    /// Back off after a timeout or return the typed exhaustion error.
+    #[requires(is_retriable_transport_timeout(error))]
+    #[ensures(ret.is_ok() == (old(*retries) < self.config.retry_policy.max_retries))]
+    fn back_off_after_transport_timeout(
+        &self,
+        retries: &mut usize,
+        error: &ureq::Error,
+    ) -> Result<(), OpenRouterError> {
+        let message = error.to_string();
+        if self.back_off_before_retry(retries) {
+            Ok(())
+        } else {
+            Err(OpenRouterError::TransportRetriesExhausted {
+                attempts: *retries + 1,
+                message,
+            })
+        }
+    }
+
     /// Issue one completion with the caller's exact tool list.
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
@@ -561,7 +650,7 @@ impl OpenRouterClient {
             "{}/chat/completions",
             self.config.base_url.trim_end_matches('/')
         );
-        let mut retry = 0usize;
+        let mut retries = 0usize;
         loop {
             let mut builder = self
                 .agent
@@ -575,66 +664,109 @@ impl OpenRouterClient {
                     message: format!("completion request did not serialize: {error}"),
                 }
             })?;
-            let mut response =
-                builder
-                    .send(request_body)
-                    .map_err(|error| OpenRouterError::Transport {
-                        message: error.to_string(),
-                    })?;
-            let status = response.status().as_u16();
-            if status == 429 || (500..=599).contains(&status) {
-                if retry < self.config.retry_policy.max_retries {
-                    let factor = 1u32.checked_shl(retry.min(31) as u32).unwrap_or(u32::MAX);
-                    let delay = self
-                        .config
-                        .retry_policy
-                        .initial_backoff
-                        .saturating_mul(factor);
-                    thread::sleep(delay);
-                    retry += 1;
+            let mut response = match builder.send(request_body) {
+                Ok(response) => response,
+                Err(error) if is_retriable_transport_timeout(&error) => {
+                    self.back_off_after_transport_timeout(&mut retries, &error)?;
                     continue;
                 }
-                let body = response
-                    .body_mut()
-                    .read_to_string()
-                    .unwrap_or_else(|error| format!("unable to read response body: {error}"));
+                Err(error) => {
+                    return Err(OpenRouterError::Transport {
+                        message: error.to_string(),
+                    });
+                }
+            };
+            let status = response.status().as_u16();
+            if is_transient_provider_code(status) {
+                if self.back_off_before_retry(&mut retries) {
+                    continue;
+                }
+                let body = match response.body_mut().read_to_string() {
+                    Ok(body) => body,
+                    Err(error) if is_retriable_transport_timeout(&error) => {
+                        return Err(OpenRouterError::TransportRetriesExhausted {
+                            attempts: retries + 1,
+                            message: error.to_string(),
+                        });
+                    }
+                    Err(error) => format!("unable to read response body: {error}"),
+                };
                 return Err(OpenRouterError::TransientRetriesExhausted {
-                    status,
-                    attempts: retry + 1,
-                    body,
+                    code: status,
+                    attempts: retries + 1,
+                    message: body,
                 });
             }
             if !(200..=299).contains(&status) {
-                let body = response
-                    .body_mut()
-                    .read_to_string()
-                    .unwrap_or_else(|error| format!("unable to read response body: {error}"));
+                let body = match response.body_mut().read_to_string() {
+                    Ok(body) => body,
+                    Err(error) if is_retriable_transport_timeout(&error) => {
+                        self.back_off_after_transport_timeout(&mut retries, &error)?;
+                        continue;
+                    }
+                    Err(error) => format!("unable to read response body: {error}"),
+                };
                 return Err(OpenRouterError::HttpStatus { status, body });
             }
-            let response_body = response.body_mut().read_to_string().map_err(|error| {
-                OpenRouterError::InvalidResponse {
-                    message: error.to_string(),
+            let response_body = match response.body_mut().read_to_string() {
+                Ok(body) => body,
+                Err(error) if is_retriable_transport_timeout(&error) => {
+                    self.back_off_after_transport_timeout(&mut retries, &error)?;
+                    continue;
                 }
-            })?;
-            let wire: CompletionResponse =
+                Err(error) => {
+                    return Err(OpenRouterError::InvalidResponse {
+                        message: error.to_string(),
+                    });
+                }
+            };
+            let mut wire: CompletionResponse =
                 serde_json::from_str(&response_body).map_err(|error| {
                     OpenRouterError::InvalidResponse {
                         message: error.to_string(),
                     }
                 })?;
-            let usage = wire.usage.into_usage()?;
-            let choice = wire.choices.into_iter().next().ok_or_else(|| {
-                OpenRouterError::InvalidResponse {
-                    message: "OpenRouter returned no completion choices".to_owned(),
+            let choices = match wire.choices.take() {
+                Some(choices) => choices,
+                None => {
+                    let Some(error) = wire.error.take() else {
+                        return Err(OpenRouterError::InvalidResponse {
+                            message: "OpenRouter response contained neither choices nor an error"
+                                .to_owned(),
+                        });
+                    };
+                    if error.message.trim().is_empty() {
+                        return Err(OpenRouterError::InvalidResponse {
+                            message: "OpenRouter error envelope contained an empty message"
+                                .to_owned(),
+                        });
+                    }
+                    if is_transient_provider_code(error.code) {
+                        if self.back_off_before_retry(&mut retries) {
+                            continue;
+                        }
+                        return Err(OpenRouterError::TransientRetriesExhausted {
+                            code: error.code,
+                            attempts: retries + 1,
+                            message: error.message,
+                        });
+                    }
+                    return Err(OpenRouterError::Provider {
+                        code: error.code,
+                        message: error.message,
+                    });
                 }
-            })?;
+            };
+            let choice =
+                choices
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| OpenRouterError::InvalidResponse {
+                        message: "OpenRouter returned no completion choices".to_owned(),
+                    })?;
+            let reasoning_present = choice.message.reasoning.is_some();
+            let usage = wire.usage.into_usage(reasoning_present)?;
             let content = choice.message.content.filter(|content| !content.is_empty());
-            if content.is_none() && choice.message.tool_calls.is_empty() {
-                return Err(OpenRouterError::InvalidResponse {
-                    message: "assistant response contained neither content nor tool calls"
-                        .to_owned(),
-                });
-            }
             return Ok(Completion {
                 content,
                 tool_calls: choice.message.tool_calls,
@@ -885,6 +1017,20 @@ impl ParticipantConversation {
                 tool_calls,
                 ..
             } = completion;
+            if content.is_none() && tool_calls.is_empty() {
+                if let Some(record) = abort {
+                    return Ok(new!(ModelTurn::Aborted { record }));
+                }
+                if reprompts >= client.config.max_required_tool_reprompts {
+                    return Err(OpenRouterError::RequiredToolCallExhausted {
+                        attempts: reprompts + 1,
+                    });
+                }
+                self.messages
+                    .push(ChatMessage::user(EMPTY_RESPONSE_CORRECTION.to_owned()));
+                reprompts += 1;
+                continue;
+            }
             self.messages
                 .push(ChatMessage::assistant(content.clone(), tool_calls.clone()));
             if let Some(record) = abort {
@@ -970,16 +1116,18 @@ impl ParticipantConversation {
 }
 
 /// Typed runtime failures; graceful budget stops use [`ModelTurn::Aborted`].
-#[derive(Debug, Error, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::MissingApiKey => true)]
 #[invariant(::InvalidConfiguration { .. } => true)]
 #[invariant(::Transport { .. } => true)]
+#[invariant(::TransportRetriesExhausted { .. } => true)]
 #[invariant(::HttpStatus { .. } => true)]
 #[invariant(::TransientRetriesExhausted { .. } => true)]
+#[invariant(::Provider { .. } => true)]
 #[invariant(::InvalidResponse { .. } => true)]
 #[invariant(::InvalidToolCall { .. } => true)]
 #[invariant(::RequiredToolCallExhausted { .. } => true)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum OpenRouterError {
     #[error("OPENROUTER_API_KEY is not set")]
     MissingApiKey,
@@ -987,14 +1135,18 @@ pub enum OpenRouterError {
     InvalidConfiguration { message: String },
     #[error("OpenRouter transport failed: {message}")]
     Transport { message: String },
+    #[error("OpenRouter transport timeout exhausted after {attempts} attempts: {message}")]
+    TransportRetriesExhausted { attempts: usize, message: String },
     #[error("OpenRouter returned HTTP {status}: {body}")]
     HttpStatus { status: u16, body: String },
-    #[error("OpenRouter transient HTTP {status} exhausted after {attempts} attempts: {body}")]
+    #[error("OpenRouter transient error {code} exhausted after {attempts} attempts: {message}")]
     TransientRetriesExhausted {
-        status: u16,
+        code: u16,
         attempts: usize,
-        body: String,
+        message: String,
     },
+    #[error("OpenRouter provider error {code}: {message}")]
+    Provider { code: u16, message: String },
     #[error("invalid OpenRouter response: {message}")]
     InvalidResponse { message: String },
     #[error("invalid call to tool `{tool_name}`: {message}")]
@@ -1201,9 +1353,22 @@ struct CompletionUsageRequest {
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
 struct CompletionResponse {
-    choices: Vec<CompletionChoice>,
+    #[serde(default)]
+    choices: Option<Vec<CompletionChoice>>,
     #[serde(default)]
     usage: ProviderUsage,
+    #[serde(default)]
+    error: Option<ProviderError>,
+}
+
+/// Error body returned after OpenRouter has already committed HTTP success.
+#[invariant(true, "provider fields are validated before classification")]
+#[derive(Debug, Deserialize)]
+struct ProviderError {
+    code: u16,
+    message: String,
+    #[serde(default, rename = "metadata")]
+    _metadata: Option<Value>,
 }
 
 /// OpenRouter's provider response shape before transcript normalization.
@@ -1219,6 +1384,8 @@ struct ProviderUsage {
     #[serde(default)]
     prompt_tokens_details: Option<PromptTokensDetails>,
     #[serde(default)]
+    completion_tokens_details: Option<CompletionTokensDetails>,
+    #[serde(default)]
     cache_write_tokens: Option<u64>,
     #[serde(default)]
     cost: f64,
@@ -1227,7 +1394,7 @@ struct ProviderUsage {
 impl ProviderUsage {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn into_usage(self) -> Result<Usage, OpenRouterError> {
+    fn into_usage(self, reasoning_present: bool) -> Result<Usage, OpenRouterError> {
         Usage::try_from_data(bityzba::data!(Usage {
             prompt_tokens: self.prompt_tokens,
             completion_tokens: self.completion_tokens,
@@ -1236,6 +1403,10 @@ impl ProviderUsage {
                 .prompt_tokens_details
                 .and_then(|details| details.cached_tokens),
             cache_write_tokens: self.cache_write_tokens,
+            reasoning_present,
+            reasoning_tokens: self
+                .completion_tokens_details
+                .and_then(|details| details.reasoning_tokens),
             cost: self.cost,
         }))
         .map_err(|error| OpenRouterError::InvalidResponse {
@@ -1251,6 +1422,13 @@ struct PromptTokensDetails {
     cached_tokens: Option<u64>,
 }
 
+#[invariant(true, "provider data is validated while converting into Usage")]
+#[derive(Debug, Default, Deserialize)]
+struct CompletionTokensDetails {
+    #[serde(default)]
+    reasoning_tokens: Option<u64>,
+}
+
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
 struct CompletionChoice {
@@ -1261,6 +1439,8 @@ struct CompletionChoice {
 #[derive(Debug, Deserialize)]
 struct CompletionMessage {
     content: Option<String>,
+    #[serde(default)]
+    reasoning: Option<Value>,
     #[serde(default)]
     tool_calls: Vec<ToolCall>,
 }

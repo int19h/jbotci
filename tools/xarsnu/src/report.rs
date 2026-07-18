@@ -465,6 +465,18 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     usage.cache_write_tokens.unwrap_or(0),
                 )
                 .expect("writing to String cannot fail");
+                if usage.reasoning_present || usage.reasoning_tokens.is_some() {
+                    writeln!(
+                        report,
+                        "Reasoning field present: {}; reasoning tokens: {}\n",
+                        usage.reasoning_present,
+                        usage.reasoning_tokens.map_or_else(
+                            || "not reported".to_owned(),
+                            |tokens| tokens.to_string(),
+                        ),
+                    )
+                    .expect("writing to String cannot fail");
+                }
                 summary
                     .usage_by_participant
                     .entry(participant.clone())
@@ -668,6 +680,14 @@ fn render_cache_observability(report: &mut String, usage: &UsageTotals) {
         usage.provider_calls,
     )
     .expect("writing to String cannot fail");
+    if usage.reasoning_calls > 0 || usage.reasoning_tokens > 0 {
+        writeln!(
+            report,
+            "  - Reasoning totals: {} tokens across {} provider calls",
+            usage.reasoning_tokens, usage.reasoning_calls,
+        )
+        .expect("writing to String cannot fail");
+    }
 }
 
 #[requires(rate.is_none_or(|value| value.is_finite() && (0.0..=1.0).contains(&value)))]
