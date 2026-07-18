@@ -165,7 +165,7 @@ pub(super) fn render_gimfihi_controls(
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     mut gimfihi_committed_state: Signal<GimfihiWebState>,
     mut gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
-    mut ipa_help_open: Signal<bool>,
+    ipa_help_open: Signal<bool>,
     state: &GimfihiWebState,
 ) -> Element {
     let current_preset = state
@@ -343,7 +343,7 @@ pub(super) fn render_gimfihi_controls(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn render_gimfihi_ipa_help_modal(mut ipa_help_open: Signal<bool>) -> Element {
+pub(super) fn render_gimfihi_ipa_help_modal(ipa_help_open: Signal<bool>) -> Element {
     rsx! {
         div { class: "gimfihi-ipa-help-overlay",
             div {
