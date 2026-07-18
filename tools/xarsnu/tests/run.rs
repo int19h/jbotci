@@ -489,6 +489,23 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     for index in [4, 5, 6, 7, 8, 15, 16] {
         assert_eq!(captured[index].body["tool_choice"], "required");
     }
+    let confirm_request = &captured[3].body;
+    assert!(request_offers_tool(confirm_request, "confirm_meaning"));
+    for required_precision_language in [
+        "matches=true only when the tersmu rendering captures the registered intent precisely",
+        "every predicate relation as rendered, under its dictionary place structure",
+        "Calques or idioms from other languages (malgli) are mismatches",
+        "physically chases another",
+        "call matches=false and recompose",
+        "the gist is right are not the standard",
+        "the rendering is the meaning that will be scored",
+        "not for waiving a known mismatch",
+    ] {
+        assert!(
+            request_has_message(confirm_request, required_precision_language),
+            "confirm-phase request omitted `{required_precision_language}`"
+        );
+    }
     let first_messages = captured[0].body["messages"]
         .as_array()
         .expect("request messages");
