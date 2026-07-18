@@ -118,7 +118,7 @@ fn gimfihi_sources_for_preset_populates_rows() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn gimfihi_quick_reference_examples_match_the_live_resolver() {
+fn gimfihi_ipa_help_examples_match_the_live_resolver() {
     assert_eq!(
         gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_CAT_IPA)
             .resolved_word
@@ -131,6 +131,16 @@ fn gimfihi_quick_reference_examples_match_the_live_resolver() {
             .as_deref(),
         Some(GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN)
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_ipa_help_fine_print_distinguishes_scorers() {
+    assert!(GIMFIHI_IPA_HELP_FINE_PRINT.contains("classic scorer"));
+    assert!(GIMFIHI_IPA_HELP_FINE_PRINT.contains("nearest Lojban letter"));
+    assert!(GIMFIHI_IPA_HELP_FINE_PRINT.contains("phonetic scorer"));
+    assert!(GIMFIHI_IPA_HELP_FINE_PRINT.contains("without this reduction"));
 }
 
 #[test]
