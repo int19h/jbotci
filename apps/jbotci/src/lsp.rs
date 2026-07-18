@@ -7,21 +7,21 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use async_lsp::ClientSocket;
 use async_lsp::lsp_types::{
     self, CompletionItemKind, CompletionItemLabelDetails, CompletionOptions, CompletionResponse,
     CompletionTextEdit, DiagnosticRelatedInformation, DiagnosticServerCapabilities,
     DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentDiagnosticReportResult,
-    Documentation, FullDocumentDiagnosticReport, InitializeParams, InitializeResult, Location,
-    NumberOrString, PositionEncodingKind, PublishDiagnosticsParams, Range,
-    RelatedFullDocumentDiagnosticReport, RelatedUnchangedDocumentDiagnosticReport,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, ServerCapabilities,
-    ServerInfo, TextDocumentContentChangeEvent, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextEdit, UnchangedDocumentDiagnosticReport, Url,
-    WorkDoneProgressOptions, notification, request,
+    Documentation, FullDocumentDiagnosticReport, InitializeParams, InitializeResult, InlayHint,
+    InlayHintLabel, InlayHintOptions, InlayHintServerCapabilities, Location, NumberOrString, OneOf,
+    PositionEncodingKind, PublishDiagnosticsParams, Range, RelatedFullDocumentDiagnosticReport,
+    RelatedUnchangedDocumentDiagnosticReport, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, ServerCapabilities, ServerInfo, TextDocumentContentChangeEvent,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions, TextEdit,
+    UnchangedDocumentDiagnosticReport, Url, WorkDoneProgressOptions, notification, request,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
+use async_lsp::{ClientSocket, ErrorCode, ResponseError};
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
 use jbotci_diagnostics::{
@@ -30,10 +30,11 @@ use jbotci_diagnostics::{
 };
 use jbotci_ide::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
-    CompletionKind, DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding,
-    SemanticTokenKind, completion_documentation_markdown,
+    CompletionKind, DecorationProfile, DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position,
+    PositionEncoding, PositionRange, SemanticTokenKind, completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
+use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::watch;
 use tokio::task::AbortHandle;
@@ -53,7 +54,15 @@ struct ServerState {
     documents: DocumentStore,
     position_encoding: PositionEncoding,
     pull_diagnostics: bool,
+    structure_inlay_profile: DecorationProfile,
     snapshot_publisher: SnapshotPublisher,
+}
+
+#[invariant(true)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct ServerInitializationOptions {
+    structure_inlays: DecorationProfile,
 }
 
 #[invariant(true)]
@@ -282,24 +291,31 @@ impl ServerState {
             documents: DocumentStore::new(),
             position_encoding: PositionEncoding::Utf16,
             pull_diagnostics: true,
+            structure_inlay_profile: DecorationProfile::default(),
             snapshot_publisher: no_snapshot_publisher(),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn initialize(&mut self, params: InitializeParams) -> InitializeResult {
+    fn initialize(
+        &mut self,
+        params: InitializeParams,
+    ) -> std::result::Result<InitializeResult, ResponseError> {
         let position_encoding = negotiate_position_encoding(&params);
         let pull_diagnostics = supports_pull_diagnostics(&params);
+        let structure_inlay_profile =
+            initialization_structure_inlay_profile(params.initialization_options.as_ref())?;
         self.position_encoding = position_encoding;
         self.pull_diagnostics = pull_diagnostics;
+        self.structure_inlay_profile = structure_inlay_profile;
         self.snapshot_publisher = if pull_diagnostics {
             no_snapshot_publisher()
         } else {
             push_snapshot_publisher(self.client.clone(), position_encoding)
         };
 
-        InitializeResult {
+        Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 position_encoding: Some(lsp_position_encoding(position_encoding)),
                 text_document_sync: Some(TextDocumentSyncCapability::Options(
@@ -334,13 +350,19 @@ impl ServerState {
                     }
                     .into(),
                 ),
+                inlay_hint_provider: Some(OneOf::Right(InlayHintServerCapabilities::Options(
+                    InlayHintOptions {
+                        work_done_progress_options: WorkDoneProgressOptions::default(),
+                        resolve_provider: Some(false),
+                    },
+                ))),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
                 name: SERVER_NAME.to_owned(),
                 version: Some(env!("CARGO_PKG_VERSION").to_owned()),
             }),
-        }
+        })
     }
 
     #[requires(true)]
@@ -401,7 +423,7 @@ async fn run_server() -> Result<()> {
         router
             .request::<request::Initialize, _>(|state, params| {
                 let result = state.initialize(params);
-                async move { Ok(result) }
+                async move { result }
             })
             .request::<request::Shutdown, _>(|_, ()| async move { Ok(()) })
             .request::<request::DocumentDiagnosticRequest, _>(|state, params| {
@@ -426,6 +448,12 @@ async fn run_server() -> Result<()> {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
                 async move { Ok(document_semantic_tokens(documents, encoding, params).await) }
+            })
+            .request::<request::InlayHintRequest, _>(|state, params| {
+                let documents = state.documents.clone();
+                let encoding = state.position_encoding;
+                let profile = state.structure_inlay_profile.clone();
+                async move { document_inlay_hints(documents, encoding, profile, params).await }
             })
             .notification::<notification::Initialized>(|_, _| ControlFlow::Continue(()))
             .notification::<notification::Exit>(|_, ()| ControlFlow::Continue(()))
@@ -542,6 +570,24 @@ fn supports_pull_diagnostics(params: &InitializeParams) -> bool {
         .as_ref()
         .and_then(|text_document| text_document.diagnostic.as_ref())
         .is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS))]
+fn initialization_structure_inlay_profile(
+    initialization_options: Option<&serde_json::Value>,
+) -> std::result::Result<DecorationProfile, ResponseError> {
+    let Some(initialization_options) = initialization_options else {
+        return Ok(DecorationProfile::default());
+    };
+    serde_json::from_value::<ServerInitializationOptions>(initialization_options.clone())
+        .map(|options| options.structure_inlays)
+        .map_err(|error| {
+            ResponseError::new(
+                ErrorCode::INVALID_PARAMS,
+                format!("invalid jbotci initializationOptions: {error}"),
+            )
+        })
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -791,6 +837,61 @@ async fn document_semantic_tokens(
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS))]
+async fn document_inlay_hints(
+    documents: DocumentStore,
+    encoding: PositionEncoding,
+    profile: DecorationProfile,
+    params: lsp_types::InlayHintParams,
+) -> std::result::Result<Option<Vec<InlayHint>>, ResponseError> {
+    let start = Position::new(
+        params.range.start.line as usize,
+        params.range.start.character as usize,
+    );
+    let end = Position::new(
+        params.range.end.line as usize,
+        params.range.end.character as usize,
+    );
+    if end < start {
+        return Err(ResponseError::new(
+            ErrorCode::INVALID_PARAMS,
+            "textDocument/inlayHint range end precedes its start",
+        ));
+    }
+    let uri = params.text_document.uri;
+    let Some(snapshot) = documents.snapshot_for_current(&uri).await else {
+        return Ok(None);
+    };
+    let requested_positions = PositionRange::new(start, end);
+    let requested_span =
+        snapshot
+            .line_index
+            .span_for_positions(&requested_positions, encoding, None);
+    let inlays = snapshot
+        .structure_inlays(&profile, &requested_span)
+        .into_iter()
+        .map(|inlay| {
+            let inlay = inlay.into_data();
+            let position = snapshot
+                .line_index
+                .positions_for_span(&inlay.anchor, encoding)
+                .start;
+            InlayHint {
+                position: lsp_types::Position::new(position.line as u32, position.column as u32),
+                label: InlayHintLabel::String(inlay.label),
+                kind: None,
+                text_edits: None,
+                tooltip: None,
+                padding_left: None,
+                padding_right: None,
+                data: None,
+            }
+        })
+        .collect();
+    Ok(Some(inlays))
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
 #[ensures(true)]
 fn snapshot_semantic_tokens(
     snapshot: &DocumentSnapshot,
@@ -1003,6 +1104,30 @@ mod tests {
             assert!(!cancellation.is_cancelled());
         }
         assert!(cancellation.is_cancelled());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn initialization_options_parse_structure_profile_and_reject_unknown_profiles() {
+        let options = json!({
+            "structureInlays": {
+                "profile": "raw-brackets",
+                "maxNestingDepth": 3,
+                "constructs": "bridi-tails"
+            }
+        });
+        let profile = initialization_structure_inlay_profile(Some(&options))
+            .expect("documented structure profile");
+        assert_eq!(
+            serde_json::to_value(profile).expect("profile serialization"),
+            options["structureInlays"],
+        );
+
+        let unknown = json!({"structureInlays": {"profile": "pandi"}});
+        let error = initialization_structure_inlay_profile(Some(&unknown))
+            .expect_err("unimplemented profiles must not silently change meaning");
+        assert_eq!(error.code, ErrorCode::INVALID_PARAMS);
     }
 
     #[tokio::test(flavor = "current_thread")]

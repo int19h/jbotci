@@ -198,14 +198,14 @@ pub(super) fn build_decoration_fragments(
         }
     }
     .expect("a snapshot's recovered bracket fragments must match its source");
-    collect_decoration_fragments(&source_fragments)
+    collect_decoration_fragments(source_fragments)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn collect_decoration_fragments(fragments: &[BracketSourceFragment]) -> Vec<DecorationFragment> {
+fn collect_decoration_fragments(fragments: Vec<BracketSourceFragment>) -> Vec<DecorationFragment> {
     fragments
-        .iter()
+        .into_iter()
         .filter_map(|fragment| match fragment {
             BracketSourceFragment::Text { .. } => None,
             BracketSourceFragment::Span {
@@ -213,8 +213,8 @@ fn collect_decoration_fragments(fragments: &[BracketSourceFragment]) -> Vec<Deco
                 constructs,
                 children,
             } => Some(DecorationFragment {
-                range: *range,
-                constructs: constructs.clone(),
+                range,
+                constructs,
                 children: collect_decoration_fragments(children),
             }),
         })
