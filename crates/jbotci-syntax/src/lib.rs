@@ -3065,6 +3065,25 @@ pub fn parse_syntax_tree_with_recovery_with_source_and_options_attempt(
     grammar::parse_generated_model_syntax_tree_with_recovery_attempt(words, Some(source), options)
 }
 
+/// Parse an already-normalized syntax-token slice with recovery.
+///
+/// This preserves attached BAhE and indicator structure when a recovered tree
+/// reparses a skipped token run. Callers starting from morphology words should
+/// use [`parse_syntax_tree_with_recovery_with_source_and_options_attempt`].
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_syntax_tokens_with_recovery_with_source_and_options_attempt(
+    tokens: &[Token],
+    source: &str,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
+    grammar::parse_generated_model_syntax_tokens_with_recovery_attempt(
+        tokens.to_vec(),
+        Some(source),
+        options,
+    )
+}
+
 #[doc(hidden)]
 #[requires(true)]
 #[ensures(true)]
