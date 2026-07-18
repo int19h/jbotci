@@ -12,8 +12,8 @@ use serde_json::{Map, Value};
 use crate::json;
 use crate::tree::{self, RecoveryTreeError, TreeValue};
 use crate::{
-    BracketRenderOptions, BracketSourceRange, JsonRenderOptions, OutputError, TreeRenderOptions,
-    brackets, sexpr,
+    BracketRenderOptions, BracketSourceConstruct, BracketSourceRange, JsonRenderOptions,
+    OutputError, TreeRenderOptions, brackets, sexpr,
 };
 
 #[invariant(error_index < diagnostic_count, "recovery error indices must resolve to a diagnostic")]
@@ -363,13 +363,20 @@ fn debug_output(value: &impl std::fmt::Debug, indent: Option<usize>) -> String {
     }
 }
 
-#[derive(Debug)]
 #[invariant(true)]
+#[derive(Debug)]
+struct RecoveredBracketFrame {
+    children: Vec<sexpr::SExpr>,
+    constructs: Vec<BracketSourceConstruct>,
+}
+
+#[invariant(true)]
+#[derive(Debug)]
 struct RecoveredBracketBuilder<'source, 'errors> {
     context: brackets::BracketContext,
     source: &'source str,
     errors: &'errors [SyntaxError],
-    stack: Vec<Vec<sexpr::SExpr>>,
+    stack: Vec<RecoveredBracketFrame>,
     root: Option<sexpr::SExpr>,
     render_error: Option<OutputError>,
     recovery_projection: RecoveryProjection,
@@ -411,7 +418,7 @@ impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
     #[ensures(true)]
     fn push(&mut self, value: sexpr::SExpr) {
         if let Some(frame) = self.stack.last_mut() {
-            frame.push(value);
+            frame.children.push(value);
         } else {
             self.root = Some(value);
         }
@@ -420,13 +427,16 @@ impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
     #[requires(!self.stack.is_empty())]
     #[ensures(true)]
     fn pop(&mut self) {
-        let mut children = self.stack.pop().expect("entered bracket frame exists");
-        children.sort_by_key(|child| {
+        let mut frame = self.stack.pop().expect("entered bracket frame exists");
+        frame.children.sort_by_key(|child| {
             sexpr::expr_range(child)
                 .map(|range| range.byte_start)
                 .unwrap_or(usize::MAX)
         });
-        self.push(sexpr::node(children));
+        self.push(sexpr::node_with_constructs(
+            frame.children,
+            frame.constructs,
+        ));
     }
 }
 
@@ -436,8 +446,13 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn enter_node(&mut self, _node: Self::Node) {
-        self.stack.push(Vec::new());
+    fn enter_node(&mut self, node: Self::Node) {
+        self.stack.push(RecoveredBracketFrame {
+            children: Vec::new(),
+            constructs: brackets::bracket_source_construct(node.constructor_name())
+                .into_iter()
+                .collect(),
+        });
     }
 
     #[requires(!self.stack.is_empty())]
@@ -449,7 +464,10 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_field(&mut self, _field: FieldRef) {
-        self.stack.push(Vec::new());
+        self.stack.push(RecoveredBracketFrame {
+            children: Vec::new(),
+            constructs: Vec::new(),
+        });
     }
 
     #[requires(!self.stack.is_empty())]
@@ -461,7 +479,10 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_sequence(&mut self) {
-        self.stack.push(Vec::new());
+        self.stack.push(RecoveredBracketFrame {
+            children: Vec::new(),
+            constructs: Vec::new(),
+        });
     }
 
     #[requires(!self.stack.is_empty())]
@@ -790,6 +811,56 @@ mod tests {
                 }
             })
             .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn count_construct_source_fragments(
+        fragments: &[crate::BracketSourceFragment],
+        expected: crate::BracketSourceConstruct,
+    ) -> usize {
+        fragments
+            .iter()
+            .map(|fragment| match fragment {
+                crate::BracketSourceFragment::Text { .. } => 0,
+                crate::BracketSourceFragment::Span {
+                    constructs,
+                    children,
+                    ..
+                } => {
+                    usize::from(constructs.contains(&expected))
+                        + count_construct_source_fragments(children, expected)
+                }
+            })
+            .sum()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_source_fragments_retain_filterable_grammar_constructs() {
+        for source in ["mi viska le mlatu", "mi ku i do viska le mlatu"] {
+            let recovered = parse_recovered_syntax(source);
+            let fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
+                &recovered,
+                source,
+                BracketRenderOptions::default(),
+            )
+            .expect("bracket source fragments");
+
+            assert!(
+                count_construct_source_fragments(&fragments, crate::BracketSourceConstruct::Sumti,)
+                    > 0,
+                "sumti boundaries must survive flattening for {source:?}",
+            );
+            assert!(
+                count_construct_source_fragments(
+                    &fragments,
+                    crate::BracketSourceConstruct::BridiTail,
+                ) > 0,
+                "bridi-tail boundaries must survive flattening for {source:?}",
+            );
+        }
     }
 
     #[requires(true)]

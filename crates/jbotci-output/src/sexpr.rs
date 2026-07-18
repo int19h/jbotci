@@ -1,24 +1,25 @@
 use bityzba::{invariant, new, requires};
 
 use crate::{
-    BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
+    BracketRenderOptions, BracketSourceConstruct, BracketSourceFragment, BracketSourceFragmentRole,
+    BracketSourceRange,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Normal => true)]
 #[invariant(::Elided => true)]
 #[invariant(::Error => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LeafRole {
     Normal,
     Elided,
     Error,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Leaf { .. } => true)]
 #[invariant(::Node { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum SExpr {
     Leaf {
         text: String,
@@ -28,6 +29,7 @@ pub(crate) enum SExpr {
     Node {
         children: Vec<SExpr>,
         range: Option<BracketSourceRange>,
+        constructs: Vec<BracketSourceConstruct>,
     },
 }
 
@@ -37,12 +39,22 @@ pub(crate) fn empty_node() -> SExpr {
     SExpr::Node {
         children: Vec::new(),
         range: None,
+        constructs: Vec::new(),
     }
 }
 
 #[requires(true)]
 #[ensures(matches!(&ret, SExpr::Node { children, .. } if children.iter().all(|child| !is_empty(child))))]
 pub(crate) fn node(children: Vec<SExpr>) -> SExpr {
+    node_with_constructs(children, Vec::new())
+}
+
+#[requires(true)]
+#[ensures(matches!(&ret, SExpr::Node { children, .. } if children.iter().all(|child| !is_empty(child))))]
+pub(crate) fn node_with_constructs(
+    children: Vec<SExpr>,
+    constructs: Vec<BracketSourceConstruct>,
+) -> SExpr {
     let mut node_children = Vec::new();
     for child in children {
         match child {
@@ -54,6 +66,7 @@ pub(crate) fn node(children: Vec<SExpr>) -> SExpr {
     SExpr::Node {
         children: node_children,
         range,
+        constructs,
     }
 }
 
@@ -112,6 +125,7 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
 struct FlattenFrame {
     remaining: Vec<SExpr>,
     range: Option<BracketSourceRange>,
+    constructs: Vec<BracketSourceConstruct>,
     flattened: Vec<SExpr>,
 }
 
@@ -130,11 +144,13 @@ pub(crate) fn flatten(expr: SExpr) -> SExpr {
                 SExpr::Node {
                     mut children,
                     range,
+                    constructs,
                 } => {
                     children.reverse();
                     frames.push(FlattenFrame {
                         remaining: children,
                         range,
+                        constructs,
                         flattened: Vec::new(),
                     });
                     continue;
@@ -165,18 +181,34 @@ pub(crate) fn flatten(expr: SExpr) -> SExpr {
         let FlattenFrame {
             remaining: _,
             range,
+            constructs,
             flattened,
         } = frame;
         let mut flattened = flattened;
         completed = Some(if flattened.len() == 1 {
-            flattened.remove(0)
+            attach_constructs(flattened.remove(0), constructs)
         } else {
             SExpr::Node {
                 children: flattened,
                 range,
+                constructs,
             }
         });
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_constructs(mut expr: SExpr, inherited: Vec<BracketSourceConstruct>) -> SExpr {
+    let SExpr::Node { constructs, .. } = &mut expr else {
+        return expr;
+    };
+    for construct in inherited {
+        if !constructs.contains(&construct) {
+            constructs.push(construct);
+        }
+    }
+    expr
 }
 
 #[requires(true)]
@@ -257,7 +289,11 @@ fn render_source_fragments_at_depth(
                 LeafRole::Error => BracketSourceFragmentRole::Error,
             },
         }],
-        SExpr::Node { children, range } => {
+        SExpr::Node {
+            children,
+            range,
+            constructs,
+        } => {
             let rendered = children
                 .iter()
                 .flat_map(|child| render_source_fragments_at_depth(depth + 1, child, options))
@@ -296,6 +332,7 @@ fn render_source_fragments_at_depth(
                     });
                     vec![BracketSourceFragment::Span {
                         range: *range,
+                        constructs: constructs.clone(),
                         children,
                     }]
                 }
