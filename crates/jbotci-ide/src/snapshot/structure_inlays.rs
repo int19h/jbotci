@@ -89,7 +89,9 @@ pub struct StructureInlay {
     pub kind: StructureInlayKind,
 }
 
-#[invariant(true)]
+#[invariant(constructs.iter().enumerate().all(|(index, construct)| {
+    !constructs[..index].contains(construct)
+}), "decoration fragment construct tags must be unique")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct DecorationFragment {
     range: Option<BracketSourceRange>,
@@ -212,11 +214,11 @@ fn collect_decoration_fragments(fragments: Vec<BracketSourceFragment>) -> Vec<De
                 range,
                 constructs,
                 children,
-            } => Some(DecorationFragment {
+            } => Some(new!(DecorationFragment {
                 range,
                 constructs,
                 children: collect_decoration_fragments(children),
-            }),
+            })),
         })
         .collect()
 }
