@@ -11,8 +11,9 @@ use std::{
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, WordType, normalize_lookup_query};
 use jbotci_morphology::{
-    Cmavo, MorphologyContextKind, MorphologyError, Selmaho, WordKind, WordLike, WordLikeData,
-    analyze_valsi, canonicalize_text, is_word_forming_character, segment_words_with_modifiers,
+    Cmavo, MorphologyContextKind, MorphologyError, NodeRef as MorphologyNodeRef, Selmaho,
+    TreeNode as MorphologyTreeNode, Word, WordKind, WordLike, WordLikeData, analyze_valsi,
+    canonicalize_text, is_word_forming_character, segment_words_with_modifiers,
     segment_words_with_modifiers_recovered,
 };
 use jbotci_output::render_vlacku_cards_markdown;
@@ -23,6 +24,7 @@ use jbotci_syntax::{
     SyntaxExpectedToken, SyntaxExpectedTokenData, SyntaxWordCategory,
     expected_continuations_with_time_limit,
 };
+use jbotci_tree::TreeVisitor;
 
 use super::{DocumentSnapshot, SemanticTokenKind};
 
@@ -149,6 +151,8 @@ pub struct CompletionItem {
     pub replacement_span: SourceSpan,
     pub short_gloss: Option<String>,
     pub documentation: CompletionDocumentationHandle,
+    pub document_local: bool,
+    pub preselect: bool,
     suffix_consistent: bool,
 }
 
@@ -180,12 +184,64 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     snapshot: &'snapshot DocumentSnapshot,
     dictionary: &'dictionary Dictionary<'entries>,
     document_cmevla: &'snapshot BTreeSet<String>,
+    document_words: &'snapshot BTreeSet<String>,
     cancellation: &'cancellation CompletionCancellationToken,
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     insert_leading_space: bool,
     normalized_prefix: String,
     suffix_consistent_labels: BTreeSet<String>,
+}
+
+// Mutable traversal scratch space; every combination of fields is valid.
+#[invariant(true)]
+struct CompletionDocumentWordCollector<'span> {
+    replacement_span: &'span SourceSpan,
+    words: BTreeSet<String>,
+    current: Option<(usize, String)>,
+}
+
+impl CompletionDocumentWordCollector<'_> {
+    #[requires(true)]
+    #[ensures(self.words.contains(&word.canonical_phonemes()))]
+    fn record(&mut self, word: &Word) {
+        let canonical = word.canonical_phonemes();
+        self.words.insert(canonical.clone());
+        if self.replacement_span.byte_start == self.replacement_span.byte_end {
+            return;
+        }
+        let span = word.span();
+        if span.byte_start <= self.replacement_span.byte_start
+            && self.replacement_span.byte_end <= span.byte_end
+        {
+            let width = span.byte_len();
+            if self
+                .current
+                .as_ref()
+                .is_none_or(|(current_width, _)| width < *current_width)
+            {
+                self.current = Some((width, canonical));
+            }
+        }
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for CompletionDocumentWordCollector<'_> {
+    type Node = MorphologyNodeRef<'tree>;
+    type Atom = jbotci_morphology::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        match node {
+            MorphologyNodeRef::WordCmavo(word)
+            | MorphologyNodeRef::WordGismu(word)
+            | MorphologyNodeRef::WordLujvo(word)
+            | MorphologyNodeRef::WordFuhivla(word)
+            | MorphologyNodeRef::WordCmevla(word) => self.record(word),
+            _ => {}
+        }
+    }
 }
 
 impl DocumentSnapshot {
@@ -245,6 +301,7 @@ impl DocumentSnapshot {
         let seed_span = self.completion_seed_span(cursor.byte, cursor.char);
         let seed = &self.text[seed_span.byte_start..seed_span.byte_end];
         let replacement_span = self.completion_replacement_span(&seed_span);
+        let (document_words, current_word) = self.completion_document_words(&replacement_span);
         let preceding_source = &self.text[..seed_span.byte_start];
         let preceding_segmentation =
             segment_words_with_modifiers_recovered(preceding_source).into_data();
@@ -262,6 +319,7 @@ impl DocumentSnapshot {
             self.add_completion_interpretation(
                 dictionary,
                 &document_cmevla,
+                &document_words,
                 CompletionInterpretation::Extend,
                 replacement_span.clone(),
                 seed,
@@ -318,6 +376,7 @@ impl DocumentSnapshot {
             self.add_completion_interpretation(
                 dictionary,
                 &document_cmevla,
+                &document_words,
                 CompletionInterpretation::Continue,
                 continuation_span,
                 "",
@@ -353,7 +412,45 @@ impl DocumentSnapshot {
             })
             .collect::<Vec<_>>();
         result.sort_by(|left, right| completion_sort_key(left).cmp(&completion_sort_key(right)));
+        let mut preselected = false;
         result
+            .into_iter()
+            .map(|item| {
+                let should_preselect = !preselected
+                    && item.replacement_span == replacement_span
+                    && current_word
+                        .as_ref()
+                        .is_some_and(|current| normalize_lookup_query(&item.label) == *current);
+                if should_preselect {
+                    preselected = true;
+                    item.with_data(data! { preselect: true })
+                } else {
+                    item
+                }
+            })
+            .collect()
+    }
+
+    #[requires(replacement_span.byte_end <= self.text.len())]
+    #[requires(replacement_span.char_end <= self.line_index.char_len())]
+    #[ensures(ret.0.iter().all(|word| !word.is_empty()))]
+    #[ensures(ret.1.as_ref().is_none_or(|word| ret.0.contains(word)))]
+    fn completion_document_words(
+        &self,
+        replacement_span: &SourceSpan,
+    ) -> (BTreeSet<String>, Option<String>) {
+        let mut collector = CompletionDocumentWordCollector {
+            replacement_span,
+            words: BTreeSet::new(),
+            current: None,
+        };
+        for word_like in &self.words.words {
+            word_like.visit_in_order(&mut collector);
+        }
+        (
+            collector.words,
+            collector.current.map(|(_, canonical)| canonical),
+        )
     }
 
     #[requires(cursor_byte <= self.text.len())]
@@ -414,6 +511,7 @@ impl DocumentSnapshot {
         &self,
         dictionary: &'dictionary Dictionary<'entries>,
         document_cmevla: &BTreeSet<String>,
+        document_words: &BTreeSet<String>,
         interpretation: CompletionInterpretation,
         replacement_span: SourceSpan,
         prefix: &str,
@@ -464,6 +562,7 @@ impl DocumentSnapshot {
             snapshot: self,
             dictionary,
             document_cmevla,
+            document_words,
             cancellation,
             interpretation,
             replacement_span,
@@ -879,6 +978,7 @@ impl CompletionContext<'_, '_, '_, '_> {
         } else {
             label.to_owned()
         };
+        let document_local = self.document_words.contains(&normalized_label);
         let key = (
             self.interpretation.sort_rank(),
             normalized_label,
@@ -904,6 +1004,8 @@ impl CompletionContext<'_, '_, '_, '_> {
                 replacement_span: self.replacement_span.clone(),
                 short_gloss: None,
                 documentation: CompletionDocumentationHandle::new(label.to_owned()),
+                document_local,
+                preselect: false,
                 suffix_consistent,
             }),
         );
@@ -952,12 +1054,14 @@ fn reason_sort_rank(reason: &SyntaxExpectationReason) -> u8 {
 
 #[requires(true)]
 #[ensures(true)]
-fn completion_sort_key(item: &CompletionItem) -> (u8, u8, u8, &str) {
+fn completion_sort_key(item: &CompletionItem) -> (u8, &str, u8, u8, u8, &CompletionProvenance) {
     (
+        u8::from(!item.document_local),
+        item.label.as_str(),
         item.interpretation.sort_rank(),
         u8::from(!item.suffix_consistent),
         item.reason_sort_rank(),
-        item.label.as_str(),
+        &item.provenance,
     )
 }
 
@@ -1070,6 +1174,99 @@ mod tests {
     #[ensures(true)]
     fn has_label(items: &[CompletionItem], label: &str) -> bool {
         items.iter().any(|item| item.label == label)
+    }
+
+    #[requires(true)]
+    #[ensures(ret <= items.len())]
+    fn preselected_count(items: &[CompletionItem]) -> usize {
+        items.iter().filter(|item| item.preselect).count()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn current_canonical_word_is_the_only_preselected_candidate() {
+        let mid_word = completions_at_marker("mi klama le zar|ci");
+        assert_eq!(preselected_count(&mid_word), 1);
+        assert!(
+            mid_word
+                .iter()
+                .any(|item| item.label == "zarci" && item.preselect)
+        );
+
+        let word_start = completions_at_marker("mi klama le |zarci");
+        assert_eq!(preselected_count(&word_start), 1);
+        assert!(
+            word_start
+                .iter()
+                .any(|item| item.label == "zarci" && item.preselect)
+        );
+
+        let duplicate_provenances = completions_at_marker("mi klama i| do cadzu");
+        let matching = duplicate_provenances
+            .iter()
+            .filter(|item| item.label == "i" && item.replacement_span.byte_len() == 1)
+            .collect::<Vec<_>>();
+        assert!(
+            matching.len() > 1,
+            "fixture must exercise duplicate provenances"
+        );
+        assert!(matching[0].preselect);
+        assert!(matching[1..].iter().all(|item| !item.preselect));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn absent_or_position_invalid_current_word_is_not_preselected() {
+        let items = completions_at_marker("la .alis. cu klama .i mi klama le |alis");
+        assert_eq!(preselected_count(&items), 0);
+        assert!(!items.iter().any(|item| item.label == "alis"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_order_is_document_local_block_then_alphabetical_remainder() {
+        let items = completions_at_marker("mi barda gi'e cadzu le |");
+        assert!(items.iter().any(|item| item.document_local));
+        assert!(items.iter().any(|item| !item.document_local));
+        assert!(
+            items
+                .windows(2)
+                .all(|pair| pair[0].document_local || !pair[1].document_local)
+        );
+        for block in [true, false] {
+            let labels = items
+                .iter()
+                .filter(|item| item.document_local == block)
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>();
+            assert!(
+                labels.windows(2).all(|pair| pair[0] <= pair[1]),
+                "block {block} is not alphabetical: {labels:?}",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_locality_uses_canonical_words_after_validity_filtering() {
+        let invalid = completions_at_marker("mi barda i zoi gy non|Lojban gy");
+        assert!(
+            invalid.is_empty(),
+            "document-local barda must not bypass non-Lojban quote suppression",
+        );
+
+        for spelling in ["bar,da", "BArda"] {
+            let items = completions_at_marker(&format!("mi {spelling} le |"));
+            let barda = items
+                .iter()
+                .find(|item| item.label == "barda")
+                .expect("dictionary barda is valid after le");
+            assert!(barda.document_local, "canonical variant {spelling}");
+        }
     }
 
     #[requires(true)]
@@ -1461,7 +1658,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn open_nested_construct_closers_rank_above_local_prefix_candidates() {
+    fn open_nested_construct_closers_remain_signaled_without_sort_promotion() {
         let items = completions_at_marker("mi cusku lu mi djica lo nu do| ");
         let continuation = items
             .iter()
@@ -1473,7 +1670,7 @@ mod tests {
                 continuation
                     .iter()
                     .any(|item| item.label == closer && item.suffix_consistent),
-                "tree covering-chain closer {closer} must be present and suffix-ranked: {continuation:#?}",
+                "tree covering-chain closer {closer} must retain its suffix signal: {continuation:#?}",
             );
         }
         let closer_index = continuation
@@ -1484,7 +1681,10 @@ mod tests {
             .iter()
             .position(|item| item.label == "barda")
             .expect("the local prefix parse offers a selbri word");
-        assert!(closer_index < local_index);
+        assert!(
+            local_index < closer_index,
+            "labels are alphabetically ordered"
+        );
         assert!(!continuation[local_index].suffix_consistent);
     }
 
@@ -1611,10 +1811,12 @@ mod tests {
         let cancellation = CompletionCancellationToken::new();
         let replacement_span = SourceSpan::new(None, cursor, cursor, cursor, cursor)
             .expect("the cursor is an ordered empty span");
+        let document_words = snapshot.completion_document_words(&replacement_span).0;
         let context = new!(CompletionContext {
             snapshot: &snapshot,
             dictionary,
             document_cmevla: &document_cmevla,
+            document_words: &document_words,
             cancellation: &cancellation,
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
@@ -1645,6 +1847,7 @@ mod tests {
             snapshot: &snapshot,
             dictionary,
             document_cmevla: &document_cmevla,
+            document_words: &document_words,
             cancellation: &cancellation,
             interpretation: CompletionInterpretation::Extend,
             replacement_span,

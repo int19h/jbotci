@@ -936,7 +936,6 @@ fn completion_to_lsp(
     encoding: PositionEncoding,
     item: JbotciCompletion,
 ) -> lsp_types::CompletionItem {
-    let reason_sort_rank = item.reason_sort_rank();
     let item = item.into_data();
     let range = snapshot
         .line_index
@@ -952,12 +951,12 @@ fn completion_to_lsp(
             }),
         kind: Some(completion_item_kind(item.kind)),
         detail: Some(completion_reason_detail(&item.reason)),
-        sort_text: Some(format!(
-            "{}{}-{label}",
-            item.interpretation.sort_rank(),
-            reason_sort_rank,
-        )),
+        // With an empty prefix the client renders these two blocks exactly.
+        // With typed text, VS Code's fuzzy score can dominate sortText and
+        // interleave them; that is accepted client behavior.
+        sort_text: Some(format!("{}·{label}", u8::from(!item.document_local))),
         filter_text: Some(label.clone()),
+        preselect: item.preselect.then_some(true),
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
             range: lsp_range(range),
             // Pause periods are pronunciation/rendering concerns. Completion

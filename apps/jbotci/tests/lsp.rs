@@ -506,7 +506,8 @@ fn assert_completion_encoding(position_encoding: &str) {
     assert_eq!(item["kind"], 3, "brivla map to Function");
     assert_eq!(item["labelDetails"]["description"], "big");
     assert_eq!(item["detail"], "starts tanru unit");
-    assert_eq!(item["sortText"], "11-barda");
+    assert_eq!(item["sortText"], "1·barda");
+    assert!(item.get("preselect").is_none());
     assert!(
         item.get("documentation").is_none(),
         "completion lists defer documentation",
@@ -860,6 +861,57 @@ fn completion_uses_utf8_seed_edit_ranges_and_resolves_markdown() {
 #[ensures(true)]
 fn completion_uses_utf16_seed_edit_ranges_and_resolves_markdown() {
     assert_completion_encoding("utf-16");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn completion_maps_preselection_and_two_document_local_sort_blocks() {
+    const ORDER_URI: &str = "file:///completion-order.jbo";
+    const ORDER_TEXT: &str = "mi barda gi'e cadzu le ";
+    const PRESELECT_URI: &str = "file:///completion-preselect.jbo";
+    const PRESELECT_TEXT: &str = "mi klama le zarci";
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, ORDER_URI, 1, ORDER_TEXT);
+    let ordered = completion(&mut client, ORDER_URI, ORDER_TEXT.chars().count() as u64);
+    let ordered = ordered.as_array().expect("completion array");
+    let local = ordered
+        .iter()
+        .filter(|item| {
+            item["sortText"]
+                .as_str()
+                .is_some_and(|sort_text| sort_text.starts_with("0·"))
+        })
+        .map(|item| item["label"].as_str().expect("completion label"))
+        .collect::<Vec<_>>();
+    let remainder = ordered
+        .iter()
+        .filter(|item| {
+            item["sortText"]
+                .as_str()
+                .is_some_and(|sort_text| sort_text.starts_with("1·"))
+        })
+        .map(|item| item["label"].as_str().expect("completion label"))
+        .collect::<Vec<_>>();
+    assert!(local.contains(&"barda") && local.contains(&"cadzu"));
+    assert!(!remainder.is_empty());
+    assert!(local.windows(2).all(|pair| pair[0] <= pair[1]));
+    assert!(remainder.windows(2).all(|pair| pair[0] <= pair[1]));
+
+    open_document_text(&mut client, PRESELECT_URI, 1, PRESELECT_TEXT);
+    let cursor = PRESELECT_TEXT.find("zarci").expect("fixture word") + "zar".len();
+    let items = completion(&mut client, PRESELECT_URI, cursor as u64);
+    let items = items.as_array().expect("completion array");
+    let preselected = items
+        .iter()
+        .filter(|item| item["preselect"] == true)
+        .collect::<Vec<_>>();
+    assert_eq!(preselected.len(), 1);
+    assert_eq!(preselected[0]["label"], "zarci");
+    assert_eq!(preselected[0]["sortText"], "0·zarci");
+    client.shutdown();
 }
 
 #[test]
