@@ -3615,6 +3615,279 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--danger-text);
 }
 
+.gimfihi-page .gimfihi-word-column-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-button,
+.gimfihi-page .gimfihi-ipa-help-close {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 50%;
+  background: var(--app-surface-1);
+  color: var(--app-text);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gimfihi-page .gimfihi-ipa-help-button {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.78rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-close {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  background: var(--app-surface-2);
+  font-size: 1.2rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-button:hover,
+.gimfihi-page .gimfihi-ipa-help-close:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 48%, var(--app-border));
+  background: color-mix(in srgb, var(--app-accent) 9%, var(--app-surface-1));
+}
+
+.gimfihi-page .gimfihi-ipa-help-button:focus-visible,
+.gimfihi-page .gimfihi-ipa-help-close:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
+}
+
+.gimfihi-page .gimfihi-ipa-help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 1rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.gimfihi-page .gimfihi-ipa-help-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.58);
+}
+
+.gimfihi-page .gimfihi-ipa-help-dialog {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(64rem, 100%);
+  max-width: 100%;
+  max-height: calc(100dvh - 2rem);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 0.55rem;
+  background: var(--app-surface-0);
+  color: var(--app-text);
+  box-shadow: 0 1.4rem 4rem rgb(0 0 0 / 0.4);
+}
+
+.gimfihi-page .gimfihi-ipa-help-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-2);
+}
+
+.gimfihi-page .gimfihi-ipa-help-header h2,
+.gimfihi-page .gimfihi-ipa-help-header p {
+  margin: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-help-header h2 {
+  font-size: 1.08rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-header p {
+  margin-top: 0.18rem;
+  color: var(--app-muted);
+  font-size: 0.8rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-body {
+  display: grid;
+  gap: 0.95rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.9rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.gimfihi-page .gimfihi-ipa-help-section {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-help-section h3,
+.gimfihi-page .gimfihi-ipa-help-section p,
+.gimfihi-page .gimfihi-ipa-help-section ul {
+  margin: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-help-section h3 {
+  color: var(--app-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.gimfihi-page .gimfihi-ipa-help-section p,
+.gimfihi-page .gimfihi-ipa-help-section li,
+.gimfihi-page .gimfihi-ipa-schwa-note {
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.gimfihi-page .gimfihi-ipa-help-dialog code {
+  color: var(--app-text);
+  font: inherit;
+  font-weight: 700;
+}
+
+.gimfihi-page .gimfihi-ipa-help-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-fact {
+  display: grid;
+  gap: 0.32rem;
+  min-width: 0;
+  padding: 0.65rem 0.72rem;
+  border: 1px solid var(--app-border);
+  border-left: 3px solid var(--app-link);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--app-surface-2) 62%, transparent);
+}
+
+.gimfihi-page .gimfihi-ipa-help-fact.classic {
+  border-left-color: var(--app-accent);
+}
+
+.gimfihi-page .gimfihi-ipa-help-fact h3,
+.gimfihi-page .gimfihi-ipa-help-fact p {
+  margin: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-help-fact h3 {
+  font-size: 0.86rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-fact p {
+  color: var(--app-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.gimfihi-page .gimfihi-ipa-help-fine-print {
+  margin: 0;
+  padding: 0.58rem 0.65rem;
+  border-radius: 0.32rem;
+  background: var(--app-surface-2);
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.gimfihi-page .gimfihi-ipa-help-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.gimfihi-page .gimfihi-ipa-help-table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-table th,
+.gimfihi-page .gimfihi-ipa-help-table td {
+  padding: 0.4rem 0.52rem;
+  border: 1px solid var(--app-border);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.gimfihi-page .gimfihi-ipa-help-table thead th {
+  background: var(--app-surface-2);
+  color: var(--app-muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.gimfihi-page .gimfihi-ipa-help-table tbody th {
+  width: 9rem;
+  background: color-mix(in srgb, var(--app-surface-2) 55%, transparent);
+  /* Override the page-wide uppercase th styling: these cells hold Lojban
+     letters, and capitals in Lojban orthography mark stress. */
+  text-transform: none;
+}
+
+.gimfihi-page .gimfihi-ipa-modifier-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-section ul {
+  padding-left: 1.25rem;
+}
+
+.gimfihi-page .gimfihi-ipa-schwa-note {
+  margin: 0;
+  border-left: 3px solid var(--danger-border);
+  border-radius: 3px;
+  padding: 0.55rem 0.65rem;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.gimfihi-page .gimfihi-ipa-schwa-note code {
+  color: inherit;
+}
+
+.gimfihi-page .gimfihi-ipa-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.gimfihi-page .gimfihi-ipa-help-section-intro {
+  color: var(--app-muted);
+}
+
 .gimfihi-page .gimfihi-option-row {
   display: flex;
   flex-wrap: wrap;
@@ -5547,6 +5820,31 @@ body::-webkit-scrollbar-thumb:hover,
 
   .gimfihi-page .gimfihi-weight-cell {
     grid-template-columns: minmax(6rem, 1fr) 5rem;
+  }
+
+  .gimfihi-page .gimfihi-ipa-modifier-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .gimfihi-page .gimfihi-ipa-help-overlay {
+    padding: 0.5rem;
+  }
+
+  .gimfihi-page .gimfihi-ipa-help-dialog {
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .gimfihi-page .gimfihi-ipa-help-header,
+  .gimfihi-page .gimfihi-ipa-help-body {
+    padding: 0.68rem;
+  }
+
+  .gimfihi-page .gimfihi-ipa-help-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .gimfihi-page .gimfihi-ipa-help-table {
+    min-width: 38rem;
   }
 
   .cll-page .cll-shell {

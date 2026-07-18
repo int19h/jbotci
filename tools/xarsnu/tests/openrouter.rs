@@ -8,8 +8,8 @@ use bityzba::{contract_trait, ensures, invariant, requires};
 use serde_json::{Value, json};
 use xarsnu::{
     AbortKind, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    PromptCaching, RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition,
-    ToolDispatchError, ToolDispatcher,
+    PromptCaching, ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolChoice,
+    ToolDefinition, ToolDispatchError, ToolDispatcher,
 };
 
 #[invariant(true)]
@@ -463,6 +463,88 @@ fn provider_cache_usage_normalizes_and_round_trips_through_record_json() {
         serde_json::from_value(record_json).expect("usage record deserializes");
     assert_eq!(round_tripped, usage[0]);
 
+    assert_eq!(server.finish().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn provider_accounting_variance_is_recorded_verbatim() {
+    let mut response = tool_call_response("alpha", 0.01);
+    response.body["usage"] = json!({
+        "prompt_tokens": 3,
+        "completion_tokens": 2,
+        "total_tokens": 41,
+        "prompt_tokens_details": {
+            "cached_tokens": 5
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 17
+        },
+        "cache_write_tokens": 7,
+        "cost": 0.01
+    });
+    let server = MockServer::start(vec![response]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("provider accounting conventions are accepted");
+
+    let usage = conversation.take_pending_usage();
+    assert_eq!(usage.len(), 1);
+    assert_eq!(usage[0].prompt_tokens, 3);
+    assert_eq!(usage[0].completion_tokens, 2);
+    assert_eq!(usage[0].total_tokens, 41);
+    assert_eq!(usage[0].cached_tokens, Some(5));
+    assert_eq!(usage[0].cache_write_tokens, Some(7));
+    assert_eq!(usage[0].reasoning_tokens, Some(17));
+    assert_eq!(conversation.usage().cache_efficiency(), Some(5.0 / 3.0));
+
+    let record_json = serde_json::to_value(&usage[0]).expect("usage record serializes");
+    let round_tripped: xarsnu::Usage =
+        serde_json::from_value(record_json).expect("usage record deserializes");
+    assert_eq!(round_tripped, usage[0]);
+    assert_eq!(server.finish().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn invalid_provider_cost_names_only_the_failing_usage_clause() {
+    let mut response = tool_call_response("alpha", 0.01);
+    response.body["usage"]["cost"] = json!(-0.01);
+    let server = MockServer::start(vec![response]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let error = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect_err("negative provider cost must fail structural validation");
+
+    assert_eq!(
+        error,
+        OpenRouterError::InvalidProviderUsage {
+            reason: ProviderUsageValidationError::CostMustBeFiniteAndNonnegative,
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "invalid OpenRouter provider usage: reported cost must be finite and nonnegative"
+    );
     assert_eq!(server.finish().len(), 1);
 }
 

@@ -19,8 +19,8 @@ pub use jbotci_tools::{
 pub use openrouter::{
     AbortKind, AbortRecord, ChatMessage, FunctionCall, FunctionToolDefinition, ModelTurn,
     OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition, ToolDefinitionError,
-    ToolDispatchError, ToolDispatcher, Usage, UsageTotals,
+    ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition,
+    ToolDefinitionError, ToolDispatchError, ToolDispatcher, Usage, UsageTotals,
 };
 pub use protocol::{
     BlindMessage, ListenerPhase, ListenerState, OpenRouterParticipant, ProtocolEvent,
