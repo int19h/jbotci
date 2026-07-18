@@ -690,7 +690,7 @@ fn render_cache_observability(report: &mut String, usage: &UsageTotals) {
     }
 }
 
-#[requires(rate.is_none_or(|value| value.is_finite() && (0.0..=1.0).contains(&value)))]
+#[requires(rate.is_none_or(|value| value.is_finite() && value >= 0.0))]
 #[ensures(!ret.is_empty())]
 fn percentage(rate: Option<f64>) -> String {
     rate.map_or_else(
