@@ -118,18 +118,18 @@ fn gimfihi_sources_for_preset_populates_rows() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn gimfihi_ipa_help_examples_match_the_live_resolver() {
+fn gimfihi_ipa_help_examples_match_the_live_preview() {
     assert_eq!(
-        gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_CAT_IPA)
-            .resolved_word
+        gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_MAU_LOJBAN)
+            .rendered_ipa
             .as_deref(),
-        Some(GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN)
+        Some(GIMFIHI_QUICK_REFERENCE_MAU_IPA)
     );
     assert_eq!(
-        gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA)
-            .resolved_word
+        gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_KLAMA_LOJBAN)
+            .rendered_ipa
             .as_deref(),
-        Some(GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN)
+        Some(GIMFIHI_QUICK_REFERENCE_KLAMA_IPA)
     );
 }
 
