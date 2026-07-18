@@ -353,6 +353,45 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn phonetic_tokenizer_accepts_every_classic_transliterator_base_symbol() {
+        for (symbol, _) in IPA_SNAPS {
+            jbotci_phonetic::tokenize_ipa_text(symbol).unwrap_or_else(|error| {
+                panic!("phonetic scorer rejected classic IPA base `{symbol}`: {error}")
+            });
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn phonetic_tokenizer_accepts_twelve_language_inventory_spot_checks() {
+        for (language, transcriptions) in [
+            ("cmn", &["ɕi", "tɕʰi", "ʈʂʰa"][..]),
+            ("hin", &["ɖʱɑ̃l"][..]),
+            ("eng", &["bɪt", "ʃʊd", "bɝd"][..]),
+            ("spa", &["kaθa", "aɲo", "kaʎe"][..]),
+            ("rus", &["nʲet"][..]),
+            ("ara", &["sˤaːd", "ħaːl"][..]),
+            ("fra", &["ɥi", "bɔ̃"][..]),
+            ("ben", &["bʱɑ̃lo"][..]),
+            ("por", &["pɐ̃w̃"][..]),
+            ("msa", &["ʔəmas"][..]),
+            ("jpn", &["sɯ̟ɕiː"][..]),
+            ("deu", &["pfaɪ̯f", "ʃøːn"][..]),
+        ] {
+            for transcription in transcriptions {
+                jbotci_phonetic::tokenize_ipa_text(transcription).unwrap_or_else(|error| {
+                    panic!(
+                        "phonetic scorer rejected {language} transcription `{transcription}`: {error}"
+                    )
+                });
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn every_back_fricative_snaps_to_x() {
         for fricative in ["x", "ɣ", "χ", "ç", "ħ", "h", "ɦ"] {
             assert_eq!(lojban(&format!("{fricative}a")), "xa", "{fricative}a");

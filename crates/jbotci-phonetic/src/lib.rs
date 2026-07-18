@@ -650,53 +650,80 @@ const ALINE_SUBSTITUTION_CEILING: f64 = 35.0;
 const ALINE_EXPANSION_CEILING: f64 = 45.0;
 const ALINE_VOWEL_PENALTY: f64 = 10.0;
 
-const BILABIAL_SYMBOLS: &[&str] = &["p", "b", "m", "ʙ", "β", "ɸ", "B"];
-const LABIODENTAL_SYMBOLS: &[&str] = &["f", "v", "ʋ", "ɱ"];
+const BILABIAL_SYMBOLS: &[&str] = &["p", "b", "m", "ʙ", "β", "ɸ"];
+// The mixed bilabial-labiodental affricate pf follows its labiodental release on
+// ALINE's single-valued place scale.
+const LABIODENTAL_SYMBOLS: &[&str] = &["f", "v", "ʋ", "ɱ", "pf"];
 const DENTAL_SYMBOLS: &[&str] = &["θ", "ð"];
-const ALVEOLAR_SYMBOLS: &[&str] = &["t", "d", "n", "s", "z", "r", "l", "ɹ", "ɾ", "ɬ", "ɮ"];
-const RETROFLEX_SYMBOLS: &[&str] = &["ʈ", "ɖ", "ɳ", "ʂ", "ʐ", "ɻ", "ɽ"];
+// Kondrak's feature inventory has no velarization feature, so dark ɫ is
+// intentionally identical to alveolar l rather than receiving an ad hoc value.
+const ALVEOLAR_SYMBOLS: &[&str] = &["t", "d", "n", "s", "z", "r", "l", "ɫ", "ɹ", "ɾ", "ɬ", "ɮ"];
+// Retroflex affricates use ALINE place 0.8 and the retroflex flag. The same flag
+// is the closest ALINE analogue for both retroflex lateral ɭ and r-coloured
+// vowels ɚ/ɝ, since the model has no separate vowel-rhoticity feature.
+const RETROFLEX_SYMBOLS: &[&str] = &["ʈ", "ɖ", "ɳ", "ʂ", "ʐ", "ɻ", "ɽ", "ʈʂ", "ɖʐ", "ɭ", "ɚ", "ɝ"];
 const PALATO_ALVEOLAR_SYMBOLS: &[&str] = &["ʃ", "ʒ"];
-const PALATAL_SYMBOLS: &[&str] = &["j", "c", "ɟ", "ɲ", "ç", "ʝ"];
-const VELAR_SYMBOLS: &[&str] = &["k", "g", "x", "ɣ", "ŋ", "w", "ɰ"];
-const UVULAR_SYMBOLS: &[&str] = &["q", "ɢ", "χ", "ʁ", "ʀ", "ɴ", "N", "R"];
+// Alveolo-palatals receive place 0.725, the midpoint between ALINE's adjacent
+// palato-alveolar (0.75) and palatal (0.70) positions.
+const ALVEOLO_PALATAL_SYMBOLS: &[&str] = &["ɕ", "ʑ", "tɕ", "dʑ"];
+const PALATAL_SYMBOLS: &[&str] = &["j", "c", "ɟ", "ɲ", "ç", "ʝ", "ɥ", "ʎ"];
+const VELAR_SYMBOLS: &[&str] = &["k", "g", "x", "ɣ", "ŋ", "w", "ʍ", "ɰ"];
+const UVULAR_SYMBOLS: &[&str] = &["q", "ɢ", "χ", "ʁ", "ʀ", "ɴ"];
 const PHARYNGEAL_SYMBOLS: &[&str] = &["ħ", "ʕ"];
 const GLOTTAL_SYMBOLS: &[&str] = &["h", "ɦ", "ʔ"];
-const AFFRICATE_SYMBOLS: &[&str] = &["t͡ʃ", "d͡ʒ", "tʃ", "dʒ", "ts", "dz"];
-const TRILL_SYMBOLS: &[&str] = &["r", "ʀ", "ʙ", "R", "B"];
+const AFFRICATE_SYMBOLS: &[&str] = &[
+    "t͡ʃ", "d͡ʒ", "tʃ", "dʒ", "ts", "dz", "tɕ", "dʑ", "ʈʂ", "ɖʐ", "pf",
+];
+const TRILL_SYMBOLS: &[&str] = &["r", "ʀ", "ʙ"];
 const TAP_SYMBOLS: &[&str] = &["ɾ", "ɽ"];
-const APPROXIMANT_SYMBOLS: &[&str] = &["j", "w", "ʋ", "ɹ", "ɻ", "ɰ"];
+// ɥ shares j's palatal approximant features plus rounding; ʍ shares w's velar
+// rounded approximant features but is deliberately absent from the voiced list.
+const APPROXIMANT_SYMBOLS: &[&str] = &["j", "w", "ɥ", "ʍ", "ʋ", "ɹ", "ɻ", "ɰ"];
 const FRICATIVE_SYMBOLS: &[&str] = &[
-    "ɸ", "β", "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ", "ʂ", "ʐ", "ç", "ʝ", "x", "ɣ", "χ", "ʁ", "ħ",
-    "ʕ", "h", "ɦ", "ɬ", "ɮ",
+    "ɸ", "β", "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ", "ɕ", "ʑ", "ʂ", "ʐ", "ç", "ʝ", "x", "ɣ", "χ",
+    "ʁ", "ħ", "ʕ", "h", "ɦ", "ɬ", "ɮ",
 ];
 const VOICED_CONSONANT_SYMBOLS: &[&str] = &[
-    "b", "d", "ɖ", "ɟ", "g", "ɢ", "m", "ɱ", "n", "ɳ", "ɲ", "ŋ", "ɴ", "N", "ʙ", "B", "r", "ʀ", "R",
-    "ɾ", "ɽ", "β", "v", "ð", "z", "ʒ", "ʐ", "ʝ", "ɣ", "ʁ", "ʕ", "ɦ", "ɮ", "ʋ", "ɹ", "ɻ", "ɰ", "j",
-    "w", "l", "d͡ʒ", "dʒ", "dz",
+    "b", "d", "ɖ", "ɟ", "g", "ɢ", "m", "ɱ", "n", "ɳ", "ɲ", "ŋ", "ɴ", "ʙ", "r", "ʀ", "ɾ", "ɽ", "β",
+    "v", "ð", "z", "ʒ", "ʑ", "ʐ", "ʝ", "ɣ", "ʁ", "ʕ", "ɦ", "ɮ", "ʋ", "ɹ", "ɻ", "ɰ", "j", "w", "ɥ",
+    "l", "ɫ", "ɭ", "ʎ", "d͡ʒ", "dʒ", "dz", "dʑ", "ɖʐ",
 ];
-const NASAL_SYMBOLS: &[&str] = &["m", "ɱ", "n", "ɳ", "ɲ", "ŋ", "ɴ", "N"];
-const LATERAL_SYMBOLS: &[&str] = &["l", "ɬ", "ɮ"];
-const HIGH_VOWEL_SYMBOLS: &[&str] = &["i", "y", "ɨ", "ʉ", "ɯ", "u", "I", "U"];
+const NASAL_SYMBOLS: &[&str] = &["m", "ɱ", "n", "ɳ", "ɲ", "ŋ", "ɴ"];
+// ɭ is both retroflex and lateral; palatal ʎ and velarized ɫ remain laterals.
+const LATERAL_SYMBOLS: &[&str] = &["l", "ɫ", "ɭ", "ʎ", "ɬ", "ɮ"];
+// ALINE has no tenseness or near-high feature, so lax ɪ/ʊ/ʏ intentionally use
+// the same high/front/back/round values as their close counterparts i/u/y.
+const HIGH_VOWEL_SYMBOLS: &[&str] = &["i", "y", "ɨ", "ʉ", "ɯ", "u", "ɪ", "ʊ", "ʏ"];
 const MID_VOWEL_SYMBOLS: &[&str] = &[
-    "e", "ø", "ɘ", "ɵ", "ɤ", "o", "ə", "ɛ", "œ", "ɜ", "ɞ", "ʌ", "ɔ", "E", "O",
+    "e", "ø", "ɘ", "ɵ", "ɤ", "o", "ə", "ɛ", "œ", "ɜ", "ɞ", "ʌ", "ɔ", "ɚ", "ɝ",
 ];
-const FRONT_VOWEL_SYMBOLS: &[&str] = &["i", "y", "e", "ø", "ɛ", "œ", "æ", "a", "ɶ", "I", "E"];
-const CENTRAL_VOWEL_SYMBOLS: &[&str] = &["ɨ", "ʉ", "ɘ", "ɵ", "ə", "ɜ", "ɞ", "ɐ", "ä"];
-const ROUNDED_VOWEL_SYMBOLS: &[&str] = &[
-    "y", "ʉ", "u", "ø", "ɵ", "o", "œ", "ɞ", "ɔ", "ɶ", "ɒ", "U", "O",
+const FRONT_VOWEL_SYMBOLS: &[&str] = &["i", "y", "ɪ", "ʏ", "e", "ø", "ɛ", "œ", "æ", "a", "ɶ"];
+// Mid-central ɚ/ɝ share ə's height and backness; their r-colouring is carried by
+// RETROFLEX_SYMBOLS because ALINE has no vowel-rhoticity feature.
+const CENTRAL_VOWEL_SYMBOLS: &[&str] = &["ɨ", "ʉ", "ɘ", "ɵ", "ə", "ɜ", "ɞ", "ɐ", "ä", "ɚ", "ɝ"];
+// Round is compared only for vowels by ALINE, but keeping it accurate on ɥ, w,
+// and ʍ makes the derived feature vectors faithful to the rounded glides.
+const ROUNDED_SYMBOLS: &[&str] = &[
+    "y", "ʏ", "ʉ", "u", "ʊ", "ø", "ɵ", "o", "œ", "ɞ", "ɔ", "ɶ", "ɒ", "ɥ", "w", "ʍ",
 ];
 
+// This is a real-IPA inventory. The historical Kondrak ASCII stand-ins
+// I/U/E/O/N/R/B had no producer outside this table and duplicated IPA entries.
 const IPA_SEGMENT_SYMBOLS: &[&str] = &[
-    "p", "b", "m", "ʙ", "β", "ɸ", "B", "f", "v", "ʋ", "ɱ", "θ", "ð", "t", "d", "n", "s", "z", "r",
-    "l", "ɹ", "ɾ", "ɬ", "ɮ", "ʈ", "ɖ", "ɳ", "ʂ", "ʐ", "ɻ", "ɽ", "ʃ", "ʒ", "j", "c", "ɟ", "ɲ", "ç",
-    "ʝ", "k", "g", "x", "ɣ", "ŋ", "w", "ɰ", "q", "ɢ", "χ", "ʁ", "ʀ", "ɴ", "N", "R", "ħ", "ʕ", "h",
-    "ɦ", "ʔ", "t͡ʃ", "d͡ʒ", "tʃ", "dʒ", "ts", "dz", "i", "y", "ɨ", "ʉ", "ɯ", "u", "I", "U", "e", "ø",
-    "ɘ", "ɵ", "ɤ", "o", "ə", "ɛ", "œ", "ɜ", "ɞ", "ʌ", "ɔ", "E", "O", "æ", "ɐ", "a", "ɶ", "ä", "ɑ",
-    "ɒ", "iː", "yː", "ɨː", "ʉː", "ɯː", "uː", "Iː", "Uː", "eː", "øː", "ɘː", "ɵː", "ɤː", "oː", "əː",
-    "ɛː", "œː", "ɜː", "ɞː", "ʌː", "ɔː", "Eː", "Oː", "æː", "ɐː", "aː", "ɶː", "äː", "ɑː", "ɒː",
+    "p", "b", "m", "ʙ", "β", "ɸ", "f", "v", "ʋ", "ɱ", "θ", "ð", "t", "d", "n", "s", "z", "r", "l",
+    "ɹ", "ɾ", "ɬ", "ɮ", "ʈ", "ɖ", "ɳ", "ʂ", "ʐ", "ɻ", "ɽ", "ʃ", "ʒ", "j", "c", "ɟ", "ɲ", "ç", "ʝ",
+    "k", "g", "x", "ɣ", "ŋ", "w", "ɰ", "q", "ɢ", "χ", "ʁ", "ʀ", "ɴ", "ħ", "ʕ", "h", "ɦ", "ʔ", "t͡ʃ",
+    "d͡ʒ", "tʃ", "dʒ", "ts", "dz", "i", "y", "ɨ", "ʉ", "ɯ", "u", "e", "ø", "ɘ", "ɵ", "ɤ", "o", "ə",
+    "ɛ", "œ", "ɜ", "ɞ", "ʌ", "ɔ", "æ", "ɐ", "a", "ɶ", "ä", "ɑ", "ɒ", "iː", "yː", "ɨː", "ʉː", "ɯː",
+    "uː", "eː", "øː", "ɘː", "ɵː", "ɤː", "oː", "əː", "ɛː", "œː", "ɜː", "ɞː", "ʌː", "ɔː", "æː", "ɐː",
+    "aː", "ɶː", "äː", "ɑː", "ɒː",
     // Aspiration and breathy voice are contrastively notated on plosives and affricates.
     "pʰ", "bʰ", "tʰ", "dʰ", "ʈʰ", "ɖʰ", "cʰ", "ɟʰ", "kʰ", "gʰ", "qʰ", "ɢʰ", "tʃʰ", "dʒʰ", "tsʰ",
     "dzʰ",
+    // Source-language IPA accepted by gimfihi. New entries stay append-only so
+    // generated dictionary segment IDs are rebuilt rather than silently reused.
+    "ɕ", "ʑ", "tɕ", "dʑ", "ʈʂ", "ɖʐ", "pf", "tɕʰ", "dʑʰ", "ʈʂʰ", "ɖʐʰ", "ɥ", "ʍ", "ɫ", "ɭ", "ʎ",
+    "ɪ", "ʊ", "ʏ", "ɚ", "ɝ",
 ];
 
 const CONSONANT_RELEVANT_FEATURES: &[AlineFeature] = &[
@@ -1380,7 +1407,7 @@ fn derive_aline_features(symbol: &str) -> AlineFeatures {
         aspirated_value: flag(symbol.ends_with('ʰ')),
         high_value: derive_high_value(base_symbol),
         back_value: derive_back_value(base_symbol),
-        round_value: flag(ROUNDED_VOWEL_SYMBOLS.contains(&base_symbol)),
+        round_value: flag(ROUNDED_SYMBOLS.contains(&base_symbol)),
         long_value: flag(symbol.ends_with('ː')),
     }
 }
@@ -1420,6 +1447,8 @@ fn derive_place_value(symbol: &str, is_consonant: bool) -> f64 {
         0.8
     } else if PALATO_ALVEOLAR_SYMBOLS.contains(&symbol) {
         0.75
+    } else if ALVEOLO_PALATAL_SYMBOLS.contains(&symbol) {
+        0.725
     } else if PALATAL_SYMBOLS.contains(&symbol) {
         0.7
     } else if VELAR_SYMBOLS.contains(&symbol) {
@@ -1505,8 +1534,8 @@ fn derive_back_value(symbol: &str) -> f64 {
 #[ensures(!ret.is_empty())]
 fn all_short_vowel_symbols() -> &'static [&'static str] {
     &[
-        "i", "y", "ɨ", "ʉ", "ɯ", "u", "I", "U", "e", "ø", "ɘ", "ɵ", "ɤ", "o", "ə", "ɛ", "œ", "ɜ",
-        "ɞ", "ʌ", "ɔ", "E", "O", "æ", "ɐ", "a", "ɶ", "ä", "ɑ", "ɒ",
+        "i", "y", "ɨ", "ʉ", "ɯ", "u", "ɪ", "ʊ", "ʏ", "e", "ø", "ɘ", "ɵ", "ɤ", "o", "ə", "ɛ", "œ",
+        "ɜ", "ɞ", "ʌ", "ɔ", "ɚ", "ɝ", "æ", "ɐ", "a", "ɶ", "ä", "ɑ", "ɒ",
     ]
 }
 
@@ -2078,6 +2107,10 @@ mod tests {
             ("dʒʰ", "dʒ"),
             ("tsʰ", "ts"),
             ("dzʰ", "dz"),
+            ("tɕʰ", "tɕ"),
+            ("dʑʰ", "dʑ"),
+            ("ʈʂʰ", "ʈʂ"),
+            ("ɖʐʰ", "ɖʐ"),
         ] {
             let sequence = tokenize_ipa_text(aspirated_symbol).expect("aspirated IPA segment");
             let [segment] = sequence.segments() else {
@@ -2100,6 +2133,82 @@ mod tests {
                     "{aspirated_symbol} should preserve the {feature:?} feature of {plain_symbol}"
                 );
             }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_inventory_additions_have_expected_aline_features() {
+        let features = |symbol| {
+            let sequence = tokenize_ipa_text(symbol).expect("supported IPA segment");
+            let [segment] = sequence.segments() else {
+                panic!("{symbol} should tokenize as exactly one IPA segment");
+            };
+            segment_features(*segment)
+        };
+
+        let voiceless_alveolo_palatal = features("ɕ");
+        assert_eq!(voiceless_alveolo_palatal.place_value, 0.725);
+        assert_eq!(voiceless_alveolo_palatal.manner_value, 0.8);
+        assert_eq!(voiceless_alveolo_palatal.voice_value, 0.0);
+
+        let voiced_alveolo_palatal = features("ʑ");
+        assert_eq!(voiced_alveolo_palatal.place_value, 0.725);
+        assert_eq!(voiced_alveolo_palatal.manner_value, 0.8);
+        assert_eq!(voiced_alveolo_palatal.voice_value, 1.0);
+
+        let alveolo_palatal_affricate = features("tɕ");
+        assert_eq!(alveolo_palatal_affricate.place_value, 0.725);
+        assert_eq!(alveolo_palatal_affricate.manner_value, 0.9);
+        assert_eq!(alveolo_palatal_affricate.retroflex_value, 0.0);
+
+        let retroflex_affricate = features("ʈʂ");
+        assert_eq!(retroflex_affricate.place_value, 0.8);
+        assert_eq!(retroflex_affricate.manner_value, 0.9);
+        assert_eq!(retroflex_affricate.retroflex_value, 1.0);
+
+        let labial_affricate = features("pf");
+        assert_eq!(labial_affricate.place_value, 0.95);
+        assert_eq!(labial_affricate.manner_value, 0.9);
+        assert_eq!(labial_affricate.voice_value, 0.0);
+
+        let palatal_glide = features("j");
+        assert_eq!(
+            features("ɥ"),
+            AlineFeatures {
+                round_value: 1.0,
+                ..palatal_glide
+            }
+        );
+        let labiovelar_glide = features("w");
+        assert_eq!(
+            features("ʍ"),
+            AlineFeatures {
+                voice_value: 0.0,
+                ..labiovelar_glide
+            }
+        );
+
+        assert_eq!(features("ɫ"), features("l"));
+        let retroflex_lateral = features("ɭ");
+        assert_eq!(retroflex_lateral.place_value, 0.8);
+        assert_eq!(retroflex_lateral.retroflex_value, 1.0);
+        assert_eq!(retroflex_lateral.lateral_value, 1.0);
+        let palatal_lateral = features("ʎ");
+        assert_eq!(palatal_lateral.place_value, 0.7);
+        assert_eq!(palatal_lateral.lateral_value, 1.0);
+
+        assert_eq!(features("ɪ"), features("i"));
+        assert_eq!(features("ʊ"), features("u"));
+        assert_eq!(features("ʏ"), features("y"));
+        for rhotic_vowel in ["ɚ", "ɝ"] {
+            let rhotic = features(rhotic_vowel);
+            assert!(!rhotic.is_consonant);
+            assert_eq!(rhotic.manner_value, 0.2);
+            assert_eq!(rhotic.high_value, 0.5);
+            assert_eq!(rhotic.back_value, 0.5);
+            assert_eq!(rhotic.retroflex_value, 1.0);
         }
     }
 
