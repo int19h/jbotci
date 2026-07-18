@@ -81,9 +81,13 @@ impl ToolDispatcher for CountingDispatcher {
 #[derive(Debug)]
 struct ScriptedModel {
     name: String,
+    tool_choice: ToolChoice,
+    max_tool_reprompts: usize,
+    prose_responses: VecDeque<String>,
     steps: VecDeque<ScriptStep>,
     user_messages: Vec<String>,
     request_user_messages: Vec<Vec<String>>,
+    request_tool_choices: Vec<ToolChoice>,
     tool_results: Vec<RecordedToolResult>,
     calls_made: usize,
 }
@@ -94,18 +98,45 @@ impl ScriptedModel {
     fn new(name: &str, steps: Vec<ScriptStep>) -> Self {
         Self {
             name: name.to_owned(),
+            tool_choice: ToolChoice::Required,
+            max_tool_reprompts: 0,
+            prose_responses: VecDeque::new(),
             steps: steps.into(),
             user_messages: Vec::new(),
             request_user_messages: Vec::new(),
+            request_tool_choices: Vec::new(),
+            tool_results: Vec::new(),
+            calls_made: 0,
+        }
+    }
+
+    #[requires(!name.trim().is_empty())]
+    #[requires(prose_responses.iter().all(|content| !content.is_empty()))]
+    #[ensures(ret.name == name)]
+    fn auto(
+        name: &str,
+        max_tool_reprompts: usize,
+        prose_responses: Vec<String>,
+        steps: Vec<ScriptStep>,
+    ) -> Self {
+        Self {
+            name: name.to_owned(),
+            tool_choice: ToolChoice::Auto,
+            max_tool_reprompts,
+            prose_responses: prose_responses.into(),
+            steps: steps.into(),
+            user_messages: Vec::new(),
+            request_user_messages: Vec::new(),
+            request_tool_choices: Vec::new(),
             tool_results: Vec::new(),
             calls_made: 0,
         }
     }
 
     #[requires(true)]
-    #[ensures(ret == self.steps.is_empty())]
+    #[ensures(ret == (self.steps.is_empty() && self.prose_responses.is_empty()))]
     fn is_complete(&self) -> bool {
-        self.steps.is_empty()
+        self.steps.is_empty() && self.prose_responses.is_empty()
     }
 }
 
@@ -113,6 +144,14 @@ impl ScriptedModel {
 impl ProtocolModel for ScriptedModel {
     fn participant_name(&self) -> &str {
         &self.name
+    }
+
+    fn tool_choice(&self) -> ToolChoice {
+        self.tool_choice
+    }
+
+    fn max_tool_reprompts(&self) -> usize {
+        self.max_tool_reprompts
     }
 
     fn push_user(&mut self, content: String) {
@@ -125,8 +164,13 @@ impl ProtocolModel for ScriptedModel {
         tool_choice: ToolChoice,
         _accounting: &mut RunAccounting,
     ) -> Result<ModelTurn, ProtocolModelError> {
-        assert_eq!(tool_choice, ToolChoice::Required);
+        assert_eq!(tool_choice, self.tool_choice);
         self.request_user_messages.push(self.user_messages.clone());
+        self.request_tool_choices.push(tool_choice);
+        self.calls_made += 1;
+        if let Some(content) = self.prose_responses.pop_front() {
+            return Ok(new!(ModelTurn::Message { content }));
+        }
         let step = self
             .steps
             .pop_front()
@@ -152,7 +196,6 @@ impl ProtocolModel for ScriptedModel {
             )
             .collect::<BTreeSet<_>>();
         assert_eq!(actual, expected, "dynamic tools for {}", self.name);
-        self.calls_made += 1;
         Ok(new!(ModelTurn::ToolCalls {
             calls: vec![tool_call(self.calls_made, tool_name, arguments)],
         }))
@@ -611,6 +654,22 @@ fn happy_path_posts_then_completes_two_blind_listener_flows() {
     runner.run().expect("happy protocol run");
 
     assert_eq!(runner.visible_chat().len(), 1);
+    assert!(runner.participants().iter().all(|participant| {
+        participant
+            .request_tool_choices
+            .iter()
+            .all(|choice| *choice == ToolChoice::Required)
+    }));
+    assert!(runner.participants().iter().all(|participant| {
+        participant
+            .user_messages
+            .iter()
+            .all(|message| message != "You must respond by calling one of the provided tools. Do not answer with prose.")
+    }));
+    assert!(!runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::ProseRejected { .. })
+    )));
     let posted = &runner.visible_chat()[0];
     assert_eq!(posted.text, "mi klama");
     assert!(!posted.tersmu_rendering.is_empty());
@@ -646,6 +705,210 @@ fn happy_path_posts_then_completes_two_blind_listener_flows() {
         assert!(!listener.user_messages[0].contains(rendering));
         assert!(listener.user_messages[1].contains(rendering));
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn automatic_tool_choice_rejects_prose_then_recovers_within_the_existing_cap() {
+    let speaker = ScriptedModel::auto(
+        "alice",
+        2,
+        vec![
+            "I will explain first.".to_owned(),
+            "One more prose answer.".to_owned(),
+        ],
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("automatic prose recovery run");
+
+    assert_eq!(runner.visible_chat().len(), 1);
+    assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+    let prose_rejections = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ProseRejected {
+                participant,
+                attempt,
+                maximum_attempts,
+                ..
+            }) => Some((participant.as_str(), *attempt, *maximum_attempts)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(prose_rejections, [("alice", 1, 3), ("alice", 2, 3)]);
+    let alice = &runner.participants()[0];
+    assert!(
+        alice
+            .request_tool_choices
+            .iter()
+            .all(|choice| *choice == ToolChoice::Auto)
+    );
+    let correction =
+        "You must respond by calling one of the provided tools. Do not answer with prose.";
+    assert_eq!(
+        alice.request_user_messages[1]
+            .iter()
+            .filter(|message| message.as_str() == correction)
+            .count(),
+        1
+    );
+    assert_eq!(
+        alice.request_user_messages[2]
+            .iter()
+            .filter(|message| message.as_str() == correction)
+            .count(),
+        2
+    );
+    assert!(
+        runner.participants()[1]
+            .request_tool_choices
+            .iter()
+            .all(|choice| *choice == ToolChoice::Required)
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn automatic_listener_rejects_prose_then_completes_the_blind_flow() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::auto(
+        "bob",
+        2,
+        vec![
+            "The sentence probably means going.".to_owned(),
+            "I should explain my interpretation.".to_owned(),
+        ],
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("automatic listener recovery run");
+
+    assert_eq!(runner.visible_chat().len(), 1);
+    assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+    let prose_rejections = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ProseRejected {
+                participant,
+                attempt,
+                maximum_attempts,
+                ..
+            }) => Some((participant.as_str(), *attempt, *maximum_attempts)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(prose_rejections, [("bob", 1, 3), ("bob", 2, 3)]);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn automatic_prose_exhaustion_forfeits_the_turn() {
+    let speaker = ScriptedModel::auto(
+        "alice",
+        1,
+        vec!["first prose".to_owned(), "second prose".to_owned()],
+        Vec::new(),
+    );
+    let mut runner = runner(
+        vec![speaker, ScriptedModel::new("bob", Vec::new())],
+        caps(3, 2, 1),
+    )
+    .expect("valid runner");
+
+    runner.run().expect("bounded automatic prose run");
+
+    assert!(runner.visible_chat().is_empty());
+    assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+    assert_eq!(
+        runner
+            .events()
+            .iter()
+            .filter(|event| matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::ProseRejected { .. })
+            ))
+            .count(),
+        2
+    );
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::TurnForfeited { reason, .. })
+            if matches!(
+                reason.as_data(),
+                bityzba::data!(TurnForfeitReason::ProtocolProseResponses {
+                    maximum_attempts: 2,
+                })
+            )
+    )));
 }
 
 #[test]
@@ -1289,6 +1552,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                     name: name.to_owned(),
                     model: format!("example/{name}"),
                     prompt_caching: xarsnu::PromptCaching::Auto,
+                    tool_choice: ToolChoice::Required,
                     temperature: 0.25,
                     system_prompt: "Use the gated protocol.".to_owned(),
                 }))

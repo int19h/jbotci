@@ -48,6 +48,19 @@ pub enum PromptCaching {
     Off,
 }
 
+/// How the provider should enforce selection from the offered tool set.
+#[invariant(::Required => true)]
+#[invariant(::Auto => true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ToolChoice {
+    /// Require a tool call structurally at the provider boundary.
+    #[default]
+    Required,
+    /// Allow prose so thinking-mode providers can be corrected by the protocol.
+    Auto,
+}
+
 /// One model participating in the private side of a simulated discussion.
 #[invariant(!name.trim().is_empty(), "participant names cannot be empty")]
 #[invariant(!model.trim().is_empty(), "participant model ids cannot be empty")]
@@ -60,6 +73,8 @@ pub struct ParticipantConfig {
     pub model: String,
     #[serde(default)]
     pub prompt_caching: PromptCaching,
+    #[serde(default)]
+    pub tool_choice: ToolChoice,
     pub temperature: f64,
     pub system_prompt: String,
 }
@@ -205,6 +220,12 @@ system-prompt = "Speak only Lojban."
                 .iter()
                 .all(|participant| participant.prompt_caching == PromptCaching::Auto)
         );
+        assert!(
+            config
+                .participants
+                .iter()
+                .all(|participant| participant.tool_choice == ToolChoice::Required)
+        );
     }
 
     #[test]
@@ -218,6 +239,19 @@ system-prompt = "Speak only Lojban."
         let config = RunConfig::from_toml(&source).expect("valid config");
         assert_eq!(config.participants[0].prompt_caching, PromptCaching::Off);
         assert_eq!(config.participants[1].prompt_caching, PromptCaching::Auto);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn participant_can_select_automatic_tool_choice() {
+        let source = VALID_CONFIG.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\ntool-choice = \"auto\"",
+        );
+        let config = RunConfig::from_toml(&source).expect("valid config");
+        assert_eq!(config.participants[0].tool_choice, ToolChoice::Auto);
+        assert_eq!(config.participants[1].tool_choice, ToolChoice::Required);
     }
 
     #[test]

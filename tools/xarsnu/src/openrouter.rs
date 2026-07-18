@@ -11,10 +11,10 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::PromptCaching;
+use crate::{PromptCaching, ToolChoice};
 
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
-const REQUIRED_TOOL_CORRECTION: &str =
+pub(crate) const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
 const EMPTY_RESPONSE_CORRECTION: &str = "Your previous response supplied no visible content or tool call. Private reasoning, if any, is not received as a reply. Respond with visible content or call one of the provided tools.";
 const SKIPPED_INVALID_BATCH_CALL: &str = "This tool call was not executed because another tool call in the same response had invalid arguments.";
@@ -52,16 +52,6 @@ fn is_transient_provider_code(code: u16) -> bool {
 #[ensures(ret == model.starts_with("anthropic/"))]
 fn model_requires_explicit_prompt_caching(model: &str) -> bool {
     model.starts_with("anthropic/")
-}
-
-/// Whether the model may answer with prose or must select a tool.
-#[invariant(::Auto => true)]
-#[invariant(::Required => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ToolChoice {
-    Auto,
-    Required,
 }
 
 /// The OpenAI-compatible function portion of a model-facing tool definition.
@@ -572,6 +562,13 @@ impl OpenRouterClient {
             timeout: timeout,
         });
         Ok(Self::new(config))
+    }
+
+    /// Protocol-level corrective reprompts allowed after an automatic prose response.
+    #[requires(true)]
+    #[ensures(ret == self.config.max_required_tool_reprompts)]
+    pub(crate) fn max_required_tool_reprompts(&self) -> usize {
+        self.config.max_required_tool_reprompts
     }
 
     /// Sleep for the next exponential-backoff slot when retry capacity remains.

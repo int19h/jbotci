@@ -11,7 +11,7 @@ pub mod transcript;
 
 pub use config::{
     CapsConfig, ClientConfig, ConfigError, ParticipantConfig, PromptCaching, RunConfig,
-    TersmuFormat,
+    TersmuFormat, ToolChoice,
 };
 pub use jbotci_tools::{
     DiagnosticCategory, GateError, GateOutcome, ReferenceToolError, ReferenceTools, gate_lojban,
@@ -19,7 +19,7 @@ pub use jbotci_tools::{
 pub use openrouter::{
     AbortKind, AbortRecord, ChatMessage, FunctionCall, FunctionToolDefinition, ModelTurn,
     OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition,
+    ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolDefinition,
     ToolDefinitionError, ToolDispatchError, ToolDispatcher, Usage, UsageTotals,
 };
 pub use protocol::{

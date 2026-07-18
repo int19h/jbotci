@@ -217,6 +217,10 @@ Aggregate status: **partial**
 
 Reasoning field present: true; reasoning tokens: 20
 
+### Auto-mode prose rejected — `alice`
+
+Protocol action attempt **1** of **3** returned prose instead of a tool call.
+
 ### Run aborted
 
 Cost budget $0.010000; actual cost $0.012000.
@@ -258,6 +262,7 @@ Aggregate: **partial**
 
 ### Protocol stops
 
+- Auto-mode prose rejections: 1
 - Protocol errors: 1
 - Forfeits: 1
 - Budget aborts: 1

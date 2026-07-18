@@ -28,6 +28,7 @@ reference-nudge-after = 6
 name = "alice"
 model = "anthropic/example-model"
 prompt-caching = "auto"
+tool-choice = "auto"
 temperature = 0.4
 system-prompt = "Speak only Lojban in the visible discussion."
 
@@ -35,6 +36,7 @@ system-prompt = "Speak only Lojban in the visible discussion."
 name = "bob"
 model = "example/other-model"
 prompt-caching = "off"
+tool-choice = "required"
 temperature = 0.6
 system-prompt = "Speak only Lojban in the visible discussion."
 ```
@@ -50,6 +52,11 @@ directory, then against this crate's `tools/xarsnu/scenarios/` directory.
 
 `prompt-caching` is per participant. `auto` (the default) emits explicit cache
 breakpoints only for models that require them; `off` leaves the request alone.
+
+`tool-choice` is also per participant and defaults to `required`. Set it to
+`auto` only for thinking-mode providers that reject required tool choice. In
+that mode xarsnu rejects prose responses privately and correctively reprompts
+through the same bounded tool-call fallback used by required mode.
 
 The reference-loop controls are run-wide caps applied independently to every
 protocol phase. `max-reference-calls-per-phase` defaults to 16 and withdraws

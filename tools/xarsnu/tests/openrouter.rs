@@ -576,6 +576,28 @@ fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn automatic_tool_choice_reaches_the_request_wire() {
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Auto,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let captured = server.finish();
+    assert_eq!(captured[0].body["tool_choice"], "auto");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn anthropic_breakpoints_cover_system_and_move_to_each_request_tail() {
     let server = MockServer::start(vec![
         tool_call_response("alpha", 0.01),
