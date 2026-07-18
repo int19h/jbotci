@@ -987,7 +987,10 @@ mod tests {
 
     use super::*;
 
-    #[invariant(true)]
+    #[invariant(!name.is_empty())]
+    #[invariant(marked_source.matches('|').count() == 1)]
+    #[invariant(expected_replacement.is_none_or(|replacement| !replacement.is_empty()))]
+    #[invariant(!expected_label.is_empty())]
     struct BoundaryCompletionCase {
         name: &'static str,
         marked_source: &'static str,

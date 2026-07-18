@@ -64,6 +64,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wall-time stats are derived from non-empty iteration measurements by wall_time_stats",
     ),
     (
+        "apps/jbotci/src/lsp.rs:CompletionCancellationGuard",
+        "completion cancellation guard owns one independently valid shared token and cancels it on drop",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:DocumentState",
         "document state is mutable under the document-store lock and its transition methods enforce text, version, generation, and snapshot coherence",
     ),
@@ -654,6 +658,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
         "short rafsi candidates are generated and classified by possible_short_rafsis",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion.rs:CompletionCancellationToken",
+        "completion cancellation token is a shared atomic flag whose only valid state transition is enforced by cancel",
     ),
     (
         "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:NodeFrame",
