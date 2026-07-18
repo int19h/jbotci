@@ -708,20 +708,28 @@ fn pull_diagnostics_expose_provisional_then_confirmed_generations() {
         .to_owned();
     assert!(provisional_id.ends_with(":2:provisional"));
 
-    thread::sleep(Duration::from_millis(300));
-    let confirmed = client.request(
-        "textDocument/diagnostic",
-        json!({
-            "textDocument": { "uri": URI },
-            "identifier": "jbotci",
-            "previousResultId": provisional_id
-        }),
-    );
-    assert!(
-        confirmed["resultId"]
+    let confirmation_deadline = Instant::now() + Duration::from_secs(30);
+    let confirmed = loop {
+        let report = client.request(
+            "textDocument/diagnostic",
+            json!({
+                "textDocument": { "uri": URI },
+                "identifier": "jbotci",
+                "previousResultId": &provisional_id
+            }),
+        );
+        if report["resultId"]
             .as_str()
             .is_some_and(|result_id| result_id.ends_with(":2:confirmed"))
-    );
+        {
+            break report;
+        }
+        assert!(
+            Instant::now() < confirmation_deadline,
+            "confirmation must complete within the CI-twin boundary; last report: {report}",
+        );
+        thread::sleep(Duration::from_millis(10));
+    };
     assert_eq!(provisional["items"], confirmed["items"]);
     client.shutdown();
 }
