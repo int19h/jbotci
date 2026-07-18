@@ -1,5 +1,9 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -65,6 +69,36 @@ pub enum CompletionProvenance {
 // Parse-dominated documents may still exhaust this limit and deliberately
 // degrade to morphology-valid candidates.
 const COMPLETION_GRAMMAR_TIME_LIMIT: Duration = Duration::from_secs(1);
+
+/// Cooperative cancellation shared with a completion worker.
+#[invariant(true)]
+#[derive(Debug, Clone, Default)]
+pub struct CompletionCancellationToken {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl CompletionCancellationToken {
+    /// Create a live completion cancellation token.
+    #[requires(true)]
+    #[ensures(!ret.is_cancelled())]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Request cancellation of every completion sharing this token.
+    #[requires(true)]
+    #[ensures(self.is_cancelled())]
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    /// Return whether cancellation has been requested.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+}
 
 impl CompletionInterpretation {
     #[requires(true)]
@@ -137,10 +171,11 @@ enum CursorCompletionContext {
 // parameter, so the validated wrapper never needs interior mutation.
 #[invariant(replacement_span.byte_end <= snapshot.text.len())]
 #[invariant(replacement_span.char_end <= snapshot.line_index.char_len())]
-struct CompletionContext<'snapshot, 'dictionary, 'entries> {
+struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     snapshot: &'snapshot DocumentSnapshot,
     dictionary: &'dictionary Dictionary<'entries>,
     document_cmevla: &'snapshot BTreeSet<String>,
+    cancellation: &'cancellation CompletionCancellationToken,
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     normalized_prefix: String,
@@ -157,7 +192,22 @@ impl DocumentSnapshot {
     #[requires(true)]
     #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
     pub fn completions(&self, char_offset: usize) -> Vec<CompletionItem> {
-        self.completions_with_grammar_time_limit(char_offset, COMPLETION_GRAMMAR_TIME_LIMIT)
+        self.completions_cancellable(char_offset, &CompletionCancellationToken::new())
+    }
+
+    /// Return completions while cooperatively observing `cancellation`.
+    #[requires(true)]
+    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
+    pub fn completions_cancellable(
+        &self,
+        char_offset: usize,
+        cancellation: &CompletionCancellationToken,
+    ) -> Vec<CompletionItem> {
+        self.completions_with_grammar_time_limit_and_cancellation(
+            char_offset,
+            COMPLETION_GRAMMAR_TIME_LIMIT,
+            cancellation,
+        )
     }
 
     #[requires(!grammar_time_limit.is_zero())]
@@ -167,6 +217,24 @@ impl DocumentSnapshot {
         char_offset: usize,
         grammar_time_limit: Duration,
     ) -> Vec<CompletionItem> {
+        self.completions_with_grammar_time_limit_and_cancellation(
+            char_offset,
+            grammar_time_limit,
+            &CompletionCancellationToken::new(),
+        )
+    }
+
+    #[requires(!grammar_time_limit.is_zero())]
+    #[ensures(ret.windows(2).all(|items| completion_sort_key(&items[0]) <= completion_sort_key(&items[1])))]
+    fn completions_with_grammar_time_limit_and_cancellation(
+        &self,
+        char_offset: usize,
+        grammar_time_limit: Duration,
+        cancellation: &CompletionCancellationToken,
+    ) -> Vec<CompletionItem> {
+        if cancellation.is_cancelled() {
+            return Vec::new();
+        }
         let cursor = self.line_index.offsets_for_char(char_offset);
         let seed_span = self.completion_seed_span(cursor.byte, cursor.char);
         let seed = &self.text[seed_span.byte_start..seed_span.byte_end];
@@ -189,13 +257,18 @@ impl DocumentSnapshot {
                 dictionary,
                 &document_cmevla,
                 CompletionInterpretation::Extend,
-                replacement_span,
+                replacement_span.clone(),
                 seed,
                 &preceding_words,
                 preceding_awaits_zo_target,
                 grammar_time_limit,
+                cancellation,
                 &mut items,
             );
+        }
+
+        if cancellation.is_cancelled() {
+            return Vec::new();
         }
 
         let cursor_ends_word = self.text[cursor.byte..]
@@ -224,20 +297,34 @@ impl DocumentSnapshot {
                 completed_words = completed_segmentation.words;
                 &completed_words
             };
-            let insertion_span =
-                SourceSpan::new(None, cursor.byte, cursor.byte, cursor.char, cursor.char)
-                    .expect("a cursor position is an ordered empty source span");
+            let continuation_span =
+                if seed.is_empty() && replacement_span.byte_start < replacement_span.byte_end {
+                    // At the left edge of an existing word, completion replaces
+                    // that word. Treating the cut as a zero-width insertion would
+                    // fuse every candidate to the right-hand word and force a
+                    // separate morphology parse for every candidate merely to
+                    // reject most of them.
+                    replacement_span.clone()
+                } else {
+                    SourceSpan::new(None, cursor.byte, cursor.byte, cursor.char, cursor.char)
+                        .expect("a cursor position is an ordered empty source span")
+                };
             self.add_completion_interpretation(
                 dictionary,
                 &document_cmevla,
                 CompletionInterpretation::Continue,
-                insertion_span,
+                continuation_span,
                 "",
                 continuation_words,
                 continuation_awaits_zo_target,
                 grammar_time_limit,
+                cancellation,
                 &mut items,
             );
+        }
+
+        if cancellation.is_cancelled() {
+            return Vec::new();
         }
 
         let short_glosses = {
@@ -247,6 +334,9 @@ impl DocumentSnapshot {
                 .collect::<Vec<_>>();
             dictionary.first_gloss_keywords_for_words(&labels)
         };
+        if cancellation.is_cancelled() {
+            return Vec::new();
+        }
         let mut result = items
             .into_values()
             .zip(short_glosses)
@@ -324,8 +414,12 @@ impl DocumentSnapshot {
         preceding_words: &[WordLike],
         preceding_awaits_zo_target: bool,
         grammar_time_limit: Duration,
+        cancellation: &CompletionCancellationToken,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
+        if cancellation.is_cancelled() {
+            return;
+        }
         let tree_context = TreeCompletionContext::from_parse(
             &self.parse,
             replacement_span.byte_start,
@@ -354,6 +448,7 @@ impl DocumentSnapshot {
             snapshot: self,
             dictionary,
             document_cmevla,
+            cancellation,
             interpretation,
             replacement_span,
             normalized_prefix: normalize_lookup_query(prefix),
@@ -378,11 +473,17 @@ impl DocumentSnapshot {
                     items,
                 ),
             CursorCompletionContext::Grammar => {
+                if cancellation.is_cancelled() {
+                    return;
+                }
                 let expectations = expected_continuations_with_time_limit(
                     statement_words,
                     &ParseOptions::default(),
                     grammar_time_limit,
                 );
+                if cancellation.is_cancelled() {
+                    return;
+                }
                 if completion_context.add_grammar_candidates(&expectations, items) {
                     completion_context
                         .add_open_construct_candidates(&tree_context.open_constructs, items);
@@ -491,14 +592,17 @@ impl DocumentSnapshot {
     }
 }
 
-impl CompletionContext<'_, '_, '_> {
+impl CompletionContext<'_, '_, '_, '_> {
     #[requires(true)]
-    #[ensures(ret == !expectations.is_empty())]
+    #[ensures(!ret || !expectations.is_empty())]
     fn add_grammar_candidates(
         &self,
         expectations: &[SyntaxExpectation],
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) -> bool {
+        if self.cancellation.is_cancelled() {
+            return false;
+        }
         if expectations.is_empty() {
             self.add_unfiltered_candidates(
                 new!(SyntaxExpectationReason::ContinueCurrent {
@@ -511,6 +615,9 @@ impl CompletionContext<'_, '_, '_> {
         }
         let mut tokens = BTreeMap::<SyntaxExpectedToken, SyntaxExpectationReason>::new();
         for expectation in expectations {
+            if self.cancellation.is_cancelled() {
+                return false;
+            }
             for token in &expectation.tokens {
                 match tokens.entry(token.clone()) {
                     std::collections::btree_map::Entry::Vacant(entry) => {
@@ -526,6 +633,9 @@ impl CompletionContext<'_, '_, '_> {
             }
         }
         for (token, reason) in tokens {
+            if self.cancellation.is_cancelled() {
+                return false;
+            }
             self.add_expected_token(&token, &reason, items);
         }
         true
@@ -539,6 +649,9 @@ impl CompletionContext<'_, '_, '_> {
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         for candidate in candidates {
+            if self.cancellation.is_cancelled() {
+                break;
+            }
             self.add_expected_token(
                 &new!(SyntaxExpectedToken::Cmavo(candidate.cmavo)),
                 &new!(SyntaxExpectationReason::ContinueCurrent {
@@ -557,6 +670,9 @@ impl CompletionContext<'_, '_, '_> {
         reason: &SyntaxExpectationReason,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
+        if self.cancellation.is_cancelled() {
+            return;
+        }
         let provenance = new!(CompletionProvenance::Expected {
             token: token.clone(),
         });
@@ -584,6 +700,9 @@ impl CompletionContext<'_, '_, '_> {
                         .copied()
                         .filter(|cmavo| cmavo.is_quote_opener())
                     {
+                        if self.cancellation.is_cancelled() {
+                            break;
+                        }
                         self.add_cmavo(cmavo, CompletionKind::Cmavo, reason, &provenance, items);
                     }
                 }
@@ -601,6 +720,9 @@ impl CompletionContext<'_, '_, '_> {
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         for cmavo in Cmavo::ALL {
+            if self.cancellation.is_cancelled() {
+                return;
+            }
             self.add_cmavo(*cmavo, CompletionKind::Cmavo, &reason, &provenance, items);
         }
         self.add_dictionary_brivla(&reason, &provenance, items);
@@ -626,6 +748,9 @@ impl CompletionContext<'_, '_, '_> {
             .copied()
             .filter(|cmavo| selmaho.contains(*cmavo))
         {
+            if self.cancellation.is_cancelled() {
+                break;
+            }
             self.add_cmavo(cmavo, kind, reason, provenance, items);
         }
     }
@@ -661,6 +786,9 @@ impl CompletionContext<'_, '_, '_> {
             .entries_by_word_prefix(&self.normalized_prefix)
             .filter(|entry| is_completion_brivla_type(entry.word_type))
         {
+            if self.cancellation.is_cancelled() {
+                break;
+            }
             self.add_candidate(
                 entry.word,
                 CompletionKind::Brivla,
@@ -680,6 +808,9 @@ impl CompletionContext<'_, '_, '_> {
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
         for word in self.document_cmevla {
+            if self.cancellation.is_cancelled() {
+                break;
+            }
             self.add_candidate(word, CompletionKind::Cmevla, reason, provenance, items);
         }
     }
@@ -694,6 +825,9 @@ impl CompletionContext<'_, '_, '_> {
         provenance: &CompletionProvenance,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
+        if self.cancellation.is_cancelled() {
+            return;
+        }
         let normalized_label = normalize_lookup_query(label);
         if normalized_label.is_empty()
             || !normalized_label.starts_with(&self.normalized_prefix)
@@ -853,6 +987,14 @@ mod tests {
 
     use super::*;
 
+    #[invariant(true)]
+    struct BoundaryCompletionCase {
+        name: &'static str,
+        marked_source: &'static str,
+        expected_replacement: Option<&'static str>,
+        expected_label: &'static str,
+    }
+
     #[requires(source.matches('|').count() == 1)]
     #[ensures(true)]
     fn completions_at_marker(source: &str) -> Vec<CompletionItem> {
@@ -920,6 +1062,107 @@ mod tests {
             data!(SyntaxExpectedToken::Cmavo(Cmavo::I))
                 | data!(SyntaxExpectedToken::Selmaho(Selmaho::I))
         )
+    }
+
+    #[requires(!grammar_time_limit.is_zero())]
+    #[requires(literal_time_limit.is_none_or(|limit| !limit.is_zero()))]
+    #[ensures(true)]
+    fn assert_boundary_completion_cases(
+        grammar_time_limit: Duration,
+        literal_time_limit: Option<Duration>,
+    ) {
+        let cases = [
+            BoundaryCompletionCase {
+                name: "word start after a space",
+                marked_source: "mi klama le |zarci",
+                expected_replacement: Some("zarci"),
+                expected_label: "barda",
+            },
+            BoundaryCompletionCase {
+                name: "word start after a pause period",
+                marked_source: "mi tavla .|alis.",
+                expected_replacement: Some("alis"),
+                expected_label: "do",
+            },
+            BoundaryCompletionCase {
+                name: "first word of a statement",
+                marked_source: "mi klama .i |sruma",
+                expected_replacement: Some("sruma"),
+                expected_label: "sruma",
+            },
+            BoundaryCompletionCase {
+                name: "document offset zero",
+                marked_source: "|sruma",
+                expected_replacement: Some("sruma"),
+                expected_label: "sruma",
+            },
+            BoundaryCompletionCase {
+                name: "document end",
+                marked_source: "mi klama |",
+                expected_replacement: None,
+                expected_label: "i",
+            },
+            BoundaryCompletionCase {
+                name: "owner zvati position",
+                marked_source: "ne'i zo'e le mamta ku |zvati",
+                expected_replacement: Some("zvati"),
+                expected_label: "zvati",
+            },
+            BoundaryCompletionCase {
+                name: "owner sruma position",
+                marked_source: ".i la prux. ba'o |sruma lo du'u le ckule cipra ku frili ra",
+                expected_replacement: Some("sruma"),
+                expected_label: "sruma",
+            },
+        ];
+
+        for case in cases {
+            let marker_byte = case
+                .marked_source
+                .find('|')
+                .expect("every boundary case contains a cursor marker");
+            let cursor = case.marked_source[..marker_byte].chars().count();
+            let text = case.marked_source.replacen('|', "", 1);
+            let snapshot = DocumentSnapshot::new(text.clone(), 1);
+            let started = Instant::now();
+            let items = snapshot.completions_with_grammar_time_limit(cursor, grammar_time_limit);
+            let elapsed = started.elapsed();
+
+            assert!(
+                has_label(&items, case.expected_label),
+                "{} must offer {:?}: {items:#?}",
+                case.name,
+                case.expected_label,
+            );
+            let (expected_start, expected_end) = match case.expected_replacement {
+                Some(replacement) => {
+                    let byte_start = text
+                        .find(replacement)
+                        .expect("the expected replacement occurs in the boundary case");
+                    (
+                        text[..byte_start].chars().count(),
+                        text[..byte_start + replacement.len()].chars().count(),
+                    )
+                }
+                None => (cursor, cursor),
+            };
+            assert!(
+                items.iter().all(|item| {
+                    item.replacement_span.char_start == expected_start
+                        && item.replacement_span.char_end == expected_end
+                }),
+                "{} must replace the current word (or insert at document end): expected {expected_start}..{expected_end}, first item {:#?}",
+                case.name,
+                items.first(),
+            );
+            if let Some(limit) = literal_time_limit {
+                assert!(
+                    elapsed < limit,
+                    "{} completion took {elapsed:?}, limit {limit:?}",
+                    case.name,
+                );
+            }
+        }
     }
 
     #[test]
@@ -1201,12 +1444,14 @@ mod tests {
         let snapshot = DocumentSnapshot::new(text, 1);
         let dictionary = jbotci_dictionary_data::english();
         let document_cmevla = snapshot.document_cmevla();
+        let cancellation = CompletionCancellationToken::new();
         let replacement_span = SourceSpan::new(None, cursor, cursor, cursor, cursor)
             .expect("the cursor is an ordered empty span");
         let context = new!(CompletionContext {
             snapshot: &snapshot,
             dictionary,
             document_cmevla: &document_cmevla,
+            cancellation: &cancellation,
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
             normalized_prefix: String::new(),
@@ -1235,6 +1480,7 @@ mod tests {
             snapshot: &snapshot,
             dictionary,
             document_cmevla: &document_cmevla,
+            cancellation: &cancellation,
             interpretation: CompletionInterpretation::Extend,
             replacement_span,
             normalized_prefix: normalize_lookup_query("l"),
@@ -1352,6 +1598,55 @@ mod tests {
                     )
             }),
             "instrumented memoized recovery should reach the cut with an ample grammar budget: {items:#?}",
+        );
+    }
+
+    // Deep contract instrumentation and shared CI hardware change literal
+    // wall-clock behavior. CI and the expensive-contract build run the
+    // functional twin below with an ample grammar budget; local production
+    // builds additionally enforce the interactive latency boundary per case.
+    #[cfg(not(feature = "expensive_contracts"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_boundary_positions_remain_interactive() {
+        let assert_literal_boundary = std::env::var_os("CI").is_none();
+        let grammar_time_limit = if assert_literal_boundary {
+            COMPLETION_GRAMMAR_TIME_LIMIT
+        } else {
+            Duration::from_secs(30)
+        };
+        assert_boundary_completion_cases(
+            grammar_time_limit,
+            assert_literal_boundary.then_some(Duration::from_secs(2)),
+        );
+    }
+
+    #[cfg(feature = "expensive_contracts")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_boundary_positions_remain_correct_with_instrumentation() {
+        assert_boundary_completion_cases(Duration::from_secs(30), None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn cancelled_completion_stops_before_boundary_candidate_expansion() {
+        let text = ".i la prux. ba'o sruma lo du'u le ckule cipra ku frili ra";
+        let cursor = text.find("sruma").expect("fixture contains sruma");
+        let snapshot = DocumentSnapshot::new(text.to_owned(), 1);
+        let cancellation = CompletionCancellationToken::new();
+        cancellation.cancel();
+
+        let started = Instant::now();
+        let items = snapshot.completions_cancellable(cursor, &cancellation);
+
+        assert!(items.is_empty());
+        assert!(
+            started.elapsed() < Duration::from_millis(50),
+            "pre-cancelled completion must not enter candidate expansion",
         );
     }
 }
