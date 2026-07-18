@@ -3717,10 +3717,6 @@ their expansion as discourse truth.
   "type": "relationMetadata",
   "relation": "seljvajvo",
   "sourceWords": ["se", "jvajvo"],
-  "placeStructure": [
-    { "place": "x1", "description": "lujvo" },
-    { "place": "x2", "description": "source tanru" }
-  ],
   "expansion": {
     "kind": "lujvo",
     "sourceWords": ["se", "jvajvo"],
@@ -3729,9 +3725,13 @@ their expansion as discourse truth.
 }
 ```
 
-Do not use relation metadata to silently desugar a lujvo into asserted
-component relations.  It is lexical explanation, not the main semantic content
-unless the source text explicitly asserts it.
+Dictionary definitions are authoritative for lujvo meaning and place count, so
+dictionary lujvo do not receive relation metadata. A nonce lujvo receives
+metadata only when morphology provides a complete rafsi decomposition whose
+source words all resolve. The object retains those mechanical `sourceWords` and
+the rafsi `expansion`; it makes no `placeStructure` or implicit-abstraction
+claim. Do not use relation metadata to silently desugar a lujvo into asserted
+component relations.
 
 When a lujvo contains a rafsi whose source word is itself context-sensitive,
 such as a pro-sumti rafsi, preserve that resolution inside

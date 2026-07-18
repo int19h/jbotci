@@ -515,7 +515,7 @@ RFY rd : kind=du'u, body=fd, abstracted=[], embeddedQuestions=[q2]
 ```
 **`tu'a` (11.64)** `mi troci tu'a le vorme` → `RFY rt : kind=su'u, body=⟨R[do-with](et; z_agent, V)⟩, abstracted=[et]`, `V = le vorme`; `troci(e1; a1, ⟨le su'u rt⟩, z)`. **`jai`** is the converse, raising the abstraction's argument into x1 at the selbri level (`le jai rinka be le nu do morsi` = "the one who caused your death").
 
-## Chapter 12 — lujvo (atomic relation + `REL` metadata; tanru desugar, lujvo do not)
+## Chapter 12 — lujvo (atomic relations; mechanical metadata only for nonce lujvo)
 
 **12.36 `la .ma([s)] cu dalmikce le gerku`** — "Mary is a vet for the dog" (`dalmikce` = `danlu mikce`, "animal doctor"; asymmetrical place-merge).
 ```
@@ -527,31 +527,36 @@ PRD p1 : rel=dalmikce, ev=e1, args=[M, g1, z1, z2, z3], mode=asserted   -- ATOMI
 REF z1 : kind=const, flavor=zo'e, sort=Obj                              -- species (d2)
 REF z2 : kind=const, flavor=zo'e, sort=Obj                              -- ailment (m3)
 REF z3 : kind=const, flavor=zo'e, sort=Obj                              -- treatment (m4)
-REL rDM : relation=dalmikce, sourceWords=[danlu,mikce],
-          placeStructure=[{place:x1,description:doctor}, {place:x2,description:animal-patient},
-                          {place:x3,description:species}, {place:x4,description:ailment},
-                          {place:x5,description:treatment}],
-          expansion={kind:lujvo, sourceWords:[dal,mikce], rafsiBindings:[]}
 FRM f1 : p1
 ```
-The lujvo is used as an **atomic `rel`** in `f1`; `REL rDM` records the
-available source-word and place-structure explanation as **documentation that
-never enters any `FRM`**. The current public expansion shape has `kind`,
-`sourceWords`, and context-sensitive `rafsiBindings`; it does not expose the
-older `veljvo`/`r`/`places` fields. If `dalmikce` were *unknown* to the
-audience, the decomposition can guide an operative tanru-like approximation,
-but predication still proceeds on the bare lujvo.
+The dictionary definition is authoritative for `dalmikce`'s meaning and five
+places. The graph therefore uses the dictionary lujvo as an atomic relation and
+emits **no `REL` object** for it. A spelling-derived explanation alongside the
+definition would invite consumers to treat an advisory lujvo decomposition as
+normative semantics. The same rule applies to dictionary `ctigau` (`citka gasnu`,
+"feeder") and `gerzda` (`gerku zdani`, "kennel"): neither receives a
+mechanical decomposition object, and the graph does not infer an implicit
+`nu`-abstraction or participant mapping from the component words.
 
-**Implicit-abstraction lujvo — `ctigau` (`citka gasnu`, "feeder").** `gasnu` (x1 agent brings about event x2) contributes an **event place** filled by an implicit `nu`-abstraction of the seltau:
+**Nonce lujvo — `ti mlatyzda`** (`mlatu zdani`, with `mlatyzda` absent from the
+dictionary). When morphology supplies a complete rafsi decomposition and every
+rafsi resolves to its source word, `REL` retains only those mechanical facts:
 ```
-PRD p1 : rel=ctigau, ev=e1, args=[A, F, z1], mode=asserted              -- A feeds F
-RFY r2 : kind=nu, body=⟨citka(ec; F, A, z2)⟩, abstracted=[ec]           -- the implicit eating-event
-REL rCG : relation=ctigau, sourceWords=[citka,gasnu],
-          placeStructure=[{place:x1,description:agent}, {place:x2,description:eater},
-                          {place:x3,description:food}],
-          expansion={kind:lujvo, sourceWords:[cti,gau], rafsiBindings:[]}
+REF t1 : kind=const, flavor=ti, sort=Obj
+EV  e1 : tense=?, caha=?
+PRD p1 : rel=mlatyzda, ev=e1, args=[t1], mode=asserted
+         diagnostics=[relation place structure is unavailable; only places required by explicit assignments are represented]
+REL rMZ : relation=mlatyzda, sourceWords=[mlatu,zdani],
+          expansion={kind:lujvo, sourceWords:[mlat,zda], rafsiBindings:[]}
+FRM f1 : p1
 ```
-The `nu` is not on the surface but is mandated by `gasnu`'s place structure — a claim-by-place-structure parallel to the `botpi` lid. **`gerzda`** (`gerku zdani`, kennel) is the plain asymmetrical case: `gerzda(z1, d1=z2, …)`, with `REL.placeStructure` documenting that mapping. **`zei`-lujvo** (e.g. `xy. zei kantu` "X-ray") likewise retains typed source-word/rafsi metadata rather than asserting quoted component words as a second formula.
+There is deliberately no `placeStructure`: a nonce lujvo keeps the same
+unknown-place-structure warning and represents only places required by explicit
+assignments. `sourceWords` contains resolved full words, while
+`expansion.sourceWords` preserves the morphology-derived rafsi; optional
+`rafsiBindings` records only genuinely context-sensitive rafsi resolution. None
+of this metadata enters a `FRM`. This rafsi rule does not invent an expansion
+for a `zei` compound such as `xy. zei kantu`.
 
 ## Chapter 13 — attitudinals & evidentials (the `DSP` tier; no truth value, never in `FRM`)
 
