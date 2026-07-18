@@ -7,6 +7,18 @@
   - `alice`: `example/alice` (temperature 0.25)
   - `bob`: `example/bob` (temperature 0.25)
 
+## Dialog
+
+**alice:** mi klama
+
+*(alice forfeited turn 1)*
+
+*(alice submitted an answer)*
+
+*(checker: partial)*
+
+*(run aborted: cost budget exceeded)*
+
 <details><summary>Scenario instance snapshot</summary>
 
 ```toml
