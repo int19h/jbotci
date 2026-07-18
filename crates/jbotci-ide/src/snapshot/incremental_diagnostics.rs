@@ -86,7 +86,6 @@ impl DiagnosticSnapshot {
 }
 
 /// Morphology plus an optional diagnostics-only optimistic result for one edit.
-#[invariant(true)]
 #[invariant(provisional.is_some() == (*gate == IncrementalDiagnosticGate::Passed))]
 #[derive(Debug)]
 pub struct PreparedDocumentAnalysis {
@@ -210,7 +209,7 @@ impl<'tree> TreeVisitor<'tree> for ValidTokenCollector {
     type Atom = generated_model::AtomRef<'tree>;
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.tokens.len() == old(self.tokens.len()) + 1)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         let generated_model::AtomRef::Token(token) = atom;
         self.tokens.push(token.clone());
@@ -227,7 +226,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredTokenCollector {
     type Atom = generated_model::recovered::AtomRef<'tree>;
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.tokens.len() == old(self.tokens.len()) + 1)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         let generated_model::recovered::AtomRef::Token(token) = atom;
         self.tokens.push(token.clone());

@@ -668,6 +668,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "completion cancellation token is a shared atomic flag whose only valid state transition is enforced by cancel",
     ),
     (
+        "crates/jbotci-ide/src/snapshot/completion.rs:CompletionDocumentWordCollector",
+        "private TreeVisitor accumulator whose word-set and current-word relationship is enforced by record and completion_document_words contracts",
+    ),
+    (
         "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:NodeFrame",
         "private mutable traversal frame; node balance and constructor validity are enforced by TreeContextCollector enter and exit contracts",
     ),
@@ -706,6 +710,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:ValidTreeContextVisitor",
         "private TreeVisitor adapter whose state validity is delegated to TreeContextCollector traversal contracts",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/incremental_diagnostics.rs:RecoveredTokenCollector",
+        "private TreeVisitor token accumulator whose per-visit growth and final source ordering are enforced by traversal and confirmed_tree_tokens contracts",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/incremental_diagnostics.rs:ValidTokenCollector",
+        "private TreeVisitor token accumulator whose per-visit growth and final source ordering are enforced by traversal and confirmed_tree_tokens contracts",
     ),
     (
         "crates/jbotci-ide/src/snapshot/structure_inlays.rs:RawBracketsOptions",

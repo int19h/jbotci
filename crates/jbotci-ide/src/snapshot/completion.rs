@@ -193,7 +193,8 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries, 'cancellation> {
     suffix_consistent_labels: BTreeSet<String>,
 }
 
-// Mutable traversal scratch space; every combination of fields is valid.
+// Mutable traversal scratch space; `record` and the enclosing projection
+// contracts govern the relationship between the accumulated fields.
 #[invariant(true)]
 struct CompletionDocumentWordCollector<'span> {
     replacement_span: &'span SourceSpan,
@@ -204,6 +205,7 @@ struct CompletionDocumentWordCollector<'span> {
 impl CompletionDocumentWordCollector<'_> {
     #[requires(true)]
     #[ensures(self.words.contains(&word.canonical_phonemes()))]
+    #[ensures(self.current.as_ref().is_none_or(|(_, current)| self.words.contains(current)))]
     fn record(&mut self, word: &Word) {
         let canonical = word.canonical_phonemes();
         self.words.insert(canonical.clone());
