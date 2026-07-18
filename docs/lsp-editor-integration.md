@@ -381,6 +381,23 @@ inlay-shaped data. Works mid-error today.
   vocabulary — raw brackets are the debug/learner profile, pandi the reader
   profile. One inlay engine, N profiles.
 
+The VS Code surface is one kind-keyed object, `jbotci.inlays`. The extension
+passes the same object as `initializationOptions.inlays`; each kind is
+independently enabled:
+
+```json
+{
+  "structureBrackets": true,
+  "wordBoundaries": false,
+  "rafsiBoundaries": true
+}
+```
+
+`structureBrackets` may instead contain its profile object (`profile`,
+`maxNestingDepth`, and `constructs`). The pre-kind-keyed server shape,
+`initializationOptions.structureInlays`, remains accepted for one release and
+produces a `window/logMessage` deprecation warning.
+
 ## Markdown structural hosting
 
 A CommonMark structure pass (pulldown-cmark, or owned — the spec is small)
