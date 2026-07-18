@@ -1,5 +1,14 @@
 use super::*;
 
+pub(super) const GIMFIHI_QUICK_REFERENCE_CAT_IPA: &str = "[kæt]";
+pub(super) const GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN: &str = "kat";
+pub(super) const GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA: &str = "[ʃøːn]";
+pub(super) const GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN: &str = "cen";
+pub(super) const GIMFIHI_IPA_HELP_TRIGGER_ID: &str = "gimfihi-ipa-help-trigger";
+pub(super) const GIMFIHI_IPA_HELP_CLOSE_ID: &str = "gimfihi-ipa-help-close";
+pub(super) const GIMFIHI_IPA_HELP_DIALOG_ID: &str = "gimfihi-ipa-help-dialog";
+pub(super) const GIMFIHI_IPA_HELP_FINE_PRINT: &str = "Under the classic scorer, sounds are reduced to the nearest Lojban letter before comparison; the phonetic scorer (when available) compares sounds directly without this reduction.";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub(super) struct GimfihiPageSnapshot {
@@ -88,10 +97,12 @@ pub(super) fn GimfihiControlsPanel(
     gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
 ) -> Element {
     let draft_state = gimfihi_draft_state.read().clone();
+    let ipa_help_open = use_signal(|| false);
     render_gimfihi_controls(
         gimfihi_draft_state,
         gimfihi_committed_state,
         gimfihi_source_word_memory,
+        ipa_help_open,
         &draft_state,
     )
 }
@@ -154,6 +165,7 @@ pub(super) fn render_gimfihi_controls(
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     mut gimfihi_committed_state: Signal<GimfihiWebState>,
     mut gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
+    mut ipa_help_open: Signal<bool>,
     state: &GimfihiWebState,
 ) -> Element {
     let current_preset = state
@@ -163,6 +175,7 @@ pub(super) fn render_gimfihi_controls(
     let collision_scope = state.check_collisions.as_str();
     let preset_options = gimfihi_preset_options_for_state(state);
     let language_suggestions = gimfihi_language_suggestions();
+    let ipa_help_is_open = *ipa_help_open.read();
     rsx! {
         div { class: "gimfihi-form",
             div { class: "gimfihi-preset-row",
@@ -205,7 +218,23 @@ pub(super) fn render_gimfihi_controls(
                         tr {
                             th { class: "gimfihi-language-column", "Language" }
                             th { "Weight" }
-                            th { "Word" }
+                            th {
+                                span { class: "gimfihi-word-column-heading",
+                                    span { "Word" }
+                                    button {
+                                        id: GIMFIHI_IPA_HELP_TRIGGER_ID,
+                                        class: "gimfihi-ipa-help-button",
+                                        r#type: "button",
+                                        aria_label: "Open IPA input quick reference",
+                                        aria_haspopup: "dialog",
+                                        aria_controls: GIMFIHI_IPA_HELP_DIALOG_ID,
+                                        aria_expanded: if ipa_help_is_open { "true" } else { "false" },
+                                        title: "IPA input help",
+                                        onclick: move |_| set_gimfihi_ipa_help_open(ipa_help_open, true),
+                                        span { aria_hidden: "true", "?" }
+                                    }
+                                }
+                            }
                             th { class: "gimfihi-actions-column", "Actions" }
                         }
                     }
@@ -216,6 +245,9 @@ pub(super) fn render_gimfihi_controls(
                         { render_gimfihi_add_source_row(gimfihi_draft_state) }
                     }
                 }
+            }
+            if ipa_help_is_open {
+                { render_gimfihi_ipa_help_modal(ipa_help_open) }
             }
             div { class: "gimfihi-option-row",
                 div { class: "gimfihi-shape-group", role: "group", aria_label: "Gismu shapes",
@@ -288,6 +320,259 @@ pub(super) fn render_gimfihi_controls(
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_gimfihi_ipa_help_modal(mut ipa_help_open: Signal<bool>) -> Element {
+    rsx! {
+        div { class: "gimfihi-ipa-help-overlay",
+            div {
+                class: "gimfihi-ipa-help-backdrop",
+                aria_hidden: "true",
+                onclick: move |_| set_gimfihi_ipa_help_open(ipa_help_open, false),
+            }
+            section {
+                id: GIMFIHI_IPA_HELP_DIALOG_ID,
+                class: "gimfihi-ipa-help-dialog",
+                role: "dialog",
+                aria_modal: "true",
+                aria_labelledby: "gimfihi-ipa-help-title",
+                aria_describedby: "gimfihi-ipa-help-fine-print",
+                onkeydown: move |event| {
+                    let key = event.data().key();
+                    if key == Key::Escape {
+                        event.prevent_default();
+                        set_gimfihi_ipa_help_open(ipa_help_open, false);
+                    } else if key == Key::Tab {
+                        event.prevent_default();
+                        schedule_gimfihi_ipa_help_focus(GIMFIHI_IPA_HELP_CLOSE_ID);
+                    }
+                },
+                header { class: "gimfihi-ipa-help-header",
+                    div {
+                        h2 { id: "gimfihi-ipa-help-title", "IPA input quick reference" }
+                        p { "Accepted symbols and classic-scoring reductions" }
+                    }
+                    button {
+                        id: GIMFIHI_IPA_HELP_CLOSE_ID,
+                        class: "gimfihi-ipa-help-close",
+                        r#type: "button",
+                        aria_label: "Close IPA input quick reference",
+                        title: "Close",
+                        autofocus: true,
+                        onclick: move |_| set_gimfihi_ipa_help_open(ipa_help_open, false),
+                        span { aria_hidden: "true", "×" }
+                    }
+                }
+                div { class: "gimfihi-ipa-help-body",
+                    section { class: "gimfihi-ipa-help-section",
+                        h3 { "Input forms" }
+                        p {
+                            "Enter Lojban scoring letters directly, or put a broad phonemic IPA transcription in square brackets, such as "
+                            code { "[kæt]" }
+                            ". Transcribe sounds rather than spelling or narrow allophones; omit grammatical endings."
+                        }
+                    }
+
+                    div { class: "gimfihi-ipa-help-facts",
+                        section { class: "gimfihi-ipa-help-fact inventory",
+                            h3 { "1. Accepted symbol inventory" }
+                            p {
+                                "Every IPA symbol listed in the chart is accepted input independently of scorer choice."
+                            }
+                        }
+                        section { class: "gimfihi-ipa-help-fact classic",
+                            h3 { "2. Classic-scorer mapping" }
+                            p {
+                                "The Classic result column shows how the classic scorer treats each accepted sound before comparison."
+                            }
+                        }
+                    }
+                    p {
+                        id: "gimfihi-ipa-help-fine-print",
+                        class: "gimfihi-ipa-help-fine-print",
+                        "{GIMFIHI_IPA_HELP_FINE_PRINT}"
+                    }
+
+                    section { class: "gimfihi-ipa-help-section",
+                        h3 { "Consonants and glides" }
+                        div { class: "gimfihi-ipa-help-table-scroll",
+                            table { class: "gimfihi-ipa-help-table",
+                                thead {
+                                    tr {
+                                        th { scope: "col", "Classic result" }
+                                        th { scope: "col", "Accepted IPA symbols" }
+                                    }
+                                }
+                                tbody {
+                                    { render_gimfihi_ipa_mapping_row("p", "p") }
+                                    { render_gimfihi_ipa_mapping_row("b", "b") }
+                                    { render_gimfihi_ipa_mapping_row("t", "t ʈ") }
+                                    { render_gimfihi_ipa_mapping_row("d", "d ɖ") }
+                                    { render_gimfihi_ipa_mapping_row("k", "k q") }
+                                    { render_gimfihi_ipa_mapping_row("g", "g ɡ") }
+                                    { render_gimfihi_ipa_mapping_row("f", "f ɸ pf") }
+                                    { render_gimfihi_ipa_mapping_row("v", "v ʋ") }
+                                    { render_gimfihi_ipa_mapping_row("s", "s θ ts") }
+                                    { render_gimfihi_ipa_mapping_row("z", "z ð dz") }
+                                    { render_gimfihi_ipa_mapping_row("c", "ʃ ɕ ʂ tʃ tɕ ʈʂ") }
+                                    { render_gimfihi_ipa_mapping_row("j", "ʒ ʑ ʐ dʒ dʑ ɖʐ") }
+                                    { render_gimfihi_ipa_mapping_row("x", "x ɣ χ ħ h ɦ ç") }
+                                    { render_gimfihi_ipa_mapping_row("m", "m ɱ") }
+                                    { render_gimfihi_ipa_mapping_row("n", "n ŋ ɳ ɴ") }
+                                    { render_gimfihi_ipa_mapping_row("l", "l ɫ ɭ") }
+                                    { render_gimfihi_ipa_mapping_row("r", "r ɾ ɹ ɻ ʀ ʁ ɽ") }
+                                    { render_gimfihi_ipa_mapping_row("i glide", "j ʝ ɥ") }
+                                    { render_gimfihi_ipa_mapping_row("u glide", "w") }
+                                    { render_gimfihi_ipa_mapping_row("ni", "ɲ") }
+                                    { render_gimfihi_ipa_mapping_row("li", "ʎ") }
+                                    { render_gimfihi_ipa_mapping_row("dropped", "ʔ ʕ") }
+                                }
+                            }
+                        }
+                    }
+
+                    section { class: "gimfihi-ipa-help-section",
+                        h3 { "Vowels" }
+                        div { class: "gimfihi-ipa-help-table-scroll",
+                            table { class: "gimfihi-ipa-help-table",
+                                thead {
+                                    tr {
+                                        th { scope: "col", "Classic result" }
+                                        th { scope: "col", "Accepted IPA symbols" }
+                                    }
+                                }
+                                tbody {
+                                    { render_gimfihi_ipa_mapping_row("i", "i ɪ ɨ y ʏ") }
+                                    { render_gimfihi_ipa_mapping_row("u", "u ʊ ɯ ʉ") }
+                                    { render_gimfihi_ipa_mapping_row("e", "e ɛ ø œ ɘ ɜ") }
+                                    { render_gimfihi_ipa_mapping_row("o", "o ɔ ɒ ɤ ɵ") }
+                                    { render_gimfihi_ipa_mapping_row("a", "a æ ɐ ɑ ʌ") }
+                                }
+                            }
+                        }
+                    }
+
+                    div { class: "gimfihi-ipa-modifier-columns",
+                        section { class: "gimfihi-ipa-help-section",
+                            h3 { "Meaningful modifiers" }
+                            p { class: "gimfihi-ipa-help-section-intro", "Accepted input; classic result:" }
+                            ul {
+                                li { code { "ʲ" } " adds an " code { "i" } "-glide" }
+                                li { code { "ʷ" } " adds a " code { "u" } "-glide" }
+                                li { code { "◌̃" } " adds " code { "m" } " before a labial, otherwise " code { "n" } }
+                                li { code { "˞" } " adds " code { "r" } }
+                            }
+                        }
+                        section { class: "gimfihi-ipa-help-section",
+                            h3 { "Ignored detail" }
+                            p { class: "gimfihi-ipa-help-section-intro", "Accepted input; ignored by classic scoring:" }
+                            p {
+                                "Length " code { "ː" }
+                                ", aspiration " code { "ʰ" }
+                                ", emphasis " code { "ˤ" }
+                                ", tone, and stress " code { "ˈ ˌ" }
+                                ". The base segment still maps normally."
+                            }
+                        }
+                    }
+
+                    p { class: "gimfihi-ipa-schwa-note",
+                        strong { "Bare " code { "ə" } " is rejected." }
+                        " It has no unambiguous Lojban vowel. Transcribe the full vowel nearest the sound actually pronounced in that word."
+                    }
+
+                    section { class: "gimfihi-ipa-help-section",
+                        h3 { "Try the live preview" }
+                        p { class: "gimfihi-ipa-examples",
+                            span {
+                                code { "eng:{GIMFIHI_QUICK_REFERENCE_CAT_IPA}" }
+                                " → " code { "{GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN}" }
+                            }
+                            span {
+                                code { "deu:{GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA}" }
+                                " → " code { "{GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN}" }
+                            }
+                        }
+                        p { class: "gimfihi-ipa-help-section-intro",
+                            "The Lojban line beneath each source input updates before you select Generate."
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[requires(!classic_result.is_empty())]
+#[requires(!accepted_symbols.is_empty())]
+#[ensures(true)]
+pub(super) fn render_gimfihi_ipa_mapping_row(
+    classic_result: &'static str,
+    accepted_symbols: &'static str,
+) -> Element {
+    rsx! {
+        tr {
+            th { scope: "row", code { "{classic_result}" } }
+            td { "{accepted_symbols}" }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn set_gimfihi_ipa_help_open(mut ipa_help_open: Signal<bool>, open: bool) {
+    ipa_help_open.set(open);
+    let focus_target = if open {
+        GIMFIHI_IPA_HELP_CLOSE_ID
+    } else {
+        GIMFIHI_IPA_HELP_TRIGGER_ID
+    };
+    schedule_gimfihi_ipa_help_focus(focus_target);
+}
+
+#[requires(element_id == GIMFIHI_IPA_HELP_TRIGGER_ID || element_id == GIMFIHI_IPA_HELP_CLOSE_ID)]
+#[ensures(true)]
+pub(super) fn schedule_gimfihi_ipa_help_focus(element_id: &'static str) {
+    platform::schedule_visual_measure_task(move || async move {
+        focus_gimfihi_ipa_help_element_scheduled(element_id).await;
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(element_id == GIMFIHI_IPA_HELP_TRIGGER_ID || element_id == GIMFIHI_IPA_HELP_CLOSE_ID)]
+#[ensures(true)]
+pub(super) async fn focus_gimfihi_ipa_help_element_scheduled(element_id: &'static str) {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Some(element) = document
+        .get_element_by_id(element_id)
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+    else {
+        return;
+    };
+    let _ = element.focus();
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(element_id == GIMFIHI_IPA_HELP_TRIGGER_ID || element_id == GIMFIHI_IPA_HELP_CLOSE_ID)]
+#[ensures(true)]
+pub(super) async fn focus_gimfihi_ipa_help_element_scheduled(element_id: &'static str) {
+    let script = if element_id == GIMFIHI_IPA_HELP_TRIGGER_ID {
+        r#"document.getElementById("gimfihi-ipa-help-trigger")?.focus(); return null;"#
+    } else {
+        r#"document.getElementById("gimfihi-ipa-help-close")?.focus(); return null;"#
+    };
+    let _ = document::eval(script).await;
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(element_id == GIMFIHI_IPA_HELP_TRIGGER_ID || element_id == GIMFIHI_IPA_HELP_CLOSE_ID)]
+#[ensures(true)]
+pub(super) async fn focus_gimfihi_ipa_help_element_scheduled(element_id: &'static str) {
+    let _ = element_id;
 }
 
 #[requires(true)]
