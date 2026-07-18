@@ -59,6 +59,7 @@ use jbotci_output::{
     pretty_recovered_syntax_bracket_source_fragments_with_options,
     pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
 };
+use jbotci_phonetic::lojban_text_to_ipa;
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
@@ -1739,13 +1740,13 @@ pub struct GimfihiWebSource {
     pub word: String,
 }
 
-/// Presentation-only resolution state for one live gimfi'i source-word input.
-#[invariant(resolved_word.as_ref().is_none_or(|word| !word.is_empty()))]
-#[invariant(error.as_ref().is_none_or(|error| !error.is_empty()))]
-#[invariant(resolved_word.is_none() || error.is_none())]
+/// Presentation-only IPA rendering state for one live gimfi'i source-word input.
+#[invariant(rendered_ipa.as_ref().is_none_or(|ipa| !ipa.trim().is_empty() && !ipa.starts_with('[') && !ipa.ends_with(']')))]
+#[invariant(error.as_ref().is_none_or(|error| !error.trim().is_empty()))]
+#[invariant(rendered_ipa.is_none() || error.is_none())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GimfihiSourceWordPreview {
-    pub resolved_word: Option<String>,
+    pub rendered_ipa: Option<String>,
     pub error: Option<String>,
 }
 
@@ -2369,31 +2370,25 @@ pub fn build_gimfihi_web_result(state: &GimfihiWebState) -> GimfihiWebResult {
     }
 }
 
-/// Resolve the current draft value for a source row without generating or
-/// scoring any candidates.
+/// Render a plain Lojban draft as IPA without generating or scoring candidates.
+/// Bracketed IPA needs no redundant preview, but its resolution errors remain
+/// visible. Invalid partial Lojban is silent while the user is typing.
 #[requires(true)]
-#[ensures(ret.resolved_word.is_none() || ret.error.is_none())]
+#[ensures(ret.rendered_ipa.is_none() || ret.error.is_none())]
 pub fn gimfihi_source_word_preview(word: &str) -> GimfihiSourceWordPreview {
-    if word.trim().is_empty() {
-        return new!(GimfihiSourceWordPreview {
-            resolved_word: None,
-            error: None,
-        });
-    }
     match resolve_source_word(word) {
-        Ok(resolved) if resolved.word.is_empty() => new!(GimfihiSourceWordPreview {
-            resolved_word: None,
-            error: None,
-        }),
-        Ok(resolved) => {
-            let word = resolved.into_data().word;
+        Ok(resolved) if resolved.word.is_empty() || resolved.ipa.is_some() => {
             new!(GimfihiSourceWordPreview {
-                resolved_word: Some(word),
+                rendered_ipa: None,
                 error: None,
             })
         }
+        Ok(resolved) => new!(GimfihiSourceWordPreview {
+            rendered_ipa: lojban_text_to_ipa(&resolved.word).ok(),
+            error: None,
+        }),
         Err(error) => new!(GimfihiSourceWordPreview {
-            resolved_word: None,
+            rendered_ipa: None,
             error: Some(error.to_string()),
         }),
     }
@@ -7804,17 +7799,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gimfihi_source_word_preview_uses_shared_resolution_messages() {
-        let plain = gimfihi_source_word_preview("KLaMa");
-        assert_eq!(plain.resolved_word.as_deref(), Some("klama"));
+    fn gimfihi_source_word_preview_renders_only_valid_plain_lojban() {
+        let plain = gimfihi_source_word_preview("mau");
+        assert_eq!(plain.rendered_ipa.as_deref(), Some("maw"));
         assert_eq!(plain.error, None);
 
         let ipa = gimfihi_source_word_preview("[kæt]");
-        assert_eq!(ipa.resolved_word.as_deref(), Some("kat"));
+        assert_eq!(ipa.rendered_ipa, None);
         assert_eq!(ipa.error, None);
 
+        let partial = gimfihi_source_word_preview("kla");
+        assert_eq!(partial.rendered_ipa, None);
+        assert_eq!(partial.error, None);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_source_word_preview_keeps_shared_ipa_resolution_errors() {
         let unsupported = gimfihi_source_word_preview("[ka•ma]");
-        assert!(unsupported.resolved_word.is_none());
+        assert!(unsupported.rendered_ipa.is_none());
+
         assert_eq!(
             unsupported.error.as_deref(),
             Some(
@@ -7823,7 +7828,7 @@ mod tests {
         );
 
         let schwa = gimfihi_source_word_preview("[əbaut]");
-        assert!(schwa.resolved_word.is_none());
+        assert!(schwa.rendered_ipa.is_none());
         assert_eq!(
             schwa.error.as_deref(),
             Some(

@@ -1,9 +1,9 @@
 use super::*;
 
-pub(super) const GIMFIHI_QUICK_REFERENCE_CAT_IPA: &str = "[kæt]";
-pub(super) const GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN: &str = "kat";
-pub(super) const GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA: &str = "[ʃøːn]";
-pub(super) const GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN: &str = "cen";
+pub(super) const GIMFIHI_QUICK_REFERENCE_MAU_LOJBAN: &str = "mau";
+pub(super) const GIMFIHI_QUICK_REFERENCE_MAU_IPA: &str = "maw";
+pub(super) const GIMFIHI_QUICK_REFERENCE_KLAMA_LOJBAN: &str = "klama";
+pub(super) const GIMFIHI_QUICK_REFERENCE_KLAMA_IPA: &str = "ˈkla.ma";
 pub(super) const GIMFIHI_IPA_HELP_TRIGGER_ID: &str = "gimfihi-ipa-help-trigger";
 pub(super) const GIMFIHI_IPA_HELP_CLOSE_ID: &str = "gimfihi-ipa-help-close";
 pub(super) const GIMFIHI_IPA_HELP_DIALOG_ID: &str = "gimfihi-ipa-help-dialog";
@@ -503,19 +503,19 @@ pub(super) fn render_gimfihi_ipa_help_modal(ipa_help_open: Signal<bool>) -> Elem
                     }
 
                     section { class: "gimfihi-ipa-help-section",
-                        h3 { "Try the live preview" }
+                        h3 { "Live Lojban preview" }
                         p { class: "gimfihi-ipa-examples",
                             span {
-                                code { "eng:{GIMFIHI_QUICK_REFERENCE_CAT_IPA}" }
-                                " → " code { "{GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN}" }
+                                code { "{GIMFIHI_QUICK_REFERENCE_MAU_LOJBAN}" }
+                                " → " code { "[{GIMFIHI_QUICK_REFERENCE_MAU_IPA}]" }
                             }
                             span {
-                                code { "deu:{GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA}" }
-                                " → " code { "{GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN}" }
+                                code { "{GIMFIHI_QUICK_REFERENCE_KLAMA_LOJBAN}" }
+                                " → " code { "[{GIMFIHI_QUICK_REFERENCE_KLAMA_IPA}]" }
                             }
                         }
                         p { class: "gimfihi-ipa-help-section-intro",
-                            "The Lojban line beneath each source input updates before you select Generate."
+                            "Plain Lojban source inputs show their deterministic IPA rendering beneath the input before you select Generate. Bracketed IPA inputs show no redundant preview."
                         }
                     }
                 }
@@ -693,10 +693,9 @@ pub(super) fn render_gimfihi_source_row(
                             gimfihi_draft_state.set(next);
                         },
                     }
-                    if let Some(resolved_word) = &preview.resolved_word {
-                        div { class: "gimfihi-source-preview", aria_live: "polite",
-                            span { "Lojban: " }
-                            code { "{resolved_word}" }
+                    div { class: "gimfihi-source-preview", aria_live: "polite",
+                        if let Some(rendered_ipa) = &preview.rendered_ipa {
+                            code { "[{rendered_ipa}]" }
                         }
                     }
                     if let Some(error) = &preview.error {
