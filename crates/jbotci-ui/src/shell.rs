@@ -708,16 +708,22 @@ pub(super) fn AppShell() -> Element {
                             loading: false,
                             error: None,
                         };
-                        cache_signal.with_mut(|cache| {
-                            cache.insert(cache_key, next.clone());
-                            while cache.len() > 16 {
-                                if let Some(first_key) = cache.keys().next().cloned() {
-                                    cache.remove(&first_key);
-                                } else {
-                                    break;
+                        // The cache projection requires a candidate output so it
+                        // can reapply highlights. Caching an output-less error
+                        // response would miss that projection and immediately
+                        // relaunch this effect for the same committed state.
+                        if next.result.output.is_some() {
+                            cache_signal.with_mut(|cache| {
+                                cache.insert(cache_key, next.clone());
+                                while cache.len() > 16 {
+                                    if let Some(first_key) = cache.keys().next().cloned() {
+                                        cache.remove(&first_key);
+                                    } else {
+                                        break;
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        }
                         result_signal.set(next);
                         apply_document_meta(document_meta, meta);
                     }
