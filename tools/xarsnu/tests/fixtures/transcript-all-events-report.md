@@ -211,6 +211,21 @@ Reason: parse-attempt cap (2)
 
 Aggregate status: **partial**
 
+### Thinking — `alice`
+
+> First private line.
+> Second private line.
+
+reasoning_details (verbatim JSON):
+
+> [
+>   {
+>     "type": "reasoning.text",
+>     "text": "Signed private detail",
+>     "signature": "fixture-signature"
+>   }
+> ]
+
 ### API usage — `alice`
 
 120 prompt + 30 completion = 150 tokens; $0.012000; 80 cached, 40 cache-write tokens

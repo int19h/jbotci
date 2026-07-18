@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 use bityzba::{ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 
-use crate::ToolChoice;
+use crate::{ReasoningConfig, ToolChoice};
 
 const SNAPSHOT_JSON: &str = include_str!("../openrouter-model-capabilities.json");
 
@@ -26,7 +26,7 @@ pub enum ProviderToolChoice {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ParticipantModelPolicy {
     pub tool_choice: ProviderToolChoice,
-    pub disable_reasoning: bool,
+    pub reasoning: ReasoningConfig,
     pub supports_prefill: bool,
 }
 
@@ -35,11 +35,11 @@ impl ParticipantModelPolicy {
     #[requires(!model.trim().is_empty())]
     #[ensures(configured_tool_choice == ToolChoice::Required -> ret.tool_choice == ProviderToolChoice::Required)]
     #[ensures(configured_tool_choice == ToolChoice::Auto -> ret.tool_choice == ProviderToolChoice::Auto)]
-    #[ensures(configured_disable_reasoning.is_some() -> ret.disable_reasoning == configured_disable_reasoning.unwrap())]
+    #[ensures(configured_reasoning.is_some() -> ret.reasoning == configured_reasoning.unwrap())]
     pub(crate) fn resolve(
         model: &str,
         configured_tool_choice: ToolChoice,
-        configured_disable_reasoning: Option<bool>,
+        configured_reasoning: Option<ReasoningConfig>,
     ) -> Self {
         let capabilities = model_capabilities(model).copied().unwrap_or_default();
         let tool_choice = match configured_tool_choice {
@@ -49,12 +49,16 @@ impl ParticipantModelPolicy {
             ToolChoice::Metadata | ToolChoice::Auto => ProviderToolChoice::Auto,
             ToolChoice::Required => ProviderToolChoice::Required,
         };
-        let disable_reasoning = configured_disable_reasoning.unwrap_or(
-            tool_choice == ProviderToolChoice::Required && capabilities.disabled_reasoning,
-        );
+        let reasoning = configured_reasoning.unwrap_or_else(|| {
+            if tool_choice == ProviderToolChoice::Required && capabilities.disabled_reasoning {
+                ReasoningConfig::Off
+            } else {
+                ReasoningConfig::Default
+            }
+        });
         Self {
             tool_choice,
-            disable_reasoning,
+            reasoning,
             supports_prefill: capabilities.prefill,
         }
     }
@@ -140,18 +144,18 @@ mod tests {
             None,
         );
         assert_eq!(deepseek.tool_choice, ProviderToolChoice::Auto);
-        assert!(!deepseek.disable_reasoning);
+        assert_eq!(deepseek.reasoning, ReasoningConfig::Default);
         assert!(deepseek.supports_prefill);
 
         let qwen =
             ParticipantModelPolicy::resolve("qwen/qwen3.5-flash-02-23", ToolChoice::Metadata, None);
         assert_eq!(qwen.tool_choice, ProviderToolChoice::Auto);
-        assert!(!qwen.disable_reasoning);
+        assert_eq!(qwen.reasoning, ReasoningConfig::Default);
         assert!(!qwen.supports_prefill);
 
         let mimo = ParticipantModelPolicy::resolve("xiaomi/mimo-v2.5", ToolChoice::Metadata, None);
         assert_eq!(mimo.tool_choice, ProviderToolChoice::Required);
-        assert!(mimo.disable_reasoning);
+        assert_eq!(mimo.reasoning, ReasoningConfig::Off);
         assert!(mimo.supports_prefill);
     }
 
@@ -162,14 +166,17 @@ mod tests {
         let required = ParticipantModelPolicy::resolve(
             "deepseek/deepseek-v4-flash",
             ToolChoice::Required,
-            Some(false),
+            Some(ReasoningConfig::High),
         );
         assert_eq!(required.tool_choice, ProviderToolChoice::Required);
-        assert!(!required.disable_reasoning);
+        assert_eq!(required.reasoning, ReasoningConfig::High);
 
-        let automatic =
-            ParticipantModelPolicy::resolve("xiaomi/mimo-v2.5", ToolChoice::Auto, Some(true));
+        let automatic = ParticipantModelPolicy::resolve(
+            "xiaomi/mimo-v2.5",
+            ToolChoice::Auto,
+            Some(ReasoningConfig::Low),
+        );
         assert_eq!(automatic.tool_choice, ProviderToolChoice::Auto);
-        assert!(automatic.disable_reasoning);
+        assert_eq!(automatic.reasoning, ReasoningConfig::Low);
     }
 }

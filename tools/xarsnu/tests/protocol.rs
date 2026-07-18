@@ -1669,7 +1669,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                     model: format!("example/{name}"),
                     prompt_caching: xarsnu::PromptCaching::Auto,
                     tool_choice: ToolChoice::Required,
-                    disable_reasoning: None,
+                    reasoning: None,
                     temperature: 0.25,
                     system_prompt: "Use the gated protocol.".to_owned(),
                 }))

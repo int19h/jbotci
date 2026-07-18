@@ -12,7 +12,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::model_capabilities::ParticipantModelPolicy;
-use crate::{PromptCaching, ProviderToolChoice};
+use crate::{PromptCaching, ProviderToolChoice, ReasoningConfig};
 
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const REQUIRED_TOOL_CORRECTION: &str =
@@ -280,6 +280,53 @@ pub struct Usage {
     pub reasoning_tokens: Option<u64>,
     #[serde(default)]
     pub cost: f64,
+}
+
+/// Private reasoning payload returned by one provider call.
+///
+/// The structured details remain provider-shaped JSON because OpenRouter
+/// requires them to be replayed byte-for-byte at the semantic JSON boundary.
+#[invariant(reasoning.is_some() || reasoning_details.is_some(), "thinking traces must contain at least one provider field")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ThinkingTrace {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_details: Option<Vec<Value>>,
+}
+
+impl ThinkingTrace {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|trace| trace.reasoning.is_some() || trace.reasoning_details.is_some()))]
+    fn from_provider_fields(
+        reasoning: Option<String>,
+        reasoning_details: Option<Vec<Value>>,
+    ) -> Option<Self> {
+        if reasoning.is_none() && reasoning_details.is_none() {
+            None
+        } else {
+            Some(new!(ThinkingTrace {
+                reasoning,
+                reasoning_details,
+            }))
+        }
+    }
+}
+
+/// Usage and private observability captured from one provider call.
+#[invariant(true, "usage-only and usage-plus-thinking calls are both valid")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProviderCallObservation {
+    pub usage: Usage,
+    pub thinking: Option<ThinkingTrace>,
+}
+
+/// Request-scoped reasoning details attached to their originating assistant message.
+#[invariant(!reasoning_details.is_empty(), "empty details do not require replay")]
+#[derive(Debug, Clone, PartialEq)]
+struct ReasoningDetailsReplay {
+    assistant_message_index: usize,
+    reasoning_details: Vec<Value>,
 }
 
 /// Accumulated token and cost totals.
@@ -665,7 +712,8 @@ impl OpenRouterClient {
         messages: &[ChatMessage],
         tools: &[ToolDefinition],
         tool_choice: ProviderToolChoice,
-        disable_reasoning: bool,
+        reasoning: ReasoningConfig,
+        reasoning_details_replay: &[ReasoningDetailsReplay],
     ) -> Result<Completion, OpenRouterError> {
         let explicit_prompt_caching =
             prompt_caching == PromptCaching::Auto && model_requires_explicit_prompt_caching(model);
@@ -678,18 +726,14 @@ impl OpenRouterClient {
         let request = CompletionRequest {
             model,
             temperature,
-            messages: CompletionMessages {
+            messages: new!(CompletionMessages {
                 messages,
                 explicit_prompt_caching,
-            },
+                reasoning_details_replay,
+            }),
             tools,
             tool_choice,
-            reasoning: disable_reasoning.then(|| {
-                new!(CompletionReasoningRequest {
-                    effort: ReasoningEffort::None,
-                    exclude: false,
-                })
-            }),
+            reasoning: CompletionReasoningRequest::from_config(reasoning),
             usage: new!(CompletionUsageRequest { include: true }),
         };
         let url = format!(
@@ -819,12 +863,20 @@ impl OpenRouterClient {
                     .ok_or_else(|| OpenRouterError::InvalidResponse {
                         message: "OpenRouter returned no completion choices".to_owned(),
                     })?;
-            let reasoning_present = choice.message.reasoning.is_some();
+            let CompletionMessage {
+                content,
+                reasoning,
+                reasoning_details,
+                tool_calls,
+            } = choice.message;
+            let thinking = ThinkingTrace::from_provider_fields(reasoning, reasoning_details);
+            let reasoning_present = thinking.is_some();
             let usage = wire.usage.into_usage(reasoning_present)?;
-            let content = choice.message.content.filter(|content| !content.is_empty());
+            let content = content.filter(|content| !content.is_empty());
             return Ok(Completion {
                 content,
-                tool_calls: choice.message.tool_calls,
+                tool_calls,
+                thinking,
                 usage,
             });
         }
@@ -912,11 +964,12 @@ pub struct ParticipantConversation {
     participant_name: String,
     model: String,
     prompt_caching: PromptCaching,
-    disable_reasoning: bool,
+    reasoning: ReasoningConfig,
     temperature: f64,
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
-    pending_usage: Vec<Usage>,
+    pending_observations: Vec<ProviderCallObservation>,
+    reasoning_details_replay: Vec<ReasoningDetailsReplay>,
 }
 
 impl ParticipantConversation {
@@ -930,13 +983,13 @@ impl ParticipantConversation {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
             participant.tool_choice,
-            participant.disable_reasoning,
+            participant.reasoning,
         );
         Self::from_system_prompt(
             participant.name.clone(),
             participant.model.clone(),
             participant.prompt_caching,
-            policy.disable_reasoning,
+            policy.reasoning,
             participant.temperature,
             participant.system_prompt.clone(),
         )
@@ -952,7 +1005,7 @@ impl ParticipantConversation {
         participant_name: String,
         model: String,
         prompt_caching: PromptCaching,
-        disable_reasoning: bool,
+        reasoning: ReasoningConfig,
         temperature: f64,
         system_prompt: String,
     ) -> Self {
@@ -960,11 +1013,12 @@ impl ParticipantConversation {
             participant_name,
             model,
             prompt_caching,
-            disable_reasoning,
+            reasoning,
             temperature,
             messages: vec![ChatMessage::system(system_prompt)],
             usage: UsageTotals::default(),
-            pending_usage: Vec::new(),
+            pending_observations: Vec::new(),
+            reasoning_details_replay: Vec::new(),
         }
     }
 
@@ -979,7 +1033,7 @@ impl ParticipantConversation {
         participant_name: String,
         model: String,
         prompt_caching: PromptCaching,
-        disable_reasoning: bool,
+        reasoning: ReasoningConfig,
         temperature: f64,
         system_prompt: String,
         initial_user_prompt: String,
@@ -988,14 +1042,15 @@ impl ParticipantConversation {
             participant_name,
             model,
             prompt_caching,
-            disable_reasoning,
+            reasoning,
             temperature,
             messages: vec![
                 ChatMessage::system(system_prompt),
                 ChatMessage::user(initial_user_prompt),
             ],
             usage: UsageTotals::default(),
-            pending_usage: Vec::new(),
+            pending_observations: Vec::new(),
+            reasoning_details_replay: Vec::new(),
         }
     }
 
@@ -1020,11 +1075,18 @@ impl ParticipantConversation {
         &self.usage
     }
 
-    /// Drain the exact provider usage records accumulated since the previous drain.
+    /// Drain provider-call observations accumulated since the previous drain.
     #[requires(true)]
-    #[ensures(self.pending_usage.is_empty())]
-    pub fn take_pending_usage(&mut self) -> Vec<Usage> {
-        std::mem::take(&mut self.pending_usage)
+    #[ensures(self.pending_observations.is_empty())]
+    pub fn take_pending_observations(&mut self) -> Vec<ProviderCallObservation> {
+        std::mem::take(&mut self.pending_observations)
+    }
+
+    /// Start a distinct provider tool loop without carrying stale details into it.
+    #[requires(true)]
+    #[ensures(self.reasoning_details_replay.is_empty())]
+    pub fn begin_tool_loop(&mut self) {
+        self.reasoning_details_replay.clear();
     }
 
     /// Add a private user/protocol instruction before the next inference.
@@ -1081,17 +1143,20 @@ impl ParticipantConversation {
                 &self.messages,
                 tools,
                 tool_choice,
-                self.disable_reasoning,
+                self.reasoning,
+                &self.reasoning_details_replay,
             )?;
-            self.usage.record(&completion.usage);
-            self.pending_usage.push(completion.usage.clone());
-            let abort = accounting.record(&completion.usage);
             let Completion {
                 content,
                 tool_calls,
-                ..
+                thinking,
+                usage,
             } = completion;
+            self.usage.record(&usage);
+            let abort = accounting.record(&usage);
             if content.is_none() && tool_calls.is_empty() {
+                self.pending_observations
+                    .push(ProviderCallObservation { usage, thinking });
                 if let Some(record) = abort {
                     return Ok(new!(ModelTurn::Aborted { record }));
                 }
@@ -1107,6 +1172,25 @@ impl ParticipantConversation {
             }
             self.messages
                 .push(ChatMessage::assistant(content.clone(), tool_calls.clone()));
+            if !tool_calls.is_empty() {
+                if let Some(reasoning_details) = thinking
+                    .as_ref()
+                    .and_then(|trace| trace.reasoning_details.as_ref())
+                    .filter(|details| !details.is_empty())
+                {
+                    // Presence in the response is the capability gate. Both
+                    // Anthropic signatures and Gemini thought signatures need
+                    // this continuity, so no provider-family allowlist belongs
+                    // here.
+                    self.reasoning_details_replay
+                        .push(new!(ReasoningDetailsReplay {
+                            assistant_message_index: self.messages.len() - 1,
+                            reasoning_details: reasoning_details.clone(),
+                        }));
+                }
+            }
+            self.pending_observations
+                .push(ProviderCallObservation { usage, thinking });
             if let Some(record) = abort {
                 return Ok(new!(ModelTurn::Aborted { record }));
             }
@@ -1250,23 +1334,65 @@ struct CompletionRequest<'a> {
     messages: CompletionMessages<'a>,
     tools: &'a [ToolDefinition],
     tool_choice: ProviderToolChoice,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning: Option<CompletionReasoningRequest>,
+    reasoning: CompletionReasoningRequest,
     usage: CompletionUsageRequest,
 }
 
-#[invariant(!*exclude, "reasoning-off requests keep the response exclusion flag false")]
+#[invariant(::Enabled { enabled, exclude } => *enabled && !*exclude)]
+#[invariant(::Effort { exclude, .. } => !*exclude)]
 #[derive(Debug, Serialize)]
-struct CompletionReasoningRequest {
-    effort: ReasoningEffort,
-    exclude: bool,
+#[serde(untagged)]
+enum CompletionReasoningRequest {
+    Enabled {
+        enabled: bool,
+        exclude: bool,
+    },
+    Effort {
+        effort: ReasoningEffort,
+        exclude: bool,
+    },
+}
+
+impl CompletionReasoningRequest {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_config(reasoning: ReasoningConfig) -> Self {
+        match reasoning {
+            ReasoningConfig::Default => new!(CompletionReasoningRequest::Enabled {
+                enabled: true,
+                exclude: false,
+            }),
+            ReasoningConfig::Off => new!(CompletionReasoningRequest::Effort {
+                effort: ReasoningEffort::None,
+                exclude: false,
+            }),
+            ReasoningConfig::Low => new!(CompletionReasoningRequest::Effort {
+                effort: ReasoningEffort::Low,
+                exclude: false,
+            }),
+            ReasoningConfig::Medium => new!(CompletionReasoningRequest::Effort {
+                effort: ReasoningEffort::Medium,
+                exclude: false,
+            }),
+            ReasoningConfig::High => new!(CompletionReasoningRequest::Effort {
+                effort: ReasoningEffort::High,
+                exclude: false,
+            }),
+        }
+    }
 }
 
 #[invariant(::None => true)]
+#[invariant(::Low => true)]
+#[invariant(::Medium => true)]
+#[invariant(::High => true)]
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum ReasoningEffort {
     None,
+    Low,
+    Medium,
+    High,
 }
 
 /// Request-scoped view over stored history.
@@ -1274,11 +1400,13 @@ enum ReasoningEffort {
 /// The plain path delegates to `ChatMessage` serialization byte-for-byte. The
 /// explicit path wraps only the two messages selected for this request; it does
 /// not mutate history, so the moving final breakpoint naturally advances.
-#[invariant(true, "constructed only for a nonempty participant history")]
+#[invariant(!messages.is_empty(), "completion requests require message history")]
+#[invariant(reasoning_details_replay.iter().all(|replay| replay.assistant_message_index < messages.len()), "reasoning replay indices must address request history")]
 #[derive(Debug)]
 struct CompletionMessages<'a> {
     messages: &'a [ChatMessage],
     explicit_prompt_caching: bool,
+    reasoning_details_replay: &'a [ReasoningDetailsReplay],
 }
 
 impl Serialize for CompletionMessages<'_> {
@@ -1288,7 +1416,7 @@ impl Serialize for CompletionMessages<'_> {
     where
         S: Serializer,
     {
-        if !self.explicit_prompt_caching {
+        if !self.explicit_prompt_caching && self.reasoning_details_replay.is_empty() {
             return self.messages.serialize(serializer);
         }
 
@@ -1296,8 +1424,14 @@ impl Serialize for CompletionMessages<'_> {
         let mut sequence = serializer.serialize_seq(Some(self.messages.len()))?;
         for (index, message) in self.messages.iter().enumerate() {
             let cache_breakpoint = index == 0 || index == final_index;
-            let message = RequestChatMessage::from_message(message, cache_breakpoint)
-                .map_err(S::Error::custom)?;
+            let reasoning_details = self
+                .reasoning_details_replay
+                .iter()
+                .find(|replay| replay.assistant_message_index == index)
+                .map(|replay| replay.reasoning_details.as_slice());
+            let message =
+                RequestChatMessage::from_message(message, cache_breakpoint, reasoning_details)
+                    .map_err(S::Error::custom)?;
             sequence.serialize_element(&message)?;
         }
         sequence.end()
@@ -1322,6 +1456,8 @@ enum RequestChatMessage<'a> {
         content: Option<RequestMessageContent<'a>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         tool_calls: Option<&'a [ToolCall]>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        reasoning_details: Option<&'a [Value]>,
     },
     Tool {
         tool_call_id: &'a str,
@@ -1336,7 +1472,16 @@ impl<'a> RequestChatMessage<'a> {
     fn from_message(
         message: &'a ChatMessage,
         cache_breakpoint: bool,
+        reasoning_details: Option<&'a [Value]>,
     ) -> Result<Self, &'static str> {
+        if reasoning_details.is_some()
+            && !matches!(
+                message.as_data(),
+                bityzba::data!(ChatMessage::Assistant { .. })
+            )
+        {
+            return Err("reasoning details can be replayed only on an assistant message");
+        }
         match message.as_data() {
             bityzba::data!(ChatMessage::System { content }) => Ok(Self::System {
                 content: RequestMessageContent::new(content, cache_breakpoint),
@@ -1358,6 +1503,7 @@ impl<'a> RequestChatMessage<'a> {
                         .as_deref()
                         .map(|content| RequestMessageContent::new(content, cache_breakpoint)),
                     tool_calls: (!tool_calls.is_empty()).then_some(tool_calls),
+                    reasoning_details,
                 })
             }
             bityzba::data!(ChatMessage::Tool {
@@ -1546,7 +1692,9 @@ struct CompletionChoice {
 struct CompletionMessage {
     content: Option<String>,
     #[serde(default)]
-    reasoning: Option<Value>,
+    reasoning: Option<String>,
+    #[serde(default)]
+    reasoning_details: Option<Vec<Value>>,
     #[serde(default)]
     tool_calls: Vec<ToolCall>,
 }
@@ -1556,5 +1704,6 @@ struct CompletionMessage {
 struct Completion {
     content: Option<String>,
     tool_calls: Vec<ToolCall>,
+    thinking: Option<ThinkingTrace>,
     usage: Usage,
 }

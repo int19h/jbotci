@@ -5,7 +5,8 @@ use std::process::Command;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{dialog_file, read_transcript, report_file};
+use xarsnu::protocol::ProtocolEventData;
+use xarsnu::{ReasoningConfig, dialog_file, read_transcript, report_file};
 
 const FIXTURE: &str = "tests/fixtures/transcript-all-events.jsonl";
 
@@ -48,6 +49,7 @@ fn golden_transcript_renders_every_event_kind() {
             "run-finished",
             "run-started",
             "tersmu-revealed",
+            "thinking-recorded",
             "turn-forfeited",
             "turn-started",
             "usage-recorded",
@@ -87,6 +89,9 @@ fn golden_transcript_renders_every_event_kind() {
         "Call hit rate: 100.00%",
         "Reasoning field present: true; reasoning tokens: 20",
         "Reasoning totals: 20 tokens across 1 provider calls",
+        "### Thinking — `alice`",
+        "> First private line.\n> Second private line.",
+        "fixture-signature",
     ] {
         assert!(report.contains(anti_no_op), "missing {anti_no_op}");
     }
@@ -113,6 +118,9 @@ fn standalone_dialog_matches_golden_and_excludes_private_scaffolding() {
         "start_minute",
         "Reasoning",
         "reasoning",
+        "Thinking",
+        "First private line",
+        "fixture-signature",
     ] {
         assert!(
             !dialog.contains(private_scaffolding),
@@ -198,6 +206,66 @@ fn schema_v1_accepts_usage_without_additive_cache_fields() {
     assert!(!records.is_empty());
     let report = report_file(&path).expect("legacy-compatible transcript renders");
     assert!(report.contains("Cache totals: 0 cached tokens; 0 cache-write tokens"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn schema_v1_accepts_transcripts_without_additive_thinking_events() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut legacy = fixture
+        .lines()
+        .filter_map(|line| {
+            let record: serde_json::Value = serde_json::from_str(line).expect("valid fixture");
+            (record["event"]["kind"] != "thinking-recorded").then_some(record)
+        })
+        .collect::<Vec<_>>();
+    for (sequence_number, record) in legacy.iter_mut().enumerate() {
+        record["sequence-number"] = serde_json::json!(sequence_number);
+    }
+    let source = legacy
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("legacy record serializes"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    let path = temp_path("schema-v1-without-thinking-events");
+    fs::write(&path, source).expect("write legacy-compatible transcript");
+
+    let records = read_transcript(&path).expect("thinking events are additive");
+    assert!(!records.is_empty());
+    let report = report_file(&path).expect("legacy-compatible transcript renders");
+    assert!(!report.contains("### Thinking"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn schema_v1_accepts_the_pre_unification_reasoning_config_field() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let legacy = fixture.replacen(
+        "\"model\":\"example/alice\",\"temperature\"",
+        "\"model\":\"example/alice\",\"disable-reasoning\":true,\"temperature\"",
+        1,
+    );
+    assert_ne!(legacy, fixture, "fixture must gain the legacy field");
+    let path = temp_path("schema-v1-legacy-disable-reasoning");
+    fs::write(&path, legacy).expect("write legacy-compatible transcript");
+
+    let records = read_transcript(&path).expect("legacy reasoning config remains readable");
+    let ProtocolEventData::RunStarted { header } = records[0].event.as_data() else {
+        panic!("validated transcript starts with the run header");
+    };
+    assert_eq!(
+        header.config.participants[0].reasoning,
+        Some(ReasoningConfig::Off)
+    );
 
     fs::remove_file(path).expect("remove temporary transcript");
 }

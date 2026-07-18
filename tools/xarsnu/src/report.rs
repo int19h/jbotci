@@ -478,6 +478,27 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                         .insert(participant.participant.clone(), participant.correct);
                 }
             }
+            bityzba::data!(ProtocolEvent::ThinkingRecorded {
+                participant,
+                trace,
+                ..
+            }) => {
+                writeln!(report, "### Thinking — `{participant}`\n")
+                    .expect("writing to String cannot fail");
+                if let Some(reasoning) = &trace.reasoning {
+                    quote(&mut report, reasoning);
+                }
+                if let Some(reasoning_details) = &trace.reasoning_details {
+                    if trace.reasoning.is_some() {
+                        report.push('\n');
+                    }
+                    report.push_str("reasoning_details (verbatim JSON):\n\n");
+                    let serialized = serde_json::to_string_pretty(reasoning_details)
+                        .expect("provider reasoning details serialize to JSON");
+                    quote(&mut report, &serialized);
+                }
+                report.push('\n');
+            }
             bityzba::data!(ProtocolEvent::UsageRecorded {
                 participant,
                 usage,
