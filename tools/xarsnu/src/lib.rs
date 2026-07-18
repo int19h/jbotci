@@ -2,6 +2,7 @@
 
 pub mod config;
 pub mod jbotci_tools;
+mod model_capabilities;
 pub mod openrouter;
 pub mod protocol;
 pub mod report;
@@ -11,23 +12,24 @@ pub mod transcript;
 
 pub use config::{
     CapsConfig, ClientConfig, ConfigError, ParticipantConfig, PromptCaching, RunConfig,
-    TersmuFormat,
+    TersmuFormat, ToolChoice,
 };
 pub use jbotci_tools::{
     DiagnosticCategory, GateError, GateOutcome, ReferenceToolError, ReferenceTools, gate_lojban,
 };
+pub use model_capabilities::ProviderToolChoice;
 pub use openrouter::{
     AbortKind, AbortRecord, ChatMessage, FunctionCall, FunctionToolDefinition, ModelTurn,
     OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolChoice, ToolDefinition,
+    ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolDefinition,
     ToolDefinitionError, ToolDispatchError, ToolDispatcher, Usage, UsageTotals,
 };
 pub use protocol::{
-    BlindMessage, ListenerPhase, ListenerState, OpenRouterParticipant, ProtocolEvent,
-    ProtocolModel, ProtocolModelError, ProtocolPhase, ProtocolRunError, ProtocolRunOutcome,
-    ProtocolRunner, ProtocolTool, ProtocolTools, ReferenceToolDispatcher, RevealedMessage,
-    RuntimeFailureRecord, RuntimeFailureSite, SpeakerPhase, SpeakerState, TurnForfeitReason,
-    VisibleMessage,
+    BlindMessage, ListenerFlowAbandonReason, ListenerPhase, ListenerState, OpenRouterParticipant,
+    ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolPhase, ProtocolRunError,
+    ProtocolRunOutcome, ProtocolRunner, ProtocolTool, ProtocolTools, ReferenceToolDispatcher,
+    RevealedMessage, RuntimeFailureRecord, RuntimeFailureSite, SpeakerPhase, SpeakerState,
+    TurnForfeitReason, VisibleMessage,
 };
 pub use report::{DialogReportError, dialog_file, report_file};
 pub use run::{RunError, RunSummary, run};

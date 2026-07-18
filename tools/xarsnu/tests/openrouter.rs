@@ -8,8 +8,8 @@ use bityzba::{contract_trait, ensures, invariant, requires};
 use serde_json::{Value, json};
 use xarsnu::{
     AbortKind, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    PromptCaching, ProviderUsageValidationError, RetryPolicy, RunAccounting, ToolCall, ToolChoice,
-    ToolDefinition, ToolDispatchError, ToolDispatcher,
+    PromptCaching, ProviderToolChoice, ProviderUsageValidationError, RetryPolicy, RunAccounting,
+    ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher,
 };
 
 #[invariant(true)]
@@ -71,6 +71,40 @@ impl MockServer {
         Self {
             base_url: format!("http://{address}"),
             expected_requests,
+            worker,
+        }
+    }
+
+    #[requires(!truncated_body.is_empty())]
+    #[ensures(ret.expected_requests == 2)]
+    fn start_truncated_then_complete(
+        truncated_body: Vec<u8>,
+        complete_response: MockResponse,
+    ) -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind local mock server");
+        let address = listener.local_addr().expect("mock server address");
+        let worker = thread::spawn(move || {
+            let mut captured = Vec::with_capacity(2);
+            for response in [None, Some(complete_response)] {
+                let (mut stream, _) = listener.accept().expect("accept mock request");
+                let body_bytes = read_request_body(&mut stream);
+                let body = serde_json::from_slice(&body_bytes).expect("JSON completion request");
+                captured.push(CapturedRequest {
+                    body,
+                    body_bytes,
+                    received_at: Instant::now(),
+                });
+                if let Some(response) = response {
+                    write_json_response(&mut stream, response, Duration::ZERO);
+                } else {
+                    write_raw_json_response(&mut stream, &truncated_body);
+                }
+            }
+            captured
+        });
+        Self {
+            base_url: format!("http://{address}"),
+            expected_requests: 2,
             worker,
         }
     }
@@ -154,6 +188,21 @@ fn write_json_response(stream: &mut TcpStream, response: MockResponse, body_dela
         let _ = stream.write_all(body.as_bytes());
         let _ = stream.flush();
     }
+}
+
+#[requires(!body.is_empty())]
+#[ensures(true)]
+fn write_raw_json_response(stream: &mut TcpStream, body: &[u8]) {
+    write!(
+        stream,
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len(),
+    )
+    .expect("write raw mock response headers");
+    stream
+        .write_all(body)
+        .expect("write raw mock response body");
+    stream.flush().expect("flush raw mock response");
 }
 
 #[requires(!name.trim().is_empty())]
@@ -329,10 +378,21 @@ fn conversation() -> ParticipantConversation {
 #[requires(!model.trim().is_empty())]
 #[ensures(ret.messages().len() == 2)]
 fn conversation_for_model(model: &str, prompt_caching: PromptCaching) -> ParticipantConversation {
+    conversation_for_model_with_reasoning(model, prompt_caching, false)
+}
+
+#[requires(!model.trim().is_empty())]
+#[ensures(ret.messages().len() == 2)]
+fn conversation_for_model_with_reasoning(
+    model: &str,
+    prompt_caching: PromptCaching,
+    disable_reasoning: bool,
+) -> ParticipantConversation {
     ParticipantConversation::from_parts(
         "tester".to_owned(),
         model.to_owned(),
         prompt_caching,
+        disable_reasoning,
         0.3,
         "Use tools.".to_owned(),
         "Private task.".to_owned(),
@@ -394,7 +454,7 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("happy tool call");
@@ -437,7 +497,7 @@ fn provider_cache_usage_normalizes_and_round_trips_through_record_json() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("mock completion succeeds");
@@ -493,7 +553,7 @@ fn provider_accounting_variance_is_recorded_verbatim() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("provider accounting conventions are accepted");
@@ -530,7 +590,7 @@ fn invalid_provider_cost_names_only_the_failing_usage_clause() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect_err("negative provider cost must fail structural validation");
@@ -561,7 +621,7 @@ fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("mock completion succeeds");
@@ -571,6 +631,85 @@ fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
         captured[0].body_bytes,
         br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","usage":{"include":true}}"#
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn automatic_tool_choice_reaches_the_request_wire() {
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Auto,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let captured = server.finish();
+    assert_eq!(captured[0].body["tool_choice"], "auto");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reasoning_off_reaches_the_wire_with_the_openrouter_shape() {
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation =
+        conversation_for_model_with_reasoning("xiaomi/mimo-v2.5", PromptCaching::Auto, true);
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let captured = server.finish();
+    assert_eq!(captured[0].body["tool_choice"], "required");
+    assert_eq!(
+        captured[0].body["reasoning"],
+        json!({ "effort": "none", "exclude": false })
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn truncated_json_response_retries_then_recovers() {
+    let server = MockServer::start_truncated_then_complete(
+        br#"{"choices":[{"message":{"role":"assistant""#.to_vec(),
+        tool_call_response("alpha", 0.01),
+    );
+    let client = client(server.base_url.clone(), 1, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let turn = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("truncated response is retried");
+
+    assert_eq!(
+        turn.tool_calls().expect("tool call")[0].function.name,
+        "alpha"
+    );
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2);
+    assert_eq!(captured[0].body_bytes, captured[1].body_bytes);
 }
 
 #[test]
@@ -589,7 +728,7 @@ fn anthropic_breakpoints_cover_system_and_move_to_each_request_tail() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("first request");
@@ -604,7 +743,7 @@ fn anthropic_breakpoints_cover_system_and_move_to_each_request_tail() {
         .request(
             &client,
             &[tool("beta").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("second request");
@@ -649,7 +788,7 @@ fn prompt_caching_off_suppresses_anthropic_breakpoints() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("mock completion succeeds");
@@ -702,7 +841,7 @@ fn required_prose_is_correctively_reprompted_before_success() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("reprompt reaches tool call");
@@ -743,7 +882,7 @@ fn reasoning_only_completion_is_correctively_reprompted_before_success() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("reasoning-only response is correctable");
@@ -797,7 +936,7 @@ fn reasoning_only_reprompt_exhaustion_keeps_the_existing_typed_error() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect_err("bounded reasoning-only reprompts must exhaust");
@@ -870,7 +1009,12 @@ fn invalid_arguments_reprompt_answers_every_tool_call_id() {
     let mut accounting = RunAccounting::new(1.0).expect("valid budget");
     let tools = [tool("alpha").expect("alpha"), tool("beta").expect("beta")];
     let turn = conversation
-        .request(&client, &tools, ToolChoice::Required, &mut accounting)
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
         .expect("invalid arguments are corrected by tool results");
     assert!(turn.tool_calls().is_some());
 
@@ -928,7 +1072,12 @@ fn dispatcher_failure_answers_failed_and_remaining_call_ids() {
         tool("gamma").expect("gamma"),
     ];
     let first = conversation
-        .request(&client, &tools, ToolChoice::Required, &mut accounting)
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
         .expect("first tool-call turn");
     let mut dispatcher = FirstCallFails::default();
     let error = conversation
@@ -941,7 +1090,7 @@ fn dispatcher_failure_answers_failed_and_remaining_call_ids() {
         .request(
             &client,
             &[tool("alpha").expect("alpha")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("answered call ids leave the conversation reusable");
@@ -984,7 +1133,7 @@ fn required_tool_reprompt_exhaustion_is_typed() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect_err("bounded reprompt must exhaust");
@@ -1016,7 +1165,7 @@ fn transient_429_backs_off_then_retries() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("retry succeeds");
@@ -1049,7 +1198,7 @@ fn transient_500_retries_then_succeeds() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("500 retry succeeds");
@@ -1081,7 +1230,7 @@ fn response_body_timeout_retries_then_succeeds() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("body timeout retry succeeds");
@@ -1130,7 +1279,7 @@ fn response_body_timeout_exhaustion_is_typed() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect_err("bounded timeout retries must exhaust");
@@ -1163,7 +1312,7 @@ fn choices_less_transient_provider_error_retries_then_succeeds() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("transient provider envelope retry succeeds");
@@ -1192,7 +1341,7 @@ fn choices_less_permanent_provider_error_preserves_message_without_retry() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect_err("permanent provider envelope must fail fast");
@@ -1217,14 +1366,24 @@ fn budget_cap_returns_explicit_abort_and_prevents_more_http_calls() {
     let tools = [tool("alpha").expect("valid tool")];
     let mut accounting = RunAccounting::new(0.5).expect("valid budget");
     let first = conversation
-        .request(&client, &tools, ToolChoice::Required, &mut accounting)
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
         .expect("budget is a graceful outcome");
     let record = first.abort_record().expect("expected budget abort").clone();
     assert_eq!(record.kind, AbortKind::CostBudgetExceeded);
     assert_eq!(record.max_cost_usd, 0.5);
     assert_eq!(record.actual_cost_usd, 0.75);
     let second = conversation
-        .request(&client, &tools, ToolChoice::Required, &mut accounting)
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
         .expect("existing abort is surfaced without HTTP");
     assert_eq!(second.abort_record(), Some(&record));
     assert_eq!(server.finish().len(), 1);
@@ -1245,7 +1404,7 @@ fn tools_are_dynamic_per_request_on_the_mock_server() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("first request");
@@ -1260,7 +1419,7 @@ fn tools_are_dynamic_per_request_on_the_mock_server() {
         .request(
             &client,
             &[tool("beta").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect("second request");
@@ -1292,7 +1451,7 @@ fn permanent_http_errors_fail_without_retry() {
         .request(
             &client,
             &[tool("alpha").expect("valid tool")],
-            ToolChoice::Required,
+            ProviderToolChoice::Required,
             &mut accounting,
         )
         .expect_err("401 must fail fast");

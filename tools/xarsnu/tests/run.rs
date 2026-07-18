@@ -403,7 +403,15 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     )
     .expect("copy local scenario");
     let config_source = config_source("scenario.toml", "bob")
-        .replace("[caps]", "[client]\nhttp-timeout-seconds = 90\n\n[caps]");
+        .replace("[caps]", "[client]\nhttp-timeout-seconds = 90\n\n[caps]")
+        .replace(
+            "model = \"mock/alice\"",
+            "model = \"mock/alice\"\ntool-choice = \"auto\"",
+        )
+        .replace(
+            "model = \"mock/bob\"",
+            "model = \"mock/bob\"\ntool-choice = \"required\"",
+        );
     let config_path = write_config(&directory, &config_source);
     let server = MockServer::start(complete_dialog_responses());
 
@@ -475,6 +483,12 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
 
     let captured = server.finish();
     assert_eq!(captured.len(), 17);
+    for index in [0, 1, 2, 3, 9, 10, 11, 12, 13, 14] {
+        assert_eq!(captured[index].body["tool_choice"], "auto");
+    }
+    for index in [4, 5, 6, 7, 8, 15, 16] {
+        assert_eq!(captured[index].body["tool_choice"], "required");
+    }
     let first_messages = captured[0].body["messages"]
         .as_array()
         .expect("request messages");
