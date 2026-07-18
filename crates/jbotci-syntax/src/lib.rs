@@ -47,6 +47,190 @@ pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "rewind",
 ];
 
+/// Granularity for partitioning the formal top-level units of a text token stream.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxTextUnitGranularity {
+    Paragraph,
+    Statement,
+}
+
+/// One non-empty half-open token range in a formal text partition.
+#[invariant(*token_start < *token_end)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SyntaxTextUnit {
+    pub token_start: usize,
+    pub token_end: usize,
+}
+
+/// A formal text-structure event used to prove that an edit did not move boundaries.
+#[invariant(::Boundary { .. } => true)]
+#[invariant(::ContainerOpen { .. } => true)]
+#[invariant(::ContainerClose { .. } => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxTextStructureEvent {
+    Boundary {
+        kind: SyntaxTextBoundaryKind,
+        depth: usize,
+    },
+    ContainerOpen {
+        opener: Cmavo,
+        depth: usize,
+    },
+    ContainerClose {
+        closer: Cmavo,
+        depth: usize,
+        matched: bool,
+    },
+}
+
+/// Formal text boundary represented by a syntax token.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxTextBoundaryKind {
+    I,
+    Niho,
+}
+
+/// Normalize morphology words into the exact token stream consumed by syntax parsing.
+#[requires(true)]
+#[ensures(true)]
+pub fn syntax_tokens_with_options(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
+    grammar::syntax_tokens(words, options)
+}
+
+/// Partition syntax tokens at formal top-level text boundaries.
+///
+/// Text containers are tracked structurally, so I and NIhO inside LU/LIhU,
+/// TUhE/TUhU, or TO/TOI never split the surrounding text.
+#[requires(true)]
+#[ensures(ret.iter().all(|unit| unit.token_end <= tokens.len()))]
+pub fn partition_syntax_text_units(
+    tokens: &[Token],
+    granularity: SyntaxTextUnitGranularity,
+) -> Vec<SyntaxTextUnit> {
+    let mut units = Vec::new();
+    let mut unit_start = 0;
+    let mut text_closers = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if text_closers
+            .last()
+            .is_some_and(|closer| token.is_cmavo(*closer))
+        {
+            text_closers.pop();
+            continue;
+        }
+        if let Some(closer) = token.cmavo().and_then(syntax_text_closer_for_opener) {
+            text_closers.push(closer);
+            continue;
+        }
+        if !text_closers.is_empty() {
+            continue;
+        }
+        let split = token.is_selmaho(Selmaho::Niho)
+            || (granularity == SyntaxTextUnitGranularity::Statement
+                && token.is_cmavo(Cmavo::I)
+                && unit_start < index);
+        if !split {
+            continue;
+        }
+        push_syntax_text_unit(&mut units, unit_start, index);
+        unit_start = if token.is_selmaho(Selmaho::Niho) {
+            index + 1
+        } else {
+            index
+        };
+    }
+    push_syntax_text_unit(&mut units, unit_start, tokens.len());
+    units
+}
+
+/// Return the formal boundary/container event sequence for one token slice.
+///
+/// Offsets are intentionally absent: callers compare this typed sequence while
+/// separately proving exact word-stream flank equality.
+#[requires(true)]
+#[ensures(true)]
+pub fn syntax_text_structure(tokens: &[Token]) -> Vec<SyntaxTextStructureEvent> {
+    let mut events = Vec::new();
+    let mut text_closers = Vec::new();
+    for token in tokens {
+        if let Some(closer) = token.cmavo() {
+            if text_closers
+                .last()
+                .is_some_and(|expected| *expected == closer)
+            {
+                let depth = text_closers.len() - 1;
+                text_closers.pop();
+                events.push(SyntaxTextStructureEvent::ContainerClose {
+                    closer,
+                    depth,
+                    matched: true,
+                });
+                continue;
+            }
+            if let Some(expected_closer) = syntax_text_closer_for_opener(closer) {
+                let depth = text_closers.len();
+                text_closers.push(expected_closer);
+                events.push(SyntaxTextStructureEvent::ContainerOpen {
+                    opener: closer,
+                    depth,
+                });
+                continue;
+            }
+            if matches!(closer, Cmavo::Lihu | Cmavo::Tuhu | Cmavo::Toi) {
+                events.push(SyntaxTextStructureEvent::ContainerClose {
+                    closer,
+                    depth: text_closers.len(),
+                    matched: false,
+                });
+                continue;
+            }
+        }
+        let kind = if token.is_cmavo(Cmavo::I) {
+            Some(SyntaxTextBoundaryKind::I)
+        } else if token.is_selmaho(Selmaho::Niho) {
+            Some(SyntaxTextBoundaryKind::Niho)
+        } else {
+            None
+        };
+        if let Some(kind) = kind {
+            events.push(SyntaxTextStructureEvent::Boundary {
+                kind,
+                depth: text_closers.len(),
+            });
+        }
+    }
+    events
+}
+
+#[requires(start <= end)]
+#[ensures(units.len() == old(units.len()) + usize::from(start < end))]
+fn push_syntax_text_unit(units: &mut Vec<SyntaxTextUnit>, start: usize, end: usize) {
+    if start < end {
+        units.push(new!(SyntaxTextUnit {
+            token_start: start,
+            token_end: end,
+        }));
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == match opener {
+    Cmavo::Lu => Some(Cmavo::Lihu),
+    Cmavo::Tuhe => Some(Cmavo::Tuhu),
+    Cmavo::To => Some(Cmavo::Toi),
+    _ => None,
+})]
+fn syntax_text_closer_for_opener(opener: Cmavo) -> Option<Cmavo> {
+    match opener {
+        Cmavo::Lu => Some(Cmavo::Lihu),
+        Cmavo::Tuhe => Some(Cmavo::Tuhu),
+        Cmavo::To => Some(Cmavo::Toi),
+        _ => None,
+    }
+}
+
 impl generated_model::TextSyntax {
     #[requires(true)]
     #[ensures(true)]
@@ -3151,6 +3335,53 @@ mod tests {
     use jbotci_morphology::WordLikeData;
 
     use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn formal_tokens(source: &str) -> Vec<Token> {
+        let words = jbotci_morphology::segment_words_with_modifiers(source)
+            .expect("formal-boundary fixture has valid morphology");
+        syntax_tokens_with_options(&words, &ParseOptions::default())
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn formal_text_partition_ignores_quoted_boundaries_and_tracks_nesting() {
+        let tokens = formal_tokens(concat!(
+            "mi klama ni'o ",
+            "mi cusku lu do cadzu i do klama ni'o do tavla li'u ni'o ",
+            "do cadzu",
+        ));
+        let paragraphs = partition_syntax_text_units(&tokens, SyntaxTextUnitGranularity::Paragraph);
+        assert_eq!(paragraphs.len(), 3);
+
+        let structure = syntax_text_structure(&tokens);
+        assert_eq!(
+            structure
+                .iter()
+                .filter(|event| matches!(
+                    event,
+                    SyntaxTextStructureEvent::Boundary {
+                        kind: SyntaxTextBoundaryKind::Niho,
+                        depth: 0,
+                    }
+                ))
+                .count(),
+            2,
+        );
+        assert!(
+            structure
+                .iter()
+                .any(|event| matches!(event, SyntaxTextStructureEvent::Boundary { depth: 1, .. }))
+        );
+
+        let quoted_i = formal_tokens("mi klama zo i do cadzu ni'o do tavla");
+        assert_eq!(
+            partition_syntax_text_units(&quoted_i, SyntaxTextUnitGranularity::Statement).len(),
+            2,
+        );
+    }
 
     #[expensive_requires(jbotci_morphology::segment_words_with_modifiers(source).is_ok())]
     #[ensures(ret.iter().all(|expectation| !expectation.tokens.is_empty()))]

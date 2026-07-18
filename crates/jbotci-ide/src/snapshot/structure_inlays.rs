@@ -2,7 +2,6 @@ use std::cell::RefCell;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_morphology::{Cmavo, Selmaho};
 use jbotci_output::{
     BracketRenderOptions, BracketSourceConstruct, BracketSourceFragment, BracketSourceRange,
     pretty_bracket_source_fragments_with_options,
@@ -10,8 +9,9 @@ use jbotci_output::{
 };
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
-    ParseOptions, SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData, Token,
-    generated_model, parse_syntax_tokens_with_recovery_with_source_and_options_attempt,
+    ParseOptions, SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData,
+    SyntaxTextUnitGranularity, Token, generated_model,
+    parse_syntax_tokens_with_recovery_with_source_and_options_attempt, partition_syntax_text_units,
 };
 use serde::{Deserialize, Serialize};
 
@@ -257,32 +257,14 @@ fn append_skipped_text_unit_fragments(
     source: &str,
     options: BracketRenderOptions,
 ) {
-    let mut unit_start = 0;
-    let mut text_closers = Vec::new();
-    for (index, token) in tokens.iter().enumerate() {
-        if text_closers
-            .last()
-            .is_some_and(|closer| token.is_cmavo(*closer))
-        {
-            text_closers.pop();
-            continue;
-        }
-        if let Some(closer) = token.cmavo().and_then(nested_text_closer) {
-            text_closers.push(closer);
-            continue;
-        }
-        if !text_closers.is_empty() {
-            continue;
-        }
-        if token.is_selmaho(Selmaho::Niho) {
-            append_text_unit_fragments(fragments, &tokens[unit_start..index], source, options);
-            unit_start = index + 1;
-        } else if token.is_cmavo(Cmavo::I) && unit_start < index {
-            append_text_unit_fragments(fragments, &tokens[unit_start..index], source, options);
-            unit_start = index;
-        }
+    for unit in partition_syntax_text_units(tokens, SyntaxTextUnitGranularity::Statement) {
+        append_text_unit_fragments(
+            fragments,
+            &tokens[unit.token_start..unit.token_end],
+            source,
+            options,
+        );
     }
-    append_text_unit_fragments(fragments, &tokens[unit_start..], source, options);
 }
 
 #[requires(true)]
@@ -365,22 +347,6 @@ fn sort_decoration_fragments(fragments: &mut [DecorationFragment]) {
             (range.byte_start, range.byte_end)
         })
     });
-}
-
-#[requires(true)]
-#[ensures(ret == match opener {
-    Cmavo::Lu => Some(Cmavo::Lihu),
-    Cmavo::Tuhe => Some(Cmavo::Tuhu),
-    Cmavo::To => Some(Cmavo::Toi),
-    _ => None,
-})]
-fn nested_text_closer(opener: Cmavo) -> Option<Cmavo> {
-    match opener {
-        Cmavo::Lu => Some(Cmavo::Lihu),
-        Cmavo::Tuhe => Some(Cmavo::Tuhu),
-        Cmavo::To => Some(Cmavo::Toi),
-        _ => None,
-    }
 }
 
 #[requires(true)]

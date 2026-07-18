@@ -83,6 +83,9 @@ impl LspClient {
     fn response(&mut self, id: u64) -> Value {
         loop {
             let message = self.read();
+            if self.respond_to_server_request(&message) {
+                continue;
+            }
             if message.get("id") == Some(&json!(id)) {
                 assert!(
                     message.get("error").is_none(),
@@ -108,10 +111,30 @@ impl LspClient {
     fn next_notification(&mut self, method: &str) -> Value {
         loop {
             let message = self.read();
+            if self.respond_to_server_request(&message) {
+                continue;
+            }
             if message.get("method").and_then(Value::as_str) == Some(method) {
                 return message;
             }
         }
+    }
+
+    #[requires(message.is_object())]
+    #[ensures(true)]
+    fn respond_to_server_request(&mut self, message: &Value) -> bool {
+        let Some(id) = message.get("id") else {
+            return false;
+        };
+        if message.get("method").and_then(Value::as_str).is_none() {
+            return false;
+        }
+        self.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": null,
+        }));
+        true
     }
 
     #[requires(message.is_object())]
@@ -217,6 +240,11 @@ fn initialize_with_options(
         "capabilities": {
             "general": {
                 "positionEncodings": [position_encoding]
+            },
+            "workspace": {
+                "diagnostic": {
+                    "refreshSupport": pull_diagnostics
+                }
             },
             "textDocument": text_document
         }
@@ -556,7 +584,11 @@ fn assert_pull_round_trip(position_encoding: &str, error_start: u64, error_end: 
 
     let first = pull_diagnostics(&mut client, None);
     assert_eq!(first["kind"], "full");
-    assert_eq!(first["resultId"], "1");
+    let first_result_id = first["resultId"]
+        .as_str()
+        .expect("diagnostic result id")
+        .to_owned();
+    assert!(first_result_id.ends_with(":1:confirmed"));
     let diagnostics = first["items"].as_array().expect("diagnostic items");
     let diagnostic = diagnostics
         .iter()
@@ -597,13 +629,18 @@ fn assert_pull_round_trip(position_encoding: &str, error_start: u64, error_end: 
             }]
         }),
     );
-    let clean = pull_diagnostics(&mut client, Some("1"));
+    let clean = pull_diagnostics(&mut client, Some(&first_result_id));
     assert_eq!(clean["kind"], "full");
-    assert_eq!(clean["resultId"], "2");
+    let clean_result_id = clean["resultId"]
+        .as_str()
+        .expect("diagnostic result id")
+        .to_owned();
+    assert!(clean_result_id.contains(":2:"));
     assert_eq!(clean["items"], json!([]));
 
-    let unchanged = pull_diagnostics(&mut client, Some("2"));
-    assert_eq!(unchanged, json!({"kind": "unchanged", "resultId": "2"}));
+    let unchanged = pull_diagnostics(&mut client, Some(&clean_result_id));
+    assert_eq!(unchanged["kind"], "unchanged");
+    assert_eq!(unchanged["resultId"], clean_result_id);
     client.shutdown();
 }
 
@@ -622,6 +659,148 @@ fn pull_diagnostics_negotiate_utf8_and_apply_utf8_edits() {
 fn pull_diagnostics_fall_back_to_utf16_and_apply_utf16_edits() {
     assert_ne!(UTF16_ERROR_START, 14, "UTF-16 must not use scalar columns");
     assert_pull_round_trip("utf-16", UTF16_ERROR_START, UTF16_ERROR_END);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn pull_diagnostics_expose_provisional_then_confirmed_generations() {
+    const URI: &str = "file:///incremental-diagnostics.jbo";
+    const OLD_TEXT: &str = "mi klama\nni'o\ndo cadzu\nni'o\nmi ku i do";
+    const NEW_TEXT: &str = "mi klama\nni'o\ndo cadzu le zarci\nni'o\nmi ku i do";
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, URI, 1, OLD_TEXT);
+    let initial = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": null
+        }),
+    );
+    let initial_id = initial["resultId"]
+        .as_str()
+        .expect("initial result id")
+        .to_owned();
+    assert!(initial_id.ends_with(":1:confirmed"));
+
+    client.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": { "uri": URI, "version": 2 },
+            "contentChanges": [{ "text": NEW_TEXT }]
+        }),
+    );
+    let provisional = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": initial_id
+        }),
+    );
+    let provisional_id = provisional["resultId"]
+        .as_str()
+        .expect("provisional result id")
+        .to_owned();
+    assert!(provisional_id.ends_with(":2:provisional"));
+
+    thread::sleep(Duration::from_millis(300));
+    let confirmed = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": provisional_id
+        }),
+    );
+    assert!(
+        confirmed["resultId"]
+            .as_str()
+            .is_some_and(|result_id| result_id.ends_with(":2:confirmed"))
+    );
+    assert_eq!(provisional["items"], confirmed["items"]);
+    client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn shutdown_is_orderly_during_background_confirmation() {
+    const URI: &str = "file:///confirmation-shutdown.jbo";
+    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
+    let old_text = format!(
+        "{}do cadzu\nni'o\nmi ku i do",
+        "mi klama\nni'o\n".repeat(1_200),
+    );
+    let new_text = old_text.replacen("do cadzu", "do cadzu le zarci", 1);
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, URI, 1, &old_text);
+    let initial = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": null
+        }),
+    );
+    let initial_id = initial["resultId"]
+        .as_str()
+        .expect("initial result id")
+        .to_owned();
+    client.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": { "uri": URI, "version": 2 },
+            "contentChanges": [{ "text": new_text }]
+        }),
+    );
+    let provisional = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": initial_id
+        }),
+    );
+    assert!(
+        provisional["resultId"]
+            .as_str()
+            .is_some_and(|result_id| result_id.ends_with(":2:provisional"))
+    );
+
+    // The confirming phase starts at the 200 ms debounce deadline. Keep
+    // process ownership in a watchdog so a shutdown regression is bounded.
+    thread::sleep(Duration::from_millis(205));
+    let child = client
+        .child
+        .take()
+        .expect("watchdog temporarily owns the LSP child");
+    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
+    let (child_sender, child_receiver) = mpsc::sync_channel(1);
+    let watchdog = thread::spawn(move || {
+        let mut child = child;
+        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
+        if timed_out {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        let _ = child_sender.send((child, timed_out));
+    });
+
+    assert_eq!(client.request("shutdown", Value::Null), Value::Null);
+    disarm_sender
+        .send(())
+        .expect("disarm confirmation shutdown watchdog");
+    let (child, timed_out) = child_receiver.recv().expect("recover LSP child");
+    watchdog.join().expect("confirmation watchdog joins");
+    assert!(!timed_out, "shutdown timed out during confirming parse");
+    client.child = Some(child);
+    client.exit_after_shutdown();
 }
 
 #[test]
@@ -998,7 +1177,11 @@ fn stale_versions_are_rejected_full_sync_is_accepted_and_close_drops_state() {
         }),
     );
     let stale = pull_diagnostics(&mut client, None);
-    assert_eq!(stale["resultId"], "10");
+    let stale_result_id = stale["resultId"]
+        .as_str()
+        .expect("diagnostic result id")
+        .to_owned();
+    assert!(stale_result_id.ends_with(":10:confirmed"));
     assert!(
         stale["items"]
             .as_array()
@@ -1012,8 +1195,12 @@ fn stale_versions_are_rejected_full_sync_is_accepted_and_close_drops_state() {
             "contentChanges": [{ "text": "mi klama" }]
         }),
     );
-    let full_sync = pull_diagnostics(&mut client, Some("10"));
-    assert_eq!(full_sync["resultId"], "11");
+    let full_sync = pull_diagnostics(&mut client, Some(&stale_result_id));
+    assert!(
+        full_sync["resultId"]
+            .as_str()
+            .is_some_and(|result_id| result_id.contains(":11:"))
+    );
     assert_eq!(full_sync["items"], json!([]));
 
     client.notify(
