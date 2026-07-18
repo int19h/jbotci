@@ -48,8 +48,8 @@ use jbotci_web_core::{
     VlackuWordTypeOption, VlackuWordTypeSection, WebComputeRequest, WebComputeResponse,
     WebFeatureAvailability, WebRoute, all_presets, build_gimfihi_page_meta_from_output,
     build_page_meta, build_vlacku_jvozba_output, dictionary_tooltip_for_rafsi,
-    dictionary_tooltip_for_word, gentufa_web_url, gimfihi_web_url, normalize_gimfihi_state,
-    normalize_vlacku_state, parse_web_route, reference_slot_display_text,
+    dictionary_tooltip_for_word, gentufa_web_url, gimfihi_source_word_preview, gimfihi_web_url,
+    normalize_gimfihi_state, normalize_vlacku_state, parse_web_route, reference_slot_display_text,
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
