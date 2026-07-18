@@ -7,7 +7,8 @@ pub use line_index::{
     LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, TextOffsets,
 };
 pub use snapshot::{
-    CompletionDocumentationHandle, CompletionInterpretation, CompletionItem, CompletionKind,
-    CompletionProvenance, DocumentSnapshot, HoverContent, ResolvedDiagnostic, ResolvedLabel,
-    SemanticToken, SemanticTokenKind, WordAt, completion_documentation_markdown,
+    CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
+    CompletionItem, CompletionKind, CompletionProvenance, DocumentSnapshot, HoverContent,
+    ResolvedDiagnostic, ResolvedLabel, SemanticToken, SemanticTokenKind, WordAt,
+    completion_documentation_markdown,
 };

@@ -15,8 +15,8 @@ mod hover;
 mod semantic_tokens;
 
 pub use completion::{
-    CompletionDocumentationHandle, CompletionInterpretation, CompletionItem, CompletionKind,
-    CompletionProvenance, completion_documentation_markdown,
+    CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
+    CompletionItem, CompletionKind, CompletionProvenance, completion_documentation_markdown,
 };
 pub use hover::HoverContent;
 pub use semantic_tokens::{SemanticToken, SemanticTokenKind};

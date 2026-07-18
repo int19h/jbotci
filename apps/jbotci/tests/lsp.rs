@@ -1,5 +1,7 @@
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
@@ -15,7 +17,7 @@ const UTF16_ERROR_END: u64 = 17;
 
 #[invariant(true)]
 struct LspClient {
-    child: Child,
+    child: Option<Child>,
     stdin: Option<ChildStdin>,
     stdout: BufReader<ChildStdout>,
     stderr: ChildStderr,
@@ -47,7 +49,7 @@ impl LspClient {
         let stdout = child.stdout.take().expect("child stdout");
         let stderr = child.stderr.take().expect("child stderr");
         Self {
-            child,
+            child: Some(child),
             stdin: Some(stdin),
             stdout: BufReader::new(stdout),
             stderr,
@@ -58,6 +60,13 @@ impl LspClient {
     #[requires(!method.is_empty())]
     #[ensures(ret.is_null() || ret.is_object() || ret.is_array())]
     fn request(&mut self, method: &str, params: Value) -> Value {
+        let id = self.start_request(method, params);
+        self.response(id)
+    }
+
+    #[requires(!method.is_empty())]
+    #[ensures(ret > 0 && ret < self.next_id)]
+    fn start_request(&mut self, method: &str, params: Value) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
         self.send(json!({
@@ -66,6 +75,12 @@ impl LspClient {
             "method": method,
             "params": params,
         }));
+        id
+    }
+
+    #[requires(id > 0 && id < self.next_id)]
+    #[ensures(ret.is_null() || ret.is_object() || ret.is_array())]
+    fn response(&mut self, id: u64) -> Value {
         loop {
             let message = self.read();
             if message.get("id") == Some(&json!(id)) {
@@ -143,9 +158,20 @@ impl LspClient {
     #[ensures(true)]
     fn shutdown(mut self) {
         assert_eq!(self.request("shutdown", Value::Null), Value::Null);
+        self.exit_after_shutdown();
+    }
+
+    #[requires(self.child.is_some())]
+    #[ensures(true)]
+    fn exit_after_shutdown(mut self) {
         self.notify("exit", Value::Null);
         drop(self.stdin.take());
-        let status = self.child.wait().expect("wait for LSP server");
+        let status = self
+            .child
+            .take()
+            .expect("LSP child remains owned until exit")
+            .wait()
+            .expect("wait for LSP server");
         let mut stderr = String::new();
         self.stderr
             .read_to_string(&mut stderr)
@@ -660,6 +686,72 @@ fn error_heavy_completion_returns_before_followup_diagnostics() {
         "the server must answer diagnostics after error-heavy completion",
     );
     client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn shutdown_completes_during_an_in_flight_completion() {
+    const URI: &str = "file:///completion-shutdown.jbo";
+    const TEXT: &str = ".i la prux. ba'o sruma lo du'u le ckule cipra ku frili ra";
+    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
+    let cursor = TEXT.find("sruma").expect("fixture contains sruma") as u64;
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, URI, 1, TEXT);
+    let diagnostics = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": null
+        }),
+    );
+    assert_eq!(diagnostics["kind"], "full");
+
+    // Keep process ownership in a watchdog while the main test thread blocks
+    // on protocol input. A regression that wedges the protocol loop therefore
+    // fails in bounded time instead of hanging the entire test process.
+    let child = client
+        .child
+        .take()
+        .expect("watchdog temporarily owns the LSP child");
+    let (disarm_sender, disarm_receiver) = mpsc::sync_channel(1);
+    let (child_sender, child_receiver) = mpsc::sync_channel(1);
+    let watchdog = thread::spawn(move || {
+        let mut child = child;
+        let timed_out = disarm_receiver.recv_timeout(SHUTDOWN_TIMEOUT).is_err();
+        if timed_out {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        let _ = child_sender.send((child, timed_out));
+    });
+
+    let _completion_id = client.start_request(
+        "textDocument/completion",
+        json!({
+            "textDocument": { "uri": URI },
+            "position": { "line": 0, "character": cursor }
+        }),
+    );
+    let shutdown_id = client.start_request("shutdown", Value::Null);
+    assert_eq!(client.response(shutdown_id), Value::Null);
+
+    disarm_sender
+        .send(())
+        .expect("disarm the shutdown watchdog");
+    let (child, timed_out) = child_receiver
+        .recv()
+        .expect("watchdog returns the LSP child");
+    watchdog.join().expect("shutdown watchdog must not panic");
+    assert!(
+        !timed_out,
+        "shutdown response exceeded {SHUTDOWN_TIMEOUT:?}"
+    );
+    client.child = Some(child);
+    client.exit_after_shutdown();
 }
 
 #[test]
