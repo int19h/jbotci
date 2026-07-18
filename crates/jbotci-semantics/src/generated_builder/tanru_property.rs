@@ -613,6 +613,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "relation place structure is unavailable; only places required by explicit assignments are represented",
             ));
         }
+        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
+            atom.base.as_ref(),
+            &relation_text,
+            predication_source.clone(),
+        )?;
         let mut branch_formulas = Vec::with_capacity(visible_argument_branches.len());
         for visible_arguments in visible_argument_branches {
             let mut arguments = BTreeMap::new();
@@ -669,6 +674,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 diagnostics.clone(),
             );
             predication_object.set_predication_attachments(modal_arguments, place_questions);
+            predication_object.set_predication_relation_metadata(relation_metadata);
             self.insert(predication, predication_object)?;
             if let Some(scalar_unit) = scalar_unit {
                 let scalar_negation_scope =

@@ -386,6 +386,7 @@ pub struct QuantityNode {
 
 #[invariant(!relation.is_empty())]
 #[invariant(source_words.iter().all(|word| !word.is_empty()))]
+#[invariant(expansion.as_ref().is_none_or(|expansion| expansion.kind != "lujvo" || (!source_words.is_empty() && !expansion.source_words.is_empty() && place_structure.is_empty())), "lujvo metadata contains only a complete mechanical decomposition, never place claims")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RelationMetadataNode {
     pub relation: String,
