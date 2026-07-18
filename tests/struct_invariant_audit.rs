@@ -656,6 +656,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "short rafsi candidates are generated and classified by possible_short_rafsis",
     ),
     (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:NodeFrame",
+        "private mutable traversal frame; node balance and constructor validity are enforced by TreeContextCollector enter and exit contracts",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:RecoveredSkippedTokenVisitor",
+        "private recursive-walker accumulator; text-depth balance is enforced by walk_text and the generated walker",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:RecoveredTreeContextVisitor",
+        "private TreeVisitor adapter whose state validity is delegated to TreeContextCollector traversal contracts",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:SequenceFrame",
+        "private mutable traversal frame; suffix-token state and bounds are populated atomically by TreeContextCollector",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:SkippedAnchor",
+        "private derived anchor record produced only after a skipped-token span and restart point have both been observed",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:SkippedTextFrame",
+        "private skipped-token traversal frame whose temporary boundary state is normalized before an anchor is emitted",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:TextFrame",
+        "private mutable traversal frame; nesting depth and statement starts are assigned by ordered tree events",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:TextRecord",
+        "private completed traversal record derived from a bounded text node before restart selection",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:TreeContextCollector",
+        "private TreeVisitor accumulator; cut bounds and stack balance are enforced by its constructor and traversal method contracts",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/completion/tree_context.rs:ValidTreeContextVisitor",
+        "private TreeVisitor adapter whose state validity is delegated to TreeContextCollector traversal contracts",
+    ),
+    (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",
         "segmenter is mutable parser state whose invariants are algorithm-local",
     ),

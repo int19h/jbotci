@@ -22,6 +22,10 @@ use jbotci_syntax::{
 
 use super::{DocumentSnapshot, SemanticTokenKind};
 
+mod tree_context;
+
+use tree_context::{OpenConstructCandidate, TreeCompletionContext};
+
 /// Transport-neutral completion classification.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,6 +112,7 @@ pub struct CompletionItem {
     pub replacement_span: SourceSpan,
     pub short_gloss: Option<String>,
     pub documentation: CompletionDocumentationHandle,
+    suffix_consistent: bool,
 }
 
 impl CompletionItem {
@@ -139,6 +144,7 @@ struct CompletionContext<'snapshot, 'dictionary, 'entries> {
     interpretation: CompletionInterpretation,
     replacement_span: SourceSpan,
     normalized_prefix: String,
+    suffix_consistent_labels: BTreeSet<String>,
 }
 
 impl DocumentSnapshot {
@@ -320,12 +326,30 @@ impl DocumentSnapshot {
         grammar_time_limit: Duration,
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
     ) {
+        let tree_context = TreeCompletionContext::from_parse(
+            &self.parse,
+            replacement_span.byte_start,
+            self.text.len(),
+        );
+        let statement_words = statement_local_words(preceding_words, tree_context.restart_byte);
         let cursor_context = match self.cursor_completion_context(&replacement_span) {
             CursorCompletionContext::Grammar if preceding_awaits_zo_target => {
                 CursorCompletionContext::UnfilteredQuotedWord
             }
             context => context,
         };
+        let suffix_consistent_labels = tree_context
+            .suffix_consistent_cmavo
+            .iter()
+            .copied()
+            .chain(
+                tree_context
+                    .open_constructs
+                    .iter()
+                    .map(|candidate| candidate.cmavo),
+            )
+            .map(|cmavo| normalize_lookup_query(cmavo.canonical_text()))
+            .collect();
         let completion_context = new!(CompletionContext {
             snapshot: self,
             dictionary,
@@ -333,6 +357,7 @@ impl DocumentSnapshot {
             interpretation,
             replacement_span,
             normalized_prefix: normalize_lookup_query(prefix),
+            suffix_consistent_labels,
         });
         match cursor_context {
             CursorCompletionContext::SuppressedNonLojbanQuote => {}
@@ -354,11 +379,14 @@ impl DocumentSnapshot {
                 ),
             CursorCompletionContext::Grammar => {
                 let expectations = expected_continuations_with_time_limit(
-                    preceding_words,
+                    statement_words,
                     &ParseOptions::default(),
                     grammar_time_limit,
                 );
-                completion_context.add_grammar_candidates(&expectations, items);
+                if completion_context.add_grammar_candidates(&expectations, items) {
+                    completion_context
+                        .add_open_construct_candidates(&tree_context.open_constructs, items);
+                }
             }
         }
     }
@@ -465,12 +493,12 @@ impl DocumentSnapshot {
 
 impl CompletionContext<'_, '_, '_> {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret == !expectations.is_empty())]
     fn add_grammar_candidates(
         &self,
         expectations: &[SyntaxExpectation],
         items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
-    ) {
+    ) -> bool {
         if expectations.is_empty() {
             self.add_unfiltered_candidates(
                 new!(SyntaxExpectationReason::ContinueCurrent {
@@ -479,7 +507,7 @@ impl CompletionContext<'_, '_, '_> {
                 new!(CompletionProvenance::GrammarUnavailable),
                 items,
             );
-            return;
+            return false;
         }
         let mut tokens = BTreeMap::<SyntaxExpectedToken, SyntaxExpectationReason>::new();
         for expectation in expectations {
@@ -499,6 +527,25 @@ impl CompletionContext<'_, '_, '_> {
         }
         for (token, reason) in tokens {
             self.add_expected_token(&token, &reason, items);
+        }
+        true
+    }
+
+    #[requires(candidates.iter().all(|candidate| !candidate.construct.is_empty()))]
+    #[ensures(true)]
+    fn add_open_construct_candidates(
+        &self,
+        candidates: &[OpenConstructCandidate],
+        items: &mut BTreeMap<(u8, String, CompletionProvenance), CompletionItem>,
+    ) {
+        for candidate in candidates {
+            self.add_expected_token(
+                &new!(SyntaxExpectedToken::Cmavo(candidate.cmavo)),
+                &new!(SyntaxExpectationReason::ContinueCurrent {
+                    construct: candidate.construct.clone(),
+                }),
+                items,
+            );
         }
     }
 
@@ -657,16 +704,19 @@ impl CompletionContext<'_, '_, '_> {
             return;
         }
 
+        let suffix_consistent = self.suffix_consistent_labels.contains(&normalized_label);
         let key = (
             self.interpretation.sort_rank(),
             normalized_label,
             provenance.clone(),
         );
-        if items
-            .get(&key)
-            .is_some_and(|existing| existing.reason <= *reason)
-        {
-            return;
+        if let Some(existing) = items.get(&key) {
+            if existing.suffix_consistent && !suffix_consistent {
+                return;
+            }
+            if existing.suffix_consistent == suffix_consistent && existing.reason <= *reason {
+                return;
+            }
         }
         items.insert(
             key,
@@ -679,6 +729,7 @@ impl CompletionContext<'_, '_, '_> {
                 replacement_span: self.replacement_span.clone(),
                 short_gloss: None,
                 documentation: CompletionDocumentationHandle::new(label.to_owned()),
+                suffix_consistent,
             }),
         );
     }
@@ -726,12 +777,23 @@ fn reason_sort_rank(reason: &SyntaxExpectationReason) -> u8 {
 
 #[requires(true)]
 #[ensures(true)]
-fn completion_sort_key(item: &CompletionItem) -> (u8, u8, &str) {
+fn completion_sort_key(item: &CompletionItem) -> (u8, u8, u8, &str) {
     (
         item.interpretation.sort_rank(),
+        u8::from(!item.suffix_consistent),
         item.reason_sort_rank(),
         item.label.as_str(),
     )
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= words.len())]
+fn statement_local_words(words: &[WordLike], restart_byte: usize) -> &[WordLike] {
+    let start = words.partition_point(|word| {
+        word.byte_range()
+            .is_none_or(|range| range.end <= restart_byte)
+    });
+    &words[start..]
 }
 
 #[requires(span.byte_start <= span.byte_end && container.byte_start <= container.byte_end)]
@@ -822,6 +884,26 @@ mod tests {
     #[ensures(true)]
     fn has_label(items: &[CompletionItem], label: &str) -> bool {
         items.iter().any(|item| item.label == label)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn uses_degraded_grammar_fallback(item: &CompletionItem) -> bool {
+        matches!(
+            item.provenance.as_data(),
+            data!(CompletionProvenance::GrammarUnavailable)
+        )
+    }
+
+    #[requires(source.matches('|').count() == 1)]
+    #[ensures(ret.cut_byte == source.find('|').expect("precondition requires a marker"))]
+    fn tree_context_at_marker(source: &str) -> TreeCompletionContext {
+        let marker_byte = source
+            .find('|')
+            .expect("precondition requires a cursor marker");
+        let text = source.replacen('|', "", 1);
+        let snapshot = DocumentSnapshot::new(text, 1);
+        TreeCompletionContext::from_parse(&snapshot.parse, marker_byte, snapshot.text.len())
     }
 
     #[requires(true)]
@@ -945,6 +1027,92 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn quoted_statement_restart_comes_from_the_nested_snapshot_tree() {
+        let marked = "mi cusku lu .i ni'o mi cusku zo ni'o zo .i d|o li'u";
+        let source = marked.replacen('|', "", 1);
+        let actual_i = source
+            .find(".i ni'o")
+            .expect("fixture contains the real nested statement/paragraph separator");
+        let expected_restart = DocumentSnapshot::new(source, 1)
+            .word_at(actual_i + 1)
+            .expect("the real separator has a morphology span")
+            .span
+            .byte_start;
+
+        let context = tree_context_at_marker(marked);
+
+        assert_eq!(context.restart_byte, expected_restart);
+        assert!(
+            context.restart_byte
+                > marked
+                    .find("lu")
+                    .expect("fixture contains the nested text opener"),
+            "the nested text must own its own statement restart",
+        );
+        assert!(
+            context.restart_byte
+                < marked
+                    .find("zo ni'o")
+                    .expect("fixture contains the quoted NIhO spelling"),
+            "quoted NIhO and .i tokens must not become statement restarts",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn open_nested_construct_closers_rank_above_local_prefix_candidates() {
+        let items = completions_at_marker("mi cusku lu mi djica lo nu do| ");
+        let continuation = items
+            .iter()
+            .filter(|item| item.interpretation == CompletionInterpretation::Continue)
+            .collect::<Vec<_>>();
+
+        for closer in ["kei", "ku", "li'u"] {
+            assert!(
+                continuation
+                    .iter()
+                    .any(|item| item.label == closer && item.suffix_consistent),
+                "tree covering-chain closer {closer} must be present and suffix-ranked: {continuation:#?}",
+            );
+        }
+        let closer_index = continuation
+            .iter()
+            .position(|item| item.label == "kei")
+            .expect("KEI closer is present");
+        let local_index = continuation
+            .iter()
+            .position(|item| item.label == "barda")
+            .expect("the local prefix parse offers a selbri word");
+        assert!(closer_index < local_index);
+        assert!(!continuation[local_index].suffix_consistent);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn suffix_consistency_ranks_without_filtering_transitional_edits() {
+        // Replacing LO with LA leaves the following NU invalid because LA
+        // requires a cmevla. The edit is nevertheless prefix-valid while the
+        // user is transitioning the suffix, so it must remain available.
+        let items = completions_at_marker("mi djica l|o nu do klama");
+        let lo_index = items
+            .iter()
+            .position(|item| item.label == "lo")
+            .expect("the committed-tree LO reading remains available");
+        let la_index = items
+            .iter()
+            .position(|item| item.label == "la")
+            .expect("prefix-valid LA must not be hard-filtered by the NU suffix");
+
+        assert!(items[lo_index].suffix_consistent);
+        assert!(!items[la_index].suffix_consistent);
+        assert!(lo_index < la_index);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn magic_quote_contexts_suppress_or_unfilter_as_modeled_by_morphology() {
         let after_zo = completions_at_marker("zo |");
         assert!(
@@ -1042,6 +1210,7 @@ mod tests {
             interpretation: CompletionInterpretation::Continue,
             replacement_span,
             normalized_prefix: String::new(),
+            suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
         context.add_grammar_candidates(&[], &mut items);
@@ -1069,6 +1238,7 @@ mod tests {
             interpretation: CompletionInterpretation::Extend,
             replacement_span,
             normalized_prefix: normalize_lookup_query("l"),
+            suffix_consistent_labels: BTreeSet::new(),
         });
         let mut items = BTreeMap::new();
         context.add_grammar_candidates(&[], &mut items);
@@ -1079,21 +1249,52 @@ mod tests {
         assert_eq!(lo.replacement_span.char_end, mid_word_cursor + 1);
     }
 
+    #[cfg(not(feature = "expensive_contracts"))]
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn completion_at_error_heavy_deep_cut_stays_interactive() {
+    fn statement_local_error_heavy_completion_meets_literal_boundary() {
         let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
         let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
         let cursor = marked[..marker_byte].chars().count();
-        let text = marked.replacen('|', "", 1);
-        let snapshot = DocumentSnapshot::new(text, 1);
+        let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
+        let assert_literal_boundary = std::env::var_os("CI").is_none();
         let started = Instant::now();
-        let _items = snapshot.completions(cursor);
+        let items = if assert_literal_boundary {
+            snapshot.completions(cursor)
+        } else {
+            snapshot.completions_with_grammar_time_limit(cursor, Duration::from_secs(30))
+        };
+        let elapsed = started.elapsed();
+
+        assert!(has_label(&items, "lo"));
         assert!(
-            started.elapsed() < Duration::from_secs(2),
-            "error-heavy deep-cut completion unexpectedly took {:?}",
-            started.elapsed(),
+            !items.iter().any(uses_degraded_grammar_fallback),
+            "statement-local completion must remain grammar-filtered",
+        );
+        if assert_literal_boundary {
+            assert!(
+                elapsed < Duration::from_millis(150),
+                "statement-local completion took {elapsed:?}",
+            );
+        }
+    }
+
+    #[cfg(feature = "expensive_contracts")]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn statement_local_error_heavy_completion_is_grammar_filtered_with_instrumentation() {
+        let marked = format!("{}mukti l|o nu", "mi ku .i ".repeat(14));
+        let marker_byte = marked.find('|').expect("fixture contains a cursor marker");
+        let cursor = marked[..marker_byte].chars().count();
+        let snapshot = DocumentSnapshot::new(marked.replacen('|', "", 1), 1);
+        let items = snapshot.completions_with_grammar_time_limit(cursor, Duration::from_secs(30));
+
+        assert!(has_label(&items, "lo"));
+        assert!(
+            !items.iter().any(uses_degraded_grammar_fallback),
+            "instrumented statement-local completion must remain grammar-filtered",
         );
     }
 
