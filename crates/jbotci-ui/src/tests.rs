@@ -231,6 +231,23 @@ fn gimfihi_nonblank_committed_state_shows_loading_for_stale_result() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gimfihi_current_outputless_result_is_not_loading() {
+    let mut state = GimfihiWebState::default();
+    state.sources[0].word = "[əbaut]".to_owned();
+    let result = GimfihiAsyncResultState {
+        state: Some(state.clone()),
+        result: gimfihi_empty_result(&state),
+        meta: None,
+        loading: false,
+        error: None,
+    };
+
+    assert!(!gimfihi_result_panel_is_loading(&state, &result));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gimfihi_load_more_state_doubles_and_clamps_count() {
     let mut state = GimfihiWebState {
         count: 20,
