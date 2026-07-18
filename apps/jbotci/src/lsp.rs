@@ -3,7 +3,10 @@
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::ops::ControlFlow;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicU64, Ordering as AtomicOrdering},
+};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -23,15 +26,16 @@ use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
 use async_lsp::{ClientSocket, ErrorCode, ResponseError};
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_diagnostics::{
     Diagnostic as JbotciDiagnostic, DiagnosticPhase, DiagnosticSeverity as JbotciSeverity,
     diagnostic_text_segments_text,
 };
 use jbotci_ide::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
-    CompletionKind, DecorationProfile, DocumentSnapshot, LineIndex, MAX_POSITION_VALUE, Position,
-    PositionEncoding, PositionRange, SemanticTokenKind, completion_documentation_markdown,
+    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, LineIndex,
+    MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, PreparedDocumentAnalysis,
+    SemanticTokenKind, completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
@@ -46,7 +50,7 @@ const COMPLETION_DATA_WORD: &str = "jbotciWord";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
 const MIN_LSP_REQUEST_CONCURRENCY: NonZeroUsize = NonZeroUsize::new(2).unwrap();
 
-type SnapshotPublisher = Arc<dyn Fn(Url, i32, Arc<DocumentSnapshot>) + Send + Sync + 'static>;
+type DiagnosticsPublisher = Arc<dyn Fn(Url, i32, Arc<DiagnosticSnapshot>) + Send + Sync + 'static>;
 
 #[invariant(true)]
 struct ServerState {
@@ -55,7 +59,7 @@ struct ServerState {
     position_encoding: PositionEncoding,
     pull_diagnostics: bool,
     structure_inlay_profile: DecorationProfile,
-    snapshot_publisher: SnapshotPublisher,
+    diagnostics_publisher: DiagnosticsPublisher,
 }
 
 #[invariant(true)]
@@ -69,19 +73,45 @@ struct ServerInitializationOptions {
 #[derive(Clone)]
 struct DocumentStore {
     documents: Arc<Mutex<HashMap<Url, DocumentState>>>,
+    next_epoch: Arc<AtomicU64>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PublishedDiagnosticPhase {
+    Provisional,
+    Confirmed,
+}
+
+#[invariant(!result_id.is_empty())]
+#[invariant(snapshot.version == i64::from(*version))]
+#[derive(Debug)]
+struct PublishedDiagnostics {
+    result_id: String,
+    epoch: u64,
+    generation: u64,
+    version: i32,
+    phase: PublishedDiagnosticPhase,
+    snapshot: Arc<DiagnosticSnapshot>,
 }
 
 // This is mutable state behind `DocumentStore`'s lock. Its transitions enforce
 // text/version/generation coherence; a validating wrapper would prevent the
-// in-place updates that the lock exists to protect.
+// in-place updates that the lock exists to protect. `confirmed_snapshot` is
+// the only tree feature substrate and may intentionally lag `version`, while
+// `latest_diagnostics` is always cleared on edit and may then hold either the
+// provisional or confirmed diagnostic phase for the current generation.
 #[invariant(true)]
 struct DocumentState {
     text_index: LineIndex,
     version: i32,
+    epoch: u64,
     generation: u64,
-    latest_snapshot: Option<Arc<DocumentSnapshot>>,
-    completed: watch::Sender<Option<Arc<DocumentSnapshot>>>,
-    pending_rebuild: Option<AbortHandle>,
+    confirmed_snapshot: Option<Arc<DocumentSnapshot>>,
+    confirmed: watch::Sender<Option<Arc<DocumentSnapshot>>>,
+    latest_diagnostics: Option<Arc<PublishedDiagnostics>>,
+    diagnostics: watch::Sender<Option<Arc<PublishedDiagnostics>>>,
+    pending_analysis: Option<AbortHandle>,
 }
 
 /// Cancels a detached blocking completion when its protocol future is dropped.
@@ -104,35 +134,46 @@ impl DocumentStore {
     fn new() -> Self {
         Self {
             documents: Arc::new(Mutex::new(HashMap::new())),
+            next_epoch: Arc::new(AtomicU64::new(1)),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn open(&self, uri: Url, text: String, version: i32, publisher: SnapshotPublisher) {
+    fn open(&self, uri: Url, text: String, version: i32, publisher: DiagnosticsPublisher) {
+        let epoch = self
+            .next_epoch
+            .fetch_update(AtomicOrdering::Relaxed, AtomicOrdering::Relaxed, |epoch| {
+                epoch.checked_add(1)
+            })
+            .expect("document epochs cannot wrap without reusing diagnostic result IDs");
         let generation = {
             let mut documents = self.documents.lock().expect("document store poisoned");
             if let Some(previous) = documents.remove(&uri)
-                && let Some(pending) = previous.pending_rebuild
+                && let Some(pending) = previous.pending_analysis
             {
                 pending.abort();
             }
-            let (completed, _) = watch::channel(None);
+            let (confirmed, _) = watch::channel(None);
+            let (diagnostics, _) = watch::channel(None);
             let generation = 1;
             documents.insert(
                 uri.clone(),
                 DocumentState {
                     text_index: LineIndex::new(Arc::from(text)),
                     version,
+                    epoch,
                     generation,
-                    latest_snapshot: None,
-                    completed,
-                    pending_rebuild: None,
+                    confirmed_snapshot: None,
+                    confirmed,
+                    latest_diagnostics: None,
+                    diagnostics,
+                    pending_analysis: None,
                 },
             );
             generation
         };
-        self.schedule_rebuild(uri, generation, publisher);
+        self.schedule_analysis(uri, generation, publisher);
     }
 
     /// Apply a versioned notification atomically. Stale versions and inverted ranges are rejected.
@@ -144,7 +185,7 @@ impl DocumentStore {
         version: i32,
         changes: Vec<TextDocumentContentChangeEvent>,
         encoding: PositionEncoding,
-        publisher: SnapshotPublisher,
+        publisher: DiagnosticsPublisher,
     ) -> bool {
         let generation = {
             let mut documents = self.documents.lock().expect("document store poisoned");
@@ -159,7 +200,7 @@ impl DocumentStore {
             else {
                 return false;
             };
-            if let Some(pending) = document.pending_rebuild.take() {
+            if let Some(pending) = document.pending_analysis.take() {
                 pending.abort();
             }
             document.text_index = next_index;
@@ -168,9 +209,11 @@ impl DocumentStore {
                 .generation
                 .checked_add(1)
                 .expect("strictly increasing i32 versions cannot exhaust a u64 generation");
+            document.latest_diagnostics = None;
+            document.diagnostics.send_replace(None);
             document.generation
         };
-        self.schedule_rebuild(uri.clone(), generation, publisher);
+        self.schedule_analysis(uri.clone(), generation, publisher);
         true
     }
 
@@ -181,7 +224,7 @@ impl DocumentStore {
         let Some(document) = documents.remove(uri) else {
             return false;
         };
-        if let Some(pending) = document.pending_rebuild {
+        if let Some(pending) = document.pending_analysis {
             pending.abort();
         }
         true
@@ -189,23 +232,40 @@ impl DocumentStore {
 
     #[requires(true)]
     #[ensures(true)]
-    fn schedule_rebuild(&self, uri: Url, generation: u64, publisher: SnapshotPublisher) {
+    fn schedule_analysis(&self, uri: Url, generation: u64, publisher: DiagnosticsPublisher) {
         let store = self.clone();
         let task_uri = uri.clone();
         let task = tokio::spawn(async move {
-            tokio::time::sleep(DEBOUNCE_DELAY).await;
-            let Some((text, version)) = store.rebuild_input(&task_uri, generation) else {
+            let debounce_deadline = tokio::time::Instant::now() + DEBOUNCE_DELAY;
+            let Some((text, version, confirmed)) = store.analysis_input(&task_uri, generation)
+            else {
                 return;
             };
-            let snapshot = match tokio::task::spawn_blocking(move || {
-                DocumentSnapshot::new(text, i64::from(version))
+            let prepared = match tokio::task::spawn_blocking(move || {
+                PreparedDocumentAnalysis::prepare(confirmed.as_deref(), text, i64::from(version))
             })
             .await
             {
+                Ok(prepared) => prepared,
+                Err(_) => return,
+            };
+            if let Some(provisional) = prepared.provisional() {
+                if !store.install_provisional(
+                    &task_uri,
+                    generation,
+                    version,
+                    provisional,
+                    &publisher,
+                ) {
+                    return;
+                }
+                tokio::time::sleep_until(debounce_deadline).await;
+            }
+            let snapshot = match tokio::task::spawn_blocking(move || prepared.confirm()).await {
                 Ok(snapshot) => Arc::new(snapshot),
                 Err(_) => return,
             };
-            store.complete_rebuild(task_uri, generation, version, snapshot, publisher);
+            store.complete_confirmation(task_uri, generation, version, snapshot, publisher);
         });
         let abort_handle = task.abort_handle();
 
@@ -213,7 +273,7 @@ impl DocumentStore {
         if let Some(document) = documents.get_mut(&uri)
             && document.generation == generation
         {
-            document.pending_rebuild = Some(abort_handle);
+            document.pending_analysis = Some(abort_handle);
         } else {
             task.abort();
         }
@@ -221,24 +281,74 @@ impl DocumentStore {
 
     #[requires(true)]
     #[ensures(true)]
-    fn rebuild_input(&self, uri: &Url, generation: u64) -> Option<(String, i32)> {
+    fn analysis_input(
+        &self,
+        uri: &Url,
+        generation: u64,
+    ) -> Option<(String, i32, Option<Arc<DocumentSnapshot>>)> {
         let documents = self.documents.lock().expect("document store poisoned");
         let document = documents.get(uri)?;
-        (document.generation == generation)
-            .then(|| (document.text_index.text().to_owned(), document.version))
+        (document.generation == generation).then(|| {
+            (
+                document.text_index.text().to_owned(),
+                document.version,
+                document.confirmed_snapshot.as_ref().map(Arc::clone),
+            )
+        })
     }
 
     #[requires(snapshot.version == i64::from(version))]
     #[ensures(true)]
-    fn complete_rebuild(
+    fn install_provisional(
+        &self,
+        uri: &Url,
+        generation: u64,
+        version: i32,
+        snapshot: Arc<DiagnosticSnapshot>,
+        publisher: &DiagnosticsPublisher,
+    ) -> bool {
+        let publication = {
+            let mut documents = self.documents.lock().expect("document store poisoned");
+            let Some(document) = documents.get_mut(uri) else {
+                return false;
+            };
+            if document.generation != generation || document.version != version {
+                return false;
+            }
+            let publication = Arc::new(new!(PublishedDiagnostics {
+                result_id: diagnostic_result_id(
+                    document.epoch,
+                    generation,
+                    version,
+                    PublishedDiagnosticPhase::Provisional,
+                ),
+                epoch: document.epoch,
+                generation,
+                version,
+                phase: PublishedDiagnosticPhase::Provisional,
+                snapshot,
+            }));
+            document.latest_diagnostics = Some(Arc::clone(&publication));
+            document
+                .diagnostics
+                .send_replace(Some(Arc::clone(&publication)));
+            publication
+        };
+        publisher(uri.clone(), version, Arc::clone(&publication.snapshot));
+        true
+    }
+
+    #[requires(snapshot.version == i64::from(version))]
+    #[ensures(true)]
+    fn complete_confirmation(
         &self,
         uri: Url,
         generation: u64,
         version: i32,
         snapshot: Arc<DocumentSnapshot>,
-        publisher: SnapshotPublisher,
+        publisher: DiagnosticsPublisher,
     ) {
-        {
+        let publication = {
             let mut documents = self.documents.lock().expect("document store poisoned");
             let Some(document) = documents.get_mut(&uri) else {
                 return;
@@ -246,40 +356,101 @@ impl DocumentStore {
             if document.generation != generation || document.version != version {
                 return;
             }
-            document.latest_snapshot = Some(Arc::clone(&snapshot));
-            document.pending_rebuild = None;
-            document.completed.send_replace(Some(Arc::clone(&snapshot)));
-        }
-        publisher(uri, version, snapshot);
+            let diagnostics = Arc::new(DiagnosticSnapshot::from_confirmed(&snapshot));
+            let publication = Arc::new(new!(PublishedDiagnostics {
+                result_id: diagnostic_result_id(
+                    document.epoch,
+                    generation,
+                    version,
+                    PublishedDiagnosticPhase::Confirmed,
+                ),
+                epoch: document.epoch,
+                generation,
+                version,
+                phase: PublishedDiagnosticPhase::Confirmed,
+                snapshot: diagnostics,
+            }));
+            document.confirmed_snapshot = Some(Arc::clone(&snapshot));
+            document.confirmed.send_replace(Some(snapshot));
+            document.latest_diagnostics = Some(Arc::clone(&publication));
+            document
+                .diagnostics
+                .send_replace(Some(Arc::clone(&publication)));
+            document.pending_analysis = None;
+            publication
+        };
+        publisher(uri, version, Arc::clone(&publication.snapshot));
     }
 
-    /// Return the snapshot for the version current when the request begins.
-    /// If that version is pending, wait until it or a newer non-superseded version completes.
+    /// Return the last confirmed tree, waiting only when a document has never been confirmed.
     #[requires(true)]
     #[ensures(true)]
-    async fn snapshot_for_current(&self, uri: &Url) -> Option<Arc<DocumentSnapshot>> {
-        let (target_version, mut completed) = {
+    async fn snapshot_for_features(&self, uri: &Url) -> Option<Arc<DocumentSnapshot>> {
+        let mut confirmed = {
             let documents = self.documents.lock().expect("document store poisoned");
             let document = documents.get(uri)?;
-            if let Some(snapshot) = &document.latest_snapshot
-                && snapshot.version == i64::from(document.version)
-            {
+            if let Some(snapshot) = &document.confirmed_snapshot {
                 return Some(Arc::clone(snapshot));
             }
-            (document.version, document.completed.subscribe())
+            document.confirmed.subscribe()
         };
 
         loop {
-            if let Some(snapshot) = completed.borrow_and_update().as_ref()
-                && snapshot.version >= i64::from(target_version)
-            {
+            if let Some(snapshot) = confirmed.borrow_and_update().as_ref() {
                 return Some(Arc::clone(snapshot));
             }
-            if completed.changed().await.is_err() {
+            if confirmed.changed().await.is_err() {
                 return None;
             }
         }
     }
+
+    /// Return diagnostics for the current or a later non-superseded generation.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn diagnostics_for_current(&self, uri: &Url) -> Option<Arc<PublishedDiagnostics>> {
+        let (target_epoch, target_generation, target_version, mut diagnostics) = {
+            let documents = self.documents.lock().expect("document store poisoned");
+            let document = documents.get(uri)?;
+            if let Some(diagnostics) = &document.latest_diagnostics {
+                return Some(Arc::clone(diagnostics));
+            }
+            (
+                document.epoch,
+                document.generation,
+                document.version,
+                document.diagnostics.subscribe(),
+            )
+        };
+
+        loop {
+            if let Some(publication) = diagnostics.borrow_and_update().as_ref()
+                && publication.epoch == target_epoch
+                && publication.generation >= target_generation
+                && publication.version >= target_version
+            {
+                return Some(Arc::clone(publication));
+            }
+            if diagnostics.changed().await.is_err() {
+                return None;
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_result_id(
+    epoch: u64,
+    generation: u64,
+    version: i32,
+    phase: PublishedDiagnosticPhase,
+) -> String {
+    let phase = match phase {
+        PublishedDiagnosticPhase::Provisional => "provisional",
+        PublishedDiagnosticPhase::Confirmed => "confirmed",
+    };
+    format!("{epoch}:{generation}:{version}:{phase}")
 }
 
 impl ServerState {
@@ -292,7 +463,7 @@ impl ServerState {
             position_encoding: PositionEncoding::Utf16,
             pull_diagnostics: true,
             structure_inlay_profile: DecorationProfile::default(),
-            snapshot_publisher: no_snapshot_publisher(),
+            diagnostics_publisher: no_diagnostics_publisher(),
         }
     }
 
@@ -304,15 +475,18 @@ impl ServerState {
     ) -> std::result::Result<InitializeResult, ResponseError> {
         let position_encoding = negotiate_position_encoding(&params);
         let pull_diagnostics = supports_pull_diagnostics(&params);
+        let diagnostic_refresh = supports_diagnostic_refresh(&params);
         let structure_inlay_profile =
             initialization_structure_inlay_profile(params.initialization_options.as_ref())?;
         self.position_encoding = position_encoding;
         self.pull_diagnostics = pull_diagnostics;
         self.structure_inlay_profile = structure_inlay_profile;
-        self.snapshot_publisher = if pull_diagnostics {
-            no_snapshot_publisher()
+        self.diagnostics_publisher = if pull_diagnostics && diagnostic_refresh {
+            pull_diagnostics_refresh_publisher(self.client.clone())
+        } else if pull_diagnostics {
+            no_diagnostics_publisher()
         } else {
-            push_snapshot_publisher(self.client.clone(), position_encoding)
+            push_diagnostics_publisher(self.client.clone(), position_encoding)
         };
 
         Ok(InitializeResult {
@@ -373,7 +547,7 @@ impl ServerState {
             document.uri,
             document.text,
             document.version,
-            Arc::clone(&self.snapshot_publisher),
+            Arc::clone(&self.diagnostics_publisher),
         );
     }
 
@@ -385,7 +559,7 @@ impl ServerState {
             params.text_document.version,
             params.content_changes,
             self.position_encoding,
-            Arc::clone(&self.snapshot_publisher),
+            Arc::clone(&self.diagnostics_publisher),
         );
     }
 
@@ -573,6 +747,18 @@ fn supports_pull_diagnostics(params: &InitializeParams) -> bool {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn supports_diagnostic_refresh(params: &InitializeParams) -> bool {
+    params
+        .capabilities
+        .workspace
+        .as_ref()
+        .and_then(|workspace| workspace.diagnostic.as_ref())
+        .and_then(|diagnostic| diagnostic.refresh_support)
+        .unwrap_or(false)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS))]
 fn initialization_structure_inlay_profile(
     initialization_options: Option<&serde_json::Value>,
@@ -617,21 +803,37 @@ fn semantic_tokens_legend() -> SemanticTokensLegend {
 
 #[requires(true)]
 #[ensures(true)]
-fn no_snapshot_publisher() -> SnapshotPublisher {
+fn no_diagnostics_publisher() -> DiagnosticsPublisher {
     Arc::new(|_, _, _| {})
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
 #[ensures(true)]
-fn push_snapshot_publisher(client: ClientSocket, encoding: PositionEncoding) -> SnapshotPublisher {
+fn push_diagnostics_publisher(
+    client: ClientSocket,
+    encoding: PositionEncoding,
+) -> DiagnosticsPublisher {
     Arc::new(move |uri, version, snapshot| {
-        let diagnostics = snapshot_diagnostics(&snapshot, &uri, encoding);
+        let diagnostics = diagnostic_snapshot_to_lsp(&snapshot, &uri, encoding);
         let client = client.clone();
         let _ = client.notify::<notification::PublishDiagnostics>(PublishDiagnosticsParams::new(
             uri,
             diagnostics,
             Some(version),
         ));
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn pull_diagnostics_refresh_publisher(client: ClientSocket) -> DiagnosticsPublisher {
+    Arc::new(move |_, _, _| {
+        let client = client.clone();
+        tokio::spawn(async move {
+            let _ = client
+                .request::<request::WorkspaceDiagnosticRefresh>(())
+                .await;
+        });
     })
 }
 
@@ -675,7 +877,7 @@ async fn document_hover(
 ) -> Option<lsp_types::Hover> {
     let position = params.text_document_position_params.position;
     let uri = params.text_document_position_params.text_document.uri;
-    let snapshot = documents.snapshot_for_current(&uri).await?;
+    let snapshot = documents.snapshot_for_features(&uri).await?;
     let char_offset = snapshot.line_index.char_offset_for_position(
         Position::new(position.line as usize, position.character as usize),
         encoding,
@@ -702,7 +904,7 @@ async fn document_completion(
 ) -> Option<CompletionResponse> {
     let position = params.text_document_position.position;
     let uri = params.text_document_position.text_document.uri;
-    let snapshot = documents.snapshot_for_current(&uri).await?;
+    let snapshot = documents.snapshot_for_features(&uri).await?;
     let char_offset = snapshot.line_index.char_offset_for_position(
         Position::new(position.line as usize, position.character as usize),
         encoding,
@@ -734,7 +936,6 @@ fn completion_to_lsp(
     encoding: PositionEncoding,
     item: JbotciCompletion,
 ) -> lsp_types::CompletionItem {
-    let reason_sort_rank = item.reason_sort_rank();
     let item = item.into_data();
     let range = snapshot
         .line_index
@@ -750,12 +951,12 @@ fn completion_to_lsp(
             }),
         kind: Some(completion_item_kind(item.kind)),
         detail: Some(completion_reason_detail(&item.reason)),
-        sort_text: Some(format!(
-            "{}{}-{label}",
-            item.interpretation.sort_rank(),
-            reason_sort_rank,
-        )),
+        // With an empty prefix the client renders these two blocks exactly.
+        // With typed text, VS Code's fuzzy score can dominate sortText and
+        // interleave them; that is accepted client behavior.
+        sort_text: Some(format!("{}·{label}", u8::from(!item.document_local))),
         filter_text: Some(label.clone()),
+        preselect: item.preselect.then_some(true),
         text_edit: Some(CompletionTextEdit::Edit(TextEdit {
             range: lsp_range(range),
             // Pause periods are pronunciation/rendering concerns. Completion
@@ -827,7 +1028,7 @@ async fn document_semantic_tokens(
     params: lsp_types::SemanticTokensParams,
 ) -> Option<lsp_types::SemanticTokensResult> {
     let snapshot = documents
-        .snapshot_for_current(&params.text_document.uri)
+        .snapshot_for_features(&params.text_document.uri)
         .await?;
     Some(lsp_types::SemanticTokensResult::Tokens(
         lsp_types::SemanticTokens {
@@ -860,7 +1061,7 @@ async fn document_inlay_hints(
         ));
     }
     let uri = params.text_document.uri;
-    let Some(snapshot) = documents.snapshot_for_current(&uri).await else {
+    let Some(snapshot) = documents.snapshot_for_features(&uri).await else {
         return Ok(None);
     };
     let requested_positions = PositionRange::new(start, end);
@@ -970,10 +1171,10 @@ async fn document_diagnostic(
     params: DocumentDiagnosticParams,
 ) -> DocumentDiagnosticReportResult {
     let uri = params.text_document.uri;
-    let Some(snapshot) = documents.snapshot_for_current(&uri).await else {
+    let Some(publication) = documents.diagnostics_for_current(&uri).await else {
         return full_diagnostic_report(None, Vec::new());
     };
-    let result_id = snapshot.version.to_string();
+    let result_id = publication.result_id.clone();
     if params.previous_result_id.as_deref() == Some(result_id.as_str()) {
         return DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Unchanged(
             RelatedUnchangedDocumentDiagnosticReport {
@@ -986,7 +1187,7 @@ async fn document_diagnostic(
     }
     full_diagnostic_report(
         Some(result_id),
-        snapshot_diagnostics(&snapshot, &uri, encoding),
+        diagnostic_snapshot_to_lsp(&publication.snapshot, &uri, encoding),
     )
 }
 
@@ -1009,8 +1210,8 @@ fn full_diagnostic_report(
 
 #[requires(encoding != PositionEncoding::Utf32)]
 #[ensures(ret.len() == snapshot.diagnostics.len())]
-fn snapshot_diagnostics(
-    snapshot: &DocumentSnapshot,
+fn diagnostic_snapshot_to_lsp(
+    snapshot: &DiagnosticSnapshot,
     uri: &Url,
     encoding: PositionEncoding,
 ) -> Vec<lsp_types::Diagnostic> {
@@ -1134,11 +1335,11 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     #[requires(true)]
     #[ensures(true)]
-    async fn superseded_rebuild_never_publishes() {
+    async fn superseded_analysis_never_publishes() {
         let store = DocumentStore::new();
         let uri = Url::parse("file:///superseded.jbo").expect("valid test URI");
         let published = Arc::new(Mutex::new(Vec::new()));
-        let publisher: SnapshotPublisher = {
+        let publisher: DiagnosticsPublisher = {
             let published = Arc::clone(&published);
             Arc::new(move |_, version, _| {
                 published
@@ -1167,7 +1368,7 @@ mod tests {
         ));
 
         let snapshot = store
-            .snapshot_for_current(&uri)
+            .snapshot_for_features(&uri)
             .await
             .expect("replacement snapshot must complete");
         assert_eq!(snapshot.version, 2);
@@ -1175,6 +1376,105 @@ mod tests {
         assert_eq!(
             *published.lock().expect("publication log poisoned"),
             vec![2]
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn document_state_serves_provisional_diagnostics_but_confirmed_tree() {
+        let store = DocumentStore::new();
+        let uri = Url::parse("file:///incremental-state.jbo").expect("valid test URI");
+        let publisher = no_diagnostics_publisher();
+        let old_source = "mi klama\nni'o\ndo cadzu\nni'o\nmi ku i do";
+        let new_source = "mi klama\nni'o\ndo cadzu le zarci\nni'o\nmi ku i do";
+
+        store.open(
+            uri.clone(),
+            old_source.to_owned(),
+            1,
+            Arc::clone(&publisher),
+        );
+        let initial = store
+            .diagnostics_for_current(&uri)
+            .await
+            .expect("initial confirmation");
+        assert_eq!(initial.phase, PublishedDiagnosticPhase::Confirmed);
+
+        assert!(store.change(
+            &uri,
+            2,
+            vec![TextDocumentContentChangeEvent {
+                range: None,
+                range_length: None,
+                text: new_source.to_owned(),
+            }],
+            PositionEncoding::Utf16,
+            publisher,
+        ));
+
+        let provisional = store
+            .diagnostics_for_current(&uri)
+            .await
+            .expect("provisional diagnostics");
+        assert_eq!(provisional.phase, PublishedDiagnosticPhase::Provisional);
+        assert!(provisional.result_id.ends_with(":2:provisional"));
+        let tree = store
+            .snapshot_for_features(&uri)
+            .await
+            .expect("last confirmed tree");
+        assert_eq!(tree.version, 1);
+
+        let mut confirmations = {
+            let documents = store.documents.lock().expect("document store poisoned");
+            documents
+                .get(&uri)
+                .expect("open document")
+                .confirmed
+                .subscribe()
+        };
+        tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                if confirmations
+                    .borrow_and_update()
+                    .as_ref()
+                    .is_some_and(|snapshot| snapshot.version == 2)
+                {
+                    break;
+                }
+                confirmations
+                    .changed()
+                    .await
+                    .expect("document remains open while confirmation runs");
+            }
+        })
+        .await
+        .expect("confirmation must complete within the CI-twin boundary");
+        let confirmed = store
+            .diagnostics_for_current(&uri)
+            .await
+            .expect("confirming diagnostics");
+        assert_eq!(confirmed.phase, PublishedDiagnosticPhase::Confirmed);
+        assert!(confirmed.result_id.ends_with(":2:confirmed"));
+        assert_eq!(
+            provisional.snapshot.diagnostics,
+            confirmed.snapshot.diagnostics
+        );
+
+        assert!(store.close(&uri));
+        store.open(
+            uri.clone(),
+            new_source.to_owned(),
+            2,
+            no_diagnostics_publisher(),
+        );
+        let reopened = store
+            .diagnostics_for_current(&uri)
+            .await
+            .expect("reopened document confirmation");
+        assert_ne!(
+            reopened.result_id, confirmed.result_id,
+            "the epoch prevents resultId reuse when a URI reopens at the same version",
         );
     }
 

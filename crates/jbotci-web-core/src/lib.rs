@@ -414,11 +414,25 @@ pub struct GentufaSourceAnalysis {
 
 #[invariant(morphology.errors.is_empty() || diagnostics.len() >= morphology.errors.len())]
 #[derive(Debug, Clone)]
-struct GentufaMorphologyAnalysis {
+pub struct GentufaMorphologyAnalysis {
     dialect: DialectDefinition,
     morphology_options: MorphologyOptions,
     morphology: RecoveredMorphologySegmentation,
     diagnostics: Vec<Diagnostic>,
+}
+
+impl GentufaMorphologyAnalysis {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn morphology(&self) -> &RecoveredMorphologySegmentation {
+        &self.morphology
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology))]
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
 }
 
 /// Build the recovery-capable source analysis used by the Gentufa web facade.
@@ -436,7 +450,7 @@ pub fn analyze_gentufa_source(
 
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|analysis| analysis.morphology.errors.is_empty() || analysis.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology)))]
-fn analyze_gentufa_morphology_source(
+pub fn analyze_gentufa_morphology_source(
     source: &str,
     options: &GentufaWebOptions,
 ) -> Result<GentufaMorphologyAnalysis, GentufaWebError> {
@@ -474,7 +488,7 @@ fn analyze_gentufa_morphology_source(
 
 #[requires(true)]
 #[ensures(ret.morphology.errors.is_empty() || ret.diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology))]
-fn complete_gentufa_source_analysis(
+pub fn complete_gentufa_source_analysis(
     source: &str,
     options: &GentufaWebOptions,
     morphology: GentufaMorphologyAnalysis,
@@ -521,6 +535,46 @@ fn complete_gentufa_source_analysis(
         parse,
         diagnostics,
     })
+}
+
+/// Parse one morphology-owned word slice and return its syntax diagnostics.
+///
+/// The source remains the complete document so every diagnostic span stays in
+/// document coordinates. Callers are responsible for offsetting the returned
+/// word indices when `words` is not the document prefix.
+#[requires(morphology.morphology.errors.is_empty())]
+#[ensures(ret.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Syntax))]
+pub fn analyze_gentufa_syntax_diagnostics_for_words(
+    source: &str,
+    options: &GentufaWebOptions,
+    morphology: &GentufaMorphologyAnalysis,
+    words: &[WordLike],
+) -> Vec<Diagnostic> {
+    let source_id = Some(SourceId("<web-input>".to_owned()));
+    let parse_options = ParseOptions::default()
+        .with_dialect_definition(&morphology.dialect)
+        .with_error_context_depth(options.error_context_depth);
+    let parse = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+        words,
+        source,
+        &parse_options,
+    )
+    .result;
+    let data!(SyntaxRecoveryParse::Recovered { parse }) = parse.as_data() else {
+        return Vec::new();
+    };
+    let mut diagnostics = parse
+        .errors
+        .iter()
+        .map(|error| error.to_diagnostic(source_id.clone(), source))
+        .collect::<Vec<_>>();
+    diagnostics.extend(
+        parse
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
+    );
+    diagnostics
 }
 
 #[requires(true)]

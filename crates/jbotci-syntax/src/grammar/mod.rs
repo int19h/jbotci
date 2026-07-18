@@ -3747,7 +3747,7 @@ fn generated_warning_anchor_index(tokens: &[Token], anchor: &Token) -> usize {
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
+pub(crate) fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
     prepare_syntax_tokens(words.iter().cloned().map(Token::bare).collect(), options)
 }
 

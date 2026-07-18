@@ -6,12 +6,16 @@ use jbotci_diagnostics::{Diagnostic, DiagnosticLabel};
 use jbotci_morphology::{RecoveredMorphologySegmentation, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::SyntaxRecoveryParse;
-use jbotci_web_core::{GentufaWebOptions, analyze_gentufa_source};
+use jbotci_web_core::{
+    GentufaSourceAnalysis, GentufaWebOptions, analyze_gentufa_morphology_source,
+    complete_gentufa_source_analysis,
+};
 
 use crate::{LineIndex, PositionEncoding, PositionRange};
 
 mod completion;
 mod hover;
+mod incremental_diagnostics;
 mod semantic_tokens;
 mod structure_inlays;
 
@@ -20,6 +24,10 @@ pub use completion::{
     CompletionItem, CompletionKind, CompletionProvenance, completion_documentation_markdown,
 };
 pub use hover::HoverContent;
+pub use incremental_diagnostics::{
+    DiagnosticSnapshot, IncrementalAnalysisTimings, IncrementalDiagnosticGate,
+    PreparedDocumentAnalysis,
+};
 pub use semantic_tokens::{SemanticToken, SemanticTokenKind};
 use structure_inlays::{DecorationFragment, build_decoration_fragments};
 pub use structure_inlays::{
@@ -52,8 +60,21 @@ impl DocumentSnapshot {
     #[ensures(ret.version == version)]
     #[ensures(ret.text.as_ref() == ret.line_index.text())]
     pub fn new(text: String, version: i64) -> Self {
-        let analysis = analyze_gentufa_source(&text, &GentufaWebOptions::default())
+        let options = GentufaWebOptions::default();
+        let morphology = analyze_gentufa_morphology_source(&text, &options)
             .expect("the built-in default dialect must always compile");
+        let analysis = complete_gentufa_source_analysis(&text, &options, morphology);
+        Self::from_analysis(Arc::from(text), version, analysis)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.version == version)]
+    #[ensures(ret.text.as_ref() == ret.line_index.text())]
+    pub(super) fn from_analysis(
+        text: Arc<str>,
+        version: i64,
+        analysis: GentufaSourceAnalysis,
+    ) -> Self {
         let analysis = analysis.into_data();
         let words = analysis.morphology;
         let parse = analysis.parse;
@@ -61,7 +82,6 @@ impl DocumentSnapshot {
         let word_spans = word_spans(&words.words);
         let semantic_tokens = semantic_tokens::build_semantic_tokens(&words.words, &word_spans);
         let structure_fragments = build_decoration_fragments(&parse, &text);
-        let text: Arc<str> = Arc::from(text);
         let line_index = LineIndex::new(Arc::clone(&text));
         new!(DocumentSnapshot {
             text,
