@@ -694,6 +694,9 @@ const IPA_SEGMENT_SYMBOLS: &[&str] = &[
     "ɘ", "ɵ", "ɤ", "o", "ə", "ɛ", "œ", "ɜ", "ɞ", "ʌ", "ɔ", "E", "O", "æ", "ɐ", "a", "ɶ", "ä", "ɑ",
     "ɒ", "iː", "yː", "ɨː", "ʉː", "ɯː", "uː", "Iː", "Uː", "eː", "øː", "ɘː", "ɵː", "ɤː", "oː", "əː",
     "ɛː", "œː", "ɜː", "ɞː", "ʌː", "ɔː", "Eː", "Oː", "æː", "ɐː", "aː", "ɶː", "äː", "ɑː", "ɒː",
+    // Aspiration and breathy voice are contrastively notated on plosives and affricates.
+    "pʰ", "bʰ", "tʰ", "dʰ", "ʈʰ", "ɖʰ", "cʰ", "ɟʰ", "kʰ", "gʰ", "qʰ", "ɢʰ", "tʃʰ", "dʒʰ", "tsʰ",
+    "dzʰ",
 ];
 
 const CONSONANT_RELEVANT_FEATURES: &[AlineFeature] = &[
@@ -1363,7 +1366,7 @@ fn segment_features(segment: IpaSegmentId) -> AlineFeatures {
 #[requires(!symbol.is_empty())]
 #[ensures(true)]
 fn derive_aline_features(symbol: &str) -> AlineFeatures {
-    let base_symbol = strip_length_mark(symbol);
+    let base_symbol = strip_length_mark(strip_aspiration_mark(symbol));
     let is_consonant = !all_short_vowel_symbols().contains(&base_symbol);
     AlineFeatures {
         is_consonant,
@@ -1378,7 +1381,7 @@ fn derive_aline_features(symbol: &str) -> AlineFeatures {
         high_value: derive_high_value(base_symbol),
         back_value: derive_back_value(base_symbol),
         round_value: flag(ROUNDED_VOWEL_SYMBOLS.contains(&base_symbol)),
-        long_value: flag(symbol != base_symbol),
+        long_value: flag(symbol.ends_with('ː')),
     }
 }
 
@@ -1392,6 +1395,12 @@ fn flag(value: bool) -> f64 {
 #[ensures(!ret.is_empty())]
 fn strip_length_mark(symbol: &str) -> &str {
     symbol.strip_suffix('ː').unwrap_or(symbol)
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= symbol.len())]
+fn strip_aspiration_mark(symbol: &str) -> &str {
+    symbol.strip_suffix('ʰ').unwrap_or(symbol)
 }
 
 #[requires(true)]
@@ -2051,6 +2060,94 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn aspirated_segment_variants_preserve_plain_consonant_features() {
+        for (aspirated_symbol, plain_symbol) in [
+            ("pʰ", "p"),
+            ("bʰ", "b"),
+            ("tʰ", "t"),
+            ("dʰ", "d"),
+            ("ʈʰ", "ʈ"),
+            ("ɖʰ", "ɖ"),
+            ("cʰ", "c"),
+            ("ɟʰ", "ɟ"),
+            ("kʰ", "k"),
+            ("gʰ", "g"),
+            ("qʰ", "q"),
+            ("ɢʰ", "ɢ"),
+            ("tʃʰ", "tʃ"),
+            ("dʒʰ", "dʒ"),
+            ("tsʰ", "ts"),
+            ("dzʰ", "dz"),
+        ] {
+            let sequence = tokenize_ipa_text(aspirated_symbol).expect("aspirated IPA segment");
+            let [segment] = sequence.segments() else {
+                panic!("{aspirated_symbol} should tokenize as exactly one IPA segment");
+            };
+            assert_eq!(ipa_segment_symbol(*segment), Some(aspirated_symbol));
+
+            let aspirated_features = segment_features(*segment);
+            let plain_features = derive_aline_features(plain_symbol);
+            assert_eq!(aspirated_features.aspirated_value, 1.0);
+            assert_eq!(aspirated_features.long_value, 0.0);
+            for feature in AlineFeature::all()
+                .iter()
+                .copied()
+                .filter(|feature| *feature != AlineFeature::Aspirated)
+            {
+                assert_eq!(
+                    feature_value(feature, aspirated_features),
+                    feature_value(feature, plain_features),
+                    "{aspirated_symbol} should preserve the {feature:?} feature of {plain_symbol}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn aline_similarity_distinguishes_aspiration_from_identity_and_voicing() {
+        let aspirated = tokenize_ipa_text("pʰa").expect("aspirated consonant");
+        let plain = tokenize_ipa_text("pa").expect("plain consonant");
+        let voiced = tokenize_ipa_text("ba").expect("voiced consonant");
+
+        assert_eq!(aspirated.segment_count(), 2);
+        assert_eq!(ipa_segment_symbol(aspirated.segments()[0]), Some("pʰ"));
+        assert_ne!(aspirated.segments(), plain.segments());
+
+        let aspiration_similarity = aline_phonetic_similarity(aspirated.view(), plain.view());
+        let voicing_similarity = aline_phonetic_similarity(aspirated.view(), voiced.view());
+        let identity_similarity = aline_phonetic_similarity(plain.view(), plain.view());
+        assert!(aspiration_similarity > voicing_similarity);
+        assert!(identity_similarity > aspiration_similarity);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn aline_tokenizer_ignores_aspiration_outside_supported_consonants() {
+        assert_eq!(
+            tokenize_ipa_text("sʰa").expect("aspirated fricative fallback"),
+            tokenize_ipa_text("sa").expect("plain fricative")
+        );
+        assert_eq!(
+            tokenize_ipa_text("aʰ").expect("aspirated vowel fallback"),
+            tokenize_ipa_text("a").expect("plain vowel")
+        );
+        assert_eq!(
+            tokenize_ipa_text("ʰpa").expect("preaspiration fallback"),
+            tokenize_ipa_text("pa").expect("plain consonant")
+        );
+
+        let tied = tokenize_ipa_text("t͡ʃʰa").expect("tie-bar aspirated affricate");
+        let untied = tokenize_ipa_text("tʃʰa").expect("untied aspirated affricate");
+        assert_eq!(tied, untied);
+        assert_eq!(ipa_segment_symbol(tied.segments()[0]), Some("tʃʰ"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn aline_tokenizer_accepts_gimfihi_ipa_normalization_inputs() {
         let normalized = tokenize_ipa_text("ɡátʰ").expect("normalized IPA input");
         let plain = tokenize_ipa_text("gat").expect("plain IPA input");
@@ -2058,10 +2155,10 @@ mod tests {
         let untied = tokenize_ipa_text("dʒa").expect("untied affricate");
 
         assert_eq!(normalized.segment_count(), 3);
-        assert_eq!(
-            aline_phonetic_similarity(normalized.view(), plain.view()),
-            1.0
-        );
+        assert_eq!(ipa_segment_symbol(normalized.segments()[2]), Some("tʰ"));
+        let normalized_similarity = aline_phonetic_similarity(normalized.view(), plain.view());
+        assert!(normalized_similarity > 0.9);
+        assert!(normalized_similarity < 1.0);
         assert_eq!(aline_phonetic_similarity(tied.view(), untied.view()), 1.0);
     }
 
