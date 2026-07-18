@@ -16,6 +16,7 @@ use crate::{LineIndex, PositionEncoding, PositionRange};
 mod completion;
 mod hover;
 mod incremental_diagnostics;
+mod inlays;
 mod semantic_tokens;
 mod structure_inlays;
 
@@ -28,6 +29,7 @@ pub use incremental_diagnostics::{
     DiagnosticSnapshot, IncrementalAnalysisTimings, IncrementalDiagnosticGate,
     PreparedDocumentAnalysis,
 };
+pub use inlays::{Inlay, InlayKind, InlayOptions, StructureBracketInlayOptions};
 pub use semantic_tokens::{SemanticToken, SemanticTokenKind};
 use structure_inlays::{DecorationFragment, build_decoration_fragments};
 pub use structure_inlays::{

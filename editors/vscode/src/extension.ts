@@ -11,6 +11,25 @@ import {
 const CONFIGURATION_SECTION = 'jbotci';
 const SERVER_PATH_SETTING = 'serverPath';
 const ALL_MARKDOWN_SETTING = 'enableInAllMarkdown';
+const INLAYS_SETTING = 'inlays';
+
+interface RawBracketsOptions {
+  profile: 'raw-brackets';
+  maxNestingDepth?: number;
+  constructs?: 'all' | 'sumti-boundaries' | 'bridi-tails';
+}
+
+interface InlayConfiguration {
+  structureBrackets: boolean | RawBracketsOptions;
+  wordBoundaries: boolean;
+  rafsiBoundaries: boolean;
+}
+
+const DEFAULT_INLAYS: InlayConfiguration = {
+  structureBrackets: true,
+  wordBoundaries: false,
+  rafsiBoundaries: false,
+};
 
 const LOJBAN_SELECTOR = { language: 'lojban' };
 const JBO_MARKDOWN_SELECTOR = {
@@ -46,6 +65,9 @@ export function activate(context: vscode.ExtensionContext): void {
         ) ||
         event.affectsConfiguration(
           `${CONFIGURATION_SECTION}.${ALL_MARKDOWN_SETTING}`,
+        ) ||
+        event.affectsConfiguration(
+          `${CONFIGURATION_SECTION}.${INLAYS_SETTING}`,
         )
       ) {
         void enqueueLifecycle(async () => {
@@ -111,6 +133,12 @@ async function startClient(context: vscode.ExtensionContext): Promise<void> {
   };
   const clientOptions: LanguageClientOptions = {
     documentSelector,
+    initializationOptions: {
+      inlays: configuration().get<InlayConfiguration>(
+        INLAYS_SETTING,
+        DEFAULT_INLAYS,
+      ),
+    },
   };
   const candidate = new LanguageClient(
     'jbotci',

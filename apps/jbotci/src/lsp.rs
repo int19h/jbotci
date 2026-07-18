@@ -15,12 +15,13 @@ use async_lsp::lsp_types::{
     CompletionTextEdit, DiagnosticRelatedInformation, DiagnosticServerCapabilities,
     DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentDiagnosticReportResult,
     Documentation, FullDocumentDiagnosticReport, InitializeParams, InitializeResult, InlayHint,
-    InlayHintLabel, InlayHintOptions, InlayHintServerCapabilities, Location, NumberOrString, OneOf,
-    PositionEncodingKind, PublishDiagnosticsParams, Range, RelatedFullDocumentDiagnosticReport,
-    RelatedUnchangedDocumentDiagnosticReport, SemanticTokensFullOptions, SemanticTokensLegend,
-    SemanticTokensOptions, ServerCapabilities, ServerInfo, TextDocumentContentChangeEvent,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions, TextEdit,
-    UnchangedDocumentDiagnosticReport, Url, WorkDoneProgressOptions, notification, request,
+    InlayHintLabel, InlayHintOptions, InlayHintServerCapabilities, Location, LogMessageParams,
+    MessageType, NumberOrString, OneOf, PositionEncodingKind, PublishDiagnosticsParams, Range,
+    RelatedFullDocumentDiagnosticReport, RelatedUnchangedDocumentDiagnosticReport,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, ServerCapabilities,
+    ServerInfo, TextDocumentContentChangeEvent, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextEdit, UnchangedDocumentDiagnosticReport, Url,
+    WorkDoneProgressOptions, notification, request,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
@@ -33,9 +34,10 @@ use jbotci_diagnostics::{
 };
 use jbotci_ide::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
-    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, LineIndex,
-    MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange, PreparedDocumentAnalysis,
-    SemanticTokenKind, completion_documentation_markdown,
+    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, InlayOptions,
+    LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange,
+    PreparedDocumentAnalysis, SemanticTokenKind, StructureBracketInlayOptions,
+    completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
@@ -49,6 +51,7 @@ const SERVER_NAME: &str = "jbotci";
 const COMPLETION_DATA_WORD: &str = "jbotciWord";
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(200);
 const MIN_LSP_REQUEST_CONCURRENCY: NonZeroUsize = NonZeroUsize::new(2).unwrap();
+const LEGACY_STRUCTURE_INLAYS_WARNING: &str = "initializationOptions.structureInlays is deprecated; use initializationOptions.inlays.structureBrackets instead";
 
 type DiagnosticsPublisher = Arc<dyn Fn(Url, i32, Arc<DiagnosticSnapshot>) + Send + Sync + 'static>;
 
@@ -58,7 +61,8 @@ struct ServerState {
     documents: DocumentStore,
     position_encoding: PositionEncoding,
     pull_diagnostics: bool,
-    structure_inlay_profile: DecorationProfile,
+    inlay_options: InlayOptions,
+    initialization_warnings: Vec<&'static str>,
     diagnostics_publisher: DiagnosticsPublisher,
 }
 
@@ -66,7 +70,80 @@ struct ServerState {
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct ServerInitializationOptions {
-    structure_inlays: DecorationProfile,
+    inlays: Option<InlayInitializationOptions>,
+    structure_inlays: Option<DecorationProfile>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+struct InlayInitializationOptions {
+    structure_brackets: StructureBracketsInitialization,
+    word_boundaries: bool,
+    rafsi_boundaries: bool,
+}
+
+impl Default for InlayInitializationOptions {
+    #[requires(true)]
+    #[ensures(matches!(ret.structure_brackets, StructureBracketsInitialization::Enabled(true)))]
+    #[ensures(!ret.word_boundaries && !ret.rafsi_boundaries)]
+    fn default() -> Self {
+        Self {
+            structure_brackets: StructureBracketsInitialization::Enabled(true),
+            word_boundaries: false,
+            rafsi_boundaries: false,
+        }
+    }
+}
+
+impl InlayInitializationOptions {
+    #[requires(true)]
+    #[ensures(ret.word_boundaries == self.word_boundaries)]
+    #[ensures(ret.rafsi_boundaries == self.rafsi_boundaries)]
+    fn into_options(self) -> InlayOptions {
+        InlayOptions {
+            structure_brackets: self.structure_brackets.into_options(),
+            word_boundaries: self.word_boundaries,
+            rafsi_boundaries: self.rafsi_boundaries,
+        }
+    }
+}
+
+#[invariant(true)]
+#[invariant(::Enabled(_) => true)]
+#[invariant(::Profile { .. } => true)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum StructureBracketsInitialization {
+    Enabled(bool),
+    Profile {
+        #[serde(flatten)]
+        profile: DecorationProfile,
+    },
+}
+
+impl StructureBracketsInitialization {
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_options(self) -> StructureBracketInlayOptions {
+        match self {
+            Self::Enabled(enabled) => StructureBracketInlayOptions {
+                enabled,
+                profile: DecorationProfile::default(),
+            },
+            Self::Profile { profile } => StructureBracketInlayOptions {
+                enabled: true,
+                profile,
+            },
+        }
+    }
+}
+
+#[invariant(deprecation_warning.is_none_or(|warning| !warning.is_empty()))]
+#[derive(Debug)]
+struct ParsedInlayInitialization {
+    options: InlayOptions,
+    deprecation_warning: Option<&'static str>,
 }
 
 #[invariant(true)]
@@ -462,7 +539,8 @@ impl ServerState {
             documents: DocumentStore::new(),
             position_encoding: PositionEncoding::Utf16,
             pull_diagnostics: true,
-            structure_inlay_profile: DecorationProfile::default(),
+            inlay_options: InlayOptions::default(),
+            initialization_warnings: Vec::new(),
             diagnostics_publisher: no_diagnostics_publisher(),
         }
     }
@@ -476,11 +554,15 @@ impl ServerState {
         let position_encoding = negotiate_position_encoding(&params);
         let pull_diagnostics = supports_pull_diagnostics(&params);
         let diagnostic_refresh = supports_diagnostic_refresh(&params);
-        let structure_inlay_profile =
-            initialization_structure_inlay_profile(params.initialization_options.as_ref())?;
+        let inlay_initialization =
+            initialization_inlay_options(params.initialization_options.as_ref())?;
+        let inlay_initialization = inlay_initialization.into_data();
         self.position_encoding = position_encoding;
         self.pull_diagnostics = pull_diagnostics;
-        self.structure_inlay_profile = structure_inlay_profile;
+        self.inlay_options = inlay_initialization.options;
+        self.initialization_warnings.clear();
+        self.initialization_warnings
+            .extend(inlay_initialization.deprecation_warning);
         self.diagnostics_publisher = if pull_diagnostics && diagnostic_refresh {
             pull_diagnostics_refresh_publisher(self.client.clone())
         } else if pull_diagnostics {
@@ -549,6 +631,19 @@ impl ServerState {
             document.version,
             Arc::clone(&self.diagnostics_publisher),
         );
+    }
+
+    #[requires(true)]
+    #[ensures(self.initialization_warnings.is_empty())]
+    fn initialized(&mut self) {
+        for warning in self.initialization_warnings.drain(..) {
+            let _ = self
+                .client
+                .notify::<notification::LogMessage>(LogMessageParams {
+                    typ: MessageType::WARNING,
+                    message: warning.to_owned(),
+                });
+        }
     }
 
     #[requires(true)]
@@ -626,10 +721,13 @@ async fn run_server() -> Result<()> {
             .request::<request::InlayHintRequest, _>(|state, params| {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
-                let profile = state.structure_inlay_profile.clone();
-                async move { document_inlay_hints(documents, encoding, profile, params).await }
+                let options = state.inlay_options.clone();
+                async move { document_inlay_hints(documents, encoding, options, params).await }
             })
-            .notification::<notification::Initialized>(|_, _| ControlFlow::Continue(()))
+            .notification::<notification::Initialized>(|state, _| {
+                state.initialized();
+                ControlFlow::Continue(())
+            })
             .notification::<notification::Exit>(|_, ()| ControlFlow::Continue(()))
             .notification::<notification::DidOpenTextDocument>(|state, params| {
                 state.did_open(params);
@@ -760,20 +858,48 @@ fn supports_diagnostic_refresh(params: &InitializeParams) -> bool {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| error.code == ErrorCode::INVALID_PARAMS))]
-fn initialization_structure_inlay_profile(
+fn initialization_inlay_options(
     initialization_options: Option<&serde_json::Value>,
-) -> std::result::Result<DecorationProfile, ResponseError> {
+) -> std::result::Result<ParsedInlayInitialization, ResponseError> {
     let Some(initialization_options) = initialization_options else {
-        return Ok(DecorationProfile::default());
+        return Ok(new!(ParsedInlayInitialization {
+            options: InlayOptions::default(),
+            deprecation_warning: None,
+        }));
     };
-    serde_json::from_value::<ServerInitializationOptions>(initialization_options.clone())
-        .map(|options| options.structure_inlays)
-        .map_err(|error| {
-            ResponseError::new(
-                ErrorCode::INVALID_PARAMS,
-                format!("invalid jbotci initializationOptions: {error}"),
-            )
-        })
+    let parsed =
+        serde_json::from_value::<ServerInitializationOptions>(initialization_options.clone())
+            .map_err(|error| {
+                ResponseError::new(
+                    ErrorCode::INVALID_PARAMS,
+                    format!("invalid jbotci initializationOptions: {error}"),
+                )
+            })?;
+    match (parsed.inlays, parsed.structure_inlays) {
+        (Some(_), Some(_)) => Err(ResponseError::new(
+            ErrorCode::INVALID_PARAMS,
+            "invalid jbotci initializationOptions: inlays and deprecated structureInlays cannot both be set",
+        )),
+        (Some(inlays), None) => Ok(new!(ParsedInlayInitialization {
+            options: inlays.into_options(),
+            deprecation_warning: None,
+        })),
+        (None, Some(profile)) => Ok(new!(ParsedInlayInitialization {
+            options: InlayOptions {
+                structure_brackets: StructureBracketInlayOptions {
+                    enabled: true,
+                    profile,
+                },
+                word_boundaries: false,
+                rafsi_boundaries: false,
+            },
+            deprecation_warning: Some(LEGACY_STRUCTURE_INLAYS_WARNING),
+        })),
+        (None, None) => Ok(new!(ParsedInlayInitialization {
+            options: InlayOptions::default(),
+            deprecation_warning: None,
+        })),
+    }
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]
@@ -1043,7 +1169,7 @@ async fn document_semantic_tokens(
 async fn document_inlay_hints(
     documents: DocumentStore,
     encoding: PositionEncoding,
-    profile: DecorationProfile,
+    options: InlayOptions,
     params: lsp_types::InlayHintParams,
 ) -> std::result::Result<Option<Vec<InlayHint>>, ResponseError> {
     let start = Position::new(
@@ -1070,7 +1196,7 @@ async fn document_inlay_hints(
             .line_index
             .span_for_positions(&requested_positions, encoding, None);
     let inlays = snapshot
-        .structure_inlays(&profile, &requested_span)
+        .inlays(&options, &requested_span)
         .into_iter()
         .map(|inlay| {
             let inlay = inlay.into_data();
@@ -1311,23 +1437,88 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn initialization_options_parse_structure_profile_and_reject_unknown_profiles() {
-        let options = json!({
-            "structureInlays": {
+    fn initialization_options_toggle_inlay_kinds_independently() {
+        for structure_brackets in [false, true] {
+            for word_boundaries in [false, true] {
+                for rafsi_boundaries in [false, true] {
+                    let initialization = initialization_inlay_options(Some(&json!({
+                        "inlays": {
+                            "structureBrackets": structure_brackets,
+                            "wordBoundaries": word_boundaries,
+                            "rafsiBoundaries": rafsi_boundaries,
+                        }
+                    })))
+                    .expect("documented kind-keyed inlay options");
+                    assert_eq!(
+                        initialization.options.structure_brackets.enabled,
+                        structure_brackets,
+                    );
+                    assert_eq!(initialization.options.word_boundaries, word_boundaries);
+                    assert_eq!(initialization.options.rafsi_boundaries, rafsi_boundaries);
+                    assert!(initialization.deprecation_warning.is_none());
+                }
+            }
+        }
+
+        let initialization = initialization_inlay_options(Some(&json!({
+            "inlays": {
+                "structureBrackets": {
+                    "profile": "raw-brackets",
+                    "maxNestingDepth": 3,
+                    "constructs": "bridi-tails"
+                },
+                "wordBoundaries": true,
+                "rafsiBoundaries": false
+            }
+        })))
+        .expect("structure profile is the structureBrackets kind value");
+        assert!(initialization.options.structure_brackets.enabled);
+        assert_eq!(
+            serde_json::to_value(&initialization.options.structure_brackets.profile)
+                .expect("profile serialization"),
+            json!({
                 "profile": "raw-brackets",
                 "maxNestingDepth": 3,
                 "constructs": "bridi-tails"
-            }
+            }),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn legacy_structure_inlays_shape_is_deprecated_but_unambiguous() {
+        let legacy_profile = json!({
+            "profile": "raw-brackets",
+            "maxNestingDepth": 3,
+            "constructs": "bridi-tails"
         });
-        let profile = initialization_structure_inlay_profile(Some(&options))
-            .expect("documented structure profile");
+        let initialization = initialization_inlay_options(Some(&json!({
+            "structureInlays": legacy_profile.clone()
+        })))
+        .expect("legacy structure profile remains accepted for one release");
         assert_eq!(
-            serde_json::to_value(profile).expect("profile serialization"),
-            options["structureInlays"],
+            initialization.deprecation_warning,
+            Some(LEGACY_STRUCTURE_INLAYS_WARNING),
+        );
+        assert!(initialization.options.structure_brackets.enabled);
+        assert!(!initialization.options.word_boundaries);
+        assert!(!initialization.options.rafsi_boundaries);
+        assert_eq!(
+            serde_json::to_value(&initialization.options.structure_brackets.profile)
+                .expect("profile serialization"),
+            legacy_profile,
         );
 
-        let unknown = json!({"structureInlays": {"profile": "pandi"}});
-        let error = initialization_structure_inlay_profile(Some(&unknown))
+        let conflict = initialization_inlay_options(Some(&json!({
+            "inlays": {"structureBrackets": false},
+            "structureInlays": {"profile": "raw-brackets"}
+        })))
+        .expect_err("new and legacy shapes must not compete silently");
+        assert_eq!(conflict.code, ErrorCode::INVALID_PARAMS);
+
+        let unknown = json!({"inlays": {"structureBrackets": {"profile": "pandi"}}});
+        let error = initialization_inlay_options(Some(&unknown))
             .expect_err("unimplemented profiles must not silently change meaning");
         assert_eq!(error.code, ErrorCode::INVALID_PARAMS);
     }
