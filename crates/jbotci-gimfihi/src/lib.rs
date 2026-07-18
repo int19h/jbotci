@@ -1221,6 +1221,10 @@ fn prepare_scoring_sources<'source>(
 #[ensures(ret.as_ref().is_ok_and(|segments| !segments.is_empty()) || ret.is_err())]
 fn source_ipa_segments(source: &ResolvedSource) -> Result<Vec<IpaSegmentId>, GimfihiError> {
     if let Some(ipa) = &source.ipa {
+        // Deliberately unlike the classic transliterator, ALINE accepts bare ə:
+        // it is featurally scorable, and vlacku sound search uses this tokenizer
+        // directly. Classic rejection still forces stage 1 to choose a full
+        // vowel for Lojban-letter transliteration.
         return tokenize_ipa_text(ipa)
             .map(|sequence| sequence.segments().to_vec())
             .map_err(|error| GimfihiError::InvalidIpa {
