@@ -32,7 +32,7 @@ use jbotci_gentufa::{
 };
 pub use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
-    GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiPreset, GismuShape,
+    GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiPreset, GimfihiScorer, GismuShape,
     RafsiAvailability, RafsiCandidate, ResolvedSource, all_presets,
 };
 use jbotci_gimfihi::{
@@ -1743,6 +1743,8 @@ pub struct GimfihiWebSource {
 #[serde(rename_all = "kebab-case")]
 pub struct GimfihiWebState {
     pub preset: Option<GimfihiPreset>,
+    #[serde(default)]
+    pub scorer: GimfihiScorer,
     pub sources: Vec<GimfihiWebSource>,
     pub shapes: Vec<GismuShape>,
     pub all_letters: bool,
@@ -1756,11 +1758,13 @@ pub struct GimfihiWebState {
 impl Default for GimfihiWebState {
     #[requires(true)]
     #[ensures(ret.preset == Some(GimfihiPreset::Data1995))]
+    #[ensures(ret.scorer == GimfihiScorer::Classic)]
     #[ensures(ret.count == GIMFIHI_WEB_DEFAULT_COUNT)]
     fn default() -> Self {
         let preset = GimfihiPreset::Data1995;
         Self {
             preset: Some(preset),
+            scorer: GimfihiScorer::Classic,
             sources: preset
                 .entries()
                 .iter()
@@ -2359,7 +2363,7 @@ fn gimfihi_request_from_web_state(state: &GimfihiWebState) -> Result<GimfihiRequ
         .map(gimfihi_source_input_from_web_source)
         .collect::<Result<Vec<_>, _>>()?;
     Ok(GimfihiRequest {
-        scorer: Default::default(),
+        scorer: state.scorer,
         phonetic_parameters: Default::default(),
         preset: state.preset,
         sources,
@@ -3420,7 +3424,7 @@ fn build_gimfihi_page_meta(base_path: &str, state: &GimfihiWebState) -> PageMeta
     }
     page_meta(
         "jbotci gimfi'i".to_owned(),
-        "Compose candidate gismu from Lojbanized source words.".to_owned(),
+        gimfihi_default_metadata_description(state.scorer),
         gimfihi_web_url(base_path, &state),
         None,
     )
@@ -3437,14 +3441,14 @@ pub fn build_gimfihi_page_meta_from_output(
     if let Some(candidate) = output.highlighted_word.as_ref().or(output.winner.as_ref()) {
         return page_meta(
             format!("{candidate} - jbotci gimfi'i"),
-            gimfihi_metadata_description(candidate, &output.resolved_sources),
+            gimfihi_metadata_description(candidate, &output.resolved_sources, state.scorer),
             gimfihi_web_url(base_path, &state),
             None,
         );
     }
     page_meta(
         "jbotci gimfi'i".to_owned(),
-        "Compose candidate gismu from Lojbanized source words.".to_owned(),
+        gimfihi_default_metadata_description(state.scorer),
         gimfihi_web_url(base_path, &state),
         None,
     )
@@ -3452,13 +3456,35 @@ pub fn build_gimfihi_page_meta_from_output(
 
 #[requires(!candidate.is_empty())]
 #[ensures(ret.starts_with(candidate))]
-fn gimfihi_metadata_description(candidate: &str, sources: &[ResolvedSource]) -> String {
+fn gimfihi_metadata_description(
+    candidate: &str,
+    sources: &[ResolvedSource],
+    scorer: GimfihiScorer,
+) -> String {
     let sources = sources
         .iter()
         .map(|source| format!("{}:{} ×{}", source.language, source.word, source.weight))
         .collect::<Vec<_>>()
         .join(" + ");
-    format!("{candidate} = {sources}")
+    let description = format!("{candidate} = {sources}");
+    match scorer {
+        GimfihiScorer::Classic => description,
+        GimfihiScorer::Phonetic => format!("{description} (phonetic scoring)"),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn gimfihi_default_metadata_description(scorer: GimfihiScorer) -> String {
+    match scorer {
+        GimfihiScorer::Classic => {
+            "Compose candidate gismu from Lojbanized source words.".to_owned()
+        }
+        GimfihiScorer::Phonetic => {
+            "Compose candidate gismu from Lojbanized source words using phonetic scoring."
+                .to_owned()
+        }
+    }
 }
 
 #[requires(true)]
@@ -4231,6 +4257,12 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
                     parse_preset(&value).ok()
                 };
             }
+            "scorer" if value == GimfihiScorer::Phonetic.as_str() => {
+                state.scorer = GimfihiScorer::Phonetic;
+            }
+            "scorer" if value == GimfihiScorer::Classic.as_str() => {
+                state.scorer = GimfihiScorer::Classic;
+            }
             "source" => state.sources.push(parse_gimfihi_web_source(&value)),
             "shape" => {
                 if let Ok(shape) = parse_shape(&value) {
@@ -4340,6 +4372,7 @@ pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
     };
     GimfihiWebState {
         preset,
+        scorer: state.scorer,
         sources,
         shapes,
         all_letters: state.all_letters,
@@ -4406,6 +4439,9 @@ pub fn gimfihi_web_url(base_path: &str, state: &GimfihiWebState) -> String {
     let mut pairs = Vec::new();
     if let Some(preset) = &state.preset {
         pairs.push(("preset".to_owned(), preset.as_str().to_owned()));
+    }
+    if state.scorer != GimfihiScorer::Classic {
+        pairs.push(("scorer".to_owned(), state.scorer.as_str().to_owned()));
     }
     for source in &state.sources {
         pairs.push(("source".to_owned(), gimfihi_web_source_query_value(source)));
@@ -5983,6 +6019,7 @@ mod tests {
     fn gimfihi_sample_state(highlight: Option<&str>) -> GimfihiWebState {
         GimfihiWebState {
             preset: Some(GimfihiPreset::Data1995),
+            scorer: GimfihiScorer::Classic,
             sources: vec![
                 GimfihiWebSource {
                     language: "cmn".to_owned(),
@@ -7682,10 +7719,12 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn gimfihi_route_roundtrips_canonical_query_state() {
-        let state = gimfihi_sample_state(None);
+        let mut state = gimfihi_sample_state(None);
+        state.scorer = GimfihiScorer::Phonetic;
         let url = gimfihi_web_url("/jbotci", &state);
         assert!(url.starts_with("/jbotci/gimfihi?"));
         assert!(url.contains("preset=1995"));
+        assert!(url.contains("scorer=phonetic"));
         assert!(url.contains("source=cmn%3A%3Auan"));
         assert!(url.contains("shape=ccvcv"));
         assert!(url.contains("letters=source"));
@@ -7694,7 +7733,39 @@ mod tests {
 
         let query = url.split_once('?').map(|(_, query)| query).expect("query");
         let reparsed = parse_gimfihi_web_route("/gimfihi", query);
+        assert_eq!(reparsed.scorer, GimfihiScorer::Phonetic);
         assert_eq!(gimfihi_web_url("", &reparsed), gimfihi_web_url("", &state));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_route_defaults_to_classic_scorer_and_omits_it_from_url() {
+        let state = GimfihiWebState::default();
+        let url = gimfihi_web_url("", &state);
+        assert!(!url.contains("scorer="));
+
+        let query = url.split_once('?').map(|(_, query)| query).expect("query");
+        assert_eq!(
+            parse_gimfihi_web_route("/gimfihi", query).scorer,
+            GimfihiScorer::Classic
+        );
+        assert_eq!(
+            parse_gimfihi_web_route("/gimfihi", "scorer=classic").scorer,
+            GimfihiScorer::Classic
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_request_uses_web_state_scorer() {
+        let mut state = gimfihi_sample_state(None);
+        state.scorer = GimfihiScorer::Phonetic;
+
+        let request = gimfihi_request_from_web_state(&state).expect("gimfihi request");
+
+        assert_eq!(request.scorer, GimfihiScorer::Phonetic);
     }
 
     #[test]
@@ -7750,6 +7821,19 @@ mod tests {
         assert!(meta.description.contains("eng:ekspekt ×160"));
         assert!(meta.canonical_url.starts_with("/gimfihi?"));
         assert!(meta.canonical_url.contains("highlight=nanpe"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_metadata_describes_nondefault_scorer() {
+        let mut state = GimfihiWebState::default();
+        state.scorer = GimfihiScorer::Phonetic;
+
+        let meta = build_gimfihi_page_meta("", &state);
+
+        assert!(meta.description.contains("phonetic scoring"));
+        assert!(meta.canonical_url.contains("scorer=phonetic"));
     }
 
     #[test]
