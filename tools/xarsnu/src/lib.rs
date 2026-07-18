@@ -28,7 +28,7 @@ pub use protocol::{
     RuntimeFailureRecord, RuntimeFailureSite, SpeakerPhase, SpeakerState, TurnForfeitReason,
     VisibleMessage,
 };
-pub use report::report_file;
+pub use report::{DialogReportError, dialog_file, report_file};
 pub use run::{RunError, RunSummary, run};
 pub use scenario::{
     Assignment, DeductionAnswer, ParticipantTaskOutcome, ReferentialAnswer, ScenarioAnswer,

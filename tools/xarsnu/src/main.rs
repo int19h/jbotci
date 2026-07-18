@@ -4,7 +4,9 @@ use std::process::ExitCode;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{OpenRouterClient, report_file, run as run_live};
+use xarsnu::{OpenRouterClient, dialog_file, report_file, run as run_live};
+
+const USAGE: &str = "usage: xarsnu <config.toml> | xarsnu report [--dialog] <transcript.jsonl>";
 
 #[requires(true)]
 #[ensures(true)]
@@ -22,18 +24,23 @@ fn main() -> ExitCode {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
-    let first = arguments
-        .next()
-        .ok_or("usage: xarsnu <config.toml> | xarsnu report <transcript.jsonl>")?;
+    let first = arguments.next().ok_or(USAGE)?;
     if first == "report" {
-        let path = arguments
-            .next()
-            .map(PathBuf::from)
-            .ok_or("usage: xarsnu report <transcript.jsonl>")?;
+        let first_report_argument = arguments.next().ok_or(USAGE)?;
+        let dialog_only = first_report_argument == "--dialog";
+        let path = if dialog_only {
+            arguments.next().map(PathBuf::from).ok_or(USAGE)?
+        } else {
+            PathBuf::from(first_report_argument)
+        };
         if arguments.next().is_some() {
-            return Err("usage: xarsnu report <transcript.jsonl>".into());
+            return Err(USAGE.into());
         }
-        print!("{}", report_file(&path)?);
+        if dialog_only {
+            print!("{}", dialog_file(&path)?);
+        } else {
+            print!("{}", report_file(&path)?);
+        }
         return Ok(());
     }
     if arguments.next().is_some() {
