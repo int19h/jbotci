@@ -8,7 +8,8 @@ pub use line_index::{
 };
 pub use snapshot::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
-    CompletionItem, CompletionKind, CompletionProvenance, DocumentSnapshot, HoverContent,
-    ResolvedDiagnostic, ResolvedLabel, SemanticToken, SemanticTokenKind, WordAt,
+    CompletionItem, CompletionKind, CompletionProvenance, DecorationProfile, DocumentSnapshot,
+    HoverContent, RawBracketsOptions, ResolvedDiagnostic, ResolvedLabel, SemanticToken,
+    SemanticTokenKind, StructureConstructFilter, StructureInlay, StructureInlayKind, WordAt,
     completion_documentation_markdown,
 };

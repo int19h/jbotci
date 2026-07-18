@@ -13,6 +13,7 @@ use crate::{LineIndex, PositionEncoding, PositionRange};
 mod completion;
 mod hover;
 mod semantic_tokens;
+mod structure_inlays;
 
 pub use completion::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
@@ -20,12 +21,18 @@ pub use completion::{
 };
 pub use hover::HoverContent;
 pub use semantic_tokens::{SemanticToken, SemanticTokenKind};
+use structure_inlays::{DecorationFragment, build_decoration_fragments};
+pub use structure_inlays::{
+    DecorationProfile, RawBracketsOptions, StructureConstructFilter, StructureInlay,
+    StructureInlayKind,
+};
 
 /// Immutable recovery-capable analysis of one document version.
 #[invariant(words.words.len() == word_spans.len(), "every segmented word has one query span")]
 #[invariant(text.len() == line_index.byte_len(), "text and line index byte lengths must agree")]
 #[expensive_invariant(text.as_ref() == line_index.text(), "text and line index content must agree")]
 #[expensive_invariant(semantic_tokens.windows(2).all(|tokens| tokens[0].span.char_end <= tokens[1].span.char_start), "semantic tokens must be in source order and non-overlapping")]
+#[expensive_invariant(structure_fragments.iter().all(|fragment| fragment.ranges_are_within(text.len())), "structure fragments must stay within the snapshot source")]
 #[derive(Debug, Clone)]
 pub struct DocumentSnapshot {
     pub text: Arc<str>,
@@ -36,6 +43,7 @@ pub struct DocumentSnapshot {
     pub diagnostics: Vec<Diagnostic>,
     word_spans: Vec<SourceSpan>,
     semantic_tokens: Vec<SemanticToken>,
+    structure_fragments: Vec<DecorationFragment>,
 }
 
 impl DocumentSnapshot {
@@ -52,6 +60,7 @@ impl DocumentSnapshot {
         let diagnostics = analysis.diagnostics;
         let word_spans = word_spans(&words.words);
         let semantic_tokens = semantic_tokens::build_semantic_tokens(&words.words, &word_spans);
+        let structure_fragments = build_decoration_fragments(&parse, &text);
         let text: Arc<str> = Arc::from(text);
         let line_index = LineIndex::new(Arc::clone(&text));
         new!(DocumentSnapshot {
@@ -63,6 +72,7 @@ impl DocumentSnapshot {
             diagnostics,
             word_spans,
             semantic_tokens,
+            structure_fragments,
         })
     }
 
