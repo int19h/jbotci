@@ -1,0 +1,45 @@
+id = "referential-game-abstraction-1"
+title = "Abstract scene contrasts A"
+public-setup = "One speaker privately receives a target scene. Listeners must identify its one-based index from the speaker's descriptions."
+scenario-type = "referential-game"
+minimum-rounds = 1
+maximum-rounds = 3
+maximum-turns = 8
+target-scene-index = 2
+
+[answer-schema]
+type = "object"
+additionalProperties = false
+required = ["scene_index"]
+
+[answer-schema.properties.scene_index]
+type = "integer"
+minimum = 1
+
+# Structural dimensions: the believer is the dog; fear runs from the man to the dog.
+[[scenes]]
+description = "The dog believes that the man fears the dog."
+
+# Structural dimensions: the believer is the dog; fear runs from the dog to the man.
+[[scenes]]
+description = "The dog believes that the dog fears the man."
+
+# Structural dimensions: the believer is the man; fear runs from the man to the dog.
+[[scenes]]
+description = "The man believes that the man fears the dog."
+
+# Structural dimensions: the believer is the man; fear runs from the dog to the man.
+[[scenes]]
+description = "The man believes that the dog fears the man."
+
+[[participants]]
+name = "speaker"
+role = "speaker"
+
+[[participants]]
+name = "listener-a"
+role = "listener"
+
+[[participants]]
+name = "listener-b"
+role = "listener"
