@@ -64,9 +64,18 @@ pub struct SyntaxTextUnit {
 }
 
 /// A formal text-structure event used to prove that an edit did not move boundaries.
-#[invariant(::Boundary { .. } => true)]
-#[invariant(::ContainerOpen { .. } => true)]
-#[invariant(::ContainerClose { .. } => true)]
+#[invariant(::Boundary { kind, .. } => matches!(
+    *kind,
+    SyntaxTextBoundaryKind::I | SyntaxTextBoundaryKind::Niho
+))]
+#[invariant(::ContainerOpen { opener, .. } => matches!(
+    *opener,
+    Cmavo::Lu | Cmavo::Tuhe | Cmavo::To
+))]
+#[invariant(::ContainerClose { closer, .. } => matches!(
+    *closer,
+    Cmavo::Lihu | Cmavo::Tuhu | Cmavo::Toi
+))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyntaxTextStructureEvent {
     Boundary {
@@ -162,28 +171,28 @@ pub fn syntax_text_structure(tokens: &[Token]) -> Vec<SyntaxTextStructureEvent> 
             {
                 let depth = text_closers.len() - 1;
                 text_closers.pop();
-                events.push(SyntaxTextStructureEvent::ContainerClose {
+                events.push(new!(SyntaxTextStructureEvent::ContainerClose {
                     closer,
                     depth,
                     matched: true,
-                });
+                }));
                 continue;
             }
             if let Some(expected_closer) = syntax_text_closer_for_opener(closer) {
                 let depth = text_closers.len();
                 text_closers.push(expected_closer);
-                events.push(SyntaxTextStructureEvent::ContainerOpen {
+                events.push(new!(SyntaxTextStructureEvent::ContainerOpen {
                     opener: closer,
                     depth,
-                });
+                }));
                 continue;
             }
             if matches!(closer, Cmavo::Lihu | Cmavo::Tuhu | Cmavo::Toi) {
-                events.push(SyntaxTextStructureEvent::ContainerClose {
+                events.push(new!(SyntaxTextStructureEvent::ContainerClose {
                     closer,
                     depth: text_closers.len(),
                     matched: false,
-                });
+                }));
                 continue;
             }
         }
@@ -195,10 +204,10 @@ pub fn syntax_text_structure(tokens: &[Token]) -> Vec<SyntaxTextStructureEvent> 
             None
         };
         if let Some(kind) = kind {
-            events.push(SyntaxTextStructureEvent::Boundary {
+            events.push(new!(SyntaxTextStructureEvent::Boundary {
                 kind,
                 depth: text_closers.len(),
-            });
+            }));
         }
     }
     events
@@ -3361,20 +3370,19 @@ mod tests {
             structure
                 .iter()
                 .filter(|event| matches!(
-                    event,
-                    SyntaxTextStructureEvent::Boundary {
+                    event.as_data(),
+                    data!(SyntaxTextStructureEvent::Boundary {
                         kind: SyntaxTextBoundaryKind::Niho,
                         depth: 0,
-                    }
+                    })
                 ))
                 .count(),
             2,
         );
-        assert!(
-            structure
-                .iter()
-                .any(|event| matches!(event, SyntaxTextStructureEvent::Boundary { depth: 1, .. }))
-        );
+        assert!(structure.iter().any(|event| matches!(
+            event.as_data(),
+            data!(SyntaxTextStructureEvent::Boundary { depth: 1, .. })
+        )));
 
         let quoted_i = formal_tokens("mi klama zo i do cadzu ni'o do tavla");
         assert_eq!(
