@@ -1075,48 +1075,48 @@ mod tests {
         literal_time_limit: Option<Duration>,
     ) {
         let cases = [
-            BoundaryCompletionCase {
+            new!(BoundaryCompletionCase {
                 name: "word start after a space",
                 marked_source: "mi klama le |zarci",
                 expected_replacement: Some("zarci"),
                 expected_label: "barda",
-            },
-            BoundaryCompletionCase {
+            }),
+            new!(BoundaryCompletionCase {
                 name: "word start after a pause period",
                 marked_source: "mi tavla .|alis.",
                 expected_replacement: Some("alis"),
                 expected_label: "do",
-            },
-            BoundaryCompletionCase {
+            }),
+            new!(BoundaryCompletionCase {
                 name: "first word of a statement",
                 marked_source: "mi klama .i |sruma",
                 expected_replacement: Some("sruma"),
                 expected_label: "sruma",
-            },
-            BoundaryCompletionCase {
+            }),
+            new!(BoundaryCompletionCase {
                 name: "document offset zero",
                 marked_source: "|sruma",
                 expected_replacement: Some("sruma"),
                 expected_label: "sruma",
-            },
-            BoundaryCompletionCase {
+            }),
+            new!(BoundaryCompletionCase {
                 name: "document end",
                 marked_source: "mi klama |",
                 expected_replacement: None,
                 expected_label: "i",
-            },
-            BoundaryCompletionCase {
+            }),
+            new!(BoundaryCompletionCase {
                 name: "owner zvati position",
                 marked_source: "ne'i zo'e le mamta ku |zvati",
                 expected_replacement: Some("zvati"),
                 expected_label: "zvati",
-            },
-            BoundaryCompletionCase {
+            }),
+            new!(BoundaryCompletionCase {
                 name: "owner sruma position",
                 marked_source: ".i la prux. ba'o |sruma lo du'u le ckule cipra ku frili ra",
                 expected_replacement: Some("sruma"),
                 expected_label: "sruma",
-            },
+            }),
         ];
 
         for case in cases {
