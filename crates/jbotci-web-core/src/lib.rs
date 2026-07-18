@@ -33,11 +33,12 @@ use jbotci_gentufa::{
 pub use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
     GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiPreset, GimfihiScorer, GismuShape,
-    RafsiAvailability, RafsiCandidate, ResolvedSource, all_presets,
+    RafsiAvailability, RafsiCandidate, ResolvedSource, ResolvedSourceWord, all_presets,
+    resolve_source_word,
 };
 use jbotci_gimfihi::{
-    GimfihiRequest, GimfihiSourceInput, compose_gismu, default_shapes, parse_collision_scope,
-    parse_preset, parse_shape, parse_weight, preset_language_suggestions,
+    GimfihiError, GimfihiRequest, GimfihiSourceInput, compose_gismu, default_shapes,
+    parse_collision_scope, parse_preset, parse_shape, parse_weight, preset_language_suggestions,
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
@@ -1738,6 +1739,16 @@ pub struct GimfihiWebSource {
     pub word: String,
 }
 
+/// Presentation-only resolution state for one live gimfi'i source-word input.
+#[invariant(resolved_word.as_ref().is_none_or(|word| !word.is_empty()))]
+#[invariant(error.as_ref().is_none_or(|error| !error.is_empty()))]
+#[invariant(resolved_word.is_none() || error.is_none())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GimfihiSourceWordPreview {
+    pub resolved_word: Option<String>,
+    pub error: Option<String>,
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -2341,6 +2352,10 @@ pub fn build_gimfihi_web_result(state: &GimfihiWebState) -> GimfihiWebResult {
     let (output, errors) = match request {
         Ok(request) => match compose_gismu(jbotci_dictionary_data::english(), &request) {
             Ok(output) => (Some(output), Vec::new()),
+            // IPA diagnostics are tied to one editable source row and are
+            // rendered there from the same resolver. Keeping them out of the
+            // global list avoids reporting the same problem twice.
+            Err(GimfihiError::InvalidIpa { .. }) => (None, Vec::new()),
             Err(error) => (None, vec![error.to_string()]),
         },
         Err(error) => (None, vec![error]),
@@ -2351,6 +2366,36 @@ pub fn build_gimfihi_web_result(state: &GimfihiWebState) -> GimfihiWebResult {
         state: normalized,
         output,
         errors,
+    }
+}
+
+/// Resolve the current draft value for a source row without generating or
+/// scoring any candidates.
+#[requires(true)]
+#[ensures(ret.resolved_word.is_none() || ret.error.is_none())]
+pub fn gimfihi_source_word_preview(word: &str) -> GimfihiSourceWordPreview {
+    if word.trim().is_empty() {
+        return new!(GimfihiSourceWordPreview {
+            resolved_word: None,
+            error: None,
+        });
+    }
+    match resolve_source_word(word) {
+        Ok(resolved) if resolved.word.is_empty() => new!(GimfihiSourceWordPreview {
+            resolved_word: None,
+            error: None,
+        }),
+        Ok(resolved) => {
+            let word = resolved.into_data().word;
+            new!(GimfihiSourceWordPreview {
+                resolved_word: Some(word),
+                error: None,
+            })
+        }
+        Err(error) => new!(GimfihiSourceWordPreview {
+            resolved_word: None,
+            error: Some(error.to_string()),
+        }),
     }
 }
 
@@ -7759,6 +7804,37 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn gimfihi_source_word_preview_uses_shared_resolution_messages() {
+        let plain = gimfihi_source_word_preview("KLaMa");
+        assert_eq!(plain.resolved_word.as_deref(), Some("klama"));
+        assert_eq!(plain.error, None);
+
+        let ipa = gimfihi_source_word_preview("[kæt]");
+        assert_eq!(ipa.resolved_word.as_deref(), Some("kat"));
+        assert_eq!(ipa.error, None);
+
+        let unsupported = gimfihi_source_word_preview("[ka•ma]");
+        assert!(unsupported.resolved_word.is_none());
+        assert_eq!(
+            unsupported.error.as_deref(),
+            Some(
+                "invalid IPA source `ka•ma`: unsupported IPA segment near `•ma` — give a broad phonemic transcription"
+            )
+        );
+
+        let schwa = gimfihi_source_word_preview("[əbaut]");
+        assert!(schwa.resolved_word.is_none());
+        assert_eq!(
+            schwa.error.as_deref(),
+            Some(
+                "invalid IPA source `əbaut`: the neutral schwa `ə` has no Lojban vowel — transcribe the full vowel it is actually pronounced as"
+            )
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gimfihi_request_uses_web_state_scorer() {
         let mut state = gimfihi_sample_state(None);
         state.scorer = GimfihiScorer::Phonetic;
@@ -7766,6 +7842,39 @@ mod tests {
         let request = gimfihi_request_from_web_state(&state).expect("gimfihi request");
 
         assert_eq!(request.scorer, GimfihiScorer::Phonetic);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_invalid_ipa_is_row_only_but_request_errors_stay_global() {
+        let invalid_ipa = GimfihiWebState {
+            preset: None,
+            sources: vec![GimfihiWebSource {
+                language: "eng".to_owned(),
+                weight: Some("100".to_owned()),
+                word: "[əbaut]".to_owned(),
+            }],
+            ..GimfihiWebState::default()
+        };
+        let result = build_gimfihi_web_result(&invalid_ipa);
+        assert!(result.output.is_none());
+        assert!(result.errors.is_empty());
+
+        let invalid_weight = GimfihiWebState {
+            sources: vec![GimfihiWebSource {
+                language: "eng".to_owned(),
+                weight: Some("not-a-weight".to_owned()),
+                word: "klama".to_owned(),
+            }],
+            ..invalid_ipa
+        };
+        let result = build_gimfihi_web_result(&invalid_weight);
+        assert!(result.output.is_none());
+        assert_eq!(
+            result.errors,
+            ["source weight must be an integer from 1 to 999, got `not-a-weight`"]
+        );
     }
 
     #[test]

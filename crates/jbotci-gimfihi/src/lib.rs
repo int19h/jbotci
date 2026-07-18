@@ -392,6 +392,16 @@ impl GimfihiSourceInput {
     }
 }
 
+/// A single source word after applying the same normalization and optional IPA
+/// transliteration used by [`resolve_sources`].
+#[invariant(!word.chars().any(char::is_whitespace))]
+#[invariant(ipa.as_ref().is_none_or(|value| !value.trim().is_empty() && !word.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedSourceWord {
+    pub word: String,
+    pub ipa: Option<String>,
+}
+
 #[invariant(!language.is_empty())]
 #[invariant(*weight >= GIMFIHI_MIN_WEIGHT && *weight <= GIMFIHI_MAX_WEIGHT)]
 #[invariant(!word.is_empty())]
@@ -917,18 +927,35 @@ pub fn resolve_sources(
     }
 }
 
+/// Resolve one editable source word without requiring a complete gimfi'i
+/// request. Plain Lojban-letter input is normalized and passed through, while a
+/// bracketed IPA input is transliterated to its Lojban scoring form.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|resolved| !resolved.word.chars().any(char::is_whitespace)) || ret.is_err())]
+pub fn resolve_source_word(word: &str) -> Result<ResolvedSourceWord, GimfihiError> {
+    let word = normalize_source_word(word);
+    match extract_bracketed_ipa(&word)? {
+        Some(ipa) => {
+            let word = transliterate_ipa_to_lojban(&ipa)?;
+            Ok(new!(ResolvedSourceWord {
+                word,
+                ipa: Some(ipa),
+            }))
+        }
+        None => Ok(new!(ResolvedSourceWord { word, ipa: None })),
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|prepared| prepared.language == source.language && prepared.explicit_weight == source.explicit_weight) || ret.is_err())]
 fn prepare_source_word(source: &GimfihiSourceInput) -> Result<GimfihiSourceInput, GimfihiError> {
-    match extract_bracketed_ipa(&source.word)? {
-        Some(ipa) => Ok(GimfihiSourceInput {
-            language: source.language.clone(),
-            explicit_weight: source.explicit_weight,
-            word: transliterate_ipa_to_lojban(&ipa)?,
-            ipa: Some(ipa),
-        }),
-        None => Ok(source.clone()),
-    }
+    let data!(ResolvedSourceWord { word, ipa }) = resolve_source_word(&source.word)?.into_data();
+    Ok(GimfihiSourceInput {
+        language: source.language.clone(),
+        explicit_weight: source.explicit_weight,
+        word,
+        ipa,
+    })
 }
 
 /// Extract the IPA inside `[ ... ]`, mirroring the sound-search bracket
@@ -2152,6 +2179,28 @@ mod tests {
 
         let source = parse_source_spec("eng:160:ekspekt").expect("source");
         assert_eq!(source.explicit_weight, Some(160));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn resolves_individual_source_words_through_the_shared_path() {
+        let plain = resolve_source_word("  Kla Ma  ").expect("plain source word");
+        assert_eq!(plain.word, "klama");
+        assert_eq!(plain.ipa, None);
+
+        let ipa = resolve_source_word("[kæt]").expect("IPA source word");
+        assert_eq!(ipa.word, "kat");
+        assert_eq!(ipa.ipa.as_deref(), Some("kæt"));
+
+        assert!(matches!(
+            resolve_source_word("[ka•ma]").expect_err("unsupported segment"),
+            GimfihiError::InvalidIpa { .. }
+        ));
+        assert!(matches!(
+            resolve_source_word("[əbaut]").expect_err("bare schwa"),
+            GimfihiError::InvalidIpa { .. }
+        ));
     }
 
     #[test]

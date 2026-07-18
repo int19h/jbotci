@@ -98,6 +98,15 @@ fn render_gimfihi_table(output: &GimfihiOutput) -> String {
     if let Some(parameters) = &output.phonetic_parameters {
         lines.push(format_nondefault_phonetic_parameters(parameters));
     }
+    for source in &output.resolved_sources {
+        lines.push(match &source.ipa {
+            Some(ipa) => format!("sources: {}:[{ipa}] → {}", source.language, source.word),
+            None => format!(
+                "sources: {}:{} → {}",
+                source.language, source.word, source.word
+            ),
+        });
+    }
     lines.push(format!(
         "winner: {}",
         output.winner.as_deref().unwrap_or("none")

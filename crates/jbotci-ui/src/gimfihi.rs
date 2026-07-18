@@ -324,6 +324,7 @@ pub(super) fn render_gimfihi_source_row(
     let max_weight = GIMFIHI_MAX_WEIGHT.to_string();
     let language = source.language.clone();
     let word = source.word.clone();
+    let preview = gimfihi_source_word_preview(&source.word);
     rsx! {
         tr { class: "gimfihi-source-row",
             td { class: "gimfihi-language-column",
@@ -384,27 +385,40 @@ pub(super) fn render_gimfihi_source_row(
                 }
             }
             td {
-                input {
-                    class: "gimfihi-word-input",
-                    r#type: "text",
-                    spellcheck: "false",
-                    placeholder: "Lojban or [aj piː ej]",
-                    value: "{word}",
-                    oninput: move |event| {
-                        let next_word = event.value();
-                        let current = gimfihi_draft_state.read().clone();
-                        if let Some(source) = current.sources.get(index) {
-                            gimfihi_source_word_memory.with_mut(|memory| {
-                                gimfihi_set_source_word_memory_entry(
-                                    memory,
-                                    &source.language,
-                                    &next_word,
-                                );
-                            });
+                div { class: "gimfihi-word-cell",
+                    input {
+                        class: "gimfihi-word-input",
+                        r#type: "text",
+                        spellcheck: "false",
+                        placeholder: "Lojban or [aj piː ej]",
+                        value: "{word}",
+                        oninput: move |event| {
+                            let next_word = event.value();
+                            let current = gimfihi_draft_state.read().clone();
+                            if let Some(source) = current.sources.get(index) {
+                                gimfihi_source_word_memory.with_mut(|memory| {
+                                    gimfihi_set_source_word_memory_entry(
+                                        memory,
+                                        &source.language,
+                                        &next_word,
+                                    );
+                                });
+                            }
+                            let next = gimfihi_state_with_source_word(&current, index, &next_word);
+                            gimfihi_draft_state.set(next);
+                        },
+                    }
+                    if let Some(resolved_word) = &preview.resolved_word {
+                        div { class: "gimfihi-source-preview", aria_live: "polite",
+                            span { "Lojban: " }
+                            code { "{resolved_word}" }
                         }
-                        let next = gimfihi_state_with_source_word(&current, index, &next_word);
-                        gimfihi_draft_state.set(next);
-                    },
+                    }
+                    if let Some(error) = &preview.error {
+                        div { class: "gimfihi-source-error", role: "alert",
+                            "{error}"
+                        }
+                    }
                 }
             }
             td { class: "gimfihi-actions-column",
