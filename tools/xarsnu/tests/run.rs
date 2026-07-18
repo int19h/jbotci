@@ -210,7 +210,6 @@ fn tool_response(id: usize, name: &str, arguments: Value) -> MockResponse {
 #[requires(id > 0)]
 #[requires(!name.trim().is_empty())]
 #[requires(arguments.is_object())]
-#[requires(reasoning_tokens <= 2)]
 #[ensures(ret.status == 200)]
 fn reasoning_tool_response(
     id: usize,
@@ -224,6 +223,7 @@ fn reasoning_tool_response(
     body["usage"]["completion_tokens_details"] = json!({
         "reasoning_tokens": reasoning_tokens,
     });
+    body["usage"]["total_tokens"] = json!(37);
     response.with_data(bityzba::data! { body: body })
 }
 
@@ -260,7 +260,7 @@ fn complete_dialog_responses() -> Vec<MockResponse> {
             1,
             "register_intent",
             json!({ "meaning_en": "I can meet on Tuesday." }),
-            2,
+            7,
         ),
         tool_response(2, "submit_lojban", json!({ "text": "mi cu" })),
         tool_response(3, "submit_lojban", json!({ "text": "mi klama" })),
@@ -457,16 +457,21 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
             _ => None,
         })
         .expect("reasoning usage reaches the transcript");
-    assert_eq!(reasoning_usage.reasoning_tokens, Some(2));
+    assert_eq!(reasoning_usage.prompt_tokens, 10);
+    assert_eq!(reasoning_usage.completion_tokens, 2);
+    assert_eq!(reasoning_usage.total_tokens, 37);
+    assert_eq!(reasoning_usage.reasoning_tokens, Some(7));
     let transcript = fs::read_to_string(&summary.transcript_path).expect("read transcript JSONL");
     assert!(transcript.contains("\"reasoning_present\":true"));
-    assert!(transcript.contains("\"reasoning_tokens\":2"));
+    assert!(transcript.contains("\"total_tokens\":37"));
+    assert!(transcript.contains("\"reasoning_tokens\":7"));
     let report = report_file(&summary.transcript_path).expect("offline report renders");
     assert!(report.contains("Aggregate status: **failure**"));
     assert!(report.contains("### Blind interpretation"));
     assert!(report.contains("**Gate result:** rejected"));
-    assert!(report.contains("Reasoning field present: true; reasoning tokens: 2"));
-    assert!(report.contains("Reasoning totals: 2 tokens across 1 provider calls"));
+    assert!(report.contains("10 prompt + 2 completion = 37 tokens"));
+    assert!(report.contains("Reasoning field present: true; reasoning tokens: 7"));
+    assert!(report.contains("Reasoning totals: 7 tokens across 1 provider calls"));
 
     let captured = server.finish();
     assert_eq!(captured.len(), 17);

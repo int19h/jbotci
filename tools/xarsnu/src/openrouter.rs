@@ -244,10 +244,12 @@ impl ChatMessage {
 }
 
 /// Usage reported for one non-streaming completion.
+///
+/// Token counts preserve provider accounting verbatim. Their unsigned types
+/// enforce the only portable structural constraint; relationships between
+/// counters are intentionally unconstrained because providers account for
+/// cached, reasoning, completion, and total tokens differently.
 #[invariant(cost.is_finite() && *cost >= 0.0, "reported cost must be finite and nonnegative")]
-#[invariant(prompt_tokens.checked_add(*completion_tokens) == Some(*total_tokens), "total tokens must equal prompt plus completion tokens")]
-#[invariant(cached_tokens.as_ref().is_none_or(|tokens| *tokens <= *prompt_tokens), "cached tokens cannot exceed prompt tokens")]
-#[invariant(reasoning_tokens.as_ref().is_none_or(|tokens| *tokens <= *completion_tokens), "reasoning tokens cannot exceed completion tokens")]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
     #[serde(default)]
@@ -319,7 +321,7 @@ impl UsageTotals {
     /// Fraction of prompt tokens served from cache, when prompt usage exists.
     #[requires(true)]
     #[ensures(ret.is_none() == (self.prompt_tokens == 0))]
-    #[ensures(ret.is_none_or(|rate| (0.0..=1.0).contains(&rate)))]
+    #[ensures(ret.is_none_or(|rate| rate.is_finite() && rate >= 0.0))]
     pub fn cache_efficiency(&self) -> Option<f64> {
         (self.prompt_tokens > 0).then(|| self.cached_tokens as f64 / self.prompt_tokens as f64)
     }
@@ -1124,6 +1126,7 @@ impl ParticipantConversation {
 #[invariant(::HttpStatus { .. } => true)]
 #[invariant(::TransientRetriesExhausted { .. } => true)]
 #[invariant(::Provider { .. } => true)]
+#[invariant(::InvalidProviderUsage { .. } => true)]
 #[invariant(::InvalidResponse { .. } => true)]
 #[invariant(::InvalidToolCall { .. } => true)]
 #[invariant(::RequiredToolCallExhausted { .. } => true)]
@@ -1147,12 +1150,24 @@ pub enum OpenRouterError {
     },
     #[error("OpenRouter provider error {code}: {message}")]
     Provider { code: u16, message: String },
+    #[error("invalid OpenRouter provider usage: {reason}")]
+    InvalidProviderUsage {
+        reason: ProviderUsageValidationError,
+    },
     #[error("invalid OpenRouter response: {message}")]
     InvalidResponse { message: String },
     #[error("invalid call to tool `{tool_name}`: {message}")]
     InvalidToolCall { tool_name: String, message: String },
     #[error("required tool call was not produced after {attempts} attempts")]
     RequiredToolCallExhausted { attempts: usize },
+}
+
+/// A provider usage payload violated a provider-independent structural clause.
+#[invariant(::CostMustBeFiniteAndNonnegative => true)]
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
+pub enum ProviderUsageValidationError {
+    #[error("reported cost must be finite and nonnegative")]
+    CostMustBeFiniteAndNonnegative,
 }
 
 #[invariant(true)]
@@ -1395,7 +1410,13 @@ impl ProviderUsage {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn into_usage(self, reasoning_present: bool) -> Result<Usage, OpenRouterError> {
-        Usage::try_from_data(bityzba::data!(Usage {
+        if !self.cost.is_finite() || self.cost < 0.0 {
+            return Err(OpenRouterError::InvalidProviderUsage {
+                reason: ProviderUsageValidationError::CostMustBeFiniteAndNonnegative,
+            });
+        }
+
+        Ok(new!(Usage {
             prompt_tokens: self.prompt_tokens,
             completion_tokens: self.completion_tokens,
             total_tokens: self.total_tokens,
@@ -1409,9 +1430,6 @@ impl ProviderUsage {
                 .and_then(|details| details.reasoning_tokens),
             cost: self.cost,
         }))
-        .map_err(|error| OpenRouterError::InvalidResponse {
-            message: error.to_string(),
-        })
     }
 }
 
