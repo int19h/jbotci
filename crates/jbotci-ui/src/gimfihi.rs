@@ -160,6 +160,7 @@ pub(super) fn render_gimfihi_controls(
         .preset
         .map(|preset| preset.as_str().to_owned())
         .unwrap_or_default();
+    let scorer = state.scorer.as_str();
     let collision_scope = state.check_collisions.as_str();
     let preset_options = gimfihi_preset_options_for_state(state);
     let language_suggestions = gimfihi_language_suggestions();
@@ -191,6 +192,24 @@ pub(super) fn render_gimfihi_controls(
                                 "{option.label}"
                             }
                         }
+                    }
+                }
+                label { class: "gimfihi-control gimfihi-scorer-control",
+                    span { class: "gimfihi-control-label", "Scorer" }
+                    select {
+                        class: "gimfihi-select",
+                        value: "{scorer}",
+                        onchange: move |event| {
+                            let mut next = gimfihi_draft_state.read().clone();
+                            next.scorer = if event.value() == GimfihiScorer::Phonetic.as_str() {
+                                GimfihiScorer::Phonetic
+                            } else {
+                                GimfihiScorer::Classic
+                            };
+                            gimfihi_draft_state.set(next);
+                        },
+                        option { value: "classic", "Classic" }
+                        option { value: "phonetic", "Phonetic" }
                     }
                 }
             }

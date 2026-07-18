@@ -246,6 +246,14 @@ fn gimfihi_load_more_state_doubles_and_clamps_count() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gimfihi_score_format_preserves_small_phonetic_scores() {
+    assert_eq!(format_gimfihi_score(0.031_25), "0.03125");
+    assert_eq!(format_gimfihi_score(0.000_001), "0.000001");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gimfihi_result_summary_reports_candidates_and_shown_count() {
     let output = GimfihiOutput {
         scorer: Default::default(),
