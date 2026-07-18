@@ -8,8 +8,8 @@ use bityzba::{contract_trait, ensures, invariant, requires};
 use serde_json::{Value, json};
 use xarsnu::{
     AbortKind, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    PromptCaching, ProviderToolChoice, ProviderUsageValidationError, RetryPolicy, RunAccounting,
-    ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher,
+    PromptCaching, ProviderToolChoice, ProviderUsageValidationError, ReasoningConfig, RetryPolicy,
+    RunAccounting, ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
 };
 
 #[invariant(true)]
@@ -378,7 +378,7 @@ fn conversation() -> ParticipantConversation {
 #[requires(!model.trim().is_empty())]
 #[ensures(ret.messages().len() == 2)]
 fn conversation_for_model(model: &str, prompt_caching: PromptCaching) -> ParticipantConversation {
-    conversation_for_model_with_reasoning(model, prompt_caching, false)
+    conversation_for_model_with_reasoning(model, prompt_caching, ReasoningConfig::Default)
 }
 
 #[requires(!model.trim().is_empty())]
@@ -386,17 +386,27 @@ fn conversation_for_model(model: &str, prompt_caching: PromptCaching) -> Partici
 fn conversation_for_model_with_reasoning(
     model: &str,
     prompt_caching: PromptCaching,
-    disable_reasoning: bool,
+    reasoning: ReasoningConfig,
 ) -> ParticipantConversation {
     ParticipantConversation::from_parts(
         "tester".to_owned(),
         model.to_owned(),
         prompt_caching,
-        disable_reasoning,
+        reasoning,
         0.3,
         "Use tools.".to_owned(),
         "Private task.".to_owned(),
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn take_pending_usage(conversation: &mut ParticipantConversation) -> Vec<Usage> {
+    conversation
+        .take_pending_observations()
+        .into_iter()
+        .map(|observation| observation.usage)
+        .collect()
 }
 
 #[requires(!name.trim().is_empty())]
@@ -471,14 +481,14 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     assert_eq!(last["content"], "  exact tool payload\n");
     assert_eq!(conversation.usage().total_tokens, 18);
     assert_eq!(accounting.usage().cost_usd, 0.125);
-    let usage = conversation.take_pending_usage();
+    let usage = take_pending_usage(&mut conversation);
     assert_eq!(usage.len(), 1);
     assert_eq!(usage[0].cost, 0.125);
     assert_eq!(usage[0].cached_tokens, None);
     assert_eq!(usage[0].cache_write_tokens, None);
     assert!(!usage[0].reasoning_present);
     assert_eq!(usage[0].reasoning_tokens, None);
-    assert!(conversation.take_pending_usage().is_empty());
+    assert!(take_pending_usage(&mut conversation).is_empty());
     let captured = server.finish();
     assert_eq!(captured[0].body["tool_choice"], "required");
     assert_eq!(captured[0].body["usage"], json!({ "include": true }));
@@ -502,7 +512,7 @@ fn provider_cache_usage_normalizes_and_round_trips_through_record_json() {
         )
         .expect("mock completion succeeds");
 
-    let usage = conversation.take_pending_usage();
+    let usage = take_pending_usage(&mut conversation);
     assert_eq!(usage.len(), 1);
     assert_eq!(usage[0].cached_tokens, Some(8));
     assert_eq!(usage[0].cache_write_tokens, Some(3));
@@ -558,7 +568,7 @@ fn provider_accounting_variance_is_recorded_verbatim() {
         )
         .expect("provider accounting conventions are accepted");
 
-    let usage = conversation.take_pending_usage();
+    let usage = take_pending_usage(&mut conversation);
     assert_eq!(usage.len(), 1);
     assert_eq!(usage[0].prompt_tokens, 3);
     assert_eq!(usage[0].completion_tokens, 2);
@@ -611,7 +621,7 @@ fn invalid_provider_cost_names_only_the_failing_usage_clause() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
+fn default_reasoning_request_has_a_stable_wire_shape() {
     let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
     let mut conversation = conversation();
@@ -629,7 +639,7 @@ fn non_anthropic_request_preserves_the_legacy_wire_bytes() {
     let captured = server.finish();
     assert_eq!(
         captured[0].body_bytes,
-        br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","usage":{"include":true}}"#
+        br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false},"usage":{"include":true}}"#
     );
 }
 
@@ -658,28 +668,52 @@ fn automatic_tool_choice_reaches_the_request_wire() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn reasoning_off_reaches_the_wire_with_the_openrouter_shape() {
-    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
-    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
-    let mut conversation =
-        conversation_for_model_with_reasoning("xiaomi/mimo-v2.5", PromptCaching::Auto, true);
-    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+fn every_reasoning_mode_reaches_the_wire_with_the_openrouter_shape() {
+    for (reasoning, expected) in [
+        (
+            ReasoningConfig::Off,
+            json!({ "effort": "none", "exclude": false }),
+        ),
+        (
+            ReasoningConfig::Default,
+            json!({ "enabled": true, "exclude": false }),
+        ),
+        (
+            ReasoningConfig::Low,
+            json!({ "effort": "low", "exclude": false }),
+        ),
+        (
+            ReasoningConfig::Medium,
+            json!({ "effort": "medium", "exclude": false }),
+        ),
+        (
+            ReasoningConfig::High,
+            json!({ "effort": "high", "exclude": false }),
+        ),
+    ] {
+        let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+        let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+        let mut conversation = conversation_for_model_with_reasoning(
+            "xiaomi/mimo-v2.5",
+            PromptCaching::Auto,
+            reasoning,
+        );
+        let mut accounting = RunAccounting::new(1.0).expect("valid budget");
 
-    conversation
-        .request(
-            &client,
-            &[tool("alpha").expect("valid tool")],
-            ProviderToolChoice::Required,
-            &mut accounting,
-        )
-        .expect("mock completion succeeds");
+        conversation
+            .request(
+                &client,
+                &[tool("alpha").expect("valid tool")],
+                ProviderToolChoice::Required,
+                &mut accounting,
+            )
+            .expect("mock completion succeeds");
 
-    let captured = server.finish();
-    assert_eq!(captured[0].body["tool_choice"], "required");
-    assert_eq!(
-        captured[0].body["reasoning"],
-        json!({ "effort": "none", "exclude": false })
-    );
+        let captured = server.finish();
+        assert_eq!(captured[0].body["tool_choice"], "required");
+        assert_eq!(captured[0].body["reasoning"], expected);
+        assert_ne!(captured[0].body["reasoning"]["exclude"], true);
+    }
 }
 
 #[test]
@@ -805,6 +839,174 @@ fn prompt_caching_off_suppresses_anthropic_breakpoints() {
     );
 }
 
+#[requires(!model.trim().is_empty())]
+#[ensures(true)]
+fn assert_reasoning_details_round_trip(model: &str) {
+    let reasoning = "private summary that must never enter canonical history";
+    let reasoning_details = json!([
+        {
+            "type": "reasoning.text",
+            "text": "first private block",
+            "signature": "signature-one"
+        },
+        {
+            "type": "reasoning.encrypted",
+            "data": "encrypted-two"
+        }
+    ]);
+    let mut first = tool_call_response("alpha", 0.01);
+    first.body["choices"][0]["message"]["reasoning"] = json!(reasoning);
+    first.body["choices"][0]["message"]["reasoning_details"] = reasoning_details.clone();
+    let server = MockServer::start(vec![
+        first,
+        tool_call_response("beta", 0.01),
+        tool_call_response("gamma", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation_for_model(model, PromptCaching::Auto);
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let mut dispatcher = ExactDispatcher;
+
+    let first = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("first tool call");
+    conversation
+        .dispatch_tool_calls(first.tool_calls().expect("alpha call"), &mut dispatcher)
+        .expect("alpha result");
+    let second = conversation
+        .request(
+            &client,
+            &[tool("beta").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("second tool call");
+    conversation
+        .dispatch_tool_calls(second.tool_calls().expect("beta call"), &mut dispatcher)
+        .expect("beta result");
+    conversation
+        .request(
+            &client,
+            &[tool("gamma").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("third tool call");
+
+    let observations = conversation.take_pending_observations();
+    assert_eq!(observations.len(), 3);
+    let trace = observations[0]
+        .thinking
+        .as_ref()
+        .expect("first call thinking trace");
+    assert_eq!(trace.reasoning.as_deref(), Some(reasoning));
+    assert_eq!(
+        trace.reasoning_details.as_ref(),
+        reasoning_details.as_array()
+    );
+    assert!(observations[1].thinking.is_none());
+    assert!(observations[2].thinking.is_none());
+
+    let canonical_history =
+        serde_json::to_string(conversation.messages()).expect("canonical history serializes");
+    for private_value in [reasoning, "signature-one", "encrypted-two"] {
+        assert!(
+            !canonical_history.contains(private_value),
+            "private reasoning leaked into canonical history: {private_value}"
+        );
+    }
+
+    let captured = server.finish();
+    let second_messages = captured[1].body["messages"]
+        .as_array()
+        .expect("second request messages");
+    let alpha = second_messages
+        .iter()
+        .find(|message| message["tool_calls"][0]["id"] == "call-alpha")
+        .expect("originating alpha assistant message");
+    assert_eq!(alpha["reasoning_details"], reasoning_details);
+    assert!(alpha.get("reasoning").is_none());
+    assert!(
+        !String::from_utf8_lossy(&captured[1].body_bytes).contains(reasoning),
+        "unstructured private reasoning must never be replayed"
+    );
+
+    let third_messages = captured[2].body["messages"]
+        .as_array()
+        .expect("third request messages");
+    let alpha = third_messages
+        .iter()
+        .find(|message| message["tool_calls"][0]["id"] == "call-alpha")
+        .expect("alpha assistant remains in the same loop");
+    assert_eq!(alpha["reasoning_details"], reasoning_details);
+    let beta = third_messages
+        .iter()
+        .find(|message| message["tool_calls"][0]["id"] == "call-beta")
+        .expect("beta assistant remains in the same loop");
+    assert!(beta.get("reasoning_details").is_none());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn observed_reasoning_details_round_trip_for_anthropic_and_gemini_tool_loops() {
+    assert_reasoning_details_round_trip("anthropic/claude-test");
+    assert_reasoning_details_round_trip("google/gemini-3-test");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reasoning_details_never_cross_a_provider_tool_loop_boundary() {
+    let mut first = tool_call_response("alpha", 0.01);
+    first.body["choices"][0]["message"]["reasoning_details"] = json!([{
+        "type": "reasoning.text",
+        "text": "loop-local",
+        "signature": "loop-signature"
+    }]);
+    let server = MockServer::start(vec![first, tool_call_response("beta", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let first = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("first tool call");
+    conversation.begin_tool_loop();
+    conversation
+        .dispatch_tool_calls(
+            first.tool_calls().expect("alpha call"),
+            &mut ExactDispatcher,
+        )
+        .expect("alpha result");
+    conversation
+        .request(
+            &client,
+            &[tool("beta").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("second tool call");
+
+    let captured = server.finish();
+    assert!(
+        captured[1].body["messages"]
+            .as_array()
+            .expect("second request messages")
+            .iter()
+            .all(|message| message.get("reasoning_details").is_none())
+    );
+}
+
 #[requires(true)]
 #[ensures(ret <= messages.len())]
 fn cache_breakpoint_count(messages: &[Value]) -> usize {
@@ -846,7 +1048,7 @@ fn required_prose_is_correctively_reprompted_before_success() {
         )
         .expect("reprompt reaches tool call");
     assert!(turn.tool_calls().is_some());
-    let usage = conversation.take_pending_usage();
+    let usage = take_pending_usage(&mut conversation);
     assert_eq!(usage.len(), 2, "each provider call must remain distinct");
     assert_eq!(usage.iter().map(|record| record.cost).sum::<f64>(), 0.03);
 
@@ -888,7 +1090,7 @@ fn reasoning_only_completion_is_correctively_reprompted_before_success() {
         .expect("reasoning-only response is correctable");
 
     assert!(turn.tool_calls().is_some());
-    let usage = conversation.take_pending_usage();
+    let usage = take_pending_usage(&mut conversation);
     assert_eq!(usage.len(), 2, "the corrective call must remain accounted");
     assert!(usage[0].reasoning_present);
     assert_eq!(usage[0].reasoning_tokens, Some(4));
@@ -945,7 +1147,7 @@ fn reasoning_only_reprompt_exhaustion_keeps_the_existing_typed_error() {
         error,
         OpenRouterError::RequiredToolCallExhausted { attempts: 2 }
     );
-    assert_eq!(conversation.take_pending_usage().len(), 2);
+    assert_eq!(take_pending_usage(&mut conversation).len(), 2);
     let captured = server.finish();
     assert_eq!(captured.len(), 2);
     assert!(

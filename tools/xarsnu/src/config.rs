@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 const DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE: usize = 16;
@@ -64,6 +64,54 @@ pub enum ToolChoice {
     Auto,
 }
 
+/// Reasoning effort requested from OpenRouter for one participant.
+#[invariant(::Off => true)]
+#[invariant(::Default => true)]
+#[invariant(::Low => true)]
+#[invariant(::Medium => true)]
+#[invariant(::High => true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningConfig {
+    /// Disable model reasoning.
+    Off,
+    /// Let OpenRouter select the provider's default reasoning effort.
+    #[default]
+    Default,
+    /// Request low reasoning effort.
+    Low,
+    /// Request medium reasoning effort.
+    Medium,
+    /// Request high reasoning effort.
+    High,
+}
+
+#[invariant(::Named(_) => true)]
+#[invariant(::LegacyDisabled(_) => true)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ReasoningConfigWire {
+    Named(ReasoningConfig),
+    LegacyDisabled(bool),
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn deserialize_reasoning_config<'de, D>(
+    deserializer: D,
+) -> Result<Option<ReasoningConfig>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(
+        Option::<ReasoningConfigWire>::deserialize(deserializer)?.map(|wire| match wire {
+            ReasoningConfigWire::Named(reasoning) => reasoning,
+            ReasoningConfigWire::LegacyDisabled(true) => ReasoningConfig::Off,
+            ReasoningConfigWire::LegacyDisabled(false) => ReasoningConfig::Default,
+        }),
+    )
+}
+
 /// One model participating in the private side of a simulated discussion.
 #[invariant(!name.trim().is_empty(), "participant names cannot be empty")]
 #[invariant(!model.trim().is_empty(), "participant model ids cannot be empty")]
@@ -78,9 +126,13 @@ pub struct ParticipantConfig {
     pub prompt_caching: PromptCaching,
     #[serde(default)]
     pub tool_choice: ToolChoice,
-    /// Explicit reasoning override; absent values follow model capability metadata.
-    #[serde(default)]
-    pub disable_reasoning: Option<bool>,
+    /// Explicit reasoning policy; absent values follow model capability metadata.
+    #[serde(
+        default,
+        alias = "disable-reasoning",
+        deserialize_with = "deserialize_reasoning_config"
+    )]
+    pub reasoning: Option<ReasoningConfig>,
     pub temperature: f64,
     pub system_prompt: String,
 }
@@ -236,7 +288,7 @@ system-prompt = "Speak only Lojban."
             config
                 .participants
                 .iter()
-                .all(|participant| participant.disable_reasoning.is_none())
+                .all(|participant| participant.reasoning.is_none())
         );
     }
 
@@ -272,11 +324,48 @@ system-prompt = "Speak only Lojban."
     fn participant_can_override_reasoning_metadata() {
         let source = VALID_CONFIG.replace(
             "model = \"example/alice\"",
-            "model = \"example/alice\"\ndisable-reasoning = true",
+            "model = \"example/alice\"\nreasoning = \"low\"",
         );
         let config = RunConfig::from_toml(&source).expect("valid config");
-        assert_eq!(config.participants[0].disable_reasoning, Some(true));
-        assert_eq!(config.participants[1].disable_reasoning, None);
+        assert_eq!(config.participants[0].reasoning, Some(ReasoningConfig::Low));
+        assert_eq!(config.participants[1].reasoning, None);
+
+        for (configured, expected) in [
+            ("off", ReasoningConfig::Off),
+            ("default", ReasoningConfig::Default),
+            ("low", ReasoningConfig::Low),
+            ("medium", ReasoningConfig::Medium),
+            ("high", ReasoningConfig::High),
+        ] {
+            let source = VALID_CONFIG.replace(
+                "model = \"example/alice\"",
+                &format!("model = \"example/alice\"\nreasoning = \"{configured}\""),
+            );
+            let config = RunConfig::from_toml(&source).expect("valid reasoning config");
+            assert_eq!(config.participants[0].reasoning, Some(expected));
+        }
+
+        let invalid = VALID_CONFIG.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\nreasoning = \"extreme\"",
+        );
+        assert!(RunConfig::from_toml(&invalid).is_err());
+
+        let legacy_disabled = VALID_CONFIG.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\ndisable-reasoning = true",
+        );
+        let config =
+            RunConfig::from_toml(&legacy_disabled).expect("legacy config remains readable");
+        assert_eq!(config.participants[0].reasoning, Some(ReasoningConfig::Off));
+
+        let legacy_enabled =
+            legacy_disabled.replace("disable-reasoning = true", "disable-reasoning = false");
+        let config = RunConfig::from_toml(&legacy_enabled).expect("legacy config remains readable");
+        assert_eq!(
+            config.participants[0].reasoning,
+            Some(ReasoningConfig::Default)
+        );
     }
 
     #[test]

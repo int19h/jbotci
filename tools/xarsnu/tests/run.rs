@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use xarsnu::protocol::{ProtocolEventData, RuntimeFailureSite};
 use xarsnu::run::RunErrorData;
 use xarsnu::{
-    OpenRouterClient, OpenRouterClientConfig, PromptCaching, RetryPolicy, TaskStatus,
+    OpenRouterClient, OpenRouterClientConfig, PromptCaching, RetryPolicy, TaskStatus, dialog_file,
     read_transcript, report_file, run,
 };
 
@@ -220,6 +220,13 @@ fn reasoning_tool_response(
     let response = tool_response(id, name, arguments);
     let mut body = response.body.clone();
     body["choices"][0]["message"]["reasoning"] = json!("private mock reasoning");
+    body["choices"][0]["message"]["reasoning_details"] = json!([
+        {
+            "type": "reasoning.text",
+            "text": "private mock detail",
+            "signature": "mock-signature"
+        }
+    ]);
     body["usage"]["completion_tokens_details"] = json!({
         "reasoning_tokens": reasoning_tokens,
     });
@@ -469,10 +476,30 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     assert_eq!(reasoning_usage.completion_tokens, 2);
     assert_eq!(reasoning_usage.total_tokens, 37);
     assert_eq!(reasoning_usage.reasoning_tokens, Some(7));
+    let thinking_trace = records
+        .iter()
+        .find_map(|record| match record.event.as_data() {
+            ProtocolEventData::ThinkingRecorded {
+                participant, trace, ..
+            } => Some((participant, trace)),
+            _ => None,
+        })
+        .expect("thinking trace reaches the transcript");
+    assert_eq!(thinking_trace.0, "alice");
+    assert_eq!(
+        thinking_trace.1.reasoning.as_deref(),
+        Some("private mock reasoning")
+    );
+    assert_eq!(
+        thinking_trace.1.reasoning_details.as_ref().unwrap()[0]["signature"],
+        "mock-signature"
+    );
     let transcript = fs::read_to_string(&summary.transcript_path).expect("read transcript JSONL");
     assert!(transcript.contains("\"reasoning_present\":true"));
     assert!(transcript.contains("\"total_tokens\":37"));
     assert!(transcript.contains("\"reasoning_tokens\":7"));
+    assert!(transcript.contains("private mock reasoning"));
+    assert!(transcript.contains("mock-signature"));
     let report = report_file(&summary.transcript_path).expect("offline report renders");
     assert!(report.contains("Aggregate status: **failure**"));
     assert!(report.contains("### Blind interpretation"));
@@ -480,9 +507,48 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     assert!(report.contains("10 prompt + 2 completion = 37 tokens"));
     assert!(report.contains("Reasoning field present: true; reasoning tokens: 7"));
     assert!(report.contains("Reasoning totals: 7 tokens across 1 provider calls"));
+    assert!(report.contains("### Thinking — `alice`"));
+    assert!(report.contains("> private mock reasoning"));
+    assert!(report.contains(">     \"signature\": \"mock-signature\""));
+    let dialog = dialog_file(&summary.transcript_path).expect("standalone dialog renders");
+    for private_trace in [
+        "Thinking",
+        "private mock reasoning",
+        "private mock detail",
+        "mock-signature",
+    ] {
+        assert!(
+            !dialog.contains(private_trace),
+            "standalone dialog leaked {private_trace}"
+        );
+    }
 
     let captured = server.finish();
     assert_eq!(captured.len(), 17);
+    let replayed = captured[1].body["messages"]
+        .as_array()
+        .expect("continuing-loop messages")
+        .iter()
+        .find(|message| message["tool_calls"][0]["id"] == "call-1-register_intent")
+        .expect("originating assistant tool call");
+    assert_eq!(
+        replayed["reasoning_details"][0]["signature"], "mock-signature",
+        "the continuing speaker tool loop must replay observed details"
+    );
+    assert!(
+        captured
+            .iter()
+            .all(|request| !request.body.to_string().contains("private mock reasoning")),
+        "unstructured reasoning must never enter re-sent history"
+    );
+    assert!(
+        captured[11].body["messages"]
+            .as_array()
+            .expect("new-turn messages")
+            .iter()
+            .all(|message| message.get("reasoning_details").is_none()),
+        "reasoning details must not cross the next tool-loop boundary"
+    );
     for index in [0, 1, 2, 3, 9, 10, 11, 12, 13, 14] {
         assert_eq!(captured[index].body["tool_choice"], "auto");
     }

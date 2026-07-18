@@ -37,7 +37,7 @@ name = "bob"
 model = "example/other-model"
 prompt-caching = "off"
 tool-choice = "required"
-disable-reasoning = false
+reasoning = "low"
 temperature = 0.6
 system-prompt = "Speak only Lojban in the visible discussion."
 ```
@@ -66,11 +66,24 @@ listener-scoped `listener-flow-abandoned` event, leaves that listener's blind
 interpretation and acknowledgment unrecorded, and continues with the other
 listeners.
 
-`disable-reasoning` is an optional per-participant boolean override. When it is
-absent, reasoning is disabled only if metadata says the model supports that
-setting and its effective tool choice is `required`. A disabled request sends
-OpenRouter's `reasoning = { effort = "none", exclude = false }` shape; enabled
-requests retain the previous wire representation with no `reasoning` field.
+`reasoning` is an optional per-participant policy: `off`, `default`, `low`,
+`medium`, or `high`. When it is absent, reasoning is disabled only if metadata
+says the model supports that setting and its effective tool choice is
+`required`; otherwise the provider default is requested. `off` sends effort
+`none`, `default` sends `enabled = true`, and the explicit effort values map
+directly to OpenRouter. Every shape keeps `exclude = false` so returned traces
+remain available for review.
+
+Returned `reasoning` and `reasoning_details` are private observability. They
+are recorded per provider call and rendered under `### Thinking` in the full
+report, but never enter the visible dialog or the canonical message history.
+Within one continuing tool loop, observed `reasoning_details` are attached
+verbatim to their originating assistant messages in subsequent requests, then
+discarded at the next loop boundary.
+
+Existing run configs and schema-v1 transcript headers using
+`disable-reasoning = true|false` remain readable and map to `off|default`, but
+newly serialized configuration uses only the unified `reasoning` field.
 
 The audited snapshot lives in `openrouter-model-capabilities.json` and records
 its exact Bickr source commit. Refresh Bickr's generated map first, then import

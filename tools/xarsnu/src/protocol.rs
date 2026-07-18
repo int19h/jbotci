@@ -16,9 +16,9 @@ use crate::openrouter::REQUIRED_TOOL_CORRECTION;
 use crate::transcript::TranscriptWriter;
 use crate::{
     AbortRecord, CapsConfig, DiagnosticCategory, OpenRouterClient, ParticipantConfig,
-    ParticipantConversation, ProviderToolChoice, ReferenceTools, RunAccounting, RunHeader,
-    TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
-    TranscriptError, Usage,
+    ParticipantConversation, ProviderCallObservation, ProviderToolChoice, ReferenceTools,
+    RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
+    ToolDefinitionError, ToolDispatchError, ToolDispatcher, TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
 
@@ -486,6 +486,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::AnswerSubmitted { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
 #[invariant(::CheckerOutcome { turn_number, .. } => *turn_number > 0)]
 #[invariant(::UsageRecorded { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
+#[invariant(::ThinkingRecorded { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
 #[invariant(::RunAborted { .. } => true)]
 #[invariant(::RunFinished { .. } => true)]
 #[invariant(::RunFailed { failure } => failure.turn_number > 0 && !failure.message.trim().is_empty())]
@@ -622,6 +623,11 @@ pub enum ProtocolEvent {
         participant: String,
         usage: Usage,
     },
+    ThinkingRecorded {
+        turn_number: usize,
+        participant: String,
+        trace: ThinkingTrace,
+    },
     RunAborted {
         record: AbortRecord,
     },
@@ -686,7 +692,8 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::TurnForfeited { turn_number, .. })
             | bityzba::data!(ProtocolEvent::AnswerSubmitted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { turn_number, .. })
-            | bityzba::data!(ProtocolEvent::UsageRecorded { turn_number, .. }) => {
+            | bityzba::data!(ProtocolEvent::UsageRecorded { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ThinkingRecorded { turn_number, .. }) => {
                 Some(*turn_number)
             }
             bityzba::data!(ProtocolEvent::ReferenceToolCompleted { .. })
@@ -724,7 +731,8 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::ProseRejected { participant, .. })
             | bityzba::data!(ProtocolEvent::ProtocolError { participant, .. })
             | bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. })
-            | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. }) => participant,
+            | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. })
+            | bityzba::data!(ProtocolEvent::ThinkingRecorded { participant, .. }) => participant,
             bityzba::data!(ProtocolEvent::RunStarted { .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. })
@@ -957,6 +965,11 @@ pub trait ProtocolModel {
     #[ensures(true)]
     fn max_tool_reprompts(&self) -> usize;
 
+    /// Start a new provider tool loop and discard any stale request-scoped replay.
+    #[requires(true)]
+    #[ensures(true)]
+    fn begin_tool_loop(&mut self) {}
+
     /// Add private harness-visible context.
     #[requires(!content.trim().is_empty())]
     #[ensures(true)]
@@ -977,10 +990,10 @@ pub trait ProtocolModel {
         accounting: &mut RunAccounting,
     ) -> Result<crate::ModelTurn, ProtocolModelError>;
 
-    /// Drain one usage record for every provider call made by the last request.
+    /// Drain one observability record for every provider call made by the last request.
     #[requires(true)]
     #[ensures(true)]
-    fn take_usage(&mut self) -> Vec<Usage> {
+    fn take_observations(&mut self) -> Vec<ProviderCallObservation> {
         Vec::new()
     }
 
@@ -1013,14 +1026,14 @@ impl<'client> OpenRouterParticipant<'client> {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
             participant.tool_choice,
-            participant.disable_reasoning,
+            participant.reasoning,
         );
         Self {
             conversation: ParticipantConversation::from_system_prompt(
                 participant.name.clone(),
                 participant.model.clone(),
                 participant.prompt_caching,
-                policy.disable_reasoning,
+                policy.reasoning,
                 participant.temperature,
                 system_prompt,
             ),
@@ -1050,6 +1063,10 @@ impl ProtocolModel for OpenRouterParticipant<'_> {
 
     fn max_tool_reprompts(&self) -> usize {
         self.client.max_required_tool_reprompts()
+    }
+
+    fn begin_tool_loop(&mut self) {
+        self.conversation.begin_tool_loop();
     }
 
     fn push_user(&mut self, content: String) {
@@ -1083,8 +1100,8 @@ impl ProtocolModel for OpenRouterParticipant<'_> {
             .map_err(|error| ProtocolModelError::new(error.to_string()))
     }
 
-    fn take_usage(&mut self) -> Vec<Usage> {
-        self.conversation.take_pending_usage()
+    fn take_observations(&mut self) -> Vec<ProviderCallObservation> {
+        self.conversation.take_pending_observations()
     }
 
     fn push_tool_result(&mut self, call: &ToolCall, content: String) {
@@ -1864,12 +1881,24 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     #[requires(participant_index < self.participants.len())]
     #[requires(!participant.trim().is_empty())]
     #[ensures(true)]
-    fn record_usage(&mut self, turn_number: usize, participant_index: usize, participant: &str) {
-        for usage in self.participants[participant_index].take_usage() {
+    fn record_provider_observations(
+        &mut self,
+        turn_number: usize,
+        participant_index: usize,
+        participant: &str,
+    ) {
+        for observation in self.participants[participant_index].take_observations() {
+            if let Some(trace) = observation.thinking {
+                self.events.push(new!(ProtocolEvent::ThinkingRecorded {
+                    turn_number,
+                    participant: participant.to_owned(),
+                    trace,
+                }));
+            }
             self.events.push(new!(ProtocolEvent::UsageRecorded {
                 turn_number,
                 participant: participant.to_owned(),
-                usage,
+                usage: observation.usage,
             }));
         }
     }
@@ -1895,6 +1924,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             })),
             self.answer_affordance(turn_number, &speaker),
         );
+        self.participants[speaker_index].begin_tool_loop();
         self.participants[speaker_index].push_user(instruction);
         let mut state = SpeakerState::awaiting_intent();
         let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Speaker {
@@ -1921,7 +1951,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             })?;
             let request =
                 self.participants[speaker_index].request(&tools, tool_choice, &mut self.accounting);
-            self.record_usage(turn_number, speaker_index, &speaker);
+            self.record_provider_observations(turn_number, speaker_index, &speaker);
             let turn = request.map_err(|error| {
                 new!(ProtocolRunError::Model {
                     participant: speaker.clone(),
@@ -2069,6 +2099,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             })),
             new!(AnswerAffordance::Unavailable),
         );
+        self.participants[listener_index].begin_tool_loop();
         self.participants[listener_index].push_user(instruction);
         let mut state = ListenerState::blind(blind);
         let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Listener {
@@ -2098,7 +2129,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 tool_choice,
                 &mut self.accounting,
             );
-            self.record_usage(turn_number, listener_index, &listener);
+            self.record_provider_observations(turn_number, listener_index, &listener);
             let turn = request.map_err(|error| {
                 new!(ProtocolRunError::Model {
                     participant: listener.clone(),
