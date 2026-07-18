@@ -7,6 +7,18 @@
   - `alice`: `example/alice` (temperature 0.25)
   - `bob`: `example/bob` (temperature 0.25)
 
+## Dialog
+
+**alice:** mi klama
+
+*(alice forfeited turn 1)*
+
+*(alice submitted an answer)*
+
+*(checker: partial)*
+
+*(run aborted: cost budget exceeded)*
+
 <details><summary>Scenario instance snapshot</summary>
 
 ```toml
@@ -203,6 +215,8 @@ Aggregate status: **partial**
 
 120 prompt + 30 completion = 150 tokens; $0.012000; 80 cached, 40 cache-write tokens
 
+Reasoning field present: true; reasoning tokens: 20
+
 ### Run aborted
 
 Cost budget $0.010000; actual cost $0.012000.
@@ -255,6 +269,7 @@ Aggregate: **partial**
   - Cache totals: 80 cached tokens; 40 cache-write tokens
   - Cache efficiency: 66.67% (80 / 120 prompt tokens)
   - Call hit rate: 100.00% (1 / 1 provider calls)
+  - Reasoning totals: 20 tokens across 1 provider calls
 - `bob`: 0 prompt + 0 completion = 0 tokens; $0.000000
   - Cache totals: 0 cached tokens; 0 cache-write tokens
   - Cache efficiency: n/a (0 / 0 prompt tokens)
@@ -263,3 +278,4 @@ Aggregate: **partial**
   - Cache totals: 80 cached tokens; 40 cache-write tokens
   - Cache efficiency: 66.67% (80 / 120 prompt tokens)
   - Call hit rate: 100.00% (1 / 1 provider calls)
+  - Reasoning totals: 20 tokens across 1 provider calls

@@ -39,12 +39,23 @@ impl MockServer {
     #[requires(!responses.is_empty())]
     #[ensures(!ret.base_url.is_empty())]
     fn start(responses: Vec<MockResponse>) -> Self {
+        Self::start_scheduled(
+            responses
+                .into_iter()
+                .map(|response| (response, Duration::ZERO))
+                .collect(),
+        )
+    }
+
+    #[requires(!responses.is_empty())]
+    #[ensures(!ret.base_url.is_empty())]
+    fn start_scheduled(responses: Vec<(MockResponse, Duration)>) -> Self {
         let expected_requests = responses.len();
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind local mock server");
         let address = listener.local_addr().expect("mock server address");
         let worker = thread::spawn(move || {
             let mut captured = Vec::with_capacity(responses.len());
-            for response in responses {
+            for (response, body_delay) in responses {
                 let (mut stream, _) = listener.accept().expect("accept mock request");
                 let body_bytes = read_request_body(&mut stream);
                 let body = serde_json::from_slice(&body_bytes).expect("JSON completion request");
@@ -53,7 +64,7 @@ impl MockServer {
                     body_bytes,
                     received_at: Instant::now(),
                 });
-                write_json_response(&mut stream, response);
+                write_json_response(&mut stream, response, body_delay);
             }
             captured
         });
@@ -115,7 +126,7 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 #[requires((100..=599).contains(&response.status))]
 #[ensures(true)]
-fn write_json_response(stream: &mut TcpStream, response: MockResponse) {
+fn write_json_response(stream: &mut TcpStream, response: MockResponse, body_delay: Duration) {
     let body = response.body.to_string();
     let reason = match response.status {
         200 => "OK",
@@ -125,14 +136,24 @@ fn write_json_response(stream: &mut TcpStream, response: MockResponse) {
     };
     write!(
         stream,
-        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         response.status,
         reason,
         body.len(),
-        body
     )
-    .expect("write mock response");
-    stream.flush().expect("flush mock response");
+    .expect("write mock response headers");
+    stream.flush().expect("flush mock response headers");
+    thread::sleep(body_delay);
+    if body_delay.is_zero() {
+        stream
+            .write_all(body.as_bytes())
+            .expect("write mock response body");
+        stream.flush().expect("flush mock response body");
+    } else {
+        // A timeout test deliberately lets the client close this socket first.
+        let _ = stream.write_all(body.as_bytes());
+        let _ = stream.flush();
+    }
 }
 
 #[requires(!name.trim().is_empty())]
@@ -222,6 +243,50 @@ fn prose_response(content: &str, cost: f64) -> MockResponse {
     }
 }
 
+#[requires(!message.trim().is_empty())]
+#[ensures(ret.status == 200)]
+fn provider_error_response(code: u16, message: &str) -> MockResponse {
+    MockResponse {
+        status: 200,
+        body: json!({
+            "error": {
+                "code": code,
+                "message": message,
+                "metadata": {
+                    "provider_name": "mock-provider"
+                }
+            }
+        }),
+    }
+}
+
+#[requires(!reasoning.trim().is_empty())]
+#[requires(reasoning_tokens <= 4)]
+#[ensures(ret.status == 200)]
+fn reasoning_only_response(reasoning: &str, reasoning_tokens: u64) -> MockResponse {
+    MockResponse {
+        status: 200,
+        body: json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "reasoning": reasoning
+                }
+            }],
+            "usage": {
+                "prompt_tokens": 3,
+                "completion_tokens": 4,
+                "total_tokens": 7,
+                "completion_tokens_details": {
+                    "reasoning_tokens": reasoning_tokens
+                },
+                "cost": 0.01
+            }
+        }),
+    }
+}
+
 #[requires(!base_url.trim().is_empty())]
 #[ensures(true)]
 fn client(
@@ -230,15 +295,28 @@ fn client(
     backoff: Duration,
     max_reprompts: usize,
 ) -> OpenRouterClient {
-    let retry_policy = RetryPolicy::new(max_retries, backoff).expect("valid retry policy");
-    let config = OpenRouterClientConfig::new(
+    client_with_timeout(
         base_url,
-        None,
-        retry_policy,
+        max_retries,
+        backoff,
         max_reprompts,
         Duration::from_secs(2),
     )
-    .expect("valid mock client config");
+}
+
+#[requires(!base_url.trim().is_empty())]
+#[requires(timeout > Duration::ZERO)]
+#[ensures(true)]
+fn client_with_timeout(
+    base_url: String,
+    max_retries: usize,
+    backoff: Duration,
+    max_reprompts: usize,
+    timeout: Duration,
+) -> OpenRouterClient {
+    let retry_policy = RetryPolicy::new(max_retries, backoff).expect("valid retry policy");
+    let config = OpenRouterClientConfig::new(base_url, None, retry_policy, max_reprompts, timeout)
+        .expect("valid mock client config");
     OpenRouterClient::new(config)
 }
 
@@ -338,6 +416,8 @@ fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     assert_eq!(usage[0].cost, 0.125);
     assert_eq!(usage[0].cached_tokens, None);
     assert_eq!(usage[0].cache_write_tokens, None);
+    assert!(!usage[0].reasoning_present);
+    assert_eq!(usage[0].reasoning_tokens, None);
     assert!(conversation.take_pending_usage().is_empty());
     let captured = server.finish();
     assert_eq!(captured[0].body["tool_choice"], "required");
@@ -377,6 +457,8 @@ fn provider_cache_usage_normalizes_and_round_trips_through_record_json() {
     assert_eq!(record_json["cached_tokens"], 8);
     assert_eq!(record_json["cache_write_tokens"], 3);
     assert!(record_json.get("prompt_tokens_details").is_none());
+    assert!(record_json.get("reasoning_present").is_none());
+    assert!(record_json.get("reasoning_tokens").is_none());
     let round_tripped: xarsnu::Usage =
         serde_json::from_value(record_json).expect("usage record deserializes");
     assert_eq!(round_tripped, usage[0]);
@@ -560,6 +642,103 @@ fn required_prose_is_correctively_reprompted_before_success() {
                 .as_str()
                 .is_some_and(|content| content.contains("must respond by calling"))
     }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reasoning_only_completion_is_correctively_reprompted_before_success() {
+    let private_reasoning = "secret chain of thought that must not enter history";
+    let server = MockServer::start(vec![
+        reasoning_only_response(private_reasoning, 4),
+        tool_call_response("alpha", 0.02),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let turn = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("reasoning-only response is correctable");
+
+    assert!(turn.tool_calls().is_some());
+    let usage = conversation.take_pending_usage();
+    assert_eq!(usage.len(), 2, "the corrective call must remain accounted");
+    assert!(usage[0].reasoning_present);
+    assert_eq!(usage[0].reasoning_tokens, Some(4));
+    assert_eq!(conversation.usage().reasoning_tokens, 4);
+    assert_eq!(conversation.usage().reasoning_calls, 1);
+
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2);
+    let messages = captured[1].body["messages"]
+        .as_array()
+        .expect("corrective request messages");
+    assert_eq!(
+        messages.len(),
+        3,
+        "empty assistant history must not be stored"
+    );
+    assert_eq!(messages[2]["role"], "user");
+    assert!(
+        messages[2]["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("no visible content or tool call"))
+    );
+    assert!(
+        !captured[1]
+            .body_bytes
+            .windows(private_reasoning.len())
+            .any(|window| window == private_reasoning.as_bytes()),
+        "private reasoning must never be replayed in model history"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reasoning_only_reprompt_exhaustion_keeps_the_existing_typed_error() {
+    let server = MockServer::start(vec![
+        reasoning_only_response("first private reasoning", 3),
+        reasoning_only_response("second private reasoning", 2),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let error = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect_err("bounded reasoning-only reprompts must exhaust");
+
+    assert_eq!(
+        error,
+        OpenRouterError::RequiredToolCallExhausted { attempts: 2 }
+    );
+    assert_eq!(conversation.take_pending_usage().len(), 2);
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2);
+    assert!(
+        captured[1].body["messages"]
+            .as_array()
+            .expect("corrective messages")
+            .iter()
+            .any(|message| {
+                message["role"] == "user"
+                    && message["content"]
+                        .as_str()
+                        .is_some_and(|content| content.contains("Private reasoning"))
+            })
+    );
 }
 
 #[test]
@@ -794,6 +973,156 @@ fn transient_500_retries_then_succeeds() {
         .expect("500 retry succeeds");
     assert!(turn.tool_calls().is_some());
     assert_eq!(server.finish().len(), 2);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn response_body_timeout_retries_then_succeeds() {
+    let body_delay = Duration::from_millis(100);
+    let backoff = Duration::from_millis(75);
+    let server = MockServer::start_scheduled(vec![
+        (tool_call_response("alpha", 0.01), body_delay),
+        (tool_call_response("alpha", 0.01), Duration::ZERO),
+    ]);
+    let client = client_with_timeout(
+        server.base_url.clone(),
+        1,
+        backoff,
+        0,
+        Duration::from_millis(50),
+    );
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let turn = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("body timeout retry succeeds");
+
+    assert!(turn.tool_calls().is_some());
+    let captured = server.finish();
+    assert_eq!(
+        captured.len(),
+        2,
+        "timeout must issue a second HTTP request"
+    );
+    assert!(
+        captured[1]
+            .received_at
+            .duration_since(captured[0].received_at)
+            >= backoff,
+        "retry must pass through the configured backoff"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn response_body_timeout_exhaustion_is_typed() {
+    let server = MockServer::start_scheduled(vec![
+        (
+            tool_call_response("alpha", 0.01),
+            Duration::from_millis(100),
+        ),
+        (
+            tool_call_response("alpha", 0.01),
+            Duration::from_millis(100),
+        ),
+    ]);
+    let client = client_with_timeout(
+        server.base_url.clone(),
+        1,
+        Duration::from_millis(75),
+        0,
+        Duration::from_millis(50),
+    );
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let error = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect_err("bounded timeout retries must exhaust");
+
+    assert!(matches!(
+        error,
+        OpenRouterError::TransportRetriesExhausted { attempts: 2, ref message }
+            if message.contains("timeout")
+    ));
+    assert_eq!(
+        server.finish().len(),
+        2,
+        "timeout exhaustion must consume exactly the initial call and one retry"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn choices_less_transient_provider_error_retries_then_succeeds() {
+    let server = MockServer::start(vec![
+        provider_error_response(503, "mock provider overloaded"),
+        tool_call_response("alpha", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 1, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let turn = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("transient provider envelope retry succeeds");
+
+    assert!(turn.tool_calls().is_some());
+    assert_eq!(
+        server.finish().len(),
+        2,
+        "provider envelope must issue exactly one bounded retry"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn choices_less_permanent_provider_error_preserves_message_without_retry() {
+    let server = MockServer::start(vec![provider_error_response(
+        400,
+        "model rejected the request payload",
+    )]);
+    let client = client(server.base_url.clone(), 3, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    let error = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ToolChoice::Required,
+            &mut accounting,
+        )
+        .expect_err("permanent provider envelope must fail fast");
+
+    assert_eq!(
+        error,
+        OpenRouterError::Provider {
+            code: 400,
+            message: "model rejected the request payload".to_owned(),
+        }
+    );
+    assert_eq!(server.finish().len(), 1, "permanent error must not retry");
 }
 
 #[test]

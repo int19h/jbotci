@@ -95,6 +95,8 @@ fn correct_answer(instance: &ScenarioInstance) -> Value {
         "referential-game-1" => json!({ "scene_index": 1 }),
         "referential-game-2" => json!({ "scene_index": 2 }),
         "referential-game-3" => json!({ "scene_index": 3 }),
+        "referential-game-abstraction-1" => json!({ "scene_index": 2 }),
+        "referential-game-abstraction-2" => json!({ "scene_index": 4 }),
         other => panic!("unknown fixture {other}"),
     }
 }
@@ -126,7 +128,19 @@ fn perturbed_answer(instance: &ScenarioInstance) -> Value {
         "referential-game-1" => json!({ "scene_index": 2 }),
         "referential-game-2" => json!({ "scene_index": 3 }),
         "referential-game-3" => json!({ "scene_index": 2 }),
+        "referential-game-abstraction-1" => json!({ "scene_index": 1 }),
+        "referential-game-abstraction-2" => json!({ "scene_index": 3 }),
         other => panic!("unknown fixture {other}"),
+    }
+}
+
+#[requires(instance.kind() == ScenarioKind::ReferentialGame)]
+#[ensures(ret == 3 || ret == 4)]
+fn referential_scene_count(instance: &ScenarioInstance) -> usize {
+    match instance.id() {
+        "referential-game-1" | "referential-game-2" | "referential-game-3" => 3,
+        "referential-game-abstraction-1" | "referential-game-abstraction-2" => 4,
+        other => panic!("unknown referential fixture {other}"),
     }
 }
 
@@ -135,7 +149,7 @@ fn perturbed_answer(instance: &ScenarioInstance) -> Value {
 #[ensures(true)]
 fn all_scenario_toml_fixtures_round_trip() {
     let instances = fixture_instances();
-    assert_eq!(instances.len(), 7);
+    assert_eq!(instances.len(), 9);
     for instance in instances {
         let encoded = instance.to_toml().expect("serialize scenario");
         let decoded = ScenarioInstance::from_toml(&encoded).expect("reparse scenario");
@@ -189,24 +203,42 @@ fn invalid_config_errors_name_the_offending_field() {
 #[requires(true)]
 #[ensures(true)]
 fn referential_no_description_guesser_stays_at_chance_rate() {
-    let instances = fixture_instances()
+    let mut instances_by_scene_count = BTreeMap::<usize, Vec<ScenarioInstance>>::new();
+    for instance in fixture_instances()
         .into_iter()
         .filter(|instance| instance.kind() == ScenarioKind::ReferentialGame)
-        .collect::<Vec<_>>();
-    assert_eq!(instances.len(), 3);
-    let chance_successes = instances.len() / 3;
-    for fixed_guess in 1..=3 {
-        let successes = instances
-            .iter()
-            .filter(|instance| {
-                let answer = typed(instance, json!({ "scene_index": fixed_guess }));
-                instance
-                    .check_answers(&all_required_answers(instance, answer))
-                    .status
-                    == TaskStatus::Success
-            })
-            .count();
-        assert!(successes <= chance_successes, "fixed guess {fixed_guess}");
+    {
+        instances_by_scene_count
+            .entry(referential_scene_count(&instance))
+            .or_default()
+            .push(instance);
+    }
+    assert_eq!(
+        instances_by_scene_count
+            .values()
+            .map(Vec::len)
+            .sum::<usize>(),
+        5
+    );
+
+    for (scene_count, instances) in instances_by_scene_count {
+        let chance_successes = instances.len().div_ceil(scene_count);
+        for fixed_guess in 1..=scene_count {
+            let successes = instances
+                .iter()
+                .filter(|instance| {
+                    let answer = typed(instance, json!({ "scene_index": fixed_guess }));
+                    instance
+                        .check_answers(&all_required_answers(instance, answer))
+                        .status
+                        == TaskStatus::Success
+                })
+                .count();
+            assert!(
+                successes <= chance_successes,
+                "fixed guess {fixed_guess} among {scene_count}-scene instances"
+            );
+        }
     }
 }
 

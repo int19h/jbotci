@@ -1,7 +1,8 @@
 //! Deterministic offline rendering of validated transcript records.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
+use std::error::Error;
+use std::fmt::{self, Write as _};
 use std::path::Path;
 
 #[allow(unused_imports)]
@@ -9,8 +10,8 @@ use bityzba::{ensures, invariant, requires};
 
 use crate::protocol::{ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData};
 use crate::{
-    DiagnosticCategory, ProtocolRunOutcome, TaskStatus, TranscriptError, TranscriptRecord,
-    TurnForfeitReason, UsageTotals, read_transcript,
+    AbortKind, DiagnosticCategory, ProtocolRunOutcome, ScenarioConfigError, ScenarioInstance,
+    TaskStatus, TranscriptError, TranscriptRecord, TurnForfeitReason, UsageTotals, read_transcript,
 };
 
 /// Read, validate, and render one transcript without consulting any external service.
@@ -19,6 +20,132 @@ use crate::{
 pub fn report_file(path: &Path) -> Result<String, TranscriptError> {
     let records = read_transcript(path)?;
     Ok(render_report(&records))
+}
+
+/// Read, validate, and render only the reshareable visible dialog.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|dialog| !dialog.is_empty()) || ret.is_err())]
+pub fn dialog_file(path: &Path) -> Result<String, DialogReportError> {
+    let records =
+        read_transcript(path).map_err(|source| DialogReportError::Transcript { source })?;
+    render_dialog_document(&records).map_err(|source| DialogReportError::Scenario { source })
+}
+
+/// A transcript could not be rendered as a standalone dialog document.
+#[invariant(::Transcript { .. } => true)]
+#[invariant(::Scenario { .. } => true)]
+#[derive(Debug)]
+pub enum DialogReportError {
+    Transcript { source: TranscriptError },
+    Scenario { source: ScenarioConfigError },
+}
+
+impl fmt::Display for DialogReportError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Transcript { source } => source.fmt(formatter),
+            Self::Scenario { source } => {
+                write!(formatter, "invalid transcript scenario snapshot: {source}")
+            }
+        }
+    }
+}
+
+impl Error for DialogReportError {
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Transcript { source } => Some(source),
+            Self::Scenario { source } => Some(source),
+        }
+    }
+}
+
+#[requires(!records.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|dialog| dialog.starts_with("# xarsnu dialog")) || ret.is_err())]
+fn render_dialog_document(records: &[TranscriptRecord]) -> Result<String, ScenarioConfigError> {
+    let header = match records[0].event.as_data() {
+        bityzba::data!(ProtocolEvent::RunStarted { header }) => header,
+        _ => unreachable!("validated transcripts begin with a run header"),
+    };
+    let scenario = ScenarioInstance::from_toml(&header.scenario_instance_toml)?;
+    let mut dialog = format!("# xarsnu dialog — {}\n\n", scenario.id());
+    write!(dialog, "*scenario {} — ", header.config.scenario)
+        .expect("writing to String cannot fail");
+    for (index, participant) in header.config.participants.iter().enumerate() {
+        if index > 0 {
+            dialog.push_str(", ");
+        }
+        write!(dialog, "{}: {}", participant.name, participant.model)
+            .expect("writing to String cannot fail");
+    }
+    dialog.push_str("*\n\n");
+    render_dialog_entries(&mut dialog, records);
+    Ok(dialog)
+}
+
+#[requires(!records.is_empty())]
+#[ensures(report.contains("## Dialog"))]
+fn render_dialog_section(report: &mut String, records: &[TranscriptRecord]) {
+    report.push_str("\n## Dialog\n\n");
+    render_dialog_entries(report, records);
+}
+
+#[requires(!records.is_empty())]
+#[ensures(report.len() >= old(report.len()))]
+fn render_dialog_entries(report: &mut String, records: &[TranscriptRecord]) {
+    let mut has_entry = false;
+    for record in records {
+        let is_entry = matches!(
+            record.event.as_data(),
+            bityzba::data!(ProtocolEvent::MessagePosted { .. })
+                | bityzba::data!(ProtocolEvent::TurnForfeited { .. })
+                | bityzba::data!(ProtocolEvent::AnswerSubmitted { .. })
+                | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
+                | bityzba::data!(ProtocolEvent::RunAborted { .. })
+        );
+        if !is_entry {
+            continue;
+        }
+        if has_entry {
+            report.push('\n');
+        }
+        match record.event.as_data() {
+            bityzba::data!(ProtocolEvent::MessagePosted {
+                speaker,
+                message,
+                ..
+            }) => {
+                writeln!(report, "**{speaker}:** {}", message.text)
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::TurnForfeited {
+                turn_number,
+                speaker,
+                ..
+            }) => {
+                writeln!(report, "*({speaker} forfeited turn {turn_number})*")
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. }) => {
+                writeln!(report, "*({participant} submitted an answer)*")
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::CheckerOutcome { outcome, .. }) => {
+                writeln!(report, "*(checker: {})*", task_status_name(outcome.status))
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::RunAborted { record }) => {
+                writeln!(report, "*(run aborted: {})*", abort_reason(record.kind))
+                    .expect("writing to String cannot fail");
+            }
+            _ => unreachable!("dialog entry kinds were filtered above"),
+        }
+        has_entry = true;
+    }
 }
 
 /// Render a human-review document from an already validated event sequence.
@@ -54,6 +181,7 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                         .entry(participant.name.clone())
                         .or_default();
                 }
+                render_dialog_section(&mut report, records);
                 report.push_str(
                     "\n<details><summary>Scenario instance snapshot</summary>\n\n```toml\n",
                 );
@@ -337,6 +465,18 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     usage.cache_write_tokens.unwrap_or(0),
                 )
                 .expect("writing to String cannot fail");
+                if usage.reasoning_present || usage.reasoning_tokens.is_some() {
+                    writeln!(
+                        report,
+                        "Reasoning field present: {}; reasoning tokens: {}\n",
+                        usage.reasoning_present,
+                        usage.reasoning_tokens.map_or_else(
+                            || "not reported".to_owned(),
+                            |tokens| tokens.to_string(),
+                        ),
+                    )
+                    .expect("writing to String cannot fail");
+                }
                 summary
                     .usage_by_participant
                     .entry(participant.clone())
@@ -540,6 +680,14 @@ fn render_cache_observability(report: &mut String, usage: &UsageTotals) {
         usage.provider_calls,
     )
     .expect("writing to String cannot fail");
+    if usage.reasoning_calls > 0 || usage.reasoning_tokens > 0 {
+        writeln!(
+            report,
+            "  - Reasoning totals: {} tokens across {} provider calls",
+            usage.reasoning_tokens, usage.reasoning_calls,
+        )
+        .expect("writing to String cannot fail");
+    }
 }
 
 #[requires(rate.is_none_or(|value| value.is_finite() && (0.0..=1.0).contains(&value)))]
@@ -585,6 +733,14 @@ const fn task_status_name(status: TaskStatus) -> &'static str {
         TaskStatus::Success => "success",
         TaskStatus::Partial => "partial",
         TaskStatus::Failure => "failure",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+const fn abort_reason(kind: AbortKind) -> &'static str {
+    match kind {
+        AbortKind::CostBudgetExceeded => "cost budget exceeded",
     }
 }
 

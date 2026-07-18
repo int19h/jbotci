@@ -6,6 +6,7 @@ as flushed JSONL:
 ```console
 xarsnu path/to/run.toml
 xarsnu report path/to/run.xarsnu.1750000000000000000.1234.0.jsonl
+xarsnu report --dialog path/to/run.xarsnu.1750000000000000000.1234.0.jsonl
 ```
 
 ## Run configuration

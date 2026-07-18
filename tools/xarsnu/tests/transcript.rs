@@ -5,7 +5,7 @@ use std::process::Command;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{read_transcript, report_file};
+use xarsnu::{dialog_file, read_transcript, report_file};
 
 const FIXTURE: &str = "tests/fixtures/transcript-all-events.jsonl";
 
@@ -61,6 +61,12 @@ fn golden_transcript_renders_every_event_kind() {
         include_str!("fixtures/transcript-all-events-report.md")
     );
     for anti_no_op in [
+        "## Dialog",
+        "**alice:** mi klama",
+        "*(alice forfeited turn 1)*",
+        "*(alice submitted an answer)*",
+        "*(checker: partial)*",
+        "*(run aborted: cost budget exceeded)*",
         "**Gate result:** rejected (morphology)",
         "Verdict: **mismatch**",
         "### Turn forfeited",
@@ -73,9 +79,102 @@ fn golden_transcript_renders_every_event_kind() {
         "80 cached, 40 cache-write tokens",
         "Cache efficiency: 66.67%",
         "Call hit rate: 100.00%",
+        "Reasoning field present: true; reasoning tokens: 20",
+        "Reasoning totals: 20 tokens across 1 provider calls",
     ] {
         assert!(report.contains(anti_no_op), "missing {anti_no_op}");
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn standalone_dialog_matches_golden_and_excludes_private_scaffolding() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let dialog = dialog_file(&root.join(FIXTURE)).expect("standalone dialog renders");
+
+    assert_eq!(
+        dialog,
+        include_str!("fixtures/transcript-all-events-dialog.md")
+    );
+    for private_scaffolding in [
+        "tersmu",
+        "Diagnostics",
+        "diagnostics",
+        "Intent",
+        "intent",
+        "(klama mi)",
+        "start_minute",
+        "Reasoning",
+        "reasoning",
+    ] {
+        assert!(
+            !dialog.contains(private_scaffolding),
+            "standalone dialog leaked {private_scaffolding}"
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn standalone_dialog_preserves_interleaved_event_order() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let records = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid fixture record"))
+        .collect::<Vec<_>>();
+    let event = |kind: &str| {
+        records
+            .iter()
+            .find(|record| record["event"]["kind"] == kind)
+            .expect("fixture contains requested event")
+            .clone()
+    };
+    let mut interleaved = vec![
+        event("run-started"),
+        event("turn-started"),
+        event("message-posted"),
+        event("answer-submitted"),
+        event("message-posted"),
+        event("turn-forfeited"),
+        event("checker-outcome"),
+        event("run-finished"),
+    ];
+    interleaved[4]["participant"] = serde_json::json!("bob");
+    interleaved[4]["event"]["speaker"] = serde_json::json!("bob");
+    interleaved[4]["event"]["message"]["text"] = serde_json::json!("do tavla");
+    interleaved[5]["participant"] = serde_json::json!("bob");
+    interleaved[5]["event"]["speaker"] = serde_json::json!("bob");
+    for (sequence_number, record) in interleaved.iter_mut().enumerate() {
+        record["sequence-number"] = serde_json::json!(sequence_number);
+    }
+    let path = temp_path("interleaved-dialog-order");
+    let source = interleaved
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("record serializes"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    fs::write(&path, source).expect("write interleaved transcript");
+
+    let dialog = dialog_file(&path).expect("interleaved dialog renders");
+    let expected_entries = [
+        "**alice:** mi klama",
+        "*(alice submitted an answer)*",
+        "**bob:** do tavla",
+        "*(bob forfeited turn 1)*",
+        "*(checker: partial)*",
+    ];
+    let mut previous = 0;
+    for entry in expected_entries {
+        let position = dialog.find(entry).expect("dialog contains expected entry");
+        assert!(position >= previous, "{entry} rendered out of event order");
+        previous = position;
+    }
+
+    fs::remove_file(path).expect("remove temporary transcript");
 }
 
 #[test]
@@ -164,6 +263,23 @@ fn report_subcommand_is_offline_and_matches_the_library() {
     assert_eq!(
         String::from_utf8(output.stdout).expect("report is UTF-8"),
         include_str!("fixtures/transcript-all-events-report.md")
+    );
+
+    let dialog_output = Command::new(env!("CARGO_BIN_EXE_xarsnu"))
+        .arg("report")
+        .arg("--dialog")
+        .arg(root.join(FIXTURE))
+        .env_remove("OPENROUTER_API_KEY")
+        .output()
+        .expect("run dialog report command");
+    assert!(
+        dialog_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&dialog_output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(dialog_output.stdout).expect("dialog is UTF-8"),
+        include_str!("fixtures/transcript-all-events-dialog.md")
     );
 }
 
