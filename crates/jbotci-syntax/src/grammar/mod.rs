@@ -2322,13 +2322,23 @@ pub(crate) fn expected_continuations(
     if time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
         return Vec::new();
     }
-    let mut tokens = syntax_tokens(words, options);
-    let cut_byte = tokens
+    let cut_byte = words
         .last()
-        .and_then(tokens::word_byte_range)
+        .and_then(WordLike::byte_range)
         .map_or(0, |range| range.end);
-    tokens.push(expected_continuation_sentinel(cut_byte));
+    let mut bare_tokens = words.iter().cloned().map(Token::bare).collect::<Vec<_>>();
+    bare_tokens.push(expected_continuation_sentinel(cut_byte));
+    // The sentinel stands for the word that would follow this prefix, so it
+    // must participate in the same modifier preparation as a real word.
+    // In particular, trailing BAhE decorates the sentinel without changing
+    // which grammar terminals are tested at the cut.
+    let mut tokens = prepare_syntax_tokens(bare_tokens, options);
     let sentinel_index = tokens.len() - 1;
+    // BAhE has now been consumed as the sentinel's prefix. Its source span
+    // must not widen the synthetic zero-width parser token back over the
+    // modifier, and CLL 19.11 guarantees that BAhE does not change its target
+    // word's grammar, so the parser-facing sentinel can remain bare.
+    tokens[sentinel_index] = Token::bare(tokens[sentinel_index].core_word().clone());
 
     let tracked_attempt =
         generated::generated_model::parse_text_detailed_tracked_attempt_for_expected_continuations(
@@ -3728,8 +3738,14 @@ fn generated_warning_anchor_index(tokens: &[Token], anchor: &Token) -> usize {
 #[requires(true)]
 #[ensures(true)]
 fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
+    prepare_syntax_tokens(words.iter().cloned().map(Token::bare).collect(), options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepare_syntax_tokens(tokens: Vec<Token>, options: &ParseOptions) -> Vec<Token> {
     attach_indicators(
-        attach_bahe(words.iter().cloned().map(Token::bare).collect()),
+        attach_bahe(tokens),
         options
             .dialect
             .features
