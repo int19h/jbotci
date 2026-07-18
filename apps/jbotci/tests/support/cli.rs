@@ -3405,9 +3405,34 @@ fn gimfihi_outputs_table_for_canonical_command() {
 
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(run.stdout.contains("sources: cmn:uan → uan"));
+    assert!(run.stdout.contains("sources: eng:ekspekt → ekspekt"));
     assert!(run.stdout.contains("winner:"));
     assert!(run.stdout.contains("mark  gismu  score"));
     assert!(run.stdout.contains("*"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gimfihi_table_shows_bracketed_ipa_and_its_resolved_source() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "gimfihi",
+            "--source",
+            "eng:100:[kæt]",
+            "--check-collisions",
+            "none",
+            "--count",
+            "1",
+        ],
+        false,
+    );
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(run.stdout.contains("sources: eng:[kæt] → kat"));
 }
 
 #[test]
