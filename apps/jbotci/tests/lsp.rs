@@ -184,6 +184,17 @@ impl LspClient {
 #[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
 #[ensures(true)]
 fn initialize(client: &mut LspClient, position_encoding: &str, pull_diagnostics: bool) -> Value {
+    initialize_with_options(client, position_encoding, pull_diagnostics, None)
+}
+
+#[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
+#[ensures(true)]
+fn initialize_with_options(
+    client: &mut LspClient,
+    position_encoding: &str,
+    pull_diagnostics: bool,
+    initialization_options: Option<Value>,
+) -> Value {
     let text_document = if pull_diagnostics {
         json!({
             "diagnostic": {
@@ -201,18 +212,19 @@ fn initialize(client: &mut LspClient, position_encoding: &str, pull_diagnostics:
             }
         })
     };
-    let result = client.request(
-        "initialize",
-        json!({
-            "processId": null,
-            "capabilities": {
-                "general": {
-                    "positionEncodings": [position_encoding]
-                },
-                "textDocument": text_document
-            }
-        }),
-    );
+    let mut params = json!({
+        "processId": null,
+        "capabilities": {
+            "general": {
+                "positionEncodings": [position_encoding]
+            },
+            "textDocument": text_document
+        }
+    });
+    if let Some(initialization_options) = initialization_options {
+        params["initializationOptions"] = initialization_options;
+    }
+    let result = client.request("initialize", params);
     assert_eq!(
         result["capabilities"]["positionEncoding"],
         position_encoding
@@ -266,6 +278,10 @@ fn initialize(client: &mut LspClient, position_encoding: &str, pull_diagnostics:
         result["capabilities"]["semanticTokensProvider"]
             .get("range")
             .is_none()
+    );
+    assert_eq!(
+        result["capabilities"]["inlayHintProvider"]["resolveProvider"],
+        false,
     );
     client.notify("initialized", json!({}));
     result
@@ -343,6 +359,18 @@ fn semantic_tokens(client: &mut LspClient, uri: &str) -> Value {
     client.request(
         "textDocument/semanticTokens/full",
         json!({ "textDocument": { "uri": uri } }),
+    )
+}
+
+#[requires(!uri.is_empty())]
+#[ensures(ret.is_null() || ret.is_array())]
+fn inlay_hints(client: &mut LspClient, uri: &str, start: Value, end: Value) -> Value {
+    client.request(
+        "textDocument/inlayHint",
+        json!({
+            "textDocument": { "uri": uri },
+            "range": { "start": start, "end": end }
+        }),
     )
 }
 
@@ -766,6 +794,138 @@ fn semantic_tokens_full_uses_utf8_units_and_morphology_boundaries() {
 #[ensures(true)]
 fn semantic_tokens_full_uses_utf16_units_and_morphology_boundaries() {
     assert_semantic_token_encoding("utf-16", 4, 28, 31);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn structure_inlays_are_range_scoped_on_a_recovered_document() {
+    const URI: &str = "file:///structure-recovered.jbo";
+    const TEXT: &str = "mi ku i do viska le mlatu\n";
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, URI, 1, TEXT);
+
+    let full = inlay_hints(
+        &mut client,
+        URI,
+        json!({"line": 0, "character": 0}),
+        json!({"line": 1, "character": 0}),
+    );
+    let subset = inlay_hints(
+        &mut client,
+        URI,
+        json!({"line": 0, "character": 6}),
+        json!({"line": 0, "character": 25}),
+    );
+    let full = full.as_array().expect("full inlay array");
+    let subset = subset.as_array().expect("subset inlay array");
+    assert!(subset.len() < full.len());
+    assert_eq!(
+        subset
+            .iter()
+            .map(|inlay| inlay["position"]["character"].as_u64())
+            .collect::<Vec<_>>(),
+        vec![Some(6), Some(8), Some(11), Some(17)],
+    );
+    assert!(subset.iter().all(|inlay| {
+        inlay["position"]["line"] == 0
+            && inlay["position"]["character"]
+                .as_u64()
+                .is_some_and(|character| (6..25).contains(&character))
+            && inlay["label"]
+                .as_str()
+                .is_some_and(|label| !label.is_empty())
+            && inlay.get("kind").is_none()
+            && inlay.get("textEdits").is_none()
+    }));
+    assert!(
+        subset.iter().any(|inlay| inlay["position"]["character"]
+            .as_u64()
+            .is_some_and(|character| character > "mi ku".len() as u64)),
+        "structure hints must continue after the recovered error",
+    );
+    client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn structure_inlay_initialization_options_select_construct_profile() {
+    const URI: &str = "file:///structure-profile.jbo";
+    const TEXT: &str = "mi viska le mlatu\n";
+
+    let mut client = LspClient::spawn();
+    initialize_with_options(
+        &mut client,
+        "utf-16",
+        true,
+        Some(json!({
+            "structureInlays": {
+                "profile": "raw-brackets",
+                "constructs": "sumti-boundaries"
+            }
+        })),
+    );
+    open_document_text(&mut client, URI, 1, TEXT);
+    let hints = inlay_hints(
+        &mut client,
+        URI,
+        json!({"line": 0, "character": 0}),
+        json!({"line": 1, "character": 0}),
+    );
+    let hints = hints.as_array().expect("profile inlay array");
+    assert_eq!(hints.len(), 2, "only the multiword sumti boundary remains");
+    assert_eq!(hints[0]["position"], json!({"line": 0, "character": 9}));
+    assert_eq!(hints[1]["position"], json!({"line": 0, "character": 17}));
+    client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn structure_inlay_positions_round_trip_on_a_multibyte_line() {
+    const URI: &str = "file:///structure-encoding.jbo";
+    const TEXT: &str = "mí klama le zarci\n";
+
+    let hints_for_encoding = |encoding: &str| {
+        let mut client = LspClient::spawn();
+        initialize(&mut client, encoding, true);
+        open_document_text(&mut client, URI, 1, TEXT);
+        let hints = inlay_hints(
+            &mut client,
+            URI,
+            json!({"line": 0, "character": 0}),
+            json!({"line": 1, "character": 0}),
+        );
+        client.shutdown();
+        hints
+    };
+    let utf8 = hints_for_encoding("utf-8");
+    let utf16 = hints_for_encoding("utf-16");
+    let utf8 = utf8.as_array().expect("UTF-8 inlay array");
+    let utf16 = utf16.as_array().expect("UTF-16 inlay array");
+    assert_eq!(utf8.len(), utf16.len());
+    assert!(!utf8.is_empty());
+
+    let mut observed_distinct_column = false;
+    for (utf8_hint, utf16_hint) in utf8.iter().zip(utf16) {
+        assert_eq!(utf8_hint["label"], utf16_hint["label"]);
+        let byte_column = utf8_hint["position"]["character"]
+            .as_u64()
+            .expect("UTF-8 byte column") as usize;
+        let utf16_column = utf16_hint["position"]["character"]
+            .as_u64()
+            .expect("UTF-16 column") as usize;
+        assert!(TEXT.is_char_boundary(byte_column));
+        assert_eq!(utf16_column, TEXT[..byte_column].encode_utf16().count());
+        observed_distinct_column |= byte_column != utf16_column;
+    }
+    assert!(
+        observed_distinct_column,
+        "the multibyte prefix must distinguish UTF-8 and UTF-16 columns",
+    );
 }
 
 #[test]

@@ -14,7 +14,8 @@ use jbotci_syntax::{
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{
-    BracketRenderOptions, BracketSourceFragment, BracketSourceRange, OutputError, sexpr, surface,
+    BracketRenderOptions, BracketSourceConstruct, BracketSourceFragment, BracketSourceRange,
+    OutputError, sexpr, surface,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -114,14 +115,15 @@ fn generated_model_bracket_sexpr(
     visitor.finish()
 }
 
-#[derive(Debug)]
 #[invariant(true)]
+#[derive(Debug)]
 struct GeneratedBracketFrame {
     children: Vec<sexpr::SExpr>,
+    constructs: Vec<BracketSourceConstruct>,
 }
 
-#[derive(Debug)]
 #[invariant(true)]
+#[derive(Debug)]
 struct GeneratedBracketVisitor<'source> {
     source: &'source BracketContext,
     stack: Vec<GeneratedBracketFrame>,
@@ -148,9 +150,10 @@ impl<'source> GeneratedBracketVisitor<'source> {
 
     #[requires(true)]
     #[ensures(matches!(self.stack.last(), Some(frame) if frame.children.is_empty()))]
-    fn push_frame(&mut self) {
+    fn push_frame(&mut self, constructs: Vec<BracketSourceConstruct>) {
         self.stack.push(GeneratedBracketFrame {
             children: Vec::new(),
+            constructs,
         });
     }
 
@@ -161,7 +164,10 @@ impl<'source> GeneratedBracketVisitor<'source> {
             .stack
             .pop()
             .expect("generated syntax bracket walker popped an entered frame");
-        self.push_expr(sexpr::node(frame.children));
+        self.push_expr(sexpr::node_with_constructs(
+            frame.children,
+            frame.constructs,
+        ));
     }
 
     #[requires(true)]
@@ -181,8 +187,12 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn enter_node(&mut self, _node: Self::Node) {
-        self.push_frame();
+    fn enter_node(&mut self, node: Self::Node) {
+        self.push_frame(
+            bracket_source_construct(node.constructor_name())
+                .into_iter()
+                .collect(),
+        );
     }
 
     #[requires(true)]
@@ -194,7 +204,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_field(&mut self, _field: FieldRef) {
-        self.push_frame();
+        self.push_frame(Vec::new());
     }
 
     #[requires(true)]
@@ -206,7 +216,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn enter_sequence(&mut self) {
-        self.push_frame();
+        self.push_frame(Vec::new());
     }
 
     #[requires(true)]
@@ -238,6 +248,20 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
         match atom {
             GeneratedSyntaxAtomRef::Token(token) => self.push_expr(word(token, self.source)),
         }
+    }
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(true)]
+pub(crate) fn bracket_source_construct(constructor: &str) -> Option<BracketSourceConstruct> {
+    let constructor = constructor.strip_suffix("Syntax").unwrap_or(constructor);
+    let label = jbotci_syntax::generated_model::GENERATED_MODEL_CONSTRUCTOR_LABELS
+        .iter()
+        .find_map(|(candidate, label)| (*candidate == constructor).then_some(*label))?;
+    match label {
+        "sumti" => Some(BracketSourceConstruct::Sumti),
+        "bridi tail" => Some(BracketSourceConstruct::BridiTail),
+        _ => None,
     }
 }
 

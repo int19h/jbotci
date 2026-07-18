@@ -70,11 +70,11 @@ pub struct BracketSourceRange {
     pub byte_end: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case", tag = "kind")]
 #[invariant(true)]
 #[invariant(::Text { .. } => true)]
 #[invariant(::Span { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", tag = "kind")]
 pub enum BracketSourceFragment {
     Text {
         text: String,
@@ -83,8 +83,23 @@ pub enum BracketSourceFragment {
     },
     Span {
         range: Option<BracketSourceRange>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        constructs: Vec<BracketSourceConstruct>,
         children: Vec<BracketSourceFragment>,
     },
+}
+
+/// Grammar constructs whose boundaries survive bracket-tree flattening.
+///
+/// This metadata is deliberately independent of any decoration glyphs. Editor
+/// integrations can filter the tree-anchored fragment hierarchy and let a
+/// decoration profile decide what, if anything, to draw at each boundary.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BracketSourceConstruct {
+    Sumti,
+    BridiTail,
 }
 
 #[invariant(true)]

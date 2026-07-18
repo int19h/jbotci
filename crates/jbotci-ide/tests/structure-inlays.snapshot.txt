@@ -1,0 +1,64 @@
+fixture nested-quotes
+source "mi cusku lu do cusku lu mi klama li'u li'u\n"
+parse valid
+profile full
+  0:0 byte=0 Open "("
+  0:3 byte=3 Open "["
+  0:9 byte=9 Open "{"
+  0:12 byte=12 Open "("
+  0:15 byte=15 Open "["
+  0:21 byte=21 Open "{"
+  0:24 byte=24 Open "("
+  0:32 byte=32 Close ")"
+  0:37 byte=37 Close "}"
+  0:37 byte=37 Close "]"
+  0:37 byte=37 Close ")"
+  0:42 byte=42 Close "}"
+  0:42 byte=42 Close "]"
+  0:42 byte=42 Close ")"
+profile depth-2
+  0:0 byte=0 Open "("
+  0:3 byte=3 Open "["
+  0:42 byte=42 Close "]"
+  0:42 byte=42 Close ")"
+profile sumti-boundaries
+  0:9 byte=9 Open "{"
+  0:21 byte=21 Open "{"
+  0:37 byte=37 Close "}"
+  0:42 byte=42 Close "}"
+profile bridi-tails
+  0:3 byte=3 Open "["
+  0:15 byte=15 Open "["
+  0:37 byte=37 Close "]"
+  0:42 byte=42 Close "]"
+
+fixture recovered-mid-document
+source "mi ku i do viska le mlatu\n"
+parse recovered
+profile full
+  0:0 byte=0 Open "("
+  0:0 byte=0 Open "["
+  0:5 byte=5 Close "]"
+  0:6 byte=6 Open "["
+  0:8 byte=8 Open "{"
+  0:11 byte=11 Open "("
+  0:17 byte=17 Open "["
+  0:25 byte=25 Close "]"
+  0:25 byte=25 Close ")"
+  0:25 byte=25 Close "}"
+  0:25 byte=25 Close "]"
+  0:25 byte=25 Close ")"
+profile depth-2
+  0:0 byte=0 Open "("
+  0:0 byte=0 Open "["
+  0:5 byte=5 Close "]"
+  0:6 byte=6 Open "["
+  0:25 byte=25 Close "]"
+  0:25 byte=25 Close ")"
+profile sumti-boundaries
+  0:17 byte=17 Open "["
+  0:25 byte=25 Close "]"
+profile bridi-tails
+  0:11 byte=11 Open "("
+  0:25 byte=25 Close ")"
+

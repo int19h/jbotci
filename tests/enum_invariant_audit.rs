@@ -804,6 +804,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Letters tags a static Lojban-letter string in the IPA segment table; the table is valid by construction",
     ),
     (
+        "crates/jbotci-ide/src/snapshot/structure_inlays.rs:DecorationProfile::RawBrackets",
+        "raw-brackets profile validity is delegated to typed options where every depth and construct-filter combination is valid",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildCompound",
         "jvozba error variant carries no payload beyond the discriminant",
     ),

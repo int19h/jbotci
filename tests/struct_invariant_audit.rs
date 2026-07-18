@@ -76,6 +76,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
     ),
     (
+        "apps/jbotci/src/lsp.rs:ServerInitializationOptions",
+        "LSP initialization options contain one independently validated decoration profile and every profile configuration is accepted",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:ServerState",
         "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
     ),
@@ -704,6 +708,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private TreeVisitor adapter whose state validity is delegated to TreeContextCollector traversal contracts",
     ),
     (
+        "crates/jbotci-ide/src/snapshot/structure_inlays.rs:RawBracketsOptions",
+        "raw-brackets depth and construct-filter settings are independent and every typed combination is valid",
+    ),
+    (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",
         "segmenter is mutable parser state whose invariants are algorithm-local",
     ),
@@ -822,6 +830,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/recovered.rs:RecoveredBracketBuilder",
         "mutable visitor state is governed by enter and exit method contracts during traversal",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredBracketFrame",
+        "private mutable traversal frame accumulates children until pop while enter and exit methods govern its lifecycle",
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
