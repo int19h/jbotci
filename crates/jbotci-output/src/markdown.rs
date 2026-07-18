@@ -5,6 +5,7 @@ use bityzba::{ensures, requires};
 use jbotci_diagnostics::{DiagnosticTextLink, DiagnosticTextRole, DiagnosticTextSegment};
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, VlackuCompositionPiece};
 
+use crate::unicode_math;
 use crate::{DefinitionPlaceMap, GlyphStyle, indexed_place_spans_for_definition_line};
 
 /// Canonical public jbotci base used for links in transport-neutral Markdown.
@@ -193,7 +194,7 @@ fn render_vlacku_detail_markdown(
         for span in spans {
             let span = span.into_data();
             if let Some(place) = span.place {
-                output.push_str(&inline_code(&format!("x{place}")));
+                output.push_str(&mathematical_place_variable(place));
             } else {
                 push_vlacku_text_with_links(&mut output, &span.text, link_base);
             }
@@ -202,9 +203,42 @@ fn render_vlacku_detail_markdown(
     output
 }
 
+#[requires(place > 0)]
+#[ensures(ret.starts_with('𝑥'))]
+fn mathematical_place_variable(place: usize) -> String {
+    format!("𝑥{}", GlyphStyle::Unicode.numeric_suffix(place))
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn push_vlacku_text_with_links(output: &mut String, input: &str, link_base: &str) {
+    let mut remaining = input;
+    while !remaining.is_empty() {
+        let Some(open_index) = remaining.find('$') else {
+            push_vlacku_text_links_only(output, remaining, link_base);
+            break;
+        };
+        let after_open = &remaining[open_index + 1..];
+        let Some(close_index) = after_open.find('$') else {
+            push_vlacku_text_links_only(output, remaining, link_base);
+            break;
+        };
+        push_vlacku_text_links_only(output, &remaining[..open_index], link_base);
+        let source = &after_open[..close_index];
+        if let Some(rendered) = unicode_math::render(source) {
+            output.push_str(&rendered);
+        } else if source.is_empty() {
+            output.push_str(&inline_code("$$"));
+        } else {
+            output.push_str(&inline_code(source));
+        }
+        remaining = &after_open[close_index + 1..];
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_vlacku_text_links_only(output: &mut String, input: &str, link_base: &str) {
     let mut remaining = input;
     while !remaining.is_empty() {
         let Some(open_index) = remaining.find('{') else {
@@ -432,8 +466,8 @@ mod tests {
             markdown,
             concat!(
                 "### `klama` — *gismu*\n\n",
-                "`x1` comes/goes to destination `x2` from origin `x3` via route `x4` ",
-                "using means/vehicle `x5`.\n\n",
+                "𝑥₁ comes/goes to destination 𝑥₂ from origin 𝑥₃ via route 𝑥₄ ",
+                "using means/vehicle 𝑥₅.\n\n",
                 "**Glosses:** `come`\n\n",
                 "**Rafsi:** `kla`",
             ),
@@ -456,10 +490,53 @@ mod tests {
         let markdown = render_vlacku_card_markdown(card);
 
         assert!(
-            markdown.contains("`x1` is a great sword for use against `x2` by `x3`."),
+            markdown.contains("𝑥₁ is a great sword for use against 𝑥₂ by 𝑥₃."),
             "{markdown}"
         );
-        assert!(!markdown.contains("`x4`"), "{markdown}");
-        assert!(!markdown.contains("`x5`"), "{markdown}");
+        assert!(!markdown.contains("𝑥₄"), "{markdown}");
+        assert!(!markdown.contains("𝑥₅"), "{markdown}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_card_markdown_renders_avgadro_unicode_math() {
+        let output = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("avgadro".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+        let card = output.cards.first().expect("avgadro has a dictionary card");
+        let markdown = render_vlacku_card_markdown(card);
+
+        assert_eq!(
+            markdown,
+            concat!(
+                "### `avgadro` — *fu'ivla*\n\n",
+                "𝑥₁ is Avogadro constant `N_{A}` \\[approximately equal to: ",
+                "6.02214129(27)×10²³ mol⁻¹\\], expressed in units 𝑥₂ in ",
+                "paradigm/system/metaphysics/universe 𝑥₃ (default: this, our actual, ",
+                "physical universe).\n\n",
+                "**Glosses:** ",
+                "`6.02214129(27)×10^23 mol^(−1) (approximately Avogadro constant N_A)`, ",
+                "`Avogadro constant (N_A; approximately 6.02214129(27)×10^23 mol^(−1))`, ",
+                "`Avogadro's number (Avogadro constant N_A; approximately ",
+                "6.02214129(27)×10^23 mol^(−1))`, ",
+                "`N_A (Avogadro constant; approximately 6.02214129(27)×10^23 mol^(−1))`",
+            )
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_card_markdown_preserves_unmappable_latex_in_code() {
+        let definition = r"before $\sqrt{x}$ and $N_{A}$ after";
+        let place_map = DefinitionPlaceMap::from_definition(definition);
+
+        assert_eq!(
+            render_vlacku_detail_markdown(definition, &place_map, DEFAULT_MARKDOWN_LINK_BASE),
+            r"before `\sqrt{x}` and `N_{A}` after",
+        );
     }
 }

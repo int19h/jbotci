@@ -1220,6 +1220,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn completion_documentation_snapshots_unicode_place_variables() {
+        let handle = CompletionDocumentationHandle::new("klama".to_owned());
+
+        assert_eq!(
+            completion_documentation_markdown(&handle),
+            concat!(
+                "### `klama` — *gismu*\n\n",
+                "𝑥₁ comes/goes to destination 𝑥₂ from origin 𝑥₃ via route 𝑥₄ ",
+                "using means/vehicle 𝑥₅.\n\n",
+                "**Glosses:** `come`\n\n",
+                "**Rafsi:** `kla`",
+            ),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn absent_or_position_invalid_current_word_is_not_preselected() {
         let items = completions_at_marker("la .alis. cu klama .i mi klama le |alis");
         assert_eq!(preselected_count(&items), 0);

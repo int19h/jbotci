@@ -12,6 +12,7 @@ mod sexpr;
 mod surface;
 mod trace;
 mod tree;
+mod unicode_math;
 
 #[allow(unused_imports)]
 use bityzba::expensive_ensures;
