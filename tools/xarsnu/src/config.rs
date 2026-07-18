@@ -49,13 +49,16 @@ pub enum PromptCaching {
 }
 
 /// How the provider should enforce selection from the offered tool set.
+#[invariant(::Metadata => true)]
 #[invariant(::Required => true)]
 #[invariant(::Auto => true)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolChoice {
-    /// Require a tool call structurally at the provider boundary.
+    /// Select required calls or bounded railroading from vendored model metadata.
     #[default]
+    Metadata,
+    /// Require a tool call structurally at the provider boundary.
     Required,
     /// Allow prose so thinking-mode providers can be corrected by the protocol.
     Auto,
@@ -75,6 +78,9 @@ pub struct ParticipantConfig {
     pub prompt_caching: PromptCaching,
     #[serde(default)]
     pub tool_choice: ToolChoice,
+    /// Explicit reasoning override; absent values follow model capability metadata.
+    #[serde(default)]
+    pub disable_reasoning: Option<bool>,
     pub temperature: f64,
     pub system_prompt: String,
 }
@@ -224,7 +230,13 @@ system-prompt = "Speak only Lojban."
             config
                 .participants
                 .iter()
-                .all(|participant| participant.tool_choice == ToolChoice::Required)
+                .all(|participant| participant.tool_choice == ToolChoice::Metadata)
+        );
+        assert!(
+            config
+                .participants
+                .iter()
+                .all(|participant| participant.disable_reasoning.is_none())
         );
     }
 
@@ -251,7 +263,20 @@ system-prompt = "Speak only Lojban."
         );
         let config = RunConfig::from_toml(&source).expect("valid config");
         assert_eq!(config.participants[0].tool_choice, ToolChoice::Auto);
-        assert_eq!(config.participants[1].tool_choice, ToolChoice::Required);
+        assert_eq!(config.participants[1].tool_choice, ToolChoice::Metadata);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn participant_can_override_reasoning_metadata() {
+        let source = VALID_CONFIG.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\ndisable-reasoning = true",
+        );
+        let config = RunConfig::from_toml(&source).expect("valid config");
+        assert_eq!(config.participants[0].disable_reasoning, Some(true));
+        assert_eq!(config.participants[1].disable_reasoning, None);
     }
 
     #[test]

@@ -8,12 +8,14 @@ use std::rc::Rc;
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use serde_json::{Value, json};
 use xarsnu::openrouter::ModelTurnData;
-use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData};
+use xarsnu::protocol::{
+    ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
+};
 use xarsnu::{
     CapsConfig, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError,
-    ProtocolRunner, ProtocolTool, ReferenceToolDispatcher, RunAccounting, RunConfig, RunHeader,
-    ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
-    ToolDispatchError, ToolDispatcher, read_transcript,
+    ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher, RunAccounting,
+    RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice,
+    ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -81,13 +83,15 @@ impl ToolDispatcher for CountingDispatcher {
 #[derive(Debug)]
 struct ScriptedModel {
     name: String,
-    tool_choice: ToolChoice,
+    tool_choice: ProviderToolChoice,
+    supports_prefill: bool,
     max_tool_reprompts: usize,
     prose_responses: VecDeque<String>,
     steps: VecDeque<ScriptStep>,
     user_messages: Vec<String>,
     request_user_messages: Vec<Vec<String>>,
-    request_tool_choices: Vec<ToolChoice>,
+    request_tool_choices: Vec<ProviderToolChoice>,
+    assistant_prefills: Vec<String>,
     tool_results: Vec<RecordedToolResult>,
     calls_made: usize,
 }
@@ -98,13 +102,15 @@ impl ScriptedModel {
     fn new(name: &str, steps: Vec<ScriptStep>) -> Self {
         Self {
             name: name.to_owned(),
-            tool_choice: ToolChoice::Required,
+            tool_choice: ProviderToolChoice::Required,
+            supports_prefill: false,
             max_tool_reprompts: 0,
             prose_responses: VecDeque::new(),
             steps: steps.into(),
             user_messages: Vec::new(),
             request_user_messages: Vec::new(),
             request_tool_choices: Vec::new(),
+            assistant_prefills: Vec::new(),
             tool_results: Vec::new(),
             calls_made: 0,
         }
@@ -121,13 +127,15 @@ impl ScriptedModel {
     ) -> Self {
         Self {
             name: name.to_owned(),
-            tool_choice: ToolChoice::Auto,
+            tool_choice: ProviderToolChoice::Auto,
+            supports_prefill: false,
             max_tool_reprompts,
             prose_responses: prose_responses.into(),
             steps: steps.into(),
             user_messages: Vec::new(),
             request_user_messages: Vec::new(),
             request_tool_choices: Vec::new(),
+            assistant_prefills: Vec::new(),
             tool_results: Vec::new(),
             calls_made: 0,
         }
@@ -138,6 +146,13 @@ impl ScriptedModel {
     fn is_complete(&self) -> bool {
         self.steps.is_empty() && self.prose_responses.is_empty()
     }
+
+    #[requires(true)]
+    #[ensures(ret.supports_prefill)]
+    fn with_prefill(mut self) -> Self {
+        self.supports_prefill = true;
+        self
+    }
 }
 
 #[contract_trait]
@@ -146,7 +161,7 @@ impl ProtocolModel for ScriptedModel {
         &self.name
     }
 
-    fn tool_choice(&self) -> ToolChoice {
+    fn tool_choice(&self) -> ProviderToolChoice {
         self.tool_choice
     }
 
@@ -158,10 +173,28 @@ impl ProtocolModel for ScriptedModel {
         self.user_messages.push(content);
     }
 
+    fn push_tool_correction(&mut self, tools: &[ToolDefinition]) {
+        if self.supports_prefill {
+            let names = tools
+                .iter()
+                .map(ToolDefinition::name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.assistant_prefills.push(format!(
+                "Actually, I must use one of the following tools: {names}."
+            ));
+        } else {
+            self.user_messages.push(
+                "You must respond by calling one of the provided tools. Do not answer with prose."
+                    .to_owned(),
+            );
+        }
+    }
+
     fn request(
         &mut self,
         tools: &[ToolDefinition],
-        tool_choice: ToolChoice,
+        tool_choice: ProviderToolChoice,
         _accounting: &mut RunAccounting,
     ) -> Result<ModelTurn, ProtocolModelError> {
         assert_eq!(tool_choice, self.tool_choice);
@@ -658,7 +691,7 @@ fn happy_path_posts_then_completes_two_blind_listener_flows() {
         participant
             .request_tool_choices
             .iter()
-            .all(|choice| *choice == ToolChoice::Required)
+            .all(|choice| *choice == ProviderToolChoice::Required)
     }));
     assert!(runner.participants().iter().all(|participant| {
         participant
@@ -735,7 +768,8 @@ fn automatic_tool_choice_rejects_prose_then_recovers_within_the_existing_cap() {
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
         ],
-    );
+    )
+    .with_prefill();
     let listener = ScriptedModel::new(
         "bob",
         vec![
@@ -776,29 +810,20 @@ fn automatic_tool_choice_rejects_prose_then_recovers_within_the_existing_cap() {
         alice
             .request_tool_choices
             .iter()
-            .all(|choice| *choice == ToolChoice::Auto)
-    );
-    let correction =
-        "You must respond by calling one of the provided tools. Do not answer with prose.";
-    assert_eq!(
-        alice.request_user_messages[1]
-            .iter()
-            .filter(|message| message.as_str() == correction)
-            .count(),
-        1
+            .all(|choice| *choice == ProviderToolChoice::Auto)
     );
     assert_eq!(
-        alice.request_user_messages[2]
-            .iter()
-            .filter(|message| message.as_str() == correction)
-            .count(),
-        2
+        alice.assistant_prefills,
+        [
+            "Actually, I must use one of the following tools: register_intent, vlacku, gentufa, tersmu, jvozba, cukta.",
+            "Actually, I must use one of the following tools: register_intent, vlacku, gentufa, tersmu, jvozba, cukta.",
+        ]
     );
     assert!(
         runner.participants()[1]
             .request_tool_choices
             .iter()
-            .all(|choice| *choice == ToolChoice::Required)
+            .all(|choice| *choice == ProviderToolChoice::Required)
     );
 }
 
@@ -866,6 +891,97 @@ fn automatic_listener_rejects_prose_then_completes_the_blind_flow() {
         })
         .collect::<Vec<_>>();
     assert_eq!(prose_rejections, [("bob", 1, 3), ("bob", 2, 3)]);
+    let bob = &runner.participants()[1];
+    let correction =
+        "You must respond by calling one of the provided tools. Do not answer with prose.";
+    assert!(bob.assistant_prefills.is_empty());
+    assert_eq!(
+        bob.user_messages
+            .iter()
+            .filter(|message| message.as_str() == correction)
+            .count(),
+        2
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn automatic_listener_exhaustion_abandons_only_that_listener_flow() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+        ],
+    );
+    let abandoned = ScriptedModel::auto(
+        "bob",
+        1,
+        vec!["first prose".to_owned(), "second prose".to_owned()],
+        Vec::new(),
+    );
+    let continuing = ScriptedModel::new(
+        "carol",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes." }),
+            ),
+        ],
+    );
+    let mut runner =
+        runner(vec![speaker, abandoned, continuing], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("bounded listener abandonment run");
+
+    assert_eq!(runner.visible_chat().len(), 1);
+    assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::ListenerFlowAbandoned {
+            listener,
+            reason,
+            ..
+        }) if listener == "bob" && matches!(
+            reason.as_data(),
+            bityzba::data!(ListenerFlowAbandonReason::ProtocolProseResponses {
+                maximum_attempts: 2,
+            })
+        )
+    )));
+    assert!(!runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::TurnForfeited { .. })
+    )));
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::Acknowledged { listener, .. }) if listener == "carol"
+    )));
+    assert!(!runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { listener, .. })
+            if listener == "bob"
+    )));
 }
 
 #[test]
@@ -1553,6 +1669,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                     model: format!("example/{name}"),
                     prompt_caching: xarsnu::PromptCaching::Auto,
                     tool_choice: ToolChoice::Required,
+                    disable_reasoning: None,
                     temperature: 0.25,
                     system_prompt: "Use the gated protocol.".to_owned(),
                 }))

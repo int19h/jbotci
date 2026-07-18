@@ -11,12 +11,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::model_capabilities::ParticipantModelPolicy;
 use crate::openrouter::REQUIRED_TOOL_CORRECTION;
 use crate::transcript::TranscriptWriter;
 use crate::{
     AbortRecord, CapsConfig, DiagnosticCategory, OpenRouterClient, ParticipantConfig,
-    ParticipantConversation, ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ToolCall,
-    ToolChoice, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
+    ParticipantConversation, ProviderToolChoice, ReferenceTools, RunAccounting, RunHeader,
+    TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
     TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
@@ -404,6 +405,14 @@ pub enum TurnForfeitReason {
     ProtocolProseResponses { maximum_attempts: usize },
 }
 
+/// Why one listener's bounded private flow was abandoned.
+#[invariant(::ProtocolProseResponses { maximum_attempts } => *maximum_attempts > 0)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ListenerFlowAbandonReason {
+    ProtocolProseResponses { maximum_attempts: usize },
+}
+
 /// In-process operation that failed after a run had started.
 #[invariant(::ProtocolConfiguration => true)]
 #[invariant(::ToolDefinitions => true)]
@@ -471,6 +480,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::ReferenceCallBudgetExhausted { participant, maximum, .. } => !participant.trim().is_empty() && *maximum > 0)]
 #[invariant(::ReferenceResearchNudge { participant, consecutive_calls, message, .. } => !participant.trim().is_empty() && *consecutive_calls > 0 && !message.trim().is_empty())]
 #[invariant(::ProseRejected { turn_number, participant, attempt, maximum_attempts, .. } => *turn_number > 0 && !participant.trim().is_empty() && *attempt > 0 && *maximum_attempts > 0 && attempt <= maximum_attempts)]
+#[invariant(::ListenerFlowAbandoned { turn_number, listener, .. } => *turn_number > 0 && !listener.trim().is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::TurnForfeited { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]
 #[invariant(::AnswerSubmitted { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
@@ -581,6 +591,12 @@ pub enum ProtocolEvent {
         attempt: usize,
         maximum_attempts: usize,
     },
+    ListenerFlowAbandoned {
+        turn_number: usize,
+        listener: String,
+        phase: ProtocolPhase,
+        reason: ListenerFlowAbandonReason,
+    },
     ProtocolError {
         participant: String,
         phase: ProtocolPhase,
@@ -666,6 +682,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::TersmuRevealed { turn_number, .. })
             | bityzba::data!(ProtocolEvent::Acknowledged { turn_number, .. })
             | bityzba::data!(ProtocolEvent::ProseRejected { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ListenerFlowAbandoned { turn_number, .. })
             | bityzba::data!(ProtocolEvent::TurnForfeited { turn_number, .. })
             | bityzba::data!(ProtocolEvent::AnswerSubmitted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { turn_number, .. })
@@ -698,7 +715,8 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::TurnForfeited { speaker, .. }) => speaker,
             bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { listener, .. })
             | bityzba::data!(ProtocolEvent::TersmuRevealed { listener, .. })
-            | bityzba::data!(ProtocolEvent::Acknowledged { listener, .. }) => listener,
+            | bityzba::data!(ProtocolEvent::Acknowledged { listener, .. })
+            | bityzba::data!(ProtocolEvent::ListenerFlowAbandoned { listener, .. }) => listener,
             bityzba::data!(ProtocolEvent::ReferenceToolCompleted { participant, .. })
             | bityzba::data!(ProtocolEvent::ReferenceLookupRepeated { participant, .. })
             | bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted { participant, .. })
@@ -932,7 +950,7 @@ pub trait ProtocolModel {
     /// Provider-level enforcement mode configured for this participant.
     #[requires(true)]
     #[ensures(true)]
-    fn tool_choice(&self) -> ToolChoice;
+    fn tool_choice(&self) -> ProviderToolChoice;
 
     /// Corrective reprompts allowed after consecutive automatic prose responses.
     #[requires(true)]
@@ -944,13 +962,18 @@ pub trait ProtocolModel {
     #[ensures(true)]
     fn push_user(&mut self, content: String);
 
+    /// Apply the bounded automatic-mode correction in the model-compatible role.
+    #[requires(!tools.is_empty())]
+    #[ensures(true)]
+    fn push_tool_correction(&mut self, tools: &[ToolDefinition]);
+
     /// Request one turn using exactly the dynamically supplied definitions.
     #[requires(!tools.is_empty())]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn request(
         &mut self,
         tools: &[ToolDefinition],
-        tool_choice: ToolChoice,
+        tool_choice: ProviderToolChoice,
         accounting: &mut RunAccounting,
     ) -> Result<crate::ModelTurn, ProtocolModelError>;
 
@@ -973,7 +996,8 @@ pub trait ProtocolModel {
 #[derive(Debug)]
 pub struct OpenRouterParticipant<'client> {
     conversation: ParticipantConversation,
-    tool_choice: ToolChoice,
+    tool_choice: ProviderToolChoice,
+    supports_prefill: bool,
     client: &'client OpenRouterClient,
 }
 
@@ -986,15 +1010,22 @@ impl<'client> OpenRouterParticipant<'client> {
     #[ensures(ret.conversation.participant_name() == participant.name)]
     pub fn new(participant: &ParticipantConfig, client: &'client OpenRouterClient) -> Self {
         let system_prompt = format!("{}\n\n{STANDING_PROTOCOL_RULES}", participant.system_prompt);
+        let policy = ParticipantModelPolicy::resolve(
+            &participant.model,
+            participant.tool_choice,
+            participant.disable_reasoning,
+        );
         Self {
             conversation: ParticipantConversation::from_system_prompt(
                 participant.name.clone(),
                 participant.model.clone(),
                 participant.prompt_caching,
+                policy.disable_reasoning,
                 participant.temperature,
                 system_prompt,
             ),
-            tool_choice: participant.tool_choice,
+            tool_choice: policy.tool_choice,
+            supports_prefill: policy.supports_prefill,
             client,
         }
     }
@@ -1013,7 +1044,7 @@ impl ProtocolModel for OpenRouterParticipant<'_> {
         self.conversation.participant_name()
     }
 
-    fn tool_choice(&self) -> ToolChoice {
+    fn tool_choice(&self) -> ProviderToolChoice {
         self.tool_choice
     }
 
@@ -1025,10 +1056,26 @@ impl ProtocolModel for OpenRouterParticipant<'_> {
         self.conversation.push_user(content);
     }
 
+    fn push_tool_correction(&mut self, tools: &[ToolDefinition]) {
+        if self.supports_prefill {
+            let names = tools
+                .iter()
+                .map(ToolDefinition::name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.conversation.push_assistant_prefill(format!(
+                "Actually, I must use one of the following tools: {names}."
+            ));
+        } else {
+            self.conversation
+                .push_user(REQUIRED_TOOL_CORRECTION.to_owned());
+        }
+    }
+
     fn request(
         &mut self,
         tools: &[ToolDefinition],
-        tool_choice: ToolChoice,
+        tool_choice: ProviderToolChoice,
         accounting: &mut RunAccounting,
     ) -> Result<crate::ModelTurn, ProtocolModelError> {
         self.conversation
@@ -1693,8 +1740,8 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                                 message,
                             )?;
                             match listener_outcome {
-                                ListenerRunOutcome::Acknowledged => {}
-                                ListenerRunOutcome::TurnForfeited => break,
+                                ListenerRunOutcome::Acknowledged
+                                | ListenerRunOutcome::Abandoned => {}
                                 ListenerRunOutcome::ScenarioCompleted => {
                                     return Ok(new!(ProtocolRunOutcome::ScenarioCompleted {
                                         turns: turn_number,
@@ -1957,7 +2004,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     return Ok(outcome);
                 }
             } else if turn.content().is_some() {
-                if tool_choice == ToolChoice::Auto {
+                if tool_choice == ProviderToolChoice::Auto {
                     if !record_auto_prose_rejection(
                         &mut self.events,
                         turn_number,
@@ -1975,7 +2022,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         }));
                         return Ok(new!(SpeakerOutcome::Forfeited));
                     }
-                    self.participants[speaker_index].push_user(REQUIRED_TOOL_CORRECTION.to_owned());
+                    self.participants[speaker_index].push_tool_correction(&tools);
                 } else {
                     let correction = record_protocol_error(
                         &mut self.events,
@@ -2142,7 +2189,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     return Ok(ListenerRunOutcome::Acknowledged);
                 }
             } else if turn.content().is_some() {
-                if tool_choice == ToolChoice::Auto {
+                if tool_choice == ProviderToolChoice::Auto {
                     if !record_auto_prose_rejection(
                         &mut self.events,
                         turn_number,
@@ -2151,17 +2198,17 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         &mut tool_reprompts,
                         max_tool_reprompts,
                     ) {
-                        self.events.push(new!(ProtocolEvent::TurnForfeited {
+                        self.events.push(new!(ProtocolEvent::ListenerFlowAbandoned {
                             turn_number,
-                            speaker: speaker.to_owned(),
-                            reason: new!(TurnForfeitReason::ProtocolProseResponses {
+                            listener: listener.clone(),
+                            phase,
+                            reason: new!(ListenerFlowAbandonReason::ProtocolProseResponses {
                                 maximum_attempts: max_tool_reprompts.saturating_add(1),
                             }),
                         }));
-                        return Ok(ListenerRunOutcome::TurnForfeited);
+                        return Ok(ListenerRunOutcome::Abandoned);
                     }
-                    self.participants[listener_index]
-                        .push_user(REQUIRED_TOOL_CORRECTION.to_owned());
+                    self.participants[listener_index].push_tool_correction(&tools);
                 } else {
                     let correction = record_protocol_error(
                         &mut self.events,
@@ -2739,12 +2786,12 @@ enum SpeakerOutcome {
 }
 
 #[invariant(::Acknowledged => true)]
-#[invariant(::TurnForfeited => true)]
+#[invariant(::Abandoned => true)]
 #[invariant(::ScenarioCompleted => true)]
 #[invariant(::BudgetAborted { .. } => true)]
 enum ListenerRunOutcome {
     Acknowledged,
-    TurnForfeited,
+    Abandoned,
     ScenarioCompleted,
     BudgetAborted { record: AbortRecord },
 }

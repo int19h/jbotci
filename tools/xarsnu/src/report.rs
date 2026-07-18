@@ -8,10 +8,13 @@ use std::path::Path;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 
-use crate::protocol::{ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData};
+use crate::protocol::{
+    ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
+};
 use crate::{
-    AbortKind, DiagnosticCategory, ProtocolRunOutcome, ScenarioConfigError, ScenarioInstance,
-    TaskStatus, TranscriptError, TranscriptRecord, TurnForfeitReason, UsageTotals, read_transcript,
+    AbortKind, DiagnosticCategory, ListenerFlowAbandonReason, ProtocolRunOutcome,
+    ScenarioConfigError, ScenarioInstance, TaskStatus, TranscriptError, TranscriptRecord,
+    TurnForfeitReason, UsageTotals, read_transcript,
 };
 
 /// Read, validate, and render one transcript without consulting any external service.
@@ -406,6 +409,19 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 .expect("writing to String cannot fail");
                 summary.prose_rejections += 1;
             }
+            bityzba::data!(ProtocolEvent::ListenerFlowAbandoned {
+                listener,
+                reason,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Listener flow abandoned — `{listener}`\n\nReason: {}\n",
+                    listener_abandon_reason(reason)
+                )
+                .expect("writing to String cannot fail");
+                summary.listener_flows_abandoned += 1;
+            }
             bityzba::data!(ProtocolEvent::ProtocolError {
                 participant,
                 tool_name,
@@ -553,6 +569,7 @@ struct ReportSummary {
     reference_budgets_exhausted: usize,
     reference_nudges: usize,
     prose_rejections: usize,
+    listener_flows_abandoned: usize,
     protocol_errors: usize,
     forfeits: usize,
     aborts: usize,
@@ -642,8 +659,9 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
 
     writeln!(
         report,
-        "\n### Protocol stops\n\n- Auto-mode prose rejections: {}\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}\n- Runtime failures: {}",
+        "\n### Protocol stops\n\n- Auto-mode prose rejections: {}\n- Listener flows abandoned: {}\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}\n- Runtime failures: {}",
         summary.prose_rejections,
+        summary.listener_flows_abandoned,
         summary.protocol_errors,
         summary.forfeits,
         summary.aborts,
@@ -793,6 +811,16 @@ fn forfeit_reason(reason: &TurnForfeitReason) -> String {
             format!("intent-revision cap ({maximum})")
         }
         bityzba::data!(TurnForfeitReason::ProtocolProseResponses { maximum_attempts }) => {
+            format!("automatic tool-call attempts exhausted ({maximum_attempts})")
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn listener_abandon_reason(reason: &ListenerFlowAbandonReason) -> String {
+    match reason.as_data() {
+        bityzba::data!(ListenerFlowAbandonReason::ProtocolProseResponses { maximum_attempts }) => {
             format!("automatic tool-call attempts exhausted ({maximum_attempts})")
         }
     }

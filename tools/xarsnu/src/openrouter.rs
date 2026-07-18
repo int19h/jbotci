@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use thiserror::Error;
 
-use crate::{PromptCaching, ToolChoice};
+use crate::model_capabilities::ParticipantModelPolicy;
+use crate::{PromptCaching, ProviderToolChoice};
 
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const REQUIRED_TOOL_CORRECTION: &str =
@@ -34,6 +35,20 @@ fn is_retriable_transport_timeout(error: &ureq::Error) -> bool {
         ureq::Error::Io(error) => error.kind() == std::io::ErrorKind::TimedOut,
         _ => false,
     }
+}
+
+/// Whether reading a response body failed at the transport boundary.
+#[requires(true)]
+#[ensures(ret == matches!(error, ureq::Error::Timeout(_) | ureq::Error::Io(_)))]
+fn is_retriable_response_body_failure(error: &ureq::Error) -> bool {
+    matches!(error, ureq::Error::Timeout(_) | ureq::Error::Io(_))
+}
+
+/// Whether JSON parsing stopped because the provider response ended early.
+#[requires(true)]
+#[ensures(ret == (error.classify() == serde_json::error::Category::Eof))]
+fn is_truncated_json_response(error: &serde_json::Error) -> bool {
+    error.classify() == serde_json::error::Category::Eof
 }
 
 /// Whether an OpenRouter error code denotes a transient provider condition.
@@ -218,6 +233,13 @@ impl ChatMessage {
             content,
             tool_calls,
         })
+    }
+
+    /// Construct an assistant-voice continuation used as provider prefill.
+    #[requires(!content.trim().is_empty())]
+    #[ensures(matches!(ret.as_data(), bityzba::data!(ChatMessage::Assistant { .. })))]
+    fn assistant_prefill(content: String) -> Self {
+        Self::assistant(Some(content), Vec::new())
     }
 
     /// Construct a tool-result message threaded to its originating call.
@@ -612,6 +634,24 @@ impl OpenRouterClient {
         }
     }
 
+    /// Back off after a response-body transport failure or truncated JSON.
+    #[requires(!message.trim().is_empty())]
+    #[ensures(ret.is_ok() == (old(*retries) < self.config.retry_policy.max_retries))]
+    fn back_off_after_response_body_failure(
+        &self,
+        retries: &mut usize,
+        message: String,
+    ) -> Result<(), OpenRouterError> {
+        if self.back_off_before_retry(retries) {
+            Ok(())
+        } else {
+            Err(OpenRouterError::TransportRetriesExhausted {
+                attempts: *retries + 1,
+                message,
+            })
+        }
+    }
+
     /// Issue one completion with the caller's exact tool list.
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
@@ -624,7 +664,8 @@ impl OpenRouterClient {
         temperature: f64,
         messages: &[ChatMessage],
         tools: &[ToolDefinition],
-        tool_choice: ToolChoice,
+        tool_choice: ProviderToolChoice,
+        disable_reasoning: bool,
     ) -> Result<Completion, OpenRouterError> {
         let explicit_prompt_caching =
             prompt_caching == PromptCaching::Auto && model_requires_explicit_prompt_caching(model);
@@ -643,6 +684,12 @@ impl OpenRouterClient {
             },
             tools,
             tool_choice,
+            reasoning: disable_reasoning.then(|| {
+                new!(CompletionReasoningRequest {
+                    effort: ReasoningEffort::None,
+                    exclude: false,
+                })
+            }),
             usage: new!(CompletionUsageRequest { include: true }),
         };
         let url = format!(
@@ -682,7 +729,7 @@ impl OpenRouterClient {
                 }
                 let body = match response.body_mut().read_to_string() {
                     Ok(body) => body,
-                    Err(error) if is_retriable_transport_timeout(&error) => {
+                    Err(error) if is_retriable_response_body_failure(&error) => {
                         return Err(OpenRouterError::TransportRetriesExhausted {
                             attempts: retries + 1,
                             message: error.to_string(),
@@ -699,8 +746,8 @@ impl OpenRouterClient {
             if !(200..=299).contains(&status) {
                 let body = match response.body_mut().read_to_string() {
                     Ok(body) => body,
-                    Err(error) if is_retriable_transport_timeout(&error) => {
-                        self.back_off_after_transport_timeout(&mut retries, &error)?;
+                    Err(error) if is_retriable_response_body_failure(&error) => {
+                        self.back_off_after_response_body_failure(&mut retries, error.to_string())?;
                         continue;
                     }
                     Err(error) => format!("unable to read response body: {error}"),
@@ -709,8 +756,8 @@ impl OpenRouterClient {
             }
             let response_body = match response.body_mut().read_to_string() {
                 Ok(body) => body,
-                Err(error) if is_retriable_transport_timeout(&error) => {
-                    self.back_off_after_transport_timeout(&mut retries, &error)?;
+                Err(error) if is_retriable_response_body_failure(&error) => {
+                    self.back_off_after_response_body_failure(&mut retries, error.to_string())?;
                     continue;
                 }
                 Err(error) => {
@@ -719,12 +766,21 @@ impl OpenRouterClient {
                     });
                 }
             };
-            let mut wire: CompletionResponse =
-                serde_json::from_str(&response_body).map_err(|error| {
-                    OpenRouterError::InvalidResponse {
+            let mut wire: CompletionResponse = match serde_json::from_str(&response_body) {
+                Ok(wire) => wire,
+                Err(error) if is_truncated_json_response(&error) => {
+                    self.back_off_after_response_body_failure(
+                        &mut retries,
+                        format!("provider response body ended before JSON was complete: {error}"),
+                    )?;
+                    continue;
+                }
+                Err(error) => {
+                    return Err(OpenRouterError::InvalidResponse {
                         message: error.to_string(),
-                    }
-                })?;
+                    });
+                }
+            };
             let choices = match wire.choices.take() {
                 Some(choices) => choices,
                 None => {
@@ -856,6 +912,7 @@ pub struct ParticipantConversation {
     participant_name: String,
     model: String,
     prompt_caching: PromptCaching,
+    disable_reasoning: bool,
     temperature: f64,
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
@@ -870,10 +927,16 @@ impl ParticipantConversation {
     #[requires(true)]
     #[ensures(ret.messages.len() == 1)]
     pub fn new(participant: &crate::ParticipantConfig) -> Self {
+        let policy = ParticipantModelPolicy::resolve(
+            &participant.model,
+            participant.tool_choice,
+            participant.disable_reasoning,
+        );
         Self::from_system_prompt(
             participant.name.clone(),
             participant.model.clone(),
             participant.prompt_caching,
+            policy.disable_reasoning,
             participant.temperature,
             participant.system_prompt.clone(),
         )
@@ -889,6 +952,7 @@ impl ParticipantConversation {
         participant_name: String,
         model: String,
         prompt_caching: PromptCaching,
+        disable_reasoning: bool,
         temperature: f64,
         system_prompt: String,
     ) -> Self {
@@ -896,6 +960,7 @@ impl ParticipantConversation {
             participant_name,
             model,
             prompt_caching,
+            disable_reasoning,
             temperature,
             messages: vec![ChatMessage::system(system_prompt)],
             usage: UsageTotals::default(),
@@ -914,6 +979,7 @@ impl ParticipantConversation {
         participant_name: String,
         model: String,
         prompt_caching: PromptCaching,
+        disable_reasoning: bool,
         temperature: f64,
         system_prompt: String,
         initial_user_prompt: String,
@@ -922,6 +988,7 @@ impl ParticipantConversation {
             participant_name,
             model,
             prompt_caching,
+            disable_reasoning,
             temperature,
             messages: vec![
                 ChatMessage::system(system_prompt),
@@ -967,6 +1034,13 @@ impl ParticipantConversation {
         self.messages.push(ChatMessage::user(content));
     }
 
+    /// Add an assistant-voice self-correction as the next request's prefill.
+    #[requires(!content.trim().is_empty())]
+    #[ensures(self.messages.len() == old(self.messages.len()) + 1)]
+    pub fn push_assistant_prefill(&mut self, content: String) {
+        self.messages.push(ChatMessage::assistant_prefill(content));
+    }
+
     /// Append one already-dispatched tool result to this private conversation.
     ///
     /// Protocol orchestration uses this narrow hook so scripted and live model
@@ -990,7 +1064,7 @@ impl ParticipantConversation {
         &mut self,
         client: &OpenRouterClient,
         tools: &[ToolDefinition],
-        tool_choice: ToolChoice,
+        tool_choice: ProviderToolChoice,
         accounting: &mut RunAccounting,
     ) -> Result<ModelTurn, OpenRouterError> {
         if let Some(record) = accounting.abort() {
@@ -1007,6 +1081,7 @@ impl ParticipantConversation {
                 &self.messages,
                 tools,
                 tool_choice,
+                self.disable_reasoning,
             )?;
             self.usage.record(&completion.usage);
             self.pending_usage.push(completion.usage.clone());
@@ -1052,7 +1127,7 @@ impl ParticipantConversation {
             if !tool_calls.is_empty() && invalid_call.is_none() {
                 return Ok(new!(ModelTurn::ToolCalls { calls: tool_calls }));
             }
-            if tool_choice == ToolChoice::Auto {
+            if tool_choice == ProviderToolChoice::Auto {
                 if let Some(content) = content {
                     return Ok(new!(ModelTurn::Message { content }));
                 }
@@ -1174,8 +1249,24 @@ struct CompletionRequest<'a> {
     temperature: f64,
     messages: CompletionMessages<'a>,
     tools: &'a [ToolDefinition],
-    tool_choice: ToolChoice,
+    tool_choice: ProviderToolChoice,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<CompletionReasoningRequest>,
     usage: CompletionUsageRequest,
+}
+
+#[invariant(!*exclude, "reasoning-off requests keep the response exclusion flag false")]
+#[derive(Debug, Serialize)]
+struct CompletionReasoningRequest {
+    effort: ReasoningEffort,
+    exclude: bool,
+}
+
+#[invariant(::None => true)]
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum ReasoningEffort {
+    None,
 }
 
 /// Request-scoped view over stored history.

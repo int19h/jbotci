@@ -407,6 +407,10 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         .replace(
             "model = \"mock/alice\"",
             "model = \"mock/alice\"\ntool-choice = \"auto\"",
+        )
+        .replace(
+            "model = \"mock/bob\"",
+            "model = \"mock/bob\"\ntool-choice = \"required\"",
         );
     let config_path = write_config(&directory, &config_source);
     let server = MockServer::start(complete_dialog_responses());
