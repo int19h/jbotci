@@ -1425,7 +1425,31 @@ mod tests {
             .expect("last confirmed tree");
         assert_eq!(tree.version, 1);
 
-        tokio::time::sleep(DEBOUNCE_DELAY + Duration::from_millis(50)).await;
+        let mut confirmations = {
+            let documents = store.documents.lock().expect("document store poisoned");
+            documents
+                .get(&uri)
+                .expect("open document")
+                .confirmed
+                .subscribe()
+        };
+        tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                if confirmations
+                    .borrow_and_update()
+                    .as_ref()
+                    .is_some_and(|snapshot| snapshot.version == 2)
+                {
+                    break;
+                }
+                confirmations
+                    .changed()
+                    .await
+                    .expect("document remains open while confirmation runs");
+            }
+        })
+        .await
+        .expect("confirmation must complete within the CI-twin boundary");
         let confirmed = store
             .diagnostics_for_current(&uri)
             .await
