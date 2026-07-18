@@ -3611,6 +3611,166 @@ body::-webkit-scrollbar-thumb:hover,
   color: var(--danger-text);
 }
 
+.gimfihi-page .gimfihi-ipa-quickref {
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--app-surface-0) 96%, transparent);
+  color: var(--app-text);
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.65rem;
+  padding: 0.62rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-summary::-webkit-details-marker {
+  display: none;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-summary::before {
+  content: "▸";
+  width: 0.75rem;
+  color: var(--app-muted);
+}
+
+.gimfihi-page .gimfihi-ipa-quickref[open] .gimfihi-ipa-quickref-summary::before {
+  content: "▾";
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-summary:hover {
+  background: color-mix(in srgb, var(--app-accent) 7%, transparent);
+}
+
+.gimfihi-page .gimfihi-ipa-quickref[open] .gimfihi-ipa-quickref-summary {
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-2);
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-title {
+  font-weight: 700;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-hint,
+.gimfihi-page .gimfihi-ipa-quickref-intro {
+  color: var(--app-muted);
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-hint {
+  font-size: 0.82rem;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-content {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.8rem;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref:not([open]) .gimfihi-ipa-quickref-content {
+  display: none;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-section {
+  display: grid;
+  gap: 0.36rem;
+  min-width: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-section h2,
+.gimfihi-page .gimfihi-ipa-quickref-section p,
+.gimfihi-page .gimfihi-ipa-quickref-section ul {
+  margin: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-section h2 {
+  color: var(--app-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-section p,
+.gimfihi-page .gimfihi-ipa-quickref-section li,
+.gimfihi-page .gimfihi-ipa-schwa-note {
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref code {
+  color: var(--app-text);
+  font: inherit;
+  font-weight: 700;
+}
+
+.gimfihi-page .gimfihi-ipa-inventory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.42rem;
+  margin: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-inventory-group {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, max-content) 1fr;
+  gap: 0.55rem;
+  align-items: baseline;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  padding: 0.42rem 0.5rem;
+  background: color-mix(in srgb, var(--app-surface-2) 55%, transparent);
+  font-size: 0.82rem;
+}
+
+.gimfihi-page .gimfihi-ipa-inventory-group dt,
+.gimfihi-page .gimfihi-ipa-inventory-group dd {
+  margin: 0;
+}
+
+.gimfihi-page .gimfihi-ipa-inventory-group dt::after {
+  content: "←";
+  margin-left: 0.45rem;
+  color: var(--app-muted);
+}
+
+.gimfihi-page .gimfihi-ipa-vowel-group {
+  grid-column: 1 / -1;
+}
+
+.gimfihi-page .gimfihi-ipa-modifier-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.gimfihi-page .gimfihi-ipa-quickref-section ul {
+  padding-left: 1.25rem;
+}
+
+.gimfihi-page .gimfihi-ipa-schwa-note {
+  margin: 0;
+  border-left: 3px solid var(--danger-border);
+  border-radius: 3px;
+  padding: 0.55rem 0.65rem;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.gimfihi-page .gimfihi-ipa-schwa-note code {
+  color: inherit;
+}
+
+.gimfihi-page .gimfihi-ipa-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
 .gimfihi-page .gimfihi-option-row {
   display: flex;
   flex-wrap: wrap;
@@ -5540,6 +5700,10 @@ body::-webkit-scrollbar-thumb:hover,
 
   .gimfihi-page .gimfihi-weight-cell {
     grid-template-columns: minmax(6rem, 1fr) 5rem;
+  }
+
+  .gimfihi-page .gimfihi-ipa-modifier-columns {
+    grid-template-columns: 1fr;
   }
 
   .cll-page .cll-shell {

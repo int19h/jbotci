@@ -118,6 +118,24 @@ fn gimfihi_sources_for_preset_populates_rows() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gimfihi_quick_reference_examples_match_the_live_resolver() {
+    assert_eq!(
+        gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_CAT_IPA)
+            .resolved_word
+            .as_deref(),
+        Some(GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN)
+    );
+    assert_eq!(
+        gimfihi_source_word_preview(GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA)
+            .resolved_word
+            .as_deref(),
+        Some(GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN)
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gimfihi_language_edit_clears_preset_and_preserves_visible_weight() {
     let state = GimfihiWebState::default();
 

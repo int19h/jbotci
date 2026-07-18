@@ -1,5 +1,10 @@
 use super::*;
 
+pub(super) const GIMFIHI_QUICK_REFERENCE_CAT_IPA: &str = "[kæt]";
+pub(super) const GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN: &str = "kat";
+pub(super) const GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA: &str = "[ʃøːn]";
+pub(super) const GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN: &str = "cen";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub(super) struct GimfihiPageSnapshot {
@@ -217,6 +222,7 @@ pub(super) fn render_gimfihi_controls(
                     }
                 }
             }
+            { render_gimfihi_ipa_quick_reference() }
             div { class: "gimfihi-option-row",
                 div { class: "gimfihi-shape-group", role: "group", aria_label: "Gismu shapes",
                     { render_gimfihi_shape_toggle(gimfihi_draft_state, state, GismuShape::Ccvcv) }
@@ -284,6 +290,128 @@ pub(super) fn render_gimfihi_controls(
                         gimfihi_committed_state.set(next);
                     },
                     "Generate"
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_gimfihi_ipa_quick_reference() -> Element {
+    rsx! {
+        details { class: "gimfihi-ipa-quickref",
+            summary { class: "gimfihi-ipa-quickref-summary",
+                span { class: "gimfihi-ipa-quickref-title", "IPA input quick reference" }
+                span { class: "gimfihi-ipa-quickref-hint", "accepted sounds and snapping rules" }
+            }
+            div { class: "gimfihi-ipa-quickref-content",
+                section { class: "gimfihi-ipa-quickref-section",
+                    h2 { "Input forms" }
+                    p {
+                        "Enter Lojban scoring letters directly, or put a broad phonemic IPA transcription in square brackets, such as "
+                        code { "[kæt]" }
+                        ". Transcribe sounds rather than spelling or narrow allophones; omit grammatical endings."
+                    }
+                }
+
+                section { class: "gimfihi-ipa-quickref-section",
+                    h2 { "Snap targets" }
+                    p { class: "gimfihi-ipa-quickref-intro",
+                        "Common accepted IPA symbols are grouped here by the Lojban letters they produce."
+                    }
+                    dl { class: "gimfihi-ipa-inventory",
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "p b t d k g" } }
+                            dd { "p; b; t ʈ; d ɖ; k q; g ɡ" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "f v" } }
+                            dd { "f ɸ; v ʋ" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "s z" } }
+                            dd { "s θ; z ð" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "c j" } }
+                            dd { "ʃ ɕ ʂ; ʒ ʑ ʐ" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "x" } }
+                            dd { "x ɣ χ ħ h ɦ ç" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "m n" } }
+                            dd { "m ɱ; n ŋ ɳ ɴ" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "l r" } }
+                            dd { "l ɫ ɭ; r ɾ ɹ ɻ ʀ ʁ ɽ" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "i/u glides" } }
+                            dd { "j ʝ ɥ → i; w → u; ɲ → ni; ʎ → li" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "affricates" } }
+                            dd { "tʃ tɕ ʈʂ → c; dʒ dʑ ɖʐ → j; ts → s; dz → z; pf → f" }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group gimfihi-ipa-vowel-group",
+                            dt { code { "i u e o a" } }
+                            dd {
+                                "i ɪ ɨ y ʏ → i; u ʊ ɯ ʉ → u; e ɛ ø œ ɘ ɜ → e; o ɔ ɒ ɤ ɵ → o; a æ ɐ ɑ ʌ → a"
+                            }
+                        }
+                        div { class: "gimfihi-ipa-inventory-group",
+                            dt { code { "dropped" } }
+                            dd { "ʔ ʕ" }
+                        }
+                    }
+                }
+
+                div { class: "gimfihi-ipa-modifier-columns",
+                    section { class: "gimfihi-ipa-quickref-section",
+                        h2 { "Meaningful modifiers" }
+                        ul {
+                            li { code { "ʲ" } " adds an " code { "i" } "-glide" }
+                            li { code { "ʷ" } " adds a " code { "u" } "-glide" }
+                            li { code { "◌̃" } " adds " code { "m" } " before a labial, otherwise " code { "n" } }
+                            li { code { "˞" } " adds " code { "r" } }
+                        }
+                    }
+                    section { class: "gimfihi-ipa-quickref-section",
+                        h2 { "Ignored detail" }
+                        p {
+                            "Length " code { "ː" }
+                            ", aspiration " code { "ʰ" }
+                            ", emphasis " code { "ˤ" }
+                            ", tone, and stress " code { "ˈ ˌ" }
+                            " are ignored; the base segment still snaps normally."
+                        }
+                    }
+                }
+
+                p { class: "gimfihi-ipa-schwa-note",
+                    strong { "Bare " code { "ə" } " is rejected." }
+                    " It has no unambiguous Lojban vowel. Transcribe the full vowel nearest the sound actually pronounced in that word."
+                }
+
+                section { class: "gimfihi-ipa-quickref-section",
+                    h2 { "Try the live preview" }
+                    p { class: "gimfihi-ipa-examples",
+                        span {
+                            code { "eng:{GIMFIHI_QUICK_REFERENCE_CAT_IPA}" }
+                            " → " code { "{GIMFIHI_QUICK_REFERENCE_CAT_LOJBAN}" }
+                        }
+                        span {
+                            code { "deu:{GIMFIHI_QUICK_REFERENCE_SCHOEN_IPA}" }
+                            " → " code { "{GIMFIHI_QUICK_REFERENCE_SCHOEN_LOJBAN}" }
+                        }
+                    }
+                    p { class: "gimfihi-ipa-quickref-intro",
+                        "The Lojban line beneath each source input updates before you select Generate."
+                    }
                 }
             }
         }
