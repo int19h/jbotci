@@ -20,10 +20,12 @@ use xarsnu::{
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[invariant((100..=599).contains(status))]
+#[invariant(required_message_substring.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[derive(Debug)]
 struct MockResponse {
     status: u16,
     body: Value,
+    required_message_substring: Option<String>,
 }
 
 #[invariant(body.is_object())]
@@ -49,9 +51,14 @@ impl MockServer {
             let mut captured = Vec::with_capacity(responses.len());
             for response in responses {
                 let (mut stream, _) = listener.accept().expect("accept mock request");
-                captured.push(new!(CapturedRequest {
-                    body: read_request_body(&mut stream),
-                }));
+                let body = read_request_body(&mut stream);
+                if let Some(required) = &response.required_message_substring {
+                    assert!(
+                        request_has_message(&body, required),
+                        "scripted model must not submit before sighting `{required}`"
+                    );
+                }
+                captured.push(new!(CapturedRequest { body }));
                 write_response(&mut stream, response);
             }
             captured
@@ -109,6 +116,42 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         .position(|window| window == needle)
 }
 
+#[requires(body.is_object())]
+#[requires(!needle.trim().is_empty())]
+#[ensures(true)]
+fn request_has_message(body: &Value, needle: &str) -> bool {
+    body["messages"].as_array().is_some_and(|messages| {
+        messages.iter().any(|message| {
+            message["content"]
+                .as_str()
+                .is_some_and(|content| content.contains(needle))
+        })
+    })
+}
+
+#[requires(body["messages"].as_array().is_some_and(|messages| !messages.is_empty()))]
+#[ensures(!ret.is_empty())]
+fn latest_message_content(body: &Value) -> &str {
+    body["messages"]
+        .as_array()
+        .and_then(|messages| messages.last())
+        .and_then(|message| message["content"].as_str())
+        .expect("latest request message has textual content")
+}
+
+#[requires(body.is_object())]
+#[requires(!tool_name.trim().is_empty())]
+#[ensures(true)]
+fn request_offers_tool(body: &Value, tool_name: &str) -> bool {
+    body["tools"].as_array().is_some_and(|tools| {
+        tools.iter().any(|tool| {
+            tool["function"]["name"]
+                .as_str()
+                .is_some_and(|name| name == tool_name)
+        })
+    })
+}
+
 #[requires((100..=599).contains(&response.status))]
 #[ensures(true)]
 fn write_response(stream: &mut TcpStream, response: MockResponse) {
@@ -160,6 +203,21 @@ fn tool_response(id: usize, name: &str, arguments: Value) -> MockResponse {
                 "cost": 0.001,
             },
         }),
+        required_message_substring: None,
+    })
+}
+
+#[requires(id > 0)]
+#[requires(arguments.is_object())]
+#[requires(!required_message_substring.trim().is_empty())]
+#[ensures(ret.status == 200)]
+fn submit_answer_after_sighting(
+    id: usize,
+    arguments: Value,
+    required_message_substring: &str,
+) -> MockResponse {
+    tool_response(id, "submit_answer", arguments).with_data(bityzba::data! {
+        required_message_substring: Some(required_message_substring.to_owned()),
     })
 }
 
@@ -169,11 +227,12 @@ fn runtime_failure_response() -> MockResponse {
     new!(MockResponse {
         status: 500,
         body: json!({ "error": "deliberate mid-run failure" }),
+        required_message_substring: None,
     })
 }
 
 #[requires(true)]
-#[ensures(ret.len() == 16)]
+#[ensures(ret.len() == 17)]
 fn complete_dialog_responses() -> Vec<MockResponse> {
     let wrong_answer = || json!({ "day": "tuesday", "start_minute": 600, "duration_minutes": 60 });
     vec![
@@ -220,19 +279,24 @@ fn complete_dialog_responses() -> Vec<MockResponse> {
             "acknowledge",
             json!({ "final_understanding_en": "Bob goes." }),
         ),
-        tool_response(12, "submit_answer", wrong_answer()),
         tool_response(
-            13,
+            12,
             "register_intent",
             json!({ "meaning_en": "Let us use the proposed time." }),
         ),
+        submit_answer_after_sighting(13, wrong_answer(), "in-dialog agreement does not count"),
         tool_response(14, "submit_lojban", json!({ "text": "mi klama" })),
         tool_response(
             15,
             "confirm_meaning",
             json!({ "matches": true, "paraphrase_en": "I go." }),
         ),
-        tool_response(16, "submit_answer", wrong_answer()),
+        tool_response(
+            16,
+            "interpret_blind",
+            json!({ "interpretation_en": "Alice goes." }),
+        ),
+        submit_answer_after_sighting(17, wrong_answer(), "in-dialog agreement does not count"),
     ]
 }
 
@@ -360,7 +424,7 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     assert!(report.contains("**Gate result:** rejected"));
 
     let captured = server.finish();
-    assert_eq!(captured.len(), 16);
+    assert_eq!(captured.len(), 17);
     let first_messages = captured[0].body["messages"]
         .as_array()
         .expect("request messages");
@@ -382,6 +446,50 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         "{scenario_prompt}"
     );
     assert!(!scenario_prompt.contains("Tuesday from 11:00 to 12:30"));
+
+    let availability = "You may now submit your scenario answer with `submit_answer`. The task is scored only from formal submissions; in-dialog agreement does not count.";
+    for request in &captured[..11] {
+        assert!(
+            !request_has_message(&request.body, availability),
+            "answer announcement appeared before minimum-round availability"
+        );
+    }
+
+    let alice_turn_three_opening = latest_message_content(&captured[11].body);
+    assert!(alice_turn_three_opening.contains("This is turn 3 of at most 5."));
+    assert!(alice_turn_three_opening.contains(availability));
+    assert!(request_offers_tool(&captured[11].body, "submit_answer"));
+
+    let alice_composing = latest_message_content(&captured[12].body);
+    assert!(alice_composing.starts_with("Intent registered. Compose Lojban"));
+    assert!(alice_composing.contains(availability));
+    assert!(request_offers_tool(&captured[12].body, "submit_answer"));
+
+    let alice_recorded = latest_message_content(&captured[13].body);
+    assert!(
+        alice_recorded.contains("Your answer is recorded; 1 of 2 participants have submitted.")
+    );
+    assert!(!alice_recorded.contains(availability));
+    assert!(!request_offers_tool(&captured[13].body, "submit_answer"));
+
+    let bob_turn_three_blind = latest_message_content(&captured[15].body);
+    assert!(bob_turn_three_blind.contains("This is turn 3 of at most 5."));
+    assert!(!bob_turn_three_blind.contains(availability));
+    assert!(
+        request_offers_tool(&captured[15].body, "submit_answer"),
+        "blind-phase tool legality must remain unchanged"
+    );
+
+    let bob_revealed = latest_message_content(&captured[16].body);
+    assert!(bob_revealed.starts_with("The tersmu rendering is now revealed."));
+    assert!(bob_revealed.contains(availability));
+    assert!(!bob_revealed.contains("This is turn 3 of at most 5."));
+    assert!(request_offers_tool(&captured[16].body, "submit_answer"));
+
+    assert!(latest_message_content(&captured[0].body).contains("This is turn 1 of at most 5."));
+    assert!(latest_message_content(&captured[4].body).contains("This is turn 1 of at most 5."));
+    assert!(latest_message_content(&captured[6].body).contains("This is turn 2 of at most 5."));
+    assert!(latest_message_content(&captured[9].body).contains("This is turn 2 of at most 5."));
 
     fs::remove_dir_all(directory).expect("remove complete-run fixtures");
 }
