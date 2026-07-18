@@ -79,6 +79,8 @@ fn golden_transcript_renders_every_event_kind() {
         "80 cached, 40 cache-write tokens",
         "Cache efficiency: 66.67%",
         "Call hit rate: 100.00%",
+        "Reasoning field present: true; reasoning tokens: 20",
+        "Reasoning totals: 20 tokens across 1 provider calls",
     ] {
         assert!(report.contains(anti_no_op), "missing {anti_no_op}");
     }
@@ -103,6 +105,8 @@ fn standalone_dialog_matches_golden_and_excludes_private_scaffolding() {
         "intent",
         "(klama mi)",
         "start_minute",
+        "Reasoning",
+        "reasoning",
     ] {
         assert!(
             !dialog.contains(private_scaffolding),
