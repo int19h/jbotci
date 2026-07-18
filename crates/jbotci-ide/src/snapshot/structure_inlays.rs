@@ -1,12 +1,18 @@
+use std::cell::RefCell;
+
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use jbotci_morphology::{Cmavo, Selmaho};
 use jbotci_output::{
     BracketRenderOptions, BracketSourceConstruct, BracketSourceFragment, BracketSourceRange,
     pretty_bracket_source_fragments_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
 };
 use jbotci_source::SourceSpan;
-use jbotci_syntax::{SyntaxRecoveryParse, SyntaxRecoveryParseData};
+use jbotci_syntax::{
+    ParseOptions, SyntaxRecoveryItem, SyntaxRecoveryParse, SyntaxRecoveryParseData, Token,
+    generated_model, parse_syntax_tokens_with_recovery_with_source_and_options_attempt,
+};
 use serde::{Deserialize, Serialize};
 
 use super::DocumentSnapshot;
@@ -200,7 +206,181 @@ pub(super) fn build_decoration_fragments(
         }
     }
     .expect("a snapshot's recovered bracket fragments must match its source");
-    collect_decoration_fragments(source_fragments)
+    let mut fragments = collect_decoration_fragments(source_fragments);
+    if let data!(SyntaxRecoveryParse::Recovered { parse }) = parse.as_data() {
+        augment_skipped_token_fragments(&mut fragments, parse, source, options);
+    }
+    fragments
+}
+
+#[invariant(runs.borrow().iter().all(|run| !run.is_empty()), "syntax recovery never records an empty skipped-token run")]
+struct SkippedTokenRunCollector<'tree> {
+    runs: RefCell<Vec<&'tree [Token]>>,
+}
+
+impl<'tree> generated_model::recovered::TreeWalker<'tree> for SkippedTokenRunCollector<'tree> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_recovered_error(&mut self, item: &'tree SyntaxRecoveryItem) {
+        if let Some(tokens) = item.skipped_tokens() {
+            self.runs.borrow_mut().push(tokens);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn augment_skipped_token_fragments(
+    fragments: &mut Vec<DecorationFragment>,
+    parse: &jbotci_syntax::RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) {
+    let mut collector = new!(SkippedTokenRunCollector {
+        runs: RefCell::new(Vec::new()),
+    });
+    generated_model::recovered::TreeWalkable::walk_with(parse.parse_tree.as_ref(), &mut collector);
+    let data!(SkippedTokenRunCollector { runs }) = collector.into_data();
+    for run in runs.into_inner() {
+        append_skipped_text_unit_fragments(fragments, run, source, options);
+    }
+}
+
+/// Recover independent text units inside a syntax error without interpreting
+/// raw source whitespace. I and NIhO are formal text boundaries, while LU,
+/// TUhE, and TO open nested texts whose internal boundaries stay nested.
+#[requires(!tokens.is_empty())]
+#[ensures(true)]
+fn append_skipped_text_unit_fragments(
+    fragments: &mut Vec<DecorationFragment>,
+    tokens: &[Token],
+    source: &str,
+    options: BracketRenderOptions,
+) {
+    let mut unit_start = 0;
+    let mut text_closers = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if text_closers
+            .last()
+            .is_some_and(|closer| token.is_cmavo(*closer))
+        {
+            text_closers.pop();
+            continue;
+        }
+        if let Some(closer) = token.cmavo().and_then(nested_text_closer) {
+            text_closers.push(closer);
+            continue;
+        }
+        if !text_closers.is_empty() {
+            continue;
+        }
+        if token.is_selmaho(Selmaho::Niho) {
+            append_text_unit_fragments(fragments, &tokens[unit_start..index], source, options);
+            unit_start = index + 1;
+        } else if token.is_cmavo(Cmavo::I) && unit_start < index {
+            append_text_unit_fragments(fragments, &tokens[unit_start..index], source, options);
+            unit_start = index;
+        }
+    }
+    append_text_unit_fragments(fragments, &tokens[unit_start..], source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_text_unit_fragments(
+    fragments: &mut Vec<DecorationFragment>,
+    tokens: &[Token],
+    source: &str,
+    options: BracketRenderOptions,
+) {
+    if tokens.is_empty() {
+        return;
+    }
+    let parse = parse_syntax_tokens_with_recovery_with_source_and_options_attempt(
+        tokens,
+        source,
+        &ParseOptions::default(),
+    )
+    .result;
+    let source_fragments = match parse.as_data() {
+        data!(SyntaxRecoveryParse::Valid { parse }) => {
+            pretty_bracket_source_fragments_with_options(parse.parse_tree.as_ref(), source, options)
+        }
+        data!(SyntaxRecoveryParse::Recovered { parse }) => {
+            pretty_recovered_syntax_bracket_source_fragments_with_options(parse, source, options)
+        }
+    }
+    .expect("reparsed decoration fragments must match their original source");
+    for fragment in collect_decoration_fragments(source_fragments) {
+        if fragment.range.is_some() {
+            insert_decoration_fragment(fragments, fragment);
+        }
+    }
+}
+
+#[requires(fragment.range.is_some())]
+#[ensures(true)]
+fn insert_decoration_fragment(
+    fragments: &mut Vec<DecorationFragment>,
+    fragment: DecorationFragment,
+) {
+    let range = fragment
+        .range
+        .expect("the precondition requires a source-backed fragment");
+    let container_index = fragments.iter().position(|container| {
+        container.range.is_some_and(|container_range| {
+            container_range.byte_start <= range.byte_start
+                && range.byte_end <= container_range.byte_end
+                && container_range != range
+        })
+    });
+    if let Some(container_index) = container_index {
+        let container = fragments.remove(container_index);
+        let data!(DecorationFragment {
+            range: container_range,
+            constructs,
+            mut children,
+        }) = container.into_data();
+        insert_decoration_fragment(&mut children, fragment);
+        sort_decoration_fragments(&mut children);
+        fragments.insert(
+            container_index,
+            new!(DecorationFragment {
+                range: container_range,
+                constructs,
+                children,
+            }),
+        );
+        return;
+    }
+    fragments.push(fragment);
+    sort_decoration_fragments(fragments);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sort_decoration_fragments(fragments: &mut [DecorationFragment]) {
+    fragments.sort_by_key(|fragment| {
+        fragment.range.map_or((usize::MAX, usize::MAX), |range| {
+            (range.byte_start, range.byte_end)
+        })
+    });
+}
+
+#[requires(true)]
+#[ensures(ret == match opener {
+    Cmavo::Lu => Some(Cmavo::Lihu),
+    Cmavo::Tuhe => Some(Cmavo::Tuhu),
+    Cmavo::To => Some(Cmavo::Toi),
+    _ => None,
+})]
+fn nested_text_closer(opener: Cmavo) -> Option<Cmavo> {
+    match opener {
+        Cmavo::Lu => Some(Cmavo::Lihu),
+        Cmavo::Tuhe => Some(Cmavo::Tuhu),
+        Cmavo::To => Some(Cmavo::Toi),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -323,6 +503,15 @@ mod tests {
         "/tests/structure-inlays.snapshot.txt",
     ));
 
+    const DOCUMENT_SCALE_RECOVERED_SOURCE: &str = concat!(
+        "ni'o\n",
+        ".i mi cusku lu do cusku lu mi klama li'u li'u\n",
+        "ni'o\n",
+        ".i do ku viska le mlatu\n",
+        "ni'o\n",
+        ".i mi tavla lu do klama li'u\n",
+    );
+
     #[requires(true)]
     #[ensures(ret.byte_end == snapshot.text.len())]
     fn whole_document_span(snapshot: &DocumentSnapshot) -> SourceSpan {
@@ -360,6 +549,7 @@ mod tests {
                 "mi cusku lu do cusku lu mi klama li'u li'u\n",
             ),
             ("recovered-mid-document", "mi ku i do viska le mlatu\n"),
+            ("document-scale-recovered", DOCUMENT_SCALE_RECOVERED_SOURCE),
         ];
         let profiles = [
             ("full", raw_profile(None, StructureConstructFilter::All)),
@@ -378,7 +568,10 @@ mod tests {
         ];
         let mut actual = String::new();
 
-        for (fixture_name, source) in fixtures {
+        for (fixture_index, (fixture_name, source)) in fixtures.into_iter().enumerate() {
+            if fixture_index > 0 {
+                actual.push('\n');
+            }
             let snapshot = DocumentSnapshot::new(source.to_owned(), 1);
             writeln!(actual, "fixture {fixture_name}").expect("string writes cannot fail");
             writeln!(actual, "source {source:?}").expect("string writes cannot fail");
@@ -410,7 +603,6 @@ mod tests {
                     .expect("string writes cannot fail");
                 }
             }
-            actual.push('\n');
         }
 
         assert_eq!(actual, STRUCTURE_INLAY_SNAPSHOT);
@@ -488,5 +680,51 @@ mod tests {
             subset_range.byte_start <= inlay.anchor.byte_start
                 && inlay.anchor.byte_start < subset_range.byte_end
         }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn document_scale_recovery_preserves_inner_density_across_paragraphs() {
+        let snapshot = DocumentSnapshot::new(DOCUMENT_SCALE_RECOVERED_SOURCE.to_owned(), 1);
+        assert!(matches!(
+            snapshot.parse.as_data(),
+            data!(SyntaxRecoveryParse::Recovered { .. })
+        ));
+        let inlays = snapshot.structure_inlays(
+            &DecorationProfile::default(),
+            &whole_document_span(&snapshot),
+        );
+        assert!(
+            inlays.len() >= 30,
+            "a recovered multi-paragraph document must retain dense inner structure; got {} hints",
+            inlays.len(),
+        );
+
+        let first_paragraph_start = DOCUMENT_SCALE_RECOVERED_SOURCE
+            .find("mi cusku")
+            .expect("first paragraph marker");
+        let second_paragraph_start = DOCUMENT_SCALE_RECOVERED_SOURCE
+            .find("do ku")
+            .expect("second paragraph marker");
+        let third_paragraph_start = DOCUMENT_SCALE_RECOVERED_SOURCE
+            .find("mi tavla")
+            .expect("third paragraph marker");
+        let paragraph_ranges = [
+            (first_paragraph_start, second_paragraph_start),
+            (second_paragraph_start, third_paragraph_start),
+            (third_paragraph_start, DOCUMENT_SCALE_RECOVERED_SOURCE.len()),
+        ];
+        for (paragraph_index, (start, end)) in paragraph_ranges.into_iter().enumerate() {
+            let inner_count = inlays
+                .iter()
+                .filter(|inlay| start < inlay.anchor.byte_start && inlay.anchor.byte_start < end)
+                .count();
+            assert!(
+                inner_count >= 3,
+                "paragraph {} must retain inner structure, got {inner_count} hints",
+                paragraph_index + 1,
+            );
+        }
     }
 }

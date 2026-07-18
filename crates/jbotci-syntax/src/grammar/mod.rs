@@ -2406,6 +2406,16 @@ pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
     options: &ParseOptions,
 ) -> SyntaxRecoveryParseAttempt {
     let tokens = syntax_tokens(words, options);
+    parse_generated_model_syntax_tokens_with_recovery_attempt(tokens, source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
+    tokens: Vec<Token>,
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
     let strict_attempt = generated::generated_model::parse_text_attempt(&tokens, options);
     if let Ok(parsed) = strict_attempt.result {
         return valid_syntax_recovery_attempt(parsed, &tokens, strict_attempt.trace);
