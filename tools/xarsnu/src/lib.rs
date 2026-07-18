@@ -10,7 +10,8 @@ pub mod scenario;
 pub mod transcript;
 
 pub use config::{
-    CapsConfig, ConfigError, ParticipantConfig, PromptCaching, RunConfig, TersmuFormat,
+    CapsConfig, ClientConfig, ConfigError, ParticipantConfig, PromptCaching, RunConfig,
+    TersmuFormat,
 };
 pub use jbotci_tools::{
     DiagnosticCategory, GateError, GateOutcome, ReferenceToolError, ReferenceTools, gate_lojban,

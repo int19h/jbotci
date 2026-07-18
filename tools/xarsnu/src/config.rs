@@ -1,5 +1,7 @@
 //! Typed TOML configuration for xarsnu runs.
 
+use std::time::Duration;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use serde::{Deserialize, Serialize};
@@ -7,6 +9,7 @@ use thiserror::Error;
 
 const DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE: usize = 16;
 const DEFAULT_REFERENCE_NUDGE_AFTER: usize = 6;
+const DEFAULT_HTTP_TIMEOUT_SECONDS: u64 = 60;
 
 #[requires(true)]
 #[ensures(ret == DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE)]
@@ -24,6 +27,12 @@ const fn default_reference_dedupe() -> bool {
 #[ensures(ret == DEFAULT_REFERENCE_NUDGE_AFTER)]
 const fn default_reference_nudge_after() -> usize {
     DEFAULT_REFERENCE_NUDGE_AFTER
+}
+
+#[requires(true)]
+#[ensures(ret == DEFAULT_HTTP_TIMEOUT_SECONDS)]
+const fn default_http_timeout_seconds() -> u64 {
+    DEFAULT_HTTP_TIMEOUT_SECONDS
 }
 
 /// Whether xarsnu should manage provider prompt-cache breakpoints.
@@ -78,6 +87,34 @@ pub struct CapsConfig {
     pub reference_nudge_after: usize,
 }
 
+/// HTTP settings for OpenRouter requests made during one run.
+#[invariant(*http_timeout_seconds > 0, "HTTP timeout must be positive")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ClientConfig {
+    #[serde(default = "default_http_timeout_seconds")]
+    pub http_timeout_seconds: u64,
+}
+
+impl Default for ClientConfig {
+    #[requires(true)]
+    #[ensures(ret.http_timeout_seconds == DEFAULT_HTTP_TIMEOUT_SECONDS)]
+    fn default() -> Self {
+        Self::from_data(bityzba::data!(ClientConfig {
+            http_timeout_seconds: DEFAULT_HTTP_TIMEOUT_SECONDS,
+        }))
+    }
+}
+
+impl ClientConfig {
+    /// Convert the serialized whole-second timeout into the HTTP client's type.
+    #[requires(true)]
+    #[ensures(ret > Duration::ZERO)]
+    pub fn http_timeout(&self) -> Duration {
+        Duration::from_secs(self.http_timeout_seconds)
+    }
+}
+
 /// Semantic rendering selected for the jbotci gate.
 #[invariant(::TreeProj => true)]
 #[invariant(::Tree => true)]
@@ -102,6 +139,8 @@ pub struct RunConfig {
     pub participants: Vec<ParticipantConfig>,
     pub scenario: String,
     pub caps: CapsConfig,
+    #[serde(default)]
+    pub client: ClientConfig,
     #[serde(default)]
     pub tersmu_format: TersmuFormat,
 }
@@ -159,6 +198,7 @@ system-prompt = "Speak only Lojban."
         assert_eq!(config.caps.max_reference_calls_per_phase, 16);
         assert!(config.caps.reference_dedupe);
         assert_eq!(config.caps.reference_nudge_after, 6);
+        assert_eq!(config.client.http_timeout(), Duration::from_secs(60));
         assert!(
             config
                 .participants
@@ -178,6 +218,22 @@ system-prompt = "Speak only Lojban."
         let config = RunConfig::from_toml(&source).expect("valid config");
         assert_eq!(config.participants[0].prompt_caching, PromptCaching::Off);
         assert_eq!(config.participants[1].prompt_caching, PromptCaching::Auto);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn client_http_timeout_is_configurable_and_positive() {
+        let configured = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\n\n[client]\nhttp-timeout-seconds = 180",
+        );
+        let config = RunConfig::from_toml(&configured).expect("valid client timeout");
+        assert_eq!(config.client.http_timeout(), Duration::from_secs(180));
+
+        let invalid = configured.replace("http-timeout-seconds = 180", "http-timeout-seconds = 0");
+        let error = RunConfig::from_toml(&invalid).expect_err("zero timeout must be rejected");
+        assert!(error.to_string().contains("HTTP timeout must be positive"));
     }
 
     #[test]

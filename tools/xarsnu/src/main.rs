@@ -47,7 +47,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Err("usage: xarsnu <config.toml>".into());
     }
     let path = PathBuf::from(first);
-    let summary = match run_live(&path, OpenRouterClient::from_env) {
+    let summary = match run_live(&path, OpenRouterClient::from_env_with_timeout) {
         Ok(summary) => summary,
         Err(error) => {
             if let Some(transcript_path) = error.transcript_path()
