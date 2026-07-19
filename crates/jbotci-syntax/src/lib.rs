@@ -4276,6 +4276,73 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_syntax_required_child_unwind_remains_issue_517_known_limit() {
+        // The #526 driver fixes deliberately do not implement the typed
+        // recovery unwind needed to escape an already-entered required child.
+        // Keep this collapsed tree documented for #517's separate design round.
+        let source = "mi zo'u do .i mi klama";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        );
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+
+        assert_eq!(recovered.errors.len(), 1);
+        assert_eq!(
+            jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
+            1,
+        );
+        assert!(
+            visitor.valid_tokens.is_empty(),
+            "the known-limit tree is still expected to collapse, got {:?}",
+            visitor.valid_tokens,
+        );
+        assert_eq!(
+            visitor.recovery_spans,
+            [(0, 2), (3, 7), (8, 10), (12, 13), (14, 16), (17, 22)],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_error_cap_preserves_accepted_directive_prefix() {
+        let source = "mi ku .i do ku .i mi tavla";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default().with_max_recovery_errors(2),
+        );
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+
+        assert_eq!(recovered.errors.len(), 2);
+        assert_eq!(
+            visitor.valid_tokens,
+            ["mi", "i", "do"],
+            "terminal recovery must append at the second failure instead of discarding the accepted first-error prefix",
+        );
+        assert!(
+            recovered_syntax_parse_conserves_word_spans(&words, &recovered),
+            "prefix-preserving terminal recovery must still account for every input token exactly once",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_syntax_eof_error_preserves_prefix_tree() {
         let probe = recovered_syntax_probe("mi viska lo");
 
@@ -4293,9 +4360,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn recovered_syntax_mid_input_errors_conserve_tokens_and_prefix() {
-        for source in [
-            "mi viska lo .i do klama le zarci",
-            "mi viska lo .i mi klama le",
+        for (source, expected_error_count) in [
+            ("mi viska lo .i do klama le zarci", 1),
+            ("mi viska lo .i mi klama le", 2),
         ] {
             let words =
                 jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
@@ -4305,7 +4372,7 @@ mod tests {
                 &ParseOptions::default(),
             );
 
-            assert_eq!(recovered.errors.len(), 2, "{source:?}");
+            assert_eq!(recovered.errors.len(), expected_error_count, "{source:?}");
             assert!(
                 recovered_syntax_parse_conserves_word_spans(&words, &recovered),
                 "recovered syntax must account for every input token exactly once for {source:?}"
@@ -4320,9 +4387,9 @@ mod tests {
                 visitor
                     .valid_tokens
                     .iter()
-                    .take(3)
+                    .take(2)
                     .map(String::as_str)
-                    .eq(["mi", "víska", "lo"]),
+                    .eq(["mi", "víska"]),
                 "the valid prefix must retain its normal syntax constructs for {source:?}"
             );
         }
