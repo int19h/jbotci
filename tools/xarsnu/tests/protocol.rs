@@ -1818,6 +1818,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                 .map(|name| new!(ParticipantConfig {
                     name: name.to_owned(),
                     model: format!("example/{name}"),
+                    provider: None,
                     prompt_caching: xarsnu::PromptCaching::Auto,
                     tool_choice: ToolChoice::Required,
                     reasoning: None,

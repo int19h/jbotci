@@ -533,6 +533,10 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     usage.cache_write_tokens.unwrap_or(0),
                 )
                 .expect("writing to String cannot fail");
+                if let Some(provider) = &usage.provider {
+                    writeln!(report, "Serving provider: `{provider}`\n")
+                        .expect("writing to String cannot fail");
+                }
                 if usage.reasoning_present || usage.reasoning_tokens.is_some() {
                     writeln!(
                         report,
@@ -717,6 +721,7 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
         )
         .expect("writing to String cannot fail");
         render_cache_observability(report, usage);
+        render_provider_mix(report, usage);
     }
     writeln!(
         report,
@@ -728,6 +733,39 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
     )
     .expect("writing to String cannot fail");
     render_cache_observability(report, &summary.run_usage);
+    render_provider_mix(report, &summary.run_usage);
+}
+
+#[requires(true)]
+#[ensures(report.contains("Provider mix:"))]
+fn render_provider_mix(report: &mut String, usage: &UsageTotals) {
+    report.push_str("  - Provider mix: ");
+    if usage.provider_calls == 0 {
+        report.push_str("n/a (0 provider calls)\n");
+        return;
+    }
+
+    let named_calls = usage
+        .provider_calls_by_name
+        .values()
+        .copied()
+        .fold(0u64, u64::saturating_add);
+    let unknown_calls = usage.provider_calls.saturating_sub(named_calls);
+    let mut needs_separator = false;
+    for (provider, calls) in &usage.provider_calls_by_name {
+        if needs_separator {
+            report.push_str(", ");
+        }
+        write!(report, "`{provider}`: {calls}").expect("writing to String cannot fail");
+        needs_separator = true;
+    }
+    if unknown_calls > 0 {
+        if needs_separator {
+            report.push_str(", ");
+        }
+        write!(report, "unknown: {unknown_calls}").expect("writing to String cannot fail");
+    }
+    report.push('\n');
 }
 
 #[requires(true)]

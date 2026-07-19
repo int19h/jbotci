@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use xarsnu::{
     AbortKind, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
     PromptCaching, ProviderToolChoice, ProviderUsageValidationError, ReasoningConfig, RetryPolicy,
-    RunAccounting, ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
+    RunAccounting, RunConfig, ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
 };
 
 #[invariant(true)]
@@ -391,6 +391,7 @@ fn conversation_for_model_with_reasoning(
     ParticipantConversation::from_parts(
         "tester".to_owned(),
         model.to_owned(),
+        None,
         prompt_caching,
         reasoning,
         0.3,
@@ -641,6 +642,100 @@ fn default_reasoning_request_has_a_stable_wire_shape() {
         captured[0].body_bytes,
         br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn participant_provider_table_reaches_the_wire_byte_exact() {
+    let config = RunConfig::from_toml(
+        r#"
+scenario = "fixture.toml"
+
+[caps]
+max-parse-attempts-per-turn = 3
+max-intent-revisions-per-turn = 2
+max-turns = 4
+max-cost-usd = 1.0
+
+[[participants]]
+name = "tester"
+model = "mock/model"
+tool-choice = "required"
+reasoning = "default"
+temperature = 0.3
+system-prompt = "Use tools."
+
+[participants.provider]
+only = ["xiaomi/fp8"]
+order = ["xiaomi/fp8", "fallback/example"]
+ignore = ["broken/intermediary"]
+
+[[participants]]
+name = "observer"
+model = "mock/observer"
+temperature = 0.4
+system-prompt = "Observe."
+"#,
+    )
+    .expect("provider routing config parses");
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = ParticipantConversation::new(&config.participants[0]);
+    conversation.push_user("Private task.".to_owned());
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let captured = server.finish();
+    assert_eq!(
+        captured[0].body_bytes,
+        br#"{"model":"mock/model","provider":{"ignore":["broken/intermediary"],"only":["xiaomi/fp8"],"order":["xiaomi/fp8","fallback/example"]},"temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn serving_provider_is_captured_and_round_trips_with_usage() {
+    let mut response = tool_call_response("alpha", 0.01);
+    response.body["provider"] = json!("xiaomi/fp8");
+    let server = MockServer::start(vec![response]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mock completion succeeds");
+
+    let usage = take_pending_usage(&mut conversation);
+    assert_eq!(usage[0].provider.as_deref(), Some("xiaomi/fp8"));
+    assert_eq!(
+        conversation
+            .usage()
+            .provider_calls_by_name
+            .get("xiaomi/fp8"),
+        Some(&1)
+    );
+    let record_json = serde_json::to_value(&usage[0]).expect("usage record serializes");
+    assert_eq!(record_json["provider"], "xiaomi/fp8");
+    let round_tripped: Usage =
+        serde_json::from_value(record_json).expect("usage record deserializes");
+    assert_eq!(round_tripped, usage[0]);
+    assert_eq!(server.finish().len(), 1);
 }
 
 #[test]

@@ -1,5 +1,6 @@
 //! Sequential OpenRouter chat-completions runtime with dynamic tool sets.
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::thread;
 use std::time::Duration;
@@ -261,9 +262,12 @@ impl ChatMessage {
 /// enforce the only portable structural constraint; relationships between
 /// counters are intentionally unconstrained because providers account for
 /// cached, reasoning, completion, and total tokens differently.
+#[invariant(provider.as_ref().is_none_or(|provider| !provider.trim().is_empty()), "serving provider must not be empty when reported")]
 #[invariant(cost.is_finite() && *cost >= 0.0, "reported cost must be finite and nonnegative")]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Usage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
     #[serde(default)]
     pub prompt_tokens: u64,
     #[serde(default)]
@@ -345,6 +349,7 @@ pub struct UsageTotals {
     pub provider_calls: u64,
     pub cache_hit_calls: u64,
     pub reasoning_calls: u64,
+    pub provider_calls_by_name: BTreeMap<String, u64>,
     pub cost_usd: f64,
 }
 
@@ -373,6 +378,13 @@ impl UsageTotals {
         }
         if usage.reasoning_present || usage.reasoning_tokens.is_some() {
             self.reasoning_calls = self.reasoning_calls.saturating_add(1);
+        }
+        if let Some(provider) = &usage.provider {
+            let calls = self
+                .provider_calls_by_name
+                .entry(provider.clone())
+                .or_default();
+            *calls = calls.saturating_add(1);
         }
         self.cost_usd += usage.cost;
     }
@@ -707,6 +719,7 @@ impl OpenRouterClient {
     fn complete(
         &self,
         model: &str,
+        provider: Option<&toml::Table>,
         prompt_caching: PromptCaching,
         temperature: f64,
         messages: &[ChatMessage],
@@ -725,6 +738,7 @@ impl OpenRouterClient {
         // tool array here because that would weaken protocol enforcement.
         let request = CompletionRequest {
             model,
+            provider,
             temperature,
             messages: new!(CompletionMessages {
                 messages,
@@ -871,7 +885,9 @@ impl OpenRouterClient {
             } = choice.message;
             let thinking = ThinkingTrace::from_provider_fields(reasoning, reasoning_details);
             let reasoning_present = thinking.is_some();
-            let usage = wire.usage.into_usage(reasoning_present)?;
+            let usage = wire
+                .usage
+                .into_usage(reasoning_present, wire.provider.take())?;
             let content = content.filter(|content| !content.is_empty());
             return Ok(Completion {
                 content,
@@ -963,6 +979,7 @@ impl ModelTurn {
 pub struct ParticipantConversation {
     participant_name: String,
     model: String,
+    provider: Option<toml::Table>,
     prompt_caching: PromptCaching,
     reasoning: ReasoningConfig,
     temperature: f64,
@@ -988,6 +1005,7 @@ impl ParticipantConversation {
         Self::from_system_prompt(
             participant.name.clone(),
             participant.model.clone(),
+            participant.provider.clone(),
             participant.prompt_caching,
             policy.reasoning,
             participant.temperature,
@@ -1004,6 +1022,7 @@ impl ParticipantConversation {
     pub fn from_system_prompt(
         participant_name: String,
         model: String,
+        provider: Option<toml::Table>,
         prompt_caching: PromptCaching,
         reasoning: ReasoningConfig,
         temperature: f64,
@@ -1012,6 +1031,7 @@ impl ParticipantConversation {
         Self {
             participant_name,
             model,
+            provider,
             prompt_caching,
             reasoning,
             temperature,
@@ -1032,6 +1052,7 @@ impl ParticipantConversation {
     pub fn from_parts(
         participant_name: String,
         model: String,
+        provider: Option<toml::Table>,
         prompt_caching: PromptCaching,
         reasoning: ReasoningConfig,
         temperature: f64,
@@ -1041,6 +1062,7 @@ impl ParticipantConversation {
         Self {
             participant_name,
             model,
+            provider,
             prompt_caching,
             reasoning,
             temperature,
@@ -1138,6 +1160,7 @@ impl ParticipantConversation {
         loop {
             let completion = client.complete(
                 &self.model,
+                self.provider.as_ref(),
                 self.prompt_caching,
                 self.temperature,
                 &self.messages,
@@ -1320,16 +1343,21 @@ pub enum OpenRouterError {
 
 /// A provider usage payload violated a provider-independent structural clause.
 #[invariant(::CostMustBeFiniteAndNonnegative => true)]
+#[invariant(::ProviderMustNotBeEmpty => true)]
 #[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
 pub enum ProviderUsageValidationError {
     #[error("reported cost must be finite and nonnegative")]
     CostMustBeFiniteAndNonnegative,
+    #[error("serving provider must not be empty when reported")]
+    ProviderMustNotBeEmpty,
 }
 
 #[invariant(true)]
 #[derive(Debug, Serialize)]
 struct CompletionRequest<'a> {
     model: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    provider: Option<&'a toml::Table>,
     temperature: f64,
     messages: CompletionMessages<'a>,
     tools: &'a [ToolDefinition],
@@ -1623,6 +1651,8 @@ struct CompletionResponse {
     #[serde(default)]
     usage: ProviderUsage,
     #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
     error: Option<ProviderError>,
 }
 
@@ -1659,14 +1689,27 @@ struct ProviderUsage {
 impl ProviderUsage {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn into_usage(self, reasoning_present: bool) -> Result<Usage, OpenRouterError> {
+    fn into_usage(
+        self,
+        reasoning_present: bool,
+        provider: Option<String>,
+    ) -> Result<Usage, OpenRouterError> {
         if !self.cost.is_finite() || self.cost < 0.0 {
             return Err(OpenRouterError::InvalidProviderUsage {
                 reason: ProviderUsageValidationError::CostMustBeFiniteAndNonnegative,
             });
         }
+        if provider
+            .as_ref()
+            .is_some_and(|provider| provider.trim().is_empty())
+        {
+            return Err(OpenRouterError::InvalidProviderUsage {
+                reason: ProviderUsageValidationError::ProviderMustNotBeEmpty,
+            });
+        }
 
         Ok(new!(Usage {
+            provider,
             prompt_tokens: self.prompt_tokens,
             completion_tokens: self.completion_tokens,
             total_tokens: self.total_tokens,

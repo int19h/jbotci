@@ -122,6 +122,9 @@ where
 pub struct ParticipantConfig {
     pub name: String,
     pub model: String,
+    /// Opaque OpenRouter provider-routing options, serialized without schema modeling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<toml::Table>,
     #[serde(default)]
     pub prompt_caching: PromptCaching,
     #[serde(default)]
@@ -277,6 +280,12 @@ system-prompt = "Speak only Lojban."
                 .participants
                 .iter()
                 .all(|participant| participant.prompt_caching == PromptCaching::Auto)
+        );
+        assert!(
+            config
+                .participants
+                .iter()
+                .all(|participant| participant.provider.is_none())
         );
         assert!(
             config
