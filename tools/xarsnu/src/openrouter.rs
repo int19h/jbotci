@@ -2,6 +2,11 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -527,6 +532,7 @@ impl RetryPolicy {
 /// Configuration used to construct an HTTP client.
 #[invariant(!base_url.trim().is_empty(), "OpenRouter base URL cannot be empty")]
 #[invariant(*timeout > Duration::ZERO, "HTTP timeout must be positive")]
+#[invariant(request_dump_directory.as_ref().is_none_or(|directory| !directory.as_os_str().is_empty()), "request dump directory cannot be empty when configured")]
 #[derive(Clone)]
 pub struct OpenRouterClientConfig {
     pub base_url: String,
@@ -534,6 +540,7 @@ pub struct OpenRouterClientConfig {
     pub retry_policy: RetryPolicy,
     pub max_required_tool_reprompts: usize,
     pub timeout: Duration,
+    request_dump_directory: Option<PathBuf>,
 }
 
 impl fmt::Debug for OpenRouterClientConfig {
@@ -550,6 +557,7 @@ impl fmt::Debug for OpenRouterClientConfig {
                 &self.max_required_tool_reprompts,
             )
             .field("timeout", &self.timeout)
+            .field("request_dump_directory", &self.request_dump_directory)
             .finish()
     }
 }
@@ -564,6 +572,7 @@ impl Default for OpenRouterClientConfig {
             retry_policy: RetryPolicy::default(),
             max_required_tool_reprompts: 2,
             timeout: Duration::from_secs(60),
+            request_dump_directory: None,
         }))
     }
 }
@@ -585,6 +594,7 @@ impl OpenRouterClientConfig {
             retry_policy,
             max_required_tool_reprompts,
             timeout,
+            request_dump_directory: None,
         }))
         .map_err(|error| OpenRouterError::InvalidConfiguration {
             message: error.to_string(),
@@ -599,9 +609,144 @@ impl OpenRouterClientConfig {
             .ok()
             .filter(|value| !value.trim().is_empty())
             .ok_or(OpenRouterError::MissingApiKey)?;
+        let request_dump_directory = std::env::var_os("XARSNU_DUMP_REQUESTS")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
         let mut data = Self::default().into_data();
         data.api_key = Some(api_key);
+        data.request_dump_directory = request_dump_directory;
         Ok(Self::from_data(data))
+    }
+
+    /// Enable exact request/status dumps without consulting process environment.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|config| config.request_dump_directory.is_some()) || ret.is_err())]
+    pub fn with_request_dump_directory(self, directory: PathBuf) -> Result<Self, OpenRouterError> {
+        if directory.as_os_str().is_empty() {
+            return Err(OpenRouterError::InvalidConfiguration {
+                message: "request dump directory cannot be empty".to_owned(),
+            });
+        }
+        Ok(self.with_data(bityzba::data! {
+            request_dump_directory: Some(directory),
+        }))
+    }
+}
+
+/// Env-gated recorder for exact OpenRouter request bytes and matching outcomes.
+#[invariant(!directory.as_os_str().is_empty(), "request dump directory cannot be empty")]
+#[derive(Debug)]
+struct RequestDumper {
+    directory: PathBuf,
+    next_index: AtomicU64,
+}
+
+impl RequestDumper {
+    #[requires(!directory.as_os_str().is_empty())]
+    #[ensures(ret.next_index.load(Ordering::Relaxed) == 1)]
+    fn new(directory: PathBuf) -> Self {
+        new!(RequestDumper {
+            directory,
+            next_index: AtomicU64::new(1),
+        })
+    }
+
+    /// Reserve a number by atomically creating its request file.
+    #[requires(!request_body.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|dump| dump.index > 0) || ret.is_err())]
+    fn write_request(&self, request_body: &[u8]) -> Result<RequestDump, OpenRouterError> {
+        fs::create_dir_all(&self.directory)
+            .map_err(|error| request_dump_error(&self.directory, error))?;
+        loop {
+            let index = self
+                .next_index
+                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |index| {
+                    index.checked_add(1)
+                })
+                .map_err(|_| OpenRouterError::RequestDump {
+                    path: self.directory.clone(),
+                    message: "request dump number space was exhausted".to_owned(),
+                })?;
+            let request_path = self.directory.join(format!("{index:06}-request.json"));
+            let response_path = self.directory.join(format!("{index:06}-response.json"));
+            if response_path.exists() {
+                continue;
+            }
+            match write_new_file(&request_path, request_body) {
+                Ok(()) => {
+                    return Ok(new!(RequestDump {
+                        index,
+                        response_path,
+                    }));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(request_dump_error(&request_path, error)),
+            }
+        }
+    }
+
+    /// Record either the HTTP status or the transport failure for one attempt.
+    #[requires(status.is_some() != transport_error.is_some())]
+    #[requires(status.is_none_or(|status| (100..=599).contains(&status)))]
+    #[requires(transport_error.is_none_or(|message| !message.trim().is_empty()))]
+    #[ensures(ret.is_ok() || ret.as_ref().err().is_some_and(|error| !error.to_string().is_empty()))]
+    fn write_response(
+        &self,
+        dump: &RequestDump,
+        status: Option<u16>,
+        transport_error: Option<&str>,
+    ) -> Result<(), OpenRouterError> {
+        let response = new!(RequestDumpResponse {
+            status,
+            transport_error,
+        });
+        let mut bytes =
+            serde_json::to_vec_pretty(&response).map_err(|error| OpenRouterError::RequestDump {
+                path: dump.response_path.clone(),
+                message: error.to_string(),
+            })?;
+        bytes.push(b'\n');
+        write_new_file(&dump.response_path, &bytes)
+            .map_err(|error| request_dump_error(&dump.response_path, error))
+    }
+}
+
+/// Paths reserved for one outgoing HTTP attempt.
+#[invariant(*index > 0, "request dump numbers start at one")]
+#[invariant(!response_path.as_os_str().is_empty(), "response dump path cannot be empty")]
+#[derive(Debug)]
+struct RequestDump {
+    index: u64,
+    response_path: PathBuf,
+}
+
+/// Status boundary paired with one exact dumped request.
+#[invariant(status.is_some() != transport_error.is_some(), "exactly one request outcome must be recorded")]
+#[invariant(status.is_none_or(|status| (100..=599).contains(&status)), "HTTP statuses must use the protocol range")]
+#[invariant(transport_error.is_none_or(|message| !message.trim().is_empty()), "transport errors cannot be empty")]
+#[derive(Debug, Serialize)]
+struct RequestDumpResponse<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport_error: Option<&'a str>,
+}
+
+#[requires(!path.as_os_str().is_empty())]
+#[requires(!contents.is_empty())]
+#[ensures(ret.is_ok() -> path.is_file())]
+fn write_new_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(contents)?;
+    file.flush()
+}
+
+#[requires(!path.as_os_str().is_empty())]
+#[ensures(!ret.to_string().is_empty())]
+fn request_dump_error(path: &Path, error: std::io::Error) -> OpenRouterError {
+    OpenRouterError::RequestDump {
+        path: path.to_path_buf(),
+        message: error.to_string(),
     }
 }
 
@@ -611,6 +756,7 @@ impl OpenRouterClientConfig {
 pub struct OpenRouterClient {
     config: OpenRouterClientConfig,
     agent: ureq::Agent,
+    request_dumper: Option<Arc<RequestDumper>>,
 }
 
 impl OpenRouterClient {
@@ -618,6 +764,10 @@ impl OpenRouterClient {
     #[requires(true)]
     #[ensures(!ret.config.base_url.is_empty())]
     pub fn new(config: OpenRouterClientConfig) -> Self {
+        let request_dumper = config
+            .request_dump_directory
+            .as_ref()
+            .map(|directory| Arc::new(RequestDumper::new(directory.clone())));
         let agent_config = ureq::Agent::config_builder()
             .timeout_global(Some(config.timeout))
             .http_status_as_error(false)
@@ -625,6 +775,7 @@ impl OpenRouterClient {
         Self {
             config,
             agent: ureq::Agent::new_with_config(agent_config),
+            request_dumper,
         }
     }
 
@@ -768,13 +919,31 @@ impl OpenRouterClient {
                     message: format!("completion request did not serialize: {error}"),
                 }
             })?;
+            let dump = self
+                .request_dumper
+                .as_ref()
+                .map(|dumper| dumper.write_request(request_body.as_bytes()))
+                .transpose()?;
             let mut response = match builder.send(request_body) {
-                Ok(response) => response,
+                Ok(response) => {
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        dumper.write_response(dump, Some(response.status().as_u16()), None)?;
+                    }
+                    response
+                }
                 Err(error) if is_retriable_transport_timeout(&error) => {
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        let message = error.to_string();
+                        dumper.write_response(dump, None, Some(&message))?;
+                    }
                     self.back_off_after_transport_timeout(&mut retries, &error)?;
                     continue;
                 }
                 Err(error) => {
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        let message = error.to_string();
+                        dumper.write_response(dump, None, Some(&message))?;
+                    }
                     return Err(OpenRouterError::Transport {
                         message: error.to_string(),
                     });
@@ -1300,6 +1469,7 @@ impl ParticipantConversation {
 #[invariant(true)]
 #[invariant(::MissingApiKey => true)]
 #[invariant(::InvalidConfiguration { .. } => true)]
+#[invariant(::RequestDump { .. } => true)]
 #[invariant(::Transport { .. } => true)]
 #[invariant(::TransportRetriesExhausted { .. } => true)]
 #[invariant(::HttpStatus { .. } => true)]
@@ -1315,6 +1485,8 @@ pub enum OpenRouterError {
     MissingApiKey,
     #[error("invalid OpenRouter configuration: {message}")]
     InvalidConfiguration { message: String },
+    #[error("unable to write OpenRouter request dump `{path}`: {message}", path = path.display())]
+    RequestDump { path: PathBuf, message: String },
     #[error("OpenRouter transport failed: {message}")]
     Transport { message: String },
     #[error("OpenRouter transport timeout exhausted after {attempts} attempts: {message}")]

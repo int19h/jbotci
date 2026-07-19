@@ -1,5 +1,8 @@
+use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -11,6 +14,18 @@ use xarsnu::{
     PromptCaching, ProviderToolChoice, ProviderUsageValidationError, ReasoningConfig, RetryPolicy,
     RunAccounting, RunConfig, ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
 };
+
+static NEXT_DUMP_DIRECTORY: AtomicU64 = AtomicU64::new(1);
+
+#[requires(true)]
+#[ensures(!ret.as_os_str().is_empty())]
+fn request_dump_directory() -> PathBuf {
+    let number = NEXT_DUMP_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "xarsnu-openrouter-dump-test-{}-{number}",
+        std::process::id()
+    ))
+}
 
 #[invariant(true)]
 #[derive(Debug)]
@@ -642,6 +657,89 @@ fn default_reasoning_request_has_a_stable_wire_shape() {
         captured[0].body_bytes,
         br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn request_dump_records_exact_retry_bodies_and_statuses_without_overwriting() {
+    let server = MockServer::start(vec![
+        MockResponse {
+            status: 429,
+            body: json!({ "error": "retry" }),
+        },
+        tool_call_response("alpha", 0.01),
+    ]);
+    let directory = request_dump_directory();
+    fs::create_dir_all(&directory).expect("create test dump directory");
+    fs::write(directory.join("000001-request.json"), b"existing request\n")
+        .expect("seed existing request dump");
+    fs::write(
+        directory.join("000001-response.json"),
+        b"existing response\n",
+    )
+    .expect("seed existing response dump");
+
+    let retry_policy = RetryPolicy::new(1, Duration::from_millis(1)).expect("valid retry policy");
+    let config = OpenRouterClientConfig::new(
+        server.base_url.clone(),
+        None,
+        retry_policy,
+        0,
+        Duration::from_secs(2),
+    )
+    .expect("valid mock client config")
+    .with_request_dump_directory(directory.clone())
+    .expect("valid request dump directory");
+    let client = OpenRouterClient::new(config);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("retry succeeds");
+
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2);
+    assert_eq!(
+        fs::read(directory.join("000001-request.json")).expect("read existing request"),
+        b"existing request\n"
+    );
+    assert_eq!(
+        fs::read(directory.join("000001-response.json")).expect("read existing response"),
+        b"existing response\n"
+    );
+    assert_eq!(
+        fs::read(directory.join("000002-request.json")).expect("read first dumped request"),
+        captured[0].body_bytes
+    );
+    assert_eq!(
+        fs::read(directory.join("000003-request.json")).expect("read retried request"),
+        captured[1].body_bytes
+    );
+    let first_response: Value = serde_json::from_slice(
+        &fs::read(directory.join("000002-response.json")).expect("read first response status"),
+    )
+    .expect("first response status JSON");
+    let second_response: Value = serde_json::from_slice(
+        &fs::read(directory.join("000003-response.json")).expect("read second response status"),
+    )
+    .expect("second response status JSON");
+    assert_eq!(first_response, json!({ "status": 429 }));
+    assert_eq!(second_response, json!({ "status": 200 }));
+    assert_eq!(
+        fs::read_dir(&directory)
+            .expect("list request dumps")
+            .count(),
+        6
+    );
+
+    fs::remove_dir_all(directory).expect("remove test dump directory");
 }
 
 #[test]
