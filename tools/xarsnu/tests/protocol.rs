@@ -15,7 +15,7 @@ use xarsnu::{
     CapsConfig, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError,
     ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher, RunAccounting,
     RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice,
-    ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript,
+    ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript, report_file,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -1712,6 +1712,89 @@ fn referential_answers_close_dialog_and_are_collected_from_one_frozen_boundary()
     assert!(
         answer_prompts[0].contains("based only on the dialog through the final posted description")
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_events() {
+    let scenario =
+        ScenarioInstance::from_toml(include_str!("../scenarios/debate-consciousness-1.toml"))
+            .expect("debate scenario");
+    let participant_names = ["alice", "bob", "carol"];
+    let participants = participant_names
+        .iter()
+        .map(|participant| {
+            let mut steps = Vec::new();
+            for turn_number in 1..=scenario.maximum_turns() {
+                let speaker = participant_names[(turn_number - 1) % participant_names.len()];
+                if speaker == *participant {
+                    steps.extend(posted_message_steps("I continue the debate.", "I go."));
+                } else {
+                    steps.extend(listener_steps("The speaker goes."));
+                }
+            }
+            ScriptedModel::new(participant, steps)
+        })
+        .collect::<Vec<_>>();
+
+    let run_config = new!(RunConfig {
+        participants: participant_names
+            .into_iter()
+            .map(|name| new!(ParticipantConfig {
+                name: name.to_owned(),
+                model: format!("example/{name}"),
+                provider: None,
+                prompt_caching: xarsnu::PromptCaching::Auto,
+                tool_choice: ToolChoice::Required,
+                reasoning: None,
+                temperature: 0.7,
+                system_prompt: "Use the gated protocol.".to_owned(),
+            }))
+            .collect(),
+        scenario: "debate-consciousness-1.toml".to_owned(),
+        caps: caps(3, 2, 12),
+        client: xarsnu::ClientConfig::default(),
+        tersmu_format: TersmuFormat::TreeProj,
+    });
+    let header = RunHeader::new(run_config.clone(), &scenario).expect("transcript header");
+    let transcript_path = temp_path("debate-turn-cap");
+    let mut runner = ProtocolRunner::new_with_scenario(
+        participants,
+        run_config.caps.clone(),
+        TersmuFormat::TreeProj,
+        ReferenceToolDispatcher,
+        scenario,
+    )
+    .expect("debate runner");
+    runner
+        .attach_transcript(&transcript_path, header)
+        .expect("attach debate transcript");
+
+    let outcome = runner.run().expect("debate protocol run");
+
+    assert!(matches!(
+        outcome.as_data(),
+        ProtocolRunOutcomeData::Completed { turns: 10 }
+    ));
+    assert_eq!(runner.visible_chat().len(), 10);
+    assert!(runner.answers().is_empty());
+    assert_eq!(runner.task_outcome(), None);
+    assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+    assert!(runner.events().iter().all(|event| !matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::AnswerSubmitted { .. })
+            | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
+            | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { .. })
+    )));
+
+    let records = read_transcript(&transcript_path).expect("debate transcript validates");
+    assert_eq!(records.len(), runner.events().len());
+    let report = report_file(&transcript_path).expect("debate report renders");
+    assert!(report.contains("Outcome: **dialog completed** after 10 turn(s)."));
+    assert!(report.contains("Aggregate: **not scored**"));
+    assert!(!report.contains("### Scenario checker"));
+    fs::remove_file(transcript_path).expect("remove debate transcript");
 }
 
 #[test]

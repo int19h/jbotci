@@ -149,11 +149,78 @@ fn referential_scene_count(instance: &ScenarioInstance) -> usize {
 #[ensures(true)]
 fn all_scenario_toml_fixtures_round_trip() {
     let instances = fixture_instances();
-    assert_eq!(instances.len(), 9);
+    assert_eq!(instances.len(), 10);
     for instance in instances {
         let encoded = instance.to_toml().expect("serialize scenario");
         let decoded = ScenarioInstance::from_toml(&encoded).expect("reparse scenario");
         assert_eq!(decoded, instance, "round trip for {}", instance.id());
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn debate_fixture_preserves_authored_briefs_without_scoring_fields_or_school_labels() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scenarios/debate-consciousness-1.toml");
+    let source = fs::read_to_string(path).expect("debate fixture");
+    let lowercase = source.to_lowercase();
+    for forbidden_label in [
+        "consequentialism",
+        "consequentialist",
+        "deontology",
+        "deontological",
+        "utilitarian",
+        "utilitarianism",
+        "virtue",
+    ] {
+        assert!(
+            !lowercase.contains(forbidden_label),
+            "forbidden school label `{forbidden_label}` appeared in raw scenario TOML"
+        );
+    }
+
+    let debate = ScenarioInstance::from_toml(&source).expect("debate fixture");
+    assert_eq!(debate.kind(), ScenarioKind::Debate);
+    assert_eq!(
+        debate.title(),
+        "What do we owe to minds? The hard problem and its ethics"
+    );
+    assert_eq!(debate.maximum_turns(), 10);
+    assert!(!debate.is_scored());
+    assert_eq!(debate.answer_schema(), None);
+    assert_eq!(debate.minimum_rounds(), None);
+    assert_eq!(debate.maximum_rounds(), None);
+    assert!(!debate.answers_close_dialog());
+    assert!(
+        debate
+            .participants()
+            .iter()
+            .all(|participant| !participant.answer_required)
+    );
+
+    let norm = "You find genuine disagreement clarifying. When another speaker's reasoning rests on premises you reject, say so plainly and press the point in Lojban; do not accommodate for the sake of harmony. Engage the strongest version of what they said.";
+    let expected_briefs = [
+        (
+            "alice",
+            "When you weigh any ethical question, what ultimately moves you is how much better or worse experience becomes for those who have it: suffering prevented, wellbeing produced. Rules and character matter to you only insofar as they change what actually happens to minds. You are skeptical of moral claims that cannot be cashed out as someone's experience going differently.",
+        ),
+        (
+            "bob",
+            "When you weigh any ethical question, what ultimately moves you is what is owed: duties and constraints that bind regardless of how the totals come out. Some things may not be done to a mind even for better overall outcomes, and some things are owed to it even when nobody benefits. You are skeptical of arguments that make right and wrong hostage to consequences.",
+        ),
+        (
+            "carol",
+            "When you weigh any ethical question, what ultimately moves you is what the choice reveals about and does to the character of the one choosing: whether it is what a wise, just, and compassionate agent would do, and what doing it cultivates or corrodes. You are skeptical of both rule-tallies and outcome-tallies detached from the kind of agent acting.",
+        ),
+    ];
+    for (name, bias) in expected_briefs {
+        let participant = debate
+            .participants()
+            .iter()
+            .find(|participant| participant.name == name)
+            .expect("named debate participant");
+        assert_eq!(participant.private_brief, format!("{bias}\n\n{norm}"));
     }
 }
 
@@ -205,7 +272,10 @@ fn answer_dialog_closure_defaults_by_scenario_family_and_can_be_overridden() {
 #[requires(true)]
 #[ensures(true)]
 fn every_checker_accepts_truth_and_rejects_a_minimal_perturbation() {
-    for instance in fixture_instances() {
+    for instance in fixture_instances()
+        .into_iter()
+        .filter(ScenarioInstance::is_scored)
+    {
         let correct = typed(&instance, correct_answer(&instance));
         let outcome = instance.check_answers(&all_required_answers(&instance, correct));
         assert_eq!(outcome.status, TaskStatus::Success, "{}", instance.id());

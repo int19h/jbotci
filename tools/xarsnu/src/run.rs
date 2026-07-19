@@ -21,7 +21,7 @@ static TRANSCRIPT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Successful live-run result. Task failure remains a successful execution result.
 #[invariant(!transcript_path.as_os_str().is_empty())]
-#[invariant(task_outcome.is_some() || matches!(outcome.as_data(), bityzba::data!(ProtocolRunOutcome::BudgetAborted { .. })))]
+#[invariant(task_outcome.is_some() || matches!(outcome.as_data(), bityzba::data!(ProtocolRunOutcome::Completed { .. }) | bityzba::data!(ProtocolRunOutcome::BudgetAborted { .. })))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RunSummary {
     pub transcript_path: PathBuf,
@@ -41,7 +41,17 @@ impl RunSummary {
                 self.outcome.turns(),
             )
         } else {
-            format!("budget aborted after {} turn(s)", self.outcome.turns())
+            match self.outcome.as_data() {
+                bityzba::data!(ProtocolRunOutcome::Completed { turns }) => {
+                    format!("dialog completed after {turns} turns")
+                }
+                bityzba::data!(ProtocolRunOutcome::BudgetAborted { turns, .. }) => {
+                    format!("budget aborted after {turns} turn(s)")
+                }
+                bityzba::data!(ProtocolRunOutcome::ScenarioCompleted { .. }) => {
+                    unreachable!("scenario completion always carries a task outcome")
+                }
+            }
         }
     }
 }
