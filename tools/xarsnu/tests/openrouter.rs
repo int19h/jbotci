@@ -655,7 +655,7 @@ fn default_reasoning_request_has_a_stable_wire_shape() {
     let captured = server.finish();
     assert_eq!(
         captured[0].body_bytes,
-        br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
+        br#"{"model":"mock/model","temperature":0.3,"max_tokens":16384,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
     );
 }
 
@@ -730,8 +730,27 @@ fn request_dump_records_exact_retry_bodies_and_statuses_without_overwriting() {
         &fs::read(directory.join("000003-response.json")).expect("read second response status"),
     )
     .expect("second response status JSON");
-    assert_eq!(first_response, json!({ "status": 429 }));
-    assert_eq!(second_response, json!({ "status": 200 }));
+    assert_eq!(first_response["status"], 429);
+    assert_eq!(
+        serde_json::from_str::<Value>(
+            first_response["body"]
+                .as_str()
+                .expect("first response body text")
+        )
+        .expect("first response body JSON"),
+        json!({ "error": "retry" })
+    );
+    assert_eq!(second_response["status"], 200);
+    assert_eq!(
+        serde_json::from_str::<Value>(
+            second_response["body"]
+                .as_str()
+                .expect("second response body text")
+        )
+        .expect("second response body JSON")["choices"][0]["message"]["tool_calls"][0]["function"]
+            ["arguments"],
+        "{\"value\":1}"
+    );
     assert_eq!(
         fs::read_dir(&directory)
             .expect("list request dumps")
@@ -795,7 +814,7 @@ system-prompt = "Observe."
     let captured = server.finish();
     assert_eq!(
         captured[0].body_bytes,
-        br#"{"model":"mock/model","provider":{"ignore":["broken/intermediary"],"only":["xiaomi/fp8"],"order":["xiaomi/fp8","fallback/example"]},"temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
+        br#"{"model":"mock/model","provider":{"ignore":["broken/intermediary"],"only":["xiaomi/fp8"],"order":["xiaomi/fp8","fallback/example"]},"temperature":0.3,"max_tokens":16384,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
     );
 }
 
@@ -1360,7 +1379,7 @@ fn reasoning_only_reprompt_exhaustion_keeps_the_existing_typed_error() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn invalid_arguments_reprompt_answers_every_tool_call_id() {
+fn invalid_arguments_history_is_valid_json_and_reprompt_answers_every_tool_call_id() {
     let server = MockServer::start(vec![
         MockResponse {
             status: 200,
@@ -1419,6 +1438,32 @@ fn invalid_arguments_reprompt_answers_every_tool_call_id() {
     let messages = captured[1].body["messages"]
         .as_array()
         .expect("reprompt messages");
+    let assistant_tool_calls = messages
+        .iter()
+        .find(|message| message["role"] == "assistant")
+        .expect("assistant tool-call history")["tool_calls"]
+        .as_array()
+        .expect("assistant tool calls");
+    let malformed_history = assistant_tool_calls
+        .iter()
+        .find(|call| call["id"] == "call-malformed")
+        .expect("malformed call history")["function"]["arguments"]
+        .as_str()
+        .expect("malformed history arguments string");
+    let malformed_history: Value =
+        serde_json::from_str(malformed_history).expect("history arguments must be valid JSON");
+    assert_eq!(malformed_history, json!({ "malformed_arguments": "{" }));
+    let non_object_history = assistant_tool_calls
+        .iter()
+        .find(|call| call["id"] == "call-not-object")
+        .expect("non-object call history")["function"]["arguments"]
+        .as_str()
+        .expect("non-object history arguments string");
+    assert_eq!(
+        serde_json::from_str::<Value>(non_object_history)
+            .expect("non-object history arguments remain valid JSON"),
+        json!([])
+    );
     let tool_messages = messages
         .iter()
         .filter(|message| message["role"] == "tool")

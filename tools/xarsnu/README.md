@@ -157,7 +157,7 @@ measurement arms; it continues with a loud CLI/report warning and a typed
 
 Request dumping is disabled by default. Set `XARSNU_DUMP_REQUESTS` to a
 directory to record the exact JSON bytes sent for every OpenRouter completion
-attempt and the matching HTTP status:
+attempt and the matching HTTP response body:
 
 ```console
 XARSNU_DUMP_REQUESTS=./tmp/xarsnu-requests xarsnu path/to/run.toml
@@ -166,12 +166,14 @@ XARSNU_DUMP_REQUESTS=./tmp/xarsnu-requests xarsnu path/to/run.toml
 Each attempt produces a collision-safe pair such as `000001-request.json` and
 `000001-response.json`. Retries receive their own numbers, and existing files
 are never replaced. A response file contains `status` when HTTP response
-headers arrived or `transport_error` when the request failed before that
-boundary. The authorization header is not dumped, but request bodies contain
-the full prompts, tool definitions, tool results, and any replayed private
-reasoning details; treat the directory as sensitive diagnostic data and remove
-it when the investigation is complete. A dump write failure stops the request
-instead of silently producing incomplete evidence.
+headers arrived together with the exact decoded response `body`; if reading
+that body fails it contains `body_error` instead. Requests that fail before the
+HTTP response boundary contain `transport_error`. The authorization header is
+not dumped, but request and response bodies can contain the full prompts, tool
+definitions, tool results, replayed private reasoning details, and model
+output; treat the directory as sensitive diagnostic data and remove it when
+the investigation is complete. A dump write failure stops the request instead
+of silently producing incomplete evidence.
 
 `scripts/bisect-openrouter-request.py` structurally delta-debugs one dumped
 request while preserving its model, provider routing, and a nonempty message
