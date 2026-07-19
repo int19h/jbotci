@@ -76,8 +76,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
     ),
     (
+        "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
+        "kind enablement booleans and the independently validated structure-bracket value form accept every typed combination",
+    ),
+    (
         "apps/jbotci/src/lsp.rs:ServerInitializationOptions",
-        "LSP initialization options contain one independently validated decoration profile and every profile configuration is accepted",
+        "the optional current and legacy inlay wire shapes are validated for mutual exclusion during initialization",
     ),
     (
         "apps/jbotci/src/lsp.rs:ServerState",
@@ -718,6 +722,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ide/src/snapshot/incremental_diagnostics.rs:ValidTokenCollector",
         "private TreeVisitor token accumulator whose per-visit growth and final source ordering are enforced by traversal and confirmed_tree_tokens contracts",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/inlays.rs:InlayOptions",
+        "the three kind toggles and independently validated structure profile accept every typed combination",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/inlays.rs:StructureBracketInlayOptions",
+        "structure enablement and the independently validated decoration profile accept every typed combination",
     ),
     (
         "crates/jbotci-ide/src/snapshot/structure_inlays.rs:RawBracketsOptions",

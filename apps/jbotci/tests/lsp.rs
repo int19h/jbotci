@@ -402,6 +402,24 @@ fn inlay_hints(client: &mut LspClient, uri: &str, start: Value, end: Value) -> V
     )
 }
 
+#[requires(hints.is_array())]
+#[ensures(ret.iter().all(|(_, label)| !label.is_empty()))]
+fn inlay_positions_and_labels(hints: &Value) -> Vec<(u64, String)> {
+    hints
+        .as_array()
+        .expect("inlay array required by precondition")
+        .iter()
+        .map(|hint| {
+            (
+                hint["position"]["character"]
+                    .as_u64()
+                    .expect("inlay column"),
+                hint["label"].as_str().expect("inlay label").to_owned(),
+            )
+        })
+        .collect()
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn decode_semantic_tokens(result: &Value, legend: &[Value]) -> Vec<Value> {
@@ -1101,9 +1119,11 @@ fn structure_inlay_initialization_options_select_construct_profile() {
         "utf-16",
         true,
         Some(json!({
-            "structureInlays": {
-                "profile": "raw-brackets",
-                "constructs": "sumti-boundaries"
+            "inlays": {
+                "structureBrackets": {
+                    "profile": "raw-brackets",
+                    "constructs": "sumti-boundaries"
+                }
             }
         })),
     );
@@ -1119,6 +1139,143 @@ fn structure_inlay_initialization_options_select_construct_profile() {
     assert_eq!(hints[0]["position"], json!({"line": 0, "character": 9}));
     assert_eq!(hints[1]["position"], json!({"line": 0, "character": 17}));
     client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn legacy_structure_inlay_options_emit_a_deprecation_warning() {
+    let mut client = LspClient::spawn();
+    initialize_with_options(
+        &mut client,
+        "utf-16",
+        true,
+        Some(json!({
+            "structureInlays": {
+                "profile": "raw-brackets",
+                "constructs": "sumti-boundaries"
+            }
+        })),
+    );
+    let warning = client.next_notification("window/logMessage");
+    assert_eq!(warning["params"]["type"], 2);
+    assert_eq!(
+        warning["params"]["message"],
+        "initializationOptions.structureInlays is deprecated; use initializationOptions.inlays.structureBrackets instead",
+    );
+    client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn word_and_rafsi_inlay_flags_and_ranges_are_independent() {
+    const URI: &str = "file:///word-stream-inlays.jbo";
+    const TEXT: &str = "uanaisaidai ua nai sai dai lenkymipri\n";
+
+    let hints_for = |word_boundaries: bool, rafsi_boundaries: bool, start: u64, end: u64| {
+        let mut client = LspClient::spawn();
+        initialize_with_options(
+            &mut client,
+            "utf-16",
+            true,
+            Some(json!({
+                "inlays": {
+                    "structureBrackets": false,
+                    "wordBoundaries": word_boundaries,
+                    "rafsiBoundaries": rafsi_boundaries
+                }
+            })),
+        );
+        open_document_text(&mut client, URI, 1, TEXT);
+        let hints = inlay_hints(
+            &mut client,
+            URI,
+            json!({"line": 0, "character": start}),
+            json!({"line": 0, "character": end}),
+        );
+        client.shutdown();
+        hints
+    };
+
+    let word_only = hints_for(true, false, 0, TEXT.len() as u64);
+    assert_eq!(
+        inlay_positions_and_labels(&word_only),
+        vec![
+            (2, "-".to_owned()),
+            (5, "-".to_owned()),
+            (8, "-".to_owned()),
+        ],
+    );
+
+    let rafsi_only = hints_for(false, true, 0, TEXT.len() as u64);
+    assert_eq!(
+        inlay_positions_and_labels(&rafsi_only),
+        vec![(31, "·".to_owned()), (32, "·".to_owned())],
+    );
+
+    let scoped = hints_for(true, true, 5, 32);
+    assert_eq!(
+        inlay_positions_and_labels(&scoped),
+        vec![
+            (5, "-".to_owned()),
+            (8, "-".to_owned()),
+            (31, "·".to_owned()),
+        ],
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn word_stream_inlay_positions_round_trip_on_a_multibyte_line() {
+    const URI: &str = "file:///word-stream-encoding.jbo";
+    const TEXT: &str = "mí uanaisaidai lenkymipri\n";
+
+    let hints_for_encoding = |encoding: &str| {
+        let mut client = LspClient::spawn();
+        initialize_with_options(
+            &mut client,
+            encoding,
+            true,
+            Some(json!({
+                "inlays": {
+                    "structureBrackets": false,
+                    "wordBoundaries": true,
+                    "rafsiBoundaries": true
+                }
+            })),
+        );
+        open_document_text(&mut client, URI, 1, TEXT);
+        let hints = inlay_hints(
+            &mut client,
+            URI,
+            json!({"line": 0, "character": 0}),
+            json!({"line": 1, "character": 0}),
+        );
+        client.shutdown();
+        hints
+    };
+    assert_eq!(
+        inlay_positions_and_labels(&hints_for_encoding("utf-8")),
+        vec![
+            (6, "-".to_owned()),
+            (9, "-".to_owned()),
+            (12, "-".to_owned()),
+            (20, "·".to_owned()),
+            (21, "·".to_owned()),
+        ],
+    );
+    assert_eq!(
+        inlay_positions_and_labels(&hints_for_encoding("utf-16")),
+        vec![
+            (5, "-".to_owned()),
+            (8, "-".to_owned()),
+            (11, "-".to_owned()),
+            (19, "·".to_owned()),
+            (20, "·".to_owned()),
+        ],
+    );
 }
 
 #[test]

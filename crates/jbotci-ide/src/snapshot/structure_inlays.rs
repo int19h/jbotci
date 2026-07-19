@@ -418,7 +418,7 @@ fn collect_structure_inlays(
 
 #[requires(query_range.byte_start <= query_range.byte_end)]
 #[ensures(true)]
-fn anchor_is_in_range(byte_offset: usize, query_range: &SourceSpan) -> bool {
+pub(super) fn anchor_is_in_range(byte_offset: usize, query_range: &SourceSpan) -> bool {
     query_range.byte_start <= byte_offset && byte_offset < query_range.byte_end
 }
 

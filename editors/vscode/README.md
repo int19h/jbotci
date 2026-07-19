@@ -2,9 +2,10 @@
 
 This extension connects VS Code to the language server built into
 [`jbotci`](https://github.com/int19h/jbotci). The server currently provides
-diagnostics, hover information, and semantic tokens as those capabilities are
-available in the installed `jbotci` version. Capabilities are negotiated with
-the server; the extension does not assume that a particular feature is present.
+diagnostics, hover information, semantic tokens, and inlay hints as those
+capabilities are available in the installed `jbotci` version. Capabilities are
+negotiated with the server; the extension does not assume that a particular
+feature is present.
 
 The extension recognizes `.jbo` files as the `lojban` language. Files ending in
 `.jbo.md` remain ordinary Markdown documents, so VS Code's Markdown preview,
@@ -31,12 +32,29 @@ to the executable with `jbotci.serverPath`. The extension launches:
 | --- | --- | --- |
 | `jbotci.serverPath` | `""` | Absolute path to the `jbotci` executable. An empty value uses `jbotci` from `PATH`. |
 | `jbotci.enableInAllMarkdown` | `false` | Enable jbotci language features in every Markdown document. |
+| `jbotci.inlays` | `{ "structureBrackets": true, "wordBoundaries": false, "rafsiBoundaries": false }` | Enable each inlay kind independently and configure structure-bracket profile options. |
+
+For example:
+
+```json
+"jbotci.inlays": {
+  "structureBrackets": false,
+  "wordBoundaries": true,
+  "rafsiBoundaries": true
+}
+```
+
+`structureBrackets` also accepts the existing profile object in place of its
+boolean value, for example `{ "profile": "raw-brackets",
+"maxNestingDepth": 2, "constructs": "sumti-boundaries" }`. A convenient
+peek-on-chord setup is `"editor.inlayHints.enabled": "offUnlessPressed"`.
 
 The extension activates when VS Code opens Markdown, but it does not start the
 language server merely for an unrelated Markdown file. It starts immediately
 when a `.jbo`, `.jbo.md`, or opted-in Markdown document is already open;
 otherwise an open-document listener defers startup until one appears. Changing
-either setting restarts the client when an eligible document is open.
+any of the settings above restarts the client when an eligible document is
+open.
 
 Run **jbotci: Restart jbotci Language Server** from the Command Palette to
 restart the client and server.

@@ -804,6 +804,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Letters tags a static Lojban-letter string in the IPA segment table; the table is valid by construction",
     ),
     (
+        "apps/jbotci/src/lsp.rs:StructureBracketsInitialization::Enabled",
+        "the boolean wire variant directly represents every valid structure-bracket enablement state",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:StructureBracketsInitialization::Profile",
+        "the structure profile wire variant delegates validity to DecorationProfile",
+    ),
+    (
+        "crates/jbotci-ide/src/snapshot/inlays.rs:InlayKind::Structure",
+        "the structure kind delegates boundary validity to the closed StructureInlayKind selector",
+    ),
+    (
         "crates/jbotci-ide/src/snapshot/structure_inlays.rs:DecorationProfile::RawBrackets",
         "raw-brackets profile validity is delegated to typed options where every depth and construct-filter combination is valid",
     ),

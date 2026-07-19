@@ -75,6 +75,67 @@
           "default": false,
           "scope": "window",
           "description": "Enable jbotci language features in every Markdown document. Markdown URLs, code fences, and HTML can produce noisy diagnostics until structural Markdown support is available."
+        },
+        "jbotci.inlays": {
+          "type": "object",
+          "default": {
+            "structureBrackets": true,
+            "wordBoundaries": false,
+            "rafsiBoundaries": false
+          },
+          "scope": "window",
+          "additionalProperties": false,
+          "description": "Configure each jbotci inlay kind independently. Changing this setting restarts the language server.",
+          "properties": {
+            "structureBrackets": {
+              "default": true,
+              "description": "Show recovered syntax structure brackets. Use false to disable, true for defaults, or an object for profile options.",
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "profile"
+                  ],
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "enum": [
+                        "raw-brackets"
+                      ]
+                    },
+                    "maxNestingDepth": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "One-based maximum structure depth. Zero suppresses all structure brackets."
+                    },
+                    "constructs": {
+                      "type": "string",
+                      "default": "all",
+                      "enum": [
+                        "all",
+                        "sumti-boundaries",
+                        "bridi-tails"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "wordBoundaries": {
+              "type": "boolean",
+              "default": false,
+              "description": "Show '-' between consecutive morphology words with no source gap."
+            },
+            "rafsiBoundaries": {
+              "type": "boolean",
+              "default": false,
+              "description": "Show '·' between every parsed lujvo part, including hyphens."
+            }
+          }
         }
       }
     }
