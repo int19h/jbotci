@@ -296,6 +296,15 @@ fn provisional_diagnostics(
         .filter(|diagnostic| diagnostic.phase == DiagnosticPhase::Syntax)
     {
         let side = diagnostic_side(diagnostic, paragraph.byte_start, paragraph.byte_end);
+        // Multi-error recovery is a document-wide directive chain. A local
+        // parse starts with an empty chain, so it cannot soundly reproduce a
+        // paragraph reached through an earlier syntax error even when the
+        // recovered tree exposes a precise paragraph boundary.
+        if side == DiagnosticParagraphSide::Before
+            && diagnostic.severity == DiagnosticSeverity::Error
+        {
+            return (IncrementalDiagnosticGate::CrossParagraphDiagnostic, None);
+        }
         if side == DiagnosticParagraphSide::Inside {
             continue;
         }
