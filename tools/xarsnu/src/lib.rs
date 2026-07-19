@@ -11,11 +11,12 @@ pub mod scenario;
 pub mod transcript;
 
 pub use config::{
-    CapsConfig, ClientConfig, ConfigError, ParticipantConfig, PromptCaching, ReasoningConfig,
-    RunConfig, TersmuFormat, ToolChoice,
+    CapsConfig, ClientConfig, ConfigError, ListenerMode, ParticipantConfig, PromptCaching,
+    ReasoningConfig, RunConfig, TersmuFormat, ToolChoice,
 };
 pub use jbotci_tools::{
-    DiagnosticCategory, GateError, GateOutcome, ReferenceToolError, ReferenceTools, gate_lojban,
+    DiagnosticCategory, EmbeddingSearchPreflightError, GateError, GateOutcome, ReferenceToolError,
+    ReferenceTools, gate_lojban, preflight_embedding_search,
 };
 pub use model_capabilities::ProviderToolChoice;
 pub use openrouter::{
@@ -33,7 +34,9 @@ pub use protocol::{
     TurnForfeitReason, VisibleMessage,
 };
 pub use report::{DialogReportError, community_file, dialog_file, report_file};
-pub use run::{RunError, RunSummary, run};
+pub use run::{
+    RunError, RunSummary, RunWarning, run, run_with_preflight, run_with_warning_handler,
+};
 pub use scenario::{
     Assignment, DeductionAnswer, ParticipantTaskOutcome, ReferentialAnswer, ScenarioAnswer,
     ScenarioAnswerError, ScenarioConfigError, ScenarioInstance, ScenarioKind, ScenarioParticipant,

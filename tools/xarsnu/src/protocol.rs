@@ -15,17 +15,18 @@ use crate::model_capabilities::ParticipantModelPolicy;
 use crate::openrouter::REQUIRED_TOOL_CORRECTION;
 use crate::transcript::TranscriptWriter;
 use crate::{
-    AbortRecord, CapsConfig, DiagnosticCategory, OpenRouterClient, ParticipantConfig,
+    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, OpenRouterClient, ParticipantConfig,
     ParticipantConversation, ProviderCallObservation, ProviderToolChoice, ReferenceTools,
     RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
     ToolDefinitionError, ToolDispatchError, ToolDispatcher, TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
 
-const STANDING_PROTOCOL_RULES: &str = "You are participating in xarsnu's tool-gated Lojban discussion protocol. Think out loud about meaning in this private conversation before acting. English intents, paraphrases, interpretations, and reasoning are private and must never be written into the visible chat. The visible chat is constructed only from confirmed Lojban text and its jbotci tersmu rendering. Your built-in knowledge of Lojban vocabulary is flawed. Before choosing any content word you are not certain of, search vlacku BY MEANING (semantic or definition search) and compare candidates; do not merely look up a word you already picked and rationalize its definition. Use the reference tools whenever they help, and finish each phase by calling the protocol tool currently offered.";
+const STANDING_PROTOCOL_RULES: &str = "You are participating in xarsnu's tool-gated Lojban discussion protocol. Think out loud about meaning in this private conversation before acting. English intents, paraphrases, interpretations, and reasoning are private and must never be written into the visible chat. The visible chat is constructed only from confirmed Lojban text and its jbotci tersmu rendering. Your built-in knowledge of Lojban vocabulary is flawed. Before choosing any content word you are not certain of, search vlacku BY MEANING (semantic or definition search) and compare candidates; do not merely look up a word you already picked and rationalize its definition; when the problem is HOW TO EXPRESS something grammatically (not which word), query cukta with the concept. Use the reference tools whenever they help, and finish each phase by calling the protocol tool currently offered.";
 const SPEAKER_TURN_INSTRUCTION: &str = "You are the speaker for this turn. First register your intended meaning in English. Then submit candidate Lojban until jbotci accepts one. Finally compare the returned tersmu rendering with your intent and call confirm_meaning with a mandatory English paraphrase. Call confirm_meaning with matches=true only when the tersmu rendering captures the registered intent precisely: every predicate relation as rendered, under its dictionary place structure, must be the intended relation. Calques or idioms from other languages (malgli) are mismatches even when a listener would get the gist. For example, if the rendering literally says that one person physically chases another, it does not express the colloquial English sense of following or agreeing with someone: call matches=false and recompose. Clear enough in context and the gist is right are not the standard; the rendering is the meaning that will be scored. The discrepancies field is only for renderings that match precisely but have caveats worth recording, not for waiving a known mismatch. A mismatch requires revision; a match posts the Lojban and tersmu rendering.";
 const LISTENER_BLIND_INSTRUCTION: &str = "Interpret the following visible Lojban message without access to its tersmu rendering. Think privately, then call interpret_blind with your English interpretation.";
 const LISTENER_REVEAL_INSTRUCTION: &str = "The tersmu rendering is now revealed. Compare it with your blind reading, then call acknowledge with your final English understanding and any discrepancies.";
+const LISTENER_INFORMED_INSTRUCTION: &str = "Interpret the following visible Lojban message with its tersmu rendering and definitions available from the start. Think privately, then call acknowledge with your final English understanding and any discrepancies.";
 const ANSWER_AVAILABLE_INSTRUCTION: &str = "You may now submit your scenario answer with `submit_answer`. The task is scored only from formal submissions; in-dialog agreement does not count.";
 const CLOSED_DIALOG_ANSWER_INSTRUCTION: &str = "The visible-channel dialog is now closed. No participant can post or see any further dialog. Submit your scenario answer independently with `submit_answer`, based only on the dialog through the final posted description. The task is scored only from formal submissions; in-dialog agreement does not count.";
 const REFERENCE_TOOL_NAMES: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -120,12 +121,14 @@ impl SpeakerPhase {
 }
 
 /// Listener-side state name.
+#[invariant(::InformedInterpretation => true)]
 #[invariant(::BlindInterpretation => true)]
 #[invariant(::TersmuRevealed => true)]
 #[invariant(::Acknowledged => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ListenerPhase {
+    InformedInterpretation,
     BlindInterpretation,
     TersmuRevealed,
     Acknowledged,
@@ -133,7 +136,8 @@ pub enum ListenerPhase {
 
 impl ListenerPhase {
     /// Exhaustive listener-state list.
-    pub const ALL: [Self; 3] = [
+    pub const ALL: [Self; 4] = [
+        Self::InformedInterpretation,
         Self::BlindInterpretation,
         Self::TersmuRevealed,
         Self::Acknowledged,
@@ -146,7 +150,8 @@ impl ListenerPhase {
         (submit_answer_available && matches!(tool, ProtocolTool::SubmitAnswer))
             || matches!(
                 (self, tool),
-                (Self::BlindInterpretation, ProtocolTool::InterpretBlind)
+                (Self::InformedInterpretation, ProtocolTool::Acknowledge)
+                    | (Self::BlindInterpretation, ProtocolTool::InterpretBlind)
                     | (Self::TersmuRevealed, ProtocolTool::Acknowledge)
             )
     }
@@ -166,7 +171,7 @@ pub enum ProtocolPhase {
 
 impl ProtocolPhase {
     /// Exhaustive protocol-state list.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Speaker {
             phase: SpeakerPhase::AwaitingIntent,
         },
@@ -178,6 +183,9 @@ impl ProtocolPhase {
         },
         Self::Speaker {
             phase: SpeakerPhase::Posted,
+        },
+        Self::Listener {
+            phase: ListenerPhase::InformedInterpretation,
         },
         Self::Listener {
             phase: ListenerPhase::BlindInterpretation,
@@ -219,6 +227,9 @@ impl ProtocolPhase {
             Self::Speaker {
                 phase: SpeakerPhase::Posted,
             } => "complete any available scenario answer",
+            Self::Listener {
+                phase: ListenerPhase::InformedInterpretation,
+            } => "record an informed understanding from the Lojban and tersmu rendering",
             Self::Listener {
                 phase: ListenerPhase::BlindInterpretation,
             } => "commit an interpretation of the visible Lojban before seeing tersmu",
@@ -295,19 +306,36 @@ pub struct RevealedMessage {
 }
 
 impl RevealedMessage {
+    /// Build the one-step informed-listener prompt.
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn informed_prompt(&self) -> Result<String, ProtocolRunError> {
+        let rendering = self.rendering()?;
+        Ok(format!(
+            "{LISTENER_INFORMED_INSTRUCTION}\n\nLojban message:\n{}\n\ntersmu rendering and definitions:\n{rendering}",
+            self.text
+        ))
+    }
+
     /// Build the reveal prompt, rejecting an impossible non-UTF-8 rendering.
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn prompt(&self) -> Result<String, ProtocolRunError> {
-        let rendering = std::str::from_utf8(&self.tersmu_rendering).map_err(|error| {
-            new!(ProtocolRunError::InvalidTersmuEncoding {
-                message: error.to_string(),
-            })
-        })?;
+        let rendering = self.rendering()?;
         Ok(format!(
             "{LISTENER_REVEAL_INSTRUCTION}\n\nLojban message:\n{}\n\ntersmu rendering:\n{rendering}",
             self.text
         ))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn rendering(&self) -> Result<&str, ProtocolRunError> {
+        std::str::from_utf8(&self.tersmu_rendering).map_err(|error| {
+            new!(ProtocolRunError::InvalidTersmuEncoding {
+                message: error.to_string(),
+            })
+        })
     }
 }
 
@@ -358,12 +386,16 @@ impl SpeakerState {
     }
 }
 
-/// Typed listener machine. Its blind variant cannot contain a tersmu rendering.
+/// Typed listener machine. Only its measurement-arm blind variant lacks tersmu.
+#[invariant(::InformedInterpretation { message } => !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::BlindInterpretation { message } => !message.text.trim().is_empty())]
 #[invariant(::TersmuRevealed { message, interpretation_en } => !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty() && !interpretation_en.trim().is_empty())]
 #[invariant(::Acknowledged { final_understanding_en, discrepancies } => !final_understanding_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ListenerState {
+    InformedInterpretation {
+        message: RevealedMessage,
+    },
     BlindInterpretation {
         message: BlindMessage,
     },
@@ -378,6 +410,13 @@ pub enum ListenerState {
 }
 
 impl ListenerState {
+    /// Initial informed state, with the parser rendering available immediately.
+    #[requires(true)]
+    #[ensures(ret.phase() == ListenerPhase::InformedInterpretation)]
+    pub fn informed(message: RevealedMessage) -> Self {
+        new!(ListenerState::InformedInterpretation { message })
+    }
+
     /// Initial listener state, constructed only from blind-visible content.
     #[requires(true)]
     #[ensures(ret.phase() == ListenerPhase::BlindInterpretation)]
@@ -390,6 +429,9 @@ impl ListenerState {
     #[ensures(true)]
     pub fn phase(&self) -> ListenerPhase {
         match self.as_data() {
+            bityzba::data!(ListenerState::InformedInterpretation { .. }) => {
+                ListenerPhase::InformedInterpretation
+            }
             bityzba::data!(ListenerState::BlindInterpretation { .. }) => {
                 ListenerPhase::BlindInterpretation
             }
@@ -478,6 +520,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::CandidateAccepted { turn_number, speaker, message, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty() && *attempt > 0)]
 #[invariant(::MeaningConfirmed { turn_number, speaker, paraphrase_en, discrepancies, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !paraphrase_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[invariant(::MessagePosted { turn_number, speaker, message } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
+#[invariant(::ListenerFlowStarted { turn_number, speaker, listener, message, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::BlindInterpretationRecorded { turn_number, speaker, listener, interpretation_en } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !interpretation_en.trim().is_empty())]
 #[invariant(::TersmuRevealed { turn_number, speaker, listener, message } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::Acknowledged { turn_number, speaker, listener, final_understanding_en, discrepancies } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !final_understanding_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
@@ -485,6 +528,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::ReferenceLookupRepeated { participant, tool_name, arguments, repeat_number, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !arguments.trim().is_empty() && *repeat_number >= 2)]
 #[invariant(::ReferenceCallBudgetExhausted { participant, maximum, .. } => !participant.trim().is_empty() && *maximum > 0)]
 #[invariant(::ReferenceResearchNudge { participant, consecutive_calls, message, .. } => !participant.trim().is_empty() && *consecutive_calls > 0 && !message.trim().is_empty())]
+#[invariant(::EmbeddingSearchDegraded { message } => !message.trim().is_empty())]
 #[invariant(::ProseRejected { turn_number, participant, attempt, maximum_attempts, .. } => *turn_number > 0 && !participant.trim().is_empty() && *attempt > 0 && *maximum_attempts > 0 && attempt <= maximum_attempts)]
 #[invariant(::ListenerFlowAbandoned { turn_number, listener, .. } => *turn_number > 0 && !listener.trim().is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
@@ -546,6 +590,13 @@ pub enum ProtocolEvent {
         speaker: String,
         message: VisibleMessage,
     },
+    ListenerFlowStarted {
+        turn_number: usize,
+        speaker: String,
+        listener: String,
+        mode: ListenerMode,
+        message: VisibleMessage,
+    },
     BlindInterpretationRecorded {
         turn_number: usize,
         speaker: String,
@@ -590,6 +641,9 @@ pub enum ProtocolEvent {
         participant: String,
         phase: ProtocolPhase,
         consecutive_calls: usize,
+        message: String,
+    },
+    EmbeddingSearchDegraded {
         message: String,
     },
     ProseRejected {
@@ -695,6 +749,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::CandidateAccepted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::MeaningConfirmed { turn_number, .. })
             | bityzba::data!(ProtocolEvent::MessagePosted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ListenerFlowStarted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { turn_number, .. })
             | bityzba::data!(ProtocolEvent::TersmuRevealed { turn_number, .. })
             | bityzba::data!(ProtocolEvent::Acknowledged { turn_number, .. })
@@ -712,6 +767,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::ReferenceLookupRepeated { .. })
             | bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted { .. })
             | bityzba::data!(ProtocolEvent::ReferenceResearchNudge { .. })
+            | bityzba::data!(ProtocolEvent::EmbeddingSearchDegraded { .. })
             | bityzba::data!(ProtocolEvent::ProtocolError { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. }) => None,
             bityzba::data!(ProtocolEvent::RunFinished { outcome }) => Some(outcome.turns().max(1)),
@@ -732,7 +788,8 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::MeaningConfirmed { speaker, .. })
             | bityzba::data!(ProtocolEvent::MessagePosted { speaker, .. })
             | bityzba::data!(ProtocolEvent::TurnForfeited { speaker, .. }) => speaker,
-            bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { listener, .. })
+            bityzba::data!(ProtocolEvent::ListenerFlowStarted { listener, .. })
+            | bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { listener, .. })
             | bityzba::data!(ProtocolEvent::TersmuRevealed { listener, .. })
             | bityzba::data!(ProtocolEvent::Acknowledged { listener, .. })
             | bityzba::data!(ProtocolEvent::ListenerFlowAbandoned { listener, .. }) => listener,
@@ -746,6 +803,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. })
             | bityzba::data!(ProtocolEvent::ThinkingRecorded { participant, .. }) => participant,
             bityzba::data!(ProtocolEvent::RunStarted { .. })
+            | bityzba::data!(ProtocolEvent::EmbeddingSearchDegraded { .. })
             | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. })
@@ -1504,6 +1562,7 @@ pub struct ProtocolRunner<M, D> {
     participants: Vec<M>,
     reference_dispatcher: D,
     caps: CapsConfig,
+    listener_mode: ListenerMode,
     tersmu_format: TersmuFormat,
     accounting: RunAccounting,
     visible_chat: Vec<VisibleMessage>,
@@ -1511,6 +1570,7 @@ pub struct ProtocolRunner<M, D> {
     scenario: Option<ScenarioInstance>,
     answers: BTreeMap<String, ScenarioAnswer>,
     task_outcome: Option<TaskOutcome>,
+    degraded_search_message: Option<String>,
     turns_started: usize,
     has_run: bool,
 }
@@ -1522,12 +1582,14 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     pub fn new(
         participants: Vec<M>,
         caps: CapsConfig,
+        listener_mode: ListenerMode,
         tersmu_format: TersmuFormat,
         reference_dispatcher: D,
     ) -> Result<Self, ProtocolRunError> {
         Self::new_inner(
             participants,
             caps,
+            listener_mode,
             tersmu_format,
             reference_dispatcher,
             None,
@@ -1540,6 +1602,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     pub fn new_with_scenario(
         participants: Vec<M>,
         caps: CapsConfig,
+        listener_mode: ListenerMode,
         tersmu_format: TersmuFormat,
         reference_dispatcher: D,
         scenario: ScenarioInstance,
@@ -1547,6 +1610,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         Self::new_inner(
             participants,
             caps,
+            listener_mode,
             tersmu_format,
             reference_dispatcher,
             Some(scenario),
@@ -1558,6 +1622,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     fn new_inner(
         participants: Vec<M>,
         caps: CapsConfig,
+        listener_mode: ListenerMode,
         tersmu_format: TersmuFormat,
         reference_dispatcher: D,
         scenario: Option<ScenarioInstance>,
@@ -1604,6 +1669,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             participants,
             reference_dispatcher,
             caps,
+            listener_mode,
             tersmu_format,
             accounting,
             visible_chat: Vec::new(),
@@ -1611,6 +1677,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             scenario,
             answers: BTreeMap::new(),
             task_outcome: None,
+            degraded_search_message: None,
             turns_started: 0,
             has_run: false,
         })
@@ -1668,6 +1735,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         });
         if configured_names != runner_names
             || header.config.caps != self.caps
+            || header.config.listener_mode != self.listener_mode
             || header.config.tersmu_format != self.tersmu_format
             || !scenario_matches
         {
@@ -1680,6 +1748,22 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 message: error.to_string(),
             })
         })
+    }
+
+    /// Queue the typed warning produced by an explicitly tolerated failed preflight.
+    #[requires(!message.trim().is_empty())]
+    #[ensures(ret.is_ok() -> self.degraded_search_message.is_some())]
+    pub(crate) fn record_degraded_search(
+        &mut self,
+        message: String,
+    ) -> Result<(), ProtocolRunError> {
+        if self.has_run || self.degraded_search_message.is_some() {
+            return Err(new!(ProtocolRunError::InvalidConfiguration {
+                message: "degraded search can be recorded exactly once before the run".to_owned(),
+            }));
+        }
+        self.degraded_search_message = Some(message);
+        Ok(())
     }
 
     /// Accepted typed scenario answers, keyed by participant name.
@@ -1757,6 +1841,10 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 turn_number,
                 speaker: speaker.clone(),
             }));
+            if let Some(message) = self.degraded_search_message.take() {
+                self.events
+                    .push(new!(ProtocolEvent::EmbeddingSearchDegraded { message }));
+            }
             let speaker_outcome = self.run_speaker(turn_number, turn_limit, speaker_index)?;
             match speaker_outcome.as_data() {
                 bityzba::data!(SpeakerOutcome::Posted { message }) => {
@@ -2340,9 +2428,28 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         let listener = self.participants[listener_index]
             .participant_name()
             .to_owned();
-        let blind = message.blind();
+        self.events.push(new!(ProtocolEvent::ListenerFlowStarted {
+            turn_number,
+            speaker: speaker.to_owned(),
+            listener: listener.clone(),
+            mode: self.listener_mode,
+            message: message.clone(),
+        }));
+        let (prompt, mut state) = match self.listener_mode {
+            ListenerMode::Informed => {
+                let informed = message.revealed();
+                (
+                    informed.informed_prompt()?,
+                    ListenerState::informed(informed),
+                )
+            }
+            ListenerMode::BlindThenReveal => {
+                let blind = message.blind();
+                (blind.prompt(), ListenerState::blind(blind))
+            }
+        };
         let instruction = phase_instruction(
-            &blind.prompt(),
+            &prompt,
             Some(new!(TurnDeadline {
                 turn_number,
                 maximum_turns: turn_limit,
@@ -2351,7 +2458,6 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         );
         self.participants[listener_index].begin_tool_loop();
         self.participants[listener_index].push_user(instruction);
-        let mut state = ListenerState::blind(blind);
         let mut reference_state = ReferencePhaseState::new(ProtocolPhase::Listener {
             phase: state.phase(),
         });
@@ -3518,8 +3624,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(examined, 192);
-        assert_eq!(rejected, 152);
+        assert_eq!(examined, 216);
+        assert_eq!(rejected, 170);
     }
 
     #[test]

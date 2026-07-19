@@ -3,12 +3,12 @@
 use std::time::Duration;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
-const DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE: usize = 16;
-const DEFAULT_REFERENCE_NUDGE_AFTER: usize = 6;
+const DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE: usize = 30;
+const DEFAULT_REFERENCE_NUDGE_AFTER: usize = 10;
 const DEFAULT_HTTP_TIMEOUT_SECONDS: u64 = 60;
 
 #[requires(true)]
@@ -205,6 +205,26 @@ pub enum TersmuFormat {
     Json,
 }
 
+/// Information available when a listener first interprets a posted message.
+#[invariant(::Informed => true)]
+#[invariant(::BlindThenReveal => true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ListenerMode {
+    /// Present the Lojban, tersmu rendering, and embedded definitions together.
+    #[default]
+    Informed,
+    /// Commit an interpretation from Lojban alone before revealing tersmu.
+    BlindThenReveal,
+}
+
+/// Historical schema-v1 transcripts predate informed listeners and were blind.
+#[requires(true)]
+#[ensures(ret == ListenerMode::BlindThenReveal)]
+fn historical_transcript_listener_mode() -> ListenerMode {
+    ListenerMode::BlindThenReveal
+}
+
 /// Complete configuration for one xarsnu run.
 #[invariant(participants.len() >= 2, "a discussion requires at least two participants")]
 #[invariant(!scenario.trim().is_empty(), "scenario reference cannot be empty")]
@@ -219,6 +239,11 @@ pub struct RunConfig {
     pub client: ClientConfig,
     #[serde(default)]
     pub tersmu_format: TersmuFormat,
+    #[serde(default = "historical_transcript_listener_mode")]
+    pub listener_mode: ListenerMode,
+    /// Continue after a failed semantic-search preflight, with a warning event.
+    #[serde(default)]
+    pub allow_degraded_search: bool,
 }
 
 impl RunConfig {
@@ -226,7 +251,16 @@ impl RunConfig {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn from_toml(source: &str) -> Result<Self, ConfigError> {
-        toml::from_str(source).map_err(ConfigError::Toml)
+        let table = toml::from_str::<toml::Table>(source).map_err(ConfigError::Toml)?;
+        let listener_mode_was_explicit = table.contains_key("listener-mode");
+        let config = toml::from_str::<Self>(source).map_err(ConfigError::Toml)?;
+        Ok(if listener_mode_was_explicit {
+            config
+        } else {
+            config.with_data(data! {
+                listener_mode: ListenerMode::Informed,
+            })
+        })
     }
 }
 
@@ -271,9 +305,11 @@ system-prompt = "Speak only Lojban."
     fn config_defaults_to_tree_proj() {
         let config = RunConfig::from_toml(VALID_CONFIG).expect("valid config");
         assert_eq!(config.tersmu_format, TersmuFormat::TreeProj);
-        assert_eq!(config.caps.max_reference_calls_per_phase, 16);
+        assert_eq!(config.listener_mode, ListenerMode::Informed);
+        assert!(!config.allow_degraded_search);
+        assert_eq!(config.caps.max_reference_calls_per_phase, 30);
         assert!(config.caps.reference_dedupe);
-        assert_eq!(config.caps.reference_nudge_after, 6);
+        assert_eq!(config.caps.reference_nudge_after, 10);
         assert_eq!(config.client.http_timeout(), Duration::from_secs(60));
         assert!(
             config
@@ -299,6 +335,22 @@ system-prompt = "Speak only Lojban."
                 .iter()
                 .all(|participant| participant.reasoning.is_none())
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn listener_mode_and_degraded_search_override_are_explicitly_configurable() {
+        let source = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\nlistener-mode = \"blind-then-reveal\"\nallow-degraded-search = true",
+        );
+        let config = RunConfig::from_toml(&source).expect("valid listener settings");
+        assert_eq!(config.listener_mode, ListenerMode::BlindThenReveal);
+        assert!(config.allow_degraded_search);
+
+        let invalid = source.replace("blind-then-reveal", "sometimes-blind");
+        assert!(RunConfig::from_toml(&invalid).is_err());
     }
 
     #[test]
@@ -443,7 +495,7 @@ system-prompt = "Speak only Lojban."
             ),
             (
                 "reference-nudge-after",
-                "16",
+                "30",
                 "reference nudge threshold must be less than the reference-call cap",
             ),
         ] {

@@ -4,7 +4,9 @@ use std::process::ExitCode;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{OpenRouterClient, community_file, dialog_file, report_file, run as run_live};
+use xarsnu::{
+    OpenRouterClient, community_file, dialog_file, report_file, run_with_warning_handler,
+};
 
 const USAGE: &str =
     "usage: xarsnu <config.toml> | xarsnu report [--dialog | --community] <transcript.jsonl>";
@@ -51,18 +53,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         return Err("usage: xarsnu <config.toml>".into());
     }
     let path = PathBuf::from(first);
-    let summary = match run_live(&path, OpenRouterClient::from_env_with_timeout) {
-        Ok(summary) => summary,
-        Err(error) => {
-            if let Some(transcript_path) = error.transcript_path()
-                && transcript_path.exists()
-            {
-                println!("transcript: {}", transcript_path.display());
-                println!("outcome: runtime failure");
+    let summary =
+        match run_with_warning_handler(&path, OpenRouterClient::from_env_with_timeout, |warning| {
+            eprintln!("xarsnu: WARNING: {warning}")
+        }) {
+            Ok(summary) => summary,
+            Err(error) => {
+                if let Some(transcript_path) = error.transcript_path()
+                    && transcript_path.exists()
+                {
+                    println!("transcript: {}", transcript_path.display());
+                    println!("outcome: runtime failure");
+                }
+                return Err(error.into());
             }
-            return Err(error.into());
-        }
-    };
+        };
     println!("transcript: {}", summary.transcript_path.display());
     println!("outcome: {}", summary.outcome_line());
     Ok(())

@@ -10,6 +10,8 @@ Three speakers debate the moral importance of uncertain phenomenal experience.
 - **bob** — anthropic/claude-sonnet (temperature 0.7)
 - **carol** — openai/gpt (temperature 0.7)
 
+Listener mode: **blind-then-reveal**
+
 ## Chat room
 
 **alice** (turn 1):  
@@ -56,7 +58,7 @@ mi jinvi lo nu bilga lo ka kajde
 #### ── Turn 2 — bob speaks; alice listens ──
 
 **user**  
-[protocol: interpret privately, then acknowledge]
+[protocol: interpret privately, then review the revealed parser rendering and acknowledge]
 
 **user — chat-room message from bob**  
 lo nu na birti na krinu lo nu bilga
@@ -82,7 +84,7 @@ Bob says uncertainty does not ground a duty.
 #### ── Turn 1 — alice speaks; bob listens ──
 
 **user**  
-[protocol: interpret privately, then acknowledge]
+[protocol: interpret privately, then review the revealed parser rendering and acknowledge]
 
 **user — chat-room message from alice**  
 mi jinvi lo nu bilga lo ka kajde
@@ -139,7 +141,7 @@ lo nu na birti na krinu lo nu bilga
 #### ── Turn 1 — alice speaks; carol listens ──
 
 **user**  
-[protocol: interpret privately, then acknowledge]
+[protocol: interpret privately, then review the revealed parser rendering and acknowledge]
 
 **user — chat-room message from alice**  
 mi jinvi lo nu bilga lo ka kajde
@@ -161,7 +163,7 @@ Alice thinks caution is obligatory.
 #### ── Turn 2 — bob speaks; carol listens ──
 
 **user**  
-[protocol: interpret privately, then acknowledge]
+[protocol: interpret privately, then review the revealed parser rendering and acknowledge]
 
 **user — chat-room message from bob**  
 lo nu na birti na krinu lo nu bilga

@@ -13,8 +13,9 @@ use serde_json::{Value, json};
 use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, RuntimeFailureSite};
 use xarsnu::run::RunErrorData;
 use xarsnu::{
-    OpenRouterClient, OpenRouterClientConfig, PromptCaching, ProtocolRunOutcome, RetryPolicy,
-    RunSummary, TaskStatus, dialog_file, read_transcript, report_file, run,
+    EmbeddingSearchPreflightError, OpenRouterClient, OpenRouterClientConfig, PromptCaching,
+    ProtocolRunOutcome, RetryPolicy, RunSummary, TaskStatus, dialog_file, read_transcript,
+    report_file, run_with_preflight,
 };
 
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -364,6 +365,7 @@ fn temp_directory(name: &str) -> PathBuf {
 fn config_source(scenario: &str, second_participant: &str) -> String {
     format!(
         r#"scenario = "{scenario}"
+listener-mode = "blind-then-reveal"
 
 [caps]
 max-parse-attempts-per-turn = 3
@@ -410,6 +412,10 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     )
     .expect("copy local scenario");
     let config_source = config_source("scenario.toml", "bob")
+        .replace(
+            "listener-mode = \"blind-then-reveal\"",
+            "listener-mode = \"blind-then-reveal\"\nallow-degraded-search = true",
+        )
         .replace("[caps]", "[client]\nhttp-timeout-seconds = 90\n\n[caps]")
         .replace(
             "model = \"mock/alice\"",
@@ -421,15 +427,32 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         );
     let config_path = write_config(&directory, &config_source);
     let server = MockServer::start(complete_dialog_responses());
+    let warning_seen = Cell::new(false);
 
-    let summary = run(&config_path, |timeout| {
-        assert_eq!(
-            timeout,
-            Duration::from_secs(90),
-            "the run-configured timeout must reach the client factory"
-        );
-        Ok(client(server.base_url.clone()))
-    })
+    let summary = run_with_preflight(
+        &config_path,
+        |timeout| {
+            assert!(
+                warning_seen.get(),
+                "the degraded-search warning must be surfaced before client initialization"
+            );
+            assert_eq!(
+                timeout,
+                Duration::from_secs(90),
+                "the run-configured timeout must reach the client factory"
+            );
+            Ok(client(server.base_url.clone()))
+        },
+        || {
+            Err(EmbeddingSearchPreflightError::unavailable(
+                "embedding model is missing; run jbotci setup --embedding".to_owned(),
+            ))
+        },
+        |warning| {
+            assert!(warning.to_string().contains("embedding model is missing"));
+            warning_seen.set(true);
+        },
+    )
     .expect("complete live run");
 
     assert_eq!(
@@ -442,6 +465,12 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         "task failure must remain a successful run result"
     );
     assert_eq!(summary.outcome_line(), "task failed after 3 turn(s)");
+    assert_eq!(summary.warnings.len(), 1);
+    assert!(
+        summary.warnings[0]
+            .to_string()
+            .contains("embedding model is missing")
+    );
     assert!(summary.transcript_path.starts_with(&directory));
     assert_eq!(summary.transcript_path.extension().unwrap(), "jsonl");
     let records = read_transcript(&summary.transcript_path).expect("complete transcript validates");
@@ -452,6 +481,11 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     assert!(records.iter().any(|record| matches!(
         record.event.as_data(),
         ProtocolEventData::BlindInterpretationRecorded { .. }
+    )));
+    assert!(records.iter().any(|record| matches!(
+        record.event.as_data(),
+        ProtocolEventData::EmbeddingSearchDegraded { message }
+            if message.contains("embedding model is missing")
     )));
     assert_eq!(
         records
@@ -592,6 +626,7 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         "semantic or definition search",
         "compare candidates",
         "do not merely look up a word you already picked and rationalize its definition",
+        "when the problem is HOW TO EXPRESS something grammatically (not which word), query cukta with the concept.",
     ] {
         assert!(
             standing_system_prompt.contains(vocabulary_doctrine),
@@ -674,10 +709,15 @@ fn participant_mismatch_and_missing_scenario_are_typed() {
     let fallback = config_source("schedule-negotiation-1.toml", "carol");
     let config_path = write_config(&directory, &fallback);
     let factory_called = Cell::new(false);
-    let error = run(&config_path, |_| {
-        factory_called.set(true);
-        Ok(client("http://127.0.0.1:1".to_owned()))
-    })
+    let error = run_with_preflight(
+        &config_path,
+        |_| {
+            factory_called.set(true);
+            Ok(client("http://127.0.0.1:1".to_owned()))
+        },
+        || Ok(()),
+        |_| {},
+    )
     .expect_err("participant mismatch");
     assert!(!factory_called.get());
     assert!(matches!(
@@ -691,9 +731,12 @@ fn participant_mismatch_and_missing_scenario_are_typed() {
     assert!(error.to_string().contains("`bob`"));
 
     fs::write(&config_path, config_source("does-not-exist.toml", "bob")).expect("replace config");
-    let error = run(&config_path, |_| {
-        Ok(client("http://127.0.0.1:1".to_owned()))
-    })
+    let error = run_with_preflight(
+        &config_path,
+        |_| Ok(client("http://127.0.0.1:1".to_owned())),
+        || Ok(()),
+        |_| {},
+    )
     .expect_err("missing scenario");
     assert!(matches!(
         error.as_data(),
@@ -723,8 +766,13 @@ fn mid_run_model_death_flushes_an_accepted_runtime_failure_transcript() {
         runtime_failure_response(),
     ]);
 
-    let error =
-        run(&config_path, |_| Ok(client(server.base_url.clone()))).expect_err("runtime failure");
+    let error = run_with_preflight(
+        &config_path,
+        |_| Ok(client(server.base_url.clone())),
+        || Ok(()),
+        |_| {},
+    )
+    .expect_err("runtime failure");
     let transcript_path = error
         .transcript_path()
         .expect("runtime error retains transcript path")
@@ -764,10 +812,15 @@ fn config_private_brief_is_rejected_before_any_model_call() {
     let config_path = write_config(&directory, &source);
 
     let factory_called = Cell::new(false);
-    let error = run(&config_path, |_| {
-        factory_called.set(true);
-        Ok(client("http://127.0.0.1:1".to_owned()))
-    })
+    let error = run_with_preflight(
+        &config_path,
+        |_| {
+            factory_called.set(true);
+            Ok(client("http://127.0.0.1:1".to_owned()))
+        },
+        || Ok(()),
+        |_| {},
+    )
     .expect_err("removed participant field");
     assert!(!factory_called.get());
     assert!(matches!(
@@ -777,6 +830,44 @@ fn config_private_brief_is_rejected_before_any_model_call() {
     assert!(error.to_string().contains("unknown field `private-brief`"));
 
     fs::remove_dir_all(directory).expect("remove removed-brief fixtures");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn embedding_preflight_fails_before_client_initialization_by_default() {
+    let directory = temp_directory("embedding-preflight");
+    let config_path = write_config(
+        &directory,
+        &config_source("schedule-negotiation-1.toml", "bob"),
+    );
+    let factory_called = Cell::new(false);
+
+    let error = run_with_preflight(
+        &config_path,
+        |_| {
+            factory_called.set(true);
+            Ok(client("http://127.0.0.1:1".to_owned()))
+        },
+        || {
+            Err(EmbeddingSearchPreflightError::unavailable(
+                "embedding model is missing; run jbotci setup --embedding".to_owned(),
+            ))
+        },
+        |_| panic!("fatal preflight failures must not emit override warnings"),
+    )
+    .expect_err("missing embedding assets must stop the run");
+
+    assert!(!factory_called.get());
+    assert!(matches!(
+        error.as_data(),
+        RunErrorData::EmbeddingSearchUnavailable { message }
+            if message.contains("embedding model is missing")
+    ));
+    assert!(error.to_string().contains("allow-degraded-search = true"));
+    assert!(error.to_string().contains("jbotci setup --embedding"));
+
+    fs::remove_dir_all(directory).expect("remove embedding-preflight fixtures");
 }
 
 #[test]
@@ -797,6 +888,7 @@ fn unscored_completion_has_a_dialog_outcome_line() {
         transcript_path: PathBuf::from("debate.jsonl"),
         outcome: new!(ProtocolRunOutcome::Completed { turns: 10 }),
         task_outcome: None,
+        warnings: Vec::new(),
     });
 
     assert_eq!(summary.outcome_line(), "dialog completed after 10 turns");

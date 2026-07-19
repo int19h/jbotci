@@ -12,9 +12,9 @@ use crate::protocol::{
     ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
 };
 use crate::{
-    AbortKind, DiagnosticCategory, ListenerFlowAbandonReason, ProtocolRunOutcome, ScenarioAnswer,
-    ScenarioConfigError, ScenarioInstance, TaskStatus, TranscriptError, TranscriptRecord,
-    TurnForfeitReason, UsageTotals, read_transcript,
+    AbortKind, DiagnosticCategory, ListenerFlowAbandonReason, ListenerMode, ProtocolRunOutcome,
+    ScenarioAnswer, ScenarioConfigError, ScenarioInstance, TaskStatus, TranscriptError,
+    TranscriptRecord, TurnForfeitReason, UsageTotals, read_transcript,
 };
 
 /// Read, validate, and render one transcript without consulting any external service.
@@ -192,6 +192,12 @@ fn render_community_document(records: &[TranscriptRecord]) -> Result<String, Sce
         )
         .expect("writing to String cannot fail");
     }
+    writeln!(
+        report,
+        "\nListener mode: **{}**",
+        listener_mode_name(header.config.listener_mode)
+    )
+    .expect("writing to String cannot fail");
 
     report.push_str("\n## Chat room\n\n");
     render_community_chat(&mut report, records);
@@ -204,7 +210,12 @@ fn render_community_document(records: &[TranscriptRecord]) -> Result<String, Sce
             participant.name, participant.model
         )
         .expect("writing to String cannot fail");
-        render_participant_loop(&mut report, records, &participant.name);
+        render_participant_loop(
+            &mut report,
+            records,
+            &participant.name,
+            header.config.listener_mode,
+        );
     }
     Ok(report)
 }
@@ -262,7 +273,12 @@ fn render_community_chat(report: &mut String, records: &[TranscriptRecord]) {
 #[requires(!records.is_empty())]
 #[requires(!participant.trim().is_empty())]
 #[ensures(report.len() >= old(report.len()))]
-fn render_participant_loop(report: &mut String, records: &[TranscriptRecord], participant: &str) {
+fn render_participant_loop(
+    report: &mut String,
+    records: &[TranscriptRecord],
+    participant: &str,
+    listener_mode: ListenerMode,
+) {
     for record in records {
         match record.event.as_data() {
             bityzba::data!(ProtocolEvent::RunStarted { .. }) => {}
@@ -279,7 +295,15 @@ fn render_participant_loop(report: &mut String, records: &[TranscriptRecord], pa
                 } else {
                     writeln!(
                         report,
-                        "#### ── Turn {turn_number} — {speaker} speaks; {participant} listens ──\n\n**user**  \n[protocol: interpret privately, then acknowledge]\n"
+                        "#### ── Turn {turn_number} — {speaker} speaks; {participant} listens ──\n\n**user**  \n[protocol: {}]\n",
+                        match listener_mode {
+                            ListenerMode::Informed => {
+                                "interpret with the parser rendering and definitions, then acknowledge"
+                            }
+                            ListenerMode::BlindThenReveal => {
+                                "interpret privately, then review the revealed parser rendering and acknowledge"
+                            }
+                        }
                     )
                     .expect("writing to String cannot fail");
                 }
@@ -314,10 +338,13 @@ fn render_participant_loop(report: &mut String, records: &[TranscriptRecord], pa
             }) if speaker == participant => {
                 writeln!(
                     report,
-                    "**tool — gate**  \n❌ rejected — {}\n\n**user**  \n[protocol: revise and resubmit]\n",
+                    "**tool — gate**  \n❌ rejected — {}\n",
                     first_nonempty_line(diagnostics)
                 )
                 .expect("writing to String cannot fail");
+                report.push_str("Full diagnostics:\n\n");
+                render_fenced_full(report, diagnostics);
+                report.push_str("\n**user**  \n[protocol: revise and resubmit]\n\n");
             }
             bityzba::data!(ProtocolEvent::CandidateAccepted {
                 speaker,
@@ -366,6 +393,25 @@ fn render_participant_loop(report: &mut String, records: &[TranscriptRecord], pa
                         message.text
                     )
                     .expect("writing to String cannot fail");
+                }
+            }
+            bityzba::data!(ProtocolEvent::ListenerFlowStarted {
+                listener,
+                mode,
+                message,
+                ..
+            }) if listener == participant => {
+                writeln!(report, "*[listener mode: {}]*\n", listener_mode_name(*mode))
+                    .expect("writing to String cannot fail");
+                if *mode == ListenerMode::Informed {
+                    report.push_str(
+                        "**user — parser rendering and definitions available from the start**\n\n",
+                    );
+                    render_fenced_excerpt(
+                        report,
+                        &String::from_utf8_lossy(&message.tersmu_rendering),
+                    );
+                    report.push_str("\n[protocol: interpret and acknowledge]\n\n");
                 }
             }
             bityzba::data!(ProtocolEvent::BlindInterpretationRecorded {
@@ -460,6 +506,14 @@ fn render_participant_loop(report: &mut String, records: &[TranscriptRecord], pa
                 writeln!(
                     report,
                     "**user**  \n[protocol: return to the dialog after {consecutive_calls} consecutive reference calls]\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::EmbeddingSearchDegraded { message }) => {
+                writeln!(
+                    report,
+                    "*[harness warning: embedding search degraded — {}]*\n",
+                    first_nonempty_line(message)
                 )
                 .expect("writing to String cannot fail");
             }
@@ -677,6 +731,18 @@ fn render_fenced_excerpt(report: &mut String, text: &str) {
     writeln!(report, "{fence}").expect("writing to String cannot fail");
 }
 
+#[requires(true)]
+#[ensures(report.len() >= old(report.len()) + text.len())]
+fn render_fenced_full(report: &mut String, text: &str) {
+    let fence = "`".repeat(longest_backtick_run(text).saturating_add(1).max(3));
+    writeln!(report, "{fence}text").expect("writing to String cannot fail");
+    report.push_str(text);
+    if !text.ends_with('\n') {
+        report.push('\n');
+    }
+    writeln!(report, "{fence}").expect("writing to String cannot fail");
+}
+
 #[requires(maximum_chars > 0)]
 #[ensures(ret.chars().count() <= maximum_chars + 1)]
 fn shorten_line(text: &str, maximum_chars: usize) -> String {
@@ -783,6 +849,18 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     report,
                     "- Gate format: `{}`",
                     tersmu_format_name(header.config.tersmu_format)
+                )
+                .expect("writing to String cannot fail");
+                writeln!(
+                    report,
+                    "- Listener mode: `{}`",
+                    listener_mode_name(header.config.listener_mode)
+                )
+                .expect("writing to String cannot fail");
+                writeln!(
+                    report,
+                    "- Allow degraded search: `{}`",
+                    header.config.allow_degraded_search
                 )
                 .expect("writing to String cannot fail");
                 report.push_str("- Models:\n");
@@ -904,6 +982,24 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 quote_bytes(&mut report, &message.tersmu_rendering);
                 report.push('\n');
             }
+            bityzba::data!(ProtocolEvent::ListenerFlowStarted {
+                listener,
+                mode,
+                message,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Listener flow started — `{listener}`\n\nMode: **{}**\n",
+                    listener_mode_name(*mode)
+                )
+                .expect("writing to String cannot fail");
+                if *mode == ListenerMode::Informed {
+                    report.push_str("Initial tersmu rendering and definitions:\n\n");
+                    quote_bytes(&mut report, &message.tersmu_rendering);
+                    report.push('\n');
+                }
+            }
             bityzba::data!(ProtocolEvent::BlindInterpretationRecorded {
                 turn_number,
                 listener,
@@ -1009,6 +1105,11 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 quote(&mut report, message);
                 report.push('\n');
                 summary.reference_nudges += 1;
+            }
+            bityzba::data!(ProtocolEvent::EmbeddingSearchDegraded { message }) => {
+                report.push_str("## WARNING: embedding search degraded\n\n");
+                quote(&mut report, message);
+                report.push('\n');
             }
             bityzba::data!(ProtocolEvent::ProseRejected {
                 participant,
@@ -1477,6 +1578,15 @@ const fn tersmu_format_name(format: crate::TersmuFormat) -> &'static str {
         crate::TersmuFormat::TreeProj => "tree+proj",
         crate::TersmuFormat::Tree => "tree",
         crate::TersmuFormat::Json => "json",
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+const fn listener_mode_name(mode: ListenerMode) -> &'static str {
+    match mode {
+        ListenerMode::Informed => "informed",
+        ListenerMode::BlindThenReveal => "blind-then-reveal",
     }
 }
 

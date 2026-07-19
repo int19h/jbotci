@@ -6,7 +6,9 @@ use std::process::Command;
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use xarsnu::protocol::ProtocolEventData;
-use xarsnu::{ReasoningConfig, community_file, dialog_file, read_transcript, report_file};
+use xarsnu::{
+    ListenerMode, ReasoningConfig, community_file, dialog_file, read_transcript, report_file,
+};
 
 const FIXTURE: &str = "tests/fixtures/transcript-all-events.jsonl";
 const DEBATE_FIXTURE: &str = "tests/fixtures/transcript-debate.jsonl";
@@ -166,6 +168,47 @@ fn community_tool_results_are_shortened_and_structured_payloads_are_summarized()
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn community_rejections_include_the_complete_rich_diagnostics() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut records = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid fixture record"))
+        .collect::<Vec<_>>();
+    let rejection = records
+        .iter_mut()
+        .find(|record| record["event"]["kind"] == "candidate-rejected")
+        .expect("fixture rejection event");
+    let diagnostics = format!(
+        "error: unexpected token at bytes 14..18\nsource context: {}\nexpected one of: CU, VAU, sumti, or a complete bridi-tail\nfinal diagnostic sentinel after 480 characters: `keep-this-line`",
+        "lo broda cu brode ".repeat(30),
+    );
+    assert!(diagnostics.chars().count() > 480);
+    rejection["event"]["diagnostics"] = serde_json::json!(diagnostics.clone());
+    let path = temp_path("community-full-diagnostics");
+    fs::write(
+        &path,
+        records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("record serializes"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n",
+    )
+    .expect("write rich-diagnostics fixture");
+
+    let community = community_file(&path).expect("community export renders");
+    assert!(community.contains("Full diagnostics:"));
+    assert!(community.contains(&diagnostics));
+    assert!(community.contains("final diagnostic sentinel after 480 characters"));
+    assert!(!community.contains("more lines elided"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn golden_transcript_renders_every_event_kind() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let records = read_transcript(&root.join(FIXTURE)).expect("golden transcript validates");
@@ -189,8 +232,10 @@ fn golden_transcript_renders_every_event_kind() {
             "candidate-submitted",
             "checker-outcome",
             "dialog-closed-for-answers",
+            "embedding-search-degraded",
             "intent-registered",
             "listener-flow-abandoned",
+            "listener-flow-started",
             "meaning-confirmed",
             "message-posted",
             "prose-rejected",
@@ -237,6 +282,8 @@ fn golden_transcript_renders_every_event_kind() {
         "### Reference-research nudge",
         "### Auto-mode prose rejected",
         "### Listener flow abandoned",
+        "### Listener flow started",
+        "## WARNING: embedding search degraded",
         "### Visible dialog closed for independent answers",
         "Auto-mode prose rejections: 1",
         "Listener flows abandoned: 1",
@@ -364,6 +411,43 @@ fn schema_v1_accepts_usage_without_additive_cache_fields() {
     assert!(!records.is_empty());
     let report = report_file(&path).expect("legacy-compatible transcript renders");
     assert!(report.contains("Cache totals: 0 cached tokens; 0 cache-write tokens"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn schema_v1_without_listener_mode_retains_the_historical_blind_behavior() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut records = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid fixture record"))
+        .collect::<Vec<_>>();
+    let config = records[0]["event"]["header"]["config"]
+        .as_object_mut()
+        .expect("run header config object");
+    assert!(config.remove("listener-mode").is_some());
+    let path = temp_path("schema-v1-without-listener-mode");
+    fs::write(
+        &path,
+        records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("record serializes"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n",
+    )
+    .expect("write legacy listener transcript");
+
+    let records = read_transcript(&path).expect("listener mode is additive");
+    let ProtocolEventData::RunStarted { header } = records[0].event.as_data() else {
+        panic!("validated transcript starts with its header");
+    };
+    assert_eq!(header.config.listener_mode, ListenerMode::BlindThenReveal);
+    let report = report_file(&path).expect("historical listener transcript renders");
+    assert!(report.contains("Listener mode: `blind-then-reveal`"));
 
     fs::remove_file(path).expect("remove temporary transcript");
 }

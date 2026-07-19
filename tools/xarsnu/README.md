@@ -13,22 +13,25 @@ xarsnu report --community path/to/run.xarsnu.1750000000000000000.1234.0.jsonl
 `--community` produces one shareable Markdown document with the public scenario
 and participant roster, a turn-numbered chat-room log, and concise chronological
 views of each participant's internal loop. It omits raw protocol payloads and
-private scenario briefs.
+private scenario briefs. Rejected Lojban candidates retain their complete rich
+diagnostics in fenced blocks so the export shows exactly what the model received.
 
 ## Run configuration
 
 ```toml
 scenario = "schedule-negotiation-1.toml"
 tersmu-format = "tree+proj"
+listener-mode = "informed"
+allow-degraded-search = false
 
 [caps]
 max-parse-attempts-per-turn = 3
 max-intent-revisions-per-turn = 2
 max-turns = 8
 max-cost-usd = 1.25
-max-reference-calls-per-phase = 16
+max-reference-calls-per-phase = 30
 reference-dedupe = true
-reference-nudge-after = 6
+reference-nudge-after = 10
 
 [[participants]]
 name = "alice"
@@ -79,6 +82,13 @@ any answer is requested. Those private answer phases offer only
 `prompt-caching` is per participant. `auto` (the default) emits explicit cache
 breakpoints only for models that require them; `off` leaves the request alone.
 
+`listener-mode` defaults to `informed`. Every listener receives the posted
+Lojban, its tersmu rendering, and the embedded definitions together from the
+start, then records one acknowledgment. `blind-then-reveal` retains the
+two-step blind interpretation and later parser reveal for explicit measurement
+arms. The selected mode is recorded in the run header, listener-flow events,
+and reports.
+
 `tool-choice` is also per participant and defaults to `metadata`. The vendored
 OpenRouter capability snapshot selects `required` for models known to support
 required tool calls and otherwise selects `auto`. Explicit `required` and
@@ -87,9 +97,8 @@ as a typed event and uses the existing bounded corrective machinery: models
 that support assistant prefill receive `Actually, I must use one of the
 following tools: ...`; other models receive the existing user correction.
 Exhaustion forfeits a speaker turn. Listener exhaustion instead records a
-listener-scoped `listener-flow-abandoned` event, leaves that listener's blind
-interpretation and acknowledgment unrecorded, and continues with the other
-listeners.
+listener-scoped `listener-flow-abandoned` event, leaves that listener's current
+interpretation flow incomplete, and continues with the other listeners.
 
 `reasoning` is an optional per-participant policy: `off`, `default`, `low`,
 `medium`, or `high`. When it is absent, reasoning is disabled only if metadata
@@ -120,14 +129,26 @@ the five policy fields deterministically:
 python3 tools/xarsnu/scripts/import-bickr-openrouter-capabilities.py --bickr ~/git/bickr
 ```
 
+The meaning-first doctrine tells participants to search `vlacku` by meaning
+before choosing uncertain content words. When the problem is how to express
+something grammatically rather than which word to use, it tells them to query
+`cukta` with the concept.
+
 The reference-loop controls are run-wide caps applied independently to every
-protocol phase. `max-reference-calls-per-phase` defaults to 16 and withdraws
+protocol phase. `max-reference-calls-per-phase` defaults to 30 and withdraws
 all reference tools after that many calls in one phase. `reference-dedupe`
 defaults to `true`; repeated calls with the exact same tool name and argument
 bytes reuse the first local result while still consuming the reference-call
-budget. `reference-nudge-after` defaults to 6 and sends one phase-progress
+budget. `reference-nudge-after` defaults to 10 and sends one phase-progress
 reminder after that many consecutive reference calls. Both numeric values must
 be positive, and the nudge threshold must be lower than the call cap.
+
+Before initializing the model client or starting a debate, the conductor runs
+a real semantic `vlacku` query through the production embedding-search path.
+Missing or unusable embedding assets fail startup with setup guidance by
+default. `allow-degraded-search = true` is reserved for intentional degraded
+measurement arms; it continues with a loud CLI/report warning and a typed
+`embedding-search-degraded` transcript event.
 
 ## Transcript and exit behavior
 
