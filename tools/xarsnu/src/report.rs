@@ -106,6 +106,7 @@ fn render_dialog_entries(report: &mut String, records: &[TranscriptRecord]) {
             record.event.as_data(),
             bityzba::data!(ProtocolEvent::MessagePosted { .. })
                 | bityzba::data!(ProtocolEvent::TurnForfeited { .. })
+                | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { .. })
                 | bityzba::data!(ProtocolEvent::AnswerSubmitted { .. })
                 | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
                 | bityzba::data!(ProtocolEvent::RunAborted { .. })
@@ -132,6 +133,13 @@ fn render_dialog_entries(report: &mut String, records: &[TranscriptRecord]) {
             }) => {
                 writeln!(report, "*({speaker} forfeited turn {turn_number})*")
                     .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::DialogClosedForAnswers { round_number, .. }) => {
+                writeln!(
+                    report,
+                    "*(visible dialog closed for independent answers after round {round_number})*"
+                )
+                .expect("writing to String cannot fail");
             }
             bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. }) => {
                 writeln!(report, "*({participant} submitted an answer)*")
@@ -449,6 +457,16 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 )
                 .expect("writing to String cannot fail");
                 summary.forfeits += 1;
+            }
+            bityzba::data!(ProtocolEvent::DialogClosedForAnswers {
+                turn_number,
+                round_number,
+            }) => {
+                writeln!(
+                    report,
+                    "### Visible dialog closed for independent answers\n\nRound **{round_number}** completed at turn **{turn_number}**. Every required participant now answers from the same frozen visible dialog.\n"
+                )
+                .expect("writing to String cannot fail");
             }
             bityzba::data!(ProtocolEvent::AnswerSubmitted {
                 participant,

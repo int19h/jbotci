@@ -374,6 +374,15 @@ impl ScenarioInstance {
         &self.document.answer_schema
     }
 
+    /// Whether the first answer-eligible round closes visible discussion.
+    #[requires(true)]
+    #[ensures(ret == self.document.answers_close_dialog.unwrap_or(self.kind() == ScenarioKind::ReferentialGame))]
+    pub fn answers_close_dialog(&self) -> bool {
+        self.document
+            .answers_close_dialog
+            .unwrap_or(self.kind() == ScenarioKind::ReferentialGame)
+    }
+
     /// Completed discussion rounds required before `submit_answer` is offered.
     #[requires(true)]
     #[ensures(ret > 0)]
@@ -571,6 +580,8 @@ struct ScenarioDocument {
     title: String,
     public_setup: String,
     answer_schema: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    answers_close_dialog: Option<bool>,
     minimum_rounds: usize,
     maximum_rounds: usize,
     maximum_turns: usize,
@@ -757,7 +768,12 @@ fn validate_document(document: &ScenarioDocument) -> Result<(), ScenarioConfigEr
             "cannot exceed maximum-rounds times participant count",
         ));
     }
-    if document.maximum_turns <= document.minimum_rounds * participant_count {
+    let answers_close_dialog = document
+        .answers_close_dialog
+        .unwrap_or(document.data.kind() == ScenarioKind::ReferentialGame);
+    if !answers_close_dialog
+        && document.maximum_turns <= document.minimum_rounds * participant_count
+    {
         return Err(invalid(
             "maximum-turns",
             "must leave at least one turn after minimum-rounds for answer submission",

@@ -10,4 +10,6 @@
 
 *(checker: partial)*
 
+*(visible dialog closed for independent answers after round 1)*
+
 *(run aborted: cost budget exceeded)*
