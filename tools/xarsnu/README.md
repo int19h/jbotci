@@ -7,7 +7,13 @@ as flushed JSONL:
 xarsnu path/to/run.toml
 xarsnu report path/to/run.xarsnu.1750000000000000000.1234.0.jsonl
 xarsnu report --dialog path/to/run.xarsnu.1750000000000000000.1234.0.jsonl
+xarsnu report --community path/to/run.xarsnu.1750000000000000000.1234.0.jsonl
 ```
+
+`--community` produces one shareable Markdown document with the public scenario
+and participant roster, a turn-numbered chat-room log, and concise chronological
+views of each participant's internal loop. It omits raw protocol payloads and
+private scenario briefs.
 
 ## Run configuration
 

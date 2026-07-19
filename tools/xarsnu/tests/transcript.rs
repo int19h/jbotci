@@ -6,9 +6,162 @@ use std::process::Command;
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use xarsnu::protocol::ProtocolEventData;
-use xarsnu::{ReasoningConfig, dialog_file, read_transcript, report_file};
+use xarsnu::{ReasoningConfig, community_file, dialog_file, read_transcript, report_file};
 
 const FIXTURE: &str = "tests/fixtures/transcript-all-events.jsonl";
+const DEBATE_FIXTURE: &str = "tests/fixtures/transcript-debate.jsonl";
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn community_exports_match_goldens_cover_human_events_and_exclude_harness_noise() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for (fixture, golden) in [
+        (
+            FIXTURE,
+            include_str!("fixtures/transcript-all-events-community.md"),
+        ),
+        (
+            DEBATE_FIXTURE,
+            include_str!("fixtures/transcript-debate-community.md"),
+        ),
+    ] {
+        let records = read_transcript(&root.join(fixture)).expect("community fixture validates");
+        let community = community_file(&root.join(fixture)).expect("community export renders");
+        assert_eq!(community, golden, "golden for {fixture}");
+
+        let ProtocolEventData::RunStarted { header } = records[0].event.as_data() else {
+            panic!("validated transcript starts with the run header");
+        };
+        let thinking_events = records
+            .iter()
+            .filter(|record| {
+                matches!(
+                    record.event.as_data(),
+                    ProtocolEventData::ThinkingRecorded { .. }
+                )
+            })
+            .count();
+        assert_eq!(community.matches("> *thinking*").count(), thinking_events);
+        for record in &records {
+            match record.event.as_data() {
+                ProtocolEventData::TurnStarted {
+                    turn_number,
+                    speaker,
+                } => {
+                    for participant in &header.config.participants {
+                        let marker = if participant.name == *speaker {
+                            format!("── Turn {turn_number} — {speaker} speaks ──")
+                        } else {
+                            format!(
+                                "── Turn {turn_number} — {speaker} speaks; {} listens ──",
+                                participant.name
+                            )
+                        };
+                        assert!(community.contains(&marker), "missing {marker}");
+                    }
+                }
+                ProtocolEventData::IntentRegistered { meaning_en, .. } => {
+                    assert!(
+                        community.contains(meaning_en),
+                        "missing intent {meaning_en}"
+                    );
+                }
+                ProtocolEventData::MessagePosted {
+                    turn_number,
+                    speaker,
+                    message,
+                } => {
+                    assert!(
+                        community.contains(&format!(
+                            "**{speaker}** (turn {turn_number}):  \n{}",
+                            message.text
+                        )),
+                        "missing hard-break chat post by {speaker}"
+                    );
+                }
+                ProtocolEventData::ThinkingRecorded { trace, .. } => {
+                    if let Some(reasoning) = &trace.reasoning {
+                        for line in reasoning.lines() {
+                            assert!(community.contains(line), "missing thinking line {line}");
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        for forbidden_noise in [
+            "{\"",
+            "\"tool_name\"",
+            "\"signature\"",
+            "fixture-signature",
+            "scenario-instance-toml",
+            "private-brief",
+            "system-prompt",
+            "Reference research has not advanced the protocol.",
+            "Current phase protocol tools:",
+        ] {
+            assert!(
+                !community.contains(forbidden_noise),
+                "community export leaked {forbidden_noise} in {fixture}"
+            );
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn community_tool_results_are_shortened_and_structured_payloads_are_summarized() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut records = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid fixture record"))
+        .collect::<Vec<_>>();
+    let reference_index = records
+        .iter()
+        .position(|record| record["event"]["kind"] == "reference-tool-completed")
+        .expect("fixture reference event");
+    records[reference_index]["event"]["result"] = serde_json::json!(
+        (1..=12)
+            .map(|line| format!("result line {line}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    let path = temp_path("community-result-elision");
+    fs::write(
+        &path,
+        records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("record serializes"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n",
+    )
+    .expect("write result-elision fixture");
+    let community = community_file(&path).expect("community export renders");
+    assert!(community.contains("result line 10"));
+    assert!(!community.contains("result line 11"));
+    assert!(community.contains("… [2 more lines elided]"));
+
+    records[reference_index]["event"]["result"] = serde_json::json!("{\"secret\":\"raw payload\"}");
+    fs::write(
+        &path,
+        records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("record serializes"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n",
+    )
+    .expect("write structured-result fixture");
+    let community = community_file(&path).expect("structured result export renders");
+    assert!(community.contains("[structured result with 1 fields]"));
+    assert!(!community.contains("raw payload"));
+    fs::remove_file(path).expect("remove temporary transcript");
+}
 
 #[test]
 #[requires(true)]
@@ -378,6 +531,23 @@ fn report_subcommand_is_offline_and_matches_the_library() {
     assert_eq!(
         String::from_utf8(dialog_output.stdout).expect("dialog is UTF-8"),
         include_str!("fixtures/transcript-all-events-dialog.md")
+    );
+
+    let community_output = Command::new(env!("CARGO_BIN_EXE_xarsnu"))
+        .arg("report")
+        .arg("--community")
+        .arg(root.join(FIXTURE))
+        .env_remove("OPENROUTER_API_KEY")
+        .output()
+        .expect("run community report command");
+    assert!(
+        community_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&community_output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(community_output.stdout).expect("community report is UTF-8"),
+        include_str!("fixtures/transcript-all-events-community.md")
     );
 }
 
