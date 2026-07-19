@@ -9,6 +9,8 @@ Agree on one recurring weekly meeting. Submit the weekday, minutes after midnigh
 - **alice** — example/alice (temperature 0.25)
 - **bob** — example/bob (temperature 0.25)
 
+Listener mode: **blind-then-reveal**
+
 ## Chat room
 
 **alice** (turn 1):  
@@ -33,6 +35,8 @@ mi klama
 **user**  
 [protocol: compose and submit]
 
+*[harness warning: embedding search degraded — embedding model is missing; run jbotci setup --embedding]*
+
 **assistant — intent revision 1**  
 I am going to the market.
 
@@ -41,6 +45,12 @@ not lojban
 
 **tool — gate**  
 ❌ rejected — error: invalid word at byte 0
+
+Full diagnostics:
+
+```text
+error: invalid word at byte 0
+```
 
 **user**  
 [protocol: revise and resubmit]
@@ -112,10 +122,14 @@ Tuesday at 11:00 for 60 minutes
 #### ── Turn 1 — alice speaks; bob listens ──
 
 **user**  
-[protocol: interpret privately, then acknowledge]
+[protocol: interpret privately, then review the revealed parser rendering and acknowledge]
+
+*[harness warning: embedding search degraded — embedding model is missing; run jbotci setup --embedding]*
 
 **user — chat-room message from alice**  
 mi klama
+
+*[listener mode: blind-then-reveal]*
 
 **assistant — blind interpretation**  
 Alice goes somewhere.

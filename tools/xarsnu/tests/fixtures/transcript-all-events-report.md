@@ -3,6 +3,8 @@
 - Transcript schema: 1
 - Scenario reference: `schedule-negotiation-1.toml`
 - Gate format: `tree+proj`
+- Listener mode: `blind-then-reveal`
+- Allow degraded search: `false`
 - Models:
   - `alice`: `example/alice` (temperature 0.25)
   - `bob`: `example/bob` (temperature 0.25)
@@ -86,6 +88,10 @@ end-minute = 750
 
 ## Turn 1 — `alice`
 
+## WARNING: embedding search degraded
+
+> embedding model is missing; run jbotci setup --embedding
+
 ### Intent revision
 
 Participant: `alice`
@@ -139,6 +145,10 @@ Lojban:
 tersmu rendering:
 
 > (klama mi)
+
+### Listener flow started — `bob`
+
+Mode: **blind-then-reveal**
 
 ### Blind interpretation — `bob`
 

@@ -4,8 +4,8 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_cli::{
     ToolCuktaRequest, ToolGentufaRequest, ToolJvozbaRequest, ToolRenderedOutput, ToolTersmuFormat,
-    ToolTersmuRequest, ToolVlackuRequest, run_tool_cukta, run_tool_gentufa, run_tool_jvozba,
-    run_tool_tersmu, run_tool_vlacku, tool_request_schema,
+    ToolTersmuRequest, ToolVlackuMode, ToolVlackuRequest, run_tool_cukta, run_tool_gentufa,
+    run_tool_jvozba, run_tool_tersmu, run_tool_vlacku, tool_request_schema,
 };
 use jbotci_dialect::{DialectDefinition, DialectSettings, parse_dialect_selection_formula};
 use jbotci_morphology::{
@@ -309,6 +309,77 @@ pub enum ReferenceToolError {
     #[error("jbotci reference tool `{tool_name}` failed: {message}")]
     ToolExecution { tool_name: String, message: String },
 }
+
+/// Prove that the production semantic dictionary path can load and query its assets.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn preflight_embedding_search() -> Result<(), EmbeddingSearchPreflightError> {
+    let output = run_tool_vlacku(ToolVlackuRequest {
+        mode: ToolVlackuMode::Meaning,
+        query: "movement from one place to another".to_owned(),
+        count: Some(1),
+        word_types: Vec::new(),
+        min_votes: None,
+        min_similarity: None,
+        decompose_lujvo: false,
+        show_etymology: false,
+    })
+    .map_err(|error| {
+        new!(EmbeddingSearchPreflightError::ToolExecution {
+            message: error.to_string(),
+        })
+    })?;
+    if output.status.is_success() {
+        return Ok(());
+    }
+    let mut diagnostic = String::from_utf8_lossy(&output.stdout).into_owned();
+    diagnostic.push_str(&output.stderr);
+    if diagnostic.trim().is_empty() {
+        diagnostic = format!("semantic vlacku returned status {:?}", output.status);
+    }
+    Err(EmbeddingSearchPreflightError::unavailable(diagnostic))
+}
+
+/// Semantic search could not complete the real production preflight query.
+#[invariant(::ToolExecution { message } => !message.trim().is_empty())]
+#[invariant(::Unavailable { diagnostic } => !diagnostic.trim().is_empty())]
+#[derive(Debug, PartialEq, Eq)]
+pub enum EmbeddingSearchPreflightError {
+    ToolExecution { message: String },
+    Unavailable { diagnostic: String },
+}
+
+impl EmbeddingSearchPreflightError {
+    /// Construct an unavailable-assets failure from a production diagnostic.
+    #[requires(!diagnostic.trim().is_empty())]
+    #[ensures(matches!(ret.as_data(), bityzba::data!(EmbeddingSearchPreflightError::Unavailable { .. })))]
+    pub fn unavailable(diagnostic: String) -> Self {
+        new!(EmbeddingSearchPreflightError::Unavailable { diagnostic })
+    }
+}
+
+impl std::fmt::Display for EmbeddingSearchPreflightError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.as_data() {
+            bityzba::data!(EmbeddingSearchPreflightError::ToolExecution { message }) => {
+                write!(
+                    formatter,
+                    "semantic vlacku preflight failed to execute: {message}"
+                )
+            }
+            bityzba::data!(EmbeddingSearchPreflightError::Unavailable { diagnostic }) => {
+                write!(
+                    formatter,
+                    "semantic vlacku preflight was unavailable: {diagnostic}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for EmbeddingSearchPreflightError {}
 
 #[cfg(test)]
 mod tests {

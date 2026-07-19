@@ -12,10 +12,10 @@ use xarsnu::protocol::{
     ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
 };
 use xarsnu::{
-    CapsConfig, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError,
-    ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher, RunAccounting,
-    RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice,
-    ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript, report_file,
+    CapsConfig, ListenerMode, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel,
+    ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher,
+    RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall,
+    ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript, report_file,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -316,6 +316,16 @@ fn listener_steps(interpretation_en: &str) -> Vec<ScriptStep> {
     ]
 }
 
+#[requires(!understanding_en.trim().is_empty())]
+#[ensures(ret.len() == 1)]
+fn informed_listener_steps(understanding_en: &str) -> Vec<ScriptStep> {
+    vec![step(
+        &["acknowledge"],
+        "acknowledge",
+        json!({ "final_understanding_en": understanding_en }),
+    )]
+}
+
 #[requires(id > 0)]
 #[requires(!name.trim().is_empty())]
 #[requires(arguments.is_object())]
@@ -357,6 +367,7 @@ fn runner(
     ProtocolRunner::new(
         participants,
         caps,
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         ReferenceToolDispatcher,
     )
@@ -432,6 +443,7 @@ fn reference_budget_withdraws_tools_on_the_wire_and_preserves_turn_forfeit() {
     let mut runner = ProtocolRunner::new(
         vec![speaker, listener],
         caps,
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         dispatcher,
     )
@@ -503,6 +515,7 @@ fn duplicate_reference_lookup_reuses_prior_payload_byte_for_byte() {
     let mut runner = ProtocolRunner::new(
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         dispatcher,
     )
@@ -574,6 +587,7 @@ fn disabling_reference_dedupe_reexecutes_exact_repeats() {
     let mut runner = ProtocolRunner::new(
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         dispatcher,
     )
@@ -632,6 +646,7 @@ fn idle_reference_nudge_fires_once_at_threshold_in_each_phase() {
     let mut runner = ProtocolRunner::new(
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         dispatcher,
     )
@@ -778,6 +793,63 @@ fn happy_path_posts_then_completes_two_blind_listener_flows() {
         assert!(!listener.user_messages[0].contains(rendering));
         assert!(listener.user_messages[1].contains(rendering));
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn informed_listener_receives_rendering_from_the_start_and_acknowledges_once() {
+    let speaker = ScriptedModel::new("alice", posted_message_steps("I am going.", "I go."));
+    let listener = ScriptedModel::new("bob", informed_listener_steps("Alice goes."));
+    let mut runner = ProtocolRunner::new(
+        vec![speaker, listener],
+        caps(3, 2, 1),
+        ListenerMode::Informed,
+        TersmuFormat::TreeProj,
+        ReferenceToolDispatcher,
+    )
+    .expect("valid informed runner");
+
+    runner.run().expect("informed listener run");
+
+    let posted = &runner.visible_chat()[0];
+    let rendering = std::str::from_utf8(&posted.tersmu_rendering).expect("UTF-8 tersmu");
+    let listener = &runner.participants()[1];
+    assert!(listener.is_complete());
+    assert_eq!(listener.calls_made, 1);
+    assert_eq!(listener.user_messages.len(), 1);
+    assert!(listener.user_messages[0].contains("mi klama"));
+    assert!(listener.user_messages[0].contains(rendering));
+    assert!(
+        listener.user_messages[0]
+            .contains("tersmu rendering and definitions available from the start")
+    );
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::ListenerFlowStarted {
+            listener,
+            mode: ListenerMode::Informed,
+            message,
+            ..
+        }) if listener == "bob" && message == posted
+    )));
+    assert!(!runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { .. })
+            | bityzba::data!(ProtocolEvent::TersmuRevealed { .. })
+    )));
+    assert_eq!(
+        runner
+            .events()
+            .iter()
+            .filter(|event| matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::Acknowledged { listener, .. })
+                    if listener == "bob"
+            ))
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -1644,6 +1716,7 @@ fn referential_answers_close_dialog_and_are_collected_from_one_frozen_boundary()
             ScriptedModel::new("listener-b", listener_b_steps),
         ],
         caps(2, 2, 8),
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         ReferenceToolDispatcher,
         scenario,
@@ -1756,12 +1829,15 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
         caps: caps(3, 2, 12),
         client: xarsnu::ClientConfig::default(),
         tersmu_format: TersmuFormat::TreeProj,
+        listener_mode: ListenerMode::BlindThenReveal,
+        allow_degraded_search: false,
     });
     let header = RunHeader::new(run_config.clone(), &scenario).expect("transcript header");
     let transcript_path = temp_path("debate-turn-cap");
     let mut runner = ProtocolRunner::new_with_scenario(
         participants,
         run_config.caps.clone(),
+        run_config.listener_mode,
         TersmuFormat::TreeProj,
         ReferenceToolDispatcher,
         scenario,
@@ -1913,6 +1989,8 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
             caps: caps(3, 2, 6),
             client: xarsnu::ClientConfig::default(),
             tersmu_format: TersmuFormat::TreeProj,
+            listener_mode: ListenerMode::BlindThenReveal,
+            allow_degraded_search: false,
         }),
         &scenario,
     )
@@ -1921,6 +1999,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
     let mut runner = ProtocolRunner::new_with_scenario(
         vec![alice, bob],
         caps(3, 2, 6),
+        ListenerMode::BlindThenReveal,
         TersmuFormat::TreeProj,
         ReferenceToolDispatcher,
         scenario,

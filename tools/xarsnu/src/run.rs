@@ -12,9 +12,9 @@ use bityzba::{ensures, invariant, new, requires};
 
 use crate::protocol::ProtocolRunOutcomeData;
 use crate::{
-    OpenRouterClient, OpenRouterError, OpenRouterParticipant, ProtocolRunError, ProtocolRunOutcome,
-    ProtocolRunner, ReferenceToolDispatcher, RunConfig, RunHeader, ScenarioInstance, TaskOutcome,
-    TaskStatus,
+    EmbeddingSearchPreflightError, OpenRouterClient, OpenRouterError, OpenRouterParticipant,
+    ProtocolRunError, ProtocolRunOutcome, ProtocolRunner, ReferenceToolDispatcher, RunConfig,
+    RunHeader, ScenarioInstance, TaskOutcome, TaskStatus, preflight_embedding_search,
 };
 
 static TRANSCRIPT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -27,6 +27,7 @@ pub struct RunSummary {
     pub transcript_path: PathBuf,
     pub outcome: ProtocolRunOutcome,
     pub task_outcome: Option<TaskOutcome>,
+    pub warnings: Vec<RunWarning>,
 }
 
 impl RunSummary {
@@ -56,6 +57,26 @@ impl RunSummary {
     }
 }
 
+/// Non-fatal condition retained only through an explicit run-config override.
+#[invariant(::EmbeddingSearchDegraded { message } => !message.trim().is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RunWarning {
+    EmbeddingSearchDegraded { message: String },
+}
+
+impl fmt::Display for RunWarning {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            bityzba::data!(RunWarning::EmbeddingSearchDegraded { message }) => write!(
+                formatter,
+                "embedding search is degraded despite startup preflight failure: {message}"
+            ),
+        }
+    }
+}
+
 /// Typed failure from loading or executing one live run.
 #[invariant(::ConfigRead { path, message } => !path.as_os_str().is_empty() && !message.trim().is_empty())]
 #[invariant(::ConfigInvalid { path, message } => !path.as_os_str().is_empty() && !message.trim().is_empty())]
@@ -63,6 +84,7 @@ impl RunSummary {
 #[invariant(::ScenarioRead { path, message } => !path.as_os_str().is_empty() && !message.trim().is_empty())]
 #[invariant(::ScenarioInvalid { path, message } => !path.as_os_str().is_empty() && !message.trim().is_empty())]
 #[invariant(::ParticipantMismatch { configured_only, scenario_only } => !configured_only.is_empty() || !scenario_only.is_empty())]
+#[invariant(::EmbeddingSearchUnavailable { message } => !message.trim().is_empty())]
 #[invariant(::Client { message } => !message.trim().is_empty())]
 #[invariant(::Header { message } => !message.trim().is_empty())]
 #[invariant(::ProtocolSetup { message } => !message.trim().is_empty())]
@@ -93,6 +115,9 @@ pub enum RunError {
     ParticipantMismatch {
         configured_only: Vec<String>,
         scenario_only: Vec<String>,
+    },
+    EmbeddingSearchUnavailable {
+        message: String,
     },
     Client {
         message: String,
@@ -176,6 +201,10 @@ impl fmt::Display for RunError {
                 names_or_none(configured_only),
                 names_or_none(scenario_only),
             ),
+            bityzba::data!(RunError::EmbeddingSearchUnavailable { message }) => write!(
+                formatter,
+                "embedding search preflight failed: {message} Set `allow-degraded-search = true` only to run an intentional degraded-search measurement arm."
+            ),
             bityzba::data!(RunError::Client { message }) => {
                 write!(
                     formatter,
@@ -233,7 +262,64 @@ pub fn run<F>(config_path: &Path, client_factory: F) -> Result<RunSummary, RunEr
 where
     F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
 {
+    run_with_preflight(
+        config_path,
+        client_factory,
+        preflight_embedding_search,
+        |_| {},
+    )
+}
+
+/// Execute the production live path and surface tolerated startup warnings immediately.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_with_warning_handler<F, W>(
+    config_path: &Path,
+    client_factory: F,
+    warning_handler: W,
+) -> Result<RunSummary, RunError>
+where
+    F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
+    W: FnMut(&RunWarning),
+{
+    run_with_preflight(
+        config_path,
+        client_factory,
+        preflight_embedding_search,
+        warning_handler,
+    )
+}
+
+/// Execute the live path with an injected semantic-search preflight for offline tests.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_with_preflight<F, P, W>(
+    config_path: &Path,
+    client_factory: F,
+    embedding_preflight: P,
+    mut warning_handler: W,
+) -> Result<RunSummary, RunError>
+where
+    F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
+    P: FnOnce() -> Result<(), EmbeddingSearchPreflightError>,
+    W: FnMut(&RunWarning),
+{
     let loaded = load(config_path)?;
+    let degraded_search_warning = match embedding_preflight() {
+        Ok(()) => None,
+        Err(error) if loaded.config.allow_degraded_search => {
+            let warning = new!(RunWarning::EmbeddingSearchDegraded {
+                message: error.to_string(),
+            });
+            warning_handler(&warning);
+            Some(warning)
+        }
+        Err(error) => {
+            return Err(new!(RunError::EmbeddingSearchUnavailable {
+                message: error.to_string(),
+            }));
+        }
+    };
     let client = client_factory(loaded.config.client.http_timeout()).map_err(|error| {
         new!(RunError::Client {
             message: error.to_string(),
@@ -250,6 +336,7 @@ where
         .map(|participant| OpenRouterParticipant::new(participant, &client))
         .collect::<Vec<_>>();
     let caps = config.caps.clone();
+    let listener_mode = config.listener_mode;
     let tersmu_format = config.tersmu_format;
     let header = RunHeader::new(config, &scenario).map_err(|error| {
         new!(RunError::Header {
@@ -259,6 +346,7 @@ where
     let mut runner = ProtocolRunner::new_with_scenario(
         participants,
         caps,
+        listener_mode,
         tersmu_format,
         ReferenceToolDispatcher,
         scenario,
@@ -277,6 +365,19 @@ where
                 source,
             })
         })?;
+    let warnings = if let Some(warning) = degraded_search_warning {
+        let bityzba::data!(RunWarning::EmbeddingSearchDegraded { message }) = warning.as_data();
+        runner
+            .record_degraded_search(message.clone())
+            .map_err(|error| {
+                new!(RunError::ProtocolSetup {
+                    message: error.to_string(),
+                })
+            })?;
+        vec![warning]
+    } else {
+        Vec::new()
+    };
     let outcome = runner.run().map_err(|source| {
         new!(RunError::Protocol {
             transcript_path: transcript_path.clone(),
@@ -287,6 +388,7 @@ where
         transcript_path,
         outcome,
         task_outcome: runner.task_outcome().cloned(),
+        warnings,
     }))
 }
 
