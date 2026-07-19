@@ -1820,7 +1820,11 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 };
             }
         }
-        if self.scenario.is_some() {
+        if self
+            .scenario
+            .as_ref()
+            .is_some_and(ScenarioInstance::is_scored)
+        {
             self.finish_scenario(turn_limit.max(1));
         }
         Ok(new!(ProtocolRunOutcome::Completed {
@@ -1836,22 +1840,28 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         self.scenario
             .as_ref()
             .map_or(self.caps.max_turns, |scenario| {
-                self.caps.max_turns.min(
-                    scenario
-                        .maximum_turns()
-                        .min(scenario.maximum_rounds() * self.participants.len()),
-                )
+                let scenario_limit = scenario.maximum_rounds().map_or_else(
+                    || scenario.maximum_turns(),
+                    |maximum_rounds| {
+                        scenario
+                            .maximum_turns()
+                            .min(maximum_rounds * self.participants.len())
+                    },
+                );
+                self.caps.max_turns.min(scenario_limit)
             })
     }
 
     /// Whether the just-finished turn completes the first answer-eligible closed-dialog round.
     #[requires(turn_number > 0)]
-    #[ensures(ret == self.scenario.as_ref().is_some_and(|scenario| scenario.answers_close_dialog() && turn_number % self.participants.len() == 0 && turn_number / self.participants.len() >= scenario.minimum_rounds()))]
+    #[ensures(ret == self.scenario.as_ref().is_some_and(|scenario| scenario.answers_close_dialog() && turn_number % self.participants.len() == 0 && scenario.minimum_rounds().is_some_and(|minimum_rounds| turn_number / self.participants.len() >= minimum_rounds)))]
     fn closed_answer_phase_due(&self, turn_number: usize) -> bool {
         self.scenario.as_ref().is_some_and(|scenario| {
             scenario.answers_close_dialog()
                 && turn_number % self.participants.len() == 0
-                && turn_number / self.participants.len() >= scenario.minimum_rounds()
+                && scenario.minimum_rounds().is_some_and(|minimum_rounds| {
+                    turn_number / self.participants.len() >= minimum_rounds
+                })
         })
     }
 
@@ -1921,6 +1931,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
     }
 
     #[requires(turn_number > 0)]
+    #[requires(self.scenario.as_ref().is_some_and(ScenarioInstance::is_scored))]
     #[ensures(self.task_outcome.is_some())]
     fn finish_scenario(&mut self, turn_number: usize) {
         if self.task_outcome.is_some() {
@@ -1951,6 +1962,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 .as_ref()
                 .expect("answer availability requires a scenario")
                 .answer_schema()
+                .expect("answer availability requires a scored scenario")
                 .clone()
         })
     }
@@ -1981,7 +1993,10 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             });
         }
         let completed_rounds = (turn_number - 1) / self.participants.len();
-        if completed_rounds >= scenario.minimum_rounds() {
+        if scenario
+            .minimum_rounds()
+            .is_some_and(|minimum_rounds| completed_rounds >= minimum_rounds)
+        {
             new!(AnswerAffordance::Available)
         } else {
             new!(AnswerAffordance::Unavailable)
@@ -2032,6 +2047,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             .as_ref()
             .expect("closed answer phase requires a scenario")
             .answer_schema()
+            .expect("closed answer phase requires a scored scenario")
             .clone();
         let tools = ProtocolTools::definitions_for_phase(phase, Some(&answer_schema), false)
             .map_err(|error| {

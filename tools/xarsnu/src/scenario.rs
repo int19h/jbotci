@@ -8,16 +8,18 @@ use bityzba::{ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-/// The three mechanically checked scenario families supported by xarsnu.
+/// A scenario family supported by xarsnu.
 #[invariant(::ScheduleNegotiation => true)]
 #[invariant(::DistributedClueDeduction => true)]
 #[invariant(::ReferentialGame => true)]
+#[invariant(::Debate => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ScenarioKind {
     ScheduleNegotiation,
     DistributedClueDeduction,
     ReferentialGame,
+    Debate,
 }
 
 /// A weekday in a recurring weekly schedule.
@@ -275,7 +277,7 @@ pub struct ScenarioParticipant {
 #[invariant(!document.id.trim().is_empty())]
 #[invariant(!document.title.trim().is_empty())]
 #[invariant(!document.public_setup.trim().is_empty())]
-#[invariant(document.answer_schema.is_object())]
+#[invariant(document.data.scoring().is_none_or(|scoring| scoring.answer_schema.is_object()))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScenarioInstance {
     document: ScenarioDocument,
@@ -367,34 +369,52 @@ impl ScenarioInstance {
             })
     }
 
-    /// JSON Schema used verbatim for the dynamic `submit_answer` tool.
+    /// JSON Schema used verbatim for the dynamic `submit_answer` tool, when this scenario is scored.
     #[requires(true)]
-    #[ensures(ret.is_object())]
-    pub fn answer_schema(&self) -> &Value {
-        &self.document.answer_schema
+    #[ensures(ret.is_none_or(Value::is_object))]
+    pub fn answer_schema(&self) -> Option<&Value> {
+        self.document
+            .data
+            .scoring()
+            .map(|scoring| &scoring.answer_schema)
+    }
+
+    /// Whether this scenario has answer submission and mechanical scoring.
+    #[requires(true)]
+    #[ensures(ret == self.answer_schema().is_some())]
+    pub fn is_scored(&self) -> bool {
+        self.answer_schema().is_some()
     }
 
     /// Whether the first answer-eligible round closes visible discussion.
     #[requires(true)]
-    #[ensures(ret == self.document.answers_close_dialog.unwrap_or(self.kind() == ScenarioKind::ReferentialGame))]
+    #[ensures(!ret || self.is_scored())]
     pub fn answers_close_dialog(&self) -> bool {
         self.document
-            .answers_close_dialog
+            .data
+            .scoring()
+            .and_then(|scoring| scoring.answers_close_dialog)
             .unwrap_or(self.kind() == ScenarioKind::ReferentialGame)
     }
 
     /// Completed discussion rounds required before `submit_answer` is offered.
     #[requires(true)]
-    #[ensures(ret > 0)]
-    pub fn minimum_rounds(&self) -> usize {
-        self.document.minimum_rounds
+    #[ensures(ret.is_none_or(|rounds| rounds > 0))]
+    pub fn minimum_rounds(&self) -> Option<usize> {
+        self.document
+            .data
+            .scoring()
+            .map(|scoring| scoring.minimum_rounds)
     }
 
     /// Maximum scenario rounds.
     #[requires(true)]
-    #[ensures(ret >= self.minimum_rounds())]
-    pub fn maximum_rounds(&self) -> usize {
-        self.document.maximum_rounds
+    #[ensures(ret.zip(self.minimum_rounds()).is_none_or(|(maximum, minimum)| maximum >= minimum))]
+    pub fn maximum_rounds(&self) -> Option<usize> {
+        self.document
+            .data
+            .scoring()
+            .map(|scoring| scoring.maximum_rounds)
     }
 
     /// Maximum speaker turns, independent of the run-level safety cap.
@@ -434,11 +454,14 @@ impl ScenarioInstance {
             ScenarioKind::ReferentialGame => serde_json::from_value::<ReferentialAnswer>(value)
                 .map(ScenarioAnswer::referential)
                 .map_err(malformed),
+            ScenarioKind::Debate => Err(new!(ScenarioAnswerError {
+                message: "debate scenarios do not accept answers".to_owned(),
+            })),
         }
     }
 
     /// Pure mechanical checker over already typed participant answers.
-    #[requires(true)]
+    #[requires(self.is_scored())]
     #[ensures(ret.participants.len() == self.participants.len())]
     pub fn check_answers(&self, answers: &BTreeMap<String, ScenarioAnswer>) -> TaskOutcome {
         let participants = self
@@ -482,7 +505,7 @@ impl ScenarioInstance {
     }
 
     /// Whether every answer-required participant has submitted.
-    #[requires(true)]
+    #[requires(self.is_scored())]
     #[ensures(true)]
     pub fn all_required_submitted(&self, answers: &BTreeMap<String, ScenarioAnswer>) -> bool {
         self.participants
@@ -523,6 +546,7 @@ impl ScenarioInstance {
                 },
                 ScenarioAnswer::Referential { answer },
             ) => answer.scene_index == *target_scene_index,
+            (ScenarioDataDocument::Debate { .. }, _) => false,
             _ => false,
         }
     }
@@ -579,19 +603,26 @@ struct ScenarioDocument {
     id: String,
     title: String,
     public_setup: String,
-    answer_schema: Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    answers_close_dialog: Option<bool>,
-    minimum_rounds: usize,
-    maximum_rounds: usize,
     maximum_turns: usize,
     #[serde(flatten)]
     data: ScenarioDataDocument,
 }
 
+#[invariant(true, "unvalidated TOML wire model")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct ScoredScenarioDocument {
+    answer_schema: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    answers_close_dialog: Option<bool>,
+    minimum_rounds: usize,
+    maximum_rounds: usize,
+}
+
 #[invariant(::ScheduleNegotiation => true, "unvalidated TOML wire variant")]
 #[invariant(::DistributedClueDeduction => true, "unvalidated TOML wire variant")]
 #[invariant(::ReferentialGame => true, "unvalidated TOML wire variant")]
+#[invariant(::Debate => true, "unvalidated TOML wire variant")]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     tag = "scenario-type",
@@ -600,11 +631,15 @@ struct ScenarioDocument {
 )]
 enum ScenarioDataDocument {
     ScheduleNegotiation {
+        #[serde(flatten)]
+        scoring: ScoredScenarioDocument,
         meeting_duration_minutes: u16,
         slot_granularity_minutes: u16,
         participants: Vec<ScheduleParticipantDocument>,
     },
     DistributedClueDeduction {
+        #[serde(flatten)]
+        scoring: ScoredScenarioDocument,
         people: Vec<String>,
         professions: Vec<String>,
         cities: Vec<String>,
@@ -612,9 +647,14 @@ enum ScenarioDataDocument {
         solution: Vec<AssignmentDocument>,
     },
     ReferentialGame {
+        #[serde(flatten)]
+        scoring: ScoredScenarioDocument,
         scenes: Vec<SceneDocument>,
         target_scene_index: usize,
         participants: Vec<ReferentialParticipantDocument>,
+    },
+    Debate {
+        participants: Vec<DebateParticipantDocument>,
     },
 }
 
@@ -626,6 +666,18 @@ impl ScenarioDataDocument {
             Self::ScheduleNegotiation { .. } => ScenarioKind::ScheduleNegotiation,
             Self::DistributedClueDeduction { .. } => ScenarioKind::DistributedClueDeduction,
             Self::ReferentialGame { .. } => ScenarioKind::ReferentialGame,
+            Self::Debate { .. } => ScenarioKind::Debate,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|scoring| scoring.answer_schema.is_object()))]
+    fn scoring(&self) -> Option<&ScoredScenarioDocument> {
+        match self {
+            Self::ScheduleNegotiation { scoring, .. }
+            | Self::DistributedClueDeduction { scoring, .. }
+            | Self::ReferentialGame { scoring, .. } => Some(scoring),
+            Self::Debate { .. } => None,
         }
     }
 }
@@ -700,6 +752,14 @@ struct ReferentialParticipantDocument {
     role: ReferentialRole,
 }
 
+#[invariant(true, "unvalidated TOML wire model")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+struct DebateParticipantDocument {
+    name: String,
+    private_brief: String,
+}
+
 #[invariant(::Speaker => true)]
 #[invariant(::Listener => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -715,68 +775,92 @@ fn validate_document(document: &ScenarioDocument) -> Result<(), ScenarioConfigEr
     require_nonempty("id", &document.id)?;
     require_nonempty("title", &document.title)?;
     require_nonempty("public-setup", &document.public_setup)?;
-    if !document.answer_schema.is_object() {
-        return Err(invalid("answer-schema", "must be a JSON Schema object"));
-    }
-    if document.minimum_rounds == 0 {
-        return Err(invalid("minimum-rounds", "must be positive"));
-    }
-    if document.maximum_rounds < document.minimum_rounds {
-        return Err(invalid("maximum-rounds", "must be at least minimum-rounds"));
-    }
     if document.maximum_turns == 0 {
         return Err(invalid("maximum-turns", "must be positive"));
     }
-    let expected_schema = answer_schema(document.data.kind());
-    if document.answer_schema != expected_schema {
-        return Err(invalid(
-            "answer-schema",
-            "does not match the selected scenario-type",
-        ));
-    }
     match &document.data {
         ScenarioDataDocument::ScheduleNegotiation {
+            scoring,
             meeting_duration_minutes,
             slot_granularity_minutes,
             participants,
-        } => validate_schedule(
-            *meeting_duration_minutes,
-            *slot_granularity_minutes,
-            participants,
-        )?,
+        } => {
+            validate_scoring(ScenarioKind::ScheduleNegotiation, scoring)?;
+            validate_schedule(
+                *meeting_duration_minutes,
+                *slot_granularity_minutes,
+                participants,
+            )?;
+        }
         ScenarioDataDocument::DistributedClueDeduction {
+            scoring,
             people,
             professions,
             cities,
             participants,
             solution,
-        } => validate_deduction(people, professions, cities, participants, solution)?,
+        } => {
+            validate_scoring(ScenarioKind::DistributedClueDeduction, scoring)?;
+            validate_deduction(people, professions, cities, participants, solution)?;
+        }
         ScenarioDataDocument::ReferentialGame {
+            scoring,
             scenes,
             target_scene_index,
             participants,
-        } => validate_referential(scenes, *target_scene_index, participants)?,
+        } => {
+            validate_scoring(ScenarioKind::ReferentialGame, scoring)?;
+            validate_referential(scenes, *target_scene_index, participants)?;
+        }
+        ScenarioDataDocument::Debate { participants } => validate_debate(participants)?,
     }
     let participant_count = match &document.data {
         ScenarioDataDocument::ScheduleNegotiation { participants, .. } => participants.len(),
         ScenarioDataDocument::DistributedClueDeduction { participants, .. } => participants.len(),
         ScenarioDataDocument::ReferentialGame { participants, .. } => participants.len(),
+        ScenarioDataDocument::Debate { participants } => participants.len(),
     };
-    if document.maximum_turns > document.maximum_rounds * participant_count {
-        return Err(invalid(
-            "maximum-turns",
-            "cannot exceed maximum-rounds times participant count",
-        ));
+    if let Some(scoring) = document.data.scoring() {
+        if document.maximum_turns > scoring.maximum_rounds * participant_count {
+            return Err(invalid(
+                "maximum-turns",
+                "cannot exceed maximum-rounds times participant count",
+            ));
+        }
+        let answers_close_dialog = scoring
+            .answers_close_dialog
+            .unwrap_or(document.data.kind() == ScenarioKind::ReferentialGame);
+        if !answers_close_dialog
+            && document.maximum_turns <= scoring.minimum_rounds * participant_count
+        {
+            return Err(invalid(
+                "maximum-turns",
+                "must leave at least one turn after minimum-rounds for answer submission",
+            ));
+        }
     }
-    let answers_close_dialog = document
-        .answers_close_dialog
-        .unwrap_or(document.data.kind() == ScenarioKind::ReferentialGame);
-    if !answers_close_dialog
-        && document.maximum_turns <= document.minimum_rounds * participant_count
-    {
+    Ok(())
+}
+
+#[requires(matches!(kind, ScenarioKind::ScheduleNegotiation | ScenarioKind::DistributedClueDeduction | ScenarioKind::ReferentialGame))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_scoring(
+    kind: ScenarioKind,
+    scoring: &ScoredScenarioDocument,
+) -> Result<(), ScenarioConfigError> {
+    if !scoring.answer_schema.is_object() {
+        return Err(invalid("answer-schema", "must be a JSON Schema object"));
+    }
+    if scoring.minimum_rounds == 0 {
+        return Err(invalid("minimum-rounds", "must be positive"));
+    }
+    if scoring.maximum_rounds < scoring.minimum_rounds {
+        return Err(invalid("maximum-rounds", "must be at least minimum-rounds"));
+    }
+    if scoring.answer_schema != answer_schema(kind) {
         return Err(invalid(
-            "maximum-turns",
-            "must leave at least one turn after minimum-rounds for answer submission",
+            "answer-schema",
+            "does not match the selected scenario-type",
         ));
     }
     Ok(())
@@ -1002,6 +1086,20 @@ fn validate_referential(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_debate(participants: &[DebateParticipantDocument]) -> Result<(), ScenarioConfigError> {
+    validate_participant_names(
+        participants
+            .iter()
+            .map(|participant| participant.name.as_str()),
+    )?;
+    for participant in participants {
+        require_nonempty("participants.private-brief", &participant.private_brief)?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_participant_names<'a>(
     names: impl Iterator<Item = &'a str>,
 ) -> Result<(), ScenarioConfigError> {
@@ -1146,6 +1244,16 @@ fn participant_views(
                 })
             })
             .collect(),
+        ScenarioDataDocument::Debate { participants } => participants
+            .iter()
+            .map(|participant| {
+                new!(ScenarioParticipant {
+                    name: participant.name.clone(),
+                    private_brief: participant.private_brief.clone(),
+                    answer_required: false,
+                })
+            })
+            .collect(),
     };
     Ok(participants)
 }
@@ -1183,7 +1291,7 @@ fn render_clue(clue: &PuzzleClueDocument) -> String {
     }
 }
 
-#[requires(true)]
+#[requires(kind != ScenarioKind::Debate)]
 #[ensures(ret.is_object())]
 fn answer_schema(kind: ScenarioKind) -> Value {
     let base = |properties: Value, required: Value| {
@@ -1229,6 +1337,9 @@ fn answer_schema(kind: ScenarioKind) -> Value {
             json!({ "scene_index": { "type": "integer", "minimum": 1 } }),
             json!(["scene_index"]),
         ),
+        ScenarioKind::Debate => {
+            unreachable!("debate scenarios do not have canonical answer schemas")
+        }
     }
 }
 
@@ -1406,6 +1517,7 @@ mod tests {
                 meeting_duration_minutes,
                 slot_granularity_minutes,
                 participants,
+                ..
             } = &instance.document.data
             else {
                 unreachable!("schedule fixture has schedule data")

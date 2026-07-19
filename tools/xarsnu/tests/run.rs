@@ -10,11 +10,11 @@ use std::time::Duration;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use serde_json::{Value, json};
-use xarsnu::protocol::{ProtocolEventData, RuntimeFailureSite};
+use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, RuntimeFailureSite};
 use xarsnu::run::RunErrorData;
 use xarsnu::{
-    OpenRouterClient, OpenRouterClientConfig, PromptCaching, RetryPolicy, TaskStatus, dialog_file,
-    read_transcript, report_file, run,
+    OpenRouterClient, OpenRouterClientConfig, PromptCaching, ProtocolRunOutcome, RetryPolicy,
+    RunSummary, TaskStatus, dialog_file, read_transcript, report_file, run,
 };
 
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -787,4 +787,17 @@ fn prompt_caching_defaults_remain_participant_scoped() {
         .expect("valid config");
     assert_eq!(config.participants[0].prompt_caching, PromptCaching::Off);
     assert_eq!(config.participants[1].prompt_caching, PromptCaching::Auto);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn unscored_completion_has_a_dialog_outcome_line() {
+    let summary = new!(RunSummary {
+        transcript_path: PathBuf::from("debate.jsonl"),
+        outcome: new!(ProtocolRunOutcome::Completed { turns: 10 }),
+        task_outcome: None,
+    });
+
+    assert_eq!(summary.outcome_line(), "dialog completed after 10 turns");
 }

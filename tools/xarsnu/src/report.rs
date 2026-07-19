@@ -573,6 +573,10 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     outcome.turns()
                 )
                 .expect("writing to String cannot fail");
+                summary.dialog_completed = matches!(
+                    outcome.as_data(),
+                    bityzba::data!(ProtocolRunOutcome::Completed { .. })
+                );
             }
             bityzba::data!(ProtocolEvent::RunFailed { failure }) => {
                 writeln!(
@@ -618,6 +622,7 @@ struct ReportSummary {
     aborts: usize,
     runtime_failures: usize,
     task_status: Option<TaskStatus>,
+    dialog_completed: bool,
     task_outcomes: BTreeMap<String, Option<bool>>,
     usage_by_participant: BTreeMap<String, UsageTotals>,
     run_usage: UsageTotals,
@@ -630,6 +635,8 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
     if let Some(status) = summary.task_status {
         writeln!(report, "Aggregate: **{}**", task_status_name(status))
             .expect("writing to String cannot fail");
+    } else if summary.dialog_completed {
+        report.push_str("Aggregate: **not scored**\n");
     } else {
         report.push_str("Aggregate: **not recorded**\n");
     }
@@ -871,7 +878,7 @@ const fn tersmu_format_name(format: crate::TersmuFormat) -> &'static str {
 #[ensures(!ret.is_empty())]
 fn run_outcome_name(outcome: &ProtocolRunOutcome) -> &'static str {
     match outcome.as_data() {
-        bityzba::data!(ProtocolRunOutcome::Completed { .. }) => "completed",
+        bityzba::data!(ProtocolRunOutcome::Completed { .. }) => "dialog completed",
         bityzba::data!(ProtocolRunOutcome::ScenarioCompleted { .. }) => "scenario completed",
         bityzba::data!(ProtocolRunOutcome::BudgetAborted { .. }) => "budget aborted",
     }
