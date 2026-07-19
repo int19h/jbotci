@@ -4,9 +4,10 @@ use std::process::ExitCode;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
-use xarsnu::{OpenRouterClient, dialog_file, report_file, run as run_live};
+use xarsnu::{OpenRouterClient, community_file, dialog_file, report_file, run as run_live};
 
-const USAGE: &str = "usage: xarsnu <config.toml> | xarsnu report [--dialog] <transcript.jsonl>";
+const USAGE: &str =
+    "usage: xarsnu <config.toml> | xarsnu report [--dialog | --community] <transcript.jsonl>";
 
 #[requires(true)]
 #[ensures(true)]
@@ -28,7 +29,8 @@ fn run() -> Result<(), Box<dyn Error>> {
     if first == "report" {
         let first_report_argument = arguments.next().ok_or(USAGE)?;
         let dialog_only = first_report_argument == "--dialog";
-        let path = if dialog_only {
+        let community = first_report_argument == "--community";
+        let path = if dialog_only || community {
             arguments.next().map(PathBuf::from).ok_or(USAGE)?
         } else {
             PathBuf::from(first_report_argument)
@@ -38,6 +40,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         }
         if dialog_only {
             print!("{}", dialog_file(&path)?);
+        } else if community {
+            print!("{}", community_file(&path)?);
         } else {
             print!("{}", report_file(&path)?);
         }

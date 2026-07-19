@@ -32,7 +32,7 @@ pub use protocol::{
     RevealedMessage, RuntimeFailureRecord, RuntimeFailureSite, SpeakerPhase, SpeakerState,
     TurnForfeitReason, VisibleMessage,
 };
-pub use report::{DialogReportError, dialog_file, report_file};
+pub use report::{DialogReportError, community_file, dialog_file, report_file};
 pub use run::{RunError, RunSummary, run};
 pub use scenario::{
     Assignment, DeductionAnswer, ParticipantTaskOutcome, ReferentialAnswer, ScenarioAnswer,

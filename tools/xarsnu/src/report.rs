@@ -12,7 +12,7 @@ use crate::protocol::{
     ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
 };
 use crate::{
-    AbortKind, DiagnosticCategory, ListenerFlowAbandonReason, ProtocolRunOutcome,
+    AbortKind, DiagnosticCategory, ListenerFlowAbandonReason, ProtocolRunOutcome, ScenarioAnswer,
     ScenarioConfigError, ScenarioInstance, TaskStatus, TranscriptError, TranscriptRecord,
     TurnForfeitReason, UsageTotals, read_transcript,
 };
@@ -32,6 +32,15 @@ pub fn dialog_file(path: &Path) -> Result<String, DialogReportError> {
     let records =
         read_transcript(path).map_err(|source| DialogReportError::Transcript { source })?;
     render_dialog_document(&records).map_err(|source| DialogReportError::Scenario { source })
+}
+
+/// Read, validate, and render one community-facing document without harness internals.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|report| report.contains("## Scenario and participants") && report.contains("## Chat room") && report.contains("## Internal agentic loops")) || ret.is_err())]
+pub fn community_file(path: &Path) -> Result<String, DialogReportError> {
+    let records =
+        read_transcript(path).map_err(|source| DialogReportError::Transcript { source })?;
+    render_community_document(&records).map_err(|source| DialogReportError::Scenario { source })
 }
 
 /// A transcript could not be rendered as a standalone dialog document.
@@ -156,6 +165,603 @@ fn render_dialog_entries(report: &mut String, records: &[TranscriptRecord]) {
             _ => unreachable!("dialog entry kinds were filtered above"),
         }
         has_entry = true;
+    }
+}
+
+#[requires(!records.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|report| report.starts_with("# xarsnu community export")) || ret.is_err())]
+fn render_community_document(records: &[TranscriptRecord]) -> Result<String, ScenarioConfigError> {
+    let header = match records[0].event.as_data() {
+        bityzba::data!(ProtocolEvent::RunStarted { header }) => header,
+        _ => unreachable!("validated transcripts begin with a run header"),
+    };
+    let scenario = ScenarioInstance::from_toml(&header.scenario_instance_toml)?;
+    let mut report = format!("# xarsnu community export — {}\n\n", scenario.id());
+    writeln!(
+        report,
+        "## Scenario and participants\n\n### {}\n\n{}\n",
+        scenario.title(),
+        scenario.public_setup(),
+    )
+    .expect("writing to String cannot fail");
+    for participant in &header.config.participants {
+        writeln!(
+            report,
+            "- **{}** — {} (temperature {})",
+            participant.name, participant.model, participant.temperature
+        )
+        .expect("writing to String cannot fail");
+    }
+
+    report.push_str("\n## Chat room\n\n");
+    render_community_chat(&mut report, records);
+
+    report.push_str("## Internal agentic loops\n\n");
+    for participant in &header.config.participants {
+        writeln!(
+            report,
+            "### Inside {}'s loop ({})\n",
+            participant.name, participant.model
+        )
+        .expect("writing to String cannot fail");
+        render_participant_loop(&mut report, records, &participant.name);
+    }
+    Ok(report)
+}
+
+#[requires(!records.is_empty())]
+#[ensures(report.len() >= old(report.len()))]
+fn render_community_chat(report: &mut String, records: &[TranscriptRecord]) {
+    for record in records {
+        match record.event.as_data() {
+            bityzba::data!(ProtocolEvent::MessagePosted {
+                turn_number,
+                speaker,
+                message,
+            }) => {
+                writeln!(report, "**{speaker}** (turn {turn_number}):  ")
+                    .expect("writing to String cannot fail");
+                writeln!(report, "{}\n", message.text).expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::TurnForfeited {
+                turn_number,
+                speaker,
+                ..
+            }) => {
+                writeln!(report, "*({speaker} forfeited turn {turn_number})*\n")
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::DialogClosedForAnswers { round_number, .. }) => {
+                writeln!(
+                    report,
+                    "*(visible dialog closed for independent answers after round {round_number})*\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. }) => {
+                writeln!(report, "*({participant} submitted an answer)*\n")
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::CheckerOutcome { outcome, .. }) => {
+                writeln!(
+                    report,
+                    "*(checker: {})*\n",
+                    task_status_name(outcome.status)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::RunAborted { record }) => {
+                writeln!(report, "*(run aborted: {})*\n", abort_reason(record.kind))
+                    .expect("writing to String cannot fail");
+            }
+            _ => {}
+        }
+    }
+}
+
+#[requires(!records.is_empty())]
+#[requires(!participant.trim().is_empty())]
+#[ensures(report.len() >= old(report.len()))]
+fn render_participant_loop(report: &mut String, records: &[TranscriptRecord], participant: &str) {
+    for record in records {
+        match record.event.as_data() {
+            bityzba::data!(ProtocolEvent::RunStarted { .. }) => {}
+            bityzba::data!(ProtocolEvent::TurnStarted {
+                turn_number,
+                speaker,
+            }) => {
+                if speaker == participant {
+                    writeln!(
+                        report,
+                        "#### ── Turn {turn_number} — {participant} speaks ──\n\n**user**  \n[protocol: compose and submit]\n"
+                    )
+                    .expect("writing to String cannot fail");
+                } else {
+                    writeln!(
+                        report,
+                        "#### ── Turn {turn_number} — {speaker} speaks; {participant} listens ──\n\n**user**  \n[protocol: interpret privately, then acknowledge]\n"
+                    )
+                    .expect("writing to String cannot fail");
+                }
+            }
+            bityzba::data!(ProtocolEvent::IntentRegistered {
+                speaker,
+                meaning_en,
+                revision,
+                revision_number,
+                ..
+            }) if speaker == participant => {
+                write!(report, "**assistant — intent").expect("writing to String cannot fail");
+                if *revision {
+                    write!(report, " revision {revision_number}")
+                        .expect("writing to String cannot fail");
+                }
+                writeln!(report, "**  \n{meaning_en}\n").expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::CandidateSubmitted {
+                speaker,
+                text,
+                attempt,
+                ..
+            }) if speaker == participant => {
+                writeln!(report, "**assistant — candidate {attempt}**  \n{text}\n")
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::CandidateRejected {
+                speaker,
+                diagnostics,
+                ..
+            }) if speaker == participant => {
+                writeln!(
+                    report,
+                    "**tool — gate**  \n❌ rejected — {}\n\n**user**  \n[protocol: revise and resubmit]\n",
+                    first_nonempty_line(diagnostics)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::CandidateAccepted {
+                speaker,
+                message,
+                ..
+            }) if speaker == participant => {
+                report.push_str("**tool — gate**  \n✅ accepted — tersmu rendering:\n\n");
+                render_fenced_excerpt(report, &String::from_utf8_lossy(&message.tersmu_rendering));
+                report.push_str("\n**user**  \n[protocol: confirm parser meaning]\n\n");
+            }
+            bityzba::data!(ProtocolEvent::MeaningConfirmed {
+                speaker,
+                matches,
+                paraphrase_en,
+                discrepancies,
+                ..
+            }) if speaker == participant => {
+                writeln!(
+                    report,
+                    "**assistant — confirmation ({})**  \n{paraphrase_en}",
+                    if *matches { "match" } else { "mismatch" }
+                )
+                .expect("writing to String cannot fail");
+                if let Some(discrepancies) = discrepancies {
+                    writeln!(report, "\nDiscrepancy: {discrepancies}")
+                        .expect("writing to String cannot fail");
+                }
+                report.push('\n');
+            }
+            bityzba::data!(ProtocolEvent::MessagePosted {
+                speaker,
+                message,
+                ..
+            }) => {
+                if speaker == participant {
+                    writeln!(
+                        report,
+                        "**assistant — posted to chat**  \n{}\n",
+                        message.text
+                    )
+                    .expect("writing to String cannot fail");
+                } else {
+                    writeln!(
+                        report,
+                        "**user — chat-room message from {speaker}**  \n{}\n",
+                        message.text
+                    )
+                    .expect("writing to String cannot fail");
+                }
+            }
+            bityzba::data!(ProtocolEvent::BlindInterpretationRecorded {
+                listener,
+                interpretation_en,
+                ..
+            }) if listener == participant => {
+                writeln!(
+                    report,
+                    "**assistant — blind interpretation**  \n{interpretation_en}\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::TersmuRevealed {
+                listener,
+                message,
+                ..
+            }) if listener == participant => {
+                report.push_str("**user — parser rendering revealed**\n\n");
+                render_fenced_excerpt(report, &String::from_utf8_lossy(&message.tersmu_rendering));
+                report.push_str("\n[protocol: review parser rendering and acknowledge]\n\n");
+            }
+            bityzba::data!(ProtocolEvent::Acknowledged {
+                listener,
+                final_understanding_en,
+                discrepancies,
+                ..
+            }) if listener == participant => {
+                writeln!(
+                    report,
+                    "**assistant — acknowledgment**  \n{final_understanding_en}"
+                )
+                .expect("writing to String cannot fail");
+                if let Some(discrepancies) = discrepancies {
+                    writeln!(report, "\nDiscrepancy: {discrepancies}")
+                        .expect("writing to String cannot fail");
+                }
+                report.push('\n');
+            }
+            bityzba::data!(ProtocolEvent::ReferenceToolCompleted {
+                participant: actor,
+                tool_name,
+                arguments,
+                result,
+                succeeded,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "**assistant**  \n{}",
+                    format_tool_call(tool_name, arguments)
+                )
+                .expect("writing to String cannot fail");
+                writeln!(
+                    report,
+                    "\n**tool — {}**\n",
+                    if *succeeded { "success" } else { "failure" }
+                )
+                .expect("writing to String cannot fail");
+                render_fenced_excerpt(report, result);
+                report.push('\n');
+            }
+            bityzba::data!(ProtocolEvent::ReferenceLookupRepeated {
+                participant: actor,
+                tool_name,
+                repeat_number,
+                remaining_calls,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "*[reference: repeated `{tool_name}` lookup #{repeat_number}; {remaining_calls} calls remain]*\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted {
+                participant: actor,
+                maximum,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "*[reference: {maximum}-call phase budget exhausted; tools withdrawn]*\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::ReferenceResearchNudge {
+                participant: actor,
+                consecutive_calls,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "**user**  \n[protocol: return to the dialog after {consecutive_calls} consecutive reference calls]\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::ProseRejected {
+                participant: actor,
+                attempt,
+                maximum_attempts,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "**user**  \n[protocol: prose response rejected; tool-call attempt {attempt} of {maximum_attempts}]\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::ListenerFlowAbandoned {
+                listener,
+                reason,
+                ..
+            }) if listener == participant => {
+                writeln!(
+                    report,
+                    "*[listener flow abandoned: {}]*\n",
+                    listener_abandon_reason(reason)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::ProtocolError {
+                participant: actor,
+                tool_name,
+                message,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "**tool — protocol error in `{tool_name}`**  \n{}\n",
+                    first_nonempty_line(message)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::TurnForfeited {
+                turn_number,
+                speaker,
+                reason,
+            }) => {
+                writeln!(
+                    report,
+                    "*[turn {turn_number} forfeited by {speaker}: {}]*\n",
+                    forfeit_reason(reason)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::DialogClosedForAnswers { round_number, .. }) => {
+                writeln!(
+                    report,
+                    "**user**  \n[protocol: visible dialog closed after round {round_number}; submit independently]\n"
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::AnswerSubmitted {
+                participant: actor,
+                answer,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "**assistant — scenario answer**  \n{}\n",
+                    scenario_answer_summary(answer)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::CheckerOutcome { outcome, .. }) => {
+                let verdict = outcome
+                    .participants
+                    .iter()
+                    .find(|result| result.participant == participant)
+                    .map_or("not listed", |result| match result.correct {
+                        Some(true) => "correct",
+                        Some(false) => "incorrect",
+                        None => "not required",
+                    });
+                writeln!(
+                    report,
+                    "*[scenario result: {verdict}; aggregate {}]*\n",
+                    task_status_name(outcome.status)
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::ThinkingRecorded {
+                participant: actor,
+                trace,
+                ..
+            }) if actor == participant => {
+                let mut lines = Vec::new();
+                if let Some(reasoning) = &trace.reasoning {
+                    lines.extend(reasoning.lines().map(str::to_owned));
+                }
+                if let Some(details) = &trace.reasoning_details {
+                    for detail in details {
+                        collect_reasoning_text(detail, &mut lines);
+                    }
+                }
+                if lines.is_empty() {
+                    lines.push("Structured thinking was recorded.".to_owned());
+                }
+                report.push_str("> *thinking*\n>\n");
+                for line in lines {
+                    writeln!(report, "> {line}").expect("writing to String cannot fail");
+                }
+                report.push('\n');
+            }
+            bityzba::data!(ProtocolEvent::UsageRecorded {
+                participant: actor,
+                usage,
+                ..
+            }) if actor == participant => {
+                writeln!(
+                    report,
+                    "*[usage: {} tokens; ${:.6}{}]*\n",
+                    usage.total_tokens,
+                    usage.cost,
+                    usage
+                        .provider
+                        .as_ref()
+                        .map_or_else(String::new, |provider| format!(" via {provider}"))
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::RunAborted { record }) => {
+                writeln!(report, "*[run aborted: {}]*\n", abort_reason(record.kind))
+                    .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::RunFinished { outcome }) => {
+                writeln!(
+                    report,
+                    "*[{} after {} turn(s)]*\n",
+                    run_outcome_name(outcome),
+                    outcome.turns()
+                )
+                .expect("writing to String cannot fail");
+            }
+            bityzba::data!(ProtocolEvent::RunFailed { failure }) => {
+                writeln!(
+                    report,
+                    "*[runtime failure at {}: {}]*\n",
+                    failure.call_site.as_str(),
+                    first_nonempty_line(&failure.message)
+                )
+                .expect("writing to String cannot fail");
+            }
+            _ => {}
+        }
+    }
+}
+
+#[requires(!tool_name.trim().is_empty())]
+#[ensures(ret.starts_with('🔧'))]
+fn format_tool_call(tool_name: &str, arguments: &str) -> String {
+    let Ok(serde_json::Value::Object(arguments)) = serde_json::from_str(arguments) else {
+        return format!("🔧 {tool_name}(…)");
+    };
+    let fields = arguments
+        .iter()
+        .map(|(name, value)| format!("{name}={}", inline_json_value(value)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("🔧 {tool_name}({fields})")
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn inline_json_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => "none".to_owned(),
+        serde_json::Value::Bool(value) => value.to_string(),
+        serde_json::Value::Number(value) => value.to_string(),
+        serde_json::Value::String(value) => format!("{:?}", shorten_line(value, 120)),
+        serde_json::Value::Array(values) => format!("[{} items]", values.len()),
+        serde_json::Value::Object(values) => format!("{{{} fields}}", values.len()),
+    }
+}
+
+#[requires(true)]
+#[ensures(report.len() >= old(report.len()))]
+fn render_fenced_excerpt(report: &mut String, text: &str) {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(text)
+        && matches!(
+            value,
+            serde_json::Value::Object(_) | serde_json::Value::Array(_)
+        )
+    {
+        let summary = match value {
+            serde_json::Value::Object(fields) => {
+                format!("[structured result with {} fields]", fields.len())
+            }
+            serde_json::Value::Array(items) => {
+                format!("[structured result with {} items]", items.len())
+            }
+            _ => unreachable!("structured result was matched above"),
+        };
+        writeln!(report, "```text\n{summary}\n```").expect("writing to String cannot fail");
+        return;
+    }
+
+    let lines = text.lines().collect::<Vec<_>>();
+    let fence = "`".repeat(longest_backtick_run(text).saturating_add(1).max(3));
+    writeln!(report, "{fence}text").expect("writing to String cannot fail");
+    for line in lines.iter().take(10) {
+        writeln!(report, "{}", shorten_line(line, 240)).expect("writing to String cannot fail");
+    }
+    if lines.len() > 10 {
+        writeln!(report, "… [{} more lines elided]", lines.len() - 10)
+            .expect("writing to String cannot fail");
+    }
+    writeln!(report, "{fence}").expect("writing to String cannot fail");
+}
+
+#[requires(maximum_chars > 0)]
+#[ensures(ret.chars().count() <= maximum_chars + 1)]
+fn shorten_line(text: &str, maximum_chars: usize) -> String {
+    let mut characters = text.chars();
+    let prefix = characters.by_ref().take(maximum_chars).collect::<String>();
+    if characters.next().is_some() {
+        format!("{prefix}…")
+    } else {
+        prefix
+    }
+}
+
+#[requires(true)]
+#[ensures(ret <= text.len())]
+fn longest_backtick_run(text: &str) -> usize {
+    let mut longest = 0usize;
+    let mut current = 0usize;
+    for character in text.chars() {
+        if character == '`' {
+            current = current.saturating_add(1);
+            longest = longest.max(current);
+        } else {
+            current = 0;
+        }
+    }
+    longest
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn first_nonempty_line(text: &str) -> &str {
+    text.lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or("no details recorded")
+}
+
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+fn collect_reasoning_text(value: &serde_json::Value, output: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Array(values) => {
+            for value in values {
+                collect_reasoning_text(value, output);
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for key in ["text", "summary", "content"] {
+                if let Some(text) = fields.get(key).and_then(serde_json::Value::as_str) {
+                    output.extend(text.lines().map(str::to_owned));
+                    return;
+                }
+            }
+            for value in fields.values() {
+                collect_reasoning_text(value, output);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn scenario_answer_summary(answer: &ScenarioAnswer) -> String {
+    match answer {
+        ScenarioAnswer::Schedule { answer } => format!(
+            "{} at {:02}:{:02} for {} minutes",
+            answer.day,
+            answer.start_minute / 60,
+            answer.start_minute % 60,
+            answer.duration_minutes
+        ),
+        ScenarioAnswer::Deduction { answer } => answer
+            .assignments
+            .iter()
+            .map(|assignment| {
+                format!(
+                    "{}: {}, {}",
+                    assignment.person, assignment.profession, assignment.city
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; "),
+        ScenarioAnswer::Referential { answer } => {
+            format!("public scene {}", answer.scene_index)
+        }
     }
 }
 
