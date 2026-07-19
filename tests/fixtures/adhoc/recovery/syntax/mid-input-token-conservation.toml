@@ -8,8 +8,5 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 
 [expectations.syntax.recovered]
 status = "failure"
-diagnostics = [
-    { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [13, 14], source-text = "i", message = "unexpected cmavo" },
-    { severity = "error", code = "syntax.incomplete-sumti", byte-span = [32, 32], source-text = "", message = "incomplete sumti" },
-]
-tree = { valid-tokens = ["mi", "víska", "lo", "le", "zárci"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[13, 14], [15, 17], [18, 23]] }, { kind = "missing", error-index = 1, byte-spans = [[32, 32]] }] }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [13, 14], source-text = "i", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "víska", "le", "zárci"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [13, 14], [15, 17], [18, 23]] }] }

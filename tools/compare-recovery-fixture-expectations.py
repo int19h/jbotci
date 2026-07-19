@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Classify recovery fixture rewrites before applying generated expectations.
 
-The candidate tree is produced outside the worktree with ``fixture-rewrite``.
+The candidate tree is produced outside the worktree with the normal,
+facet-aware ``fixture-rewrite`` mode, limited to fixtures that contain a
+recovered syntax expectation.  Do not use ``--syntax-only``: that specialized
+mode refreshes strict syntax failures but does not regenerate their recovered
+expectations.
 This comparator only auto-accepts the narrow #526 mechanical improvement:
 
 * all expectation data outside ``expectations.syntax.recovered`` is unchanged;
