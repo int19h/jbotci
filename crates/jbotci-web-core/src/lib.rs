@@ -6723,9 +6723,13 @@ mod tests {
             .len();
 
         let errors = recovered_error_blocks(&success);
-        assert_eq!(errors.len(), 2, "{errors:#?}");
-        assert_eq!(web_block_byte_range(errors[0]), (82, 82));
-        assert_eq!(web_block_byte_range(errors[1]), (82, 124));
+        assert_eq!(errors.len(), 1, "{errors:#?}");
+        assert_eq!(web_block_byte_range(errors[0]), (82, 83));
+        assert_eq!(success.diagnostics.len(), 1, "{:#?}", success.diagnostics);
+        assert_eq!(
+            diagnostic_primary_byte_range(&success.diagnostics[0]),
+            (82, 83)
+        );
         assert!(success.blocks_layout.blocks.len() < 200);
         assert!(success.tree_rows.len() < 200);
         assert!(success.blocks_layout.max_row < 64);
