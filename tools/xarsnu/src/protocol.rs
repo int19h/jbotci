@@ -27,6 +27,7 @@ const SPEAKER_TURN_INSTRUCTION: &str = "You are the speaker for this turn. First
 const LISTENER_BLIND_INSTRUCTION: &str = "Interpret the following visible Lojban message without access to its tersmu rendering. Think privately, then call interpret_blind with your English interpretation.";
 const LISTENER_REVEAL_INSTRUCTION: &str = "The tersmu rendering is now revealed. Compare it with your blind reading, then call acknowledge with your final English understanding and any discrepancies.";
 const ANSWER_AVAILABLE_INSTRUCTION: &str = "You may now submit your scenario answer with `submit_answer`. The task is scored only from formal submissions; in-dialog agreement does not count.";
+const CLOSED_DIALOG_ANSWER_INSTRUCTION: &str = "The visible-channel dialog is now closed. No participant can post or see any further dialog. Submit your scenario answer independently with `submit_answer`, based only on the dialog through the final posted description. The task is scored only from formal submissions; in-dialog agreement does not count.";
 const REFERENCE_TOOL_NAMES: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
 
 /// One of the six state-changing protocol tools.
@@ -154,16 +155,18 @@ impl ListenerPhase {
 /// Unified state name stored in events and used by the tool gate.
 #[invariant(::Speaker { .. } => true)]
 #[invariant(::Listener { .. } => true)]
+#[invariant(::Answer => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "role", content = "phase", rename_all = "kebab-case")]
 pub enum ProtocolPhase {
     Speaker { phase: SpeakerPhase },
     Listener { phase: ListenerPhase },
+    Answer,
 }
 
 impl ProtocolPhase {
     /// Exhaustive protocol-state list.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Speaker {
             phase: SpeakerPhase::AwaitingIntent,
         },
@@ -185,6 +188,7 @@ impl ProtocolPhase {
         Self::Listener {
             phase: ListenerPhase::Acknowledged,
         },
+        Self::Answer,
     ];
 
     /// Whether this state admits the requested protocol tool.
@@ -194,6 +198,7 @@ impl ProtocolPhase {
         match self {
             Self::Speaker { phase } => phase.allows(tool, submit_answer_available),
             Self::Listener { phase } => phase.allows(tool, submit_answer_available),
+            Self::Answer => submit_answer_available && matches!(tool, ProtocolTool::SubmitAnswer),
         }
     }
 
@@ -223,6 +228,7 @@ impl ProtocolPhase {
             Self::Listener {
                 phase: ListenerPhase::Acknowledged,
             } => "complete any available scenario answer",
+            Self::Answer => "submit the independently scored scenario answer",
         }
     }
 }
@@ -483,6 +489,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::ListenerFlowAbandoned { turn_number, listener, .. } => *turn_number > 0 && !listener.trim().is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::TurnForfeited { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]
+#[invariant(::DialogClosedForAnswers { turn_number, round_number } => *turn_number > 0 && *round_number > 0)]
 #[invariant(::AnswerSubmitted { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
 #[invariant(::CheckerOutcome { turn_number, .. } => *turn_number > 0)]
 #[invariant(::UsageRecorded { turn_number, participant, .. } => *turn_number > 0 && !participant.trim().is_empty())]
@@ -609,6 +616,10 @@ pub enum ProtocolEvent {
         speaker: String,
         reason: TurnForfeitReason,
     },
+    DialogClosedForAnswers {
+        turn_number: usize,
+        round_number: usize,
+    },
     AnswerSubmitted {
         turn_number: usize,
         participant: String,
@@ -690,6 +701,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::ProseRejected { turn_number, .. })
             | bityzba::data!(ProtocolEvent::ListenerFlowAbandoned { turn_number, .. })
             | bityzba::data!(ProtocolEvent::TurnForfeited { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { turn_number, .. })
             | bityzba::data!(ProtocolEvent::AnswerSubmitted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { turn_number, .. })
             | bityzba::data!(ProtocolEvent::UsageRecorded { turn_number, .. })
@@ -734,6 +746,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. })
             | bityzba::data!(ProtocolEvent::ThinkingRecorded { participant, .. }) => participant,
             bityzba::data!(ProtocolEvent::RunStarted { .. })
+            | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { .. })
             | bityzba::data!(ProtocolEvent::CheckerOutcome { .. })
             | bityzba::data!(ProtocolEvent::RunAborted { .. })
             | bityzba::data!(ProtocolEvent::RunFinished { .. })
@@ -1787,6 +1800,24 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     }));
                 }
             }
+            if self.closed_answer_phase_due(turn_number) {
+                return match self.run_closed_answer_phase(turn_number)? {
+                    ClosedAnswerPhaseOutcome::AllSubmitted => {
+                        Ok(new!(ProtocolRunOutcome::ScenarioCompleted {
+                            turns: turn_number,
+                        }))
+                    }
+                    ClosedAnswerPhaseOutcome::Incomplete => {
+                        Ok(new!(ProtocolRunOutcome::Completed { turns: turn_number }))
+                    }
+                    ClosedAnswerPhaseOutcome::BudgetAborted { record } => {
+                        Ok(new!(ProtocolRunOutcome::BudgetAborted {
+                            turns: turn_number,
+                            record,
+                        }))
+                    }
+                };
+            }
         }
         if self.scenario.is_some() {
             self.finish_scenario(turn_limit.max(1));
@@ -1810,6 +1841,82 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         .min(scenario.maximum_rounds() * self.participants.len()),
                 )
             })
+    }
+
+    /// Whether the just-finished turn completes the first answer-eligible closed-dialog round.
+    #[requires(turn_number > 0)]
+    #[ensures(ret == self.scenario.as_ref().is_some_and(|scenario| scenario.answers_close_dialog() && turn_number % self.participants.len() == 0 && turn_number / self.participants.len() >= scenario.minimum_rounds()))]
+    fn closed_answer_phase_due(&self, turn_number: usize) -> bool {
+        self.scenario.as_ref().is_some_and(|scenario| {
+            scenario.answers_close_dialog()
+                && turn_number % self.participants.len() == 0
+                && turn_number / self.participants.len() >= scenario.minimum_rounds()
+        })
+    }
+
+    /// Freeze the visible transcript and collect every required answer independently.
+    #[requires(turn_number > 0)]
+    #[requires(self.closed_answer_phase_due(turn_number))]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn run_closed_answer_phase(
+        &mut self,
+        turn_number: usize,
+    ) -> Result<ClosedAnswerPhaseOutcome, ProtocolRunError> {
+        let round_number = turn_number / self.participants.len();
+        self.events
+            .push(new!(ProtocolEvent::DialogClosedForAnswers {
+                turn_number,
+                round_number,
+            }));
+
+        let required_indices = self
+            .participants
+            .iter()
+            .enumerate()
+            .filter_map(|(index, participant)| {
+                let name = participant.participant_name();
+                self.scenario
+                    .as_ref()
+                    .expect("closed answer phase requires a scenario")
+                    .answer_required(name)
+                    .then_some(index)
+            })
+            .collect::<Vec<_>>();
+
+        // Establish the same frozen-dialog boundary for every answerer before requesting any
+        // answer. Later submissions are recorded only in the submitting model's private history.
+        for &participant_index in &required_indices {
+            self.participants[participant_index].begin_tool_loop();
+            self.participants[participant_index]
+                .push_user(CLOSED_DIALOG_ANSWER_INSTRUCTION.to_owned());
+        }
+
+        for participant_index in required_indices {
+            match self.run_closed_answer_submission(turn_number, participant_index)? {
+                ClosedAnswerSubmissionOutcome::Submitted
+                | ClosedAnswerSubmissionOutcome::Abandoned => {}
+                ClosedAnswerSubmissionOutcome::BudgetAborted { record } => {
+                    if self.task_outcome.is_none() {
+                        self.finish_scenario(turn_number);
+                    }
+                    return Ok(ClosedAnswerPhaseOutcome::BudgetAborted { record });
+                }
+            }
+        }
+
+        if self.task_outcome.is_none() {
+            self.finish_scenario(turn_number);
+        }
+        let all_submitted = self
+            .scenario
+            .as_ref()
+            .expect("closed answer phase requires a scenario")
+            .all_required_submitted(&self.answers);
+        Ok(if all_submitted {
+            ClosedAnswerPhaseOutcome::AllSubmitted
+        } else {
+            ClosedAnswerPhaseOutcome::Incomplete
+        })
     }
 
     #[requires(turn_number > 0)]
@@ -1855,6 +1962,9 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         let Some(scenario) = &self.scenario else {
             return new!(AnswerAffordance::Unavailable);
         };
+        if scenario.answers_close_dialog() {
+            return new!(AnswerAffordance::Unavailable);
+        }
         if !scenario.answer_required(participant) {
             return new!(AnswerAffordance::Unavailable);
         }
@@ -1900,6 +2010,129 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 participant: participant.to_owned(),
                 usage: observation.usage,
             }));
+        }
+    }
+
+    /// Solicit one answer without reopening visible discussion or exposing another submission.
+    #[requires(turn_number > 0)]
+    #[requires(participant_index < self.participants.len())]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn run_closed_answer_submission(
+        &mut self,
+        turn_number: usize,
+        participant_index: usize,
+    ) -> Result<ClosedAnswerSubmissionOutcome, ProtocolRunError> {
+        let participant = self.participants[participant_index]
+            .participant_name()
+            .to_owned();
+        let phase = ProtocolPhase::Answer;
+        let answer_schema = self
+            .scenario
+            .as_ref()
+            .expect("closed answer phase requires a scenario")
+            .answer_schema()
+            .clone();
+        let tools = ProtocolTools::definitions_for_phase(phase, Some(&answer_schema), false)
+            .map_err(|error| {
+                new!(ProtocolRunError::ToolDefinitions {
+                    message: error.to_string(),
+                })
+            })?;
+        let tool_choice = self.participants[participant_index].tool_choice();
+        let max_tool_reprompts = self.participants[participant_index].max_tool_reprompts();
+        let mut tool_reprompts = 0usize;
+
+        loop {
+            let request = self.participants[participant_index].request(
+                &tools,
+                tool_choice,
+                &mut self.accounting,
+            );
+            self.record_provider_observations(turn_number, participant_index, &participant);
+            let turn = request.map_err(|error| {
+                new!(ProtocolRunError::Model {
+                    participant: participant.clone(),
+                    message: error.to_string(),
+                })
+            })?;
+            if let Some(calls) = turn.tool_calls() {
+                tool_reprompts = 0;
+                let calls = calls.to_vec();
+                let mut submitted = false;
+                for call in &calls {
+                    let content = if submitted {
+                        record_protocol_error(
+                            &mut self.events,
+                            &participant,
+                            phase,
+                            &call.function.name,
+                            "The participant's independent answer is already recorded; this call was rejected."
+                                .to_owned(),
+                        )
+                    } else if ProtocolTool::from_name(&call.function.name)
+                        == Some(ProtocolTool::SubmitAnswer)
+                    {
+                        let action =
+                            self.dispatch_submit_answer(turn_number, &participant, phase, call);
+                        submitted = self.answers.contains_key(&participant);
+                        let bityzba::data!(AnswerSubmissionAction { content, .. }) =
+                            action.into_data();
+                        content
+                    } else {
+                        record_protocol_error(
+                            &mut self.events,
+                            &participant,
+                            phase,
+                            &call.function.name,
+                            "Only `submit_answer` is available after the visible dialog closes."
+                                .to_owned(),
+                        )
+                    };
+                    self.participants[participant_index].push_tool_result(call, content);
+                }
+                if submitted {
+                    return Ok(ClosedAnswerSubmissionOutcome::Submitted);
+                }
+            } else if turn.content().is_some() {
+                if tool_choice == ProviderToolChoice::Auto {
+                    if !record_auto_prose_rejection(
+                        &mut self.events,
+                        turn_number,
+                        &participant,
+                        phase,
+                        &mut tool_reprompts,
+                        max_tool_reprompts,
+                    ) {
+                        record_protocol_error(
+                            &mut self.events,
+                            &participant,
+                            phase,
+                            "(no tool call)",
+                            "Independent answer collection was abandoned after repeated prose responses."
+                                .to_owned(),
+                        );
+                        return Ok(ClosedAnswerSubmissionOutcome::Abandoned);
+                    }
+                    self.participants[participant_index].push_tool_correction(&tools);
+                } else {
+                    let correction = record_protocol_error(
+                        &mut self.events,
+                        &participant,
+                        phase,
+                        "(no tool call)",
+                        "The independent answer must be submitted with `submit_answer`.".to_owned(),
+                    );
+                    self.participants[participant_index].push_user(correction);
+                }
+            } else if let Some(record) = turn.abort_record() {
+                let record = record.clone();
+                self.events.push(new!(ProtocolEvent::RunAborted {
+                    record: record.clone(),
+                }));
+                return Ok(ClosedAnswerSubmissionOutcome::BudgetAborted { record });
+            } else {
+                unreachable!("ModelTurn invariants cover all variants");
+            }
         }
     }
 
@@ -2791,6 +3024,8 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         }
         let content = if scenario_completed {
             "Answer recorded; all required answers are present and the checker has completed."
+        } else if phase == ProtocolPhase::Answer {
+            "Answer recorded; the visible dialog remains closed while the other required participants answer independently."
         } else {
             "Answer recorded; continue the current protocol phase while other required participants answer."
         };
@@ -2824,6 +3059,24 @@ enum ListenerRunOutcome {
     Acknowledged,
     Abandoned,
     ScenarioCompleted,
+    BudgetAborted { record: AbortRecord },
+}
+
+#[invariant(::AllSubmitted => true)]
+#[invariant(::Incomplete => true)]
+#[invariant(::BudgetAborted { .. } => true)]
+enum ClosedAnswerPhaseOutcome {
+    AllSubmitted,
+    Incomplete,
+    BudgetAborted { record: AbortRecord },
+}
+
+#[invariant(::Submitted => true)]
+#[invariant(::Abandoned => true)]
+#[invariant(::BudgetAborted { .. } => true)]
+enum ClosedAnswerSubmissionOutcome {
+    Submitted,
+    Abandoned,
     BudgetAborted { record: AbortRecord },
 }
 
@@ -3248,8 +3501,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(examined, 168);
-        assert_eq!(rejected, 130);
+        assert_eq!(examined, 192);
+        assert_eq!(rejected, 152);
     }
 
     #[test]

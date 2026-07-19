@@ -17,6 +17,8 @@
 
 *(checker: partial)*
 
+*(visible dialog closed for independent answers after round 1)*
+
 *(run aborted: cost budget exceeded)*
 
 <details><summary>Scenario instance snapshot</summary>
@@ -239,6 +241,10 @@ Protocol action attempt **1** of **3** returned prose instead of a tool call.
 ### Listener flow abandoned — `bob`
 
 Reason: automatic tool-call attempts exhausted (3)
+
+### Visible dialog closed for independent answers
+
+Round **1** completed at turn **1**. Every required participant now answers from the same frozen visible dialog.
 
 ### Run aborted
 

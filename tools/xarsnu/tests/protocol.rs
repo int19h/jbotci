@@ -276,6 +276,46 @@ fn step_without_reference_tools(
     })
 }
 
+#[requires(!meaning_en.trim().is_empty())]
+#[requires(!paraphrase_en.trim().is_empty())]
+#[ensures(ret.len() == 3)]
+fn posted_message_steps(meaning_en: &str, paraphrase_en: &str) -> Vec<ScriptStep> {
+    vec![
+        step(
+            &["register_intent"],
+            "register_intent",
+            json!({ "meaning_en": meaning_en }),
+        ),
+        step(
+            &["register_intent", "submit_lojban"],
+            "submit_lojban",
+            json!({ "text": "mi klama" }),
+        ),
+        step(
+            &["confirm_meaning"],
+            "confirm_meaning",
+            json!({ "matches": true, "paraphrase_en": paraphrase_en }),
+        ),
+    ]
+}
+
+#[requires(!interpretation_en.trim().is_empty())]
+#[ensures(ret.len() == 2)]
+fn listener_steps(interpretation_en: &str) -> Vec<ScriptStep> {
+    vec![
+        step(
+            &["interpret_blind"],
+            "interpret_blind",
+            json!({ "interpretation_en": interpretation_en }),
+        ),
+        step(
+            &["acknowledge"],
+            "acknowledge",
+            json!({ "final_understanding_en": interpretation_en }),
+        ),
+    ]
+}
+
 #[requires(id > 0)]
 #[requires(!name.trim().is_empty())]
 #[requires(arguments.is_object())]
@@ -1561,6 +1601,117 @@ fn round_robin_starts_next_speaker_only_after_listener_acknowledges() {
         .expect("bob starts turn two");
     assert!(first_ack < second_turn);
     assert!(runner.participants().iter().all(ScriptedModel::is_complete));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn referential_answers_close_dialog_and_are_collected_from_one_frozen_boundary() {
+    let scenario =
+        ScenarioInstance::from_toml(include_str!("../scenarios/referential-game-1.toml"))
+            .expect("referential scenario");
+    assert!(scenario.answers_close_dialog());
+
+    let mut speaker_steps = posted_message_steps("I describe the target.", "I go.");
+    speaker_steps.extend(listener_steps("Listener A goes."));
+    speaker_steps.extend(listener_steps("Listener B goes."));
+
+    let mut listener_a_steps = listener_steps("The speaker goes.");
+    listener_a_steps.extend(posted_message_steps("I refine the description.", "I go."));
+    listener_a_steps.extend(listener_steps("Listener B goes."));
+    listener_a_steps.push(step_without_reference_tools(
+        &["submit_answer"],
+        "submit_answer",
+        json!({ "scene_index": 1 }),
+    ));
+
+    let mut listener_b_steps = listener_steps("The speaker goes.");
+    listener_b_steps.extend(listener_steps("Listener A goes."));
+    listener_b_steps.extend(posted_message_steps(
+        "I give the final description.",
+        "I go.",
+    ));
+    listener_b_steps.push(step_without_reference_tools(
+        &["submit_answer"],
+        "submit_answer",
+        json!({ "scene_index": 1 }),
+    ));
+
+    let mut runner = ProtocolRunner::new_with_scenario(
+        vec![
+            ScriptedModel::new("speaker", speaker_steps),
+            ScriptedModel::new("listener-a", listener_a_steps),
+            ScriptedModel::new("listener-b", listener_b_steps),
+        ],
+        caps(2, 2, 8),
+        TersmuFormat::TreeProj,
+        ReferenceToolDispatcher,
+        scenario,
+    )
+    .expect("scenario runner");
+
+    let outcome = runner.run().expect("closed-dialog answer phase");
+
+    assert!(matches!(
+        outcome.as_data(),
+        ProtocolRunOutcomeData::ScenarioCompleted { turns: 3 }
+    ));
+    assert_eq!(runner.visible_chat().len(), 3);
+    assert_eq!(runner.answers().len(), 2);
+    assert_eq!(
+        runner.task_outcome().expect("checker outcome").status,
+        TaskStatus::Success
+    );
+
+    let events = runner.events();
+    let closure_index = events
+        .iter()
+        .position(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::DialogClosedForAnswers {
+                    turn_number: 3,
+                    round_number: 1,
+                })
+            )
+        })
+        .expect("typed dialog closure");
+    assert!(events[closure_index + 1..].iter().all(|event| !matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::TurnStarted { .. })
+            | bityzba::data!(ProtocolEvent::MessagePosted { .. })
+            | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { .. })
+    )));
+    let submitted = events[closure_index + 1..]
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::AnswerSubmitted {
+                turn_number: 3,
+                participant,
+                ..
+            }) => Some(participant.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(submitted, ["listener-a", "listener-b"]);
+
+    let participants = runner.participants();
+    assert!(participants.iter().all(ScriptedModel::is_complete));
+    let answer_prompts = participants[1..]
+        .iter()
+        .map(|participant| {
+            participant
+                .request_user_messages
+                .last()
+                .and_then(|messages| messages.last())
+                .expect("answer-phase request has a final user instruction")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(answer_prompts[0], answer_prompts[1]);
+    assert!(answer_prompts[0].contains("visible-channel dialog is now closed"));
+    assert!(
+        answer_prompts[0].contains("based only on the dialog through the final posted description")
+    );
 }
 
 #[test]

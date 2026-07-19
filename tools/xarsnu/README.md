@@ -51,6 +51,14 @@ The `scenario` value is a path, including its extension. An absolute path is
 used directly. A relative path is first resolved against the run config's
 directory, then against this crate's `tools/xarsnu/scenarios/` directory.
 
+Scenario instances may set `answers-close-dialog = true|false`. It defaults to
+`true` for referential games and `false` for negotiation and deduction. When
+enabled, completing the first answer-eligible round closes the visible dialog:
+no more speaker turns or posts occur, a typed closure event is recorded, and
+every required participant receives the same answer-only instruction before
+any answer is requested. Those private answer phases offer only
+`submit_answer`, so one participant's submission cannot affect another's.
+
 `prompt-caching` is per participant. `auto` (the default) emits explicit cache
 breakpoints only for models that require them; `off` leaves the request alone.
 

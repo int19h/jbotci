@@ -160,6 +160,50 @@ fn all_scenario_toml_fixtures_round_trip() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn answer_dialog_closure_defaults_by_scenario_family_and_can_be_overridden() {
+    let referential_source = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scenarios/referential-game-1.toml"),
+    )
+    .expect("referential fixture");
+    let referential =
+        ScenarioInstance::from_toml(&referential_source).expect("referential default");
+    assert!(referential.answers_close_dialog());
+
+    let referential_open = referential_source.replace(
+        "minimum-rounds = 1",
+        "answers-close-dialog = false\nminimum-rounds = 1",
+    );
+    let referential_open =
+        ScenarioInstance::from_toml(&referential_open).expect("referential override");
+    assert!(!referential_open.answers_close_dialog());
+    assert!(
+        referential_open
+            .to_toml()
+            .expect("serialize override")
+            .contains("answers-close-dialog = false")
+    );
+
+    let schedule_source = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scenarios/schedule-negotiation-1.toml"),
+    )
+    .expect("schedule fixture");
+    let schedule = ScenarioInstance::from_toml(&schedule_source).expect("schedule default");
+    assert!(!schedule.answers_close_dialog());
+
+    let schedule_closed = schedule_source
+        .replace(
+            "minimum-rounds = 1",
+            "answers-close-dialog = true\nminimum-rounds = 1",
+        )
+        .replace("maximum-turns = 5", "maximum-turns = 2");
+    let schedule_closed =
+        ScenarioInstance::from_toml(&schedule_closed).expect("closed schedule override");
+    assert!(schedule_closed.answers_close_dialog());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn every_checker_accepts_truth_and_rejects_a_minimal_perturbation() {
     for instance in fixture_instances() {
         let correct = typed(&instance, correct_answer(&instance));
