@@ -1045,6 +1045,7 @@ impl<'client> OpenRouterParticipant<'client> {
             conversation: ParticipantConversation::from_system_prompt(
                 participant.name.clone(),
                 participant.model.clone(),
+                participant.provider.clone(),
                 participant.prompt_caching,
                 policy.reasoning,
                 participant.temperature,

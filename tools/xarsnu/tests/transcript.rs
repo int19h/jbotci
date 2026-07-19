@@ -92,6 +92,8 @@ fn golden_transcript_renders_every_event_kind() {
         "Call hit rate: 100.00%",
         "Reasoning field present: true; reasoning tokens: 20",
         "Reasoning totals: 20 tokens across 1 provider calls",
+        "Serving provider: `xiaomi/fp8`",
+        "Provider mix: `xiaomi/fp8`: 1",
         "### Thinking — `alice`",
         "> First private line.\n> Second private line.",
         "fixture-signature",
@@ -209,6 +211,25 @@ fn schema_v1_accepts_usage_without_additive_cache_fields() {
     assert!(!records.is_empty());
     let report = report_file(&path).expect("legacy-compatible transcript renders");
     assert!(report.contains("Cache totals: 0 cached tokens; 0 cache-write tokens"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn schema_v1_accepts_usage_without_additive_provider_field() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let legacy = fixture.replace("\"provider\":\"xiaomi/fp8\",", "");
+    assert_ne!(legacy, fixture, "fixture must exercise provider capture");
+    let path = temp_path("schema-v1-without-provider");
+    fs::write(&path, legacy).expect("write legacy-compatible transcript");
+
+    let records = read_transcript(&path).expect("optional provider field may be absent");
+    assert!(!records.is_empty());
+    let report = report_file(&path).expect("legacy-compatible transcript renders");
+    assert!(report.contains("Provider mix: unknown: 1"));
 
     fs::remove_file(path).expect("remove temporary transcript");
 }

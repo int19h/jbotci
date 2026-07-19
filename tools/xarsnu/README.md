@@ -32,6 +32,9 @@ tool-choice = "metadata"
 temperature = 0.4
 system-prompt = "Speak only Lojban in the visible discussion."
 
+[participants.provider]
+only = ["xiaomi/fp8"]
+
 [[participants]]
 name = "bob"
 model = "example/other-model"
@@ -46,6 +49,14 @@ Participant names must match the selected scenario instance exactly. Personas
 belong in `system-prompt`. Public setup and participant-scoped private briefs
 come only from the scenario instance; the removed `private-brief` participant
 field is rejected as an unknown field.
+
+`provider` is an optional per-participant OpenRouter routing table. Xarsnu does
+not model or reinterpret its keys: the TOML table is serialized directly as
+the request's `provider` object, so OpenRouter options such as `only`, `order`,
+and `ignore` remain available. For example, the `xiaomi/fp8` pin above routes
+MiMo directly through Xiaomi. OpenRouter's serving `provider` response field is
+recorded on every usage event, and the report summarizes the observed provider
+mix per participant so routing drift is visible.
 
 The `scenario` value is a path, including its extension. An absolute path is
 used directly. A relative path is first resolved against the run config's

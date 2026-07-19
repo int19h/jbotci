@@ -232,6 +232,8 @@ reasoning_details (verbatim JSON):
 
 120 prompt + 30 completion = 150 tokens; $0.012000; 80 cached, 40 cache-write tokens
 
+Serving provider: `xiaomi/fp8`
+
 Reasoning field present: true; reasoning tokens: 20
 
 ### Auto-mode prose rejected — `alice`
@@ -301,12 +303,15 @@ Aggregate: **partial**
   - Cache efficiency: 66.67% (80 / 120 prompt tokens)
   - Call hit rate: 100.00% (1 / 1 provider calls)
   - Reasoning totals: 20 tokens across 1 provider calls
+  - Provider mix: `xiaomi/fp8`: 1
 - `bob`: 0 prompt + 0 completion = 0 tokens; $0.000000
   - Cache totals: 0 cached tokens; 0 cache-write tokens
   - Cache efficiency: n/a (0 / 0 prompt tokens)
   - Call hit rate: n/a (0 / 0 provider calls)
+  - Provider mix: n/a (0 provider calls)
 - Run total: 120 prompt + 30 completion = 150 tokens; $0.012000
   - Cache totals: 80 cached tokens; 40 cache-write tokens
   - Cache efficiency: 66.67% (80 / 120 prompt tokens)
   - Call hit rate: 100.00% (1 / 1 provider calls)
   - Reasoning totals: 20 tokens across 1 provider calls
+  - Provider mix: `xiaomi/fp8`: 1
