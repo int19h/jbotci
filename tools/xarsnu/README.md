@@ -72,7 +72,8 @@ says the model supports that setting and its effective tool choice is
 `required`; otherwise the provider default is requested. `off` sends effort
 `none`, `default` sends `enabled = true`, and the explicit effort values map
 directly to OpenRouter. Every shape keeps `exclude = false` so returned traces
-remain available for review.
+remain available for review and requests OpenRouter's maximum reasoning-summary
+verbosity with `summary = "detailed"`.
 
 Returned `reasoning` and `reasoning_details` are private observability. They
 are recorded per provider call and rendered under `### Thinking` in the full

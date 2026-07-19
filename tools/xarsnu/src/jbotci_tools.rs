@@ -233,7 +233,8 @@ impl ReferenceTools {
             )?,
             ToolDefinition::new(
                 "cukta".to_owned(),
-                "Read or search The Complete Lojban Language reference book.".to_owned(),
+                "Read or search The Complete Lojban Language reference book. Concept and meaning queries are supported and are often the right choice for grammar questions; a search need not name a known word or section."
+                    .to_owned(),
                 tool_request_schema::<ToolCuktaRequest>(),
             )?,
         ])
@@ -443,6 +444,22 @@ mod tests {
             &definitions,
             "cukta",
             tool_request_schema::<ToolCuktaRequest>(),
+        );
+        let cukta = definitions
+            .iter()
+            .find(|definition| definition.name() == "cukta")
+            .expect("cukta definition");
+        assert!(
+            cukta
+                .function
+                .description
+                .contains("Concept and meaning queries")
+        );
+        assert!(
+            cukta
+                .function
+                .description
+                .contains("often the right choice for grammar questions")
         );
     }
 

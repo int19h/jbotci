@@ -639,7 +639,7 @@ fn default_reasoning_request_has_a_stable_wire_shape() {
     let captured = server.finish();
     assert_eq!(
         captured[0].body_bytes,
-        br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false},"usage":{"include":true}}"#
+        br#"{"model":"mock/model","temperature":0.3,"messages":[{"role":"system","content":"Use tools."},{"role":"user","content":"Private task."}],"tools":[{"type":"function","function":{"name":"alpha","description":"Call alpha","parameters":{"type":"object","properties":{"value":{"type":"integer"}},"required":["value"],"additionalProperties":false}}}],"tool_choice":"required","reasoning":{"enabled":true,"exclude":false,"summary":"detailed"},"usage":{"include":true}}"#
     );
 }
 
@@ -672,23 +672,23 @@ fn every_reasoning_mode_reaches_the_wire_with_the_openrouter_shape() {
     for (reasoning, expected) in [
         (
             ReasoningConfig::Off,
-            json!({ "effort": "none", "exclude": false }),
+            json!({ "effort": "none", "exclude": false, "summary": "detailed" }),
         ),
         (
             ReasoningConfig::Default,
-            json!({ "enabled": true, "exclude": false }),
+            json!({ "enabled": true, "exclude": false, "summary": "detailed" }),
         ),
         (
             ReasoningConfig::Low,
-            json!({ "effort": "low", "exclude": false }),
+            json!({ "effort": "low", "exclude": false, "summary": "detailed" }),
         ),
         (
             ReasoningConfig::Medium,
-            json!({ "effort": "medium", "exclude": false }),
+            json!({ "effort": "medium", "exclude": false, "summary": "detailed" }),
         ),
         (
             ReasoningConfig::High,
-            json!({ "effort": "high", "exclude": false }),
+            json!({ "effort": "high", "exclude": false, "summary": "detailed" }),
         ),
     ] {
         let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
