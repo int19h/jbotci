@@ -582,6 +582,31 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
             .expect("system content")
             .contains("Alice persona.")
     );
+    let standing_system_prompt = first_messages[0]["content"]
+        .as_str()
+        .expect("system content");
+    for vocabulary_doctrine in [
+        "built-in knowledge of Lojban vocabulary is flawed",
+        "Before choosing any content word you are not certain of",
+        "search vlacku BY MEANING",
+        "semantic or definition search",
+        "compare candidates",
+        "do not merely look up a word you already picked and rationalize its definition",
+    ] {
+        assert!(
+            standing_system_prompt.contains(vocabulary_doctrine),
+            "wire system prompt omitted `{vocabulary_doctrine}`"
+        );
+    }
+    let cukta_description = captured[0].body["tools"]
+        .as_array()
+        .expect("request tools")
+        .iter()
+        .find(|tool| tool["function"]["name"] == "cukta")
+        .and_then(|tool| tool["function"]["description"].as_str())
+        .expect("wire cukta description");
+    assert!(cukta_description.contains("Concept and meaning queries are supported"));
+    assert!(cukta_description.contains("often the right choice for grammar questions"));
     assert_eq!(first_messages[1]["role"], "user");
     let scenario_prompt = first_messages[1]["content"]
         .as_str()

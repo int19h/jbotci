@@ -1338,18 +1338,20 @@ struct CompletionRequest<'a> {
     usage: CompletionUsageRequest,
 }
 
-#[invariant(::Enabled { enabled, exclude } => *enabled && !*exclude)]
-#[invariant(::Effort { exclude, .. } => !*exclude)]
+#[invariant(::Enabled { enabled, exclude, summary } => *enabled && !*exclude && *summary == ReasoningSummaryVerbosity::Detailed)]
+#[invariant(::Effort { exclude, summary, .. } => !*exclude && *summary == ReasoningSummaryVerbosity::Detailed)]
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 enum CompletionReasoningRequest {
     Enabled {
         enabled: bool,
         exclude: bool,
+        summary: ReasoningSummaryVerbosity,
     },
     Effort {
         effort: ReasoningEffort,
         exclude: bool,
+        summary: ReasoningSummaryVerbosity,
     },
 }
 
@@ -1361,25 +1363,39 @@ impl CompletionReasoningRequest {
             ReasoningConfig::Default => new!(CompletionReasoningRequest::Enabled {
                 enabled: true,
                 exclude: false,
+                summary: ReasoningSummaryVerbosity::Detailed,
             }),
             ReasoningConfig::Off => new!(CompletionReasoningRequest::Effort {
                 effort: ReasoningEffort::None,
                 exclude: false,
+                summary: ReasoningSummaryVerbosity::Detailed,
             }),
             ReasoningConfig::Low => new!(CompletionReasoningRequest::Effort {
                 effort: ReasoningEffort::Low,
                 exclude: false,
+                summary: ReasoningSummaryVerbosity::Detailed,
             }),
             ReasoningConfig::Medium => new!(CompletionReasoningRequest::Effort {
                 effort: ReasoningEffort::Medium,
                 exclude: false,
+                summary: ReasoningSummaryVerbosity::Detailed,
             }),
             ReasoningConfig::High => new!(CompletionReasoningRequest::Effort {
                 effort: ReasoningEffort::High,
                 exclude: false,
+                summary: ReasoningSummaryVerbosity::Detailed,
             }),
         }
     }
+}
+
+/// OpenRouter's requested verbosity for provider-generated reasoning summaries.
+#[invariant(::Detailed => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum ReasoningSummaryVerbosity {
+    /// Request the most detailed reasoning summary the provider supports.
+    Detailed,
 }
 
 #[invariant(::None => true)]
