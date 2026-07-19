@@ -619,7 +619,7 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     let standing_system_prompt = first_messages[0]["content"]
         .as_str()
         .expect("system content");
-    for vocabulary_doctrine in [
+    for standing_doctrine in [
         "built-in knowledge of Lojban vocabulary is flawed",
         "Before choosing any content word you are not certain of",
         "search vlacku BY MEANING",
@@ -627,10 +627,12 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         "compare candidates",
         "do not merely look up a word you already picked and rationalize its definition",
         "when the problem is HOW TO EXPRESS something grammatically (not which word), query cukta with the concept.",
+        "You may freely test candidate Lojban with the reference tersmu tool while composing (drafting draws on your reference budget); submit_lojban is the act of commitment and its attempts are limited — submit when you believe the candidate is right.",
+        "When composing or checking any bridi, attend closely to argument assignment: verify from the definition the precise meaning AND TYPE of every place of the selbri you use (object, agent, event, property, proposition, quantity), and ensure each sumti matches its place's expected type — a place expecting conduct-as-event or a property cannot take the entity affected. A type-mismatched place is a mismatch at confirm time even if a reader would understand.",
     ] {
         assert!(
-            standing_system_prompt.contains(vocabulary_doctrine),
-            "wire system prompt omitted `{vocabulary_doctrine}`"
+            standing_system_prompt.contains(standing_doctrine),
+            "wire system prompt omitted `{standing_doctrine}`"
         );
     }
     let cukta_description = captured[0].body["tools"]

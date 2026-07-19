@@ -132,7 +132,10 @@ python3 tools/xarsnu/scripts/import-bickr-openrouter-capabilities.py --bickr ~/g
 The meaning-first doctrine tells participants to search `vlacku` by meaning
 before choosing uncertain content words. When the problem is how to express
 something grammatically rather than which word to use, it tells them to query
-`cukta` with the concept.
+`cukta` with the concept. The standing rules distinguish freely testing drafts
+with reference `tersmu` from the limited commitment made by `submit_lojban`.
+They also require participants to verify the precise meaning and type of every
+selbri place and reject type-mismatched argument assignments at confirmation.
 
 The reference-loop controls are run-wide caps applied independently to every
 protocol phase. `max-reference-calls-per-phase` defaults to 30 and withdraws
