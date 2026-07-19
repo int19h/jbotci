@@ -4078,11 +4078,11 @@ fn recovered_chain_parser_expr_tokens(
         mode,
     )?;
     let links = match expr.links_kind {
-        ChainLinksKind::ZeroOrMore => quote!(generated_runtime::strict_greedy_many_parser(
+        ChainLinksKind::ZeroOrMore => quote!(generated_runtime::recovered_greedy_many_parser(
             #link.boxed()
         )),
         ChainLinksKind::OneOrMore => quote! {
-            generated_runtime::strict_greedy_many1_parser(#link.boxed()).map(|__links| {
+            generated_runtime::recovered_greedy_many1_parser(#link.boxed()).map(|__links| {
                 vec1::Vec1::try_from_vec(__links)
                     .expect("chain parser expression has statically non-zero link cardinality")
             })
@@ -4195,7 +4195,7 @@ fn recovered_vector_parser_expr_tokens(
                     free_modifier_parser,
                     mode,
                 )?;
-                parsers.push(quote!(generated_runtime::strict_greedy_many_parser(
+                parsers.push(quote!(generated_runtime::recovered_greedy_many_parser(
                     #inner.boxed()
                 )));
                 bindings.push(quote!(#binding));
@@ -4209,7 +4209,7 @@ fn recovered_vector_parser_expr_tokens(
                     free_modifier_parser,
                     mode,
                 )?;
-                parsers.push(quote!(generated_runtime::strict_greedy_many_parser(
+                parsers.push(quote!(generated_runtime::recovered_greedy_many_parser(
                     #inner.boxed()
                 )));
                 bindings.push(quote!(#binding));
@@ -4227,7 +4227,7 @@ fn recovered_vector_parser_expr_tokens(
                     free_modifier_parser,
                     mode,
                 )?;
-                parsers.push(quote!(generated_runtime::strict_greedy_many1_parser(
+                parsers.push(quote!(generated_runtime::recovered_greedy_many1_parser(
                     #inner.boxed()
                 )));
                 bindings.push(quote!(#binding));
@@ -4241,7 +4241,7 @@ fn recovered_vector_parser_expr_tokens(
                     free_modifier_parser,
                     mode,
                 )?;
-                parsers.push(quote!(generated_runtime::strict_greedy_many1_parser(
+                parsers.push(quote!(generated_runtime::recovered_greedy_many1_parser(
                     #inner.boxed()
                 )));
                 bindings.push(quote!(#binding));

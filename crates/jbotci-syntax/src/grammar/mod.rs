@@ -2507,8 +2507,6 @@ fn recover_after_strict_failure(
         generated::generated_model::GeneratedRecoveryParseSession::new_with_continuation_time_limit(
             continuation_time_limit,
         );
-    let initial_failure = failure.clone();
-    let mut initial_has_anchor_candidates = false;
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
     let mut continuation_expectations = Vec::new();
@@ -2527,9 +2525,6 @@ fn recover_after_strict_failure(
             options,
             errors.len() - 1,
         );
-        if errors.len() == 1 {
-            initial_has_anchor_candidates = !candidates.is_empty();
-        }
         let candidates = if candidates.is_empty() {
             select_final_recovery_directives(&tokens, &failure, errors.len() - 1)
         } else {
@@ -2649,6 +2644,16 @@ fn recover_after_strict_failure(
                         trace = attempt_trace;
                     }
                     Err(next_failure) => {
+                        // A directive that never fired cannot be credited with
+                        // changing where the parser failed. Keeping it would
+                        // install a dead obligation ahead of later trials and
+                        // eventually prevent otherwise executable anchors from
+                        // firing. Accepted progress therefore consists only of
+                        // fully consumed directive chains.
+                        if unconsumed_directives != 0 {
+                            trace = attempt_trace;
+                            continue;
+                        }
                         if errors.len() >= cap {
                             break;
                         }
@@ -2665,7 +2670,6 @@ fn recover_after_strict_failure(
                                 directives: applied_directives,
                                 failure: next_failure,
                                 trace: attempt_trace,
-                                unconsumed_directives,
                                 effective_fail_token_indices: applied_effective_fail_token_indices,
                             }));
                         }
@@ -2726,7 +2730,6 @@ fn recover_after_strict_failure(
             directives: trial_directives,
             failure: next_failure,
             trace: progress_trace,
-            unconsumed_directives,
             effective_fail_token_indices,
         }) = progress.into_data();
         let trial_reached_continuation_cut =
@@ -2743,7 +2746,7 @@ fn recover_after_strict_failure(
                 source,
                 options,
                 &trial_directives,
-                unconsumed_directives,
+                0,
                 &effective_fail_token_indices,
                 &next_failure,
                 sentinel_index,
@@ -2766,16 +2769,13 @@ fn recover_after_strict_failure(
         }
     }
 
-    if !continuation_time_limit_exhausted
-        && !continuation_cut_reached
-        && initial_has_anchor_candidates
-        && errors.len() > 1
-    {
-        if let Some(recovered) = try_final_recovery_from_initial_failure(
+    if !continuation_time_limit_exhausted && !continuation_cut_reached && !directives.is_empty() {
+        if let Some(recovered) = try_final_recovery_from_current_failure(
             &tokens,
             source,
             options,
-            &initial_failure,
+            &failure,
+            &directives,
             &errors,
             &parser_tokens,
             &mut recovery_session,
@@ -2960,28 +2960,34 @@ fn replay_winning_continuation_attempt<'tokens>(
 }
 
 #[requires(!errors.is_empty())]
+#[requires(!directives.is_empty())]
+#[requires(directives.len() + 1 == errors.len())]
+#[requires(errors.last().is_some_and(|error| error == &failure.public_error))]
 #[ensures(ret.as_ref().is_none_or(|attempt| !attempt.recovered.result.errors.is_empty()))]
-fn try_final_recovery_from_initial_failure<'tokens>(
+fn try_final_recovery_from_current_failure<'tokens>(
     tokens: &[Token],
     source: Option<&str>,
     options: &ParseOptions,
-    initial_failure: &generated::generated_model::GeneratedParseFailure,
+    failure: &generated::generated_model::GeneratedParseFailure,
+    directives: &[RecoveryDirective],
     errors: &[SyntaxError],
     parser_tokens: &'tokens [SpannedToken],
     recovery_session: &mut generated::generated_model::GeneratedRecoveryParseSession<'tokens>,
     continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> Option<RecoveryParseOutcome> {
-    for directive in select_final_recovery_directives(tokens, initial_failure, 0) {
+    for directive in select_final_recovery_directives(tokens, failure, errors.len() - 1) {
         if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
             return None;
         }
+        let mut trial_directives = directives.to_vec();
+        trial_directives.push(directive);
         let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
             tokens,
             parser_tokens,
             source,
             options,
-            std::slice::from_ref(&directive),
+            &trial_directives,
             recovery_session,
         );
         if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
@@ -2999,6 +3005,7 @@ fn try_final_recovery_from_initial_failure<'tokens>(
         ) = attempt.into_data();
         if let Ok(parsed) = result
             && unconsumed_directives == 0
+            && recovery_directives == trial_directives
         {
             let continuation_expectations =
                 if let Some(sentinel_index) = continuation_sentinel_index {
@@ -3056,12 +3063,11 @@ struct RecoveryClaim {
 }
 
 #[invariant(!directives.is_empty())]
-#[invariant(effective_fail_token_indices.len() + *unconsumed_directives == directives.len())]
+#[invariant(effective_fail_token_indices.len() == directives.len())]
 struct RecoveryProgressTrial {
     directives: Vec<RecoveryDirective>,
     failure: generated::generated_model::GeneratedParseFailure,
     trace: Option<TraceReport>,
-    unconsumed_directives: usize,
     effective_fail_token_indices: Vec<usize>,
 }
 

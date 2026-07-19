@@ -643,6 +643,103 @@ pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
     .boxed()
 }
 
+/// Repeat a recovered parser while either input or recovery-directive state
+/// advances. A recovered required field may synthesize an item without
+/// consuming a token, so input position alone cannot establish progress.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_greedy_many_parser<'tokens, O: 'tokens>(
+    parser: BoxedParser<'tokens, O>,
+) -> BoxedParser<'tokens, Vec<O>> {
+    custom::<_, _>(move |input| {
+        let mut values = Vec::new();
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    let end_checkpoint = input.save();
+                    if end_location == start_location
+                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                    {
+                        debug_assert!(false, "generated repetition parser accepted empty input");
+                        input.rewind(checkpoint);
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    input.state().record_diagnostic_candidate(error);
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    })
+    .boxed()
+}
+
+/// Repeat a recovered parser at least once, counting recovery-directive state
+/// advancement as progress when it produces a zero-width missing item.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_greedy_many1_parser<'tokens, O: 'tokens>(
+    parser: BoxedParser<'tokens, O>,
+) -> BoxedParser<'tokens, Vec<O>> {
+    custom::<_, _>(move |input| {
+        let first_checkpoint = input.save();
+        let first_start_location = ParserInput::cursor_location(first_checkpoint.cursor().inner());
+        let first = match input.parse(&parser) {
+            Ok(output) => {
+                let first_end_location = ParserInput::cursor_location(input.cursor().inner());
+                let first_end_checkpoint = input.save();
+                if first_end_location == first_start_location
+                    && !first_end_checkpoint.recovery_state_changed_since(&first_checkpoint)
+                {
+                    input.rewind(first_checkpoint);
+                    return Err(expected_found_at_current(
+                        input,
+                        "non-empty recovered repetition item",
+                    ));
+                }
+                output
+            }
+            Err(error) => {
+                input.rewind(first_checkpoint);
+                return Err(error);
+            }
+        };
+
+        let mut values = vec![first];
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    let end_checkpoint = input.save();
+                    if end_location == start_location
+                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                    {
+                        input.rewind(checkpoint);
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    input.state().record_diagnostic_candidate(error);
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    })
+    .boxed()
+}
+
 #[requires(!alternatives.is_empty())]
 #[ensures(true)]
 pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(

@@ -384,6 +384,12 @@ impl<'tokens, 'parse> Checkpoint<'tokens, 'parse> {
     pub(crate) fn inspector(&self) -> &ParserCheckpoint {
         &self.inspector
     }
+
+    #[requires(true)]
+    #[ensures(ret == (self.inspector.recovery != earlier.inspector.recovery))]
+    pub(crate) fn recovery_state_changed_since(&self, earlier: &Self) -> bool {
+        self.inspector.recovery != earlier.inspector.recovery
+    }
 }
 
 /// Parser-state hooks used when tokens are consumed and checkpoints rewind.
