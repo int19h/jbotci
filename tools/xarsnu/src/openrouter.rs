@@ -2,11 +2,16 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
 use serde::ser::{Error as _, SerializeSeq};
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
@@ -16,6 +21,7 @@ use crate::model_capabilities::ParticipantModelPolicy;
 use crate::{PromptCaching, ProviderToolChoice, ReasoningConfig};
 
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+const COMPLETION_MAX_TOKENS: u32 = 16_384;
 pub(crate) const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
 const EMPTY_RESPONSE_CORRECTION: &str = "Your previous response supplied no visible content or tool call. Private reasoning, if any, is not received as a reply. Respond with visible content or call one of the provided tools.";
@@ -175,6 +181,29 @@ impl ToolCall {
             });
         }
         Ok(arguments)
+    }
+
+    /// Clone this call for model history, wrapping malformed JSON losslessly.
+    #[requires(true)]
+    #[ensures(ret.id == self.id && ret.kind == self.kind && ret.function.name == self.function.name)]
+    #[expensive_ensures(serde_json::from_str::<Value>(&ret.function.arguments).is_ok())]
+    fn history_copy(&self) -> Self {
+        let arguments = if serde_json::from_str::<Value>(&self.function.arguments).is_ok() {
+            self.function.arguments.clone()
+        } else {
+            serde_json::json!({
+                "malformed_arguments": self.function.arguments,
+            })
+            .to_string()
+        };
+        new!(ToolCall {
+            id: self.id.clone(),
+            kind: self.kind,
+            function: new!(FunctionCall {
+                name: self.function.name.clone(),
+                arguments,
+            }),
+        })
     }
 }
 
@@ -527,6 +556,7 @@ impl RetryPolicy {
 /// Configuration used to construct an HTTP client.
 #[invariant(!base_url.trim().is_empty(), "OpenRouter base URL cannot be empty")]
 #[invariant(*timeout > Duration::ZERO, "HTTP timeout must be positive")]
+#[invariant(request_dump_directory.as_ref().is_none_or(|directory| !directory.as_os_str().is_empty()), "request dump directory cannot be empty when configured")]
 #[derive(Clone)]
 pub struct OpenRouterClientConfig {
     pub base_url: String,
@@ -534,6 +564,7 @@ pub struct OpenRouterClientConfig {
     pub retry_policy: RetryPolicy,
     pub max_required_tool_reprompts: usize,
     pub timeout: Duration,
+    request_dump_directory: Option<PathBuf>,
 }
 
 impl fmt::Debug for OpenRouterClientConfig {
@@ -550,6 +581,7 @@ impl fmt::Debug for OpenRouterClientConfig {
                 &self.max_required_tool_reprompts,
             )
             .field("timeout", &self.timeout)
+            .field("request_dump_directory", &self.request_dump_directory)
             .finish()
     }
 }
@@ -564,6 +596,7 @@ impl Default for OpenRouterClientConfig {
             retry_policy: RetryPolicy::default(),
             max_required_tool_reprompts: 2,
             timeout: Duration::from_secs(60),
+            request_dump_directory: None,
         }))
     }
 }
@@ -585,6 +618,7 @@ impl OpenRouterClientConfig {
             retry_policy,
             max_required_tool_reprompts,
             timeout,
+            request_dump_directory: None,
         }))
         .map_err(|error| OpenRouterError::InvalidConfiguration {
             message: error.to_string(),
@@ -599,9 +633,147 @@ impl OpenRouterClientConfig {
             .ok()
             .filter(|value| !value.trim().is_empty())
             .ok_or(OpenRouterError::MissingApiKey)?;
+        let request_dump_directory = std::env::var_os("XARSNU_DUMP_REQUESTS")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from);
         let mut data = Self::default().into_data();
         data.api_key = Some(api_key);
+        data.request_dump_directory = request_dump_directory;
         Ok(Self::from_data(data))
+    }
+
+    /// Enable exact request/status dumps without consulting process environment.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|config| config.request_dump_directory.is_some()) || ret.is_err())]
+    pub fn with_request_dump_directory(self, directory: PathBuf) -> Result<Self, OpenRouterError> {
+        if directory.as_os_str().is_empty() {
+            return Err(OpenRouterError::InvalidConfiguration {
+                message: "request dump directory cannot be empty".to_owned(),
+            });
+        }
+        Ok(self.with_data(bityzba::data! {
+            request_dump_directory: Some(directory),
+        }))
+    }
+}
+
+/// Env-gated recorder for exact OpenRouter request bytes and matching outcomes.
+#[invariant(!directory.as_os_str().is_empty(), "request dump directory cannot be empty")]
+#[derive(Debug)]
+struct RequestDumper {
+    directory: PathBuf,
+    next_index: AtomicU64,
+}
+
+impl RequestDumper {
+    #[requires(!directory.as_os_str().is_empty())]
+    #[ensures(ret.next_index.load(Ordering::Relaxed) == 1)]
+    fn new(directory: PathBuf) -> Self {
+        new!(RequestDumper {
+            directory,
+            next_index: AtomicU64::new(1),
+        })
+    }
+
+    /// Reserve a number by atomically creating its request file.
+    #[requires(!request_body.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|dump| dump.index > 0) || ret.is_err())]
+    fn write_request(&self, request_body: &[u8]) -> Result<RequestDump, OpenRouterError> {
+        fs::create_dir_all(&self.directory)
+            .map_err(|error| request_dump_error(&self.directory, error))?;
+        loop {
+            let index = self
+                .next_index
+                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |index| {
+                    index.checked_add(1)
+                })
+                .map_err(|_| OpenRouterError::RequestDump {
+                    path: self.directory.clone(),
+                    message: "request dump number space was exhausted".to_owned(),
+                })?;
+            let request_path = self.directory.join(format!("{index:06}-request.json"));
+            let response_path = self.directory.join(format!("{index:06}-response.json"));
+            if response_path.exists() {
+                continue;
+            }
+            match write_new_file(&request_path, request_body) {
+                Ok(()) => {
+                    return Ok(new!(RequestDump {
+                        index,
+                        response_path,
+                    }));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(request_dump_error(&request_path, error)),
+            }
+        }
+    }
+
+    /// Record the HTTP body, body-read error, or transport failure for one attempt.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.as_ref().err().is_some_and(|error| !error.to_string().is_empty()))]
+    fn write_response(
+        &self,
+        dump: &RequestDump,
+        response: RequestDumpResponse<'_>,
+    ) -> Result<(), OpenRouterError> {
+        let mut bytes =
+            serde_json::to_vec_pretty(&response).map_err(|error| OpenRouterError::RequestDump {
+                path: dump.response_path.clone(),
+                message: error.to_string(),
+            })?;
+        bytes.push(b'\n');
+        write_new_file(&dump.response_path, &bytes)
+            .map_err(|error| request_dump_error(&dump.response_path, error))
+    }
+}
+
+/// Paths reserved for one outgoing HTTP attempt.
+#[invariant(*index > 0, "request dump numbers start at one")]
+#[invariant(!response_path.as_os_str().is_empty(), "response dump path cannot be empty")]
+#[derive(Debug)]
+struct RequestDump {
+    index: u64,
+    response_path: PathBuf,
+}
+
+/// Complete observable response boundary paired with one exact dumped request.
+#[invariant(::Http { status, .. } => (100..=599).contains(status), "HTTP statuses must use the protocol range")]
+#[invariant(::HttpBodyError { status, message } => (100..=599).contains(status) && !message.trim().is_empty(), "HTTP body errors require a valid status and message")]
+#[invariant(::TransportError { message } => !message.trim().is_empty(), "transport errors cannot be empty")]
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum RequestDumpResponse<'a> {
+    Http {
+        status: u16,
+        body: &'a str,
+    },
+    HttpBodyError {
+        status: u16,
+        #[serde(rename = "body_error")]
+        message: &'a str,
+    },
+    TransportError {
+        #[serde(rename = "transport_error")]
+        message: &'a str,
+    },
+}
+
+#[requires(!path.as_os_str().is_empty())]
+#[requires(!contents.is_empty())]
+#[ensures(ret.is_ok() -> path.is_file())]
+fn write_new_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(contents)?;
+    file.flush()
+}
+
+#[requires(!path.as_os_str().is_empty())]
+#[ensures(!ret.to_string().is_empty())]
+fn request_dump_error(path: &Path, error: std::io::Error) -> OpenRouterError {
+    OpenRouterError::RequestDump {
+        path: path.to_path_buf(),
+        message: error.to_string(),
     }
 }
 
@@ -611,6 +783,7 @@ impl OpenRouterClientConfig {
 pub struct OpenRouterClient {
     config: OpenRouterClientConfig,
     agent: ureq::Agent,
+    request_dumper: Option<Arc<RequestDumper>>,
 }
 
 impl OpenRouterClient {
@@ -618,6 +791,10 @@ impl OpenRouterClient {
     #[requires(true)]
     #[ensures(!ret.config.base_url.is_empty())]
     pub fn new(config: OpenRouterClientConfig) -> Self {
+        let request_dumper = config
+            .request_dump_directory
+            .as_ref()
+            .map(|directory| Arc::new(RequestDumper::new(directory.clone())));
         let agent_config = ureq::Agent::config_builder()
             .timeout_global(Some(config.timeout))
             .http_status_as_error(false)
@@ -625,6 +802,7 @@ impl OpenRouterClient {
         Self {
             config,
             agent: ureq::Agent::new_with_config(agent_config),
+            request_dumper,
         }
     }
 
@@ -736,10 +914,11 @@ impl OpenRouterClient {
         // so a phase transition invalidates the cache even with these breakpoints.
         // Within-phase loops carry the expected call volume; do not stabilize the
         // tool array here because that would weaken protocol enforcement.
-        let request = CompletionRequest {
+        let request = new!(CompletionRequest {
             model,
             provider,
             temperature,
+            max_tokens: COMPLETION_MAX_TOKENS,
             messages: new!(CompletionMessages {
                 messages,
                 explicit_prompt_caching,
@@ -749,7 +928,7 @@ impl OpenRouterClient {
             tool_choice,
             reasoning: CompletionReasoningRequest::from_config(reasoning),
             usage: new!(CompletionUsageRequest { include: true }),
-        };
+        });
         let url = format!(
             "{}/chat/completions",
             self.config.base_url.trim_end_matches('/')
@@ -768,62 +947,101 @@ impl OpenRouterClient {
                     message: format!("completion request did not serialize: {error}"),
                 }
             })?;
+            let dump = self
+                .request_dumper
+                .as_ref()
+                .map(|dumper| dumper.write_request(request_body.as_bytes()))
+                .transpose()?;
             let mut response = match builder.send(request_body) {
                 Ok(response) => response,
                 Err(error) if is_retriable_transport_timeout(&error) => {
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        let message = error.to_string();
+                        dumper.write_response(
+                            dump,
+                            new!(RequestDumpResponse::TransportError { message: &message }),
+                        )?;
+                    }
                     self.back_off_after_transport_timeout(&mut retries, &error)?;
                     continue;
                 }
                 Err(error) => {
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        let message = error.to_string();
+                        dumper.write_response(
+                            dump,
+                            new!(RequestDumpResponse::TransportError { message: &message }),
+                        )?;
+                    }
                     return Err(OpenRouterError::Transport {
                         message: error.to_string(),
                     });
                 }
             };
             let status = response.status().as_u16();
+            let response_body = match response.body_mut().read_to_string() {
+                Ok(body) => {
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        dumper.write_response(
+                            dump,
+                            new!(RequestDumpResponse::Http {
+                                status,
+                                body: &body,
+                            }),
+                        )?;
+                    }
+                    body
+                }
+                Err(error) => {
+                    let message = error.to_string();
+                    if let (Some(dumper), Some(dump)) = (&self.request_dumper, &dump) {
+                        dumper.write_response(
+                            dump,
+                            new!(RequestDumpResponse::HttpBodyError {
+                                status,
+                                message: &message,
+                            }),
+                        )?;
+                    }
+                    if is_retriable_response_body_failure(&error) {
+                        self.back_off_after_response_body_failure(&mut retries, message)?;
+                        continue;
+                    }
+                    if is_transient_provider_code(status) {
+                        if self.back_off_before_retry(&mut retries) {
+                            continue;
+                        }
+                        return Err(OpenRouterError::TransientRetriesExhausted {
+                            code: status,
+                            attempts: retries + 1,
+                            message: format!("unable to read response body: {message}"),
+                        });
+                    }
+                    if !(200..=299).contains(&status) {
+                        return Err(OpenRouterError::HttpStatus {
+                            status,
+                            body: format!("unable to read response body: {message}"),
+                        });
+                    }
+                    return Err(OpenRouterError::InvalidResponse { message });
+                }
+            };
             if is_transient_provider_code(status) {
                 if self.back_off_before_retry(&mut retries) {
                     continue;
                 }
-                let body = match response.body_mut().read_to_string() {
-                    Ok(body) => body,
-                    Err(error) if is_retriable_response_body_failure(&error) => {
-                        return Err(OpenRouterError::TransportRetriesExhausted {
-                            attempts: retries + 1,
-                            message: error.to_string(),
-                        });
-                    }
-                    Err(error) => format!("unable to read response body: {error}"),
-                };
                 return Err(OpenRouterError::TransientRetriesExhausted {
                     code: status,
                     attempts: retries + 1,
-                    message: body,
+                    message: response_body,
                 });
             }
             if !(200..=299).contains(&status) {
-                let body = match response.body_mut().read_to_string() {
-                    Ok(body) => body,
-                    Err(error) if is_retriable_response_body_failure(&error) => {
-                        self.back_off_after_response_body_failure(&mut retries, error.to_string())?;
-                        continue;
-                    }
-                    Err(error) => format!("unable to read response body: {error}"),
-                };
-                return Err(OpenRouterError::HttpStatus { status, body });
+                return Err(OpenRouterError::HttpStatus {
+                    status,
+                    body: response_body,
+                });
             }
-            let response_body = match response.body_mut().read_to_string() {
-                Ok(body) => body,
-                Err(error) if is_retriable_response_body_failure(&error) => {
-                    self.back_off_after_response_body_failure(&mut retries, error.to_string())?;
-                    continue;
-                }
-                Err(error) => {
-                    return Err(OpenRouterError::InvalidResponse {
-                        message: error.to_string(),
-                    });
-                }
-            };
             let mut wire: CompletionResponse = match serde_json::from_str(&response_body) {
                 Ok(wire) => wire,
                 Err(error) if is_truncated_json_response(&error) => {
@@ -1193,8 +1411,10 @@ impl ParticipantConversation {
                 reprompts += 1;
                 continue;
             }
-            self.messages
-                .push(ChatMessage::assistant(content.clone(), tool_calls.clone()));
+            self.messages.push(ChatMessage::assistant(
+                content.clone(),
+                tool_calls.iter().map(ToolCall::history_copy).collect(),
+            ));
             if !tool_calls.is_empty() {
                 if let Some(reasoning_details) = thinking
                     .as_ref()
@@ -1300,6 +1520,7 @@ impl ParticipantConversation {
 #[invariant(true)]
 #[invariant(::MissingApiKey => true)]
 #[invariant(::InvalidConfiguration { .. } => true)]
+#[invariant(::RequestDump { .. } => true)]
 #[invariant(::Transport { .. } => true)]
 #[invariant(::TransportRetriesExhausted { .. } => true)]
 #[invariant(::HttpStatus { .. } => true)]
@@ -1315,6 +1536,8 @@ pub enum OpenRouterError {
     MissingApiKey,
     #[error("invalid OpenRouter configuration: {message}")]
     InvalidConfiguration { message: String },
+    #[error("unable to write OpenRouter request dump `{path}`: {message}", path = path.display())]
+    RequestDump { path: PathBuf, message: String },
     #[error("OpenRouter transport failed: {message}")]
     Transport { message: String },
     #[error("OpenRouter transport timeout exhausted after {attempts} attempts: {message}")]
@@ -1352,13 +1575,16 @@ pub enum ProviderUsageValidationError {
     ProviderMustNotBeEmpty,
 }
 
-#[invariant(true)]
+#[invariant(!model.trim().is_empty(), "completion model cannot be empty")]
+#[invariant(temperature.is_finite() && (0.0..=2.0).contains(temperature), "completion temperature must use OpenRouter's range")]
+#[invariant(*max_tokens > 0, "completion token limit must be positive")]
 #[derive(Debug, Serialize)]
 struct CompletionRequest<'a> {
     model: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     provider: Option<&'a toml::Table>,
     temperature: f64,
+    max_tokens: u32,
     messages: CompletionMessages<'a>,
     tools: &'a [ToolDefinition],
     tool_choice: ProviderToolChoice,
