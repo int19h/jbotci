@@ -506,4 +506,4 @@ def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
 
 
 def test_embedded_dictionary_validates() -> None:
-    assert dictionary.english.validate() is None
+    dictionary.english.validate()
