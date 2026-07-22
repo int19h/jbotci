@@ -18,7 +18,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 def word_fixture_value(word: morphology.Word) -> dict[str, object]:
     """Project public word fields into the independently authored fixture shape."""
 
-    span = list(word.span.byte_range)
+    span = list(word.span.char_range)
     if isinstance(word, morphology.LujvoWord):
         parts = [
             {
@@ -67,7 +67,7 @@ def word_like_fixture_value(value: morphology.WordLike) -> dict[str, object]:
             "zoi": word_fixture_value(value.zoi),
             "opening_delimiter": word_fixture_value(value.opening_delimiter),
             "quoted_text": {
-                "span": list(value.quoted_text.span.byte_range),
+                "span": list(value.quoted_text.span.char_range),
                 "text": value.quoted_text.text,
             },
             "closing_delimiter": word_fixture_value(value.closing_delimiter),
@@ -86,7 +86,7 @@ def word_like_fixture_value(value: morphology.WordLike) -> dict[str, object]:
         payload = {
             "marker": word_fixture_value(value.marker),
             "quoted_text": {
-                "span": list(value.quoted_text.span.byte_range),
+                "span": list(value.quoted_text.span.char_range),
                 "text": value.quoted_text.text,
             },
         }
