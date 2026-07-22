@@ -530,8 +530,8 @@ impl PyByteOffsetNotCharBoundary {
 
 /// Diagnostic-span failure wrapping a structured source-location error.
 #[invariant(
-    matches!(value, DiagnosticSpanError::SourceLocation(_)),
-    "the wrapper always stores the source-location variant"
+    true,
+    "PyO3 requires the declared class shape; SourceLocationError represents every valid shell state"
 )]
 #[pyclass(
     name = "SourceLocation",
@@ -542,17 +542,14 @@ impl PyByteOffsetNotCharBoundary {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyDiagnosticSourceLocation {
-    value: DiagnosticSpanError,
+    value: SourceLocationError,
 }
 
 impl PyDiagnosticSourceLocation {
     #[requires(true)]
     #[ensures(true)]
     fn source_error(&self) -> &SourceLocationError {
-        let DiagnosticSpanError::SourceLocation(error) = &self.value else {
-            unreachable!("private construction fixes the diagnostic-span variant")
-        };
-        error
+        &self.value
     }
 }
 
@@ -567,9 +564,8 @@ impl PyDiagnosticSourceLocation {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(error: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(new!(PyDiagnosticSourceLocation {
-            value: DiagnosticSpanError::SourceLocation(source_location_error_from_python(error)?),
-        }))
+        let value = source_location_error_from_python(error)?;
+        Ok(PyDiagnosticSourceLocation { value })
     }
 
     /// Return the nested source-location error.
@@ -610,8 +606,8 @@ fn diagnostic_span_error_to_exception(py: Python<'_>, error: DiagnosticSpanError
         DiagnosticSpanError::ByteOffsetNotCharBoundary { offset } => {
             Py::new(py, PyByteOffsetNotCharBoundary { offset }).map(Py::into_any)
         }
-        error @ DiagnosticSpanError::SourceLocation(_) => {
-            Py::new(py, new!(PyDiagnosticSourceLocation { value: error })).map(Py::into_any)
+        DiagnosticSpanError::SourceLocation(error) => {
+            Py::new(py, PyDiagnosticSourceLocation { value: error }).map(Py::into_any)
         }
     };
     match value {
@@ -648,7 +644,7 @@ impl PySourceId {
     }
 
     #[requires(true)]
-    #[ensures(ret.0 == old(value.0.clone()))]
+    #[ensures(ret.value.0 == old(value.0.clone()))]
     pub(crate) fn from_rust(value: SourceId) -> Self {
         Self { value }
     }
@@ -965,7 +961,7 @@ impl PySourceSpan {
 }
 
 #[requires(true)]
-#[ensures(ret.is_none() == value.is_none())]
+#[ensures(value.is_none() == (ret == "None"))]
 fn line_column_repr(value: Option<LineColumn>) -> String {
     value.map_or_else(
         || "None".to_owned(),

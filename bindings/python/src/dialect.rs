@@ -5,8 +5,9 @@ use std::collections::BTreeSet;
 
 use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_dialect::{
-    BuiltinDialect, CmavoDialectEntry, CustomDialect, DialectDefinition, DialectFeature,
-    DialectSettings, add_dialect_formula_reference as rust_add_dialect_formula_reference,
+    BuiltinDialect, CmavoDialectEntry, CmavoDialectEntryData, CustomDialect, DialectDefinition,
+    DialectFeature, DialectSettings,
+    add_dialect_formula_reference as rust_add_dialect_formula_reference,
     builtin_dialect_names as rust_builtin_dialect_names, builtin_dialects as rust_builtin_dialects,
     cmavo_dialect_entries_to_definition as rust_cmavo_dialect_entries_to_definition,
     custom_dialect_definition_to_johau_uri as rust_custom_dialect_definition_to_johau_uri,

@@ -7,21 +7,22 @@ use std::sync::Arc;
 use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_diagnostics::source_span_from_char_offsets;
 use jbotci_morphology::{
-    Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord,
-    ConsonantPairClass, DialectCompilationError, ExpectedWordDetailKind, GlideMark,
-    LeadingPauseContext, LeadingPauseVowelMode, LujvoBuildMode, LujvoBuildPart, LujvoCandidate,
-    LujvoParseExpectation, LujvoPart, MORPHOLOGY_TRACE_FILTERS, MorphologyContext,
-    MorphologyContextKind, MorphologyError as RustMorphologyError, MorphologyErrorDetail,
+    Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectEntryData,
+    CompiledDialectWord, ConsonantPairClass, DialectCompilationError, DialectCompilationErrorData,
+    ExpectedWordDetailKind, GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoBuildMode,
+    LujvoBuildPart, LujvoBuildPartData, LujvoCandidate, LujvoCandidateData, LujvoParseExpectation,
+    LujvoPart, MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextKind,
+    MorphologyError as RustMorphologyError, MorphologyErrorDetail, MorphologyErrorDetailData,
     MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning,
     MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS, PhonemeRenderOptions,
-    Phonemes, PhonotacticDetailKind, PlainWordClassification, RafsiShape,
-    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, StressMark,
-    StringEnumMetadata, ValsiAnalysis, ValsiAnalysisResult, ValsiAnalysisStatus,
-    ValsiClassification, ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart,
-    ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word, WordKey, WordKind, WordLike,
-    ZoiDelimiterDetailKind,
+    Phonemes, PhonotacticDetailKind, PlainWordClassification, PlainWordClassificationData,
+    RafsiShape, RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho,
+    StressMark, StringEnumMetadata, ValsiAnalysis, ValsiAnalysisResult, ValsiAnalysisStatus,
+    ValsiClassification, ValsiClassificationData, ValsiClassificationKind, ValsiFuhivlaStage,
+    ValsiLujvoPart, ValsiLujvoPartData, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word,
+    WordKey, WordKeyData, WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind,
 };
-use jbotci_syntax::{Token, WithIndicators};
+use jbotci_syntax::{Token, WithIndicators, WithIndicatorsData};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
 
@@ -548,8 +549,9 @@ impl PyWordKey {
         kind: &Bound<'_, PyAny>,
         phonemes: PyRef<'_, PyPhonemes>,
     ) -> PyResult<Self> {
+        let kind = enum_from_python(py, kind)?;
         Ok(Self::from_rust(new!(WordKey {
-            kind: enum_from_python(py, kind)?,
+            kind,
             phonemes: phonemes.clone_rust(),
         })))
     }
@@ -571,8 +573,20 @@ impl PyWordKey {
     }
 }
 
+#[invariant(
+    !word.is_empty(),
+    "dialect compilation errors retain a non-empty word"
+)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct InvalidDialectWordStorage {
+    word: String,
+}
+
 /// Dialect-compilation failure carrying the exact invalid word.
-#[invariant(!word.is_empty(), "dialect compilation errors retain a non-empty word")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; validated storage preserves a non-empty word"
+)]
 #[pyclass(
     name = "InvalidDialectWord",
     frozen,
@@ -583,7 +597,7 @@ impl PyWordKey {
 )]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct PyInvalidDialectWord {
-    word: String,
+    value: InvalidDialectWordStorage,
 }
 
 #[pymethods]
@@ -594,7 +608,7 @@ impl PyInvalidDialectWord {
 
     /// Construct an invalid-dialect-word detail with its exact spelling.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|detail| detail.word == word) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|detail| detail.value.word == word) || ret.is_err())]
     #[new]
     fn new(word: String) -> PyResult<Self> {
         if word.is_empty() {
@@ -602,21 +616,26 @@ impl PyInvalidDialectWord {
                 "invalid dialect word must not be empty",
             ));
         }
-        Ok(new!(PyInvalidDialectWord { word }))
+        Ok(PyInvalidDialectWord {
+            value: new!(InvalidDialectWordStorage { word }),
+        })
     }
 
     /// Return the exact word rejected by morphology compilation.
     #[requires(true)]
-    #[ensures(ret == self.word.as_str())]
+    #[ensures(ret == self.value.word.as_str())]
     #[getter]
     fn word(&self) -> &str {
-        &self.word
+        &self.value.word
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn __str__(&self) -> String {
-        format!("dialect word is not morphologically valid: {}", self.word)
+        format!(
+            "dialect word is not morphologically valid: {}",
+            self.value.word
+        )
     }
 
     #[requires(true)]
@@ -624,7 +643,7 @@ impl PyInvalidDialectWord {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
         Ok(format!(
             "jbotci.morphology.InvalidDialectWord(word={})",
-            string_repr(py, &self.word)?
+            string_repr(py, &self.value.word)?
         ))
     }
 }
@@ -632,8 +651,9 @@ impl PyInvalidDialectWord {
 #[requires(true)]
 #[ensures(true)]
 fn dialect_compilation_error_to_python(py: Python<'_>, error: DialectCompilationError) -> PyErr {
-    let data!(DialectCompilationError::InvalidWord { word }) = error.as_data();
-    match Py::new(py, new!(PyInvalidDialectWord { word: word.clone() })) {
+    let data!(DialectCompilationError::InvalidWord { word }) = error.into_data();
+    let value = new!(InvalidDialectWordStorage { word });
+    match Py::new(py, PyInvalidDialectWord { value }) {
         Ok(value) => public_exception_with_value(
             py,
             PUBLIC_MODULE,
@@ -759,7 +779,7 @@ impl PyCompiledDialectDefinition {
     }
 }
 
-#[invariant(index < owner.get().entries.len())]
+#[invariant(*index < owner.get().entries.len())]
 #[derive(Debug, Clone)]
 struct CompiledEntryHandle {
     owner: CompiledDialectStorage,
@@ -1011,7 +1031,7 @@ impl PyCompiledDialectWord {
     }
 }
 
-#[requires(index < owner.entries.len())]
+#[requires(index < owner.get().entries.len())]
 #[ensures(true)]
 fn compiled_entry_to_python(
     py: Python<'_>,
@@ -1086,7 +1106,7 @@ impl PyMorphologyOptions {
         let max_recovery_errors = NonZeroUsize::new(max_recovery_errors).ok_or_else(|| {
             InvalidInputError::new_err("max_recovery_errors must be greater than zero")
         })?;
-        let mut value = new!(MorphologyOptions {
+        let mut value = MorphologyOptions {
             accept_latin,
             accept_cyrillic,
             accept_zbalermorna,
@@ -1097,10 +1117,10 @@ impl PyMorphologyOptions {
             max_recovery_errors,
             trace: trace
                 .as_ref()
-                .map_or_else(jbotci_diagnostics::TraceOptions::disabled, |trace| trace
-                    .rust()
-                    .clone()),
-        });
+                .map_or_else(jbotci_diagnostics::TraceOptions::disabled, |trace| {
+                    trace.rust().clone()
+                }),
+        };
         if let Some(dialect) = dialect {
             value = value
                 .try_with_dialect_definition(dialect.rust())
@@ -1119,16 +1139,17 @@ impl PyMorphologyOptions {
 
     /// Return a copy using an already compiled morphology dialect.
     #[requires(true)]
-    #[ensures(ret.value.compiled_dialect.entries.len() == dialect.value.get().entries.len())]
+    #[ensures(ret.rust().compiled_dialect.entries.len() == dialect.rust().entries.len())]
     fn with_compiled_dialect(&self, dialect: PyRef<'_, PyCompiledDialectDefinition>) -> Self {
-        Self::from_rust(self.value.as_ref().clone().with_data(data! {
+        Self::from_rust(MorphologyOptions {
             compiled_dialect: dialect.rust().clone(),
-        }))
+            ..self.value.as_ref().clone()
+        })
     }
 
     /// Return a copy compiled from the supplied declarative dialect definition.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|options| options.value.compiled_dialect.entries.len() == dialect.value.cmavo_entries.len()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|options| options.rust().compiled_dialect.entries.len() == dialect.rust().cmavo_entries.len()) || ret.is_err())]
     fn with_dialect(
         &self,
         py: Python<'_>,
@@ -1144,7 +1165,7 @@ impl PyMorphologyOptions {
 
     /// Return a copy using the supplied immutable trace options.
     #[requires(true)]
-    #[ensures(ret.value.trace == trace.value)]
+    #[ensures(&ret.rust().trace == trace.rust())]
     fn with_trace(&self, trace: PyRef<'_, PyTraceOptions>) -> Self {
         Self::from_rust(
             self.value
@@ -1237,7 +1258,7 @@ impl PyMorphologyOptions {
 
     /// Return the immutable trace configuration.
     #[requires(true)]
-    #[ensures(ret.value == self.value.trace)]
+    #[ensures(ret.rust() == &self.value.trace)]
     #[getter]
     fn trace(&self) -> PyTraceOptions {
         PyTraceOptions::from_rust(self.value.trace.clone())
@@ -1270,7 +1291,7 @@ impl TokenHandle {
     #[requires(true)]
     #[ensures(Token::ptr_eq(ret.get(), &old(value.clone())))]
     pub(crate) fn from_rust(value: Token) -> Self {
-        new!(TokenHandle { value })
+        TokenHandle { value }
     }
 
     /// Borrow the exact token, including its stable Arc identity.
@@ -1704,20 +1725,20 @@ impl WordHandle {
     #[requires(true)]
     #[expensive_ensures(ret.get() == &old(word.clone()))]
     pub(crate) fn from_owned(word: Word) -> Self {
-        new!(WordHandle {
+        WordHandle {
             value: new!(WordHandleStorage::WordLike {
                 node: WordLikeHandle::root(WordLike::bare(word)),
                 slot: WordSlot::Plain,
             }),
-        })
+        }
     }
 
     #[requires(word_slot_resolves(node.get(), slot))]
     #[ensures(true)]
     fn new(node: WordLikeHandle, slot: WordSlot) -> Self {
-        new!(WordHandle {
+        WordHandle {
             value: new!(WordHandleStorage::WordLike { node, slot }),
-        })
+        }
     }
 
     /// Locate a word stored directly in an indicator layer without cloning it.
@@ -1730,17 +1751,17 @@ impl WordHandle {
         if !with_indicators_word_slot_resolves(node.get(), slot) {
             return None;
         }
-        Some(new!(WordHandle {
+        Some(WordHandle {
             value: new!(WordHandleStorage::Indicators { node, slot }),
-        }))
+        })
     }
 
     #[requires(true)]
-    #[ensures(matches!(ret.value.as_data(), data!(WordHandleStorage::Compiled { .. })))]
+    #[ensures(ret.get() == &old(handle.clone()).get().word)]
     fn from_compiled(handle: CompiledWordHandle) -> Self {
-        new!(WordHandle {
+        WordHandle {
             value: new!(WordHandleStorage::Compiled { handle }),
-        })
+        }
     }
 
     #[requires(true)]
@@ -1874,7 +1895,7 @@ fn with_indicators_word_slot_resolves(
     project_with_indicators_word(value, slot).is_some()
 }
 
-#[invariant(index < word.get().lujvo_parts().map_or(0, |parts| parts.len()))]
+#[invariant(*index < word.get().lujvo_parts().map_or(0, |parts| parts.len()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LocatedLujvoPart {
     word: WordHandle,
@@ -2191,7 +2212,7 @@ impl PyVerbatim {
 
     /// Return the verbatim source span.
     #[requires(true)]
-    #[ensures(ret.value.char_start == self.value.get().span.char_start)]
+    #[ensures(ret.rust().char_start == self.value.get().span.char_start)]
     #[getter]
     fn span(&self) -> PySourceSpan {
         PySourceSpan::from_rust(self.value.get().span.as_ref().clone())
@@ -3900,10 +3921,11 @@ impl PyInvalidLujvoDetail {
                 "parsed_prefix must be non-empty when present",
             ));
         }
+        let expected = enum_from_python(py, expected)?;
         Ok(PyInvalidLujvoDetail {
             value: new!(MorphologyErrorDetail::InvalidLujvo {
                 parsed_prefix,
-                expected: enum_from_python(py, expected)?
+                expected,
             }),
         })
     }
@@ -4034,10 +4056,9 @@ impl PyExpectedWordDetail {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(py: Python<'_>, expected: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let expected = enum_from_python(py, expected)?;
         Ok(PyExpectedWordDetail {
-            value: new!(MorphologyErrorDetail::ExpectedWord {
-                expected: enum_from_python(py, expected)?
-            }),
+            value: new!(MorphologyErrorDetail::ExpectedWord { expected }),
         })
     }
     /// Return the expected word role.
@@ -4079,10 +4100,9 @@ impl PyInvalidZoiDelimiterDetail {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(py: Python<'_>, reason: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let reason = enum_from_python(py, reason)?;
         Ok(PyInvalidZoiDelimiterDetail {
-            value: new!(MorphologyErrorDetail::InvalidZoiDelimiter {
-                reason: enum_from_python(py, reason)?
-            }),
+            value: new!(MorphologyErrorDetail::InvalidZoiDelimiter { reason }),
         })
     }
     /// Return the invalid-delimiter reason.
@@ -4125,10 +4145,9 @@ impl PyPhonotacticDetail {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(py: Python<'_>, reason: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let reason = enum_from_python(py, reason)?;
         Ok(PyPhonotacticDetail {
-            value: new!(MorphologyErrorDetail::Phonotactic {
-                reason: enum_from_python(py, reason)?
-            }),
+            value: new!(MorphologyErrorDetail::Phonotactic { reason }),
         })
     }
     /// Return the phonotactic violation reason.
@@ -4269,14 +4288,14 @@ fn error_to_diagnostic_checked(
     source_id: Option<jbotci_source::SourceId>,
     source: &str,
 ) -> PyResult<jbotci_diagnostics::Diagnostic> {
-    match error.as_data() {
-        data!(RustMorphologyError::Invalid {
+    match error {
+        RustMorphologyError::Invalid {
             char_start,
             char_end,
             text,
             context,
             ..
-        }) => {
+        } => {
             validate_diagnostic_source_text(
                 source,
                 *char_start,
@@ -4286,11 +4305,11 @@ fn error_to_diagnostic_checked(
             )?;
             validate_diagnostic_context(source, context.as_ref())?;
         }
-        data!(RustMorphologyError::UnterminatedZoiQuote {
+        RustMorphologyError::UnterminatedZoiQuote {
             char_offset,
             context,
             ..
-        }) => {
+        } => {
             validate_diagnostic_char_range(
                 source,
                 *char_offset,
@@ -4299,7 +4318,7 @@ fn error_to_diagnostic_checked(
             )?;
             validate_diagnostic_context(source, context.as_ref())?;
         }
-        data!(RustMorphologyError::SourceSpan(_)) => {
+        RustMorphologyError::SourceSpan(_) => {
             validate_diagnostic_char_range(source, 0, 0, "source-span error character range")?;
         }
     }
@@ -4535,15 +4554,17 @@ impl PyInvalidMorphology {
         context: Option<PyRef<'_, PyMorphologyContext>>,
         detail: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
+        let kind = enum_from_python(py, kind)?;
+        let detail = detail.map(morphology_detail_from_python).transpose()?;
         Ok(PyInvalidMorphology {
-            value: Arc::new(new!(RustMorphologyError::Invalid {
-                kind: enum_from_python(py, kind)?,
+            value: Arc::new(RustMorphologyError::Invalid {
+                kind,
                 char_start,
                 char_end,
                 text,
                 context: context.map(|context| context.value.clone()),
-                detail: detail.map(morphology_detail_from_python).transpose()?,
-            })),
+                detail,
+            }),
         })
     }
     /// Return the morphology error kind.
@@ -4551,7 +4572,7 @@ impl PyInvalidMorphology {
     #[ensures(true)]
     #[getter]
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { kind, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         enum_to_python(py, *kind)
@@ -4561,7 +4582,7 @@ impl PyInvalidMorphology {
     #[ensures(!ret.is_empty())]
     #[getter]
     fn code(&self) -> &'static str {
-        let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { kind, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         kind.code()
@@ -4571,7 +4592,7 @@ impl PyInvalidMorphology {
     #[ensures(!ret.is_empty())]
     #[getter]
     fn message(&self) -> &'static str {
-        let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { kind, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         kind.message()
@@ -4581,7 +4602,7 @@ impl PyInvalidMorphology {
     #[ensures(true)]
     #[getter]
     fn char_start(&self) -> usize {
-        let data!(RustMorphologyError::Invalid { char_start, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { char_start, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         *char_start
@@ -4591,7 +4612,7 @@ impl PyInvalidMorphology {
     #[ensures(true)]
     #[getter]
     fn char_end(&self) -> usize {
-        let data!(RustMorphologyError::Invalid { char_end, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { char_end, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         *char_end
@@ -4601,7 +4622,7 @@ impl PyInvalidMorphology {
     #[ensures(true)]
     #[getter]
     fn text(&self) -> &str {
-        let data!(RustMorphologyError::Invalid { text, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { text, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         text
@@ -4611,7 +4632,7 @@ impl PyInvalidMorphology {
     #[ensures(true)]
     #[getter]
     fn context(&self) -> Option<PyMorphologyContext> {
-        let data!(RustMorphologyError::Invalid { context, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { context, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         context.clone().map(PyMorphologyContext::from_rust)
@@ -4621,7 +4642,7 @@ impl PyInvalidMorphology {
     #[ensures(true)]
     #[getter]
     fn detail(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        let data!(RustMorphologyError::Invalid { detail, .. }) = self.value.as_data() else {
+        let RustMorphologyError::Invalid { detail, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         detail
@@ -4686,11 +4707,11 @@ impl PyUnterminatedZoiQuote {
         context: Option<PyRef<'_, PyMorphologyContext>>,
     ) -> PyResult<Self> {
         Ok(PyUnterminatedZoiQuote {
-            value: Arc::new(new!(RustMorphologyError::UnterminatedZoiQuote {
+            value: Arc::new(RustMorphologyError::UnterminatedZoiQuote {
                 char_offset,
                 delimiter,
-                context: context.map(|context| context.value.clone())
-            })),
+                context: context.map(|context| context.value.clone()),
+            }),
         })
     }
     /// Return the stable morphology error code.
@@ -4705,8 +4726,7 @@ impl PyUnterminatedZoiQuote {
     #[ensures(true)]
     #[getter]
     fn char_offset(&self) -> usize {
-        let data!(RustMorphologyError::UnterminatedZoiQuote { char_offset, .. }) =
-            self.value.as_data()
+        let RustMorphologyError::UnterminatedZoiQuote { char_offset, .. } = self.value.as_ref()
         else {
             unreachable!("private construction fixes the error variant")
         };
@@ -4717,8 +4737,7 @@ impl PyUnterminatedZoiQuote {
     #[ensures(true)]
     #[getter]
     fn delimiter(&self) -> &str {
-        let data!(RustMorphologyError::UnterminatedZoiQuote { delimiter, .. }) =
-            self.value.as_data()
+        let RustMorphologyError::UnterminatedZoiQuote { delimiter, .. } = self.value.as_ref()
         else {
             unreachable!("private construction fixes the error variant")
         };
@@ -4729,8 +4748,7 @@ impl PyUnterminatedZoiQuote {
     #[ensures(true)]
     #[getter]
     fn context(&self) -> Option<PyMorphologyContext> {
-        let data!(RustMorphologyError::UnterminatedZoiQuote { context, .. }) = self.value.as_data()
-        else {
+        let RustMorphologyError::UnterminatedZoiQuote { context, .. } = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         context.clone().map(PyMorphologyContext::from_rust)
@@ -4785,10 +4803,9 @@ impl PySourceSpanMorphologyError {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(error: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let error = source_location_error_from_python(error)?;
         Ok(PySourceSpanMorphologyError {
-            value: Arc::new(new!(RustMorphologyError::SourceSpan(
-                source_location_error_from_python(error)?
-            ))),
+            value: Arc::new(RustMorphologyError::SourceSpan(error)),
         })
     }
     /// Return the stable morphology error code.
@@ -4803,7 +4820,7 @@ impl PySourceSpanMorphologyError {
     #[ensures(true)]
     #[getter]
     fn error(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let data!(RustMorphologyError::SourceSpan(error)) = self.value.as_data() else {
+        let RustMorphologyError::SourceSpan(error) = self.value.as_ref() else {
             unreachable!("private construction fixes the error variant")
         };
         source_location_error_to_python(py, error.clone())
@@ -4837,14 +4854,14 @@ fn morphology_error_to_python(
     py: Python<'_>,
     value: Arc<RustMorphologyError>,
 ) -> PyResult<Py<PyAny>> {
-    match value.as_data() {
-        data!(RustMorphologyError::Invalid { .. }) => {
+    match value.as_ref() {
+        RustMorphologyError::Invalid { .. } => {
             Ok(Py::new(py, PyInvalidMorphology { value })?.into_any())
         }
-        data!(RustMorphologyError::UnterminatedZoiQuote { .. }) => {
+        RustMorphologyError::UnterminatedZoiQuote { .. } => {
             Ok(Py::new(py, PyUnterminatedZoiQuote { value })?.into_any())
         }
-        data!(RustMorphologyError::SourceSpan(_)) => {
+        RustMorphologyError::SourceSpan(_) => {
             Ok(Py::new(py, PySourceSpanMorphologyError { value })?.into_any())
         }
     }
@@ -6113,9 +6130,10 @@ impl PyLerfuWordValsiClassification {
                 "lerfu suffix classification must be cmavo",
             ));
         }
+        let base = classification_handle_from_python(base)?;
         Ok(PyLerfuWordValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::LerfuWord {
-                base: Box::new(classification_handle_from_python(base)?.get().clone()),
+                base: Box::new(base.get().clone()),
                 suffix: suffix.value.clone_rust()
             })),
         })
@@ -6182,9 +6200,10 @@ impl PyZeiCompoundValsiClassification {
                 "ZEI link classification must be cmavo",
             ));
         }
+        let left = classification_handle_from_python(left)?;
         Ok(PyZeiCompoundValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::ZeiCompound {
-                left: Box::new(classification_handle_from_python(left)?.get().clone()),
+                left: Box::new(left.get().clone()),
                 link: link.value.clone_rust(),
                 right: right.value.clone_rust()
             })),
@@ -7651,14 +7670,14 @@ mod tests {
             let SegmentOutcome::Error { value } = &projected.outcome else {
                 panic!("aa must project as a morphology error")
             };
-            let data!(RustMorphologyError::Invalid {
+            let RustMorphologyError::Invalid {
                 kind,
                 char_start,
                 char_end,
                 text,
                 context,
                 detail,
-            }) = value.as_data()
+            } = value.as_ref()
             else {
                 panic!("aa must project as InvalidMorphology")
             };
@@ -7702,13 +7721,13 @@ mod tests {
             let region = &projected.result.error_regions[0];
             assert_eq!((region.byte_start, region.byte_end), (3, 7));
             assert_eq!((region.char_start, region.char_end), (3, 7));
-            let data!(RustMorphologyError::Invalid {
+            let RustMorphologyError::Invalid {
                 kind,
                 char_start,
                 char_end,
                 text,
                 ..
-            }) = projected.result.errors[0].as_data()
+            } = &projected.result.errors[0]
             else {
                 panic!("recovery must retain an InvalidMorphology payload")
             };
@@ -7825,13 +7844,13 @@ mod tests {
             assert!(matches!(
                 &projected.outcome,
                 SegmentOutcome::Error { value }
-                    if matches!(value.as_data(), data!(RustMorphologyError::Invalid {
+                    if matches!(value.as_ref(), RustMorphologyError::Invalid {
                         kind: MorphologyErrorKind::VowelHiatus,
                         char_start: 0,
                         char_end: 2,
                         text,
                         ..
-                    }) if text == "aa")
+                    } if text == "aa")
             ));
             let trace = projected
                 .trace

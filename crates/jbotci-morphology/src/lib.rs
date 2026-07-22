@@ -71,14 +71,16 @@ pub use diacritics::{
     strip_lojban_diacritic, strip_lojban_diacritics, stripped_lojban_diacritics_eq,
 };
 pub use dialect::{
-    CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord, DialectCompilationError,
+    CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectEntryData, CompiledDialectWord,
+    DialectCompilationError, DialectCompilationErrorData,
 };
 pub use lujvo::{
     ConsonantPairClass, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoCandidate,
-    RafsiShape, bond_rafsis, choose_best_lujvo_candidate, choose_best_lujvo_candidate_from_parts,
-    consonant_pair_class, ends_with_consonant, ends_with_vowel, ensure_cmevla_word,
-    is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
-    permissible_consonant_pair, rafsi_shape, syllables_pattern,
+    LujvoCandidateData, RafsiShape, bond_rafsis, choose_best_lujvo_candidate,
+    choose_best_lujvo_candidate_from_parts, consonant_pair_class, ends_with_consonant,
+    ends_with_vowel, ensure_cmevla_word, is_bonding_hyphen, is_cmevla, is_consonant,
+    is_valid_lujvo_candidate_word, is_vowel, permissible_consonant_pair, rafsi_shape,
+    syllables_pattern,
 };
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,

@@ -3,13 +3,14 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticNoteMode,
     DiagnosticPhase, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
-    DiagnosticTextRole, DiagnosticTextSegment, TraceContext, TraceEvent, TraceEventKind,
-    TraceFailureBranch, TraceFailureSummary, TraceFilter, TraceLevel, TraceOptionError,
-    TraceOptions, TracePhase, TraceReport,
+    DiagnosticTextLinkData, DiagnosticTextRole, DiagnosticTextSegment, TraceContext, TraceEvent,
+    TraceEventData, TraceEventKind, TraceFailureBranch, TraceFailureSummary,
+    TraceFailureSummaryData, TraceFilter, TraceLevel, TraceOptionError, TraceOptions,
+    TraceOptionsData, TracePhase, TraceReport, TraceReportData,
     diagnostic_text_segments as rust_diagnostic_text_segments,
     diagnostic_text_segments_text as rust_diagnostic_text_segments_text,
 };
@@ -59,8 +60,20 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_diagnostics_diagnostic_text_segments_text",
 ];
 
+#[invariant(
+    *value == 0 || *value > 4,
+    "only unsupported trace levels are representable"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct InvalidTraceLevelStorage {
+    value: u8,
+}
+
 /// Trace-option failure carrying the exact unsupported Rust `u8` level.
-#[invariant(value == 0 || value > 4, "only unsupported trace levels are representable")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; validated storage excludes supported trace levels"
+)]
 #[pyclass(
     name = "InvalidTraceLevel",
     frozen,
@@ -71,7 +84,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct PyInvalidTraceLevel {
-    value: u8,
+    value: InvalidTraceLevelStorage,
 }
 
 #[pymethods]
@@ -82,7 +95,7 @@ impl PyInvalidTraceLevel {
 
     /// Construct an unsupported trace-level value from the Rust `u8` domain.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|detail| detail.value == value) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|detail| detail.value.value == value) || ret.is_err())]
     #[new]
     fn new(value: u8) -> PyResult<Self> {
         if (1..=4).contains(&value) {
@@ -90,35 +103,48 @@ impl PyInvalidTraceLevel {
                 "invalid trace-level detail must not contain a valid level",
             ));
         }
-        Ok(new!(PyInvalidTraceLevel { value }))
+        Ok(PyInvalidTraceLevel {
+            value: new!(InvalidTraceLevelStorage { value }),
+        })
     }
 
     /// Return the exact unsupported numeric level.
     #[requires(true)]
-    #[ensures(ret == self.value)]
+    #[ensures(ret == self.value.value)]
     #[getter]
     fn value(&self) -> u8 {
-        self.value
+        self.value.value
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn __str__(&self) -> String {
-        format!("invalid trace level {}; expected 1, 2, 3, or 4", self.value)
+        format!(
+            "invalid trace level {}; expected 1, 2, 3, or 4",
+            self.value.value
+        )
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn __repr__(&self) -> String {
-        format!("jbotci.diagnostics.InvalidTraceLevel(value={})", self.value)
+        format!(
+            "jbotci.diagnostics.InvalidTraceLevel(value={})",
+            self.value.value
+        )
     }
 }
 
-#[requires(true)]
+#[requires(matches!(&error, TraceOptionError::InvalidLevel { value } if *value == 0 || *value > 4))]
 #[ensures(true)]
 fn trace_option_error_to_python(py: Python<'_>, error: TraceOptionError) -> PyErr {
     let TraceOptionError::InvalidLevel { value } = error;
-    match Py::new(py, new!(PyInvalidTraceLevel { value })) {
+    match Py::new(
+        py,
+        PyInvalidTraceLevel {
+            value: new!(InvalidTraceLevelStorage { value }),
+        },
+    ) {
         Ok(value) => {
             public_exception_with_value(py, PUBLIC_MODULE, "TraceOptionError", value.into_any())
         }
@@ -301,6 +327,13 @@ impl PyTraceOptions {
     pub(crate) fn rust(&self) -> &TraceOptions {
         &self.value
     }
+
+    #[requires(true)]
+    #[ensures(ret.rust().phase == phase)]
+    #[ensures(ret.rust().limit == self.rust().limit)]
+    fn with_rust_phase(&self, phase: TracePhase) -> Self {
+        Self::from_rust(self.value.clone().with_phase(phase))
+    }
 }
 
 #[pymethods]
@@ -378,10 +411,10 @@ impl PyTraceOptions {
 
     /// Return a copy configured for a different trace phase.
     #[requires(true)]
-    #[ensures(ret.value.phase == phase)]
+    #[ensures(ret.as_ref().is_ok_and(|options| options.rust().limit == self.rust().limit) || ret.is_err())]
     fn with_phase(&self, py: Python<'_>, phase: &Bound<'_, PyAny>) -> PyResult<Self> {
         let phase = enum_from_python(py, phase)?;
-        Ok(Self::from_rust(self.value.clone().with_phase(phase)))
+        Ok(self.with_rust_phase(phase))
     }
 
     /// Return a copy with a validated non-zero event limit.
@@ -421,9 +454,9 @@ impl TraceEventStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &TraceEvent {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Report { root, index } => &root.events[*index],
+        match self.as_data() {
+            data!(TraceEventStorage::Owned { value }) => value.as_ref(),
+            data!(TraceEventStorage::Report { root, index }) => &root.events[*index],
         }
     }
 }
@@ -450,9 +483,9 @@ impl TraceFailureSummaryStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &TraceFailureSummary {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Report { root } => root
+        match self.as_data() {
+            data!(TraceFailureSummaryStorage::Owned { value }) => value.as_ref(),
+            data!(TraceFailureSummaryStorage::Report { root }) => root
                 .failure
                 .as_ref()
                 .expect("typed trace-summary locator requires a report failure"),
@@ -487,9 +520,11 @@ impl TraceFailureBranchStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &TraceFailureBranch {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Summary { owner, index } => &owner.get().branches[*index],
+        match self.as_data() {
+            data!(TraceFailureBranchStorage::Owned { value }) => value.as_ref(),
+            data!(TraceFailureBranchStorage::Summary { owner, index }) => {
+                &owner.get().branches[*index]
+            }
         }
     }
 }
@@ -525,10 +560,10 @@ impl TraceContextStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &TraceContext {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Branch { owner, index } => &owner.get().contexts[*index],
-            Self::SummaryCurrent { owner } => owner
+        match self.as_data() {
+            data!(TraceContextStorage::Owned { value }) => value.as_ref(),
+            data!(TraceContextStorage::Branch { owner, index }) => &owner.get().contexts[*index],
+            data!(TraceContextStorage::SummaryCurrent { owner }) => owner
                 .get()
                 .current_context
                 .as_ref()
@@ -875,13 +910,13 @@ impl PyTraceFailureBranch {
     #[new]
     #[pyo3(signature = (contexts=Vec::new(), expected=Vec::new()))]
     fn new(contexts: Vec<PyRef<'_, PyTraceContext>>, expected: Vec<String>) -> Self {
-        Self::from_rust(new!(TraceFailureBranch {
+        Self::from_rust(TraceFailureBranch {
             contexts: contexts
                 .iter()
                 .map(|context| context.clone_rust())
                 .collect(),
             expected,
-        }))
+        })
     }
 
     /// Return the immutable context stack.
@@ -1158,9 +1193,11 @@ impl DiagnosticStyledNoteStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &DiagnosticStyledNote {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Diagnostic { root, index } => &root.styled_notes[*index],
+        match self.as_data() {
+            data!(DiagnosticStyledNoteStorage::Owned { value }) => value.as_ref(),
+            data!(DiagnosticStyledNoteStorage::Diagnostic { root, index }) => {
+                &root.styled_notes[*index]
+            }
         }
     }
 }
@@ -1187,9 +1224,9 @@ impl DiagnosticLabelStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &DiagnosticLabel {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Diagnostic { root, index } => &root.labels[*index],
+        match self.as_data() {
+            data!(DiagnosticLabelStorage::Owned { value }) => value.as_ref(),
+            data!(DiagnosticLabelStorage::Diagnostic { root, index }) => &root.labels[*index],
         }
     }
 }
@@ -1237,16 +1274,22 @@ impl DiagnosticTextSegmentStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &DiagnosticTextSegment {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::StyledNote { owner, index } => &owner.get().segments[*index],
-            Self::DiagnosticMessage { root, index } => &root.message_segments[*index],
-            Self::DiagnosticNote {
+        match self.as_data() {
+            data!(DiagnosticTextSegmentStorage::Owned { value }) => value.as_ref(),
+            data!(DiagnosticTextSegmentStorage::StyledNote { owner, index }) => {
+                &owner.get().segments[*index]
+            }
+            data!(DiagnosticTextSegmentStorage::DiagnosticMessage { root, index }) => {
+                &root.message_segments[*index]
+            }
+            data!(DiagnosticTextSegmentStorage::DiagnosticNote {
                 root,
                 note_index,
                 segment_index,
-            } => &root.note_segments[*note_index][*segment_index],
-            Self::LabelMessage { owner, index } => &owner.get().message_segments[*index],
+            }) => &root.note_segments[*note_index][*segment_index],
+            data!(DiagnosticTextSegmentStorage::LabelMessage { owner, index }) => {
+                &owner.get().message_segments[*index]
+            }
         }
     }
 }
@@ -1273,9 +1316,9 @@ impl DiagnosticLinkStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &DiagnosticTextLink {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Segment { owner } => owner
+        match self.as_data() {
+            data!(DiagnosticLinkStorage::Owned { value }) => value.as_ref(),
+            data!(DiagnosticLinkStorage::Segment { owner }) => owner
                 .get()
                 .link
                 .as_ref()
