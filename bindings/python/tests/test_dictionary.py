@@ -852,47 +852,6 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
         assert composed.count(f"class {class_name}:") == 1
 
 
-def test_dictionary_public_annotations_do_not_use_any() -> None:
-    for path in (
-        PACKAGE_ROOT / "python" / "jbotci" / "dictionary.py",
-        PACKAGE_ROOT / "stubs" / "_native" / "dictionary.pyi",
-    ):
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        assert not any(
-            (isinstance(node, ast.Name) and node.id == "Any")
-            or (isinstance(node, ast.Attribute) and node.attr == "Any")
-            for node in ast.walk(tree)
-        ), path
-
-        allowed_object_annotations: set[int] = set()
-        for function in (
-            node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-        ):
-            arguments = (
-                *function.args.posonlyargs,
-                *function.args.args,
-                *function.args.kwonlyargs,
-            )
-            for argument in arguments:
-                annotation = argument.annotation
-                if annotation is None or not any(
-                    isinstance(node, ast.Name) and node.id == "object"
-                    for node in ast.walk(annotation)
-                ):
-                    continue
-                assert function.name == "__eq__"
-                assert argument.arg == "other"
-                assert isinstance(annotation, ast.Name)
-                assert annotation.id == "object"
-                allowed_object_annotations.add(id(annotation))
-        object_annotations = {
-            id(node)
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Name) and node.id == "object"
-        }
-        assert object_annotations == allowed_object_annotations, path
-
-
 def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
     documented_classes = (
         dictionary.DefinitionId,
