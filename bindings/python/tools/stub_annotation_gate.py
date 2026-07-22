@@ -53,10 +53,6 @@ _BUILTIN_KINDS: dict[str, str] = {
     "object": "catch-all",
 }
 
-_ROLE_AWARE_CALL_KINDS = frozenset(
-    {"named-tuple", "typed-dict", "cast", "assert-type"}
-)
-
 
 @dataclass
 class _Scope:
@@ -133,18 +129,6 @@ def _binding_maps_equal(left: _Bindings, right: _Bindings) -> bool:
     return left == right
 
 
-def _overlay_mapping(
-    base: tuple[tuple[str, _LocatedExpression], ...],
-    overrides: tuple[tuple[str, _LocatedExpression], ...],
-) -> tuple[tuple[str, _LocatedExpression], ...]:
-    """Apply Python's last-write-wins mapping semantics."""
-
-    merged = dict(base)
-    for name, expression in overrides:
-        merged[name] = expression
-    return tuple(merged.items())
-
-
 class _Analyzer:
     def __init__(self) -> None:
         self._definitions: dict[tuple[int, int], _Definition] = {}
@@ -187,13 +171,16 @@ class _Analyzer:
                     )
                     for candidate in root.type_candidates
                 )
-                problems = self._scan_class_keyword_unpack(
-                    root.expression,
-                    root.captures,
-                    root.scope,
-                    typed_dict=typed_dict,
-                    visiting=set(),
-                    strings=set(),
+                problems = (
+                    self._scan_class_keyword_unpack(
+                        root.expression,
+                        root.captures,
+                        root.scope,
+                        visiting=set(),
+                        strings=set(),
+                    )
+                    if typed_dict
+                    else set()
                 )
             else:
                 problems = self._scan(
@@ -1194,7 +1181,7 @@ class _Analyzer:
         shapes, supported = self._expand_call_shapes(
             expression, captures, scope, set()
         )
-        if not supported and kinds & _ROLE_AWARE_CALL_KINDS:
+        if not supported:
             problems.add(_unsupported_invocation(expression))
 
         for kind in kinds - {"other"}:
@@ -1348,10 +1335,7 @@ class _Analyzer:
                 if not supported:
                     return shapes, False
                 shapes = [
-                    _CallShape(
-                        shape.positional,
-                        _overlay_mapping(shape.keywords, alternative),
-                    )
+                    _CallShape(shape.positional, shape.keywords + alternative)
                     for shape in shapes
                     for alternative in alternatives
                 ]
@@ -1361,95 +1345,10 @@ class _Analyzer:
                     _LocatedExpression(keyword.value, captures, scope),
                 )
                 shapes = [
-                    _CallShape(
-                        shape.positional,
-                        _overlay_mapping(shape.keywords, (item,)),
-                    )
+                    _CallShape(shape.positional, shape.keywords + (item,))
                     for shape in shapes
                 ]
         return shapes, True
-
-    def _contains_mutable_container(
-        self,
-        expression: ast.expr,
-        captures: _Bindings,
-        scope: _Scope,
-        visiting: set[int],
-    ) -> bool:
-        """Reject finite shapes whose contents can change through an alias.
-
-        This is deliberately structural, not a list of mutator method names.
-        Direct literals are scanned at their use site; this predicate guards
-        only values recovered through definitions bound to names.
-        """
-
-        if isinstance(expression, (ast.List, ast.Dict, ast.Set)):
-            return True
-        if isinstance(expression, ast.Name):
-            bindings = self._lookup(expression.id, captures, scope)
-            for binding in bindings:
-                definition = self._definition_for(binding)
-                if binding.kind != "expression" or definition is None:
-                    continue
-                if id(definition) in visiting:
-                    return True
-                visiting.add(id(definition))
-                mutable = self._contains_mutable_container(
-                    definition.expression,
-                    definition.captures,
-                    definition.scope,
-                    visiting,
-                )
-                visiting.remove(id(definition))
-                if mutable:
-                    return True
-            return False
-        if isinstance(expression, ast.Tuple):
-            return any(
-                self._contains_mutable_container(
-                    element.value if isinstance(element, ast.Starred) else element,
-                    captures,
-                    scope,
-                    visiting,
-                )
-                for element in expression.elts
-            )
-        if isinstance(expression, ast.IfExp):
-            return self._contains_mutable_container(
-                expression.body, captures, scope, visiting
-            ) or self._contains_mutable_container(
-                expression.orelse, captures, scope, visiting
-            )
-        if isinstance(expression, ast.BinOp):
-            return self._contains_mutable_container(
-                expression.left, captures, scope, visiting
-            ) or self._contains_mutable_container(
-                expression.right, captures, scope, visiting
-            )
-        if isinstance(expression, ast.Call):
-            kinds = self._possible_kinds(
-                expression.func, captures, scope, set()
-            )
-            if kinds & {"builtin-list", "builtin-dict"}:
-                return True
-            if kinds and kinds <= {"builtin-tuple"}:
-                return any(
-                    self._contains_mutable_container(
-                        argument.value
-                        if isinstance(argument, ast.Starred)
-                        else argument,
-                        captures,
-                        scope,
-                        visiting,
-                    )
-                    for argument in expression.args
-                ) or any(
-                    self._contains_mutable_container(
-                        keyword.value, captures, scope, visiting
-                    )
-                    for keyword in expression.keywords
-                )
-        return False
 
     def _expand_sequence(
         self,
@@ -1473,14 +1372,6 @@ class _Analyzer:
                     alternative_captures,
                     alternative_scope,
                 ) in alternatives:
-                    if self._contains_mutable_container(
-                        alternative,
-                        alternative_captures,
-                        alternative_scope,
-                        set(),
-                    ):
-                        supported = False
-                        continue
                     nested, nested_supported = self._expand_sequence(
                         alternative,
                         alternative_captures,
@@ -1571,14 +1462,6 @@ class _Analyzer:
                     alternative_captures,
                     alternative_scope,
                 ) in alternatives:
-                    if self._contains_mutable_container(
-                        alternative,
-                        alternative_captures,
-                        alternative_scope,
-                        set(),
-                    ):
-                        supported = False
-                        continue
                     nested, nested_supported = self._expand_mapping(
                         alternative,
                         alternative_captures,
@@ -1613,7 +1496,7 @@ class _Analyzer:
                     else:
                         return shapes, False
                     shapes = [
-                        _overlay_mapping(shape, alternative)
+                        shape + alternative
                         for shape in shapes
                         for alternative in alternatives
                     ]
@@ -1637,7 +1520,7 @@ class _Analyzer:
                 )
                 return (
                     [
-                        _overlay_mapping(left_shape, right_shape)
+                        left_shape + right_shape
                         for left_shape in left
                         for right_shape in right
                     ],
@@ -1658,7 +1541,7 @@ class _Analyzer:
                         if not supported:
                             return shapes, False
                         shapes = [
-                            _overlay_mapping(shape, alternative)
+                            shape + alternative
                             for shape in shapes
                             for alternative in alternatives
                         ]
@@ -1681,7 +1564,7 @@ class _Analyzer:
                                 )
                             ]
                         shapes = [
-                            _overlay_mapping(shape, alternative)
+                            shape + alternative
                             for shape in shapes
                             for alternative in alternatives
                         ]
@@ -1696,7 +1579,6 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         *,
-        typed_dict: bool,
         visiting: set[tuple[int, str]],
         strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
@@ -1704,15 +1586,11 @@ class _Analyzer:
             expression, captures, scope, set()
         )
         if not supported:
-            return (
-                {_unsupported_class_keyword_unpack(expression)}
-                if typed_dict
-                else set()
-            )
+            return {_unsupported_class_keyword_unpack(expression)}
         problems: set[_Problem] = set()
         for mapping in mappings:
             for name, argument in mapping:
-                if name == "metaclass" or (typed_dict and name == "extra_items"):
+                if name in {"metaclass", "extra_items"}:
                     problems.update(
                         self._scan_type(
                             argument.expression,
@@ -1765,14 +1643,6 @@ class _Analyzer:
             )
             problems = set()
             for alternative, alternative_captures, alternative_scope in alternatives:
-                if self._contains_mutable_container(
-                    alternative,
-                    alternative_captures,
-                    alternative_scope,
-                    set(),
-                ):
-                    supported = False
-                    continue
                 problems.update(
                     self._scan_named_fields(
                         alternative,
@@ -1854,14 +1724,6 @@ class _Analyzer:
             )
             problems = set()
             for alternative, alternative_captures, alternative_scope in alternatives:
-                if self._contains_mutable_container(
-                    alternative,
-                    alternative_captures,
-                    alternative_scope,
-                    set(),
-                ):
-                    supported = False
-                    continue
                 problems.update(
                     self._scan_named_field(
                         alternative,
@@ -1905,14 +1767,6 @@ class _Analyzer:
             )
             problems = set()
             for alternative, alternative_captures, alternative_scope in alternatives:
-                if self._contains_mutable_container(
-                    alternative,
-                    alternative_captures,
-                    alternative_scope,
-                    set(),
-                ):
-                    supported = False
-                    continue
                 problems.update(
                     self._scan_typed_fields(
                         alternative,

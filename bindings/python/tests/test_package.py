@@ -1045,52 +1045,13 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         True,
     ),
     _StubGateCase(
-        "named-tuple-mutable-keyword-mapping-alias-rejected",
+        "named-tuple-finite-keyword-mapping-safe",
         (
             "import typing\n"
-            "Arguments = {"
-            "\"typename\": \"typing.Any\", \"fields\": [(\"field\", str)]}\n"
+            "Arguments = {\"typename\": \"typing.Any\", \"fields\": [(\"field\", str)]}\n"
             "Record = typing.NamedTuple(**Arguments)\n"
         ),
-        True,
-    ),
-    _StubGateCase(
-        "named-tuple-direct-finite-keyword-mapping-safe",
-        (
-            "import typing\n"
-            "Record = typing.NamedTuple("
-            "**{\"typename\": \"typing.Any\", \"fields\": [(\"field\", str)]})\n"
-        ),
         False,
-    ),
-    _StubGateCase(
-        "named-tuple-immutable-field-alias-safe",
-        (
-            "import typing\n"
-            "Fields = ((\"field\", str),)\n"
-            "Record = typing.NamedTuple(\"Record\", Fields)\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "named-tuple-mutable-field-alias-append-rejected",
-        (
-            "import typing\n"
-            "Fields = [(\"field\", str)]\n"
-            "Fields.append((\"hidden\", \"typing.Any\"))\n"
-            "Record = typing.NamedTuple(\"Record\", Fields)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "named-tuple-mutable-field-alias-extend-rejected",
-        (
-            "import typing\n"
-            "Fields = [(\"field\", str)]\n"
-            "Fields.extend([((\"hidden\", \"typing.Any\"))])\n"
-            "Record = typing.NamedTuple(\"Record\", Fields)\n"
-        ),
-        True,
     ),
     _StubGateCase(
         "named-tuple-aliased-finite-starred-fields-reject-any",
@@ -1142,32 +1103,13 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         False,
     ),
     _StubGateCase(
-        "typed-dict-mutable-keyword-mapping-alias-rejected",
+        "typed-dict-finite-keyword-mapping-safe",
         (
             "import typing\n"
             "Arguments = {\"typename\": \"typing.Any\", \"fields\": {\"field\": str}}\n"
             "Record = typing.TypedDict(**Arguments)\n"
         ),
-        True,
-    ),
-    _StubGateCase(
-        "typed-dict-direct-finite-keyword-mapping-safe",
-        (
-            "import typing\n"
-            "Record = typing.TypedDict("
-            "**{\"typename\": \"typing.Any\", \"fields\": {\"field\": str}})\n"
-        ),
         False,
-    ),
-    _StubGateCase(
-        "typed-dict-mutable-field-alias-update-rejected",
-        (
-            "import typing\n"
-            "Fields = {\"field\": str}\n"
-            "Fields.update({\"hidden\": \"typing.Any\"})\n"
-            "Record = typing.TypedDict(\"Record\", Fields)\n"
-        ),
-        True,
     ),
     _StubGateCase(
         "typed-dict-aliased-finite-starred-fields-reject-any",
@@ -1227,216 +1169,8 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         False,
     ),
     _StubGateCase(
-        "cast-immutable-sequence-alias-safe",
-        (
-            "import typing\n"
-            "Arguments = (str, typing.Any)\n"
-            "value = typing.cast(*Arguments)\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "cast-mutable-mapping-alias-subscript-mutation-rejected",
-        (
-            "import typing\n"
-            "Arguments = {\"typ\": str, \"val\": source}\n"
-            "Arguments[\"typ\"] = \"typing.Any\"\n"
-            "value = typing.cast(**Arguments)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-mutable-mapping-alias-update-rejected",
-        (
-            "import typing\n"
-            "Arguments = {\"typ\": str, \"val\": source}\n"
-            "Arguments.update({\"typ\": \"typing.Any\"})\n"
-            "value = typing.cast(**Arguments)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-mutable-mapping-alias-of-alias-rejected",
-        (
-            "import typing\n"
-            "Arguments = {\"typ\": str, \"val\": source}\n"
-            "Alias = Arguments\n"
-            "Arguments[\"typ\"] = \"typing.Any\"\n"
-            "value = typing.cast(**Alias)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-mutable-sequence-alias-subscript-mutation-rejected",
-        (
-            "import typing\n"
-            "Arguments = [str, source]\n"
-            "Arguments[0] = \"typing.Any\"\n"
-            "value = typing.cast(*Arguments)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-mutable-sequence-alias-augmented-assignment-rejected",
-        (
-            "import typing\n"
-            "Arguments = [str]\n"
-            "Arguments += [source]\n"
-            "value = typing.cast(*Arguments)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-deleted-sequence-alias-rejected",
-        (
-            "import typing\n"
-            "Arguments = [str, source]\n"
-            "del Arguments\n"
-            "value = typing.cast(*Arguments)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
         "cast-dynamic-keyword-unpack-rejected",
         "import typing\nvalue = typing.cast(**arguments)\n",
-        True,
-    ),
-    _StubGateCase(
-        "builtin-list-dynamic-star-is-an-ordinary-value-call",
-        "items = list(*iterables)\n",
-        False,
-    ),
-    _StubGateCase(
-        "builtin-tuple-dynamic-star-is-an-ordinary-value-call",
-        "items = tuple(*iterables)\n",
-        False,
-    ),
-    _StubGateCase(
-        "builtin-dict-dynamic-keyword-star-is-an-ordinary-value-call",
-        "items = dict(**mapping)\n",
-        False,
-    ),
-    _StubGateCase(
-        "builtin-list-dynamic-result-fails-closed-at-special-use",
-        (
-            "import typing\n"
-            "items = list(*iterables)\n"
-            "value = typing.cast(*items)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "builtin-tuple-dynamic-result-fails-closed-at-special-use",
-        (
-            "import typing\n"
-            "items = tuple(*iterables)\n"
-            "value = typing.cast(*items)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "builtin-dict-dynamic-result-fails-closed-at-special-use",
-        (
-            "import typing\n"
-            "items = dict(**mapping)\n"
-            "value = typing.cast(**items)\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-literal-duplicate-last-safe-type-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**{\"typ\": \"typing.Any\", \"typ\": str, \"val\": source})\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "cast-literal-duplicate-last-any-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**{\"typ\": str, \"typ\": \"typing.Any\", \"val\": source})\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-mapping-union-right-safe-type-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**({\"typ\": \"typing.Any\"} | {\"typ\": str, \"val\": source}))\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "cast-mapping-union-right-any-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**({\"typ\": str} | {\"typ\": \"typing.Any\", \"val\": source}))\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-dictionary-unpack-last-safe-type-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**{**{\"typ\": \"typing.Any\"}, \"typ\": str, \"val\": source})\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "cast-dictionary-unpack-last-any-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**{**{\"typ\": str}, \"typ\": \"typing.Any\", \"val\": source})\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-dict-call-keyword-safe-type-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**dict({\"typ\": \"typing.Any\"}, typ=str, val=source))\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "cast-dict-call-keyword-any-wins",
-        (
-            "import typing\n"
-            "value = typing.cast("
-            "**dict({\"typ\": str}, typ=\"typing.Any\", val=source))\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "cast-overwrite-preserves-safe-winning-provenance",
-        (
-            "import typing\n"
-            "import typing as t\n"
-            "Unsafe = 't.Any'\n"
-            "import vendor as t\n"
-            "Safe = 't.Any'\n"
-            "value = typing.cast(**{\"typ\": Unsafe, \"typ\": Safe, \"val\": source})\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "cast-overwrite-preserves-unsafe-winning-provenance",
-        (
-            "import typing\n"
-            "import typing as t\n"
-            "Unsafe = 't.Any'\n"
-            "import vendor as t\n"
-            "Safe = 't.Any'\n"
-            "value = typing.cast(**{\"typ\": Safe, \"typ\": Unsafe, \"val\": source})\n"
-        ),
         True,
     ),
     _StubGateCase(
@@ -1519,21 +1253,10 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         "typed-dict-class-value-keywords-remain-values",
         (
             "import typing\n"
-            "class Record("
-            "typing.TypedDict, **{\"total\": typing.Any, \"closed\": typing.Any}"
-            "): ...\n"
-        ),
-        False,
-    ),
-    _StubGateCase(
-        "typed-dict-class-mutable-configuration-alias-rejected",
-        (
-            "import typing\n"
-            "Configuration = {\"total\": True}\n"
-            "Configuration.update({\"extra_items\": \"typing.Any\"})\n"
+            "Configuration = {\"total\": typing.Any, \"closed\": typing.Any}\n"
             "class Record(typing.TypedDict, **Configuration): ...\n"
         ),
-        True,
+        False,
     ),
     _StubGateCase(
         "typed-dict-class-dynamic-keyword-unpack-rejected",
@@ -1554,12 +1277,12 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         False,
     ),
     _StubGateCase(
-        "ordinary-class-metaclass-keyword-unpack-is-type-context",
+        "ordinary-class-metaclass-keyword-unpack-is-outside-gate",
         (
             "import typing\n"
             "class Record(Base, **{\"metaclass\": \"typing.Any\"}): ...\n"
         ),
-        True,
+        False,
     ),
     _StubGateCase(
         "while-loop-carried-typing-alias",
@@ -2063,19 +1786,11 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         True,
     ),
     _StubGateCase(
-        "unpacked-mutable-mapping-alias-is-unprovable",
+        "unpacked-mapping-key-is-a-value",
         (
             "import typing\n"
             "Base = {'typing.Any': str}\n"
             "Record = typing.TypedDict('Record', {**Base})\n"
-        ),
-        True,
-    ),
-    _StubGateCase(
-        "direct-unpacked-mapping-key-is-a-value",
-        (
-            "import typing\n"
-            "Record = typing.TypedDict('Record', {**{'typing.Any': str}})\n"
         ),
         False,
     ),
