@@ -9734,6 +9734,25 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
+    fn generated_field_model_accepts_only_outer_attributes() {
+        let inner = GeneratedFieldModel::try_from_data(data!(GeneratedFieldModel {
+            attrs: vec![syn::parse_quote!(#![doc = "bad"])],
+            name: syn::parse_quote!(field),
+            ty: syn::parse_quote!(Token),
+        }));
+        assert!(inner.is_err());
+
+        let outer = GeneratedFieldModel::try_from_data(data!(GeneratedFieldModel {
+            attrs: vec![syn::parse_quote!(#[doc = "ok"])],
+            name: syn::parse_quote!(field),
+            ty: syn::parse_quote!(Token),
+        }));
+        assert!(outer.is_ok());
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
     fn type_token_comparison_normalizes_paths_without_erasing_reference_mutability() {
         assert!(type_token_streams_match(
             &quote!(std::vec::Vec<Option<Token>>),
