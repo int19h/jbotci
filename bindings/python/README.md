@@ -36,10 +36,12 @@ install, rather than the source tree, resolves `jbotci`.
   Pyclasses are frozen and non-subclassable by default. Value objects implement
   equality, and implement hashing only when the underlying Rust value is also
   hashable. Their `repr` is constructor-shaped and includes the public module.
-- `Option<T>` maps to `T | None`. Rust sequences are materialized as immutable
-  Python tuples, never mutable lists. Numeric newtypes keep their semantic
-  Python class and validate range/units in the constructor instead of leaking a
-  bare integer or a lossy cast.
+- `Option<T>` maps to `T | None`. Ordered collection inputs use
+  `collections.abc.Sequence`, so lists and tuples are accepted after every
+  element is validated; unordered iterables such as sets are rejected. Rust
+  sequences are materialized as immutable Python tuples, never mutable lists.
+  Numeric newtypes keep their semantic Python class and validate range/units in
+  the constructor instead of leaking a bare integer or a lossy cast.
 - A Python wrapper for borrowed Rust data must retain a strong owner. The
   internal `OwnedReference` helper stores an `Arc` plus a projection function;
   wrappers must never expose Rust lifetimes or construct self-references. Static

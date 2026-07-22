@@ -7,7 +7,10 @@ use bityzba::{contract_trait, invariant, requires};
 use pyo3::PyClass;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyModule, PyString, PyTuple, PyType};
+use pyo3::types::{
+    PyByteArray, PyBytes, PyDict, PyModule, PySequence, PySequenceMethods, PyString, PyTuple,
+    PyType,
+};
 
 /// Supplies stable Python metadata for a fieldless Rust enum.
 ///
@@ -89,6 +92,40 @@ where
     I::IntoIter: ExactSizeIterator,
 {
     PyTuple::new(py, values)
+}
+
+/// Copy an ordered Python sequence after validating every element.
+///
+/// Text and byte strings are deliberately excluded: although Python registers
+/// them as sequences, treating one string as a collection of string elements
+/// is almost always an accidental cardinality change at an API boundary.
+#[requires(!parameter.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn extract_sequence<T, F>(
+    value: &Bound<'_, PyAny>,
+    parameter: &str,
+    mut extract: F,
+) -> PyResult<Vec<T>>
+where
+    F: FnMut(&Bound<'_, PyAny>) -> PyResult<T>,
+{
+    if value.is_instance_of::<PyString>()
+        || value.is_instance_of::<PyBytes>()
+        || value.is_instance_of::<PyByteArray>()
+    {
+        return Err(PyTypeError::new_err(format!(
+            "{parameter} must be a non-string Python sequence such as a list or tuple"
+        )));
+    }
+    let sequence = value.cast::<PySequence>().map_err(|_| {
+        PyTypeError::new_err(format!(
+            "{parameter} must be a Python sequence such as a list or tuple"
+        ))
+    })?;
+    let len = sequence.len()?;
+    (0..len)
+        .map(|index| sequence.get_item(index).and_then(|item| extract(&item)))
+        .collect()
 }
 
 /// Register a Python class under a unique private native export key.

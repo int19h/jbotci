@@ -221,6 +221,30 @@ def test_declarative_dialect_is_separate_and_round_trips() -> None:
     assert dialect.DialectFeature.CASE_INSENSITIVE.atom_name() == "CASE-INSENSITIVE"
 
 
+def test_copied_dialect_inputs_accept_lists_and_tuples_but_return_tuples() -> None:
+    entry = dialect.CmavoSwap("ce'u", "ce")
+    feature = dialect.DialectFeature.CASE_INSENSITIVE
+    from_lists = dialect.DialectDefinition([entry], [feature])
+    from_tuples = dialect.DialectDefinition((entry,), (feature,))
+    assert from_lists == from_tuples
+    assert from_lists.cmavo_entries == (entry,)
+    assert from_lists.features == (feature,)
+    assert isinstance(from_lists.cmavo_entries, tuple)
+    assert isinstance(from_lists.features, tuple)
+    assert dialect.cmavo_dialect_entries_to_definition([entry]) == (
+        dialect.cmavo_dialect_entries_to_definition((entry,))
+    )
+    with pytest.raises(TypeError):
+        dialect.DialectDefinition(set(), set())  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        dialect.DialectDefinition(
+            [object()],  # type: ignore[list-item]
+            [feature],
+        )
+    with pytest.raises(TypeError):
+        dialect.cmavo_dialect_entries_to_definition(set())  # type: ignore[arg-type]
+
+
 def test_builtin_dialect_is_returned_only() -> None:
     with pytest.raises(TypeError):
         dialect.BuiltinDialect()

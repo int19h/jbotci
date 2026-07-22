@@ -52,8 +52,8 @@ use std::{fmt, num::NonZeroUsize, sync::Arc};
 use bityzba::{contract_trait, data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
-    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TracePhase,
-    TraceReport, source_span_from_char_offsets,
+    DiagnosticSpanError, DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment,
+    TraceOptions, TracePhase, TraceReport, source_span_from_char_offsets,
 };
 use jbotci_dialect::{DialectDefinition, DialectFeature};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
@@ -285,6 +285,7 @@ impl MorphologyOptions {
 }
 
 #[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
+#[invariant(trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
 #[derive(Debug, Clone)]
 pub struct MorphologySegmentAttempt {
     pub result: Result<Vec<WordLike>, MorphologyError>,
@@ -1692,8 +1693,12 @@ impl MorphologyWarning {
     }
 
     #[requires(true)]
-    #[ensures(!ret.code.is_empty())]
-    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+    #[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
+    pub fn to_diagnostic(
+        &self,
+        source_id: Option<SourceId>,
+        source: &str,
+    ) -> Result<Diagnostic, DiagnosticSpanError> {
         let (severity, message) = match self.kind {
             MorphologyWarningKind::IgnoredCharacters => {
                 let count = self
@@ -1723,15 +1728,15 @@ impl MorphologyWarning {
             self.char_end,
             self.kind.label(),
             self.context.as_ref(),
-        );
+        )?;
         if self.kind == MorphologyWarningKind::IgnoredCharacters {
-            return diagnostic;
+            return Ok(diagnostic);
         }
-        diagnostic.with_styled_notes(vec![morphology_detail_note(
+        Ok(diagnostic.with_styled_notes(vec![morphology_detail_note(
             self.kind.message(),
             &self.text,
             self.kind.detail_reason(),
-        )])
+        )]))
     }
 }
 
@@ -2037,8 +2042,12 @@ pub enum MorphologyError {
 
 impl MorphologyError {
     #[requires(true)]
-    #[ensures(!ret.code.is_empty())]
-    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+    #[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
+    pub fn to_diagnostic(
+        &self,
+        source_id: Option<SourceId>,
+        source: &str,
+    ) -> Result<Diagnostic, DiagnosticSpanError> {
         match self {
             Self::Invalid {
                 kind,
@@ -2060,8 +2069,12 @@ impl MorphologyError {
                     *char_end,
                     kind.message(),
                     context.as_ref(),
-                );
-                diagnostic_with_optional_detail(diagnostic, text, detail.as_ref())
+                )?;
+                Ok(diagnostic_with_optional_detail(
+                    diagnostic,
+                    text,
+                    detail.as_ref(),
+                ))
             }
             Self::UnterminatedZoiQuote {
                 char_offset,
@@ -2069,7 +2082,7 @@ impl MorphologyError {
                 context,
             } => {
                 let source_end = source.chars().count();
-                morphology_diagnostic(
+                Ok(morphology_diagnostic(
                     source_id.clone(),
                     source,
                     new!(MorphologyDiagnosticDetails {
@@ -2081,17 +2094,16 @@ impl MorphologyError {
                     source_end,
                     &format!("expected closing delimiter `{delimiter}`"),
                     context.as_ref(),
-                )
+                )?
                 .with_styled_notes(vec![morphology_detail_note(
                     "unterminated ZOI quote",
                     delimiter,
                     "expected closing delimiter",
-                )])
+                )]))
             }
             Self::SourceSpan(error) => {
-                let span = source_span_from_char_offsets(source_id, source, 0, 0)
-                    .expect("the start of a source string is always a valid source span");
-                Diagnostic::new(
+                let span = source_span_from_char_offsets(source_id, source, 0, 0)?;
+                Ok(Diagnostic::new(
                     DiagnosticSeverity::Error,
                     DiagnosticPhase::Morphology,
                     "morphology.source-span".to_owned(),
@@ -2099,7 +2111,7 @@ impl MorphologyError {
                     vec![DiagnosticLabel::new(span, error.to_string(), true)],
                     Vec::new(),
                     None,
-                )
+                ))
             }
         }
     }
@@ -2177,8 +2189,7 @@ struct MorphologyDiagnosticDetails {
 }
 
 #[requires(!label.is_empty())]
-#[requires(char_start <= char_end)]
-#[ensures(!ret.code.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
 fn morphology_diagnostic(
     source_id: Option<SourceId>,
     source: &str,
@@ -2187,24 +2198,24 @@ fn morphology_diagnostic(
     char_end: usize,
     label: &str,
     context: Option<&MorphologyContext>,
-) -> Diagnostic {
+) -> Result<Diagnostic, DiagnosticSpanError> {
     let details = details.into_data();
-    let span = source_span_from_char_offsets(source_id.clone(), source, char_start, char_end)
-        .expect("morphology errors store offsets derived from the same source text");
+    let span = source_span_from_char_offsets(source_id.clone(), source, char_start, char_end)?;
     let mut labels = vec![DiagnosticLabel::new(span, label.to_owned(), true)];
-    if let Some(context_label) = context.and_then(|context| {
-        source_span_from_char_offsets(
+    if let Some(context) = context {
+        let context_span = source_span_from_char_offsets(
             source_id.clone(),
             source,
             context.char_start,
             context.char_end,
-        )
-        .ok()
-        .map(|span| DiagnosticLabel::new(span, context.label().to_owned(), false))
-    }) {
-        labels.push(context_label);
+        )?;
+        labels.push(DiagnosticLabel::new(
+            context_span,
+            context.label().to_owned(),
+            false,
+        ));
     }
-    Diagnostic::new(
+    Ok(Diagnostic::new(
         details.severity,
         DiagnosticPhase::Morphology,
         details.code.to_owned(),
@@ -2212,7 +2223,7 @@ fn morphology_diagnostic(
         labels,
         Vec::new(),
         None,
-    )
+    ))
 }
 
 #[requires(true)]
@@ -2520,8 +2531,30 @@ pub fn segment_words_for_display_with_options_and_source_id(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    grammar::segment_words_for_display(input, options, source_id)
-        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect))
+    segment_words_for_display_with_options_and_source_id_attempt(input, options, source_id)
+        .into_data()
+        .result
+}
+
+/// Run display-oriented segmentation while retaining warnings and trace data.
+#[requires(true)]
+#[ensures(ret.trace.is_some() == options.trace.includes(TracePhase::Morphology))]
+#[ensures(ret.trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
+pub fn segment_words_for_display_with_options_and_source_id_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> MorphologySegmentAttempt {
+    let attempt = grammar::segment_words_for_display_attempt(input, options, source_id);
+    let data = attempt.into_data();
+    let result = data
+        .result
+        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect));
+    new!(MorphologySegmentAttempt {
+        result,
+        warnings: data.warnings,
+        trace: data.trace,
+    })
 }
 
 #[requires(!phonemes.as_str().is_empty())]
@@ -3549,7 +3582,9 @@ mod tests {
     #[ensures(true)]
     fn morphology_diagnostic_uses_precise_vowel_hiatus_span() {
         let error = segment_words_with_modifiers("aa").expect_err("vowel hiatus must fail");
-        let diagnostic = error.to_diagnostic(None, "aa");
+        let diagnostic = error
+            .to_diagnostic(None, "aa")
+            .expect("parser error offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.vowel-hiatus");
         let label = diagnostic.primary_label();
@@ -3566,7 +3601,9 @@ mod tests {
     fn morphology_diagnostic_maps_non_ascii_source_span() {
         let source = "éa";
         let error = segment_words_with_modifiers(source).expect_err("vowel hiatus must fail");
-        let diagnostic = error.to_diagnostic(None, source);
+        let diagnostic = error
+            .to_diagnostic(None, source)
+            .expect("parser error offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.vowel-hiatus");
         let label = diagnostic.primary_label();
@@ -3584,6 +3621,37 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn morphology_diagnostic_conversion_rejects_foreign_offsets() {
+        let invalid = new!(MorphologyError::Invalid {
+            kind: MorphologyErrorKind::InvalidCharacter,
+            char_start: 1,
+            char_end: 0,
+            text: String::new(),
+            context: None,
+            detail: None,
+        });
+        assert!(invalid.to_diagnostic(None, "é").is_err());
+
+        let out_of_bounds = new!(MorphologyError::UnterminatedZoiQuote {
+            char_offset: 2,
+            delimiter: "gy".to_owned(),
+            context: None,
+        });
+        assert!(out_of_bounds.to_diagnostic(None, "é").is_err());
+
+        let warning = MorphologyWarning::new(
+            MorphologyWarningKind::ExperimentalCgv,
+            1,
+            2,
+            "x".to_owned(),
+            None,
+        );
+        assert!(warning.to_diagnostic(None, "é").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_warning_diagnostic_maps_comma_crossing_cgv_span() {
         let source = "melxi,or.";
         let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
@@ -3594,7 +3662,9 @@ mod tests {
         let data = attempt.into_data();
         data.result.expect("CgV relaxation should parse");
         assert_eq!(data.warnings.len(), 1);
-        let diagnostic = data.warnings[0].to_diagnostic(None, source);
+        let diagnostic = data.warnings[0]
+            .to_diagnostic(None, source)
+            .expect("parser warning offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.warning.experimental-cgv");
         let label = diagnostic.primary_label();
@@ -3616,7 +3686,9 @@ mod tests {
         let data = attempt.into_data();
         data.result.expect("MZ relaxation should parse");
         assert_eq!(data.warnings.len(), 1);
-        let diagnostic = data.warnings[0].to_diagnostic(None, source);
+        let diagnostic = data.warnings[0]
+            .to_diagnostic(None, source)
+            .expect("parser warning offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.warning.experimental-mz");
         let label = diagnostic.primary_label();
@@ -3915,6 +3987,55 @@ mod tests {
 
         let zei_words = segment_words_for_display("zei").expect("valid display morphology");
         assert_eq!(base_phoneme_texts(&zei_words), vec!["zeĭ"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn display_attempt_retains_warnings_traces_and_failure() {
+        let options = MorphologyOptions {
+            permissive_lexer: true,
+            trace: jbotci_diagnostics::TraceOptions::enabled(
+                jbotci_diagnostics::TraceLevel::Top,
+                None,
+                TracePhase::Morphology,
+                jbotci_diagnostics::DEFAULT_TRACE_LIMIT,
+            ),
+            ..MorphologyOptions::default()
+        };
+        let attempt =
+            segment_words_for_display_with_options_and_source_id_attempt("xu@no", &options, None)
+                .into_data();
+        assert_eq!(
+            base_phoneme_texts(&attempt.result.expect("permissive display segmentation")),
+            vec!["xu", "no"]
+        );
+        assert_eq!(attempt.warnings.len(), 1);
+        assert_eq!(
+            attempt.warnings[0].kind,
+            MorphologyWarningKind::IgnoredCharacters
+        );
+        assert_eq!(attempt.warnings[0].text, "@");
+        let trace = attempt.trace.expect("trace-enabled display segmentation");
+        assert_eq!(trace.phase, TracePhase::Morphology);
+        assert!(!trace.events.is_empty());
+
+        let failure =
+            segment_words_for_display_with_options_and_source_id_attempt("aa", &options, None)
+                .into_data();
+        assert!(matches!(
+            failure.result,
+            Err(MorphologyError::Invalid {
+                kind: MorphologyErrorKind::VowelHiatus,
+                char_start: 0,
+                char_end: 2,
+                ..
+            })
+        ));
+        assert_eq!(
+            failure.trace.expect("trace-enabled display failure").phase,
+            TracePhase::Morphology
+        );
     }
 
     #[test]
@@ -4280,7 +4401,9 @@ mod tests {
             Some(3)
         );
 
-        let diagnostic = ignored.to_diagnostic(None, source);
+        let diagnostic = ignored
+            .to_diagnostic(None, source)
+            .expect("parser warning offsets belong to the source");
         assert_eq!(diagnostic.severity, DiagnosticSeverity::Advice);
         assert_eq!(diagnostic.code, "morphology.advice.ignored-characters");
         assert_eq!(diagnostic.message, "3 non-Lojban characters ignored");

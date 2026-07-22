@@ -9722,7 +9722,9 @@ fn morphology_error_diagnostic_expectation_items(
     source: &str,
     error: &MorphologyError,
 ) -> Vec<fixtures::DiagnosticExpectation> {
-    let diagnostic = error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+    let diagnostic = error
+        .to_diagnostic(Some(SourceId("<fixture>".to_owned())), source)
+        .expect("morphology error offsets belong to the fixture source");
     diagnostic_expectation_items(source, std::slice::from_ref(&diagnostic))
 }
 
@@ -9735,7 +9737,9 @@ fn morphology_warning_diagnostic_expectation_items(
     warnings
         .iter()
         .map(|warning| {
-            let diagnostic = warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            let diagnostic = warning
+                .to_diagnostic(Some(SourceId("<fixture>".to_owned())), source)
+                .expect("morphology warning offsets belong to the fixture source");
             fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
         })
         .collect()
@@ -13055,11 +13059,15 @@ fn recovered_morphology_diagnostic_expectation_items(
         .warnings
         .iter()
         .map(|warning| {
-            let diagnostic = warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            let diagnostic = warning
+                .to_diagnostic(Some(SourceId("<fixture>".to_owned())), source)
+                .expect("morphology warning offsets belong to the fixture source");
             fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
         })
         .chain(recovered.errors.iter().map(|error| {
-            let diagnostic = error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            let diagnostic = error
+                .to_diagnostic(Some(SourceId("<fixture>".to_owned())), source)
+                .expect("morphology error offsets belong to the fixture source");
             fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
         }))
         .collect::<Vec<_>>();

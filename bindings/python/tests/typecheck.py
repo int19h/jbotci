@@ -82,7 +82,7 @@ def typed_dialect() -> dialect.DialectDefinition:
 
     entry: dialect.CmavoDialectEntry = dialect.CmavoSwap("ce'u", "ce")
     return dialect.DialectDefinition(
-        (entry,), (dialect.DialectFeature.CASE_INSENSITIVE,)
+        [entry], [dialect.DialectFeature.CASE_INSENSITIVE]
     )
 
 
@@ -270,7 +270,7 @@ def typed_constructed_morphology_products() -> morphology.ValsiAnalysisResult:
     rafsi = morphology.LujvoRafsi(morphology.Phonemes("jbo"))
     hyphen = morphology.LujvoHyphen(morphology.Phonemes("y"))
     parts: tuple[morphology.LujvoPart, ...] = (rafsi, hyphen, rafsi)
-    lujvo = morphology.LujvoWord(parts, longer_span)
+    lujvo = morphology.LujvoWord(list(parts), longer_span)
     words: tuple[morphology.Word, ...] = (cmavo, gismu, lujvo, fuhivla, cmevla)
     key: morphology.WordKey = cmavo.key
     assert key.phonemes.text and rendered
@@ -280,7 +280,7 @@ def typed_constructed_morphology_products() -> morphology.ValsiAnalysisResult:
     selmaho_quoted = morphology.SelmahoQuotedWord(cmavo, gismu)
     verbatim = morphology.Verbatim(span, "mi")
     zoi = morphology.DelimitedNonLojbanQuote(cmavo, cmavo, verbatim, cmavo)
-    quoted_words = morphology.QuotedWords(cmavo, words, cmavo)
+    quoted_words = morphology.QuotedWords(cmavo, list(words), cmavo)
     delimited_word = morphology.DelimitedWordQuote(cmavo, verbatim)
     lerfu = morphology.LerfuWord(plain, cmavo)
     zei = morphology.ZeiCompound(plain, cmavo, gismu)
@@ -419,7 +419,7 @@ def typed_constructed_morphology_products() -> morphology.ValsiAnalysisResult:
     )
     candidate: morphology.LujvoCandidate | None = (
         morphology.choose_best_lujvo_candidate_from_parts(
-            morphology.LujvoBuildMode.LUJVO, (build_parts,)
+            morphology.LujvoBuildMode.LUJVO, [list(build_parts)]
         )
     )
     assert candidate is None or candidate.parts

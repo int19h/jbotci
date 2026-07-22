@@ -116,7 +116,7 @@ def dialect_definition_to_text(definition: DialectDefinition) -> str:
 
 
 def cmavo_dialect_entries_to_definition(
-    entries: tuple[CmavoDialectEntry, ...]
+    entries: Sequence[CmavoDialectEntry]
 ) -> str:
     """Render cmavo dialect entries as a definition formula."""
 

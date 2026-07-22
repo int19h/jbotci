@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import wraps
 from typing import ParamSpec, TypeAlias, TypeVar
 
@@ -163,7 +163,7 @@ class MorphologyError(_rust.JbotciError):
         value: MorphologyErrorValue,
         original_source: str,
         source_id: SourceId | None,
-        warnings: tuple[MorphologyWarning, ...] = (),
+        warnings: Sequence[MorphologyWarning] = (),
         trace: TraceReport | None = None,
     ) -> None:
         super().__init__(str(value))
@@ -175,7 +175,7 @@ class MorphologyError(_rust.JbotciError):
         self.spans = tuple(label.span for label in self.diagnostic.labels)
         self.context = getattr(value, "context", None)
         self.detail = getattr(value, "detail", None)
-        self.warnings = warnings
+        self.warnings = tuple(warnings)
         self.trace = trace
 
 
@@ -245,7 +245,7 @@ def segment_for_display(
 ) -> tuple[WordLike, ...]:
     """Segment through the Rust display-oriented morphology entry point."""
 
-    attempt = _rust._morphology_segment_for_display_attempt(
+    attempt = segment_for_display_attempt(
         text, options=options, source_id=source_id
     )
     if attempt.error is not None:
@@ -258,6 +258,19 @@ def segment_for_display(
         )
     assert attempt.words is not None
     return attempt.words
+
+
+def segment_for_display_attempt(
+    text: str,
+    *,
+    options: MorphologyOptions | None = None,
+    source_id: SourceId | None = None,
+) -> MorphologySegmentAttempt:
+    """Run display segmentation while retaining real warnings and trace output."""
+
+    return _rust._morphology_segment_for_display_attempt(
+        text, options=options, source_id=source_id
+    )
 
 
 def analyze_valsi(
@@ -446,6 +459,7 @@ __all__: tuple[str, ...] = (
     "ValsiAnalysis", "LujvoRafsiBuildPart", "LujvoBrivlaCoreBuildPart",
     "LujvoBuildPart", "LujvoCandidate", "segment", "segment_attempt",
     "segment_recovered", "segment_recovered_attempt", "segment_for_display",
+    "segment_for_display_attempt",
     "analyze_valsi", "normalize_input", "canonicalize_text", "canonical_text_eq",
     "canonical_text_is_all", "normalize_cmavo_form", "cmavo_phonemes",
     "pronunciation_syllables", "strip_lojban_diacritic", "fold_lojban_diacritic",

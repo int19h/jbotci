@@ -5,6 +5,7 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
+use jbotci_diagnostics::source_span_from_char_offsets;
 use jbotci_morphology::{
     Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord,
     ConsonantPairClass, ExpectedWordDetailKind, GlideMark, LeadingPauseContext,
@@ -30,8 +31,8 @@ use crate::source::{
     PySourceId, PySourceSpan, source_location_error_from_python, source_location_error_to_python,
 };
 use crate::support::{
-    PythonStringEnum, extract_string_enum, register_private_object, register_string_enum,
-    register_type, string_enum_member, string_repr,
+    PythonStringEnum, extract_sequence, extract_string_enum, register_private_object,
+    register_string_enum, register_type, string_enum_member, string_repr,
 };
 
 const PUBLIC_MODULE: &str = "jbotci.morphology";
@@ -2570,19 +2571,13 @@ impl PyLujvoWord {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const __match_args__: (&'static str, &'static str) = ("parts", "span");
-    /// Construct a lujvo word from a non-empty typed part tuple and source span.
+    /// Construct a lujvo word from a non-empty typed part sequence and source span.
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
-    fn new(
-        parts: &Bound<'_, pyo3::types::PyTuple>,
-        span: PyRef<'_, PySourceSpan>,
-    ) -> PyResult<Self> {
+    fn new(parts: &Bound<'_, PyAny>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
         validate_nonempty_word_span(&span)?;
-        let parts = parts
-            .iter()
-            .map(|part| lujvo_part_from_python(&part))
-            .collect::<PyResult<Vec<_>>>()?;
+        let parts = extract_sequence(parts, "parts", lujvo_part_from_python)?;
         let parts = vec1::Vec1::try_from_vec(parts)
             .map_err(|_| InvalidInputError::new_err("lujvo parts must not be empty"))?;
         Ok(new!(PyLujvoWord {
@@ -3164,7 +3159,7 @@ impl PyQuotedWords {
     #[new]
     fn new(
         lohu: &Bound<'_, PyAny>,
-        quoted_words: &Bound<'_, pyo3::types::PyTuple>,
+        quoted_words: &Bound<'_, PyAny>,
         lehu: &Bound<'_, PyAny>,
     ) -> PyResult<Self> {
         let lohu = word_handle_from_python(lohu)?.clone_rust();
@@ -3174,10 +3169,9 @@ impl PyQuotedWords {
                 "QuotedWords requires lo'u and le'u markers",
             ));
         }
-        let words = quoted_words
-            .iter()
-            .map(|word| word_handle_from_python(&word).map(|word| word.clone_rust()))
-            .collect::<PyResult<Vec<_>>>()?;
+        let words = extract_sequence(quoted_words, "quoted_words", |word| {
+            word_handle_from_python(word).map(|word| word.clone_rust())
+        })?;
         Ok(new!(PyQuotedWords {
             handle: WordLikeHandle::root(WordLike::lohu_quote(lohu, words, lehu)),
         }))
@@ -4053,6 +4047,117 @@ fn morphology_detail_to_python(
     }
 }
 
+#[requires(!range_name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|span| span.char_start == char_start && span.char_end == char_end) || ret.is_err())]
+fn validate_diagnostic_char_range(
+    source: &str,
+    char_start: usize,
+    char_end: usize,
+    range_name: &str,
+) -> PyResult<jbotci_source::SourceSpan> {
+    source_span_from_char_offsets(None, source, char_start, char_end)
+        .map_err(|error| InvalidInputError::new_err(format!("invalid {range_name}: {error}")))
+}
+
+#[requires(!range_name.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_diagnostic_source_text(
+    source: &str,
+    char_start: usize,
+    char_end: usize,
+    expected_text: &str,
+    range_name: &str,
+) -> PyResult<()> {
+    let span = validate_diagnostic_char_range(source, char_start, char_end, range_name)?;
+    let actual_text = &source[span.byte_start..span.byte_end];
+    if actual_text != expected_text {
+        return Err(InvalidInputError::new_err(format!(
+            "{range_name} text {expected_text:?} does not match source text {actual_text:?} at character range {char_start}..{char_end}"
+        )));
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_diagnostic_context(source: &str, context: Option<&MorphologyContext>) -> PyResult<()> {
+    if let Some(context) = context {
+        validate_diagnostic_char_range(
+            source,
+            context.char_start,
+            context.char_end,
+            "morphology context character range",
+        )?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
+fn warning_to_diagnostic_checked(
+    warning: &MorphologyWarning,
+    source_id: Option<jbotci_source::SourceId>,
+    source: &str,
+) -> PyResult<jbotci_diagnostics::Diagnostic> {
+    validate_diagnostic_source_text(
+        source,
+        warning.char_start,
+        warning.char_end,
+        &warning.text,
+        "morphology warning character range",
+    )?;
+    validate_diagnostic_context(source, warning.context.as_ref())?;
+    warning
+        .to_diagnostic(source_id, source)
+        .map_err(|error| InvalidInputError::new_err(error.to_string()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
+fn error_to_diagnostic_checked(
+    error: &RustMorphologyError,
+    source_id: Option<jbotci_source::SourceId>,
+    source: &str,
+) -> PyResult<jbotci_diagnostics::Diagnostic> {
+    match error.as_data() {
+        data!(RustMorphologyError::Invalid {
+            char_start,
+            char_end,
+            text,
+            context,
+            ..
+        }) => {
+            validate_diagnostic_source_text(
+                source,
+                *char_start,
+                *char_end,
+                text,
+                "morphology error character range",
+            )?;
+            validate_diagnostic_context(source, context.as_ref())?;
+        }
+        data!(RustMorphologyError::UnterminatedZoiQuote {
+            char_offset,
+            context,
+            ..
+        }) => {
+            validate_diagnostic_char_range(
+                source,
+                *char_offset,
+                source.chars().count(),
+                "unterminated quote character range",
+            )?;
+            validate_diagnostic_context(source, context.as_ref())?;
+        }
+        data!(RustMorphologyError::SourceSpan(_)) => {
+            validate_diagnostic_char_range(source, 0, 0, "source-span error character range")?;
+        }
+    }
+    error
+        .to_diagnostic(source_id, source)
+        .map_err(|error| InvalidInputError::new_err(error.to_string()))
+}
+
 /// Recoverable morphology warning with source offsets and typed context.
 #[invariant(value.char_start < value.char_end)]
 #[pyclass(
@@ -4217,11 +4322,13 @@ impl PyMorphologyWarning {
         &self,
         source: &str,
         source_id: Option<PyRef<'_, PySourceId>>,
-    ) -> PyDiagnostic {
-        PyDiagnostic::from_rust(
-            self.value
-                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+    ) -> PyResult<PyDiagnostic> {
+        warning_to_diagnostic_checked(
+            &self.value,
+            source_id.map(|value| value.clone_rust()),
+            source,
         )
+        .map(PyDiagnostic::from_rust)
     }
 }
 
@@ -4374,11 +4481,13 @@ impl PyInvalidMorphology {
         &self,
         source: &str,
         source_id: Option<PyRef<'_, PySourceId>>,
-    ) -> PyDiagnostic {
-        PyDiagnostic::from_rust(
-            self.value
-                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+    ) -> PyResult<PyDiagnostic> {
+        error_to_diagnostic_checked(
+            &self.value,
+            source_id.map(|value| value.clone_rust()),
+            source,
         )
+        .map(PyDiagnostic::from_rust)
     }
     #[requires(true)]
     #[ensures(true)]
@@ -4475,11 +4584,13 @@ impl PyUnterminatedZoiQuote {
         &self,
         source: &str,
         source_id: Option<PyRef<'_, PySourceId>>,
-    ) -> PyDiagnostic {
-        PyDiagnostic::from_rust(
-            self.value
-                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+    ) -> PyResult<PyDiagnostic> {
+        error_to_diagnostic_checked(
+            &self.value,
+            source_id.map(|value| value.clone_rust()),
+            source,
         )
+        .map(PyDiagnostic::from_rust)
     }
     #[requires(true)]
     #[ensures(true)]
@@ -4543,11 +4654,13 @@ impl PySourceSpanMorphologyError {
         &self,
         source: &str,
         source_id: Option<PyRef<'_, PySourceId>>,
-    ) -> PyDiagnostic {
-        PyDiagnostic::from_rust(
-            self.value
-                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+    ) -> PyResult<PyDiagnostic> {
+        error_to_diagnostic_checked(
+            &self.value,
+            source_id.map(|value| value.clone_rust()),
+            source,
         )
+        .map(PyDiagnostic::from_rust)
     }
     #[requires(true)]
     #[ensures(true)]
@@ -4946,17 +5059,12 @@ fn segment_for_display_attempt(
 ) -> PyMorphologySegmentAttempt {
     let options = rust_options(options.as_deref());
     let source_id = source_id.map(|value| value.clone_rust());
-    let result = py.detach(|| {
-        jbotci_morphology::segment_words_for_display_with_options_and_source_id(
+    let value = py.detach(|| {
+        jbotci_morphology::segment_words_for_display_with_options_and_source_id_attempt(
             &source,
             &options,
             source_id.clone(),
         )
-    });
-    let value = new!(MorphologySegmentAttempt {
-        result,
-        warnings: Vec::new(),
-        trace: None
     });
     PyMorphologySegmentAttempt::from_rust(&source, source_id, value)
 }
@@ -6948,21 +7056,12 @@ fn choose_best_lujvo_candidate(
 fn choose_best_lujvo_candidate_from_parts(
     py: Python<'_>,
     mode: &Bound<'_, PyAny>,
-    choices: &Bound<'_, pyo3::types::PyTuple>,
+    choices: &Bound<'_, PyAny>,
 ) -> PyResult<Option<PyLujvoCandidate>> {
     let mode = enum_from_python(py, mode)?;
-    let choices = choices
-        .iter()
-        .map(|choice| {
-            let choice = choice.cast::<pyo3::types::PyTuple>().map_err(|_| {
-                pyo3::exceptions::PyTypeError::new_err("each lujvo choice must be a tuple")
-            })?;
-            choice
-                .iter()
-                .map(|part| lujvo_build_part_from_python(&part))
-                .collect::<PyResult<Vec<_>>>()
-        })
-        .collect::<PyResult<Vec<_>>>()?;
+    let choices = extract_sequence(choices, "choices", |choice| {
+        extract_sequence(choice, "each lujvo choice", lujvo_build_part_from_python)
+    })?;
     Ok(py
         .detach(|| jbotci_morphology::choose_best_lujvo_candidate_from_parts(mode, &choices))
         .map(PyLujvoCandidate::from_rust))
@@ -7273,6 +7372,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
     use crate::{diagnostics, dialect, source};
+    use pyo3::types::PyDict;
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
@@ -7317,6 +7417,57 @@ mod tests {
                 let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
                 assert_eq!(*projected, expected, "projection diverged for {input:?}");
             }
+
+            let projected = function.call1(("mimi",))?;
+            let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
+            assert_eq!(projected.source.as_ref(), "mimi");
+            assert_eq!(projected.source_id, None);
+            assert!(projected.warnings.is_empty());
+            assert_eq!(projected.trace, None);
+            let data!(SegmentOutcome::Words { values }) = projected.outcome.as_data() else {
+                panic!("mimi must project as successful segmentation")
+            };
+            assert_eq!(values.len(), 2);
+            for (word_like, expected_start) in values.iter().zip([0, 2]) {
+                let word = word_like
+                    .bare_word()
+                    .expect("each projected mimi segment is a plain word");
+                assert_eq!(word.kind(), WordKind::Cmavo);
+                assert_eq!(word.phonemes().as_str(), "mi");
+                assert_eq!(word.span().byte_start, expected_start);
+                assert_eq!(word.span().byte_end, expected_start + 2);
+                assert_eq!(word.span().char_start, expected_start);
+                assert_eq!(word.span().char_end, expected_start + 2);
+            }
+
+            let projected = function.call1(("aa",))?;
+            let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
+            let data!(SegmentOutcome::Error { value }) = projected.outcome.as_data() else {
+                panic!("aa must project as a morphology error")
+            };
+            let data!(RustMorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                text,
+                context,
+                detail,
+            }) = value.as_data()
+            else {
+                panic!("aa must project as InvalidMorphology")
+            };
+            assert_eq!(*kind, MorphologyErrorKind::VowelHiatus);
+            assert_eq!((*char_start, *char_end), (0, 2));
+            assert_eq!(text, "aa");
+            assert_eq!(context, &None);
+            let data!(MorphologyErrorDetail::Phonotactic { reason }) = detail
+                .as_ref()
+                .expect("vowel-hiatus projection must retain phonotactic detail")
+                .as_data()
+            else {
+                panic!("vowel-hiatus projection must retain phonotactic detail")
+            };
+            assert_eq!(*reason, PhonotacticDetailKind::VowelHiatus);
             Ok(())
         })
         .unwrap();
@@ -7342,6 +7493,29 @@ mod tests {
             let projected =
                 projected.extract::<PyRef<'_, PyRecoveredMorphologySegmentAttempt>>()?;
             assert_eq!(*projected, expected);
+            assert_eq!(projected.source.as_ref(), "mi @@@ do");
+            assert_eq!(projected.source_id, None);
+            assert_eq!(projected.trace, None);
+            assert_eq!(projected.result.words.len(), 2);
+            assert_eq!(projected.result.errors.len(), 1);
+            assert_eq!(projected.result.error_regions.len(), 1);
+            assert!(projected.result.warnings.is_empty());
+            let region = &projected.result.error_regions[0];
+            assert_eq!((region.byte_start, region.byte_end), (3, 7));
+            assert_eq!((region.char_start, region.char_end), (3, 7));
+            let data!(RustMorphologyError::Invalid {
+                kind,
+                char_start,
+                char_end,
+                text,
+                ..
+            }) = projected.result.errors[0].as_data()
+            else {
+                panic!("recovery must retain an InvalidMorphology payload")
+            };
+            assert_eq!(*kind, MorphologyErrorKind::InvalidCharacter);
+            assert_eq!((*char_start, *char_end), (3, 4));
+            assert_eq!(text, "@");
             Ok(())
         })
         .unwrap();
@@ -7378,6 +7552,119 @@ mod tests {
                 let projected = projected.extract::<PyRef<'_, PyValsiAnalysis>>()?;
                 assert_eq!(*projected, expected, "projection diverged for {input:?}");
             }
+
+            let projected = function.call1(("klama",))?;
+            let projected = projected.extract::<PyRef<'_, PyValsiAnalysis>>()?;
+            assert_eq!(projected.input.as_ref(), "klama");
+            assert!(projected.warnings.is_empty());
+            assert_eq!(projected.result.status, ValsiAnalysisStatus::Valid);
+            assert_eq!(projected.result.error, None);
+            assert!(projected.result.words.is_empty());
+            let word_like = projected
+                .result
+                .word
+                .as_ref()
+                .expect("valid klama analysis must retain its word");
+            let word = word_like
+                .bare_word()
+                .expect("klama analysis must project a plain word");
+            assert_eq!(word.kind(), WordKind::Gismu);
+            assert_eq!(word.phonemes().as_str(), "kláma");
+            assert_eq!((word.span().byte_start, word.span().byte_end), (0, 5));
+            assert_eq!((word.span().char_start, word.span().char_end), (0, 5));
+            let classification = projected
+                .result
+                .classification
+                .as_ref()
+                .expect("valid klama analysis must retain its classification");
+            assert_eq!(classification.kind(), ValsiClassificationKind::PlainWord);
+            let classification = classification
+                .word()
+                .expect("klama classification must be a plain word");
+            assert_eq!(classification.category, WordKind::Gismu);
+            assert_eq!(classification.phonemes, "kláma");
+            assert_eq!(classification.selmaho, None);
+            assert_eq!(classification.split, None);
+            assert!(classification.parts.is_empty());
+            assert_eq!(classification.stage, None);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn bound_display_attempt_projection_retains_warning_and_trace_literals() {
+        Python::initialize();
+        Python::attach(|py| -> PyResult<()> {
+            let module = registered_module(py)?;
+            let function = module.getattr("_morphology_segment_for_display_attempt")?;
+            let options = MorphologyOptions {
+                permissive_lexer: true,
+                trace: jbotci_diagnostics::TraceOptions::enabled(
+                    jbotci_diagnostics::TraceLevel::Top,
+                    None,
+                    jbotci_diagnostics::TracePhase::Morphology,
+                    jbotci_diagnostics::DEFAULT_TRACE_LIMIT,
+                ),
+                ..MorphologyOptions::default()
+            };
+            let options = Py::new(py, PyMorphologyOptions::from_rust(options))?;
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("options", options)?;
+
+            let projected = function.call(("xu@no",), Some(&kwargs))?;
+            let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
+            assert_eq!(projected.source.as_ref(), "xu@no");
+            let data!(SegmentOutcome::Words { values }) = projected.outcome.as_data() else {
+                panic!("permissive display segmentation must succeed")
+            };
+            assert_eq!(values.len(), 2);
+            assert_eq!(projected.warnings.len(), 1);
+            let warning = &projected.warnings[0];
+            assert_eq!(warning.kind, MorphologyWarningKind::IgnoredCharacters);
+            assert_eq!((warning.char_start, warning.char_end), (2, 3));
+            assert_eq!(warning.text, "@");
+            assert_eq!(
+                warning.ignored_character_count.map(NonZeroUsize::get),
+                Some(1)
+            );
+            let trace = projected
+                .trace
+                .as_ref()
+                .expect("trace-enabled display segmentation must retain a trace");
+            assert_eq!(trace.phase, jbotci_diagnostics::TracePhase::Morphology);
+            assert!(!trace.events.is_empty());
+            assert!(
+                trace
+                    .events
+                    .iter()
+                    .all(|event| event.phase == jbotci_diagnostics::TracePhase::Morphology)
+            );
+            assert_eq!(trace.failure, None);
+
+            let projected = function.call(("aa",), Some(&kwargs))?;
+            let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
+            assert!(matches!(
+                projected.outcome.as_data(),
+                data!(SegmentOutcome::Error { value })
+                    if matches!(value.as_data(), data!(RustMorphologyError::Invalid {
+                        kind: MorphologyErrorKind::VowelHiatus,
+                        char_start: 0,
+                        char_end: 2,
+                        text,
+                        ..
+                    }) if text == "aa")
+            ));
+            let trace = projected
+                .trace
+                .as_ref()
+                .expect("trace-enabled display failure must retain a trace");
+            assert_eq!(trace.phase, jbotci_diagnostics::TracePhase::Morphology);
+            assert!(trace.events.iter().any(|event| {
+                event.kind == jbotci_diagnostics::TraceEventKind::MorphologyFailure
+            }));
             Ok(())
         })
         .unwrap();

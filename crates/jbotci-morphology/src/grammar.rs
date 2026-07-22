@@ -70,18 +70,6 @@ pub(crate) fn segment_words_with_modifiers_recovered_attempt(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn segment_words_for_display(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_for_display_attempt(input, options, source_id)
-        .into_data()
-        .result
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn segment_words_for_display_attempt(
     input: &str,
     options: &MorphologyOptions,

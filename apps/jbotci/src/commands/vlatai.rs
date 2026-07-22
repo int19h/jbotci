@@ -206,7 +206,7 @@ fn vlatai_diagnostics(
                 .error
                 .as_ref()
                 .expect("invalid vlatai result carries error");
-            diagnostics.push(error.to_diagnostic(source_id, &analysis.input));
+            diagnostics.push(error.to_diagnostic(source_id, &analysis.input)?);
         }
         ValsiAnalysisStatus::NotSingleWord => {
             diagnostics.push(vlatai_not_single_word_diagnostic(

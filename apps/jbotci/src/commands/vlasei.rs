@@ -79,12 +79,11 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
             Some(SourceId(source_label.clone())),
             &text,
         );
-        diagnostics.extend(
-            morphology
-                .errors
-                .iter()
-                .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
-        );
+        diagnostics.extend(morphology.errors.iter().map(|error| {
+            error
+                .to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                .expect("morphology error offsets belong to the parser source")
+        }));
         write_source_diagnostics(
             stderr,
             &source_label,

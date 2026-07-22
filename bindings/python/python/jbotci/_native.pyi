@@ -2149,8 +2149,8 @@ class _dialect_CmavoExpansion:
 class _dialect_DialectDefinition:
     def __new__(
         cls,
-        cmavo_entries: tuple[_dialect_CmavoSwap | _dialect_CmavoExpansion, ...] | None = ...,
-        features: tuple[_dialect_DialectFeature, ...] | None = ...,
+        cmavo_entries: Sequence[_dialect_CmavoSwap | _dialect_CmavoExpansion] | None = ...,
+        features: Sequence[_dialect_DialectFeature] | None = ...,
     ) -> _dialect_DialectDefinition: ...
     @staticmethod
     def baseline() -> _dialect_DialectDefinition: ...
@@ -2229,7 +2229,7 @@ def _dialect_replace_dialect_formula_reference(
 ) -> str: ...
 def _dialect_dialect_definition_to_text(definition: _dialect_DialectDefinition) -> str: ...
 def _dialect_cmavo_dialect_entries_to_definition(
-    entries: tuple[_dialect_CmavoSwap | _dialect_CmavoExpansion, ...],
+    entries: Sequence[_dialect_CmavoSwap | _dialect_CmavoExpansion],
 ) -> str: ...
 def _dialect_custom_dialect_definition_to_johau_uri(definition: str) -> str: ...
 def _dialect_custom_dialect_definition_to_johau_uri_with_custom_dialects(
@@ -2442,7 +2442,7 @@ class _morphology_LujvoWord(_MorphologyWordBase):
     __match_args__: tuple[str, str]
     def __new__(
         cls,
-        parts: tuple[_morphology_LujvoRafsi | _morphology_LujvoHyphen, ...],
+        parts: Sequence[_morphology_LujvoRafsi | _morphology_LujvoHyphen],
         span: _source_SourceSpan,
     ) -> _morphology_LujvoWord: ...
     @property
@@ -2518,7 +2518,7 @@ class _morphology_QuotedWords(_MorphologyWordLikeBase):
     def __new__(
         cls,
         lohu: _MorphologyWord,
-        quoted_words: tuple[_MorphologyWord, ...],
+        quoted_words: Sequence[_MorphologyWord],
         lehu: _MorphologyWord,
     ) -> _morphology_QuotedWords: ...
     @property
@@ -3105,5 +3105,5 @@ def _morphology_choose_best_lujvo_candidate(
 ) -> _morphology_LujvoCandidate | None: ...
 def _morphology_choose_best_lujvo_candidate_from_parts(
     mode: _morphology_LujvoBuildMode,
-    choices: tuple[tuple[_morphology_LujvoRafsiBuildPart | _morphology_LujvoBrivlaCoreBuildPart, ...], ...],
+    choices: Sequence[Sequence[_morphology_LujvoRafsiBuildPart | _morphology_LujvoBrivlaCoreBuildPart]],
 ) -> _morphology_LujvoCandidate | None: ...

@@ -156,6 +156,199 @@ def test_attempt_warning_trace_and_recovery_are_distinct() -> None:
     assert recovered.error_regions[0].char_range == (3, 7)
 
 
+def test_display_attempt_preserves_real_warnings_trace_and_failure() -> None:
+    dialect_options = morphology.MorphologyOptions(
+        dialect=dialect.DialectDefinition(
+            [dialect.CmavoSwap("ce'u", "ce")]
+        )
+    )
+    projected = morphology.segment_for_display_attempt(
+        "ce'u", options=dialect_options
+    )
+    assert projected.succeeded
+    assert plain_phonemes(projected.words or ()) == ("ce",)
+
+    options = morphology.MorphologyOptions(
+        permissive_lexer=True,
+        trace=diagnostics.TraceOptions(enabled=True),
+    )
+    warned = morphology.segment_for_display_attempt("xu@no", options=options)
+    assert warned.succeeded
+    assert plain_phonemes(warned.words or ()) == ("xu", "no")
+    assert tuple(warning.kind for warning in warned.warnings) == (
+        morphology.MorphologyWarningKind.IGNORED_CHARACTERS,
+    )
+    assert warned.warnings[0].text == "@"
+    assert warned.trace is not None
+    assert warned.trace.phase is diagnostics.TracePhase.MORPHOLOGY
+    assert warned.trace.events
+
+    failed = morphology.segment_for_display_attempt("aa", options=options)
+    assert not failed.succeeded
+    assert isinstance(failed.error, morphology.InvalidMorphology)
+    assert failed.error.kind is morphology.MorphologyErrorKind.VOWEL_HIATUS
+    assert failed.trace is not None
+    assert failed.trace.phase is diagnostics.TracePhase.MORPHOLOGY
+    assert any(
+        event.kind is diagnostics.TraceEventKind.MORPHOLOGY_FAILURE
+        for event in failed.trace.events
+    )
+
+
+def test_morphology_diagnostic_conversion_checks_every_source_range() -> None:
+    context = morphology.MorphologyContext(
+        morphology.MorphologyContextKind.CMAVO, 0, 1
+    )
+    warning = morphology.MorphologyWarning(
+        morphology.MorphologyWarningKind.EXPERIMENTAL_CGV,
+        0,
+        1,
+        "é",
+        context=context,
+    )
+    warning_diagnostic = warning.to_diagnostic("éx")
+    assert warning_diagnostic.labels[0].span.byte_range == (0, 2)
+    assert warning_diagnostic.labels[0].span.char_range == (0, 1)
+    assert warning_diagnostic.labels[1].span.byte_range == (0, 2)
+    assert morphology.MorphologyWarning(
+        morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 1, 2, "x"
+    ).to_diagnostic("éx").labels[0].span.byte_range == (2, 3)
+
+    with pytest.raises(InvalidInputError, match="does not match source text"):
+        warning.to_diagnostic("ax")
+    with pytest.raises(InvalidInputError):
+        morphology.MorphologyContext(
+            morphology.MorphologyContextKind.CMAVO, 1, 0
+        )
+    with pytest.raises(InvalidInputError):
+        morphology.MorphologyWarning(
+            morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 1, 0, "é"
+        )
+    for out_of_bounds in (
+        morphology.MorphologyWarning(
+            morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 2, 3, "x"
+        ),
+        morphology.MorphologyWarning(
+            morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 0, 2, "éx"
+        ),
+    ):
+        with pytest.raises(InvalidInputError):
+            out_of_bounds.to_diagnostic("é")
+        with pytest.raises(InvalidInputError):
+            out_of_bounds.to_diagnostic("")
+    with pytest.raises(InvalidInputError, match="morphology context"):
+        morphology.MorphologyWarning(
+            morphology.MorphologyWarningKind.EXPERIMENTAL_CGV,
+            0,
+            1,
+            "é",
+            context=morphology.MorphologyContext(
+                morphology.MorphologyContextKind.CMAVO, 1, 2
+            ),
+        ).to_diagnostic("é")
+
+    invalid = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.INVALID_CHARACTER,
+        0,
+        1,
+        "é",
+        context=context,
+    )
+    invalid_diagnostic = invalid.to_diagnostic("éx")
+    assert invalid_diagnostic.labels[0].span.byte_range == (0, 2)
+    assert invalid_diagnostic.labels[0].span.char_range == (0, 1)
+    assert invalid_diagnostic.labels[1].span.byte_range == (0, 2)
+    assert morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.EXPECTED_WORD, 2, 2, ""
+    ).to_diagnostic("éx").labels[0].span.byte_range == (3, 3)
+
+    invalid_inputs = (
+        (
+            morphology.InvalidMorphology(
+                morphology.MorphologyErrorKind.INVALID_CHARACTER, 1, 0, ""
+            ),
+            "é",
+        ),
+        (
+            morphology.InvalidMorphology(
+                morphology.MorphologyErrorKind.INVALID_CHARACTER, 2, 2, ""
+            ),
+            "é",
+        ),
+        (
+            morphology.InvalidMorphology(
+                morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 2, "éx"
+            ),
+            "é",
+        ),
+        (
+            morphology.InvalidMorphology(
+                morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 1, "é"
+            ),
+            "",
+        ),
+        (
+            morphology.InvalidMorphology(
+                morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 1, "x"
+            ),
+            "é",
+        ),
+        (
+            morphology.InvalidMorphology(
+                morphology.MorphologyErrorKind.INVALID_CHARACTER,
+                0,
+                1,
+                "é",
+                context=morphology.MorphologyContext(
+                    morphology.MorphologyContextKind.CMAVO, 1, 2
+                ),
+            ),
+            "é",
+        ),
+    )
+    for value, supplied_source in invalid_inputs:
+        with pytest.raises(InvalidInputError):
+            value.to_diagnostic(supplied_source)
+
+    unterminated = morphology.UnterminatedZoiQuote(1, "gy", context=context)
+    unterminated_diagnostic = unterminated.to_diagnostic("éx")
+    assert unterminated_diagnostic.labels[0].span.byte_range == (2, 3)
+    assert unterminated_diagnostic.labels[0].span.char_range == (1, 2)
+    assert morphology.UnterminatedZoiQuote(2, "gy").to_diagnostic(
+        "éx"
+    ).labels[0].span.byte_range == (3, 3)
+    assert morphology.UnterminatedZoiQuote(0, "gy").to_diagnostic(
+        ""
+    ).labels[0].span.byte_range == (0, 0)
+    with pytest.raises(InvalidInputError):
+        morphology.UnterminatedZoiQuote(2, "gy").to_diagnostic("é")
+    with pytest.raises(InvalidInputError, match="morphology context"):
+        morphology.UnterminatedZoiQuote(
+            0,
+            "gy",
+            context=morphology.MorphologyContext(
+                morphology.MorphologyContextKind.DELIMITED_NON_LOJBAN_QUOTE,
+                1,
+                2,
+            ),
+        ).to_diagnostic("")
+
+    assert morphology.SourceSpanMorphologyError(source.ZeroLine()).to_diagnostic(
+        ""
+    ).labels[0].span.byte_range == (0, 0)
+    assert morphology.SourceSpanMorphologyError(source.ZeroLine()).to_diagnostic(
+        "é"
+    ).labels[0].span.char_range == (0, 0)
+
+
+def test_morphology_error_construction_uses_checked_diagnostic_conversion() -> None:
+    value = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.INVALID_CHARACTER, 1, 0, ""
+    )
+    with pytest.raises(InvalidInputError):
+        morphology.MorphologyError(value, "é", None)
+
+
 def test_strict_exception_retains_typed_details_and_provenance() -> None:
     source_id = source.SourceId("failure")
     with pytest.raises(morphology.MorphologyError) as caught:
@@ -328,3 +521,74 @@ def test_lujvo_parts_and_domain_helpers_are_typed() -> None:
     assert morphology.strip_lojban_diacritic("á") == "a"
     with pytest.raises(InvalidInputError):
         morphology.is_vowel("aa")
+
+
+def test_copied_morphology_inputs_accept_lists_and_tuples_but_return_tuples() -> None:
+    parsed_lujvo = morphology.segment("jetcybolxada")[0]
+    assert isinstance(parsed_lujvo, morphology.PlainWord)
+    assert isinstance(parsed_lujvo.word, morphology.LujvoWord)
+    lujvo_from_list = morphology.LujvoWord(
+        list(parsed_lujvo.word.parts), parsed_lujvo.word.span
+    )
+    lujvo_from_tuple = morphology.LujvoWord(
+        tuple(parsed_lujvo.word.parts), parsed_lujvo.word.span
+    )
+    assert lujvo_from_list == lujvo_from_tuple
+    assert isinstance(lujvo_from_list.parts, tuple)
+
+    parsed_quote = morphology.segment("lo'u mi do le'u")[0]
+    assert isinstance(parsed_quote, morphology.QuotedWords)
+    quote_from_list = morphology.QuotedWords(
+        parsed_quote.lohu, list(parsed_quote.quoted_words), parsed_quote.lehu
+    )
+    quote_from_tuple = morphology.QuotedWords(
+        parsed_quote.lohu, tuple(parsed_quote.quoted_words), parsed_quote.lehu
+    )
+    assert quote_from_list == quote_from_tuple
+    assert isinstance(quote_from_list.quoted_words, tuple)
+
+    choices_list = [
+        [morphology.LujvoRafsiBuildPart("jbo")],
+        [morphology.LujvoBrivlaCoreBuildPart("klama")],
+    ]
+    choices_tuple = tuple(tuple(choice) for choice in choices_list)
+    list_candidate = morphology.choose_best_lujvo_candidate_from_parts(
+        morphology.LujvoBuildMode.LUJVO, choices_list
+    )
+    tuple_candidate = morphology.choose_best_lujvo_candidate_from_parts(
+        morphology.LujvoBuildMode.LUJVO, choices_tuple
+    )
+    assert list_candidate == tuple_candidate
+    if list_candidate is not None:
+        assert isinstance(list_candidate.parts, tuple)
+
+    for invalid_call in (
+        lambda: morphology.LujvoWord(
+            set(),  # type: ignore[arg-type]
+            parsed_lujvo.word.span,
+        ),
+        lambda: morphology.LujvoWord(
+            [object()],  # type: ignore[list-item]
+            parsed_lujvo.word.span,
+        ),
+        lambda: morphology.QuotedWords(
+            parsed_quote.lohu,
+            set(),  # type: ignore[arg-type]
+            parsed_quote.lehu,
+        ),
+        lambda: morphology.QuotedWords(
+            parsed_quote.lohu,
+            [object()],  # type: ignore[list-item]
+            parsed_quote.lehu,
+        ),
+        lambda: morphology.choose_best_lujvo_candidate_from_parts(
+            morphology.LujvoBuildMode.LUJVO,
+            set(),  # type: ignore[arg-type]
+        ),
+        lambda: morphology.choose_best_lujvo_candidate_from_parts(
+            morphology.LujvoBuildMode.LUJVO,
+            [[object()]],  # type: ignore[list-item]
+        ),
+    ):
+        with pytest.raises(TypeError):
+            invalid_call()

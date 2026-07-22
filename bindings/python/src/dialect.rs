@@ -31,8 +31,8 @@ use pyo3::types::{PyAny, PyModule, PyTuple};
 
 use crate::InvalidInputError;
 use crate::support::{
-    PythonStringEnum, extract_string_enum, register_private_object, register_string_enum,
-    register_type, sequence_to_tuple, string_enum_member, string_repr,
+    PythonStringEnum, extract_sequence, extract_string_enum, register_private_object,
+    register_string_enum, register_type, sequence_to_tuple, string_enum_member, string_repr,
 };
 
 const PUBLIC_MODULE: &str = "jbotci.dialect";
@@ -290,31 +290,26 @@ impl PyDialectDefinition {
 
 #[pymethods]
 impl PyDialectDefinition {
-    /// Construct a dialect definition from immutable entry and feature tuples.
+    /// Construct a dialect definition from ordered entry and feature sequences.
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     #[pyo3(signature = (cmavo_entries=None, features=None))]
     fn new(
         py: Python<'_>,
-        cmavo_entries: Option<&Bound<'_, PyTuple>>,
-        features: Option<&Bound<'_, PyTuple>>,
+        cmavo_entries: Option<&Bound<'_, PyAny>>,
+        features: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         let cmavo_entries = cmavo_entries
-            .map(|entries| {
-                entries
-                    .iter()
-                    .map(|entry| entry_from_python(&entry))
-                    .collect()
-            })
+            .map(|entries| extract_sequence(entries, "cmavo_entries", entry_from_python))
             .transpose()?
             .unwrap_or_default();
         let features = features
             .map(|features| {
-                features
-                    .iter()
-                    .map(|feature| feature_from_python(py, &feature))
-                    .collect::<PyResult<BTreeSet<_>>>()
+                extract_sequence(features, "features", |feature| {
+                    feature_from_python(py, feature)
+                })
+                .map(|features| features.into_iter().collect::<BTreeSet<_>>())
             })
             .transpose()?
             .unwrap_or_default();
@@ -700,15 +695,12 @@ fn dialect_definition_to_text(definition: PyRef<'_, PyDialectDefinition>) -> Str
     rust_dialect_definition_to_text(&definition.value)
 }
 
-/// Render a tuple of declarative cmavo entries as a dialect formula.
+/// Render an ordered sequence of declarative cmavo entries as a dialect formula.
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 #[pyfunction]
-fn cmavo_dialect_entries_to_definition(entries: &Bound<'_, PyTuple>) -> PyResult<String> {
-    let entries = entries
-        .iter()
-        .map(|entry| entry_from_python(&entry))
-        .collect::<PyResult<Vec<_>>>()?;
+fn cmavo_dialect_entries_to_definition(entries: &Bound<'_, PyAny>) -> PyResult<String> {
+    let entries = extract_sequence(entries, "entries", entry_from_python)?;
     Ok(rust_cmavo_dialect_entries_to_definition(&entries))
 }
 
