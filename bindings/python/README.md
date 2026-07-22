@@ -43,7 +43,9 @@ install, rather than the source tree, resolves `jbotci`.
 - A Python wrapper for borrowed Rust data must retain a strong owner. The
   internal `OwnedReference` helper stores an `Arc` plus a projection function;
   wrappers must never expose Rust lifetimes or construct self-references. Static
-  embedded data may use a `'static` reference directly.
+  embedded aggregate data uses the same `Arc` owner plus domain-specific typed
+  positions so children remain valid independently without copying whole
+  source tables.
 - Structured Rust binding errors convert in one place to subclasses of
   `JbotciError`. Python-visible exceptions use stable messages and arguments;
   Rust implementation types (`Box`, `Arc`, bityzba data wrappers, lifetimes,
@@ -61,10 +63,32 @@ install, rather than the source tree, resolves `jbotci`.
 - Registration runs in a fixed order during module initialization. There is no
   mutable module-level Rust state; registrations and embedded data must be
   immutable or interpreter-local.
+- Each public domain owns an ordered native export inventory. Classes and
+  `StrEnum`s are stored on the private extension under deterministic
+  domain-qualified keys such as `_dictionary_Dictionary`, while the class
+  itself retains the public name `Dictionary` and module
+  `jbotci.dictionary`. Python-to-Rust `StrEnum` conversion first verifies exact
+  identity with that interpreter's registered class and then accepts only a
+  declared canonical value; a plain string is never accepted as an enum.
 
-The checked-in `python/jbotci/_native.pyi` is composed from the ordered manual
-and generated fragments under `stubs/_native/`. After changing either fragment,
-run:
+## Embedded dictionary
+
+`jbotci.dictionary.english` and `english_metadata` are immutable module objects
+with stable identity for the lifetime of an interpreter. `english.entries` is a
+lazy source-order sequence: importing the module does not create 17,415 Python
+entry objects. Entries and nested keyword, rafsi, user, sound, IPA, pattern, and
+lujvo-decomposition records retain the shared native owner and are projected on
+demand.
+
+Lookup methods delegate to the Rust dictionary indexes and return immutable
+tuples in collision/index order. Integer indexing follows normal negative-index
+rules; typed `EntryIndex` lookup remains optional for out-of-range values. The
+public surface intentionally does not expose static-slice construction,
+importer-owned index builders, serde bridges, or a sound-search operation.
+
+The checked-in `python/jbotci/_native.pyi` is composed from the ordered manual,
+generated, and domain fragments under `stubs/_native/`. After changing a
+fragment, run:
 
 ```sh
 uv run python tools/compose_stubs.py
