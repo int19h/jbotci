@@ -435,6 +435,141 @@ impl AlineScorer {
                 .vowel_penalty(first_second)
                 .max(self.vowel_penalty(second_second))
     }
+
+    /// Precompute every alignment operation involving a fixed source and a
+    /// caller-defined dense target inventory.
+    #[requires(!target_segments.is_empty())]
+    #[requires(!source.is_empty())]
+    #[requires(target_segments.len().checked_mul(source.len()).is_some())]
+    #[requires(target_segments.len().checked_mul(source.len().saturating_sub(1)).is_some())]
+    #[requires(target_segments.len().checked_mul(target_segments.len()).and_then(|count| count.checked_mul(source.len())).is_some())]
+    #[ensures(ret.target_count() == target_segments.len())]
+    pub fn prepare_source(
+        &self,
+        target_segments: &[IpaSegmentId],
+        source: &[IpaSegmentId],
+    ) -> PreparedAlineSource {
+        let target_count = target_segments.len();
+        let substitution_count = target_count
+            .checked_mul(source.len())
+            .expect("the precondition guarantees a representable substitution table");
+        let target_to_source_pair_count = target_count
+            .checked_mul(source.len().saturating_sub(1))
+            .expect("the precondition guarantees a representable source-pair table");
+        let target_pair_count = target_count
+            .checked_mul(target_count)
+            .expect("the precondition guarantees a representable target-pair table");
+        let source_to_target_pair_count = target_pair_count
+            .checked_mul(source.len())
+            .expect("the precondition guarantees a representable target-pair table");
+        let mut substitution = Vec::with_capacity(substitution_count);
+        let mut target_to_source_pair = Vec::with_capacity(target_to_source_pair_count);
+        for &target in target_segments {
+            substitution.extend(
+                source
+                    .iter()
+                    .map(|&source_segment| self.substitution_score(target, source_segment)),
+            );
+            target_to_source_pair.extend(
+                source
+                    .windows(2)
+                    .map(|pair| self.expansion_score(target, pair[0], pair[1])),
+            );
+        }
+
+        let mut source_to_target_pair = Vec::with_capacity(source_to_target_pair_count);
+        for &source_segment in source {
+            for &left_target in target_segments {
+                source_to_target_pair.extend(target_segments.iter().map(|&right_target| {
+                    self.expansion_score(source_segment, left_target, right_target)
+                }));
+            }
+        }
+
+        new!(PreparedAlineSource {
+            target_count,
+            source_len: source.len(),
+            substitution,
+            target_to_source_pair,
+            source_to_target_pair,
+            c_skip: self.parameters.c_skip,
+            c_flank: self.parameters.c_flank,
+        })
+    }
+}
+
+impl PreparedAlineSource {
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    pub fn target_count(&self) -> usize {
+        self.target_count
+    }
+
+    /// Align dense target indices against the prepared source. Every dynamic
+    /// programming transition uses a constant-time table lookup.
+    #[requires(!candidate.is_empty())]
+    #[requires(candidate.iter().all(|index| *index < self.target_count()))]
+    #[ensures(ret.is_finite())]
+    pub fn raw_similarity_with_scratch(
+        &self,
+        candidate: &[usize],
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        let target_count = self.target_count();
+        let target_pair_count = target_count
+            .checked_mul(target_count)
+            .expect("the prepared table invariant guarantees a representable target-pair count");
+        let source_pair_count = self.source_len.saturating_sub(1);
+        let row_width = self.source_len + 1;
+        scratch.previous_previous.resize(row_width, 0.0);
+        scratch.previous.resize(row_width, 0.0);
+        scratch.current.resize(row_width, 0.0);
+        for (source_index, cell) in scratch.previous.iter_mut().enumerate() {
+            *cell = source_index as f64 * self.c_flank;
+        }
+
+        for candidate_index in 1..=candidate.len() {
+            let target = candidate[candidate_index - 1];
+            scratch.current[0] = candidate_index as f64 * self.c_skip;
+            for source_index in 1..=self.source_len {
+                let substitute = scratch.previous[source_index - 1]
+                    + self.substitution[target * self.source_len + source_index - 1];
+                let skip_candidate = scratch.previous[source_index] + self.c_skip;
+                let skip_source = scratch.current[source_index - 1] + self.c_skip;
+                let expand_source = if source_index >= 2 {
+                    scratch.previous[source_index - 2]
+                        + self.target_to_source_pair[target * source_pair_count + source_index - 2]
+                } else {
+                    f64::NEG_INFINITY
+                };
+                let expand_candidate = if candidate_index >= 2 {
+                    let left_target = candidate[candidate_index - 2];
+                    scratch.previous_previous[source_index - 1]
+                        + self.source_to_target_pair[(source_index - 1) * target_pair_count
+                            + left_target * target_count
+                            + target]
+                } else {
+                    f64::NEG_INFINITY
+                };
+                scratch.current[source_index] = substitute
+                    .max(skip_candidate)
+                    .max(skip_source)
+                    .max(expand_source)
+                    .max(expand_candidate);
+            }
+            std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
+            std::mem::swap(&mut scratch.previous, &mut scratch.current);
+        }
+
+        scratch
+            .previous
+            .iter()
+            .enumerate()
+            .map(|(source_index, score)| {
+                score + (self.source_len - source_index) as f64 * self.c_flank
+            })
+            .fold(f64::NEG_INFINITY, f64::max)
+    }
 }
 
 #[invariant(::InvalidValue { parameter, reason } => !parameter.is_empty() && !reason.is_empty())]
@@ -605,6 +740,33 @@ pub struct AlineSimilarityScratch {
     previous_previous: Vec<f64>,
     previous: Vec<f64>,
     current: Vec<f64>,
+}
+
+/// Source-specific ALINE operation scores for a fixed dense target inventory.
+///
+/// Preparing these tables moves feature-distance and vowel-penalty arithmetic
+/// out of callers that align many short candidates against the same source.
+/// The dense target boundary is also where #587's future target-`r`
+/// realization-set maxima must be resolved. Keeping that work in table
+/// preparation preserves one constant-time lookup per candidate-loop
+/// transition.
+#[invariant(*target_count > 0)]
+#[invariant(*source_len > 0)]
+#[invariant((*target_count).checked_mul(*source_len) == Some(substitution.len()))]
+#[invariant((*target_count).checked_mul(source_len.saturating_sub(1)) == Some(target_to_source_pair.len()))]
+#[invariant((*target_count).checked_mul(*target_count).and_then(|count| count.checked_mul(*source_len)) == Some(source_to_target_pair.len()))]
+#[invariant(c_skip.is_finite() && *c_skip <= 0.0)]
+#[invariant(c_flank.is_finite() && *c_flank >= *c_skip && *c_flank <= 0.0)]
+#[expensive_invariant(substitution.iter().all(|score| score.is_finite()) && target_to_source_pair.iter().all(|score| score.is_finite()) && source_to_target_pair.iter().all(|score| score.is_finite()))]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PreparedAlineSource {
+    target_count: usize,
+    source_len: usize,
+    substitution: Vec<f64>,
+    target_to_source_pair: Vec<f64>,
+    source_to_target_pair: Vec<f64>,
+    c_skip: f64,
+    c_flank: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -2310,6 +2472,60 @@ mod tests {
             aline_phonetic_similarity_with_scratch(long.view(), long.view(), &mut scratch),
             1.0
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepared_source_tables_are_bit_exact_with_concrete_oracle() {
+        let target_segments = "bdfkmnraeiou"
+            .chars()
+            .map(|letter| lojban_gismu_letter_to_ipa_segment(letter).expect("target segment"))
+            .collect::<Vec<_>>();
+        let sources = ["a", "fɚmɛnt", "feɾment", "taxamːur", "pɘnapaian"];
+        let parameter_sets = [
+            AlineParameters::default(),
+            AlineParameters::try_new(
+                AlineSaliences::default()
+                    .with_feature(AlineFeature::Place, 31.25)
+                    .expect("valid salience"),
+                37.0,
+                18.5,
+                -7.0,
+                4.0,
+                -2.5,
+                AlineNormalizer::Symmetric,
+            )
+            .expect("valid nondefault parameters"),
+        ];
+
+        for parameters in parameter_sets {
+            let scorer = AlineScorer::new(parameters);
+            for source_text in sources {
+                let source = tokenize_ipa_text(source_text).expect("source");
+                let prepared = scorer.prepare_source(&target_segments, source.segments());
+                let mut dense_candidate = vec![0; 4];
+                let mut concrete_candidate = vec![target_segments[0]; 4];
+                let mut oracle_scratch = AlineSimilarityScratch::default();
+                let mut prepared_scratch = AlineSimilarityScratch::default();
+                for encoded in 0..target_segments.len().pow(4) {
+                    let mut remaining = encoded;
+                    for index in (0..4).rev() {
+                        dense_candidate[index] = remaining % target_segments.len();
+                        concrete_candidate[index] = target_segments[dense_candidate[index]];
+                        remaining /= target_segments.len();
+                    }
+                    let oracle = scorer.raw_similarity_with_scratch(
+                        &concrete_candidate,
+                        source.segments(),
+                        &mut oracle_scratch,
+                    );
+                    let actual = prepared
+                        .raw_similarity_with_scratch(&dense_candidate, &mut prepared_scratch);
+                    assert_eq!(actual.to_bits(), oracle.to_bits());
+                }
+            }
+        }
     }
 
     #[test]
