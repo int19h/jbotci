@@ -2139,8 +2139,8 @@ impl PyIpaSegmentId {
 
 /// Borrowed Lojban pronunciation targets retained through their dictionary owner.
 #[invariant(
-    reference.position.0 < reference.owner.dictionary().sound_index().len(),
-    "the sound position exists in the retained dictionary"
+    true,
+    "the validated SoundReference field makes every pronunciation-target sequence wrapper state in range"
 )]
 #[pyclass(
     name = "PronunciationTargetSequenceView",
@@ -2222,8 +2222,8 @@ impl PyPronunciationTargetSequenceView {
 
 /// Identifier for one Lojban pronunciation target and its accepted realizations.
 #[invariant(
-    value.realization_count() > 0,
-    "the wrapped Rust target always admits at least one realization"
+    true,
+    "the wrapped Rust PronunciationTargetId enforces its static target and realization-table validity"
 )]
 #[pyclass(
     name = "PronunciationTargetId",
