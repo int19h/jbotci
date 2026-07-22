@@ -2857,6 +2857,75 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_dictionary_validation_error_projection(
+        py: Python<'_>,
+        native_module: &Bound<'_, PyModule>,
+        public_exception_type: &Bound<'_, PyAny>,
+        error: DictionaryValidationError,
+        detail_export: &str,
+        detail_class_name: &str,
+        expected_index: Option<usize>,
+        expected_reason: Option<&str>,
+    ) {
+        let expected_message = error.to_string();
+        let py_error = dictionary_validation_py_err(py, error).unwrap();
+        assert_eq!(
+            py_error.get_type(py).as_ptr(),
+            public_exception_type.as_ptr()
+        );
+
+        let exception = py_error.value(py);
+        assert_eq!(exception.to_string(), expected_message);
+        let args_any = exception.getattr("args").unwrap();
+        let args = args_any.cast::<PyTuple>().unwrap();
+        assert_eq!(args.len(), 1);
+        assert_eq!(
+            args.get_item(0).unwrap().extract::<String>().unwrap(),
+            expected_message
+        );
+        let detail = exception.getattr("detail").unwrap();
+        let expected_detail_type = native_module.getattr(detail_export).unwrap();
+        assert_eq!(detail.get_type().as_ptr(), expected_detail_type.as_ptr());
+        assert_eq!(
+            detail
+                .get_type()
+                .getattr("__module__")
+                .unwrap()
+                .extract::<String>()
+                .unwrap(),
+            PUBLIC_MODULE
+        );
+        assert_eq!(
+            detail
+                .get_type()
+                .getattr("__name__")
+                .unwrap()
+                .extract::<String>()
+                .unwrap(),
+            detail_class_name
+        );
+        assert_eq!(detail.to_string(), expected_message);
+
+        if let Some(expected_index) = expected_index {
+            assert_eq!(
+                detail.getattr("index").unwrap().extract::<usize>().unwrap(),
+                expected_index
+            );
+        }
+        if let Some(expected_reason) = expected_reason {
+            assert_eq!(
+                detail
+                    .getattr("reason")
+                    .unwrap()
+                    .extract::<String>()
+                    .unwrap(),
+                expected_reason
+            );
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2927,6 +2996,152 @@ mod tests {
         let lujvo = LujvoReference::new(Arc::clone(&owner), LujvoPosition(0));
         let item = lujvo.lujvo().segments.len();
         assert!(try_new!(LujvoSegmentReference { lujvo, item }).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn validation_failures_have_public_typed_python_details() {
+        Python::initialize();
+        Python::attach(|py| {
+            let native_module = PyModule::new(py, "jbotci._native").unwrap();
+            register(&native_module).unwrap();
+            let modules_any = py.import("sys").unwrap().getattr("modules").unwrap();
+            let modules = modules_any.cast::<PyDict>().unwrap();
+            let previous_package = modules.get_item("jbotci").unwrap();
+            let previous_native_module = modules.get_item("jbotci._native").unwrap();
+            let previous_public_module = modules.get_item(PUBLIC_MODULE).unwrap();
+
+            let package = PyModule::new(py, "jbotci").unwrap();
+            package.add("_native", &native_module).unwrap();
+            modules.set_item("jbotci", package).unwrap();
+            modules.set_item("jbotci._native", &native_module).unwrap();
+            let public_module = PyModule::from_code(
+                py,
+                c"\
+class JbotciError(Exception):
+    pass
+
+class DictionaryValidationError(JbotciError):
+    def __init__(self, detail):
+        self.detail = detail
+        super().__init__(str(detail))
+",
+                c"<dictionary-validation-test>",
+                c"jbotci.dictionary",
+            )
+            .unwrap();
+            modules.set_item(PUBLIC_MODULE, &public_module).unwrap();
+            let exception_type = public_module.getattr("DictionaryValidationError").unwrap();
+            assert_eq!(
+                exception_type
+                    .getattr("__module__")
+                    .unwrap()
+                    .extract::<String>()
+                    .unwrap(),
+                PUBLIC_MODULE
+            );
+
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::InvalidEntry {
+                    index: 11,
+                    reason: "entry reason",
+                },
+                "_dictionary_InvalidEntryValidationDetail",
+                "InvalidEntryValidationDetail",
+                Some(11),
+                Some("entry reason"),
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::WordIndexMismatch,
+                "_dictionary_WordIndexMismatchValidationDetail",
+                "WordIndexMismatchValidationDetail",
+                None,
+                None,
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::RafsiIndexMismatch,
+                "_dictionary_RafsiIndexMismatchValidationDetail",
+                "RafsiIndexMismatchValidationDetail",
+                None,
+                None,
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::SelmahoIndexMismatch,
+                "_dictionary_SelmahoIndexMismatchValidationDetail",
+                "SelmahoIndexMismatchValidationDetail",
+                None,
+                None,
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::PatternIndexMismatch,
+                "_dictionary_PatternIndexMismatchValidationDetail",
+                "PatternIndexMismatchValidationDetail",
+                None,
+                None,
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::InvalidSoundIndexEntry {
+                    index: 12,
+                    reason: "sound reason",
+                },
+                "_dictionary_InvalidSoundIndexEntryValidationDetail",
+                "InvalidSoundIndexEntryValidationDetail",
+                Some(12),
+                Some("sound reason"),
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::InvalidLujvoIndexEntry {
+                    index: 13,
+                    reason: "lujvo reason",
+                },
+                "_dictionary_InvalidLujvoIndexEntryValidationDetail",
+                "InvalidLujvoIndexEntryValidationDetail",
+                Some(13),
+                Some("lujvo reason"),
+            );
+
+            if let Some(previous_public_module) = previous_public_module {
+                modules
+                    .set_item(PUBLIC_MODULE, previous_public_module)
+                    .unwrap();
+            } else {
+                modules.del_item(PUBLIC_MODULE).unwrap();
+            }
+            if let Some(previous_native_module) = previous_native_module {
+                modules
+                    .set_item("jbotci._native", previous_native_module)
+                    .unwrap();
+            } else {
+                modules.del_item("jbotci._native").unwrap();
+            }
+            if let Some(previous_package) = previous_package {
+                modules.set_item("jbotci", previous_package).unwrap();
+            } else {
+                modules.del_item("jbotci").unwrap();
+            }
+        });
     }
 
     #[test]
