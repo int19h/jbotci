@@ -816,17 +816,12 @@ mod binding_schema {
             /// A small repeated token sequence.
             field small: smallvec::SmallVec<[Token; 2]> = smallvec::SmallVec::new();
             /// A non-empty small token sequence.
-            // These schema-only container probes are outside the synthetic tree's traversal domain.
-            #[tree_child(false)]
             field small_non_empty: vec1::smallvec_v1::SmallVec1<[Token; 2]> = unreachable!();
             /// Exactly two tokens.
-            #[tree_child(false)]
             field fixed: [Token; 2] = unreachable!();
             /// A pair of token values.
             field tuple: (Token, Token) = unreachable!();
             /// A token already represented as an explicit recovery field.
-            // This schema-only recovery probe is already wrapped and must not be traversed again.
-            #[tree_child(false)]
             field explicit_recovered: Recovered<Token> = unreachable!();
             /// An optional BE terminator recorded in generated model metadata.
             field terminator <- opt(cmavo(Be)).elidable_terminator(Be);
@@ -865,6 +860,176 @@ mod binding_schema {
             item,
             /// The wrapper alternative added directly from the grammar.
             wrapper,
+        }
+    }
+
+    // These implementations keep schema-only container probes fully traversable
+    // without adding their synthetic element types to production tree models.
+    macro_rules! impl_fixed_array_tree_support {
+        ($model:ident) => {
+            impl<T, const N: usize> $model::TreeNode for [T; N]
+            where
+                T: $model::TreeNode,
+            {
+                fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+                where
+                    V: jbotci_tree::TreeVisitor<
+                            'tree,
+                            Node = $model::NodeRef<'tree>,
+                            Atom = $model::AtomRef<'tree>,
+                        >,
+                {
+                    visitor.enter_sequence();
+                    for value in self {
+                        $model::TreeNode::visit_in_order(value, visitor);
+                    }
+                    visitor.exit_sequence();
+                }
+
+                fn path_to_node_from<'tree>(
+                    &'tree self,
+                    target: $model::NodeRef<'tree>,
+                    path: &mut jbotci_tree::TreePath,
+                ) -> bool {
+                    for (index, value) in self.iter().enumerate() {
+                        path.push(jbotci_tree::TreePathStep::sequence_index(index));
+                        if $model::TreeNode::path_to_node_from(value, target, path) {
+                            return true;
+                        }
+                        path.pop();
+                    }
+                    false
+                }
+
+                fn node_at_path_steps<'tree>(
+                    &'tree self,
+                    steps: &[jbotci_tree::TreePathStep],
+                ) -> Option<$model::NodeRef<'tree>> {
+                    let (step, rest) = steps.split_first()?;
+                    let index = step.as_sequence_index()?;
+                    $model::TreeNode::node_at_path_steps(self.get(index)?, rest)
+                }
+            }
+
+            impl<'tree, T, const N: usize> $model::TreeWalkable<'tree> for [T; N]
+            where
+                T: $model::TreeWalkable<'tree>,
+            {
+                fn walk_with<W>(&'tree self, walker: &mut W)
+                where
+                    W: $model::TreeWalker<'tree> + ?Sized,
+                {
+                    for value in self {
+                        $model::TreeWalkable::walk_with(value, walker);
+                    }
+                }
+            }
+        };
+    }
+
+    impl_fixed_array_tree_support!(valid);
+    impl_fixed_array_tree_support!(recovered);
+
+    // An explicit recovery wrapper is a strict-model schema probe. Flat
+    // traversal retains its recovery events; grammar-directed strict walking
+    // descends into values because strict walkers have no recovery callback.
+    impl<T> valid::TreeNode for Recovered<T>
+    where
+        T: valid::TreeNode,
+    {
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn as_node_ref<'tree>(&'tree self) -> Option<valid::NodeRef<'tree>> {
+            match self {
+                jbotci_tree::Recovered::Valid(value) => {
+                    valid::TreeNode::as_node_ref(value.as_ref())
+                }
+                jbotci_tree::Recovered::Error(_) => None,
+                jbotci_tree::Recovered::Prefix(prefix) => {
+                    valid::TreeNode::as_node_ref(prefix.value.as_ref())
+                }
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+        where
+            V: jbotci_tree::TreeVisitor<
+                    'tree,
+                    Node = valid::NodeRef<'tree>,
+                    Atom = valid::AtomRef<'tree>,
+                >,
+        {
+            match self {
+                jbotci_tree::Recovered::Valid(value) => {
+                    valid::TreeNode::visit_in_order(value.as_ref(), visitor)
+                }
+                jbotci_tree::Recovered::Error(item) => visitor.visit_recovered_error(item),
+                jbotci_tree::Recovered::Prefix(prefix) => {
+                    for item in &prefix.errors {
+                        visitor.visit_recovered_error(item);
+                    }
+                    valid::TreeNode::visit_in_order(prefix.value.as_ref(), visitor);
+                }
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn path_to_node_from<'tree>(
+            &'tree self,
+            target: valid::NodeRef<'tree>,
+            path: &mut jbotci_tree::TreePath,
+        ) -> bool {
+            match self {
+                jbotci_tree::Recovered::Valid(value) => {
+                    valid::TreeNode::path_to_node_from(value.as_ref(), target, path)
+                }
+                jbotci_tree::Recovered::Error(_) => false,
+                jbotci_tree::Recovered::Prefix(prefix) => {
+                    valid::TreeNode::path_to_node_from(prefix.value.as_ref(), target, path)
+                }
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn node_at_path_steps<'tree>(
+            &'tree self,
+            steps: &[jbotci_tree::TreePathStep],
+        ) -> Option<valid::NodeRef<'tree>> {
+            match self {
+                jbotci_tree::Recovered::Valid(value) => {
+                    valid::TreeNode::node_at_path_steps(value.as_ref(), steps)
+                }
+                jbotci_tree::Recovered::Error(_) => None,
+                jbotci_tree::Recovered::Prefix(prefix) => {
+                    valid::TreeNode::node_at_path_steps(prefix.value.as_ref(), steps)
+                }
+            }
+        }
+    }
+
+    impl<'tree, T> valid::TreeWalkable<'tree> for Recovered<T>
+    where
+        T: valid::TreeWalkable<'tree>,
+    {
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn walk_with<W>(&'tree self, walker: &mut W)
+        where
+            W: valid::TreeWalker<'tree> + ?Sized,
+        {
+            match self {
+                jbotci_tree::Recovered::Valid(value) => {
+                    valid::TreeWalkable::walk_with(value.as_ref(), walker)
+                }
+                jbotci_tree::Recovered::Error(_) => {}
+                jbotci_tree::Recovered::Prefix(prefix) => {
+                    valid::TreeWalkable::walk_with(prefix.value.as_ref(), walker)
+                }
+            }
         }
     }
 
