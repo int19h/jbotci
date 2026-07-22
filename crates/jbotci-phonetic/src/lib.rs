@@ -501,8 +501,8 @@ impl AlineScorer {
         for &left in targets {
             substitution.extend(targets.iter().map(|&right| {
                 self.maximized_substitution_score(
-                    PronunciationUnit::Target(left),
-                    PronunciationUnit::Target(right),
+                    PronunciationUnit::target(left),
+                    PronunciationUnit::target(right),
                 )
             }));
         }
@@ -511,9 +511,9 @@ impl AlineScorer {
             for &first_second in targets {
                 single_to_pair.extend(targets.iter().map(|&second_second| {
                     self.maximized_expansion_score(
-                        PronunciationUnit::Target(single),
-                        PronunciationUnit::Target(first_second),
-                        PronunciationUnit::Target(second_second),
+                        PronunciationUnit::target(single),
+                        PronunciationUnit::target(first_second),
+                        PronunciationUnit::target(second_second),
                     )
                 }));
             }
@@ -556,15 +556,15 @@ impl AlineScorer {
         for &target in &targets.targets {
             substitution.extend(source.iter().map(|&source_segment| {
                 self.maximized_substitution_score(
-                    PronunciationUnit::Target(target),
-                    PronunciationUnit::Concrete(source_segment),
+                    PronunciationUnit::target(target),
+                    PronunciationUnit::concrete(source_segment),
                 )
             }));
             target_to_source_pair.extend(source.windows(2).map(|pair| {
                 self.maximized_expansion_score(
-                    PronunciationUnit::Target(target),
-                    PronunciationUnit::Concrete(pair[0]),
-                    PronunciationUnit::Concrete(pair[1]),
+                    PronunciationUnit::target(target),
+                    PronunciationUnit::concrete(pair[0]),
+                    PronunciationUnit::concrete(pair[1]),
                 )
             }));
         }
@@ -574,9 +574,9 @@ impl AlineScorer {
             for &left_target in &targets.targets {
                 source_to_target_pair.extend(targets.targets.iter().map(|&right_target| {
                     self.maximized_expansion_score(
-                        PronunciationUnit::Concrete(source_segment),
-                        PronunciationUnit::Target(left_target),
-                        PronunciationUnit::Target(right_target),
+                        PronunciationUnit::concrete(source_segment),
+                        PronunciationUnit::target(left_target),
+                        PronunciationUnit::target(right_target),
                     )
                 }));
             }
@@ -837,13 +837,13 @@ pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
             .segments()
             .iter()
             .copied()
-            .map(PronunciationUnit::Concrete)
+            .map(PronunciationUnit::concrete)
             .collect::<Vec<_>>(),
         data!(SoundQuerySequence::Targets(sequence)) => sequence
             .targets()
             .iter()
             .copied()
-            .map(PronunciationUnit::Target)
+            .map(PronunciationUnit::target)
             .collect::<Vec<_>>(),
     };
     let target_count = PRONUNCIATION_TARGET_COUNT;
@@ -854,7 +854,7 @@ pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
     let mut substitution = Vec::with_capacity(target_count * query_len);
     let mut target_to_query_pair = Vec::with_capacity(target_count * query_len.saturating_sub(1));
     for target_index in 0..target_count {
-        let target = PronunciationUnit::Target(PronunciationTargetId::from_static_index(
+        let target = PronunciationUnit::target(PronunciationTargetId::from_static_index(
             target_index as u16,
         ));
         substitution.extend(
@@ -873,14 +873,14 @@ pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
     let mut query_to_target_pair = Vec::with_capacity(target_pair_count * query_len);
     for query in query_units.iter().copied() {
         for first_index in 0..target_count {
-            let first = PronunciationUnit::Target(PronunciationTargetId::from_static_index(
+            let first = PronunciationUnit::target(PronunciationTargetId::from_static_index(
                 first_index as u16,
             ));
             query_to_target_pair.extend((0..target_count).map(|second_index| {
                 maximized_expansion_score(
                     query,
                     first,
-                    PronunciationUnit::Target(PronunciationTargetId::from_static_index(
+                    PronunciationUnit::target(PronunciationTargetId::from_static_index(
                         second_index as u16,
                     )),
                 )
@@ -1374,23 +1374,35 @@ enum PronunciationUnit {
 
 impl PronunciationUnit {
     #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(PronunciationUnit::Concrete(value)) if *value == segment))]
+    fn concrete(segment: IpaSegmentId) -> Self {
+        new!(PronunciationUnit::Concrete(segment))
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(PronunciationUnit::Target(value)) if *value == target))]
+    fn target(target: PronunciationTargetId) -> Self {
+        new!(PronunciationUnit::Target(target))
+    }
+
+    #[requires(true)]
     #[ensures(ret > 0)]
     fn realization_count(self) -> usize {
-        match self {
-            Self::Concrete(_) => 1,
-            Self::Target(target) => target.realization_count(),
+        match self.as_data() {
+            data!(PronunciationUnit::Concrete(_)) => 1,
+            data!(PronunciationUnit::Target(target)) => target.realization_count(),
         }
     }
 
     #[requires(index < self.realization_count())]
     #[ensures(true)]
     fn realization(self, index: usize) -> IpaSegmentId {
-        match self {
-            Self::Concrete(segment) => {
+        match self.as_data() {
+            data!(PronunciationUnit::Concrete(segment)) => {
                 debug_assert_eq!(index, 0);
-                segment
+                *segment
             }
-            Self::Target(target) => target
+            data!(PronunciationUnit::Target(target)) => target
                 .realization(index)
                 .expect("the precondition bounds the realization index"),
         }
@@ -2015,15 +2027,15 @@ fn target_raw_similarity_with_scratch(
             let insert_target = scratch.current[target_index - 1] + ALINE_SKIP_SCORE;
             let substitute = scratch.previous[target_index - 1]
                 + maximized_substitution_score(
-                    PronunciationUnit::Target(source[source_index]),
-                    PronunciationUnit::Target(target[target_index - 1]),
+                    PronunciationUnit::target(source[source_index]),
+                    PronunciationUnit::target(target[target_index - 1]),
                 );
             let compress_source = if has_previous_previous && source_index > 0 {
                 scratch.previous_previous[target_index - 1]
                     + maximized_expansion_score(
-                        PronunciationUnit::Target(target[target_index - 1]),
-                        PronunciationUnit::Target(source[source_index - 1]),
-                        PronunciationUnit::Target(source[source_index]),
+                        PronunciationUnit::target(target[target_index - 1]),
+                        PronunciationUnit::target(source[source_index - 1]),
+                        PronunciationUnit::target(source[source_index]),
                     )
             } else {
                 0.0
@@ -2031,9 +2043,9 @@ fn target_raw_similarity_with_scratch(
             let expand_target = if target_index > 1 {
                 scratch.previous[target_index - 2]
                     + maximized_expansion_score(
-                        PronunciationUnit::Target(source[source_index]),
-                        PronunciationUnit::Target(target[target_index - 2]),
-                        PronunciationUnit::Target(target[target_index - 1]),
+                        PronunciationUnit::target(source[source_index]),
+                        PronunciationUnit::target(target[target_index - 2]),
+                        PronunciationUnit::target(target[target_index - 1]),
                     )
             } else {
                 0.0
@@ -3687,11 +3699,11 @@ mod tests {
     #[ensures(true)]
     fn expansion_selects_a_reused_target_realization_jointly() {
         let scorer = AlineScorer::new(AlineParameters::default());
-        let r_target = PronunciationUnit::Target(lojban_r_pronunciation_target());
+        let r_target = PronunciationUnit::target(lojban_r_pronunciation_target());
         let alveolar =
-            PronunciationUnit::Concrete(tokenize_ipa_text("r").expect("r").segments()[0]);
+            PronunciationUnit::concrete(tokenize_ipa_text("r").expect("r").segments()[0]);
         let uvular =
-            PronunciationUnit::Concrete(tokenize_ipa_text("ʁ").expect("uvular r").segments()[0]);
+            PronunciationUnit::concrete(tokenize_ipa_text("ʁ").expect("uvular r").segments()[0]);
         let joint = scorer.maximized_expansion_score(r_target, alveolar, uvular);
         let independently_selected_incorrect_score = scorer.parameters.c_exp;
         assert!(joint < independently_selected_incorrect_score);
@@ -3907,9 +3919,9 @@ mod tests {
         let raw =
             prepared.raw_similarity_with_scratch(&[0, 1], &mut AlineSimilarityScratch::default());
         let expansion = scorer.maximized_expansion_score(
-            PronunciationUnit::Concrete(source.segments()[0]),
-            PronunciationUnit::Target(e),
-            PronunciationUnit::Target(r),
+            PronunciationUnit::concrete(source.segments()[0]),
+            PronunciationUnit::target(e),
+            PronunciationUnit::target(r),
         );
         assert!(expansion > 0.0);
         assert_eq!(raw.to_bits(), expansion.to_bits());
