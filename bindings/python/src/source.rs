@@ -284,7 +284,7 @@ impl PySourceId {
     }
 
     #[requires(true)]
-    #[ensures(ret.0 == value.0)]
+    #[ensures(ret.0 == old(value.0.clone()))]
     pub(crate) fn from_rust(value: SourceId) -> Self {
         Self { value }
     }
@@ -428,10 +428,10 @@ impl PySourceSpan {
 
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(value.char_start <= value.char_end)]
-    #[ensures(ret.value.byte_start == value.byte_start)]
-    #[ensures(ret.value.byte_end == value.byte_end)]
-    #[ensures(ret.value.char_start == value.char_start)]
-    #[ensures(ret.value.char_end == value.char_end)]
+    #[ensures(ret.value.byte_start == old(value.byte_start))]
+    #[ensures(ret.value.byte_end == old(value.byte_end))]
+    #[ensures(ret.value.char_start == old(value.char_start))]
+    #[ensures(ret.value.char_end == old(value.char_end))]
     pub(crate) fn from_rust(value: SourceSpan) -> Self {
         new!(PySourceSpan {
             value: Arc::new(value),

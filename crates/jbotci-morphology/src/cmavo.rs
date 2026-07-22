@@ -1133,6 +1133,24 @@ const fn static_str_eq(left: &str, right: &str) -> bool {
 }
 
 #[requires(true)]
+#[ensures(ret -> left.len() == right.len())]
+const fn static_str_eq_ignore_ascii_case(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index].to_ascii_lowercase() != right[index].to_ascii_lowercase() {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+#[requires(true)]
 #[ensures(true)]
 const fn cmavo_metadata_is_unique() -> bool {
     let mut left_index = 0;
@@ -1141,7 +1159,7 @@ const fn cmavo_metadata_is_unique() -> bool {
         let mut right_index = left_index + 1;
         while right_index < Cmavo::ALL.len() {
             let right = Cmavo::ALL[right_index];
-            if static_str_eq(left.variant_name(), right.variant_name())
+            if static_str_eq_ignore_ascii_case(left.variant_name(), right.variant_name())
                 || static_str_eq(left.canonical_text(), right.canonical_text())
             {
                 return false;
@@ -1155,7 +1173,7 @@ const fn cmavo_metadata_is_unique() -> bool {
 
 const _: () = assert!(
     cmavo_metadata_is_unique(),
-    "cmavo variant names and canonical spellings must be unique"
+    "projected cmavo member names and canonical spellings must be unique"
 );
 
 impl fmt::Display for Cmavo {

@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticNoteMode,
     DiagnosticPhase, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
@@ -154,7 +154,7 @@ pub(crate) struct PyTraceFilter {
 
 impl PyTraceFilter {
     #[requires(!value.name.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: TraceFilter) -> Self {
         new!(PyTraceFilter { value })
     }
@@ -209,7 +209,7 @@ pub(crate) struct PyTraceOptions {
 
 impl PyTraceOptions {
     #[requires(value.limit > 0)]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     pub(crate) fn from_rust(value: TraceOptions) -> Self {
         new!(PyTraceOptions { value })
     }
@@ -335,7 +335,7 @@ impl PyTraceEvent {
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(value.phase != TracePhase::All)]
     #[requires(!value.label.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: TraceEvent) -> Self {
         new!(PyTraceEvent { value })
     }
@@ -473,7 +473,7 @@ pub(crate) struct PyTraceContext {
 impl PyTraceContext {
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(!value.construct.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: TraceContext) -> Self {
         new!(PyTraceContext { value })
     }
@@ -542,7 +542,7 @@ pub(crate) struct PyTraceFailureBranch {
 
 impl PyTraceFailureBranch {
     #[requires(true)]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: TraceFailureBranch) -> Self {
         Self { value }
     }
@@ -553,7 +553,7 @@ impl PyTraceFailureBranch {
     /// Construct a failure branch from contexts and expected items.
     #[requires(true)]
     #[ensures(ret.value.contexts.len() == contexts.len())]
-    #[ensures(ret.value.expected.len() == expected.len())]
+    #[ensures(ret.value.expected.len() == old(expected.len()))]
     #[new]
     #[pyo3(signature = (contexts=Vec::new(), expected=Vec::new()))]
     fn new(contexts: Vec<PyRef<'_, PyTraceContext>>, expected: Vec<String>) -> Self {
@@ -609,7 +609,7 @@ pub(crate) struct PyTraceFailureSummary {
 impl PyTraceFailureSummary {
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(!value.reason.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: TraceFailureSummary) -> Self {
         new!(PyTraceFailureSummary { value })
     }
@@ -719,7 +719,7 @@ pub(crate) struct PyTraceReport {
 
 impl PyTraceReport {
     #[requires(value.phase != TracePhase::All)]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     pub(crate) fn from_rust(value: TraceReport) -> Self {
         new!(PyTraceReport { value })
     }
@@ -1003,7 +1003,7 @@ pub(crate) struct PyDiagnosticTextSegment {
 
 impl PyDiagnosticTextSegment {
     #[requires(!value.text.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: DiagnosticTextSegment) -> Self {
         new!(PyDiagnosticTextSegment { value })
     }
@@ -1082,7 +1082,7 @@ pub(crate) struct PyDiagnosticStyledNote {
 
 impl PyDiagnosticStyledNote {
     #[requires(!value.segments.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: DiagnosticStyledNote) -> Self {
         new!(PyDiagnosticStyledNote { value })
     }
@@ -1154,7 +1154,7 @@ pub(crate) struct PyDiagnosticLabel {
 
 impl PyDiagnosticLabel {
     #[requires(!value.message.is_empty())]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: DiagnosticLabel) -> Self {
         new!(PyDiagnosticLabel { value })
     }
@@ -1243,7 +1243,7 @@ impl PyDiagnostic {
     #[requires(!value.message.is_empty())]
     #[requires(!value.labels.is_empty())]
     #[requires(value.labels.iter().any(|label| label.primary))]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     pub(crate) fn from_rust(value: Diagnostic) -> Self {
         new!(PyDiagnostic { value })
     }

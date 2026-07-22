@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_dialect::{
     BuiltinDialect, CmavoDialectEntry, CustomDialect, DialectDefinition, DialectFeature,
     DialectSettings, add_dialect_formula_reference as rust_add_dialect_formula_reference,
@@ -267,7 +267,7 @@ pub(crate) struct PyDialectDefinition {
 
 impl PyDialectDefinition {
     #[requires(true)]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     pub(crate) fn from_rust(value: DialectDefinition) -> Self {
         Self { value }
     }
@@ -434,7 +434,7 @@ pub(crate) struct PyCustomDialect {
 
 impl PyCustomDialect {
     #[requires(true)]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: CustomDialect) -> Self {
         Self { value }
     }
@@ -497,7 +497,7 @@ pub(crate) struct PyDialectSettings {
 
 impl PyDialectSettings {
     #[requires(true)]
-    #[ensures(ret.value == value)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: DialectSettings) -> Self {
         Self { value }
     }
