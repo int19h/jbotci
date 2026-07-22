@@ -19,6 +19,7 @@ import pytest
 import jbotci
 import jbotci._native as native
 from jbotci import diagnostics, dialect, morphology, source
+from tools.stub_annotation_gate import stub_annotation_issues
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = PACKAGE_ROOT.parents[1]
@@ -774,966 +775,333 @@ def _stub_match_args_arity(annotation: ast.expr) -> int:
     return len(elements)
 
 
-class _StubBinding(NamedTuple):
-    kind: str | None
-    expression: ast.expr | None
-    symbols: _StubSymbols | None
-
-
-class _StubSymbols(NamedTuple):
-    bindings: dict[str, tuple[_StubBinding, ...]]
-    parent: _StubSymbols | None
-    final_bindings: dict[str, tuple[_StubBinding, ...]]
-
-
-class _StubTypeRoot(NamedTuple):
-    label: str
-    expression: ast.expr
-    symbols: _StubSymbols
-    context: str
-
-
-class _StubCallRoot(NamedTuple):
-    expression: ast.expr
-    context: str
-
-
-TYPING_SYMBOL_KINDS: dict[str, str] = {
-    "Any": "any",
-    "Literal": "literal",
-    "Annotated": "annotated",
-    "TypeAlias": "type-alias",
-    "TypeAliasType": "type-alias-type",
-    "TypeVar": "type-var",
-    "ParamSpec": "param-spec",
-    "TypeVarTuple": "type-var-tuple",
-    "NewType": "new-type",
-    "ForwardRef": "forward-ref",
-    "NamedTuple": "named-tuple",
-    "TypedDict": "typed-dict",
-}
-
-
-def _unique_stub_bindings(
-    bindings: list[_StubBinding],
-) -> tuple[_StubBinding, ...]:
-    unique: list[_StubBinding] = []
-    keys: set[tuple[str | None, int, int]] = set()
-    for binding in bindings:
-        key = (binding.kind, id(binding.expression), id(binding.symbols))
-        if key not in keys:
-            keys.add(key)
-            unique.append(binding)
-    return tuple(unique)
-
-
-def _visible_symbol_bindings(
-    name: str, symbols: _StubSymbols
-) -> tuple[_StubBinding, ...]:
-    scope: _StubSymbols | None = symbols
-    while scope is not None:
-        if name in scope.bindings:
-            return scope.bindings[name]
-        scope = scope.parent
-    return ()
-
-
-def _alias_symbol_bindings(
-    name: str, symbols: _StubSymbols
-) -> tuple[_StubBinding, ...]:
-    visible = _visible_symbol_bindings(name, symbols)
-    if visible:
-        return visible
-
-    scope: _StubSymbols | None = symbols
-    while scope is not None:
-        if name in scope.final_bindings:
-            return scope.final_bindings[name]
-        scope = scope.parent
-    return ()
-
-
-def _binding_expression_kinds(
-    expression: ast.expr,
-    symbols: _StubSymbols,
-    visiting: set[tuple[int, str]],
-) -> set[str]:
-    if isinstance(expression, ast.Name):
-        return _possible_symbol_kinds(expression.id, symbols, visiting)
-    if isinstance(expression, ast.Attribute) and isinstance(
-        expression.value, ast.Name
-    ):
-        module_kinds = _possible_symbol_kinds(
-            expression.value.id, symbols, visiting
-        )
-        if "typing-module" in module_kinds:
-            kind = TYPING_SYMBOL_KINDS.get(expression.attr)
-            if kind is not None:
-                return {kind} | (module_kinds - {"typing-module"})
-    return {"other"}
-
-
-def _possible_symbol_kinds(
-    name: str,
-    symbols: _StubSymbols,
-    visiting: set[tuple[int, str]] | None = None,
-) -> set[str]:
-    if visiting is None:
-        visiting = set()
-    key = (id(symbols), name)
-    if key in visiting:
-        return {"other"}
-    visiting.add(key)
-
-    kinds: set[str] = set()
-    for binding in _visible_symbol_bindings(name, symbols):
-        if binding.kind is not None:
-            kinds.add(binding.kind)
-        elif binding.expression is not None and binding.symbols is not None:
-            kinds.update(
-                _binding_expression_kinds(
-                    binding.expression, binding.symbols, visiting
-                )
-            )
-
-    visiting.remove(key)
-    return kinds or {"other"}
-
-
-def _symbol_kind(expression: ast.expr, symbols: _StubSymbols) -> str | None:
-    kinds = _binding_expression_kinds(expression, symbols, set())
-    if "any" in kinds:
-        return "any"
-    if len(kinds) == 1:
-        kind = next(iter(kinds))
-        return None if kind == "other" else kind
-    return None
-
-
-def _special_call_type_roots(
-    expression: ast.Call, symbols: _StubSymbols
-) -> tuple[_StubCallRoot, ...] | None:
-    kinds = _binding_expression_kinds(expression.func, symbols, set())
-    special_kinds = kinds & {
-        "type-alias-type",
-        "new-type",
-        "type-var",
-        "param-spec",
-        "type-var-tuple",
-        "forward-ref",
-        "named-tuple",
-        "typed-dict",
-    }
-    if not special_kinds:
-        return None
-
-    roots: list[_StubCallRoot] = []
-    if special_kinds & {"type-alias-type", "new-type"}:
-        roots.extend(_StubCallRoot(argument, "type") for argument in expression.args[1:2])
-        roots.extend(
-            _StubCallRoot(keyword.value, "type")
-            for keyword in expression.keywords
-            if keyword.arg in {"tp", "value", "type_params"}
-        )
-    if "type-var" in special_kinds:
-        roots.extend(_StubCallRoot(argument, "type") for argument in expression.args[1:])
-        roots.extend(
-            _StubCallRoot(keyword.value, "type")
-            for keyword in expression.keywords
-            if keyword.arg in {"bound", "default"}
-        )
-    if special_kinds & {"param-spec", "type-var-tuple"}:
-        roots.extend(
-            _StubCallRoot(keyword.value, "type")
-            for keyword in expression.keywords
-            if keyword.arg in {"bound", "default"}
-        )
-    if "forward-ref" in special_kinds:
-        roots.extend(_StubCallRoot(argument, "type") for argument in expression.args[:1])
-        roots.extend(
-            _StubCallRoot(keyword.value, "type")
-            for keyword in expression.keywords
-            if keyword.arg == "arg"
-        )
-    if "named-tuple" in special_kinds:
-        roots.extend(
-            _StubCallRoot(argument, "named-tuple-fields")
-            for argument in expression.args[1:2]
-        )
-        for keyword in expression.keywords:
-            if keyword.arg == "fields":
-                roots.append(_StubCallRoot(keyword.value, "named-tuple-fields"))
-            elif keyword.arg not in {"rename", "defaults", "module"}:
-                roots.append(_StubCallRoot(keyword.value, "type"))
-    if "typed-dict" in special_kinds:
-        roots.extend(
-            _StubCallRoot(argument, "typed-dict-fields")
-            for argument in expression.args[1:2]
-        )
-        for keyword in expression.keywords:
-            if keyword.arg == "fields":
-                roots.append(_StubCallRoot(keyword.value, "typed-dict-fields"))
-            elif keyword.arg not in {"total", "closed", "module"}:
-                roots.append(_StubCallRoot(keyword.value, "type"))
-
-    return tuple(
-        root
-        for index, root in enumerate(roots)
-        if all(
-            root.context != previous.context
-            or root.expression is not previous.expression
-            for previous in roots[:index]
-        )
-    )
-
-
-def _type_expression_mentions_any(
-    expression: ast.expr,
-    symbols: _StubSymbols,
-    dependencies: set[tuple[str, str]],
-    visited_strings: set[str] | None = None,
-    *,
-    context: str,
-) -> bool:
-    if visited_strings is None:
-        visited_strings = set()
-
-    if isinstance(expression, ast.Name):
-        if _symbol_kind(expression, symbols) == "any":
-            return True
-        if _alias_symbol_bindings(expression.id, symbols):
-            dependencies.add((expression.id, context))
-        return False
-    if isinstance(expression, ast.Attribute):
-        return _symbol_kind(expression, symbols) == "any"
-    if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
-        if context == "value":
-            return False
-        if expression.value in visited_strings:
-            return False
-        visited_strings.add(expression.value)
-        try:
-            nested = ast.parse(expression.value, mode="eval").body
-        except SyntaxError:
-            return False
-        return _type_expression_mentions_any(
-            nested,
-            symbols,
-            dependencies,
-            visited_strings=visited_strings,
-            context=context,
-        )
-    if context == "named-tuple-fields":
-        if isinstance(expression, (ast.List, ast.Tuple)):
-            return any(
-                _type_expression_mentions_any(
-                    field,
-                    symbols,
-                    dependencies,
-                    visited_strings=visited_strings,
-                    context="named-tuple-field",
-                )
-                for field in expression.elts
-            )
-        if isinstance(expression, ast.BinOp) and isinstance(expression.op, ast.Add):
-            return any(
-                _type_expression_mentions_any(
-                    operand,
-                    symbols,
-                    dependencies,
-                    visited_strings=visited_strings,
-                    context="named-tuple-fields",
-                )
-                for operand in (expression.left, expression.right)
-            )
-        if isinstance(expression, ast.Starred):
-            return _type_expression_mentions_any(
-                expression.value,
-                symbols,
-                dependencies,
-                visited_strings=visited_strings,
-                context="named-tuple-fields",
-            )
-        return False
-    if context == "named-tuple-field":
-        if isinstance(expression, (ast.List, ast.Tuple)) and len(expression.elts) == 2:
-            return _type_expression_mentions_any(
-                expression.elts[1],
-                symbols,
-                dependencies,
-                visited_strings=visited_strings,
-                context="type",
-            )
-        if isinstance(expression, ast.Starred):
-            return _type_expression_mentions_any(
-                expression.value,
-                symbols,
-                dependencies,
-                visited_strings=visited_strings,
-                context="named-tuple-fields",
-            )
-        return False
-    if context == "typed-dict-fields":
-        if isinstance(expression, ast.Dict):
-            return any(
-                _type_expression_mentions_any(
-                    value,
-                    symbols,
-                    dependencies,
-                    visited_strings=visited_strings,
-                    context="type",
-                )
-                for value in expression.values
-            )
-        if isinstance(expression, ast.BinOp) and isinstance(expression.op, ast.BitOr):
-            return any(
-                _type_expression_mentions_any(
-                    operand,
-                    symbols,
-                    dependencies,
-                    visited_strings=visited_strings,
-                    context="typed-dict-fields",
-                )
-                for operand in (expression.left, expression.right)
-            )
-        if isinstance(expression, ast.Call) and isinstance(expression.func, ast.Name) and expression.func.id == "dict":
-            return any(
-                _type_expression_mentions_any(
-                    keyword.value,
-                    symbols,
-                    dependencies,
-                    visited_strings=visited_strings,
-                    context="type",
-                )
-                for keyword in expression.keywords
-                if keyword.arg is not None
-            )
-        return False
-    if isinstance(expression, ast.Subscript):
-        kind = _symbol_kind(expression.value, symbols)
-        if kind == "literal":
-            return False
-        if kind == "annotated":
-            annotated_elements = (
-                expression.slice.elts
-                if isinstance(expression.slice, ast.Tuple)
-                else [expression.slice]
-            )
-            return bool(annotated_elements) and _type_expression_mentions_any(
-                annotated_elements[0],
-                symbols,
-                dependencies,
-                visited_strings=visited_strings,
-                context="type",
-            )
-    if isinstance(expression, ast.Call):
-        special_roots = _special_call_type_roots(expression, symbols)
-        if special_roots is not None:
-            return any(
-                _type_expression_mentions_any(
-                    root.expression,
-                    symbols,
-                    dependencies,
-                    visited_strings=visited_strings,
-                    context=root.context,
-                )
-                for root in special_roots
-            )
-
-    return any(
-        _type_expression_mentions_any(
-            child,
-            symbols,
-            dependencies,
-            visited_strings=visited_strings,
-            context=context,
-        )
-        for child in ast.iter_child_nodes(expression)
-        if isinstance(child, ast.expr)
-    )
-
-
-def _pep695_alias_name(statement: ast.stmt) -> str | None:
-    if type(statement).__name__ != "TypeAlias":
-        return None
-    name = getattr(statement, "name", None)
-    return name.id if isinstance(name, ast.Name) else None
-
-
-def _pep695_type_roots(declaration: ast.AST) -> tuple[ast.expr, ...]:
-    roots: list[ast.expr] = []
-    if type(declaration).__name__ == "TypeAlias":
-        value = getattr(declaration, "value", None)
-        if isinstance(value, ast.expr):
-            roots.append(value)
-    for parameter in getattr(declaration, "type_params", ()):
-        for field_name in ("bound", "default", "default_value"):
-            parameter_value = getattr(parameter, field_name, None)
-            if isinstance(parameter_value, ast.expr) and all(
-                parameter_value is not root for root in roots
-            ):
-                roots.append(parameter_value)
-    return tuple(roots)
-
-
-def _type_parameter_names(declaration: ast.AST) -> tuple[str, ...]:
-    names: list[str] = []
-    for parameter in getattr(declaration, "type_params", ()):
-        name = getattr(parameter, "name", None)
-        if isinstance(name, ast.Name):
-            name = name.id
-        if isinstance(name, str):
-            names.append(name)
-    return tuple(names)
-
-
-def _with_type_parameters(
-    declaration: ast.AST, parent: _StubSymbols
-) -> _StubSymbols:
-    names = _type_parameter_names(declaration)
-    if not names:
-        return parent
-    bindings = {
-        name: (_StubBinding("other", None, None),) for name in names
-    }
-    final_bindings = dict(bindings)
-    return _StubSymbols(bindings, parent, final_bindings)
-
-
-def _with_stub_bindings(
-    symbols: _StubSymbols,
-    replacements: dict[str, tuple[_StubBinding, ...]],
-) -> _StubSymbols:
-    bindings = dict(symbols.bindings)
-    bindings.update(replacements)
-    return _StubSymbols(bindings, symbols.parent, symbols.final_bindings)
-
-
-def _without_stub_bindings(
-    symbols: _StubSymbols, names: tuple[str, ...]
-) -> _StubSymbols:
-    bindings = dict(symbols.bindings)
-    for name in names:
-        bindings.pop(name, None)
-    return _StubSymbols(bindings, symbols.parent, symbols.final_bindings)
-
-
-def _assignment_target_names(target: ast.expr) -> tuple[str, ...]:
-    if isinstance(target, ast.Name):
-        return (target.id,)
-    if isinstance(target, (ast.List, ast.Tuple)):
-        return tuple(
-            name
-            for element in target.elts
-            for name in _assignment_target_names(element)
-        )
-    if isinstance(target, ast.Starred):
-        return _assignment_target_names(target.value)
-    return ()
-
-
-def _join_stub_paths(
-    incoming: _StubSymbols, paths: list[_StubSymbols]
-) -> _StubSymbols:
-    changed_names = {
-        name
-        for path in paths
-        for name in set(incoming.bindings) | set(path.bindings)
-        if path.bindings.get(name) is not incoming.bindings.get(name)
-    }
-    replacements: dict[str, tuple[_StubBinding, ...]] = {}
-    for name in changed_names:
-        alternatives: list[_StubBinding] = []
-        for path in paths:
-            visible = _visible_symbol_bindings(name, path)
-            alternatives.extend(
-                visible or (_StubBinding("other", None, None),)
-            )
-        replacements[name] = _unique_stub_bindings(alternatives)
-    return _with_stub_bindings(incoming, replacements)
-
-
-def _forward_binding_expression_kinds(
-    expression: ast.expr,
-    symbols: _StubSymbols,
-    visited_strings: set[str] | None = None,
-) -> set[str]:
-    if visited_strings is None:
-        visited_strings = set()
-    if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
-        if expression.value in visited_strings:
-            return {"other"}
-        visited_strings.add(expression.value)
-        try:
-            nested = ast.parse(expression.value, mode="eval").body
-        except SyntaxError:
-            return {"other"}
-        return _forward_binding_expression_kinds(
-            nested, symbols, visited_strings
-        )
-    return _binding_expression_kinds(expression, symbols, set())
-
-
-def _is_static_method(declaration: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    return any(
-        (isinstance(decorator, ast.Name) and decorator.id == "staticmethod")
-        or (isinstance(decorator, ast.Attribute) and decorator.attr == "staticmethod")
-        for decorator in declaration.decorator_list
-    )
-
-
-def _collect_scope_type_roots(
-    body: list[ast.stmt],
-    parent: _StubSymbols | None,
-    *,
-    class_scope: bool,
-) -> tuple[
-    list[_StubTypeRoot],
-    list[str],
-]:
-    final_bindings: dict[str, tuple[_StubBinding, ...]] = {}
-    symbols = _StubSymbols({}, parent, final_bindings)
-    symbols, roots, issues = _collect_stub_statements(
-        body, symbols, class_scope=class_scope
-    )
-    final_bindings.update(symbols.bindings)
-    return roots, issues
-
-
-def _collect_stub_statements(
-    statements: list[ast.stmt],
-    symbols: _StubSymbols,
-    *,
-    class_scope: bool,
-) -> tuple[_StubSymbols, list[_StubTypeRoot], list[str]]:
-    roots: list[_StubTypeRoot] = []
-    issues: list[str] = []
-
-    for statement in statements:
-        if getattr(statement, "type_comment", None) is not None:
-            issues.append(
-                f"line {statement.lineno}: public type comments are unsupported"
-            )
-
-        if isinstance(statement, ast.Import):
-            replacements: dict[str, tuple[_StubBinding, ...]] = {}
-            for imported in statement.names:
-                bound_name = imported.asname or imported.name.split(".", maxsplit=1)[0]
-                kind = (
-                    "typing-module"
-                    if imported.name in {"typing", "typing_extensions"}
-                    else "other"
-                )
-                replacements[bound_name] = (_StubBinding(kind, None, None),)
-            symbols = _with_stub_bindings(symbols, replacements)
-            continue
-
-        if isinstance(statement, ast.ImportFrom):
-            replacements = {}
-            for imported in statement.names:
-                bound_name = imported.asname or imported.name
-                if imported.name == "*" and statement.module in {
-                    "typing",
-                    "typing_extensions",
-                }:
-                    issues.append(f"line {statement.lineno}: imports Any")
-                    continue
-                kind = (
-                    TYPING_SYMBOL_KINDS.get(imported.name, "other")
-                    if statement.module in {"typing", "typing_extensions"}
-                    else "other"
-                )
-                replacements[bound_name] = (_StubBinding(kind, None, None),)
-                if kind == "any":
-                    issues.append(f"line {statement.lineno}: imports Any")
-            symbols = _with_stub_bindings(symbols, replacements)
-            continue
-
-        value = (
-            statement.value
-            if isinstance(statement, (ast.Assign, ast.AnnAssign))
-            else None
-        )
-        if isinstance(statement, ast.AnnAssign):
-            roots.append(
-                _StubTypeRoot(
-                    "annotated assignment",
-                    statement.annotation,
-                    symbols,
-                    "type",
-                )
-            )
-            if (
-                statement.value is not None
-                and "type-alias"
-                in _forward_binding_expression_kinds(
-                    statement.annotation, symbols
-                )
-            ):
-                roots.append(
-                    _StubTypeRoot(
-                        "explicit type alias",
-                        statement.value,
-                        symbols,
-                        "type",
-                    )
-                )
-
-        if isinstance(statement, (ast.Assign, ast.AnnAssign)):
-            if value is not None:
-                roots.append(
-                    _StubTypeRoot(
-                        "declaration assignment value",
-                        value,
-                        symbols,
-                        "value",
-                    )
-                )
-                if isinstance(value, ast.Call):
-                    special_roots = _special_call_type_roots(value, symbols)
-                    if special_roots is not None:
-                        roots.extend(
-                            _StubTypeRoot(
-                                "runtime type constructor",
-                                root.expression,
-                                symbols,
-                                root.context,
-                            )
-                            for root in special_roots
-                        )
-
-            targets = (
-                statement.targets
-                if isinstance(statement, ast.Assign)
-                else [statement.target]
-            )
-            replacements = {}
-            for target in targets:
-                names = _assignment_target_names(target)
-                for name in names:
-                    binding = (
-                        _StubBinding(None, value, symbols)
-                        if value is not None and isinstance(target, ast.Name)
-                        else _StubBinding("other", None, None)
-                    )
-                    replacements[name] = (binding,)
-            symbols = _with_stub_bindings(symbols, replacements)
-            continue
-
-        if isinstance(statement, ast.AugAssign):
-            roots.append(
-                _StubTypeRoot(
-                    "augmented assignment value",
-                    statement.value,
-                    symbols,
-                    "value",
-                )
-            )
-            symbols = _with_stub_bindings(
-                symbols,
-                {
-                    name: (_StubBinding("other", None, None),)
-                    for name in _assignment_target_names(statement.target)
-                },
-            )
-            continue
-
-        if type(statement).__name__ == "TypeAlias":
-            declaration_symbols = _with_type_parameters(statement, symbols)
-            roots.extend(
-                _StubTypeRoot(
-                    "PEP 695 type alias", root, declaration_symbols, "type"
-                )
-                for root in _pep695_type_roots(statement)
-            )
-            name = _pep695_alias_name(statement)
-            alias_value = getattr(statement, "value", None)
-            if name is not None and isinstance(alias_value, ast.expr):
-                symbols = _with_stub_bindings(
-                    symbols,
-                    {
-                        name: (
-                            _StubBinding(
-                                None, alias_value, declaration_symbols
-                            ),
-                        )
-                    },
-                )
-            continue
-
-        if isinstance(statement, ast.ClassDef):
-            declaration_symbols = _with_type_parameters(statement, symbols)
-            roots.extend(
-                _StubTypeRoot("class base", base, declaration_symbols, "type")
-                for base in statement.bases
-            )
-            roots.extend(
-                _StubTypeRoot(
-                    "class type parameter", root, declaration_symbols, "type"
-                )
-                for root in _pep695_type_roots(statement)
-            )
-            roots.extend(
-                _StubTypeRoot(
-                    "class metaclass",
-                    keyword.value,
-                    declaration_symbols,
-                    "type",
-                )
-                for keyword in statement.keywords
-                if keyword.arg == "metaclass"
-            )
-            child_roots, child_issues = _collect_scope_type_roots(
-                statement.body,
-                declaration_symbols,
-                class_scope=True,
-            )
-            roots.extend(child_roots)
-            issues.extend(child_issues)
-            symbols = _with_stub_bindings(
-                symbols,
-                {statement.name: (_StubBinding("other", None, None),)},
-            )
-            continue
-
-        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            declaration_symbols = _with_type_parameters(statement, symbols)
-            roots.extend(
-                _StubTypeRoot(
-                    "function type parameter", root, declaration_symbols, "type"
-                )
-                for root in _pep695_type_roots(statement)
-            )
-            parameters = [
-                *statement.args.posonlyargs,
-                *statement.args.args,
-                *statement.args.kwonlyargs,
-            ]
-            if statement.args.vararg is not None:
-                parameters.append(statement.args.vararg)
-            if statement.args.kwarg is not None:
-                parameters.append(statement.args.kwarg)
-            positional = [*statement.args.posonlyargs, *statement.args.args]
-            implicit_receiver = (
-                class_scope
-                and not _is_static_method(statement)
-                and bool(positional)
-                and positional[0].arg in {"self", "cls"}
-            )
-            for index, parameter in enumerate(parameters):
-                if parameter.annotation is None:
-                    if not (implicit_receiver and index == 0):
-                        issues.append(
-                            f"line {parameter.lineno}: {statement.name}.{parameter.arg} "
-                            "has no annotation"
-                        )
-                else:
-                    roots.append(
-                        _StubTypeRoot(
-                            f"{statement.name}.{parameter.arg} annotation",
-                            parameter.annotation,
-                            declaration_symbols,
-                            "type",
-                        )
-                    )
-            if statement.returns is None:
-                issues.append(f"line {statement.lineno}: {statement.name} has no return")
-            else:
-                roots.append(
-                    _StubTypeRoot(
-                        f"{statement.name} return",
-                        statement.returns,
-                        declaration_symbols,
-                        "type",
-                    )
-                )
-            symbols = _with_stub_bindings(
-                symbols,
-                {statement.name: (_StubBinding("other", None, None),)},
-            )
-            continue
-
-        if isinstance(statement, ast.If):
-            body_symbols, body_roots, body_issues = _collect_stub_statements(
-                statement.body, symbols, class_scope=class_scope
-            )
-            if statement.orelse:
-                else_symbols, else_roots, else_issues = _collect_stub_statements(
-                    statement.orelse, symbols, class_scope=class_scope
-                )
-            else:
-                else_symbols, else_roots, else_issues = symbols, [], []
-            roots.extend(body_roots)
-            roots.extend(else_roots)
-            issues.extend(body_issues)
-            issues.extend(else_issues)
-            symbols = _join_stub_paths(symbols, [body_symbols, else_symbols])
-            continue
-
-        if isinstance(statement, (ast.For, ast.AsyncFor, ast.While)):
-            body_symbols = symbols
-            if isinstance(statement, (ast.For, ast.AsyncFor)):
-                body_symbols = _with_stub_bindings(
-                    body_symbols,
-                    {
-                        name: (_StubBinding("other", None, None),)
-                        for name in _assignment_target_names(statement.target)
-                    },
-                )
-            body_symbols, body_roots, body_issues = _collect_stub_statements(
-                statement.body, body_symbols, class_scope=class_scope
-            )
-            symbols = _join_stub_paths(symbols, [symbols, body_symbols])
-            roots.extend(body_roots)
-            issues.extend(body_issues)
-            if statement.orelse:
-                symbols, else_roots, else_issues = _collect_stub_statements(
-                    statement.orelse, symbols, class_scope=class_scope
-                )
-                roots.extend(else_roots)
-                issues.extend(else_issues)
-            continue
-
-        if isinstance(statement, (ast.Try, ast.TryStar)):
-            try_symbols, try_roots, try_issues = _collect_stub_statements(
-                statement.body, symbols, class_scope=class_scope
-            )
-            roots.extend(try_roots)
-            issues.extend(try_issues)
-            normal_symbols = try_symbols
-            if statement.orelse:
-                normal_symbols, else_roots, else_issues = _collect_stub_statements(
-                    statement.orelse, try_symbols, class_scope=class_scope
-                )
-                roots.extend(else_roots)
-                issues.extend(else_issues)
-            handler_input = _join_stub_paths(
-                symbols, [symbols, try_symbols]
-            )
-            outcomes = [normal_symbols]
-            for handler in statement.handlers:
-                handler_symbols = handler_input
-                if handler.name is not None:
-                    handler_symbols = _with_stub_bindings(
-                        handler_symbols,
-                        {handler.name: (_StubBinding("other", None, None),)},
-                    )
-                handler_symbols, handler_roots, handler_issues = _collect_stub_statements(
-                    handler.body, handler_symbols, class_scope=class_scope
-                )
-                outcomes.append(handler_symbols)
-                roots.extend(handler_roots)
-                issues.extend(handler_issues)
-            symbols = _join_stub_paths(symbols, outcomes)
-            if statement.finalbody:
-                symbols, final_roots, final_issues = _collect_stub_statements(
-                    statement.finalbody, symbols, class_scope=class_scope
-                )
-                roots.extend(final_roots)
-                issues.extend(final_issues)
-            continue
-
-        if isinstance(statement, ast.Match):
-            outcomes = [symbols]
-            for case in statement.cases:
-                case_symbols = symbols
-                pattern_names = tuple(
-                    name
-                    for node in ast.walk(case.pattern)
-                    for name in (getattr(node, "name", None),)
-                    if isinstance(name, str)
-                )
-                if pattern_names:
-                    case_symbols = _with_stub_bindings(
-                        case_symbols,
-                        {
-                            name: (_StubBinding("other", None, None),)
-                            for name in pattern_names
-                        },
-                    )
-                case_symbols, case_roots, case_issues = _collect_stub_statements(
-                    case.body, case_symbols, class_scope=class_scope
-                )
-                outcomes.append(case_symbols)
-                roots.extend(case_roots)
-                issues.extend(case_issues)
-            symbols = _join_stub_paths(symbols, outcomes)
-            continue
-
-        if isinstance(statement, (ast.With, ast.AsyncWith)):
-            replacements = {
-                name: (_StubBinding("other", None, None),)
-                for item in statement.items
-                if item.optional_vars is not None
-                for name in _assignment_target_names(item.optional_vars)
-            }
-            symbols = _with_stub_bindings(symbols, replacements)
-            symbols, body_roots, body_issues = _collect_stub_statements(
-                statement.body, symbols, class_scope=class_scope
-            )
-            roots.extend(body_roots)
-            issues.extend(body_issues)
-            continue
-
-        if isinstance(statement, ast.Delete):
-            symbols = _without_stub_bindings(
-                symbols,
-                tuple(
-                    name
-                    for target in statement.targets
-                    for name in _assignment_target_names(target)
-                ),
-            )
-
-    return symbols, roots, issues
-
-
 def _stub_annotation_issues(tree: ast.Module) -> tuple[str, ...]:
-    roots, issues = _collect_scope_type_roots(
-        tree.body,
-        None,
-        class_scope=False,
-    )
+    return stub_annotation_issues(tree)
 
-    followed_aliases: set[tuple[int, int, str]] = set()
-    root_index = 0
-    while root_index < len(roots):
-        root = roots[root_index]
-        root_index += 1
-        dependencies: set[tuple[str, str]] = set()
-        if _type_expression_mentions_any(
-            root.expression,
-            root.symbols,
-            dependencies,
-            context=root.context,
-        ):
-            issues.append(
-                f"line {root.expression.lineno}: {root.label} uses Any"
-            )
-        for dependency, context in dependencies:
-            for binding in _alias_symbol_bindings(dependency, root.symbols):
-                if binding.kind == "any":
-                    issues.append(
-                        f"line {root.expression.lineno}: implicit type alias "
-                        f"{dependency} uses Any"
-                    )
-                    continue
-                if binding.expression is None or binding.symbols is None:
-                    continue
-                key = (id(binding.expression), id(binding.symbols), context)
-                if key in followed_aliases:
-                    continue
-                followed_aliases.add(key)
-                roots.append(
-                    _StubTypeRoot(
-                        f"implicit type alias {dependency}",
-                        binding.expression,
-                        binding.symbols,
-                        context,
-                    )
-                )
 
-    return tuple(issues)
+class _StubGateCase(NamedTuple):
+    name: str
+    source: str
+    rejected: bool
+
+
+STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
+    _StubGateCase(
+        "while-loop-carried-typing-alias",
+        (
+            "import vendor as t\n"
+            "while FLAG:\n"
+            "    value: t.Any\n"
+            "    import typing as t\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "for-loop-carried-typing-alias",
+        (
+            "import vendor as t\n"
+            "for item in items:\n"
+            "    value: t.Any\n"
+            "    import typing as t\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "literal-false-loop-is-unreachable",
+        "import typing as t\nwhile False:\n    value: t.Any\n",
+        False,
+    ),
+    _StubGateCase(
+        "try-handler-sees-every-prefix",
+        (
+            "import vendor as t\n"
+            "try:\n"
+            "    import typing as t\n"
+            "    operation()\n"
+            "    import vendor as t\n"
+            "except Exception:\n"
+            "    value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "try-handler-without-typing-prefix",
+        (
+            "import vendor as t\n"
+            "try:\n"
+            "    operation()\n"
+            "except Exception:\n"
+            "    value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "irrefutable-match-removes-unmatched-path",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _:\n"
+            "        import vendor as t\n"
+            "value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "fallible-match-preserves-unmatched-path",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case 1:\n"
+            "        import vendor as t\n"
+            "value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "guarded-capture-preserves-unmatched-path",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case captured if FLAG:\n"
+            "        import vendor as t\n"
+            "value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "literal-true-branch",
+        (
+            "import vendor as t\n"
+            "if not False:\n"
+            "    import typing as t\n"
+            "value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "literal-false-branch",
+        (
+            "import vendor as t\n"
+            "if 0:\n"
+            "    import typing as t\n"
+            "value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-extra-items-direct",
+        (
+            "import typing\n"
+            "class Record(typing.TypedDict, extra_items=typing.Any): ...\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-extra-items-quoted",
+        (
+            "import typing\n"
+            "class Record(typing.TypedDict, extra_items='typing.Any'): ...\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-extra-items-alias",
+        (
+            "import typing\n"
+            "Extra = 'typing.Any'\n"
+            "class Record(typing.TypedDict, extra_items=Extra): ...\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-extra-items-typing-extensions",
+        (
+            "import typing_extensions as t\n"
+            "class Record(t.TypedDict, extra_items=t.Any): ...\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-extra-items-mixed-base",
+        (
+            "import typing\n"
+            "if FLAG:\n"
+            "    Base = typing.TypedDict\n"
+            "else:\n"
+            "    Base = vendor.TypedDict\n"
+            "class Record(Base, extra_items='typing.Any'): ...\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-configuration-values",
+        (
+            "import typing\n"
+            "class Record(\n"
+            "    typing.TypedDict, total=typing.Any, closed=typing.Any\n"
+            "): ...\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "cast-type-argument",
+        "import typing\nvalue = typing.cast('typing.Any', source)\n",
+        True,
+    ),
+    _StubGateCase(
+        "assert-type-type-argument",
+        "import typing\nvalue = typing.assert_type('typing.Any', source)\n",
+        True,
+    ),
+    _StubGateCase(
+        "cast-alias",
+        (
+            "import typing\n"
+            "convert = typing.cast\n"
+            "value = convert('typing.Any', source)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "cast-mixed-provenance",
+        (
+            "import typing\n"
+            "if FLAG:\n"
+            "    convert = typing.cast\n"
+            "else:\n"
+            "    convert = vendor.cast\n"
+            "value = convert('typing.Any', source)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "cast-value-argument",
+        "import typing\nvalue = typing.cast(str, typing.Any)\n",
+        False,
+    ),
+    _StubGateCase(
+        "named-tuple-list-constructor",
+        (
+            "import typing\n"
+            "Fields = list([('field', 'typing.Any')])\n"
+            "Record = typing.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-constructor-alias",
+        (
+            "import typing\n"
+            "Build = tuple\n"
+            "Fields = Build((('field', 'typing.Any'),))\n"
+            "Record = typing.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-conditional-fields",
+        (
+            "import typing\n"
+            "Fields = [('field', 'typing.Any')] if FLAG else []\n"
+            "Record = typing.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-concatenated-repeated-fields",
+        (
+            "import typing\n"
+            "Fields = [] + [('field', 'typing.Any')] * 2\n"
+            "Record = typing.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-unpacked-fields",
+        (
+            "import typing\n"
+            "Base = [('field', 'typing.Any')]\n"
+            "Fields = [*Base]\n"
+            "Record = typing.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-dict-constructor-alias",
+        (
+            "import typing\n"
+            "Build = dict\n"
+            "Fields = Build(field='typing.Any')\n"
+            "Record = typing.TypedDict('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "unsupported-dynamic-named-tuple-fields",
+        (
+            "import typing\n"
+            "Fields = make_fields()\n"
+            "Record = typing.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "unsupported-dynamic-typed-dict-fields",
+        (
+            "import typing\n"
+            "Fields = make_fields()\n"
+            "Record = typing.TypedDict('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "unpacked-mapping-key-is-a-value",
+        (
+            "import typing\n"
+            "Base = {'typing.Any': str}\n"
+            "Record = typing.TypedDict('Record', {**Base})\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "mixed-literal-annotated-metadata",
+        (
+            "import typing\n"
+            "if FLAG:\n"
+            "    Form = typing.Literal\n"
+            "else:\n"
+            "    Form = typing.Annotated\n"
+            "value: Form[str, typing.Any]\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "mixed-literal-annotated-first-argument",
+        (
+            "import typing\n"
+            "if FLAG:\n"
+            "    Form = typing.Literal\n"
+            "else:\n"
+            "    Form = typing.Annotated\n"
+            "value: Form[typing.Any, 'metadata']\n"
+        ),
+        True,
+    ),
+    _StubGateCase("bare-object-catch-all", "value: object\n", True),
+    _StubGateCase(
+        "equality-protocol-object",
+        "class Value:\n    def __eq__(self, value: object, /) -> bool: ...\n",
+        False,
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "case", STUB_GATE_ADVERSARIAL_CASES, ids=lambda case: case.name
+)
+def test_manual_stub_annotation_gate_adversarial(case: _StubGateCase) -> None:
+    issues = _stub_annotation_issues(ast.parse(case.source, type_comments=True))
+    assert bool(issues) is case.rejected, issues
 
 
 PEP_695_ANY_MUTATIONS: tuple[str, ...] = (
