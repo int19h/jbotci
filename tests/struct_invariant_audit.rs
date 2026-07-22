@@ -1276,6 +1276,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedFieldModel",
+        "typed generated-field intermediates accept every attribute/name/type combination before fallible documentation and binding-shape validation",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:GeneratedStructModel",
         "syntax macro generated model state is assembled from typed grammar metadata",
     ),
