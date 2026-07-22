@@ -2468,9 +2468,9 @@ fn enum_placeholder_invariant_audit_is_current() {
 #[ensures(true)]
 fn qualified_invariant_attributes_are_audited_by_final_path_segment() {
     let source = concat!(
-        "#[invariant(::Unqualified => true)]\n",
+        "#[invariant(::Unqualified(..) => true)]\n",
         "#[bityzba::invariant(\n",
-        "    ::Qualified => true\n",
+        "    ::Qualified { .. } => true\n",
         ")]\n",
         "#[bityzba::not_invariant(::NearMiss => true)]\n",
         "enum Example {\n",
@@ -2628,14 +2628,14 @@ fn placeholder_variant(attribute: &str) -> Option<&str> {
     let rest = invariant_attribute_arguments(attribute)?
         .trim_start()
         .strip_prefix("::")?;
+    if !rest.trim_end().ends_with("=> true)]") {
+        return None;
+    }
     let end = rest
         .char_indices()
         .find(|(_, ch)| !(*ch == '_' || ch.is_ascii_alphanumeric()))
         .map_or(rest.len(), |(index, _)| index);
-    if rest[end..].trim() != "=> true)]" {
-        return None;
-    }
-    Some(&rest[..end])
+    (end > 0).then_some(&rest[..end])
 }
 
 #[requires(true)]
