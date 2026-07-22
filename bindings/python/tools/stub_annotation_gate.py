@@ -1017,17 +1017,24 @@ class _Analyzer:
                 return set()
             strings.add(expression.value)
             try:
-                nested = ast.parse(expression.value, mode="eval").body
-            except SyntaxError:
-                return {
-                    _Problem(
-                        "has an unsupported forward-annotation string",
-                        expression.lineno,
-                    )
-                }
-            return self._scan_type(
-                nested, captures, scope, visiting, strings
-            )
+                try:
+                    nested = ast.parse(expression.value, mode="eval").body
+                except SyntaxError:
+                    return {
+                        _Problem(
+                            "has an unsupported forward-annotation string",
+                            expression.lineno,
+                        )
+                    }
+                return self._scan_type(
+                    nested, captures, scope, visiting, strings
+                )
+            finally:
+                # Identical text under a different captured environment is a
+                # different abstract value.  Track only the active recursive
+                # string path so cycles terminate without suppressing sibling
+                # definitions that have distinct provenance.
+                strings.remove(expression.value)
         if isinstance(expression, ast.Subscript):
             problems = self._scan_type(
                 expression.value, captures, scope, visiting, strings

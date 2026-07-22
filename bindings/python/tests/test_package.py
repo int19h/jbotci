@@ -832,6 +832,41 @@ class _StubGateCase(NamedTuple):
 
 STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
     _StubGateCase(
+        "identical-forward-strings-keep-distinct-provenance",
+        (
+            "import vendor as t\n"
+            "Safe = 't.Any'\n"
+            "import typing as t\n"
+            "Hole = 't.Any'\n"
+            "value: tuple[Safe, Hole]\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-forward-strings-keep-distinct-provenance",
+        (
+            "import vendor as t\n"
+            "Safe = ('safe', 't.Any')\n"
+            "import typing as t\n"
+            "Hole = ('hole', 't.Any')\n"
+            "Fields = [Safe, Hole]\n"
+            "Record = t.NamedTuple('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-forward-strings-keep-distinct-provenance",
+        (
+            "import vendor as t\n"
+            "Safe = {'safe': 't.Any'}\n"
+            "import typing as t\n"
+            "Hole = {'hole': 't.Any'}\n"
+            "Fields = {**Safe, **Hole}\n"
+            "Record = t.TypedDict('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
         "while-loop-carried-typing-alias",
         (
             "import vendor as t\n"
