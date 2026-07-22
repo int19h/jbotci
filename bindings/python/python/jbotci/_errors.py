@@ -14,6 +14,7 @@ class _StructuredError(JbotciError, Generic[_Value]):
 
     __slots__ = ("_value",)
     __match_args__ = ("value",)
+    _value: _Value
 
     def __init__(self, value: _Value) -> None:
         super().__init__(str(value))

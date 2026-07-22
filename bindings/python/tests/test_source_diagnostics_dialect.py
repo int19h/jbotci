@@ -150,7 +150,7 @@ def test_source_error_values_and_exceptions_are_immutable_and_final() -> None:
     )
     for detail in details:
         with pytest.raises(AttributeError):
-            detail.offset = 0  # type: ignore[union-attr]
+            setattr(detail, "offset", 0)
         with pytest.raises(TypeError):
             type("DerivedDiagnosticSpanValue", (type(detail),), {})
 
@@ -158,9 +158,9 @@ def test_source_error_values_and_exceptions_are_immutable_and_final() -> None:
     diagnostic_error = source.DiagnosticSpanException(details[0])
     for error in (source_error, diagnostic_error):
         with pytest.raises(AttributeError):
-            error.args = ("changed",)
+            setattr(error, "args", ("changed",))
         with pytest.raises(AttributeError):
-            error.value = source.ZeroColumn()  # type: ignore[assignment]
+            setattr(error, "value", source.ZeroColumn())
     with pytest.raises(TypeError):
         type("DerivedSourceLocationException", (source.SourceLocationException,), {})
     with pytest.raises(TypeError):
