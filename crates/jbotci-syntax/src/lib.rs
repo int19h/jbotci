@@ -322,12 +322,7 @@ where
     }
 }
 
-#[invariant(true)]
-struct SyntaxTokenSourceAttributionVisitor<'checker, 'tree> {
-    order: &'checker mut TokenSourceAttributionOrder<'tree>,
-}
-
-impl<'tree> TreeVisitor<'tree> for SyntaxTokenSourceAttributionVisitor<'_, 'tree> {
+impl<'tree> TreeVisitor<'tree> for TokenSourceAttributionOrder<'tree> {
     type Node = generated_model::NodeRef<'tree>;
     type Atom = generated_model::AtomRef<'tree>;
 
@@ -335,7 +330,7 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTokenSourceAttributionVisitor<'_, 'tree
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         match atom {
-            generated_model::AtomRef::Token(token) => self.order.observe_token(token),
+            generated_model::AtomRef::Token(token) => self.observe_token(token),
         }
     }
 }
@@ -344,8 +339,7 @@ impl<'tree> TreeVisitor<'tree> for SyntaxTokenSourceAttributionVisitor<'_, 'tree
 #[ensures(true)]
 fn text_syntax_tokens_have_ordered_source_attribution(parse_tree: &TextSyntax) -> bool {
     let mut order = TokenSourceAttributionOrder::new();
-    let mut visitor = SyntaxTokenSourceAttributionVisitor { order: &mut order };
-    generated_model::TreeNode::visit_in_order(parse_tree, &mut visitor);
+    generated_model::TreeNode::visit_in_order(parse_tree, &mut order);
     order.is_ordered()
 }
 
