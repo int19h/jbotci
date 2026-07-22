@@ -164,7 +164,7 @@ struct FieldSchema {
 #[bityzba::invariant(::Shared => true)]
 #[bityzba::invariant(::RecoveredField => true)]
 #[bityzba::invariant(::WithIndicators => true)]
-#[bityzba::invariant(::WithFreeModifiers => true)]
+#[bityzba::invariant(::WithFreeModifiers => free_modifiers.is_canonical_free_modifier_shape())]
 #[bityzba::invariant(::Chain => true)]
 #[bityzba::invariant(::Tuple => true)]
 #[bityzba::invariant(::Fixed => true)]
@@ -175,6 +175,7 @@ enum BindingType {
     },
     LeafReference {
         kind: String,
+        absolute: bool,
         path: Vec<String>,
     },
     Optional {
@@ -213,6 +214,24 @@ enum BindingType {
         length: usize,
         value: Box<BindingType>,
     },
+}
+
+impl BindingType {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn is_canonical_free_modifier_shape(&self) -> bool {
+        match self.as_data() {
+            data!(BindingType::ModelReference { name }) => name == "FreeModifierSyntax",
+            data!(BindingType::Repeated { value }) => match value.as_data() {
+                data!(BindingType::RecoveredField { value }) => matches!(
+                    value.as_data(),
+                    data!(BindingType::ModelReference { name }) if name == "FreeModifierSyntax"
+                ),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
 }
 
 #[bityzba::invariant(true)]
@@ -538,10 +557,16 @@ fn parse_reference(stream: TokenStream) -> BindingType {
             let mut args = Cursor::new(args);
             let kind = parse_ident_property(&mut args, "kind");
             args.expect_punct(',');
+            let absolute = parse_bool_property(&mut args, "absolute");
+            args.expect_punct(',');
             args.expect_ident("path");
             let path = parse_string_list(args.take_group(Delimiter::Parenthesis));
             args.finish();
-            new!(BindingType::LeafReference { kind, path })
+            new!(BindingType::LeafReference {
+                kind,
+                absolute,
+                path,
+            })
         }
         _ => panic!("unknown reference kind `{kind}`"),
     }
@@ -740,6 +765,20 @@ fn parse_usize_property(cursor: &mut Cursor, name: &str) -> usize {
 
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
+fn parse_bool_property(cursor: &mut Cursor, name: &str) -> bool {
+    cursor.expect_ident(name);
+    let mut value = Cursor::new(cursor.take_group(Delimiter::Parenthesis));
+    let parsed = match value.take_ident().as_str() {
+        "true" => true,
+        "false" => false,
+        other => panic!("schema boolean must be `true` or `false`, found `{other}`"),
+    };
+    value.finish();
+    parsed
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 fn parse_usize_group(cursor: &mut Cursor) -> usize {
     let mut value = Cursor::new(cursor.take_group(Delimiter::Parenthesis));
     let literal = value.take_literal();
@@ -885,6 +924,7 @@ fn field_names(fields: &[FieldSchema]) -> Vec<&str> {
 fn syntax_token() -> BindingType {
     new!(BindingType::LeafReference {
         kind: "syntax_token".to_owned(),
+        absolute: false,
         path: vec!["Token".to_owned()],
     })
 }

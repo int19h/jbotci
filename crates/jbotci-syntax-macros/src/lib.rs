@@ -1411,7 +1411,13 @@ impl GeneratedFieldModel {
 #[invariant(::Shared { .. } => true)]
 #[invariant(::RecoveredField { .. } => true)]
 #[invariant(::WithIndicators { .. } => true)]
-#[invariant(::WithFreeModifiers { .. } => true)]
+#[invariant(::WithFreeModifiers { free_modifier, .. } => match free_modifier.as_data() {
+    data!(BindingType::Reference { reference }) => matches!(
+        reference.as_data(),
+        data!(BindingReference::Model { name }) if name == "FreeModifierSyntax"
+    ),
+    _ => false,
+})]
 #[invariant(::Chain { .. } => true)]
 #[invariant(::Tuple { .. } => true)]
 #[invariant(::Fixed { .. } => true)]
@@ -1466,6 +1472,7 @@ enum BindingReference {
     },
     Leaf {
         kind: BindingLeafKind,
+        absolute: bool,
         path: Vec<String>,
     },
 }
@@ -1623,9 +1630,13 @@ impl BindingReference {
     fn expand(&self) -> TokenStream2 {
         match self.as_data() {
             data!(BindingReference::Model { name }) => quote!(reference(model(#name))),
-            data!(BindingReference::Leaf { kind, path }) => {
+            data!(BindingReference::Leaf {
+                kind,
+                absolute,
+                path,
+            }) => {
                 let kind = kind.ident();
-                quote!(reference(leaf(kind(#kind), path(#(#path),*))))
+                quote!(reference(leaf(kind(#kind), absolute(#absolute), path(#(#path),*))))
             }
         }
     }
@@ -1725,13 +1736,18 @@ fn normalize_binding_path(
             });
         }
         let kind = binding_leaf_kind(path);
+        let absolute = path.leading_colon.is_some();
         let path = path
             .segments
             .iter()
             .map(|segment| segment.ident.to_string())
             .collect();
         return Ok(BindingType::Reference {
-            reference: new!(BindingReference::Leaf { kind, path }),
+            reference: new!(BindingReference::Leaf {
+                kind,
+                absolute,
+                path,
+            }),
         });
     }
 
@@ -1776,9 +1792,25 @@ fn normalize_binding_path(
             if args.len() != 2 {
                 return Err(unsupported_binding_path(field, path));
             }
+            if !binding_free_modifier_type_is_canonical(args[1]) {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    format!(
+                        "unsupported generated model field shape `{}`; the second `WithFreeModifiers` type argument must be `FreeModifierSyntax` because recovered syntax stores `Vec<Recovered<FreeModifierSyntax>>`",
+                        compact_tokens(&Type::Path(syn::TypePath {
+                            qself: None,
+                            path: path.clone(),
+                        })),
+                    ),
+                ));
+            }
             Ok(BindingType::WithFreeModifiers {
                 value: Box::new(normalize_binding_type(args[0], generated_models, field)?),
-                free_modifier: Box::new(normalize_binding_type(args[1], generated_models, field)?),
+                free_modifier: Box::new(BindingType::Reference {
+                    reference: new!(BindingReference::Model {
+                        name: "FreeModifierSyntax".to_owned(),
+                    }),
+                }),
             })
         }
         BindingWrapperKind::Chain => {
@@ -1791,6 +1823,28 @@ fn normalize_binding_path(
             })
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn binding_free_modifier_type_is_canonical(ty: &Type) -> bool {
+    let Type::Path(path) = ty else {
+        return false;
+    };
+    path.qself.is_none()
+        && path
+            .path
+            .segments
+            .iter()
+            .all(|segment| matches!(segment.arguments, PathArguments::None))
+        && binding_path_matches(
+            &path.path,
+            &[
+                &["FreeModifierSyntax"],
+                &["crate", "tree", "FreeModifierSyntax"],
+                &["jbotci_syntax", "tree", "FreeModifierSyntax"],
+            ],
+        )
 }
 
 #[requires(true)]
@@ -10202,19 +10256,23 @@ mod tests {
         for (ty, expected) in [
             (
                 parse_quote!(foreign::Token),
-                "reference(leaf(kind(external),path(\"foreign\",\"Token\")))",
+                "reference(leaf(kind(external),absolute(false),path(\"foreign\",\"Token\")))",
+            ),
+            (
+                parse_quote!(::foreign::Token),
+                "reference(leaf(kind(external),absolute(true),path(\"foreign\",\"Token\")))",
             ),
             (
                 parse_quote!(foreign::SourceSpan),
-                "reference(leaf(kind(external),path(\"foreign\",\"SourceSpan\")))",
+                "reference(leaf(kind(external),absolute(false),path(\"foreign\",\"SourceSpan\")))",
             ),
             (
                 parse_quote!(jbotci_source::SourceSpan),
-                "reference(leaf(kind(source_span),path(\"jbotci_source\",\"SourceSpan\")))",
+                "reference(leaf(kind(source_span),absolute(false),path(\"jbotci_source\",\"SourceSpan\")))",
             ),
             (
                 parse_quote!(std::sync::Arc<jbotci_source::SourceSpan>),
-                "shared(reference(leaf(kind(source_span),path(\"jbotci_source\",\"SourceSpan\"))))",
+                "shared(reference(leaf(kind(source_span),absolute(false),path(\"jbotci_source\",\"SourceSpan\"))))",
             ),
         ] {
             let normalized = normalize_binding_type(&ty, &generated_models, &field)
@@ -10245,5 +10303,26 @@ mod tests {
                 "unexpected collision error: {error}"
             );
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn with_free_modifiers_rejects_noncanonical_free_modifier_types() {
+        let generated_models = BTreeSet::new();
+        let field = format_ident!("collision");
+        let ty = parse_quote!(WithFreeModifiers<Token, foreign::FreeModifierSyntax>);
+
+        let error = match normalize_binding_type(&ty, &generated_models, &field) {
+            Ok(_) => panic!("recovered free modifiers have one canonical syntax type"),
+            Err(error) => error,
+        };
+
+        assert!(
+            error
+                .to_string()
+                .contains("second `WithFreeModifiers` type argument must be `FreeModifierSyntax`"),
+            "unexpected free-modifier type error: {error}",
+        );
     }
 }

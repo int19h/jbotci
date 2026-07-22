@@ -980,10 +980,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tuple schema elements are validated recursively and arbitrary ordered arity, including zero, is a valid Rust tuple shape",
     ),
     (
-        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::WithFreeModifiers",
-        "free-modifier wrapper arguments are independently validated binding types and every pairing faithfully represents source type arguments",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:BindingType::WithIndicators",
         "indicator schema wrapper validity is fully determined by its validated recursive binding type payload",
     ),
@@ -1158,10 +1154,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Tuple",
         "external tuple elements are validated recursively and arbitrary ordered arity, including zero, mirrors valid Rust tuple shapes",
-    ),
-    (
-        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::WithFreeModifiers",
-        "external free-modifier arguments are independently validated binding types and every pairing mirrors normalized source type arguments",
     ),
     (
         "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::WithIndicators",
