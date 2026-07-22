@@ -807,10 +807,12 @@ def typed_every_morphology_result_property(
         plain_classification.parts, tuple[morphology.ValsiLujvoPart, ...]
     )
     assert_type(plain_classification.stage, morphology.ValsiFuhivlaStage | None)
-    for part in plain_classification.parts:
-        assert_type(part.kind, morphology.ValsiLujvoPartKind)
-        assert_type(part.text, str)
-        assert_type(part.rafsi_kind, morphology.ValsiLujvoRafsiKind | None)
+    for valsi_part in plain_classification.parts:
+        assert_type(valsi_part.kind, morphology.ValsiLujvoPartKind)
+        assert_type(valsi_part.text, str)
+        assert_type(
+            valsi_part.rafsi_kind, morphology.ValsiLujvoRafsiKind | None
+        )
 
     assert_type(classification.kind, morphology.ValsiClassificationKind)
     if isinstance(classification, morphology.PlainWordValsiClassification):

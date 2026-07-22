@@ -228,9 +228,16 @@ def test_binding_projection_matches_independent_morphology_fixtures(
 def test_solid_text_and_unicode_spans_preserve_source_ids() -> None:
     source_id = source.SourceId("solid")
     words = morphology.segment("mimi", source_id=source_id)
+    plain_words: list[morphology.PlainWord] = []
+    for value in words:
+        assert isinstance(value, morphology.PlainWord)
+        plain_words.append(value)
     assert plain_phonemes(words) == ("mi", "mi")
-    assert tuple(word.word.span.char_range for word in words) == ((0, 2), (2, 4))
-    assert all(word.word.span.source_id == source_id for word in words)
+    assert tuple(word.word.span.char_range for word in plain_words) == (
+        (0, 2),
+        (2, 4),
+    )
+    assert all(word.word.span.source_id == source_id for word in plain_words)
 
     cyrillic = morphology.segment("ми", source_id=source_id)
     assert isinstance(cyrillic[0], morphology.PlainWord)
@@ -393,7 +400,9 @@ def test_children_keep_arc_root_alive_after_parent_deletion() -> None:
     compiled = morphology.CompiledDialectDefinition(
         dialect.DialectDefinition((dialect.CmavoSwap("ce'u", "ce"),))
     )
-    compiled_word = compiled.entries[0].left.word
+    compiled_entry = compiled.entries[0]
+    assert isinstance(compiled_entry, morphology.CompiledDialectSwap)
+    compiled_word = compiled_entry.left.word
     del compiled
     gc.collect()
     assert compiled_word.phonemes.text == "ce'u"
@@ -402,7 +411,9 @@ def test_children_keep_arc_root_alive_after_parent_deletion() -> None:
         dialect=dialect.DialectDefinition((dialect.CmavoSwap("ce'u", "ce"),))
     )
     options_compiled = options.compiled_dialect
-    options_word = options_compiled.entries[0].left.word
+    options_entry = options_compiled.entries[0]
+    assert isinstance(options_entry, morphology.CompiledDialectSwap)
+    options_word = options_entry.left.word
     del options
     del options_compiled
     gc.collect()
@@ -1530,11 +1541,13 @@ def test_copied_morphology_inputs_accept_lists_and_tuples_but_return_tuples() ->
     assert quote_from_list == quote_from_tuple
     assert isinstance(quote_from_list.quoted_words, tuple)
 
-    choices_list = [
+    choices_list: list[list[morphology.LujvoBuildPart]] = [
         [morphology.LujvoRafsiBuildPart("jbo")],
         [morphology.LujvoBrivlaCoreBuildPart("klama")],
     ]
-    choices_tuple = tuple(tuple(choice) for choice in choices_list)
+    choices_tuple: tuple[tuple[morphology.LujvoBuildPart, ...], ...] = tuple(
+        tuple(choice) for choice in choices_list
+    )
     list_candidate = morphology.choose_best_lujvo_candidate_from_parts(
         morphology.LujvoBuildMode.LUJVO, choices_list
     )

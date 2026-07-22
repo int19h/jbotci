@@ -9,8 +9,9 @@ from jbotci import InvalidInputError, diagnostics, dialect, morphology, source
 
 
 def test_builtin_dialect_has_no_runtime_constructor() -> None:
+    builtin_dialect_type: type[object] = dialect.BuiltinDialect
     with pytest.raises(TypeError):
-        dialect.BuiltinDialect()
+        builtin_dialect_type()
 
 
 def test_source_spans_distinguish_unicode_byte_and_character_offsets() -> None:
@@ -74,9 +75,9 @@ def test_every_diagnostic_span_variant_and_helper_retains_rust_payload() -> None
         lambda: source.source_span_from_char_offsets("é", 2, 2),
         lambda: source.byte_offset_for_char_offset("é", 2),
     )
-    for operation in char_failures:
+    for char_failure_operation in char_failures:
         with pytest.raises(source.DiagnosticSpanException) as caught:
-            operation()
+            char_failure_operation()
         assert caught.value.value == source.CharOffsetOutOfBounds(2, 1)
         assert caught.value.args == (str(caught.value.value),)
         match caught.value:
@@ -93,9 +94,9 @@ def test_every_diagnostic_span_variant_and_helper_retains_rust_payload() -> None
         lambda: source.line_column_for_byte_offset("é", 3),
         lambda: source.source_text_for_span("é", source.SourceSpan(0, 3, 0, 1)),
     )
-    for operation in byte_failures:
+    for byte_failure_operation in byte_failures:
         with pytest.raises(source.DiagnosticSpanException) as caught:
-            operation()
+            byte_failure_operation()
         assert caught.value.value == source.ByteOffsetOutOfBounds(3, 2)
         assert caught.value.args == (str(caught.value.value),)
 
@@ -105,22 +106,24 @@ def test_every_diagnostic_span_variant_and_helper_retains_rust_payload() -> None
         lambda: source.line_column_for_byte_offset("é", 1),
         lambda: source.source_text_for_span("é", source.SourceSpan(1, 2, 0, 1)),
     )
-    for operation in boundary_failures:
+    for boundary_failure_operation in boundary_failures:
         with pytest.raises(source.DiagnosticSpanException) as caught:
-            operation()
+            boundary_failure_operation()
         assert caught.value.value == source.ByteOffsetNotCharBoundary(1)
         assert caught.value.args == (str(caught.value.value),)
 
     with pytest.raises(source.DiagnosticSpanException) as byte_range_from_chars:
         source.source_span_from_char_offsets("ab", 2, 1)
-    assert byte_range_from_chars.value.value == source.SourceLocation(
+    byte_range_value = byte_range_from_chars.value.value
+    assert byte_range_value == source.SourceLocation(
         source.ByteRangeInverted(2, 1)
     )
-    assert byte_range_from_chars.value.value.error == source.ByteRangeInverted(2, 1)
-    assert str(byte_range_from_chars.value.value) == (
+    assert isinstance(byte_range_value, source.SourceLocation)
+    assert byte_range_value.error == source.ByteRangeInverted(2, 1)
+    assert str(byte_range_value) == (
         "invalid source span: byte range end 1 precedes start 2"
     )
-    assert repr(byte_range_from_chars.value.value) == (
+    assert repr(byte_range_value) == (
         "jbotci.source.SourceLocation("
         "error=jbotci.source.ByteRangeInverted(start=2, end=1))"
     )
@@ -452,8 +455,9 @@ def test_copied_dialect_inputs_accept_lists_and_tuples_but_return_tuples() -> No
 
 
 def test_builtin_dialect_is_returned_only() -> None:
+    builtin_dialect_type: type[object] = dialect.BuiltinDialect
     with pytest.raises(TypeError):
-        dialect.BuiltinDialect()
+        builtin_dialect_type()
 
 
 def test_dialect_entry_validation_precedes_rust_contract_boundary() -> None:

@@ -1132,10 +1132,10 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
                     )
                     checked_default_callables.add(callable_name)
 
-        for name, declaration in functions.items():
+        for name, function_declaration in functions.items():
             runtime_signature = inspect.signature(getattr(native, name))
             assert _runtime_parameter_shape(runtime_signature) == (
-                _stub_parameter_shape(declaration, constructor=False)
+                _stub_parameter_shape(function_declaration, constructor=False)
             ), name
             runtime_defaults = _runtime_parameter_defaults(runtime_signature)
             if runtime_defaults:
@@ -1330,13 +1330,13 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
     }
     assert len(functions) == 58
     assert set(functions) == set(MORPHOLOGY_FUNCTION_TYPES)
-    for name, declaration in functions.items():
-        assert _stub_function_type_shape(declaration) == MORPHOLOGY_FUNCTION_TYPES[
-            name
-        ], name
+    for name, function_declaration in functions.items():
+        assert _stub_function_type_shape(
+            function_declaration
+        ) == MORPHOLOGY_FUNCTION_TYPES[name], name
         runtime_signature = inspect.signature(getattr(native, name))
         assert _runtime_parameter_shape(runtime_signature) == _stub_parameter_shape(
-            declaration, constructor=False
+            function_declaration, constructor=False
         ), name
         runtime_defaults = _runtime_parameter_defaults(runtime_signature)
         if runtime_defaults:
