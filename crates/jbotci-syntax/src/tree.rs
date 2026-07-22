@@ -4,21 +4,32 @@
 // Boxing only for enum-size symmetry would obscure that shape during the port.
 #![allow(clippy::large_enum_variant)]
 
-use std::{fmt, sync::Arc};
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
+use jbotci_source::SourceSpan;
 use jbotci_tree::FieldRef;
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
-#[invariant(::SkippedTokens => syntax_recovery_tokens_have_ordered_spans(tokens))]
+#[invariant(::SkippedTokens => syntax_recovery_tokens_have_ordered_source_attribution(tokens))]
 #[invariant(::MissingRequiredField => span.is_empty() && !expected.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum SyntaxRecoveryItem {
+    /// Tokens skipped while recovering, in parser-stream order.
+    ///
+    /// Adjacent plain tokens may have exactly the same source span because a
+    /// dialect expansion maps every replacement back to its one source word.
+    /// This is ordered attribution to one source region, not an overlap: only
+    /// an identical single-span attribution is admitted by the invariant.
     SkippedTokens {
         error_index: usize,
         tokens: Vec1<Token>,
@@ -86,23 +97,175 @@ impl SyntaxRecoveryItem {
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_recovery_tokens_have_ordered_spans(tokens: &Vec1<Token>) -> bool {
-    let mut previous_byte_end = None;
-    let mut saw_span = false;
+fn syntax_recovery_tokens_have_ordered_source_attribution(tokens: &Vec1<Token>) -> bool {
+    let mut order = TokenSourceAttributionOrder::new();
     for token in tokens {
-        let spans = token.source_spans();
-        if spans.is_empty() {
-            return false;
-        }
-        for span in spans {
-            if previous_byte_end.is_some_and(|byte_end| span.byte_start < byte_end) {
-                return false;
-            }
-            previous_byte_end = Some(span.byte_end);
-            saw_span = true;
-        }
+        order.observe_token(token);
     }
-    saw_span
+    order.is_ordered()
+}
+
+/// Incremental checker for parser-stream source attribution.
+///
+/// Spans within one token must never overlap. Across token boundaries, the
+/// only admitted overlap is an adjacent pair of single-span tokens with the
+/// exact same [`SourceSpan`], which is how dialect expansion siblings retain
+/// attribution to their shared source word.
+#[invariant(::Empty => true)]
+#[invariant(::Ordered { previous_byte_end, previous_single_span } =>
+    previous_single_span.is_none_or(|span| span.byte_end == *previous_byte_end))]
+#[invariant(::Invalid => true)]
+#[derive(Debug)]
+pub(crate) enum TokenSourceAttributionOrder<'tokens> {
+    Empty,
+    Ordered {
+        previous_byte_end: usize,
+        previous_single_span: Option<&'tokens SourceSpan>,
+    },
+    Invalid,
+}
+
+impl<'tokens> TokenSourceAttributionOrder<'tokens> {
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(TokenSourceAttributionOrder::Empty)))]
+    pub(crate) fn new() -> Self {
+        new!(TokenSourceAttributionOrder::Empty)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn observe_token(&mut self, token: &'tokens Token) {
+        let (previous_byte_end, previous_single_span) = match self.as_data() {
+            data!(TokenSourceAttributionOrder::Empty) => (None, None),
+            data!(TokenSourceAttributionOrder::Ordered {
+                previous_byte_end,
+                previous_single_span,
+            }) => (Some(*previous_byte_end), *previous_single_span),
+            data!(TokenSourceAttributionOrder::Invalid) => return,
+        };
+
+        let spans = token.source_spans();
+        let Some(first) = spans.first() else {
+            *self = new!(TokenSourceAttributionOrder::Invalid);
+            return;
+        };
+        let repeats_previous_source_word = match spans.as_slice() {
+            [span] => previous_single_span == Some(*span),
+            _ => false,
+        };
+
+        let mut token_previous_byte_end = None;
+        for span in &spans {
+            if token_previous_byte_end.is_some_and(|byte_end| span.byte_start < byte_end) {
+                *self = new!(TokenSourceAttributionOrder::Invalid);
+                return;
+            }
+            token_previous_byte_end = Some(span.byte_end);
+        }
+        if !repeats_previous_source_word
+            && previous_byte_end.is_some_and(|byte_end| first.byte_start < byte_end)
+        {
+            *self = new!(TokenSourceAttributionOrder::Invalid);
+            return;
+        }
+
+        let previous_single_span = match spans.as_slice() {
+            [span] => Some(*span),
+            _ => None,
+        };
+        *self = new!(TokenSourceAttributionOrder::Ordered {
+            previous_byte_end: token_previous_byte_end.expect("non-empty token spans"),
+            previous_single_span,
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(TokenSourceAttributionOrder::Ordered { .. })))]
+    pub(crate) fn is_ordered(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(TokenSourceAttributionOrder::Ordered { .. })
+        )
+    }
+}
+
+#[cfg(test)]
+mod source_attribution_tests {
+    use jbotci_morphology::{Phonemes, WordKind};
+    use jbotci_source::SourceId;
+
+    use super::*;
+
+    #[requires(!phonemes.is_empty())]
+    #[requires(byte_start < byte_end)]
+    #[ensures(ret.source_spans().len() == 1)]
+    fn token_with_span(
+        phonemes: &str,
+        source_id: Option<&str>,
+        byte_start: usize,
+        byte_end: usize,
+    ) -> Token {
+        let span = SourceSpan::new(
+            source_id.map(|source_id| SourceId(source_id.to_owned())),
+            byte_start,
+            byte_end,
+            byte_start,
+            byte_end,
+        )
+        .expect("ordered test span");
+        let phonemes = Phonemes::from_canonical(phonemes.to_owned()).expect("canonical phonemes");
+        Token::bare(WordLike::bare(Word::from_kind(
+            WordKind::Cmavo,
+            phonemes,
+            span,
+        )))
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_adjacent_single_span_attribution_is_ordered() {
+        let tokens = Vec1::try_from_vec(vec![
+            token_with_span("lo", None, 2, 4),
+            token_with_span("su'u", None, 2, 4),
+            token_with_span("do", None, 5, 7),
+        ])
+        .expect("non-empty tokens");
+
+        assert!(syntax_recovery_tokens_have_ordered_source_attribution(
+            &tokens
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonidentical_overlapping_attribution_is_rejected() {
+        let tokens = Vec1::try_from_vec(vec![
+            token_with_span("lo", None, 2, 5),
+            token_with_span("do", None, 4, 6),
+        ])
+        .expect("non-empty tokens");
+
+        assert!(!syntax_recovery_tokens_have_ordered_source_attribution(
+            &tokens
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn matching_offsets_from_different_sources_are_rejected() {
+        let tokens = Vec1::try_from_vec(vec![
+            token_with_span("lo", Some("left"), 2, 4),
+            token_with_span("do", Some("right"), 2, 4),
+        ])
+        .expect("non-empty tokens");
+
+        assert!(!syntax_recovery_tokens_have_ordered_source_attribution(
+            &tokens
+        ));
+    }
 }
 
 #[invariant(true)]
@@ -311,6 +474,44 @@ fn is_bahe_modifier_word(word: &Word) -> bool {
 #[serde(transparent)]
 pub struct Token(Arc<WithIndicators<WordLike>>);
 
+/// Parser-local identity for a token allocation.
+///
+/// This owns an `Arc` so its pointer cannot be reused while it is a cache key.
+/// Equality and hashing deliberately use allocation identity, not the token's
+/// structural contents or source attribution.
+#[invariant(true)]
+#[derive(Clone)]
+pub(crate) struct TokenIdentity(Arc<WithIndicators<WordLike>>);
+
+impl PartialEq for TokenIdentity {
+    #[requires(true)]
+    #[ensures(ret == Arc::ptr_eq(&self.0, &other.0))]
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for TokenIdentity {}
+
+impl Hash for TokenIdentity {
+    #[requires(true)]
+    #[ensures(true)]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.0).hash(state);
+    }
+}
+
+impl fmt::Debug for TokenIdentity {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_tuple("TokenIdentity")
+            .field(&Arc::as_ptr(&self.0))
+            .finish()
+    }
+}
+
 impl Token {
     #[requires(true)]
     #[ensures(true)]
@@ -375,6 +576,18 @@ impl Token {
     #[ensures(true)]
     pub fn ptr_eq(left: &Self, right: &Self) -> bool {
         Arc::ptr_eq(left.as_data(), right.as_data())
+    }
+
+    /// Return the stable identity of this token's shared backing allocation.
+    ///
+    /// Source ranges are attribution rather than identity: one dialect source
+    /// word can expand into several distinct tokens with the same range. Token
+    /// clones retain this identity through their shared `Arc`, so parser-local
+    /// caches can distinguish expansion siblings without retaining extra data.
+    #[requires(true)]
+    #[ensures(Arc::ptr_eq(&ret.0, self.as_data()))]
+    pub(crate) fn identity(&self) -> TokenIdentity {
+        TokenIdentity(Arc::clone(self.as_data()))
     }
 
     #[requires(true)]

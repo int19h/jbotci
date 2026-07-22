@@ -29,6 +29,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::tree::TokenSourceAttributionOrder;
+
 #[doc(hidden)]
 pub mod generated_model {
     pub use crate::grammar::generated_model::*;
@@ -318,6 +320,33 @@ where
     ) {
         item.visit_source_spans(&mut |span| (self.visitor)(span));
     }
+}
+
+#[invariant(true)]
+struct SyntaxTokenSourceAttributionVisitor<'checker, 'tree> {
+    order: &'checker mut TokenSourceAttributionOrder<'tree>,
+}
+
+impl<'tree> TreeVisitor<'tree> for SyntaxTokenSourceAttributionVisitor<'_, 'tree> {
+    type Node = generated_model::NodeRef<'tree>;
+    type Atom = generated_model::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            generated_model::AtomRef::Token(token) => self.order.observe_token(token),
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn text_syntax_tokens_have_ordered_source_attribution(parse_tree: &TextSyntax) -> bool {
+    let mut order = TokenSourceAttributionOrder::new();
+    let mut visitor = SyntaxTokenSourceAttributionVisitor { order: &mut order };
+    generated_model::TreeNode::visit_in_order(parse_tree, &mut visitor);
+    order.is_ordered()
 }
 
 #[requires(true)]
@@ -2558,21 +2587,7 @@ pub fn expected_continuations_with_time_limit(
 }
 
 #[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
-#[expensive_invariant({
-    let mut last_end = None;
-    let mut ordered = true;
-    parse_tree.visit_source_spans(&mut |span| {
-        if !ordered {
-            return;
-        }
-        if last_end.is_some_and(|end| end > span.byte_start) {
-            ordered = false;
-            return;
-        }
-        last_end = Some(span.byte_end);
-    });
-    ordered
-})]
+#[expensive_invariant(text_syntax_tokens_have_ordered_source_attribution(&parse_tree))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyntaxParse {
     pub parse_tree: Box<TextSyntax>,
