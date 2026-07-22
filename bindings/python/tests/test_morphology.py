@@ -609,6 +609,22 @@ def test_lujvo_parts_and_domain_helpers_are_typed() -> None:
         morphology.is_vowel("aa")
 
 
+def test_empty_textual_lujvo_parts_return_none_without_panicking() -> None:
+    assert morphology.bond_rafsis(["", "jbo"]) is None
+    assert (
+        morphology.choose_best_lujvo_candidate(
+            morphology.LujvoBuildMode.LUJVO,
+            [["", "jbo"]],
+        )
+        is None
+    )
+
+    with pytest.raises(InvalidInputError):
+        morphology.LujvoRafsiBuildPart("")
+    with pytest.raises(InvalidInputError):
+        morphology.LujvoBrivlaCoreBuildPart("")
+
+
 def test_copied_morphology_inputs_accept_lists_and_tuples_but_return_tuples() -> None:
     parsed_lujvo = morphology.segment("jetcybolxada")[0]
     assert isinstance(parsed_lujvo, morphology.PlainWord)
