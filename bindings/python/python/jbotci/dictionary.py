@@ -58,10 +58,12 @@ english_metadata: Final[DictionarySnapshotMetadata] = _dictionary_english_metada
 
 
 def _word_type_is_gismu_like(self: WordType) -> bool:
+    """Return whether this Rust word type is gismu-like."""
     return _dictionary_word_type_is_gismu_like(self)
 
 
 def _word_type_is_lujvo_like(self: WordType) -> bool:
+    """Return whether this Rust word type is lujvo-like."""
     return _dictionary_word_type_is_lujvo_like(self)
 
 

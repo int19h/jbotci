@@ -625,6 +625,7 @@ struct PyDefinitionId {
 
 #[pymethods]
 impl PyDefinitionId {
+    /// Construct an identifier from its unconstrained Rust `u64` value.
     #[requires(true)]
     #[ensures(ret.value.get() == value)]
     #[new]
@@ -634,6 +635,7 @@ impl PyDefinitionId {
         }
     }
 
+    /// Return the underlying Rust identifier value.
     #[requires(true)]
     #[ensures(ret == self.value.get())]
     #[getter]
@@ -675,6 +677,7 @@ struct PyScore {
 
 #[pymethods]
 impl PyScore {
+    /// Construct a score from any Rust `f64`, including non-finite values.
     #[requires(true)]
     #[ensures(ret.value.get().to_bits() == value.to_bits())]
     #[new]
@@ -684,6 +687,7 @@ impl PyScore {
         }
     }
 
+    /// Return the underlying Rust score value.
     #[requires(true)]
     #[ensures(ret.to_bits() == self.value.get().to_bits())]
     #[getter]
@@ -752,6 +756,7 @@ impl PyEntryIndex {
 
 #[pymethods]
 impl PyEntryIndex {
+    /// Construct a typed index without imposing a dictionary-specific bound.
     #[requires(true)]
     #[ensures(ret.value.get() == value)]
     #[new]
@@ -761,6 +766,7 @@ impl PyEntryIndex {
         }
     }
 
+    /// Return the underlying Rust index value.
     #[requires(true)]
     #[ensures(ret == self.value.get())]
     #[getter]
@@ -820,6 +826,7 @@ impl PyKeyword {
 
 #[pymethods]
 impl PyKeyword {
+    /// Construct a standalone keyword value.
     #[requires(true)]
     #[ensures(ret.storage.value().word == word)]
     #[new]
@@ -833,6 +840,7 @@ impl PyKeyword {
         }
     }
 
+    /// Return the keyword text.
     #[requires(true)]
     #[ensures(ret == self.storage.value().word)]
     #[getter]
@@ -840,6 +848,7 @@ impl PyKeyword {
         self.storage.value().word
     }
 
+    /// Return the optional disambiguating meaning.
     #[requires(true)]
     #[ensures(ret == self.storage.value().meaning)]
     #[getter]
@@ -902,6 +911,7 @@ impl PyRafsi {
 
 #[pymethods]
 impl PyRafsi {
+    /// Construct a standalone rafsi value without contextual validation.
     #[requires(true)]
     #[ensures(ret.storage.value() == value)]
     #[new]
@@ -909,6 +919,7 @@ impl PyRafsi {
         Self::owned(value.to_owned())
     }
 
+    /// Return the underlying rafsi text.
     #[requires(true)]
     #[ensures(ret == self.storage.value())]
     #[getter]
@@ -971,6 +982,7 @@ impl PyRawSelmaho {
 
 #[pymethods]
 impl PyRawSelmaho {
+    /// Construct a standalone raw selma'o value.
     #[requires(true)]
     #[ensures(ret.storage.value() == value)]
     #[new]
@@ -980,6 +992,7 @@ impl PyRawSelmaho {
         }
     }
 
+    /// Return the underlying raw selma'o text.
     #[requires(true)]
     #[ensures(ret == self.storage.value())]
     #[getter]
@@ -1040,6 +1053,7 @@ impl PyDictionaryUser {
 
 #[pymethods]
 impl PyDictionaryUser {
+    /// Construct standalone contributor metadata.
     #[requires(true)]
     #[ensures(ret.storage.username() == username)]
     #[new]
@@ -1053,6 +1067,7 @@ impl PyDictionaryUser {
         }
     }
 
+    /// Return the contributor username.
     #[requires(true)]
     #[ensures(ret == self.storage.username())]
     #[getter]
@@ -1060,6 +1075,7 @@ impl PyDictionaryUser {
         self.storage.username()
     }
 
+    /// Return the contributor's optional real name.
     #[requires(true)]
     #[ensures(ret == self.storage.realname())]
     #[getter]
@@ -1508,6 +1524,7 @@ impl PyDictionaryEntry {
 
 #[pymethods]
 impl PyDictionaryEntry {
+    /// Return the source word exactly as stored in the snapshot.
     #[requires(true)]
     #[ensures(ret == self.entry().word)]
     #[getter]
@@ -1515,6 +1532,7 @@ impl PyDictionaryEntry {
         self.entry().word
     }
 
+    /// Return the exact Lensisku word type.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1523,6 +1541,7 @@ impl PyDictionaryEntry {
         string_enum_member(&module, self.entry().word_type).map(Bound::unbind)
     }
 
+    /// Return the dictionary definition text.
     #[requires(true)]
     #[ensures(ret == self.entry().definition)]
     #[getter]
@@ -1530,6 +1549,7 @@ impl PyDictionaryEntry {
         self.entry().definition
     }
 
+    /// Return the typed Lensisku definition identifier.
     #[requires(true)]
     #[ensures(ret.value == self.entry().definition_id)]
     #[getter]
@@ -1539,6 +1559,7 @@ impl PyDictionaryEntry {
         }
     }
 
+    /// Return the entry notes text.
     #[requires(true)]
     #[ensures(ret == self.entry().notes)]
     #[getter]
@@ -1546,6 +1567,7 @@ impl PyDictionaryEntry {
         self.entry().notes
     }
 
+    /// Return the Lensisku score without adding finiteness constraints.
     #[requires(true)]
     #[ensures(ret.value.get().to_bits() == self.entry().score.get().to_bits())]
     #[getter]
@@ -1555,6 +1577,7 @@ impl PyDictionaryEntry {
         }
     }
 
+    /// Return gloss keywords in source order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1567,6 +1590,7 @@ impl PyDictionaryEntry {
         )
     }
 
+    /// Return place keywords in source order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1579,6 +1603,7 @@ impl PyDictionaryEntry {
         )
     }
 
+    /// Return explicitly listed rafsi in source order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1604,6 +1629,7 @@ impl PyDictionaryEntry {
         Ok(sequence_to_tuple(py, values)?.unbind())
     }
 
+    /// Return the optional raw selma'o value.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1622,6 +1648,7 @@ impl PyDictionaryEntry {
             .transpose()
     }
 
+    /// Return optional etymology text.
     #[requires(true)]
     #[ensures(ret == self.entry().etymology)]
     #[getter]
@@ -1629,6 +1656,7 @@ impl PyDictionaryEntry {
         self.entry().etymology
     }
 
+    /// Return the optional jargon category.
     #[requires(true)]
     #[ensures(ret == self.entry().jargon)]
     #[getter]
@@ -1636,6 +1664,7 @@ impl PyDictionaryEntry {
         self.entry().jargon
     }
 
+    /// Return contributor metadata for this entry.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1793,6 +1822,7 @@ struct PyRafsiMatch {
 
 #[pymethods]
 impl PyRafsiMatch {
+    /// Return the matched dictionary entry.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1805,6 +1835,7 @@ impl PyRafsiMatch {
         )
     }
 
+    /// Return the exact listed or universal rafsi provenance.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1858,6 +1889,7 @@ impl PyDictionarySoundEntry {
 
 #[pymethods]
 impl PyDictionarySoundEntry {
+    /// Return the typed source entry index.
     #[requires(true)]
     #[ensures(ret.value == self.sound().entry_index)]
     #[getter]
@@ -1865,6 +1897,7 @@ impl PyDictionarySoundEntry {
         PyEntryIndex::from_rust(self.sound().entry_index)
     }
 
+    /// Return the precomputed IPA rendering.
     #[requires(true)]
     #[ensures(ret == self.sound().ipa)]
     #[getter]
@@ -1872,6 +1905,7 @@ impl PyDictionarySoundEntry {
         self.sound().ipa
     }
 
+    /// Return the retained precomputed IPA token sequence.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1928,6 +1962,7 @@ impl PyIpaTokenSequenceView {
 
 #[pymethods]
 impl PyIpaTokenSequenceView {
+    /// Return phonetic segment identifiers in sequence order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -1941,6 +1976,7 @@ impl PyIpaTokenSequenceView {
         Ok(sequence_to_tuple(py, values)?.unbind())
     }
 
+    /// Return the precomputed ALINE self-similarity.
     #[requires(true)]
     #[ensures(ret.to_bits() == self.sequence().self_similarity.to_bits())]
     #[getter]
@@ -1948,12 +1984,14 @@ impl PyIpaTokenSequenceView {
         self.sequence().self_similarity
     }
 
+    /// Return the number of phonetic segments.
     #[requires(true)]
     #[ensures(ret == self.sequence().segment_count())]
     fn __len__(&self) -> usize {
         self.sequence().segment_count()
     }
 
+    /// Return the number of phonetic segments.
     #[requires(true)]
     #[ensures(ret == self.sequence().segment_count())]
     fn segment_count(&self) -> usize {
@@ -1996,6 +2034,7 @@ struct PyIpaSegmentId {
 
 #[pymethods]
 impl PyIpaSegmentId {
+    /// Return the bounded static segment-table index.
     #[requires(true)]
     #[ensures(ret == self.value.get())]
     #[getter]
@@ -2003,6 +2042,7 @@ impl PyIpaSegmentId {
         self.value.get()
     }
 
+    /// Return the canonical IPA symbol for this segment.
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
@@ -2059,6 +2099,7 @@ impl PyDictionaryLujvoEntry {
 
 #[pymethods]
 impl PyDictionaryLujvoEntry {
+    /// Return the typed source entry index.
     #[requires(true)]
     #[ensures(ret.value == self.lujvo().entry_index)]
     #[getter]
@@ -2066,6 +2107,7 @@ impl PyDictionaryLujvoEntry {
         PyEntryIndex::from_rust(self.lujvo().entry_index)
     }
 
+    /// Return decomposition segments in surface order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -2087,6 +2129,7 @@ impl PyDictionaryLujvoEntry {
         Ok(sequence_to_tuple(py, values)?.unbind())
     }
 
+    /// Return source words in decomposition order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -2137,6 +2180,7 @@ impl PyDictionaryLujvoSegment {
 
 #[pymethods]
 impl PyDictionaryLujvoSegment {
+    /// Return whether this segment is a rafsi or a hyphen.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -2145,6 +2189,7 @@ impl PyDictionaryLujvoSegment {
         string_enum_member(&module, self.segment().kind).map(Bound::unbind)
     }
 
+    /// Return the exact decomposed surface text.
     #[requires(true)]
     #[ensures(ret == self.segment().surface)]
     #[getter]
@@ -2152,6 +2197,7 @@ impl PyDictionaryLujvoSegment {
         self.segment().surface
     }
 
+    /// Return the source word for rafsi segments, or `None` for hyphens.
     #[requires(true)]
     #[ensures(ret == self.segment().source_word)]
     #[getter]
@@ -2204,6 +2250,7 @@ impl PyDictionaryPatternEntry {
 
 #[pymethods]
 impl PyDictionaryPatternEntry {
+    /// Return the typed source entry index.
     #[requires(true)]
     #[ensures(ret.value == self.pattern().entry_index)]
     #[getter]
@@ -2211,6 +2258,7 @@ impl PyDictionaryPatternEntry {
         PyEntryIndex::from_rust(self.pattern().entry_index)
     }
 
+    /// Return the normalized word pattern key.
     #[requires(true)]
     #[ensures(ret == self.pattern().word_key)]
     #[getter]
@@ -2218,6 +2266,7 @@ impl PyDictionaryPatternEntry {
         self.pattern().word_key
     }
 
+    /// Return normalized rafsi pattern keys in generated order.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
@@ -2259,6 +2308,7 @@ struct PyDictionarySnapshotMetadata {
 
 #[pymethods]
 impl PyDictionarySnapshotMetadata {
+    /// Return the BCP 47 language tag.
     #[requires(true)]
     #[ensures(ret == self.metadata.language_tag)]
     #[getter]
@@ -2266,6 +2316,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.language_tag
     }
 
+    /// Return the human-readable language name.
     #[requires(true)]
     #[ensures(ret == self.metadata.language_realname)]
     #[getter]
@@ -2273,6 +2324,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.language_realname
     }
 
+    /// Return the vendored snapshot format.
     #[requires(true)]
     #[ensures(ret == self.metadata.format)]
     #[getter]
@@ -2280,6 +2332,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.format
     }
 
+    /// Return the vendored snapshot filename.
     #[requires(true)]
     #[ensures(ret == self.metadata.filename)]
     #[getter]
@@ -2287,6 +2340,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.filename
     }
 
+    /// Return the upstream metadata URL.
     #[requires(true)]
     #[ensures(ret == self.metadata.metadata_url)]
     #[getter]
@@ -2294,6 +2348,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.metadata_url
     }
 
+    /// Return the upstream snapshot download URL.
     #[requires(true)]
     #[ensures(ret == self.metadata.download_url)]
     #[getter]
@@ -2301,6 +2356,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.download_url
     }
 
+    /// Return the upstream Lensisku creation timestamp.
     #[requires(true)]
     #[ensures(ret == self.metadata.lensisku_created_at)]
     #[getter]
@@ -2308,6 +2364,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.lensisku_created_at
     }
 
+    /// Return the vendored snapshot SHA-256 digest.
     #[requires(true)]
     #[ensures(ret == self.metadata.sha256)]
     #[getter]
@@ -2315,6 +2372,7 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.sha256
     }
 
+    /// Return the exact number of embedded entries.
     #[requires(true)]
     #[ensures(ret == self.metadata.entry_count)]
     #[getter]
@@ -2350,6 +2408,7 @@ struct PyInvalidEntryValidationDetail {
 
 #[pymethods]
 impl PyInvalidEntryValidationDetail {
+    /// Return the invalid source entry index.
     #[requires(true)]
     #[ensures(ret == self.index)]
     #[getter]
@@ -2357,6 +2416,7 @@ impl PyInvalidEntryValidationDetail {
         self.index
     }
 
+    /// Return the structural validation reason.
     #[requires(true)]
     #[ensures(ret == self.reason)]
     #[getter]
@@ -2509,6 +2569,7 @@ struct PyInvalidSoundIndexEntryValidationDetail {
 
 #[pymethods]
 impl PyInvalidSoundIndexEntryValidationDetail {
+    /// Return the invalid sound-record index.
     #[requires(true)]
     #[ensures(ret == self.index)]
     #[getter]
@@ -2516,6 +2577,7 @@ impl PyInvalidSoundIndexEntryValidationDetail {
         self.index
     }
 
+    /// Return the structural validation reason.
     #[requires(true)]
     #[ensures(ret == self.reason)]
     #[getter]
@@ -2560,6 +2622,7 @@ struct PyInvalidLujvoIndexEntryValidationDetail {
 
 #[pymethods]
 impl PyInvalidLujvoIndexEntryValidationDetail {
+    /// Return the invalid lujvo-record index.
     #[requires(true)]
     #[ensures(ret == self.index)]
     #[getter]
@@ -2567,6 +2630,7 @@ impl PyInvalidLujvoIndexEntryValidationDetail {
         self.index
     }
 
+    /// Return the structural validation reason.
     #[requires(true)]
     #[ensures(ret == self.reason)]
     #[getter]
