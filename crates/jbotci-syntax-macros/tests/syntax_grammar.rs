@@ -1,3 +1,22 @@
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+#[test]
+fn canonical_generated_grammar_has_no_placeholder_field_documentation() {
+    let grammar = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../jbotci-syntax/src/grammar/generated.rs"
+    ));
+    for forbidden in [
+        " component retained by the `",
+        " component of this syntax node.",
+    ] {
+        assert!(
+            !grammar.contains(forbidden),
+            "canonical grammar documentation contains legacy placeholder `{forbidden}`"
+        );
+    }
+}
+
 #[bityzba::invariant(true)]
 #[allow(dead_code)]
 struct SyntaxGrammarEnv;
