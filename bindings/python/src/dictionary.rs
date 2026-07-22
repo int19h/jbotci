@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::{
     cell::RefCell,
     marker::PhantomData,
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::{AssertUnwindSafe, catch_unwind, panic_any, resume_unwind},
     rc::Rc,
 };
 
@@ -2897,6 +2897,10 @@ mod tests {
     use super::*;
 
     #[invariant(true)]
+    #[derive(Debug)]
+    struct DeliberateModuleOverridePanic;
+
+    #[invariant(true)]
     struct TestModuleOverrideScope {
         previous_native: Option<Py<PyModule>>,
         previous_public: Option<Py<PyModule>>,
@@ -3108,9 +3112,13 @@ mod tests {
                     public_module(py).unwrap().as_ptr(),
                     public_override.as_ptr()
                 );
-                panic!("exercise panic-safe test module restoration");
+                panic_any(DeliberateModuleOverridePanic);
             }));
-            assert!(result.is_err());
+            match result {
+                Err(payload) if payload.is::<DeliberateModuleOverridePanic>() => {}
+                Err(payload) => resume_unwind(payload),
+                Ok(()) => panic!("module override scope did not propagate the sentinel panic"),
+            }
             assert!(TEST_NATIVE_MODULE.with(|slot| slot.borrow().is_none()));
             assert!(TEST_PUBLIC_MODULE.with(|slot| slot.borrow().is_none()));
             assert_eq!(
