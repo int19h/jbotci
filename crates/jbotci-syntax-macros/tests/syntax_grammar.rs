@@ -1,4 +1,73 @@
 #[bityzba::requires(true)]
+#[bityzba::ensures(!ret || documentation.starts_with("/// A word from selmaho `"))]
+fn is_direct_selmaho_documentation(documentation: &str) -> bool {
+    documentation
+        .strip_prefix("/// A word from selmaho `")
+        .and_then(|family| family.strip_suffix("`."))
+        .is_some_and(|family| {
+            !family.is_empty()
+                && family
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric())
+        })
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(!ret || documentation.starts_with("/// The "))]
+fn is_direct_cmavo_documentation(documentation: &str) -> bool {
+    documentation
+        .strip_prefix("/// The ")
+        .and_then(|body| body.strip_suffix(" cmavo marker."))
+        .map(|body| body.strip_prefix("optional ").unwrap_or(body))
+        .and_then(|name| name.strip_prefix('`'))
+        .and_then(|name| name.strip_suffix('`'))
+        .is_some_and(|name| {
+            !name.is_empty()
+                && name
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric())
+        })
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn has_misleading_single_token_field_documentation(source: &str) -> bool {
+    for (offset, _) in source.match_indices("/// ") {
+        let following = &source[offset..];
+        let documentation = following
+            .lines()
+            .next()
+            .expect("documentation match must contain its source line");
+        let direct_selmaho_documentation = is_direct_selmaho_documentation(documentation);
+        let direct_cmavo_documentation = is_direct_cmavo_documentation(documentation);
+        if !direct_selmaho_documentation && !direct_cmavo_documentation {
+            continue;
+        }
+
+        let Some(field_start) = following.find("field ") else {
+            return true;
+        };
+        let declaration = &following[field_start..];
+        let Some(declaration_end) = declaration.find(';') else {
+            return true;
+        };
+        let declaration = &declaration[..declaration_end];
+        let Some((_, parser)) = declaration.split_once("<-") else {
+            return true;
+        };
+        let parser = parser.trim_start();
+        let parser_inside_optional = parser.strip_prefix("opt(").unwrap_or(parser);
+        if (direct_selmaho_documentation && parser.starts_with("arc("))
+            || parser_inside_optional.starts_with("choice(")
+            || parser_inside_optional.starts_with('(')
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[bityzba::requires(true)]
 #[bityzba::ensures(true)]
 #[test]
 fn canonical_generated_grammar_has_no_placeholder_field_documentation() {
@@ -15,43 +84,26 @@ fn canonical_generated_grammar_has_no_placeholder_field_documentation() {
             "canonical grammar documentation contains legacy placeholder `{forbidden}`"
         );
     }
+    assert!(!has_misleading_single_token_field_documentation(grammar));
+}
 
-    for (offset, _) in grammar.match_indices("/// ") {
-        let following = &grammar[offset..];
-        let documentation = following
-            .lines()
-            .next()
-            .expect("documentation match must contain its source line");
-        let direct_selmaho_documentation = documentation.starts_with("/// A word from selmaho `");
-        let direct_cmavo_documentation =
-            documentation.starts_with("/// The ") && documentation.ends_with(" cmavo marker.");
-        if !direct_selmaho_documentation && !direct_cmavo_documentation {
-            continue;
-        }
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+#[test]
+fn single_token_documentation_audit_distinguishes_composite_fields() {
+    for accepted in [
+        "/// The optional `Bo` cmavo marker.\nfield bo <- opt(cmavo(Bo).wf());",
+        "/// The optional pair containing an optional tag followed by a required `Bo` cmavo marker.\nfield tag_bo <- opt((opt(arc(tag)), cmavo(Bo).wf()));",
+    ] {
+        assert!(!has_misleading_single_token_field_documentation(accepted));
+    }
 
-        let field_start = following
-            .find("field ")
-            .expect("token documentation must precede a field");
-        let declaration = &following[field_start..];
-        let declaration = &declaration[..declaration
-            .find(';')
-            .expect("documented field declaration must end with a semicolon")];
-        let parser = declaration
-            .split_once("<-")
-            .expect("documented field must have a parser expression")
-            .1
-            .trim_start();
-        let parser_inside_optional = parser.strip_prefix("opt(").unwrap_or(parser);
-        assert!(
-            !direct_selmaho_documentation || !parser.starts_with("arc("),
-            "shared syntax field is misdocumented as a selmaho word: {declaration}"
-        );
-        assert!(
-            !parser_inside_optional.starts_with("choice(")
-                && !parser.starts_with("opt((")
-                && !parser.starts_with('('),
-            "composite field has single-token documentation: {declaration}"
-        );
+    for rejected in [
+        "/// The optional `Bo` cmavo marker.\nfield tag_bo <- opt((opt(arc(tag)), cmavo(Bo).wf()));",
+        "/// A word from selmaho `Le`.\nfield description <- choice((selmaho(Le), selmaho(La))).wf();",
+        "/// The `Bo` cmavo marker.\nfield pair <- (cmavo(Bo), cmavo(Be));",
+    ] {
+        assert!(has_misleading_single_token_field_documentation(rejected));
     }
 }
 
