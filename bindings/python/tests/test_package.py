@@ -854,30 +854,42 @@ def _symbol_kind(expression: ast.expr, symbols: _StubSymbols) -> str | None:
 def _special_call_type_arguments(
     expression: ast.Call, symbols: _StubSymbols
 ) -> tuple[ast.expr, ...] | None:
-    kind = _symbol_kind(expression.func, symbols)
-    if kind in {"type-alias-type", "new-type"}:
-        arguments = list(expression.args[1:2])
+    kinds = _binding_expression_kinds(expression.func, symbols, set())
+    special_kinds = kinds & {
+        "type-alias-type",
+        "new-type",
+        "type-var",
+        "forward-ref",
+    }
+    if not special_kinds:
+        return None
+
+    arguments: list[ast.expr] = []
+    if special_kinds & {"type-alias-type", "new-type"}:
+        arguments.extend(expression.args[1:2])
         arguments.extend(
             keyword.value
             for keyword in expression.keywords
             if keyword.arg in {"tp", "value", "type_params"}
         )
-        return tuple(arguments)
-    if kind == "type-var":
-        arguments = list(expression.args[1:])
+    if "type-var" in special_kinds:
+        arguments.extend(expression.args[1:])
         arguments.extend(
             keyword.value
             for keyword in expression.keywords
             if keyword.arg in {"bound", "default"}
         )
-        return tuple(arguments)
-    if kind == "forward-ref":
-        arguments = list(expression.args[:1])
+    if "forward-ref" in special_kinds:
+        arguments.extend(expression.args[:1])
         arguments.extend(
             keyword.value for keyword in expression.keywords if keyword.arg == "arg"
         )
-        return tuple(arguments)
-    return None
+
+    return tuple(
+        argument
+        for index, argument in enumerate(arguments)
+        if all(argument is not previous for previous in arguments[:index])
+    )
 
 
 def _type_expression_mentions_any(
@@ -1131,7 +1143,8 @@ def _collect_scope_type_roots(
             )
             if (
                 statement.value is not None
-                and _symbol_kind(statement.annotation, symbols) == "type-alias"
+                and "type-alias"
+                in _binding_expression_kinds(statement.annotation, symbols, set())
             ):
                 roots.append(
                     _StubTypeRoot(
@@ -1321,6 +1334,11 @@ if sys.version_info >= (3, 13):
             "    types = vendor\n"
             "value: types.Any\n"
         ),
+        (
+            "import typing as types\n"
+            "value: types.Any\n"
+            "types = object\n"
+        ),
         "from typing import Any as Hidden\nAlias = Hidden\nvalue: Alias\n",
         (
             "from typing import Any as Hidden\n"
@@ -1406,6 +1424,11 @@ if sys.version_info >= (3, 13):
             "    Alias: typing.TypeAlias = typing.Any\n"
         ),
         (
+            "import typing as t\n"
+            "Alias: t.TypeAlias = \"t.Any\"\n"
+            "t = object\n"
+        ),
+        (
             "import typing\n"
             "value: typing.Annotated[typing.Any, 'metadata']\n"
         ),
@@ -1420,11 +1443,21 @@ if sys.version_info >= (3, 13):
             "        'Alias', typing_extensions.Any\n"
             "    )\n"
         ),
+        (
+            "import typing as t\n"
+            "Alias = t.TypeAliasType('Alias', \"t.Any\")\n"
+            "t = object\n"
+        ),
         "import typing\nAlias = typing.NewType('Alias', typing.Any)\n",
         (
             "import typing\n"
             "class Scope:\n"
             "    Alias = typing.NewType('Alias', typing.Any)\n"
+        ),
+        (
+            "import typing as t\n"
+            "Alias = t.NewType('Alias', \"t.Any\")\n"
+            "t = object\n"
         ),
         "import typing\nT = typing.TypeVar('T', bound=typing.Any)\n",
         (
@@ -1432,11 +1465,28 @@ if sys.version_info >= (3, 13):
             "class Scope:\n"
             "    T = typing.TypeVar('T', bound=typing.Any)\n"
         ),
+        (
+            "import typing as t\n"
+            "T = t.TypeVar('T', bound=\"t.Any\")\n"
+            "t = object\n"
+        ),
         "import typing\nAlias = typing.ForwardRef(\"'typing.Any'\")\n",
         (
             "import typing\n"
             "class Scope:\n"
             "    Alias = typing.ForwardRef(\"'typing.Any'\")\n"
+        ),
+        (
+            "import typing as t\n"
+            "Alias = t.ForwardRef(\"t.Any\")\n"
+            "t = object\n"
+        ),
+        (
+            "if CONDITION:\n"
+            "    import typing as t\n"
+            "else:\n"
+            "    import vendor as t\n"
+            "Alias = t.ForwardRef(\"t.Any\")\n"
         ),
         (
             "import typing\n"
