@@ -685,8 +685,8 @@ mod binding_schema {
             field with_indicators: WithIndicators<WordLike> = unreachable!();
             /// A shared source span.
             field source_span: std::sync::Arc<jbotci_source::SourceSpan> = unreachable!();
-            /// A string whose absolute type path must remain distinct in the schema.
-            field absolute_string: ::std::string::String = String::new();
+            /// A source span whose absolute type path must remain distinct in the schema.
+            field absolute_source_span: ::jbotci_source::SourceSpan = unreachable!();
             /// A small repeated token sequence.
             field small: smallvec::SmallVec<[Token; 2]> = smallvec::SmallVec::new();
         }
@@ -770,7 +770,7 @@ mod binding_schema {
             "transparent products and variants are tuples"
         );
         assert!(compact.contains(
-            "reference(leaf(kind(string),absolute(true),path(\"std\",\"string\",\"String\")))"
+            "reference(leaf(kind(source_span),absolute(true),path(\"jbotci_source\",\"SourceSpan\")))"
         ));
         assert!(compact.contains("transparent_constructors["));
         assert!(compact.contains("constructor_label(\"Item\",\"item\")"));
