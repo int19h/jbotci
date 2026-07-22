@@ -1744,7 +1744,7 @@ fn entry_sequence_item(
             .indices(isize::try_from(length).expect("Python sequence length must fit isize"))?;
         let mut values = Vec::with_capacity(indices.slicelength);
         let mut current = indices.start;
-        for _ in 0..indices.slicelength {
+        for item in 0..indices.slicelength {
             let position = usize::try_from(current).expect("normalized slice position is valid");
             values.push(Py::new(
                 py,
@@ -1752,7 +1752,11 @@ fn entry_sequence_item(
                     reference: EntryReference::new(Arc::clone(owner), EntryPosition(position)),
                 },
             )?);
-            current += indices.step;
+            if item + 1 < indices.slicelength {
+                current = current
+                    .checked_add(indices.step)
+                    .expect("another normalized slice position must fit isize");
+            }
         }
         return Ok(sequence_to_tuple(py, values)?.unbind().into_any());
     }
@@ -2857,6 +2861,404 @@ mod tests {
         let lujvo = LujvoReference::new(Arc::clone(&owner), LujvoPosition(0));
         let item = lujvo.lujvo().segments.len();
         assert!(try_new!(LujvoSegmentReference { lujvo, item }).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn python_projection_matches_the_complete_rust_snapshot() {
+        Python::initialize();
+        Python::attach(|py| {
+            let module = PyModule::new(py, "jbotci._native").unwrap();
+            register(&module).unwrap();
+            let modules_any = py.import("sys").unwrap().getattr("modules").unwrap();
+            let modules = modules_any.cast::<PyDict>().unwrap();
+            let previous_package = modules.get_item("jbotci").unwrap();
+            let previous_module = modules.get_item("jbotci._native").unwrap();
+            let package = PyModule::new(py, "jbotci").unwrap();
+            package.add("_native", &module).unwrap();
+            modules.set_item("jbotci", package).unwrap();
+            modules.set_item("jbotci._native", &module).unwrap();
+
+            let rust_dictionary = english();
+            let python_dictionary = module.getattr("_dictionary_english").unwrap();
+            assert_eq!(
+                python_dictionary.len().unwrap(),
+                rust_dictionary.entries().len()
+            );
+
+            for (index, rust_entry) in rust_dictionary.entries().iter().enumerate() {
+                let python_entry = python_dictionary
+                    .call_method1("__getitem__", (index,))
+                    .unwrap();
+                assert_eq!(
+                    python_entry
+                        .getattr("word")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_entry.word
+                );
+                assert_eq!(
+                    python_entry
+                        .getattr("word_type")
+                        .unwrap()
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_entry.word_type.as_str()
+                );
+                assert_eq!(
+                    python_entry
+                        .getattr("definition")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_entry.definition
+                );
+                assert_eq!(
+                    python_entry
+                        .getattr("definition_id")
+                        .unwrap()
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<u64>()
+                        .unwrap(),
+                    rust_entry.definition_id.get()
+                );
+                assert_eq!(
+                    python_entry
+                        .getattr("notes")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_entry.notes
+                );
+                assert_eq!(
+                    python_entry
+                        .getattr("score")
+                        .unwrap()
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<f64>()
+                        .unwrap()
+                        .to_bits(),
+                    rust_entry.score.get().to_bits()
+                );
+
+                for (attribute, rust_keywords) in [
+                    ("gloss_keywords", rust_entry.gloss_keywords),
+                    ("place_keywords", rust_entry.place_keywords),
+                ] {
+                    let python_keywords_any = python_entry.getattr(attribute).unwrap();
+                    let python_keywords = python_keywords_any.cast::<PyTuple>().unwrap();
+                    assert_eq!(python_keywords.len(), rust_keywords.len());
+                    for (python_keyword, rust_keyword) in
+                        python_keywords.iter().zip(rust_keywords.iter())
+                    {
+                        assert_eq!(
+                            python_keyword
+                                .getattr("word")
+                                .unwrap()
+                                .extract::<String>()
+                                .unwrap(),
+                            rust_keyword.word
+                        );
+                        assert_eq!(
+                            python_keyword
+                                .getattr("meaning")
+                                .unwrap()
+                                .extract::<Option<String>>()
+                                .unwrap()
+                                .as_deref(),
+                            rust_keyword.meaning
+                        );
+                    }
+                }
+
+                let python_rafsi_any = python_entry.getattr("rafsi").unwrap();
+                let python_rafsi = python_rafsi_any.cast::<PyTuple>().unwrap();
+                assert_eq!(python_rafsi.len(), rust_entry.rafsi.len());
+                for (python_rafsi, rust_rafsi) in python_rafsi.iter().zip(rust_entry.rafsi.iter()) {
+                    assert_eq!(
+                        python_rafsi
+                            .getattr("value")
+                            .unwrap()
+                            .extract::<String>()
+                            .unwrap(),
+                        rust_rafsi.0
+                    );
+                }
+
+                let python_selmaho = python_entry.getattr("selmaho").unwrap();
+                match rust_entry.selmaho {
+                    Some(rust_selmaho) => assert_eq!(
+                        python_selmaho
+                            .getattr("value")
+                            .unwrap()
+                            .extract::<String>()
+                            .unwrap(),
+                        rust_selmaho.0
+                    ),
+                    None => assert!(python_selmaho.is_none()),
+                }
+                assert_eq!(
+                    python_entry
+                        .getattr("etymology")
+                        .unwrap()
+                        .extract::<Option<String>>()
+                        .unwrap()
+                        .as_deref(),
+                    rust_entry.etymology
+                );
+                assert_eq!(
+                    python_entry
+                        .getattr("jargon")
+                        .unwrap()
+                        .extract::<Option<String>>()
+                        .unwrap()
+                        .as_deref(),
+                    rust_entry.jargon
+                );
+                let python_user = python_entry.getattr("user").unwrap();
+                assert_eq!(
+                    python_user
+                        .getattr("username")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_entry.user.username
+                );
+                assert_eq!(
+                    python_user
+                        .getattr("realname")
+                        .unwrap()
+                        .extract::<Option<String>>()
+                        .unwrap()
+                        .as_deref(),
+                    rust_entry.user.realname
+                );
+            }
+
+            let collision_query = rust_dictionary
+                .entries()
+                .iter()
+                .find(|entry| rust_dictionary.lookup_words(entry.word).count() > 1)
+                .expect("snapshot contains a normalized collision")
+                .word;
+            let rust_collision = rust_dictionary
+                .lookup_words(collision_query)
+                .map(|entry| entry.word)
+                .collect::<Vec<_>>();
+            let python_collision_any = python_dictionary
+                .call_method1("lookup_words", (collision_query,))
+                .unwrap();
+            let python_collision = python_collision_any.cast::<PyTuple>().unwrap();
+            assert_eq!(python_collision.len(), rust_collision.len());
+            for (python_entry, rust_word) in python_collision.iter().zip(rust_collision) {
+                assert_eq!(
+                    python_entry
+                        .getattr("word")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_word
+                );
+            }
+
+            let python_sounds_any = python_dictionary.getattr("sound_index").unwrap();
+            let python_sounds = python_sounds_any.cast::<PyTuple>().unwrap();
+            assert_eq!(python_sounds.len(), rust_dictionary.sound_index().len());
+            for (python_sound, rust_sound) in
+                python_sounds.iter().zip(rust_dictionary.sound_index())
+            {
+                assert_eq!(
+                    python_sound
+                        .getattr("entry_index")
+                        .unwrap()
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<usize>()
+                        .unwrap(),
+                    rust_sound.entry_index.get()
+                );
+                assert_eq!(
+                    python_sound
+                        .getattr("ipa")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_sound.ipa
+                );
+                let python_sequence = python_sound.getattr("token_sequence").unwrap();
+                assert_eq!(
+                    python_sequence
+                        .getattr("self_similarity")
+                        .unwrap()
+                        .extract::<f64>()
+                        .unwrap()
+                        .to_bits(),
+                    rust_sound.token_sequence.self_similarity.to_bits()
+                );
+                let python_segments_any = python_sequence.getattr("segments").unwrap();
+                let python_segments = python_segments_any.cast::<PyTuple>().unwrap();
+                assert_eq!(
+                    python_segments
+                        .iter()
+                        .map(|segment| {
+                            segment.getattr("value").unwrap().extract::<u16>().unwrap()
+                        })
+                        .collect::<Vec<_>>(),
+                    rust_sound
+                        .token_sequence
+                        .segments
+                        .iter()
+                        .map(|segment| segment.get())
+                        .collect::<Vec<_>>()
+                );
+            }
+
+            let python_lujvo_any = python_dictionary.getattr("lujvo_index").unwrap();
+            let python_lujvo = python_lujvo_any.cast::<PyTuple>().unwrap();
+            assert_eq!(python_lujvo.len(), rust_dictionary.lujvo_index().len());
+            for (python_lujvo, rust_lujvo) in python_lujvo.iter().zip(rust_dictionary.lujvo_index())
+            {
+                assert_eq!(
+                    python_lujvo
+                        .getattr("entry_index")
+                        .unwrap()
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<usize>()
+                        .unwrap(),
+                    rust_lujvo.entry_index.get()
+                );
+                let python_source_words = python_lujvo
+                    .getattr("source_words")
+                    .unwrap()
+                    .extract::<Vec<String>>()
+                    .unwrap();
+                assert!(
+                    python_source_words
+                        .iter()
+                        .map(String::as_str)
+                        .eq(rust_lujvo.source_words.iter().copied())
+                );
+                let python_segments_any = python_lujvo.getattr("segments").unwrap();
+                let python_segments = python_segments_any.cast::<PyTuple>().unwrap();
+                assert_eq!(python_segments.len(), rust_lujvo.segments.len());
+                for (python_segment, rust_segment) in
+                    python_segments.iter().zip(rust_lujvo.segments)
+                {
+                    assert_eq!(
+                        python_segment
+                            .getattr("kind")
+                            .unwrap()
+                            .getattr("value")
+                            .unwrap()
+                            .extract::<String>()
+                            .unwrap(),
+                        rust_segment.kind.python_value()
+                    );
+                    assert_eq!(
+                        python_segment
+                            .getattr("surface")
+                            .unwrap()
+                            .extract::<String>()
+                            .unwrap(),
+                        rust_segment.surface
+                    );
+                    assert_eq!(
+                        python_segment
+                            .getattr("source_word")
+                            .unwrap()
+                            .extract::<Option<String>>()
+                            .unwrap()
+                            .as_deref(),
+                        rust_segment.source_word
+                    );
+                }
+            }
+
+            let python_patterns_any = python_dictionary.getattr("pattern_index").unwrap();
+            let python_patterns = python_patterns_any.cast::<PyTuple>().unwrap();
+            assert_eq!(python_patterns.len(), rust_dictionary.pattern_index().len());
+            for (python_pattern, rust_pattern) in
+                python_patterns.iter().zip(rust_dictionary.pattern_index())
+            {
+                assert_eq!(
+                    python_pattern
+                        .getattr("entry_index")
+                        .unwrap()
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<usize>()
+                        .unwrap(),
+                    rust_pattern.entry_index.get()
+                );
+                assert_eq!(
+                    python_pattern
+                        .getattr("word_key")
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_pattern.word_key
+                );
+                let python_rafsi_keys = python_pattern
+                    .getattr("rafsi_keys")
+                    .unwrap()
+                    .extract::<Vec<String>>()
+                    .unwrap();
+                assert!(
+                    python_rafsi_keys
+                        .iter()
+                        .map(String::as_str)
+                        .eq(rust_pattern.rafsi_keys.iter().copied())
+                );
+            }
+
+            let rust_metadata = english_metadata();
+            let python_metadata = module.getattr("_dictionary_english_metadata").unwrap();
+            for (attribute, rust_value) in [
+                ("language_tag", rust_metadata.language_tag),
+                ("language_realname", rust_metadata.language_realname),
+                ("format", rust_metadata.format),
+                ("filename", rust_metadata.filename),
+                ("metadata_url", rust_metadata.metadata_url),
+                ("download_url", rust_metadata.download_url),
+                ("lensisku_created_at", rust_metadata.lensisku_created_at),
+                ("sha256", rust_metadata.sha256),
+            ] {
+                assert_eq!(
+                    python_metadata
+                        .getattr(attribute)
+                        .unwrap()
+                        .extract::<String>()
+                        .unwrap(),
+                    rust_value
+                );
+            }
+            assert_eq!(
+                python_metadata
+                    .getattr("entry_count")
+                    .unwrap()
+                    .extract::<usize>()
+                    .unwrap(),
+                rust_metadata.entry_count
+            );
+
+            if let Some(previous_module) = previous_module {
+                modules.set_item("jbotci._native", previous_module).unwrap();
+            } else {
+                modules.del_item("jbotci._native").unwrap();
+            }
+            if let Some(previous_package) = previous_package {
+                modules.set_item("jbotci", previous_package).unwrap();
+            } else {
+                modules.del_item("jbotci").unwrap();
+            }
+        });
     }
 
     #[test]

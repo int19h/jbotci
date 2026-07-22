@@ -5,6 +5,7 @@ import gc
 import math
 import subprocess
 import sys
+from collections.abc import Sequence
 
 import pytest
 
@@ -71,6 +72,12 @@ assert not isinstance(dictionary.english.entries, tuple)
 
 def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     entries = dictionary.english.entries
+    assert not isinstance(dictionary.english, Sequence)
+    assert not isinstance(entries, Sequence)
+    assert not hasattr(dictionary.english, "count")
+    assert not hasattr(dictionary.english, "index")
+    assert not hasattr(entries, "count")
+    assert not hasattr(entries, "index")
     assert len(entries) == 17_415
     assert entries[0].word == dictionary.english[0].word
     assert entries[dictionary.EntryIndex(0)].word == entries[0].word
@@ -81,6 +88,9 @@ def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     assert tuple(entry.word for entry in entries[4:0:-2]) == (
         entries[4].word,
         entries[2].word,
+    )
+    assert tuple(entry.word for entry in entries[1::sys.maxsize]) == (
+        entries[1].word,
     )
     assert next(iter(dictionary.english)).word == entries[0].word
     assert sum(1 for _ in dictionary.english) == len(entries)
@@ -361,6 +371,30 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         assert data_class.__module__ == "jbotci.dictionary"
         with pytest.raises(TypeError):
             type("Derived", (data_class,), {})
+
+    returned_only_classes = (
+        dictionary.Dictionary,
+        dictionary.DictionaryEntries,
+        dictionary.DictionaryEntry,
+        dictionary.RafsiMatch,
+        dictionary.DictionarySoundEntry,
+        dictionary.IpaTokenSequenceView,
+        dictionary.IpaSegmentId,
+        dictionary.DictionaryLujvoEntry,
+        dictionary.DictionaryLujvoSegment,
+        dictionary.DictionaryPatternEntry,
+        dictionary.DictionarySnapshotMetadata,
+        dictionary.InvalidEntryValidationDetail,
+        dictionary.WordIndexMismatchValidationDetail,
+        dictionary.RafsiIndexMismatchValidationDetail,
+        dictionary.SelmahoIndexMismatchValidationDetail,
+        dictionary.PatternIndexMismatchValidationDetail,
+        dictionary.InvalidSoundIndexEntryValidationDetail,
+        dictionary.InvalidLujvoIndexEntryValidationDetail,
+    )
+    for returned_only_class in returned_only_classes:
+        with pytest.raises(TypeError):
+            returned_only_class()  # type: ignore[call-arg]
 
     first_sound = dictionary.english.sound_index[0]
     first_pattern = dictionary.english.pattern_index[0]

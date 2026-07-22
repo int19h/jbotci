@@ -82,9 +82,12 @@ demand.
 
 Lookup methods delegate to the Rust dictionary indexes and return immutable
 tuples in collision/index order. Integer indexing follows normal negative-index
-rules; typed `EntryIndex` lookup remains optional for out-of-range values. The
-public surface intentionally does not expose static-slice construction,
-importer-owned index builders, serde bridges, or a sound-search operation.
+rules; typed `EntryIndex` lookup remains optional for out-of-range values.
+`Dictionary` and `DictionaryEntries` provide the concrete `len`, indexing, and
+iteration protocol only; they do not claim `collections.abc.Sequence` methods
+such as `count` or `index` that the native objects do not implement. The public
+surface intentionally does not expose static-slice construction, importer-owned
+index builders, serde bridges, or a sound-search operation.
 
 The checked-in `python/jbotci/_native.pyi` is composed from the ordered manual,
 generated, and domain fragments under `stubs/_native/`. After changing a
