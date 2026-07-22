@@ -940,6 +940,54 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental cmavo context carries validated Selmaho values",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Boxed",
+        "boxed schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Chain",
+        "chain schema arguments are independently validated binding types and every pairing faithfully represents source type arguments",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Fixed",
+        "fixed schema elements are validated recursively and every usize length, including zero, is a valid Rust array shape",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::NonEmptyRepeated",
+        "nonempty-repetition schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Optional",
+        "optional schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::RecoveredField",
+        "recovered-field schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Reference",
+        "schema reference validity is fully determined by the validated BindingReference payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Repeated",
+        "repetition schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Shared",
+        "shared schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Tuple",
+        "tuple schema elements are validated recursively and arbitrary ordered arity, including zero, is a valid Rust tuple shape",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::WithFreeModifiers",
+        "free-modifier wrapper arguments are independently validated binding types and every pairing faithfully represents source type arguments",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::WithIndicators",
+        "indicator schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Chain",
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
     ),
@@ -1074,6 +1122,54 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::WordCategory",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Boxed",
+        "external boxed schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Chain",
+        "external chain arguments are independently validated binding types and every pairing mirrors normalized source type arguments",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Fixed",
+        "external fixed elements are validated recursively and every usize length, including zero, mirrors a valid Rust array shape",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::NonEmptyRepeated",
+        "external nonempty-repetition validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Optional",
+        "external optional schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::RecoveredField",
+        "external recovered-field validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Repeated",
+        "external repetition schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Shared",
+        "external shared schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Tuple",
+        "external tuple elements are validated recursively and arbitrary ordered arity, including zero, mirrors valid Rust tuple shapes",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::WithFreeModifiers",
+        "external free-modifier arguments are independently validated binding types and every pairing mirrors normalized source type arguments",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::WithIndicators",
+        "external indicator schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:ModelKind::Sum",
+        "external sum model kind is a unit discriminant with no payload combination to constrain",
     ),
     (
         "crates/jbotci-tree-macros/src/lib.rs:UnwrappedTreeType::Atom",
