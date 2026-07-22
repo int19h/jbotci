@@ -1,6 +1,6 @@
 //! CLL gismu composition.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -13,8 +13,8 @@ use jbotci_morphology::{
     consonant_pair_class, is_consonant, is_vowel, segment_words_with_modifiers,
 };
 use jbotci_phonetic::{
-    AlineParameters, AlineScorer, AlineSimilarityScratch, IpaSegmentId,
-    lojban_gismu_letter_to_ipa_segment, tokenize_ipa_text,
+    AlineNormalizer, AlineParameters, AlineScorer, AlineSimilarityScratch, IpaSegmentId,
+    PreparedAlineSource, lojban_gismu_letter_to_ipa_segment, tokenize_ipa_text,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -34,6 +34,10 @@ const CONSONANTS: &[char] = &[
     'b', 'c', 'd', 'f', 'g', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'x', 'z',
 ];
 const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u'];
+const PHONETIC_TARGET_LETTERS: [char; 22] = [
+    'b', 'c', 'd', 'f', 'g', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'x', 'z', 'a', 'e',
+    'i', 'o', 'u',
+];
 
 type PresetEntrySpec = (&'static str, u16);
 
@@ -567,7 +571,7 @@ pub struct GimfihiOutput {
     pub candidates: Vec<GimfihiCandidate>,
 }
 
-#[invariant(!word.is_empty())]
+#[invariant(!word.is_empty() && score.is_finite())]
 #[derive(Debug, Clone, PartialEq)]
 struct ScoredGimfihiCandidate {
     word: String,
@@ -576,15 +580,47 @@ struct ScoredGimfihiCandidate {
     rafsi: Option<Vec<RafsiCandidate>>,
 }
 
+#[invariant(!candidate.word.is_empty() && candidate.score.is_finite())]
+#[derive(Debug, Clone)]
+struct ScoredCandidateHeapEntry {
+    candidate: ScoredGimfihiCandidate,
+}
+
+impl PartialEq for ScoredCandidateHeapEntry {
+    #[requires(true)]
+    #[ensures(ret == (compare_scored_candidates(&self.candidate, &other.candidate).is_eq()))]
+    fn eq(&self, other: &Self) -> bool {
+        compare_scored_candidates(&self.candidate, &other.candidate).is_eq()
+    }
+}
+
+impl Eq for ScoredCandidateHeapEntry {}
+
+impl PartialOrd for ScoredCandidateHeapEntry {
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ScoredCandidateHeapEntry {
+    #[requires(true)]
+    #[ensures(true)]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        compare_scored_candidates(&self.candidate, &other.candidate)
+    }
+}
+
 #[invariant(::Classic { chars } => !chars.is_empty())]
-#[invariant(::Phonetic { segments, self_similarity } => !segments.is_empty() && self_similarity.is_finite() && *self_similarity > 0.0)]
+#[invariant(::Phonetic { prepared, self_similarity } => prepared.target_count() == PHONETIC_TARGET_LETTERS.len() && self_similarity.is_finite() && *self_similarity > 0.0)]
 #[derive(Debug)]
 enum PreparedScoringKind {
     Classic {
         chars: Vec<char>,
     },
     Phonetic {
-        segments: Vec<IpaSegmentId>,
+        prepared: PreparedAlineSource,
         self_similarity: f64,
     },
 }
@@ -601,6 +637,7 @@ struct PreparedSource<'source> {
 struct GismuScoreScratch {
     candidate_chars: Vec<char>,
     candidate_segments: Vec<IpaSegmentId>,
+    candidate_targets: Vec<usize>,
     lcs: LcsScratch,
     aline: AlineSimilarityScratch,
 }
@@ -817,15 +854,27 @@ pub fn compose_gismu(
         prepare_scoring_sources(&resolved_sources, request.scorer, phonetic_scorer.as_ref())?;
     let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
     let mut scratch = GismuScoreScratch::default();
-    let candidates = generate_candidates(
+    let requested_highlight = request
+        .highlight
+        .as_ref()
+        .map(|value| normalize_gismu(value))
+        .filter(|value| !value.is_empty());
+    let retained_count = request.count.min(GIMFIHI_MAX_COUNT);
+    let mut candidate_count = 0;
+    let mut filtered_count = 0;
+    let mut winner: Option<ScoredGimfihiCandidate> = None;
+    let mut requested_highlight_candidate = None;
+    let mut retained = BinaryHeap::with_capacity(retained_count.saturating_add(1));
+    for word in generate_candidates(
         &resolved_sources,
         &shapes,
         request.all_letters || request.scorer == GimfihiScorer::Phonetic,
     )
     .into_iter()
     .filter(|word| valid_gismu_candidate(word))
-    .map(|word| {
-        score_candidate_for_ranking_with_scratch(
+    {
+        candidate_count += 1;
+        let candidate = score_candidate_for_ranking_with_scratch(
             dictionary,
             &collision_index,
             &prepared_sources,
@@ -833,46 +882,52 @@ pub fn compose_gismu(
             request.require_free_short_rafsi,
             phonetic_scorer.as_ref(),
             &mut scratch,
-        )
-    })
-    .collect::<Vec<_>>();
-    let candidate_count = candidates.len();
-    let mut filtered = candidates
-        .into_iter()
-        .filter(|candidate| scored_candidate_passes_filters(candidate, request))
-        .collect::<Vec<_>>();
-    filtered.sort_by(compare_scored_candidates);
-    let filtered_count = filtered.len();
-    // The winner is the best *usable* candidate: skip any that collide with an
-    // existing gismu, even when `show_collisions` keeps them in the list.
-    let winner = filtered
-        .iter()
-        .find(|candidate| candidate.collision.is_none())
-        .map(|candidate| candidate.word.clone());
-    let requested_highlight = request
-        .highlight
-        .as_ref()
-        .map(|value| normalize_gismu(value))
-        .filter(|value| !value.is_empty());
+        );
+        if !scored_candidate_passes_filters(&candidate, request) {
+            continue;
+        }
+        filtered_count += 1;
+        if candidate.collision.is_none()
+            && winner
+                .as_ref()
+                .is_none_or(|current| compare_scored_candidates(&candidate, current).is_lt())
+        {
+            winner = Some(candidate.clone());
+        }
+        if requested_highlight
+            .as_ref()
+            .is_some_and(|word| word == &candidate.word)
+        {
+            requested_highlight_candidate = Some(candidate.clone());
+        }
+        if retained_count > 0 {
+            retain_top_candidate(&mut retained, candidate, retained_count);
+        }
+    }
+    let winner_word = winner.as_ref().map(|candidate| candidate.word.clone());
     let highlighted_word = requested_highlight
         .as_ref()
-        .filter(|word| filtered.iter().any(|candidate| &candidate.word == *word))
+        .filter(|word| {
+            requested_highlight_candidate
+                .as_ref()
+                .is_some_and(|candidate| &candidate.word == *word)
+        })
         .cloned()
-        .or_else(|| winner.clone());
-    let mut displayed = filtered
-        .iter()
-        .take(request.count.min(GIMFIHI_MAX_COUNT))
-        .cloned()
+        .or_else(|| winner_word.clone());
+    let mut displayed = retained
+        .into_iter()
+        .map(|entry| entry.into_data().candidate)
         .collect::<Vec<_>>();
+    displayed.sort_by(compare_scored_candidates);
     if let Some(highlighted_word) = &highlighted_word
         && !displayed
             .iter()
             .any(|candidate| &candidate.word == highlighted_word)
-        && let Some(candidate) = filtered
-            .iter()
-            .find(|candidate| &candidate.word == highlighted_word)
+        && let Some(candidate) = requested_highlight_candidate
+            .filter(|candidate| &candidate.word == highlighted_word)
+            .or_else(|| winner.filter(|candidate| &candidate.word == highlighted_word))
     {
-        displayed.push(candidate.clone());
+        displayed.push(candidate);
     }
     let mut detail_scratch = GismuScoreScratch::default();
     let displayed = displayed
@@ -896,7 +951,7 @@ pub fn compose_gismu(
         resolved_sources,
         candidate_count,
         filtered_count,
-        winner,
+        winner: winner_word,
         highlighted_word,
         candidates: displayed,
     })
@@ -1217,6 +1272,14 @@ fn prepare_scoring_sources<'source>(
     phonetic_scorer: Option<&AlineScorer>,
 ) -> Result<Vec<PreparedSource<'source>>, GimfihiError> {
     let mut aline_scratch = AlineSimilarityScratch::default();
+    let phonetic_targets = PHONETIC_TARGET_LETTERS
+        .iter()
+        .copied()
+        .map(|letter| {
+            lojban_gismu_letter_to_ipa_segment(letter)
+                .expect("the fixed phonetic target inventory has IPA segments")
+        })
+        .collect::<Vec<_>>();
     sources
         .iter()
         .map(|source| {
@@ -1233,8 +1296,9 @@ fn prepare_scoring_sources<'source>(
                     let segments = source_ipa_segments(source)?;
                     let self_similarity =
                         phonetic_scorer.self_similarity_with_scratch(&segments, &mut aline_scratch);
+                    let prepared = phonetic_scorer.prepare_source(&phonetic_targets, &segments);
                     new!(PreparedScoringKind::Phonetic {
-                        segments,
+                        prepared,
                         self_similarity,
                     })
                 }
@@ -1343,15 +1407,38 @@ fn prepare_candidate_for_scoring(
         }
         Some(scorer) => {
             scratch.candidate_segments.clear();
-            scratch
-                .candidate_segments
-                .extend(word.chars().map(|letter| {
-                    lojban_gismu_letter_to_ipa_segment(letter)
-                        .expect("validated gismu letters have IPA segments")
-                }));
-            scorer.self_similarity_with_scratch(&scratch.candidate_segments, &mut scratch.aline)
+            scratch.candidate_targets.clear();
+            let needs_candidate_self =
+                scorer.parameters().normalizer != AlineNormalizer::SourceSide;
+            for letter in word.chars() {
+                let target_index = phonetic_target_index(letter)
+                    .expect("validated gismu letters are scoring targets");
+                scratch.candidate_targets.push(target_index);
+                if needs_candidate_self {
+                    scratch.candidate_segments.push(
+                        lojban_gismu_letter_to_ipa_segment(letter)
+                            .expect("validated gismu letters have IPA segments"),
+                    );
+                }
+            }
+            if needs_candidate_self {
+                scorer.self_similarity_with_scratch(&scratch.candidate_segments, &mut scratch.aline)
+            } else {
+                // Source-side normalization ignores this argument. Keeping the
+                // exact positive identity avoids candidate self-alignment in
+                // the hot loop while satisfying `AlineScorer::normalize`.
+                1.0
+            }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| index < PHONETIC_TARGET_LETTERS.len() && PHONETIC_TARGET_LETTERS[index] == letter))]
+fn phonetic_target_index(letter: char) -> Option<usize> {
+    PHONETIC_TARGET_LETTERS
+        .iter()
+        .position(|target| *target == letter)
 }
 
 #[requires(candidate_self.is_finite() && candidate_self >= 0.0)]
@@ -1371,15 +1458,12 @@ fn score_source_value(
             raw_score as f64 / chars.len() as f64 * scaled_weight
         }
         data!(PreparedScoringKind::Phonetic {
-            segments,
+            prepared,
             self_similarity,
         }) => {
             let scorer = phonetic_scorer.expect("phonetic sources have a phonetic scorer");
-            let raw = scorer.raw_similarity_with_scratch(
-                &scratch.candidate_segments,
-                segments,
-                &mut scratch.aline,
-            );
+            let raw = prepared
+                .raw_similarity_with_scratch(&scratch.candidate_targets, &mut scratch.aline);
             scorer.normalize(raw, candidate_self, *self_similarity) * scaled_weight
         }
     }
@@ -1400,15 +1484,12 @@ fn materialize_source_score(
             gismu_match_score_chars(&scratch.candidate_chars, chars, &mut scratch.lcs) as f64
         }
         data!(PreparedScoringKind::Phonetic {
-            segments,
+            prepared,
             self_similarity,
         }) => {
             let scorer = phonetic_scorer.expect("phonetic sources have a phonetic scorer");
-            let raw = scorer.raw_similarity_with_scratch(
-                &scratch.candidate_segments,
-                segments,
-                &mut scratch.aline,
-            );
+            let raw = prepared
+                .raw_similarity_with_scratch(&scratch.candidate_targets, &mut scratch.aline);
             scorer.normalize(raw, candidate_self, *self_similarity)
         }
     };
@@ -1960,6 +2041,19 @@ fn compare_scored_candidates(
         .then_with(|| left.word.cmp(&right.word))
 }
 
+#[requires(limit > 0)]
+#[ensures(heap.len() <= limit)]
+fn retain_top_candidate(
+    heap: &mut BinaryHeap<ScoredCandidateHeapEntry>,
+    candidate: ScoredGimfihiCandidate,
+    limit: usize,
+) {
+    heap.push(new!(ScoredCandidateHeapEntry { candidate }));
+    if heap.len() > limit {
+        heap.pop();
+    }
+}
+
 #[requires(true)]
 #[ensures(!ret.contains(char::is_whitespace))]
 fn normalize_language(value: &str) -> String {
@@ -1997,6 +2091,78 @@ fn normalize_gismu(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use jbotci_phonetic::{AlineFeature, AlineSaliences};
+
+    #[requires(true)]
+    #[ensures(ret.normalizer == normalizer)]
+    fn nondefault_phonetic_parameters(normalizer: AlineNormalizer) -> AlineParameters {
+        AlineParameters::try_new(
+            AlineSaliences::default()
+                .with_feature(AlineFeature::Place, 31.25)
+                .expect("valid nondefault place salience"),
+            37.0,
+            18.5,
+            -7.0,
+            4.0,
+            -2.5,
+            normalizer,
+        )
+        .expect("valid nondefault ALINE parameters")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_outputs_bit_exact(actual: &GimfihiOutput, expected: &GimfihiOutput) {
+        assert_eq!(actual, expected);
+        assert_eq!(actual.candidates.len(), expected.candidates.len());
+        for (actual_candidate, expected_candidate) in
+            actual.candidates.iter().zip(&expected.candidates)
+        {
+            assert_eq!(
+                actual_candidate.score.to_bits(),
+                expected_candidate.score.to_bits(),
+                "candidate score bits differ for {}",
+                actual_candidate.word
+            );
+            assert_eq!(
+                actual_candidate.source_scores.len(),
+                expected_candidate.source_scores.len()
+            );
+            for (actual_source, expected_source) in actual_candidate
+                .source_scores
+                .iter()
+                .zip(&expected_candidate.source_scores)
+            {
+                assert_eq!(
+                    actual_source.raw_score.to_bits(),
+                    expected_source.raw_score.to_bits(),
+                    "raw source score bits differ for {} / {}",
+                    actual_candidate.word,
+                    actual_source.language
+                );
+                assert_eq!(
+                    actual_source.weighted_score.to_bits(),
+                    expected_source.weighted_score.to_bits(),
+                    "weighted source score bits differ for {} / {}",
+                    actual_candidate.word,
+                    actual_source.language
+                );
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_optimized_matches_eager(
+        dictionary: &Dictionary<'_>,
+        request: &GimfihiRequest,
+    ) -> GimfihiOutput {
+        let actual = compose_gismu(dictionary, request).expect("optimized output");
+        let expected =
+            compose_gismu_eager_for_test(dictionary, request).expect("eager oracle output");
+        assert_outputs_bit_exact(&actual, &expected);
+        actual
+    }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -2010,19 +2176,27 @@ mod tests {
         }
         let shapes = unique_shapes(&request.shapes);
         let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
-        let candidates = generate_candidates(&resolved_sources, &shapes, request.all_letters)
-            .into_iter()
-            .filter(|word| valid_gismu_candidate(word))
-            .map(|word| {
-                score_candidate_eager_for_test(
-                    dictionary,
-                    &collision_index,
-                    &resolved_sources,
-                    word,
-                    request.require_free_short_rafsi,
-                )
-            })
-            .collect::<Vec<_>>();
+        let phonetic_scorer = (request.scorer == GimfihiScorer::Phonetic)
+            .then(|| AlineScorer::new(request.phonetic_parameters.clone()));
+        let candidates = generate_candidates(
+            &resolved_sources,
+            &shapes,
+            request.all_letters || request.scorer == GimfihiScorer::Phonetic,
+        )
+        .into_iter()
+        .filter(|word| valid_gismu_candidate(word))
+        .map(|word| {
+            score_candidate_eager_for_test(
+                dictionary,
+                &collision_index,
+                &resolved_sources,
+                word,
+                request.require_free_short_rafsi,
+                request.scorer,
+                phonetic_scorer.as_ref(),
+            )
+        })
+        .collect::<Vec<_>>();
         let candidate_count = candidates.len();
         let mut filtered = candidates
             .into_iter()
@@ -2069,7 +2243,9 @@ mod tests {
         }
         Ok(GimfihiOutput {
             scorer: request.scorer,
-            phonetic_parameters: None,
+            phonetic_parameters: (request.scorer == GimfihiScorer::Phonetic
+                && request.phonetic_parameters != AlineParameters::default())
+            .then(|| request.phonetic_parameters.clone()),
             resolved_sources,
             candidate_count,
             filtered_count,
@@ -2088,10 +2264,35 @@ mod tests {
         sources: &[ResolvedSource],
         word: String,
         include_rafsi: bool,
+        scorer_kind: GimfihiScorer,
+        phonetic_scorer: Option<&AlineScorer>,
     ) -> GimfihiCandidate {
+        let candidate_segments = (scorer_kind == GimfihiScorer::Phonetic).then(|| {
+            word.chars()
+                .map(|letter| {
+                    lojban_gismu_letter_to_ipa_segment(letter)
+                        .expect("validated candidate has IPA segments")
+                })
+                .collect::<Vec<_>>()
+        });
+        let mut scratch = AlineSimilarityScratch::default();
+        let candidate_self = candidate_segments.as_ref().map(|segments| {
+            phonetic_scorer
+                .expect("phonetic scorer")
+                .self_similarity_with_scratch(segments, &mut scratch)
+        });
         let source_scores = sources
             .iter()
-            .map(|source| score_source_eager_for_test(word.as_str(), source))
+            .map(|source| match candidate_segments.as_ref() {
+                None => score_source_eager_for_test(word.as_str(), source),
+                Some(segments) => score_phonetic_source_oracle_for_test(
+                    segments,
+                    candidate_self.expect("candidate self similarity"),
+                    source,
+                    phonetic_scorer.expect("phonetic scorer"),
+                    &mut scratch,
+                ),
+            })
             .collect::<Vec<_>>();
         let score = source_scores
             .iter()
@@ -2116,6 +2317,32 @@ mod tests {
         let raw_score = gismu_match_score(candidate, &source.word) as f64;
         let scaled_weight = f64::from(source.weight) / GIMFIHI_WEIGHT_SCALE;
         let weighted_score = raw_score / source.word.chars().count() as f64 * scaled_weight;
+        new!(SourceScore {
+            language: source.language.clone(),
+            word: source.word.clone(),
+            weight: source.weight,
+            raw_score,
+            weighted_score,
+        })
+    }
+
+    #[requires(!candidate.is_empty())]
+    #[requires(candidate_self.is_finite() && candidate_self > 0.0)]
+    #[requires(!source.word.is_empty())]
+    #[ensures(ret.weight == source.weight)]
+    fn score_phonetic_source_oracle_for_test(
+        candidate: &[IpaSegmentId],
+        candidate_self: f64,
+        source: &ResolvedSource,
+        scorer: &AlineScorer,
+        scratch: &mut AlineSimilarityScratch,
+    ) -> SourceScore {
+        let source_segments = source_ipa_segments(source).expect("resolved source IPA");
+        let raw = scorer.raw_similarity_with_scratch(candidate, &source_segments, scratch);
+        let source_self = scorer.self_similarity_with_scratch(&source_segments, scratch);
+        let raw_score = scorer.normalize(raw, candidate_self, source_self);
+        let scaled_weight = f64::from(source.weight) / GIMFIHI_WEIGHT_SCALE;
+        let weighted_score = raw_score * scaled_weight;
         new!(SourceScore {
             language: source.language.clone(),
             word: source.word.clone(),
@@ -2425,38 +2652,255 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn bounded_selection_matches_full_total_order_with_ties() {
+        const CANDIDATE_COUNT: usize = 1_024;
+        let candidates = (0..CANDIDATE_COUNT)
+            .map(|index| {
+                new!(ScoredGimfihiCandidate {
+                    word: format!("candidate-{index:04}"),
+                    // Every score has 128 equal-score ties, so the word tie
+                    // break is exercised at every retained size.
+                    score: (index % 8) as f64,
+                    collision: None,
+                    rafsi: None,
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut expected = candidates.clone();
+        expected.sort_by(compare_scored_candidates);
+        let input_orders = [
+            (0..CANDIDATE_COUNT).collect::<Vec<_>>(),
+            (0..CANDIDATE_COUNT).rev().collect::<Vec<_>>(),
+            (0..CANDIDATE_COUNT)
+                .map(|index| (index + 317) % CANDIDATE_COUNT)
+                .collect::<Vec<_>>(),
+            // 513 and 1024 are coprime, so this visits every input exactly
+            // once in a nonlocal permutation.
+            (0..CANDIDATE_COUNT)
+                .map(|index| index * 513 % CANDIDATE_COUNT)
+                .collect::<Vec<_>>(),
+        ];
+
+        for limit in 1..=GIMFIHI_MAX_COUNT {
+            let expected = &expected[..limit];
+            for input_order in &input_orders {
+                let mut heap = BinaryHeap::new();
+                for &index in input_order {
+                    retain_top_candidate(&mut heap, candidates[index].clone(), limit);
+                }
+                let mut actual = heap
+                    .into_iter()
+                    .map(|entry| entry.into_data().candidate)
+                    .collect::<Vec<_>>();
+                actual.sort_by(compare_scored_candidates);
+                assert_eq!(actual, expected);
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn issue_587_preoptimization_output_is_exactly_preserved() {
+        let dictionary = jbotci_dictionary_data::english();
+        let source_specs = [
+            "cmn::[fat͡ɕjɑʊ]",
+            "eng::[fɚmɛnt]",
+            "spa::[feɾment]",
+            "hin::[kɪɳʋan]",
+            "ara::[taxamːur]",
+            "ben::[ɡãd͡ʒɔn]",
+            "rus::[fʲermʲent]",
+            "por::[feʁmẽt]",
+            "msa::[pɘnapaian]",
+            "jpn::[hakːoː]",
+            "deu::[ɡɛːʁ]",
+            "fra::[fɛʁmɑ̃t]",
+        ];
+        let request = GimfihiRequest {
+            scorer: GimfihiScorer::Phonetic,
+            phonetic_parameters: AlineParameters::default(),
+            preset: Some(GimfihiPreset::Ilmen12),
+            sources: source_specs
+                .into_iter()
+                .map(|spec| parse_source_spec(spec).expect("source"))
+                .collect(),
+            shapes: default_shapes(),
+            all_letters: false,
+            check_collisions: CollisionScope::All,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            count: 160,
+            highlight: Some("ferme".to_owned()),
+        };
+
+        let output = compose_gismu(dictionary, &request).expect("#587 reproduction");
+        assert_eq!(output.candidate_count, 96_475);
+        assert_eq!(output.filtered_count, 82_567);
+        assert_eq!(output.winner.as_deref(), Some("faxne"));
+        assert_eq!(output.highlighted_word.as_deref(), Some("ferme"));
+        assert_eq!(output.candidates.len(), 161);
+        let top = output
+            .candidates
+            .iter()
+            .take(3)
+            .map(|candidate| (candidate.word.as_str(), candidate.score.to_bits()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            top,
+            vec![
+                ("faxne", 0.44869245574425654_f64.to_bits()),
+                ("faxme", 0.4477703265388775_f64.to_bits()),
+                ("fexne", 0.446722930032565_f64.to_bits()),
+            ]
+        );
+        assert!(
+            output
+                .candidates
+                .iter()
+                .any(|candidate| candidate.word == "ferme" && candidate.highlighted)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn optimized_phonetic_pipeline_matches_eager_oracle_for_every_normalizer() {
+        let dictionary = jbotci_dictionary_data::english();
+        let sources = vec![
+            GimfihiSourceInput::from_ipa_fields("short", "a", Some(375)),
+            GimfihiSourceInput::from_ipa_fields("pair", "feɾment", Some(625)),
+        ];
+        for normalizer in [
+            AlineNormalizer::SourceSide,
+            AlineNormalizer::CandidateSide,
+            AlineNormalizer::Symmetric,
+        ] {
+            let request = GimfihiRequest {
+                scorer: GimfihiScorer::Phonetic,
+                phonetic_parameters: nondefault_phonetic_parameters(normalizer),
+                preset: None,
+                sources: sources.clone(),
+                shapes: vec![GismuShape::Ccvcv],
+                all_letters: false,
+                check_collisions: CollisionScope::None,
+                show_collisions: false,
+                require_free_short_rafsi: false,
+                count: 11,
+                highlight: Some("branu".to_owned()),
+            };
+            assert_optimized_matches_eager(dictionary, &request);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepared_alignment_matches_concrete_oracle_for_every_valid_gismu() {
+        let source = tokenize_ipa_text("feɾment").expect("source");
+        let scorer = AlineScorer::new(AlineParameters::default());
+        let target_segments = PHONETIC_TARGET_LETTERS
+            .iter()
+            .copied()
+            .map(|letter| {
+                lojban_gismu_letter_to_ipa_segment(letter).expect("phonetic target segment")
+            })
+            .collect::<Vec<_>>();
+        let prepared = scorer.prepare_source(&target_segments, source.segments());
+        let resolved = resolve_sources(
+            None,
+            &[parse_source_spec("source:1:klama").expect("generation source")],
+        )
+        .expect("resolved source");
+        let candidates = generate_candidates(&resolved, &default_shapes(), true);
+        let mut dense_candidate = Vec::with_capacity(5);
+        let mut concrete_candidate = Vec::with_capacity(5);
+        let mut prepared_scratch = AlineSimilarityScratch::default();
+        let mut oracle_scratch = AlineSimilarityScratch::default();
+        let mut compared = 0;
+
+        for candidate in candidates
+            .iter()
+            .filter(|candidate| valid_gismu_candidate(candidate))
+        {
+            dense_candidate.clear();
+            concrete_candidate.clear();
+            for letter in candidate.chars() {
+                let target = phonetic_target_index(letter).expect("valid target letter");
+                dense_candidate.push(target);
+                concrete_candidate.push(target_segments[target]);
+            }
+            let actual =
+                prepared.raw_similarity_with_scratch(&dense_candidate, &mut prepared_scratch);
+            let expected = scorer.raw_similarity_with_scratch(
+                &concrete_candidate,
+                source.segments(),
+                &mut oracle_scratch,
+            );
+            assert_eq!(
+                actual.to_bits(),
+                expected.to_bits(),
+                "prepared score differs for {candidate}"
+            );
+            compared += 1;
+        }
+        assert_eq!(compared, 96_475);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn compose_lazy_details_match_eager_materialization() {
         let dictionary = jbotci_dictionary_data::english();
-        let highlighted_sources = [parse_source_spec("eng:100:plini").expect("source")];
-        let highlighted_request = GimfihiRequest {
+        let outside_highlight_sources = [
+            parse_source_spec("primary:999:klama").expect("source"),
+            parse_source_spec("highlight:1:plini").expect("source"),
+        ];
+        let outside_highlight_request = GimfihiRequest {
             scorer: GimfihiScorer::Classic,
             phonetic_parameters: AlineParameters::default(),
             preset: None,
-            sources: highlighted_sources.to_vec(),
+            sources: outside_highlight_sources.to_vec(),
             shapes: vec![GismuShape::Ccvcv],
             all_letters: false,
             check_collisions: CollisionScope::None,
             show_collisions: false,
             require_free_short_rafsi: false,
-            count: 0,
+            count: 1,
             highlight: Some("plini".to_owned()),
         };
-        let lazy_highlighted =
-            compose_gismu(dictionary, &highlighted_request).expect("lazy highlighted output");
-        assert_eq!(lazy_highlighted.highlighted_word.as_deref(), Some("plini"));
-        assert!(lazy_highlighted.candidates.len() > highlighted_request.count);
+        let outside_highlight =
+            assert_optimized_matches_eager(dictionary, &outside_highlight_request);
+        assert_eq!(outside_highlight.highlighted_word.as_deref(), Some("plini"));
         assert_eq!(
-            lazy_highlighted,
-            compose_gismu_eager_for_test(dictionary, &highlighted_request)
-                .expect("eager highlighted output")
+            outside_highlight
+                .candidates
+                .iter()
+                .position(|candidate| candidate.word == "plini"),
+            Some(outside_highlight_request.count)
         );
 
-        let compact_collision_sources = [parse_source_spec("eng:100:klama").expect("source")];
-        let compact_collision_request = GimfihiRequest {
+        let zero_count_request = GimfihiRequest {
+            count: 0,
+            highlight: None,
+            ..outside_highlight_request.clone()
+        };
+        let zero_count = assert_optimized_matches_eager(dictionary, &zero_count_request);
+        assert_eq!(zero_count.candidates.len(), 1);
+        assert_eq!(
+            zero_count
+                .candidates
+                .first()
+                .map(|candidate| candidate.word.as_str()),
+            zero_count.winner.as_deref()
+        );
+
+        let collision_sources = [parse_source_spec("eng:100:klama").expect("source")];
+        let shown_collision_request = GimfihiRequest {
             scorer: GimfihiScorer::Classic,
             phonetic_parameters: AlineParameters::default(),
             preset: None,
-            sources: compact_collision_sources.to_vec(),
+            sources: collision_sources.to_vec(),
             shapes: vec![GismuShape::Ccvcv],
             all_letters: false,
             check_collisions: CollisionScope::All,
@@ -2465,24 +2909,41 @@ mod tests {
             count: 3,
             highlight: Some("klama".to_owned()),
         };
-        let lazy_compact_collision = compose_gismu(dictionary, &compact_collision_request)
-            .expect("lazy compact collision output");
+        let shown_collision = assert_optimized_matches_eager(dictionary, &shown_collision_request);
         assert!(
-            lazy_compact_collision
+            shown_collision
                 .candidates
                 .iter()
                 .any(|candidate| candidate.collision.is_some())
         );
         assert!(
-            lazy_compact_collision
+            shown_collision
                 .candidates
                 .iter()
                 .any(|candidate| candidate.rafsi.is_some())
         );
-        assert_eq!(
-            lazy_compact_collision,
-            compose_gismu_eager_for_test(dictionary, &compact_collision_request)
-                .expect("eager compact collision output")
+        assert!(
+            shown_collision
+                .candidates
+                .iter()
+                .position(|candidate| candidate.word == "klama")
+                .is_some_and(|index| index < shown_collision_request.count)
+        );
+
+        let hidden_official_collision_request = GimfihiRequest {
+            check_collisions: CollisionScope::Official,
+            show_collisions: false,
+            count: 5,
+            highlight: None,
+            ..shown_collision_request
+        };
+        let hidden_official_collision =
+            assert_optimized_matches_eager(dictionary, &hidden_official_collision_request);
+        assert!(
+            hidden_official_collision
+                .candidates
+                .iter()
+                .all(|candidate| candidate.collision.is_none())
         );
     }
 

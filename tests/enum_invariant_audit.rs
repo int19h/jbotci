@@ -940,6 +940,50 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental cmavo context carries validated Selmaho values",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Boxed",
+        "boxed schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Chain",
+        "chain schema arguments are independently validated binding types and every pairing faithfully represents source type arguments",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Fixed",
+        "fixed schema elements are validated recursively and every usize length, including zero, is a valid Rust array shape",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::NonEmptyRepeated",
+        "nonempty-repetition schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Optional",
+        "optional schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::RecoveredField",
+        "recovered-field schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Reference",
+        "schema reference validity is fully determined by the validated BindingReference payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Repeated",
+        "repetition schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Shared",
+        "shared schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::Tuple",
+        "tuple schema elements are validated recursively and arbitrary ordered arity, including zero, is a valid Rust tuple shape",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:BindingType::WithIndicators",
+        "indicator schema wrapper validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Chain",
         "macro parser AST variants delegate validity to their typed syn or grammar payloads",
     ),
@@ -1074,6 +1118,50 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::WordCategory",
         "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Boxed",
+        "external boxed schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Chain",
+        "external chain arguments are independently validated binding types and every pairing mirrors normalized source type arguments",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Fixed",
+        "external fixed elements are validated recursively and every usize length, including zero, mirrors a valid Rust array shape",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::NonEmptyRepeated",
+        "external nonempty-repetition validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Optional",
+        "external optional schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::RecoveredField",
+        "external recovered-field validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Repeated",
+        "external repetition schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Shared",
+        "external shared schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::Tuple",
+        "external tuple elements are validated recursively and arbitrary ordered arity, including zero, mirrors valid Rust tuple shapes",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:BindingType::WithIndicators",
+        "external indicator schema validity is fully determined by its validated recursive binding type payload",
+    ),
+    (
+        "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:ModelKind::Sum",
+        "external sum model kind is a unit discriminant with no payload combination to constrain",
     ),
     (
         "crates/jbotci-tree-macros/src/lib.rs:UnwrappedTreeType::Atom",
@@ -2367,6 +2455,39 @@ fn enum_placeholder_invariant_audit_is_current() {
     );
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn qualified_invariant_attributes_are_audited_by_final_path_segment() {
+    let source = concat!(
+        "#[invariant(::Unqualified(..) => true)]\n",
+        "#[bityzba::invariant(\n",
+        "    ::Qualified { .. } => true\n",
+        ")]\n",
+        "#[bityzba::not_invariant(::NearMiss => true)]\n",
+        "enum Example {\n",
+        "    Unqualified,\n",
+        "    Qualified,\n",
+        "    NearMiss,\n",
+        "}\n",
+    );
+    let mut placeholders = BTreeSet::new();
+
+    scan_rust_source(
+        Path::new("tests/qualified_invariant_fixture.rs"),
+        source,
+        &mut placeholders,
+    );
+
+    assert_eq!(
+        placeholders,
+        BTreeSet::from([
+            "tests/qualified_invariant_fixture.rs:Example::Qualified".to_owned(),
+            "tests/qualified_invariant_fixture.rs:Example::Unqualified".to_owned(),
+        ]),
+    );
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn allowed_placeholder_keys() -> BTreeSet<String> {
@@ -2467,7 +2588,7 @@ fn normalized_source_path(relative_path: &Path) -> String {
 #[ensures(true)]
 fn invariant_attribute(lines: &[&str], index: usize) -> Option<(Option<String>, usize)> {
     let line = lines[index].trim();
-    if !line.starts_with("#[invariant(") {
+    if invariant_attribute_arguments(line).is_none() {
         return None;
     }
 
@@ -2483,16 +2604,30 @@ fn invariant_attribute(lines: &[&str], index: usize) -> Option<(Option<String>, 
 
 #[requires(true)]
 #[ensures(true)]
-fn placeholder_variant(line: &str) -> Option<&str> {
-    let rest = line.strip_prefix("#[invariant(::")?;
-    if !rest.contains("=> true)]") {
+fn invariant_attribute_arguments(attribute: &str) -> Option<&str> {
+    let attribute = attribute.trim().strip_prefix("#[")?;
+    let open = attribute.find('(')?;
+    let path = attribute[..open].trim();
+    if path.rsplit("::").next()?.trim() != "invariant" {
+        return None;
+    }
+    Some(&attribute[open + 1..])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn placeholder_variant(attribute: &str) -> Option<&str> {
+    let rest = invariant_attribute_arguments(attribute)?
+        .trim_start()
+        .strip_prefix("::")?;
+    if !rest.trim_end().ends_with("=> true)]") {
         return None;
     }
     let end = rest
         .char_indices()
         .find(|(_, ch)| !(*ch == '_' || ch.is_ascii_alphanumeric()))
         .map_or(rest.len(), |(index, _)| index);
-    Some(&rest[..end])
+    (end > 0).then_some(&rest[..end])
 }
 
 #[requires(true)]
