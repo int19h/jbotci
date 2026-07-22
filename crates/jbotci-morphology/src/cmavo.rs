@@ -1147,23 +1147,41 @@ const fn static_str_eq(left: &str, right: &str) -> bool {
     true
 }
 
+#[requires(true)]
+#[ensures(ret -> left.len() == right.len())]
+const fn static_str_eq_ignore_ascii_case(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index].to_ascii_lowercase() != right[index].to_ascii_lowercase() {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
 const METADATA_HASH_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const METADATA_HASH_PRIME: u64 = 0x0000_0100_0000_01b3;
 
 #[requires(true)]
-#[ensures(ret != 0)]
+#[ensures(true)]
 const fn exact_metadata_hash(value: &str) -> u64 {
     metadata_hash(value, false)
 }
 
 #[requires(true)]
-#[ensures(ret != 0)]
+#[ensures(true)]
 const fn ascii_case_folded_metadata_hash(value: &str) -> u64 {
     metadata_hash(value, true)
 }
 
 #[requires(true)]
-#[ensures(ret != 0)]
+#[ensures(true)]
 const fn metadata_hash(value: &str, fold_ascii_case: bool) -> u64 {
     let bytes = value.as_bytes();
     let mut hash = METADATA_HASH_OFFSET;
@@ -1179,27 +1197,43 @@ const fn metadata_hash(value: &str, fold_ascii_case: bool) -> u64 {
         index += 1;
     }
 
-    // Zero is the open-addressing table's empty sentinel. Mapping a real zero
-    // hash to one can only create an additional collision; repeated hashes
-    // fail closed below, so this normalization cannot hide a duplicate.
-    if hash == 0 { 1 } else { hash }
+    hash
 }
 
-#[requires(!hashes.is_empty() && hash != 0)]
+#[requires(!slots.is_empty() && index < values.len())]
 #[ensures(true)]
-const fn insert_unique_metadata_hash(hashes: &mut [u64], hash: u64) -> bool {
-    let mut slot = (hash % hashes.len() as u64) as usize;
+const fn insert_unique_metadata_index(
+    slots: &mut [usize],
+    values: &[&str],
+    index: usize,
+    hash: u64,
+    fold_ascii_case: bool,
+) -> bool {
+    let mut slot = (hash % slots.len() as u64) as usize;
     let mut probes = 0;
-    while probes < hashes.len() {
-        if hashes[slot] == 0 {
-            hashes[slot] = hash;
+    while probes < slots.len() {
+        let stored_index_plus_one = slots[slot];
+        if stored_index_plus_one == 0 {
+            slots[slot] = index + 1;
             return true;
         }
-        if hashes[slot] == hash {
+        if stored_index_plus_one > values.len() {
+            // Treat a malformed occupied slot as a closed proof failure.
+            return false;
+        }
+
+        let stored = values[stored_index_plus_one - 1];
+        let candidate = values[index];
+        let duplicate = if fold_ascii_case {
+            static_str_eq_ignore_ascii_case(stored, candidate)
+        } else {
+            static_str_eq(stored, candidate)
+        };
+        if duplicate {
             return false;
         }
         slot += 1;
-        if slot == hashes.len() {
+        if slot == slots.len() {
             slot = 0;
         }
         probes += 1;
@@ -1212,20 +1246,23 @@ const fn insert_unique_metadata_hash(hashes: &mut [u64], hash: u64) -> bool {
 #[requires(true)]
 #[ensures(ret)]
 const fn cmavo_metadata_is_unique() -> bool {
-    let mut variant_hashes = [0; CMAVO_VARIANT_NAMES.len() * 2 + 1];
-    let mut canonical_text_hashes = [0; CMAVO_CANONICAL_TEXTS.len() * 2 + 1];
+    let mut variant_slots = [0; CMAVO_VARIANT_NAMES.len() * 2 + 1];
+    let mut canonical_text_slots = [0; CMAVO_CANONICAL_TEXTS.len() * 2 + 1];
     let mut index = 0;
     while index < CMAVO_VARIANT_NAMES.len() {
-        if !insert_unique_metadata_hash(
-            &mut variant_hashes,
+        if !insert_unique_metadata_index(
+            &mut variant_slots,
+            &CMAVO_VARIANT_NAMES,
+            index,
             ascii_case_folded_metadata_hash(CMAVO_VARIANT_NAMES[index]),
-        ) || !insert_unique_metadata_hash(
-            &mut canonical_text_hashes,
+            true,
+        ) || !insert_unique_metadata_index(
+            &mut canonical_text_slots,
+            &CMAVO_CANONICAL_TEXTS,
+            index,
             exact_metadata_hash(CMAVO_CANONICAL_TEXTS[index]),
+            false,
         ) {
-            // A repeated hash may be either a true duplicate or an extremely
-            // rare collision. Rejecting both is conservative: a collision can
-            // reject valid metadata, but can never let a duplicate through.
             return false;
         }
         index += 1;
@@ -1237,6 +1274,68 @@ const _: () = assert!(
     cmavo_metadata_is_unique(),
     "projected cmavo member names and canonical spellings must be unique"
 );
+
+#[cfg(test)]
+mod metadata_uniqueness_tests {
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    use super::insert_unique_metadata_index;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn hash_collisions_use_string_equality_and_full_tables_fail_closed() {
+        let values = ["Alpha", "Beta", "alpha"];
+
+        let mut exact_slots = [0; 3];
+        for index in 0..values.len() {
+            assert!(insert_unique_metadata_index(
+                &mut exact_slots,
+                &values,
+                index,
+                7,
+                false,
+            ));
+        }
+
+        let mut folded_slots = [0; 3];
+        for index in 0..2 {
+            assert!(insert_unique_metadata_index(
+                &mut folded_slots,
+                &values,
+                index,
+                7,
+                true,
+            ));
+        }
+        assert!(!insert_unique_metadata_index(
+            &mut folded_slots,
+            &values,
+            2,
+            7,
+            true,
+        ));
+
+        let mut full_slots = [0; 2];
+        for index in 0..full_slots.len() {
+            assert!(insert_unique_metadata_index(
+                &mut full_slots,
+                &values,
+                index,
+                7,
+                false,
+            ));
+        }
+        assert!(!insert_unique_metadata_index(
+            &mut full_slots,
+            &values,
+            2,
+            7,
+            false,
+        ));
+    }
+}
 
 impl fmt::Display for Cmavo {
     #[requires(true)]
