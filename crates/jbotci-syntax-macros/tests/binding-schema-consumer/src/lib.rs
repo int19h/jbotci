@@ -142,10 +142,12 @@ struct VariantSchema {
 }
 
 #[bityzba::invariant(!source_name.is_empty(), "schema fields retain a source name")]
+#[bityzba::invariant(*has_nonblank_docs, "schema fields have canonical documentation")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FieldSchema {
     source_name: String,
     index: usize,
+    has_nonblank_docs: bool,
     strict: BindingType,
     recovered: BindingType,
 }
@@ -446,7 +448,7 @@ fn parse_field(stream: TokenStream) -> FieldSchema {
     cursor.expect_punct(',');
     let index = parse_usize_property(&mut cursor, "index");
     cursor.expect_punct(',');
-    let _ = parse_docs(&mut cursor);
+    let has_nonblank_docs = parse_docs(&mut cursor);
     cursor.expect_punct(',');
     let strict = parse_type_property(&mut cursor, "strict");
     cursor.expect_punct(',');
@@ -455,6 +457,7 @@ fn parse_field(stream: TokenStream) -> FieldSchema {
     new!(FieldSchema {
         source_name,
         index,
+        has_nonblank_docs,
         strict,
         recovered,
     })

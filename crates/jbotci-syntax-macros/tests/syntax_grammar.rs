@@ -52,22 +52,30 @@ jbotci_syntax_macros::syntax_grammar! {
 
     /// Syntax model for linked arguments parsed by the `linkargs` grammar rule.
     rule "linked arguments" linkargs(sumti) -> struct {
+        /// The source-ordered `be` component retained by the `linkargs` syntax node.
         field be <- cmavo(Be).wf();
         assert !cmavo(Bo);
+        /// The source-ordered `fa` component retained by the `linkargs` syntax node.
         field fa <- selmaho(Fa).wf();
+        /// The source-ordered `first_sumti` component retained by the `linkargs` syntax node.
         field first_sumti <- opt(boxed(sumti));
+        /// The source-ordered `tagged` component retained by the `linkargs` syntax node.
         when feature(ZantufaTags) field tagged <- boxed(sumti);
         assert feature(ZantufaTags);
         assert !policy(ZantufaQuotes);
         when policy(ZantufaQuotes) assert !word_category(Quote);
         when policy(ZantufaQuotes) let folded = fold_chain(head, tail);
+        /// The computed `computed` component retained by the `linkargs` syntax node.
         field computed: usize = 0usize;
     }
 
     /// Syntax model for bo sumti tail parsed by the `bo_sumti_tail` grammar rule.
     rule "bo sumti tail" bo_sumti_tail -> struct {
+        /// The source-ordered `connective` component retained by the `bo_sumti_tail` syntax node.
         field connective <- choice(joik(), jek());
+        /// The source-ordered `bo` component retained by the `bo_sumti_tail` syntax node.
         field bo <- cmavo(Bo).wf();
+        /// The source-ordered `maybe_bo` component retained by the `bo_sumti_tail` syntax node.
         field maybe_bo <- opt(cmavo(Bo));
     }
 }
@@ -205,10 +213,15 @@ mod recovery_classification {
 
         /// Syntax model for token helpers parsed by the `token_helpers` grammar rule.
         rule "token helpers" token_helpers -> struct {
+            /// The source-ordered `pa` component retained by the `token_helpers` syntax node.
             field pa <- pa_word();
+            /// The source-ordered `cmevla` component retained by the `token_helpers` syntax node.
             field cmevla <- cmevla_word();
+            /// The source-ordered `leading_cmevla` component retained by the `token_helpers` syntax node.
             field leading_cmevla <- text_leading_cmevla_word();
+            /// The source-ordered `relation` component retained by the `token_helpers` syntax node.
             field relation <- relation_word();
+            /// The source-ordered `external` component retained by the `token_helpers` syntax node.
             field external <- external_helper();
         }
     }
@@ -277,50 +290,67 @@ mod anchor_metadata {
 
         /// Syntax model for literal item parsed by the `literal_item` grammar rule.
         rule "literal item" literal_item(item) -> struct {
+            /// The source-ordered `be` component retained by the `literal_item` syntax node.
             field be <- cmavo(Be).wf();
+            /// The source-ordered `bo` component retained by the `literal_item` syntax node.
             field bo <- cmavo(Bo).wf();
+            /// The source-ordered `maybe_fa` component retained by the `literal_item` syntax node.
             field maybe_fa <- opt(selmaho(Fa).wf());
+            /// The source-ordered `tail` component retained by the `literal_item` syntax node.
             field tail <- opt(arc(item));
         }
 
         /// Syntax model for optional run item parsed by the `optional_run_item` grammar rule.
         rule "optional run item" optional_run_item -> struct {
+            /// The source-ordered `na` component retained by the `optional_run_item` syntax node.
             field na <- opt(selmaho(Na).wf());
+            /// The source-ordered `se` component retained by the `optional_run_item` syntax node.
             field se <- opt(selmaho(Se).wf());
+            /// The source-ordered `a` component retained by the `optional_run_item` syntax node.
             field a <- selmaho(A).wf();
         }
 
         /// Syntax model for recursive item parsed by the `recursive_item` grammar rule.
         rule "recursive item" recursive_item(item) -> struct {
+            /// The source-ordered `inner` component retained by the `recursive_item` syntax node.
             field inner <- opt(arc(item));
+            /// The source-ordered `pa` component retained by the `recursive_item` syntax node.
             field pa <- selmaho(Pa).wf();
         }
 
         /// Syntax model for repeated item parsed by the `repeated_item` grammar rule.
         rule "repeated item" repeated_item(item) -> struct {
+            /// The source-ordered `items` component retained by the `repeated_item` syntax node.
             field items <- [zero_or_more item];
         }
 
         /// Syntax model for gated item parsed by the `gated_item` grammar rule.
         rule "gated item" gated_item -> struct {
+            /// The source-ordered `fa` component retained by the `gated_item` syntax node.
             field fa <- selmaho(Fa).warn(ExperimentalAnchorMetadata).wf();
+            /// The source-ordered `bo` component retained by the `gated_item` syntax node.
             when feature(ZantufaTags) field bo <- cmavo(Bo).wf();
         }
 
         /// Syntax model for nullable item parsed by the `nullable_item` grammar rule.
         rule "nullable item" nullable_item -> struct {
+            /// The source-ordered `maybe_bo` component retained by the `nullable_item` syntax node.
             field maybe_bo <- opt(cmavo(Bo));
         }
 
         /// Syntax model for explicit argument item parsed by the `explicit_argument_item` grammar rule.
         rule "explicit argument item" explicit_argument_item(item) -> struct {
+            /// The source-ordered `inner` component retained by the `explicit_argument_item` syntax node.
             field inner <- literal_item(item);
         }
 
         /// Syntax model for text quote parsed by the `text_quote` grammar rule.
         rule "text quote" text_quote(text) -> struct {
+            /// The source-ordered `be` component retained by the `text_quote` syntax node.
             field be <- cmavo(Be).wf();
+            /// The source-ordered `text` component retained by the `text_quote` syntax node.
             field text <- arc(text);
+            /// The source-ordered `bo` component retained by the `text_quote` syntax node.
             field bo <- opt(cmavo(Bo).wf()).elidable_terminator(Bo);
         }
     }
@@ -519,12 +549,16 @@ mod generated_model {
 
         /// Syntax model for pair parsed by the `pair` grammar rule.
         rule "pair" pair(item) -> struct {
+            /// The source-ordered `head` component retained by the `pair` syntax node.
             field head <- cmavo(Be);
+            /// The source-ordered `nonempty` component retained by the `pair` syntax node.
             field nonempty <- [one_or_more cmavo(Be)];
             assert !cmavo(Bo);
+            /// The computed `computed` component retained by the `pair` syntax node.
             field computed: usize = 0usize;
             let temporary = 1usize;
             #[tree_child(primary)]
+            /// The source-ordered `child` component retained by the `pair` syntax node.
             field child <- boxed(item);
         }
 
@@ -538,16 +572,19 @@ mod generated_model {
 
         /// Syntax model for choice first parsed by the `choice_first` grammar rule.
         rule "choice first" choice_first -> struct {
+            /// The source-ordered `token` component retained by the `choice_first` syntax node.
             field token <- cmavo(Be);
         }
 
         /// Syntax model for choice second parsed by the `choice_second` grammar rule.
         rule "choice second" choice_second(item) -> struct {
+            /// The source-ordered `item` component retained by the `choice_second` syntax node.
             field item <- boxed(item);
         }
 
         /// Syntax model for helper product parsed by the `helper_product` grammar rule.
         rule "helper product" helper_product -> struct {
+            /// The source-ordered `token` component retained by the `helper_product` syntax node.
             field token <- cmavo(Be);
         }
     }
@@ -774,16 +811,19 @@ mod generated_model_filter {
 
         /// Syntax model for kept parsed by the `kept` grammar rule.
         rule "kept" kept -> struct {
+            /// The source-ordered `token` component retained by the `kept` syntax node.
             field token <- cmavo(Be);
         }
 
         /// Syntax model for skipped first parsed by the `skipped_first` grammar rule.
         rule "skipped first" skipped_first -> struct {
+            /// The source-ordered `token` component retained by the `skipped_first` syntax node.
             field token <- cmavo(Be);
         }
 
         /// Syntax model for skipped second parsed by the `skipped_second` grammar rule.
         rule "skipped second" skipped_second -> struct {
+            /// The source-ordered `token` component retained by the `skipped_second` syntax node.
             field token <- cmavo(Bo);
         }
     }
@@ -815,6 +855,7 @@ mod generated_model_with_env {
 
         /// Syntax model for env node parsed by the `env_node` grammar rule.
         rule "env node" env_node -> struct {
+            /// The source-ordered `token` component retained by the `env_node` syntax node.
             field token <- cmavo(Be);
         }
     }
@@ -858,7 +899,9 @@ mod new_dsl {
 
         /// Syntax model for item parsed by the `item` grammar rule.
         rule "item" item -> struct {
+            /// The source-ordered `token` component retained by the `item` syntax node.
             field token <- cmavo(Be);
+            /// The computed `computed` component retained by the `item` syntax node.
             field computed: usize = 1usize;
             let temp = 2usize;
             assert feature(ZantufaTags);
@@ -868,16 +911,19 @@ mod new_dsl {
 
         /// Syntax model for other item parsed by the `other_item` grammar rule.
         rule "other item" other_item -> struct {
+            /// The source-ordered `token` component retained by the `other_item` syntax node.
             field token <- cmavo(Bo);
         }
 
         /// Syntax model for gated item parsed by the `gated_item` grammar rule.
         rule "gated item" gated_item -> struct {
+            /// The source-ordered `token` component retained by the `gated_item` syntax node.
             field token <- cmavo(Be);
         }
 
         /// Syntax model for token list parsed by the `token_list` grammar rule.
         rule "token list" token_list -> struct {
+            /// The source-ordered `tokens` component retained by the `token_list` syntax node.
             field tokens <- [
                 cmavo(Be);
                 zero_or_more cmavo(Bo);
@@ -889,6 +935,7 @@ mod new_dsl {
 
         /// Syntax model for nested token list parsed by the `nested_token_list` grammar rule.
         rule "nested token list" nested_token_list -> struct {
+            /// The source-ordered `tokens` component retained by the `nested_token_list` syntax node.
             field tokens <- choice((
                 [cmavo(Be)],
                 [cmavo(Bo)],
@@ -919,12 +966,15 @@ mod new_dsl {
 
         /// Syntax model for chain link parsed by the `chain_link` grammar rule.
         rule "chain link" chain_link -> struct {
+            /// The source-ordered `connector` component retained by the `chain_link` syntax node.
             field connector <- cmavo(Bo);
+            /// The source-ordered `item` component retained by the `chain_link` syntax node.
             field item <- item;
         }
 
         /// Syntax model for item chain parsed by the `item_chain` grammar rule.
         rule "item chain" item_chain -> struct {
+            /// The source-ordered `run` component retained by the `item_chain` syntax node.
             field run <- chain(first: item, zero_or_more: chain_link, element: item);
         }
     }

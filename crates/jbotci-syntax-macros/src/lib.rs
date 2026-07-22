@@ -2035,12 +2035,11 @@ fn unsupported_binding_field(field: &Ident, ty: &Type) -> syn::Error {
 }
 
 #[requires(true)]
-#[ensures(ret.is_err() || !required || ret.as_ref().is_ok_and(|docs| docs.iter().any(|doc| !doc.value().trim().is_empty())))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|docs| docs.iter().any(|doc| !doc.value().trim().is_empty())))]
 fn canonical_documentation(
     attrs: &[Attribute],
     target: &Ident,
     description: &str,
-    required: bool,
 ) -> Result<Vec<LitStr>> {
     let mut docs = Vec::new();
     for attr in attrs.iter().filter(|attr| attr.path().is_ident("doc")) {
@@ -2059,7 +2058,7 @@ fn canonical_documentation(
             }
         }
     }
-    if required && !docs.iter().any(|doc| !doc.value().trim().is_empty()) {
+    if !docs.iter().any(|doc| !doc.value().trim().is_empty()) {
         return Err(syn::Error::new_spanned(
             target,
             format!("generated {description} needs canonical `///` documentation"),
@@ -2169,7 +2168,7 @@ fn expand_binding_product(
     generated_models: &BTreeSet<String>,
     constructor_labels: &BTreeMap<String, String>,
 ) -> Result<TokenStream2> {
-    let docs = canonical_documentation(&model.attrs, &model.ident, "model type", true)?;
+    let docs = canonical_documentation(&model.attrs, &model.ident, "model type")?;
     let name = model.ident.to_string();
     let rule = model.rule_name.to_string();
     let constructor = generated_constructor_name(&model.ident);
@@ -2212,7 +2211,7 @@ fn expand_binding_sum(
     constructor_labels: &BTreeMap<String, String>,
 ) -> Result<TokenStream2> {
     let ident = format_ident!("{name}");
-    let docs = canonical_documentation(attrs, &ident, "model enum", true)?;
+    let docs = canonical_documentation(attrs, &ident, "model enum")?;
     let rule = rule_name.to_string();
     let constructor = generated_constructor_name(&ident);
     let label = constructor_labels
@@ -2240,7 +2239,7 @@ fn expand_binding_variant(
     generated_models: &BTreeSet<String>,
     constructor_labels: &BTreeMap<String, String>,
 ) -> Result<TokenStream2> {
-    let docs = canonical_documentation(&variant.attrs, &variant.variant, "enum variant", true)?;
+    let docs = canonical_documentation(&variant.attrs, &variant.variant, "enum variant")?;
     let name = variant.variant.to_string();
     let source_rule = variant.source_name.to_string();
     let owner_rule = variant.rule_name.to_string();
@@ -2279,7 +2278,7 @@ fn expand_binding_field(
     named: bool,
     generated_models: &BTreeSet<String>,
 ) -> Result<TokenStream2> {
-    let docs = canonical_documentation(&field.attrs, &field.name, "model field", false)?;
+    let docs = canonical_documentation(&field.attrs, &field.name, "model field")?;
     let source_name = field.name.to_string();
     let rust_name = if named {
         quote!(named(#source_name))
@@ -9716,6 +9715,7 @@ mod tests {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
                 build |token| ItemSyntax { token };
             }
@@ -9740,6 +9740,7 @@ mod tests {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
                 recovered_build |token| ItemSyntax { token };
             }
@@ -9758,6 +9759,7 @@ mod tests {
         let node_result = syn::parse2::<SyntaxGrammar>(quote! {
             node item -> ItemSyntax {
                 fields {
+                    /// The computed `token` component retained by the `item` syntax node.
                     field token = cmavo(Be);
                 }
             }
@@ -9765,6 +9767,7 @@ mod tests {
         let product_result = syn::parse2::<SyntaxGrammar>(quote! {
             product item -> ItemSyntax {
                 fields {
+                    /// The computed `token` component retained by the `item` syntax node.
                     field token = cmavo(Be);
                 }
             }
@@ -9792,6 +9795,7 @@ mod tests {
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 fields {
+                    /// The computed `token` component retained by the `item` syntax node.
                     field token = cmavo(Be);
                 }
             }
@@ -9812,6 +9816,7 @@ mod tests {
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 construct variant Item;
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
         });
@@ -9927,6 +9932,7 @@ mod tests {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
 
@@ -9954,6 +9960,7 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `tokens` component retained by the `item` syntax node.
                 field tokens <- [one_or_more cmavo(Be)].wf();
             }
         })
@@ -9976,17 +9983,21 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
 
             /// Syntax model for link parsed by the `link` grammar rule.
             rule "link" link -> struct {
+                /// The source-ordered `connector` component retained by the `link` syntax node.
                 field connector <- cmavo(Bo);
+                /// The source-ordered `item` component retained by the `link` syntax node.
                 field item <- item;
             }
 
             /// Syntax model for chain parsed by the `chain` grammar rule.
             rule "chain" chain -> struct {
+                /// The source-ordered `run` component retained by the `chain` syntax node.
                 field run <- chain(first: item, zero_or_more: link, element: missing);
             }
         })
@@ -10016,6 +10027,7 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item(item) -> struct {
+                /// The source-ordered `inner` component retained by the `item` syntax node.
                 field inner <- item;
             }
 
@@ -10050,6 +10062,7 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
         })
@@ -10076,6 +10089,7 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
 
@@ -10107,6 +10121,7 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token: std::sync::Arc<Token> <- arc(unknown_parser());
             }
         })
@@ -10130,6 +10145,7 @@ mod tests {
 
             /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token: std::sync::Arc<Token> <- arc(cmavo(Be).payload_start());
             }
         })
@@ -10157,6 +10173,7 @@ mod tests {
 
             /// Syntax model for other parsed by the `other` grammar rule.
             rule "other" other -> struct {
+                /// The source-ordered `token` component retained by the `other` syntax node.
                 field token <- cmavo(Be);
             }
         })
@@ -10179,6 +10196,7 @@ mod tests {
             model;
 
             rule "undocumented" undocumented -> struct {
+                /// The source-ordered `token` component retained by the `undocumented` syntax node.
                 field token <- cmavo(Be);
             }
         })
@@ -10207,6 +10225,7 @@ mod tests {
 
             /// A documented item.
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
         })
@@ -10223,6 +10242,29 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
+    fn generated_model_fields_require_canonical_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            /// A documented item.
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("generated model field needs canonical"),
+            "undocumented model fields must be rejected: {expanded}",
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
     fn generated_models_reject_non_string_documentation_attributes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
             tree_model {}
@@ -10231,6 +10273,7 @@ mod tests {
             /// A documented item.
             #[doc(hidden)]
             rule "item" item -> struct {
+                /// The source-ordered `token` component retained by the `item` syntax node.
                 field token <- cmavo(Be);
             }
         })
