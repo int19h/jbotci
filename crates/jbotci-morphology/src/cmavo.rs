@@ -1334,6 +1334,15 @@ mod metadata_uniqueness_tests {
             7,
             false,
         ));
+
+        let mut malformed_slots = [values.len() + 1, 0, 0];
+        assert!(!insert_unique_metadata_index(
+            &mut malformed_slots,
+            &values,
+            0,
+            0,
+            false,
+        ));
     }
 }
 
