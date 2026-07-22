@@ -56,7 +56,8 @@ install, rather than the source tree, resolves `jbotci`.
   serde tags, or generated AST layout. The Rust grammar/schema generator is the
   only source of members and variants—Python never maintains a second list—and
   every generated value class is installed through the shared registration
-  helper.
+  helper. The `PythonStringEnum` metadata and registration/conversion helpers
+  are the reusable path for fieldless enums.
 - Registration runs in a fixed order during module initialization. There is no
   mutable module-level Rust state; registrations and embedded data must be
   immutable or interpreter-local.

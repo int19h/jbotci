@@ -5,6 +5,16 @@ def raise_sample_error(message: str) -> None:
     """Raise a sample structured error through the shared conversion path."""
 
 @final
+class SampleMode(StrEnum):
+    """Temporary fieldless enum used to test stable string registration."""
+
+    BASIC: Final[SampleMode]
+    ADVANCED: Final[SampleMode]
+
+def sample_mode(advanced: bool = False) -> SampleMode:
+    """Return a sample enum through the stable string conversion path."""
+
+@final
 class Sample:
     """Temporary immutable value object used to test binding conventions."""
 

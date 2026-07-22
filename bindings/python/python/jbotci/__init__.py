@@ -5,8 +5,10 @@ from ._native import (
     InvalidInputError,
     JbotciError,
     Sample,
+    SampleMode,
     __version__,
     raise_sample_error,
+    sample_mode,
     smoke,
 )
 
@@ -21,6 +23,8 @@ __all__: tuple[str, ...] = (
     "InvalidInputError",
     "JbotciError",
     "Sample",
+    "SampleMode",
     "raise_sample_error",
+    "sample_mode",
     "smoke",
 )

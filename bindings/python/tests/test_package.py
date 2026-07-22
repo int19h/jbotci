@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import enum
 import importlib
 import importlib.metadata
 import subprocess
@@ -36,7 +37,7 @@ def test_native_module_and_smoke_function() -> None:
 def test_sample_is_immutable_non_subclassable_value() -> None:
     sample = jbotci.Sample("coi")
     assert sample.value == "coi"
-    assert repr(sample) == 'jbotci.Sample(value="coi")'
+    assert repr(sample) == "jbotci.Sample(value='coi')"
     assert sample == jbotci.Sample("coi")
     assert sample != jbotci.Sample("co'o")
     assert hash(sample) == hash(jbotci.Sample("coi"))
@@ -46,6 +47,29 @@ def test_sample_is_immutable_non_subclassable_value() -> None:
 
     with pytest.raises(TypeError):
         type("Derived", (jbotci.Sample,), {})
+
+
+def test_sample_repr_uses_python_string_escaping() -> None:
+    value = "\x7f\ncafé'\\"
+    sample = jbotci.Sample(value)
+    assert repr(sample) == f"jbotci.Sample(value={value!r})"
+    assert eval(repr(sample), {"jbotci": jbotci}) == sample
+
+
+def test_string_enum_uses_stable_names_and_values() -> None:
+    assert issubclass(jbotci.SampleMode, enum.Enum)
+    assert issubclass(jbotci.SampleMode, str)
+    assert set(jbotci.SampleMode) == {
+        jbotci.SampleMode.BASIC,
+        jbotci.SampleMode.ADVANCED,
+    }
+    assert jbotci.SampleMode.BASIC.value == "basic"
+    assert jbotci.SampleMode.ADVANCED.value == "advanced"
+    assert jbotci.sample_mode() is jbotci.SampleMode.BASIC
+    assert jbotci.sample_mode(advanced=True) is jbotci.SampleMode.ADVANCED
+    assert jbotci.SampleMode.__module__ == "jbotci"
+    with pytest.raises(ValueError):
+        jbotci.SampleMode(0)  # type: ignore[arg-type]
 
 
 def test_structured_error_conversion_uses_public_hierarchy() -> None:

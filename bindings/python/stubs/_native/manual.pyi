@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Final, final
 
 __version__: Final[str]
