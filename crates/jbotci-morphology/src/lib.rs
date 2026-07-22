@@ -3622,21 +3622,21 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn morphology_diagnostic_conversion_rejects_foreign_offsets() {
-        let invalid = new!(MorphologyError::Invalid {
+        let invalid = MorphologyError::Invalid {
             kind: MorphologyErrorKind::InvalidCharacter,
             char_start: 1,
             char_end: 0,
             text: String::new(),
             context: None,
             detail: None,
-        });
+        };
         assert!(invalid.to_diagnostic(None, "é").is_err());
 
-        let out_of_bounds = new!(MorphologyError::UnterminatedZoiQuote {
+        let out_of_bounds = MorphologyError::UnterminatedZoiQuote {
             char_offset: 2,
             delimiter: "gy".to_owned(),
             context: None,
-        });
+        };
         assert!(out_of_bounds.to_diagnostic(None, "é").is_err());
 
         let warning = MorphologyWarning::new(

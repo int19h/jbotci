@@ -1006,6 +1006,18 @@ macro_rules! cmavo_variant_name {
     };
 }
 
+macro_rules! cmavo_variant_names {
+    (() [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($selmaho:ident),* $(,)?] }),+ $(,)?]) => {
+        &[$(stringify!($variant),)+]
+    };
+}
+
+macro_rules! cmavo_canonical_texts {
+    (() [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($selmaho:ident),* $(,)?] }),+ $(,)?]) => {
+        &[$($canonical_text,)+]
+    };
+}
+
 macro_rules! cmavo_selmaho_contains {
     (($selmaho:expr, $cmavo:expr) [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($member:ident),* $(,)?] }),+ $(,)?]) => {
         match $cmavo {
@@ -1015,6 +1027,9 @@ macro_rules! cmavo_selmaho_contains {
 }
 
 cmavo_table!(declare_cmavo_enum);
+
+const CMAVO_VARIANT_NAMES: &[&str] = cmavo_table!(cmavo_variant_names);
+const CMAVO_CANONICAL_TEXTS: &[&str] = cmavo_table!(cmavo_canonical_texts);
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1070,14 +1085,14 @@ impl Cmavo {
 
     /// Whether this cmavo quotes exactly one following source word as verbatim text.
     #[requires(true)]
-    #[ensures(ret == (self.quote_opener_kind() == Some(QuoteOpenerKind::SingleWord)))]
+    #[ensures(ret == matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord)))]
     pub const fn is_single_word_quote_opener(self) -> bool {
         matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord))
     }
 
     /// Whether this cmavo opens a delimiter-based non-Lojban quote.
     #[requires(true)]
-    #[ensures(ret == (self.quote_opener_kind() == Some(QuoteOpenerKind::DelimitedNonLojban)))]
+    #[ensures(ret == matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::DelimitedNonLojban)))]
     pub const fn is_delimited_non_lojban_quote_opener(self) -> bool {
         matches!(
             self.quote_opener_kind(),
@@ -1154,14 +1169,16 @@ const fn static_str_eq_ignore_ascii_case(left: &str, right: &str) -> bool {
 #[ensures(ret)]
 const fn cmavo_metadata_is_unique() -> bool {
     let mut left_index = 0;
-    while left_index < Cmavo::ALL.len() {
-        let left = Cmavo::ALL[left_index];
+    while left_index < CMAVO_VARIANT_NAMES.len() {
         let mut right_index = left_index + 1;
-        while right_index < Cmavo::ALL.len() {
-            let right = Cmavo::ALL[right_index];
-            if static_str_eq_ignore_ascii_case(left.variant_name(), right.variant_name())
-                || static_str_eq(left.canonical_text(), right.canonical_text())
-            {
+        while right_index < CMAVO_VARIANT_NAMES.len() {
+            if static_str_eq_ignore_ascii_case(
+                CMAVO_VARIANT_NAMES[left_index],
+                CMAVO_VARIANT_NAMES[right_index],
+            ) || static_str_eq(
+                CMAVO_CANONICAL_TEXTS[left_index],
+                CMAVO_CANONICAL_TEXTS[right_index],
+            ) {
                 return false;
             }
             right_index += 1;
