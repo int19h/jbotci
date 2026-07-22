@@ -13,6 +13,7 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 from types import ModuleType
+from typing import get_type_hints
 
 import pytest
 
@@ -825,6 +826,16 @@ def _runtime_parameter_defaults(signature: inspect.Signature) -> dict[str, objec
     }
 
 
+def _generated_enum_runtime_type_name(annotation: object) -> str:
+    if annotation in (bool, int, str):
+        return annotation.__name__
+    native_names = [
+        name for name in native.__all__ if getattr(native, name) is annotation
+    ]
+    assert len(native_names) == 1, annotation
+    return native_names[0]
+
+
 def _stub_match_args_arity(annotation: ast.expr) -> int:
     assert isinstance(annotation, ast.Subscript)
     assert isinstance(annotation.value, ast.Name)
@@ -1262,16 +1273,38 @@ def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
         }
         assert set(runtime_methods) == set(stub_methods), declaration.name
         for method_name, stub_method in stub_methods.items():
+            qualified_name = f"{declaration.name}.{method_name}"
             runtime_method = runtime_methods[method_name]
             stub_is_static = any(
                 isinstance(decorator, ast.Name) and decorator.id == "staticmethod"
                 for decorator in stub_method.decorator_list
             )
             assert isinstance(runtime_method, staticmethod) is stub_is_static
+            runtime_signature = inspect.signature(runtime_method)
             assert (
-                _runtime_parameter_shape(inspect.signature(runtime_method))
+                _runtime_parameter_shape(runtime_signature)
                 == _stub_parameter_shape(stub_method, constructor=False)
-            ), f"{declaration.name}.{method_name}"
+            ), qualified_name
+            assert _runtime_parameter_defaults(runtime_signature) == {}, qualified_name
+
+            runtime_function = (
+                runtime_method.__func__
+                if isinstance(runtime_method, staticmethod)
+                else runtime_method
+            )
+            runtime_hints = get_type_hints(runtime_function)
+            stub_parameter_types, stub_return_type = _stub_function_type_shape(
+                stub_method
+            )
+            stub_types = dict(stub_parameter_types)
+            stub_types["return"] = stub_return_type
+            assert set(stub_types) <= set(runtime_hints), qualified_name
+            assert set(runtime_hints) - set(stub_types) <= {"self"}, qualified_name
+            normalized_runtime_hints = {
+                name: _generated_enum_runtime_type_name(runtime_hints[name])
+                for name in stub_types
+            }
+            assert normalized_runtime_hints == stub_types, qualified_name
     domain_prefixes = ("_diagnostics_", "_dialect_", "_morphology_")
     runtime_enums = {
         name

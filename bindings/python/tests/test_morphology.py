@@ -983,7 +983,7 @@ def test_morphology_error_is_immutable_and_runtime_final() -> None:
         morphology.segment("aa")
     error = caught.value
 
-    for attribute in (
+    immutable_attributes = (
         "value",
         "original_source",
         "source_id",
@@ -995,12 +995,80 @@ def test_morphology_error_is_immutable_and_runtime_final() -> None:
         "warnings",
         "trace",
         "args",
-    ):
+        "_value",
+        "_original_source",
+        "_source_id",
+        "_code",
+        "_diagnostic",
+        "_spans",
+        "_context",
+        "_detail",
+        "_warnings",
+        "_trace",
+    )
+    for attribute in immutable_attributes:
         with pytest.raises(AttributeError, match="^MorphologyError is immutable$"):
             setattr(error, attribute, object())
+        with pytest.raises(AttributeError, match="^MorphologyError is immutable$"):
+            delattr(error, attribute)
 
     with pytest.raises(TypeError, match="^MorphologyError is final$"):
         type("DerivedMorphologyError", (morphology.MorphologyError,), {})
+
+
+def test_morphology_error_preserves_base_exception_metadata_operations() -> None:
+    with pytest.raises(morphology.MorphologyError) as caught:
+        morphology.segment("aa")
+    error = caught.value
+    projection = (
+        error.value,
+        error.original_source,
+        error.source_id,
+        error.code,
+        error.diagnostic,
+        error.spans,
+        error.context,
+        error.detail,
+        error.warnings,
+        error.trace,
+        error.args,
+    )
+
+    error.add_note("retained morphology failure")
+    assert error.__notes__ == ["retained morphology failure"]
+
+    try:
+        raise RuntimeError("traceback source")
+    except RuntimeError as traceback_source:
+        traceback = traceback_source.__traceback__
+    assert traceback is not None
+    assert error.with_traceback(traceback) is error
+    assert error.__traceback__ is traceback
+
+    cause = ValueError("cause")
+    context = LookupError("context")
+    error.__cause__ = cause
+    error.__context__ = context
+    error.__suppress_context__ = False
+    assert error.__cause__ is cause
+    assert error.__context__ is context
+    assert error.__suppress_context__ is False
+
+    del error.__notes__
+    assert not hasattr(error, "__notes__")
+    assert (
+        error.value,
+        error.original_source,
+        error.source_id,
+        error.code,
+        error.diagnostic,
+        error.spans,
+        error.context,
+        error.detail,
+        error.warnings,
+        error.trace,
+        error.args,
+    ) == projection
 
 
 def test_unterminated_zoi_exception_retains_exact_payload_and_diagnostic() -> None:
