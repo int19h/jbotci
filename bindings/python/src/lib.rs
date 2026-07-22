@@ -46,7 +46,7 @@ enum BindingError {
 /// names and values are therefore explicit and never depend on Rust
 /// discriminants or declaration order.
 #[contract_trait]
-trait PythonStringEnum: Copy {
+trait PythonStringEnum: Copy + 'static {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn python_type_name() -> &'static str;

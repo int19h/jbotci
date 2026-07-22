@@ -8,8 +8,8 @@ def raise_sample_error(message: str) -> None:
 class SampleMode(StrEnum):
     """Temporary fieldless enum used to test stable string registration."""
 
-    BASIC: Final[SampleMode]
-    ADVANCED: Final[SampleMode]
+    BASIC = "basic"
+    ADVANCED = "advanced"
 
 def sample_mode(advanced: bool = False) -> SampleMode:
     """Return a sample enum through the stable string conversion path."""
