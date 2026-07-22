@@ -218,6 +218,18 @@ def test_entry_records_expose_optional_and_repeated_typed_values() -> None:
     assert required_entry("jbobau").word_type.is_lujvo_like()
 
 
+def test_word_type_predicates_delegate_through_exact_native_enum_conversion() -> None:
+    assert dictionary.WordType.GISMU.is_gismu_like()
+    assert dictionary.WordType.EXPERIMENTAL_GISMU.is_gismu_like()
+    assert not dictionary.WordType.CMAVO.is_gismu_like()
+    assert dictionary.WordType.LUJVO.is_lujvo_like()
+    assert dictionary.WordType.ZEI_LUJVO.is_lujvo_like()
+    assert dictionary.WordType.OBSOLETE_ZEI_LUJVO.is_lujvo_like()
+    assert not dictionary.WordType.GISMU.is_lujvo_like()
+    with pytest.raises(TypeError):
+        native._dictionary_word_type_is_gismu_like("gismu")  # type: ignore[arg-type]
+
+
 def test_sound_records_expose_exact_ipa_and_typed_segments_without_search() -> None:
     sounds = dictionary.english.sound_index
     assert isinstance(sounds, tuple)

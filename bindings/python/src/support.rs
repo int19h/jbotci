@@ -181,10 +181,6 @@ pub(crate) fn string_enum_member<'py, E: PythonStringEnum>(
 /// before inspecting its value preserves the closed Rust enum boundary.
 #[requires(true)]
 #[ensures(true)]
-#[allow(
-    dead_code,
-    reason = "shared input conversion for domains that accept fieldless enums"
-)]
 pub(crate) fn extract_string_enum<E: PythonStringEnum>(
     module: &Bound<'_, PyModule>,
     value: &Bound<'_, PyAny>,

@@ -38,6 +38,8 @@ from ._native import (
     _dictionary_normalize_lookup_query,
     _dictionary_normalize_pattern_lookup_key,
     _dictionary_universal_gismu_rafsi_forms,
+    _dictionary_word_type_is_gismu_like,
+    _dictionary_word_type_is_lujvo_like,
 )
 from ._native import JbotciError
 
@@ -56,20 +58,16 @@ english_metadata: Final[DictionarySnapshotMetadata] = _dictionary_english_metada
 
 
 def _word_type_is_gismu_like(self: WordType) -> bool:
-    return self in (WordType.GISMU, WordType.EXPERIMENTAL_GISMU)
+    return _dictionary_word_type_is_gismu_like(self)
 
 
 def _word_type_is_lujvo_like(self: WordType) -> bool:
-    return self in (
-        WordType.LUJVO,
-        WordType.ZEI_LUJVO,
-        WordType.OBSOLETE_ZEI_LUJVO,
-    )
+    return _dictionary_word_type_is_lujvo_like(self)
 
 
 # Functional `StrEnum` construction is what lets Rust register the exact class
 # per interpreter. Attach the two Rust predicates after construction; their
-# member sets above are the direct, exhaustive projection of the Rust matches.
+# implementations delegate through exact native enum extraction to Rust.
 setattr(WordType, "is_gismu_like", _word_type_is_gismu_like)
 setattr(WordType, "is_lujvo_like", _word_type_is_lujvo_like)
 

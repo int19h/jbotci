@@ -3,6 +3,8 @@
 use std::mem::size_of;
 use std::sync::Arc;
 
+#[cfg(test)]
+use bityzba::try_new;
 use bityzba::{contract_trait, data, invariant, new, requires};
 use jbotci_dictionary::{
     DefinitionId, Dictionary, DictionaryEntry, DictionaryLujvoSegmentKind,
@@ -17,8 +19,8 @@ use pyo3::pyclass::CompareOp;
 use pyo3::types::{PyAny, PyModule, PySlice, PySliceMethods, PyString, PyTuple};
 
 use crate::support::{
-    PythonStringEnum, register_private_object, register_string_enum, register_type,
-    sequence_to_tuple, string_enum_member, string_repr,
+    PythonStringEnum, extract_string_enum, register_private_object, register_string_enum,
+    register_type, sequence_to_tuple, string_enum_member, string_repr,
 };
 
 const PUBLIC_MODULE: &str = "jbotci.dictionary";
@@ -56,6 +58,8 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dictionary_normalize_lookup_query",
     "_dictionary_normalize_pattern_lookup_key",
     "_dictionary_universal_gismu_rafsi_forms",
+    "_dictionary_word_type_is_gismu_like",
+    "_dictionary_word_type_is_lujvo_like",
     "_dictionary_english",
     "_dictionary_english_metadata",
 ];
@@ -150,7 +154,7 @@ struct LujvoPosition(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct PatternPosition(usize);
 
-#[invariant(true)]
+#[invariant(true, "both unit variants carry no invalid state")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum KeywordKind {
     Gloss,
@@ -179,13 +183,123 @@ struct RafsiPosition {
 }
 
 #[invariant(
-    true,
-    "position validity is contextual to its retained dictionary owner"
+    position.0 < owner.dictionary().entries().len(),
+    "entry position exists in the retained dictionary"
 )]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct LujvoSegmentPosition {
-    lujvo: LujvoPosition,
+#[derive(Debug, Clone)]
+struct EntryReference {
+    owner: Arc<DictionaryOwner>,
+    position: EntryPosition,
+}
+
+impl EntryReference {
+    #[requires(position.0 < owner.dictionary().entries().len())]
+    #[ensures(ret.position == position)]
+    fn new(owner: Arc<DictionaryOwner>, position: EntryPosition) -> Self {
+        new!(EntryReference { owner, position })
+    }
+
+    #[requires(self.position.0 < self.owner.dictionary().entries().len())]
+    #[ensures(std::ptr::eq(ret, &self.owner.dictionary().entries()[self.position.0]))]
+    fn entry(&self) -> &'static DictionaryEntry<'static> {
+        &self.owner.dictionary().entries()[self.position.0]
+    }
+}
+
+#[invariant(
+    position.0 < owner.dictionary().sound_index().len(),
+    "sound position exists in the retained dictionary"
+)]
+#[derive(Debug, Clone)]
+struct SoundReference {
+    owner: Arc<DictionaryOwner>,
+    position: SoundPosition,
+}
+
+impl SoundReference {
+    #[requires(position.0 < owner.dictionary().sound_index().len())]
+    #[ensures(ret.position == position)]
+    fn new(owner: Arc<DictionaryOwner>, position: SoundPosition) -> Self {
+        new!(SoundReference { owner, position })
+    }
+
+    #[requires(self.position.0 < self.owner.dictionary().sound_index().len())]
+    #[ensures(std::ptr::eq(ret, &self.owner.dictionary().sound_index()[self.position.0]))]
+    fn sound(&self) -> &'static jbotci_dictionary::DictionarySoundEntry<'static> {
+        &self.owner.dictionary().sound_index()[self.position.0]
+    }
+}
+
+#[invariant(
+    position.0 < owner.dictionary().lujvo_index().len(),
+    "lujvo position exists in the retained dictionary"
+)]
+#[derive(Debug, Clone)]
+struct LujvoReference {
+    owner: Arc<DictionaryOwner>,
+    position: LujvoPosition,
+}
+
+impl LujvoReference {
+    #[requires(position.0 < owner.dictionary().lujvo_index().len())]
+    #[ensures(ret.position == position)]
+    fn new(owner: Arc<DictionaryOwner>, position: LujvoPosition) -> Self {
+        new!(LujvoReference { owner, position })
+    }
+
+    #[requires(self.position.0 < self.owner.dictionary().lujvo_index().len())]
+    #[ensures(std::ptr::eq(ret, &self.owner.dictionary().lujvo_index()[self.position.0]))]
+    fn lujvo(&self) -> &'static jbotci_dictionary::DictionaryLujvoEntry<'static> {
+        &self.owner.dictionary().lujvo_index()[self.position.0]
+    }
+}
+
+#[invariant(
+    *item < lujvo.lujvo().segments.len(),
+    "segment position exists in the retained lujvo decomposition"
+)]
+#[derive(Debug, Clone)]
+struct LujvoSegmentReference {
+    lujvo: LujvoReference,
     item: usize,
+}
+
+impl LujvoSegmentReference {
+    #[requires(item < lujvo.lujvo().segments.len())]
+    #[ensures(ret.item == item)]
+    fn new(lujvo: LujvoReference, item: usize) -> Self {
+        new!(LujvoSegmentReference { lujvo, item })
+    }
+
+    #[requires(self.item < self.lujvo.lujvo().segments.len())]
+    #[ensures(std::ptr::eq(ret, &self.lujvo.lujvo().segments[self.item]))]
+    fn segment(&self) -> &'static jbotci_dictionary::DictionaryLujvoSegment<'static> {
+        &self.lujvo.lujvo().segments[self.item]
+    }
+}
+
+#[invariant(
+    position.0 < owner.dictionary().pattern_index().len(),
+    "pattern position exists in the retained dictionary"
+)]
+#[derive(Debug, Clone)]
+struct PatternReference {
+    owner: Arc<DictionaryOwner>,
+    position: PatternPosition,
+}
+
+impl PatternReference {
+    #[requires(position.0 < owner.dictionary().pattern_index().len())]
+    #[ensures(ret.position == position)]
+    fn new(owner: Arc<DictionaryOwner>, position: PatternPosition) -> Self {
+        new!(PatternReference { owner, position })
+    }
+
+    #[requires(self.position.0 < self.owner.dictionary().pattern_index().len())]
+    #[ensures(std::ptr::eq(ret, &self.owner.dictionary().pattern_index()[self.position.0]))]
+    fn pattern(&self) -> &'static jbotci_dictionary::DictionaryPatternEntry<'static> {
+        &self.owner.dictionary().pattern_index()[self.position.0]
+    }
 }
 
 #[invariant(
@@ -674,7 +788,10 @@ impl PyEntryIndex {
 }
 
 /// Gloss or place keyword value.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated KeywordStorage field makes every keyword wrapper state valid"
+)]
 #[pyclass(
     name = "Keyword",
     frozen,
@@ -1054,7 +1171,7 @@ impl PyDictionary {
     #[requires(true)]
     #[ensures(true)]
     fn entry_index_for_entry(&self, entry: &PyDictionaryEntry) -> Option<PyEntryIndex> {
-        if !Arc::ptr_eq(&self.owner, &entry.owner) {
+        if !Arc::ptr_eq(&self.owner, &entry.reference.owner) {
             return None;
         }
         self.owner
@@ -1108,8 +1225,10 @@ impl PyDictionary {
                 Py::new(
                     py,
                     PyRafsiMatch {
-                        owner: Arc::clone(&self.owner),
-                        entry: self.owner.entry_position(matched.entry),
+                        entry: EntryReference::new(
+                            Arc::clone(&self.owner),
+                            self.owner.entry_position(matched.entry),
+                        ),
                         source: matched.source,
                     },
                 )
@@ -1169,8 +1288,10 @@ impl PyDictionary {
                 Py::new(
                     py,
                     PyDictionarySoundEntry {
-                        owner: Arc::clone(&self.owner),
-                        position: SoundPosition(position),
+                        reference: SoundReference::new(
+                            Arc::clone(&self.owner),
+                            SoundPosition(position),
+                        ),
                     },
                 )
             })
@@ -1193,8 +1314,10 @@ impl PyDictionary {
                 Py::new(
                     py,
                     PyDictionaryLujvoEntry {
-                        owner: Arc::clone(&self.owner),
-                        position: LujvoPosition(position),
+                        reference: LujvoReference::new(
+                            Arc::clone(&self.owner),
+                            LujvoPosition(position),
+                        ),
                     },
                 )
             })
@@ -1217,8 +1340,10 @@ impl PyDictionary {
                 Py::new(
                     py,
                     PyDictionaryPatternEntry {
-                        owner: Arc::clone(&self.owner),
-                        position: PatternPosition(position),
+                        reference: PatternReference::new(
+                            Arc::clone(&self.owner),
+                            PatternPosition(position),
+                        ),
                     },
                 )
             })
@@ -1251,8 +1376,7 @@ impl PyDictionary {
         Py::new(
             py,
             PyDictionaryLujvoEntry {
-                owner: Arc::clone(&self.owner),
-                position: LujvoPosition(position),
+                reference: LujvoReference::new(Arc::clone(&self.owner), LujvoPosition(position)),
             },
         )
         .map(Some)
@@ -1324,7 +1448,10 @@ impl PyDictionaryEntries {
     }
 }
 
-#[invariant(true, "next is bounded before every source slice access")]
+#[invariant(
+    true,
+    "every next value is a safe exhausted state because iteration uses slice get"
+)]
 #[pyclass(
     name = "_DictionaryEntryIterator",
     module = "jbotci.dictionary",
@@ -1356,7 +1483,10 @@ impl PyDictionaryEntryIterator {
 }
 
 /// One source dictionary entry.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated EntryReference field makes every wrapper state in range"
+)]
 #[pyclass(
     name = "DictionaryEntry",
     frozen,
@@ -1365,15 +1495,14 @@ impl PyDictionaryEntryIterator {
 )]
 #[derive(Debug, Clone)]
 struct PyDictionaryEntry {
-    owner: Arc<DictionaryOwner>,
-    position: EntryPosition,
+    reference: EntryReference,
 }
 
 impl PyDictionaryEntry {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(self.reference.position.0 < self.reference.owner.dictionary().entries().len())]
+    #[ensures(std::ptr::eq(ret, self.reference.entry()))]
     fn entry(&self) -> &'static DictionaryEntry<'static> {
-        &self.owner.dictionary().entries()[self.position.0]
+        self.reference.entry()
     }
 }
 
@@ -1432,8 +1561,8 @@ impl PyDictionaryEntry {
     fn gloss_keywords(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         keyword_tuple(
             py,
-            Arc::clone(&self.owner),
-            self.position,
+            Arc::clone(&self.reference.owner),
+            self.reference.position,
             KeywordKind::Gloss,
         )
     }
@@ -1444,8 +1573,8 @@ impl PyDictionaryEntry {
     fn place_keywords(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         keyword_tuple(
             py,
-            Arc::clone(&self.owner),
-            self.position,
+            Arc::clone(&self.reference.owner),
+            self.reference.position,
             KeywordKind::Place,
         )
     }
@@ -1463,9 +1592,9 @@ impl PyDictionaryEntry {
                 Py::new(
                     py,
                     PyRafsi::borrowed(
-                        Arc::clone(&self.owner),
+                        Arc::clone(&self.reference.owner),
                         RafsiPosition {
-                            entry: self.position,
+                            entry: self.reference.position,
                             item,
                         },
                     ),
@@ -1484,7 +1613,10 @@ impl PyDictionaryEntry {
             .map(|_| {
                 Py::new(
                     py,
-                    PyRawSelmaho::borrowed(Arc::clone(&self.owner), self.position),
+                    PyRawSelmaho::borrowed(
+                        Arc::clone(&self.reference.owner),
+                        self.reference.position,
+                    ),
                 )
             })
             .transpose()
@@ -1510,7 +1642,7 @@ impl PyDictionaryEntry {
     fn user(&self, py: Python<'_>) -> PyResult<Py<PyDictionaryUser>> {
         Py::new(
             py,
-            PyDictionaryUser::borrowed(Arc::clone(&self.owner), self.position),
+            PyDictionaryUser::borrowed(Arc::clone(&self.reference.owner), self.reference.position),
         )
     }
 
@@ -1526,11 +1658,12 @@ impl PyDictionaryEntry {
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner) && self.position == other.position
+        Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+            && self.reference.position == other.reference.position
     }
 }
 
-#[requires(true)]
+#[requires(owner.dictionary().entry_index_for_entry(entry).is_some())]
 #[ensures(true)]
 fn entry_object(
     py: Python<'_>,
@@ -1538,7 +1671,12 @@ fn entry_object(
     entry: &DictionaryEntry<'static>,
 ) -> PyResult<Py<PyDictionaryEntry>> {
     let position = owner.entry_position(entry);
-    Py::new(py, PyDictionaryEntry { owner, position })
+    Py::new(
+        py,
+        PyDictionaryEntry {
+            reference: EntryReference::new(owner, position),
+        },
+    )
 }
 
 #[requires(true)]
@@ -1611,8 +1749,7 @@ fn entry_sequence_item(
             values.push(Py::new(
                 py,
                 PyDictionaryEntry {
-                    owner: Arc::clone(owner),
-                    position: EntryPosition(position),
+                    reference: EntryReference::new(Arc::clone(owner), EntryPosition(position)),
                 },
             )?);
             current += indices.step;
@@ -1627,15 +1764,17 @@ fn entry_sequence_item(
     Py::new(
         py,
         PyDictionaryEntry {
-            owner: Arc::clone(owner),
-            position: EntryPosition(position),
+            reference: EntryReference::new(Arc::clone(owner), EntryPosition(position)),
         },
     )
     .map(Py::into_any)
 }
 
 /// Result of a rafsi lookup with provenance.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated EntryReference field makes every rafsi match entry in range"
+)]
 #[pyclass(
     name = "RafsiMatch",
     frozen,
@@ -1644,8 +1783,7 @@ fn entry_sequence_item(
 )]
 #[derive(Debug, Clone)]
 struct PyRafsiMatch {
-    owner: Arc<DictionaryOwner>,
-    entry: EntryPosition,
+    entry: EntryReference,
     source: RafsiSource,
 }
 
@@ -1658,8 +1796,7 @@ impl PyRafsiMatch {
         Py::new(
             py,
             PyDictionaryEntry {
-                owner: Arc::clone(&self.owner),
-                position: self.entry,
+                reference: self.entry.clone(),
             },
         )
     }
@@ -1678,21 +1815,24 @@ impl PyRafsiMatch {
         let source = self.source.python_member_name();
         format!(
             "{PUBLIC_MODULE}.RafsiMatch(entry={PUBLIC_MODULE}.english[{}], source={PUBLIC_MODULE}.RafsiSource.{source})",
-            self.entry.0
+            self.entry.position.0
         )
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner)
-            && self.entry == other.entry
+        Arc::ptr_eq(&self.entry.owner, &other.entry.owner)
+            && self.entry.position == other.entry.position
             && self.source == other.source
     }
 }
 
 /// Precomputed sound data for one pronounceable dictionary entry.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated SoundReference field makes every sound wrapper state in range"
+)]
 #[pyclass(
     name = "DictionarySoundEntry",
     frozen,
@@ -1701,15 +1841,14 @@ impl PyRafsiMatch {
 )]
 #[derive(Debug, Clone)]
 struct PyDictionarySoundEntry {
-    owner: Arc<DictionaryOwner>,
-    position: SoundPosition,
+    reference: SoundReference,
 }
 
 impl PyDictionarySoundEntry {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(self.reference.position.0 < self.reference.owner.dictionary().sound_index().len())]
+    #[ensures(std::ptr::eq(ret, self.reference.sound()))]
     fn sound(&self) -> &'static jbotci_dictionary::DictionarySoundEntry<'static> {
-        &self.owner.dictionary().sound_index()[self.position.0]
+        self.reference.sound()
     }
 }
 
@@ -1736,8 +1875,7 @@ impl PyDictionarySoundEntry {
         Py::new(
             py,
             PyIpaTokenSequenceView {
-                owner: Arc::clone(&self.owner),
-                sound: self.position,
+                reference: self.reference.clone(),
             },
         )
     }
@@ -1755,12 +1893,16 @@ impl PyDictionarySoundEntry {
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner) && self.position == other.position
+        Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+            && self.reference.position == other.reference.position
     }
 }
 
 /// Borrowed IPA token sequence retained through its dictionary owner.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated SoundReference field makes every IPA sequence wrapper state in range"
+)]
 #[pyclass(
     name = "IpaTokenSequenceView",
     frozen,
@@ -1769,15 +1911,14 @@ impl PyDictionarySoundEntry {
 )]
 #[derive(Debug, Clone)]
 struct PyIpaTokenSequenceView {
-    owner: Arc<DictionaryOwner>,
-    sound: SoundPosition,
+    reference: SoundReference,
 }
 
 impl PyIpaTokenSequenceView {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(self.reference.position.0 < self.reference.owner.dictionary().sound_index().len())]
+    #[ensures(ret == self.reference.sound().token_sequence)]
     fn sequence(&self) -> jbotci_phonetic::IpaTokenSequenceView<'static> {
-        self.owner.dictionary().sound_index()[self.sound.0].token_sequence
+        self.reference.sound().token_sequence
     }
 }
 
@@ -1828,7 +1969,8 @@ impl PyIpaTokenSequenceView {
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner) && self.sound == other.sound
+        Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+            && self.reference.position == other.reference.position
     }
 }
 
@@ -1888,7 +2030,10 @@ impl PyIpaSegmentId {
 }
 
 /// Precomputed lujvo decomposition for one dictionary entry.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated LujvoReference field makes every decomposition wrapper state in range"
+)]
 #[pyclass(
     name = "DictionaryLujvoEntry",
     frozen,
@@ -1897,15 +2042,14 @@ impl PyIpaSegmentId {
 )]
 #[derive(Debug, Clone)]
 struct PyDictionaryLujvoEntry {
-    owner: Arc<DictionaryOwner>,
-    position: LujvoPosition,
+    reference: LujvoReference,
 }
 
 impl PyDictionaryLujvoEntry {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(self.reference.position.0 < self.reference.owner.dictionary().lujvo_index().len())]
+    #[ensures(std::ptr::eq(ret, self.reference.lujvo()))]
     fn lujvo(&self) -> &'static jbotci_dictionary::DictionaryLujvoEntry<'static> {
-        &self.owner.dictionary().lujvo_index()[self.position.0]
+        self.reference.lujvo()
     }
 }
 
@@ -1931,11 +2075,7 @@ impl PyDictionaryLujvoEntry {
                 Py::new(
                     py,
                     PyDictionaryLujvoSegment {
-                        owner: Arc::clone(&self.owner),
-                        position: LujvoSegmentPosition {
-                            lujvo: self.position,
-                            item,
-                        },
+                        reference: LujvoSegmentReference::new(self.reference.clone(), item),
                     },
                 )
             })
@@ -1962,12 +2102,16 @@ impl PyDictionaryLujvoEntry {
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner) && self.position == other.position
+        Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+            && self.reference.position == other.reference.position
     }
 }
 
 /// One segment of a precomputed lujvo decomposition.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated LujvoSegmentReference field makes every segment wrapper state in range"
+)]
 #[pyclass(
     name = "DictionaryLujvoSegment",
     frozen,
@@ -1976,15 +2120,14 @@ impl PyDictionaryLujvoEntry {
 )]
 #[derive(Debug, Clone)]
 struct PyDictionaryLujvoSegment {
-    owner: Arc<DictionaryOwner>,
-    position: LujvoSegmentPosition,
+    reference: LujvoSegmentReference,
 }
 
 impl PyDictionaryLujvoSegment {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(self.reference.item < self.reference.lujvo.lujvo().segments.len())]
+    #[ensures(std::ptr::eq(ret, self.reference.segment()))]
     fn segment(&self) -> &'static jbotci_dictionary::DictionaryLujvoSegment<'static> {
-        &self.owner.dictionary().lujvo_index()[self.position.lujvo.0].segments[self.position.item]
+        self.reference.segment()
     }
 }
 
@@ -2025,12 +2168,17 @@ impl PyDictionaryLujvoSegment {
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner) && self.position == other.position
+        Arc::ptr_eq(&self.reference.lujvo.owner, &other.reference.lujvo.owner)
+            && self.reference.lujvo.position == other.reference.lujvo.position
+            && self.reference.item == other.reference.item
     }
 }
 
 /// Generated pattern-search keys for one dictionary entry.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the validated PatternReference field makes every pattern wrapper state in range"
+)]
 #[pyclass(
     name = "DictionaryPatternEntry",
     frozen,
@@ -2039,15 +2187,14 @@ impl PyDictionaryLujvoSegment {
 )]
 #[derive(Debug, Clone)]
 struct PyDictionaryPatternEntry {
-    owner: Arc<DictionaryOwner>,
-    position: PatternPosition,
+    reference: PatternReference,
 }
 
 impl PyDictionaryPatternEntry {
-    #[requires(true)]
-    #[ensures(true)]
+    #[requires(self.reference.position.0 < self.reference.owner.dictionary().pattern_index().len())]
+    #[ensures(std::ptr::eq(ret, self.reference.pattern()))]
     fn pattern(&self) -> &'static jbotci_dictionary::DictionaryPatternEntry<'static> {
-        &self.owner.dictionary().pattern_index()[self.position.0]
+        self.reference.pattern()
     }
 }
 
@@ -2087,7 +2234,8 @@ impl PyDictionaryPatternEntry {
     #[requires(true)]
     #[ensures(true)]
     fn __eq__(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.owner, &other.owner) && self.position == other.position
+        Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+            && self.reference.position == other.reference.position
     }
 }
 
@@ -2515,6 +2663,24 @@ fn py_universal_gismu_rafsi_forms(py: Python<'_>, word: &str) -> PyResult<Py<PyT
     Ok(sequence_to_tuple(py, values)?.unbind())
 }
 
+/// Call the Rust gismu-like predicate after exact registered-enum extraction.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction(name = "_word_type_is_gismu_like")]
+fn py_word_type_is_gismu_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    let module = py.import("jbotci._native")?;
+    Ok(extract_string_enum::<WordType>(&module, value)?.is_gismu_like())
+}
+
+/// Call the Rust lujvo-like predicate after exact registered-enum extraction.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction(name = "_word_type_is_lujvo_like")]
+fn py_word_type_is_lujvo_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    let module = py.import("jbotci._native")?;
+    Ok(extract_string_enum::<WordType>(&module, value)?.is_lujvo_like())
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn register_types(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -2583,6 +2749,10 @@ fn register_functions(module: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     let universal = wrap_pyfunction!(py_universal_gismu_rafsi_forms, module)?;
     register_private_object(module, "_dictionary_universal_gismu_rafsi_forms", universal)?;
+    let gismu_like = wrap_pyfunction!(py_word_type_is_gismu_like, module)?;
+    register_private_object(module, "_dictionary_word_type_is_gismu_like", gismu_like)?;
+    let lujvo_like = wrap_pyfunction!(py_word_type_is_lujvo_like, module)?;
+    register_private_object(module, "_dictionary_word_type_is_lujvo_like", lujvo_like)?;
     Ok(())
 }
 
@@ -2649,6 +2819,44 @@ mod tests {
         assert_eq!(Arc::strong_count(&owner), 2);
         drop(owner);
         assert_eq!(keyword.word(), "language");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typed_references_reject_out_of_range_contextual_positions() {
+        let owner = Arc::new(DictionaryOwner::english());
+        assert!(
+            try_new!(EntryReference {
+                owner: Arc::clone(&owner),
+                position: EntryPosition(owner.dictionary().entries().len()),
+            })
+            .is_err()
+        );
+        assert!(
+            try_new!(SoundReference {
+                owner: Arc::clone(&owner),
+                position: SoundPosition(owner.dictionary().sound_index().len()),
+            })
+            .is_err()
+        );
+        assert!(
+            try_new!(LujvoReference {
+                owner: Arc::clone(&owner),
+                position: LujvoPosition(owner.dictionary().lujvo_index().len()),
+            })
+            .is_err()
+        );
+        assert!(
+            try_new!(PatternReference {
+                owner: Arc::clone(&owner),
+                position: PatternPosition(owner.dictionary().pattern_index().len()),
+            })
+            .is_err()
+        );
+        let lujvo = LujvoReference::new(Arc::clone(&owner), LujvoPosition(0));
+        let item = lujvo.lujvo().segments.len();
+        assert!(try_new!(LujvoSegmentReference { lujvo, item }).is_err());
     }
 
     #[test]
