@@ -921,19 +921,86 @@ def test_morphology_error_rejects_invalid_warning_elements_and_trace() -> None:
         )
 
 
+def test_morphology_error_rejects_invalid_typed_projection_inputs() -> None:
+    value = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 1, "x"
+    )
+
+    with pytest.raises(
+        TypeError, match="^value must be a MorphologyErrorValue variant$"
+    ):
+        morphology.MorphologyError(
+            cast(morphology.MorphologyErrorValue, object()), "x", None
+        )
+    with pytest.raises(TypeError, match="^original_source must be a str$"):
+        morphology.MorphologyError(value, cast(str, object()), None)
+    with pytest.raises(TypeError, match="^source_id must be a SourceId or None$"):
+        morphology.MorphologyError(
+            value, "x", cast(source.SourceId | None, object())
+        )
+
+
 def test_strict_exception_retains_typed_details_and_provenance() -> None:
     source_id = source.SourceId("failure")
     with pytest.raises(morphology.MorphologyError) as caught:
         morphology.segment("aa", source_id=source_id)
     error = caught.value
-    assert isinstance(error.value, morphology.InvalidMorphology)
-    assert error.value.kind is morphology.MorphologyErrorKind.VOWEL_HIATUS
-    assert isinstance(error.value.detail, morphology.PhonotacticDetail)
-    assert error.code == "morphology.vowel-hiatus"
+    expected_context = morphology.MorphologyContext(
+        morphology.MorphologyContextKind.FUIVLA, 0, 2
+    )
+    expected_detail = morphology.PhonotacticDetail(
+        morphology.PhonotacticDetailKind.VOWEL_HIATUS
+    )
+    expected_value = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.VOWEL_HIATUS,
+        0,
+        2,
+        "aa",
+        context=expected_context,
+        detail=expected_detail,
+    )
+    expected_diagnostic = expected_value.to_diagnostic("aa", source_id)
+
+    assert error.value == expected_value
     assert error.original_source == "aa"
     assert error.source_id == source_id
-    assert error.diagnostic.code == error.code
-    assert error.spans[0].source_id == source_id
+    assert error.code == expected_value.code == "morphology.vowel-hiatus"
+    assert error.diagnostic == expected_diagnostic
+    assert error.spans == tuple(label.span for label in expected_diagnostic.labels)
+    assert tuple(span.byte_range for span in error.spans) == ((0, 2), (0, 2))
+    assert tuple(span.char_range for span in error.spans) == ((0, 2), (0, 2))
+    assert error.context == expected_context
+    assert error.detail == expected_detail
+    assert error.warnings == ()
+    assert error.trace is None
+    assert str(error) == str(expected_value)
+    assert error.args == (str(expected_value),)
+    assert all(span.source_id == source_id for span in error.spans)
+
+
+def test_morphology_error_is_immutable_and_runtime_final() -> None:
+    with pytest.raises(morphology.MorphologyError) as caught:
+        morphology.segment("aa")
+    error = caught.value
+
+    for attribute in (
+        "value",
+        "original_source",
+        "source_id",
+        "code",
+        "diagnostic",
+        "spans",
+        "context",
+        "detail",
+        "warnings",
+        "trace",
+        "args",
+    ):
+        with pytest.raises(AttributeError, match="^MorphologyError is immutable$"):
+            setattr(error, attribute, object())
+
+    with pytest.raises(TypeError, match="^MorphologyError is final$"):
+        type("DerivedMorphologyError", (morphology.MorphologyError,), {})
 
 
 def test_unterminated_zoi_exception_retains_exact_payload_and_diagnostic() -> None:

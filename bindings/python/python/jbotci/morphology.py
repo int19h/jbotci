@@ -169,19 +169,31 @@ def _public_native(
     return wrapper
 
 
-class MorphologyError(_rust.JbotciError):
+@final
+class MorphologyError(_StructuredError[MorphologyErrorValue]):
     """Strict morphology failure with its complete typed Rust projection."""
 
-    value: MorphologyErrorValue
-    original_source: str
-    source_id: SourceId | None
-    code: str
-    diagnostic: Diagnostic
-    spans: tuple[SourceSpan, ...]
-    context: MorphologyContext | None
-    detail: MorphologyErrorDetail | None
-    warnings: tuple[MorphologyWarning, ...]
-    trace: TraceReport | None
+    __slots__ = (
+        "_original_source",
+        "_source_id",
+        "_code",
+        "_diagnostic",
+        "_spans",
+        "_context",
+        "_detail",
+        "_warnings",
+        "_trace",
+    )
+
+    _original_source: str
+    _source_id: SourceId | None
+    _code: str
+    _diagnostic: Diagnostic
+    _spans: tuple[SourceSpan, ...]
+    _context: MorphologyContext | None
+    _detail: MorphologyErrorDetail | None
+    _warnings: tuple[MorphologyWarning, ...]
+    _trace: TraceReport | None
 
     def __init__(
         self,
@@ -191,6 +203,15 @@ class MorphologyError(_rust.JbotciError):
         warnings: Sequence[MorphologyWarning] = (),
         trace: TraceReport | None = None,
     ) -> None:
+        if not isinstance(
+            value,
+            (InvalidMorphology, UnterminatedZoiQuote, SourceSpanMorphologyError),
+        ):
+            raise TypeError("value must be a MorphologyErrorValue variant")
+        if not isinstance(original_source, str):
+            raise TypeError("original_source must be a str")
+        if source_id is not None and not isinstance(source_id, SourceId):
+            raise TypeError("source_id must be a SourceId or None")
         checked_warnings = immutable_typed_sequence(
             warnings,
             parameter="warnings",
@@ -199,17 +220,79 @@ class MorphologyError(_rust.JbotciError):
         if trace is not None and not isinstance(trace, TraceReport):
             raise TypeError("trace must be a TraceReport or None")
 
-        super().__init__(str(value))
-        self.value = value
-        self.original_source = original_source
-        self.source_id = source_id
-        self.code = value.code
-        self.diagnostic = value.to_diagnostic(original_source, source_id)
-        self.spans = tuple(label.span for label in self.diagnostic.labels)
-        self.context = getattr(value, "context", None)
-        self.detail = getattr(value, "detail", None)
-        self.warnings = checked_warnings
-        self.trace = trace
+        code = value.code
+        diagnostic = value.to_diagnostic(original_source, source_id)
+        spans = tuple(label.span for label in diagnostic.labels)
+        context = getattr(value, "context", None)
+        detail = getattr(value, "detail", None)
+
+        super().__init__(value)
+        object.__setattr__(self, "_original_source", original_source)
+        object.__setattr__(self, "_source_id", source_id)
+        object.__setattr__(self, "_code", code)
+        object.__setattr__(self, "_diagnostic", diagnostic)
+        object.__setattr__(self, "_spans", spans)
+        object.__setattr__(self, "_context", context)
+        object.__setattr__(self, "_detail", detail)
+        object.__setattr__(self, "_warnings", checked_warnings)
+        object.__setattr__(self, "_trace", trace)
+
+    @property
+    def original_source(self) -> str:
+        """Return the complete source text supplied to strict segmentation."""
+
+        return self._original_source
+
+    @property
+    def source_id(self) -> SourceId | None:
+        """Return the optional source identity retained by the failure."""
+
+        return self._source_id
+
+    @property
+    def code(self) -> str:
+        """Return the stable diagnostic code for the typed failure value."""
+
+        return self._code
+
+    @property
+    def diagnostic(self) -> Diagnostic:
+        """Return the diagnostic derived from the failure and original source."""
+
+        return self._diagnostic
+
+    @property
+    def spans(self) -> tuple[SourceSpan, ...]:
+        """Return every source span retained by the diagnostic labels."""
+
+        return self._spans
+
+    @property
+    def context(self) -> MorphologyContext | None:
+        """Return the optional morphology context attached to the failure."""
+
+        return self._context
+
+    @property
+    def detail(self) -> MorphologyErrorDetail | None:
+        """Return the optional variant-specific failure detail."""
+
+        return self._detail
+
+    @property
+    def warnings(self) -> tuple[MorphologyWarning, ...]:
+        """Return warnings produced before strict segmentation failed."""
+
+        return self._warnings
+
+    @property
+    def trace(self) -> TraceReport | None:
+        """Return the optional parser trace retained by the failed attempt."""
+
+        return self._trace
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("MorphologyError is final")
 
 
 def segment_attempt(

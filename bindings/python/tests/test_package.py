@@ -1230,7 +1230,7 @@ def test_strict_typing_fixture_witnesses_every_public_morphology_function() -> N
 
 
 def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
-    """Catch per-variant omissions or value drift in generated enum stubs."""
+    """Catch generated enum member, method, value, or signature drift."""
 
     stub_path = PACKAGE_ROOT / "stubs" / "_native" / "domain_enums.pyi"
     tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
@@ -1248,6 +1248,30 @@ def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
             (name, member.value) for name, member in runtime_enum.__members__.items()
         )
         assert actual == expected, declaration.name
+
+        stub_methods = {
+            statement.name: statement
+            for statement in declaration.body
+            if isinstance(statement, ast.FunctionDef)
+            and not statement.name.startswith("_")
+        }
+        runtime_methods = {
+            name: value
+            for name, value in vars(runtime_enum).items()
+            if not name.startswith("_") and callable(value)
+        }
+        assert set(runtime_methods) == set(stub_methods), declaration.name
+        for method_name, stub_method in stub_methods.items():
+            runtime_method = runtime_methods[method_name]
+            stub_is_static = any(
+                isinstance(decorator, ast.Name) and decorator.id == "staticmethod"
+                for decorator in stub_method.decorator_list
+            )
+            assert isinstance(runtime_method, staticmethod) is stub_is_static
+            assert (
+                _runtime_parameter_shape(inspect.signature(runtime_method))
+                == _stub_parameter_shape(stub_method, constructor=False)
+            ), f"{declaration.name}.{method_name}"
     domain_prefixes = ("_diagnostics_", "_dialect_", "_morphology_")
     runtime_enums = {
         name
