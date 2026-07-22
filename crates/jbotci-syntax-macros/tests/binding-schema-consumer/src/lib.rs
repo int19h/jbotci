@@ -728,9 +728,10 @@ fn parse_constructor_field_list_property(
     let mut metadata = Vec::new();
     while !values.is_done() {
         let pair = parse_metadata_pair(&mut values, call);
+        let data!(MetadataPair { first, second }) = pair.into_data();
         metadata.push(new!(ConstructorFieldMetadata {
-            constructor: pair.first,
-            field: pair.second,
+            constructor: first,
+            field: second,
         }));
         if !values.is_done() {
             values.expect_punct(',');
@@ -747,9 +748,10 @@ fn parse_constructor_label_list_property(cursor: &mut Cursor) -> Vec<Constructor
     let mut metadata = Vec::new();
     while !values.is_done() {
         let pair = parse_metadata_pair(&mut values, "constructor_label");
+        let data!(MetadataPair { first, second }) = pair.into_data();
         metadata.push(new!(ConstructorLabelMetadata {
-            constructor: pair.first,
-            label: pair.second,
+            constructor: first,
+            label: second,
         }));
         if !values.is_done() {
             values.expect_punct(',');
@@ -766,9 +768,10 @@ fn parse_elidable_terminator_list_property(cursor: &mut Cursor) -> Vec<ElidableT
     let mut metadata = Vec::new();
     while !values.is_done() {
         let pair = parse_metadata_pair(&mut values, "elidable_terminator");
+        let data!(MetadataPair { first, second }) = pair.into_data();
         metadata.push(new!(ElidableTerminatorMetadata {
-            field: pair.first,
-            cmavo: pair.second,
+            field: first,
+            cmavo: second,
         }));
         if !values.is_done() {
             values.expect_punct(',');

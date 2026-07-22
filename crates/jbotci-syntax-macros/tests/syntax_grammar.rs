@@ -15,6 +15,35 @@ fn canonical_generated_grammar_has_no_placeholder_field_documentation() {
             "canonical grammar documentation contains legacy placeholder `{forbidden}`"
         );
     }
+
+    for (offset, _) in grammar.match_indices("/// A word from selmaho `") {
+        let following = &grammar[offset..];
+        let field_start = following
+            .find("field ")
+            .expect("selmaho documentation must precede a field");
+        let declaration = &following[field_start..];
+        let declaration = &declaration[..declaration
+            .find(';')
+            .expect("documented field declaration must end with a semicolon")];
+        assert!(
+            !declaration.contains("arc("),
+            "shared syntax field is misdocumented as a selmaho word: {declaration}"
+        );
+    }
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+#[test]
+fn external_schema_consumer_preserves_metadata_pair_ownership() {
+    let consumer = include_str!("binding-schema-consumer/src/lib.rs");
+    assert!(!consumer.contains("pair.first"));
+    assert!(!consumer.contains("pair.second"));
+    assert_eq!(
+        consumer.matches("pair.into_data()").count(),
+        3,
+        "each metadata-pair consumer must move through the validated wrapper API"
+    );
 }
 
 #[bityzba::invariant(true)]

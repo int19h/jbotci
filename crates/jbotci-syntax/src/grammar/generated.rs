@@ -2813,7 +2813,7 @@ pub mod generated_model {
 
     /// Product node for utterance ordinal; preserves `expression` and `mai` in source order.
     rule "utterance ordinal" zantufa_mekso_mai_free_modifier(mekso) -> struct {
-        /// A word from selmaho `Mai`.
+        /// The required shared mekso expression parsed by `mekso`, accepted only when immediately followed by a MAI-family word.
         field expression <- arc(mekso.followed_by(selmaho(Mai).ignored()));
         /// A word from selmaho `Mai`.
         field mai <- selmaho(Mai).warn(ExperimentalZantufaMex).wf();
@@ -4520,7 +4520,7 @@ pub mod generated_model {
 
     /// Product node for mex selbri; preserves `expression` and `moi` in source order.
     rule "mex selbri" zantufa_mex_moi_tanru_unit(mekso) -> struct {
-        /// A word from selmaho `Moi`.
+        /// The required shared mekso expression parsed by `mekso`, completed immediately before the following MOI-family word.
         field expression: std::sync::Arc<MeksoSyntax> <- arc(mekso.complete_before_selmaho(Moi));
         /// A word from selmaho `Moi`.
         field moi <- selmaho(Moi).warn(ExperimentalZantufaMex).wf();
