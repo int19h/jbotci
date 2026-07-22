@@ -843,6 +843,64 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         True,
     ),
     _StubGateCase(
+        "identical-forward-strings-reverse-sibling-order",
+        (
+            "import typing as t\n"
+            "Hole = 't.Any'\n"
+            "import vendor as t\n"
+            "Safe = 't.Any'\n"
+            "value: tuple[Hole, Safe]\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "identical-safe-forward-strings-remain-safe",
+        (
+            "import vendor as t\n"
+            "First = 't.Any'\n"
+            "Second = 't.Any'\n"
+            "value: tuple[First, Second]\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "nested-identical-forward-strings-keep-captured-provenance",
+        (
+            "import typing as t\n"
+            "Alias = t.Any\n"
+            "Alias = 'Alias'\n"
+            "Alias = 'Alias'\n"
+            "value: Alias\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "forward-string-branch-join-keeps-unsafe-provenance",
+        (
+            "import vendor as t\n"
+            "Safe = 't.Any'\n"
+            "if FLAG:\n"
+            "    Selected = Safe\n"
+            "else:\n"
+            "    import typing as t\n"
+            "    Hole = 't.Any'\n"
+            "    Selected = Hole\n"
+            "value: Selected\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "forward-string-safe-alias-branch-join",
+        (
+            "import vendor as t\n"
+            "First = 't.Any'\n"
+            "Second = 't.Any'\n"
+            "Selected = First if FLAG else Second\n"
+            "value: Selected\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
         "named-tuple-forward-strings-keep-distinct-provenance",
         (
             "import vendor as t\n"
@@ -863,6 +921,236 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
             "Hole = {'hole': 't.Any'}\n"
             "Fields = {**Safe, **Hole}\n"
             "Record = t.TypedDict('Record', Fields)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-forward-strings-reverse-field-order",
+        (
+            "import typing as t\n"
+            "Hole = ('hole', 't.Any')\n"
+            "import vendor as t\n"
+            "Safe = ('safe', 't.Any')\n"
+            "Record = t.NamedTuple('Record', [Hole, Safe])\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "named-tuple-forward-strings-reverse-field-order-with-typing-callee",
+        (
+            "import typing as t\n"
+            "Hole = ('hole', 't.Any')\n"
+            "import vendor as t\n"
+            "Safe = ('safe', 't.Any')\n"
+            "import typing as t\n"
+            "Record = t.NamedTuple('Record', [Hole, Safe])\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-forward-strings-reverse-field-order",
+        (
+            "import typing as t\n"
+            "Hole = {'hole': 't.Any'}\n"
+            "import vendor as t\n"
+            "Safe = {'safe': 't.Any'}\n"
+            "import typing as t\n"
+            "Record = t.TypedDict('Record', {**Hole, **Safe})\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-finite-starred-fields-reject-any",
+        (
+            "import typing\n"
+            "Record = typing.NamedTuple(*(\"Record\", [(\"field\", \"typing.Any\")]))\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-finite-starred-fields-safe",
+        (
+            "import typing\n"
+            "Record = typing.NamedTuple(*(\"Record\", [(\"field\", str)]))\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "named-tuple-aliased-finite-starred-fields-reject-any",
+        (
+            "import typing\n"
+            "Arguments = (\"Record\", [(\"field\", \"typing.Any\")])\n"
+            "Record = typing.NamedTuple(*Arguments)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-starred-dynamic-fields-rejected",
+        (
+            "import typing\n"
+            "Record = typing.NamedTuple(*(\"Record\", fields))\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-dynamic-starred-invocation-rejected",
+        "import typing\nRecord = typing.NamedTuple(*arguments)\n",
+        True,
+    ),
+    _StubGateCase(
+        "vendor-named-tuple-dynamic-starred-invocation-safe",
+        "import vendor\nRecord = vendor.NamedTuple(*arguments)\n",
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-finite-starred-fields-reject-any",
+        (
+            "import typing\n"
+            "Record = typing.TypedDict(*(\"Record\", {\"field\": \"typing.Any\"}))\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-finite-starred-fields-safe",
+        "import typing\nRecord = typing.TypedDict(*(\"Record\", {\"field\": str}))\n",
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-aliased-finite-starred-fields-reject-any",
+        (
+            "import typing\n"
+            "Arguments = (\"Record\", {\"field\": \"typing.Any\"})\n"
+            "Record = typing.TypedDict(*Arguments)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-starred-dynamic-fields-rejected",
+        (
+            "import typing\n"
+            "Record = typing.TypedDict(*(\"Record\", fields))\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-dynamic-starred-invocation-rejected",
+        "import typing\nRecord = typing.TypedDict(*arguments)\n",
+        True,
+    ),
+    _StubGateCase(
+        "vendor-typed-dict-dynamic-starred-invocation-safe",
+        "import vendor\nRecord = vendor.TypedDict(*arguments)\n",
+        False,
+    ),
+    _StubGateCase(
+        "cast-finite-keyword-unpack-rejects-type",
+        (
+            "import typing\n"
+            "value = typing.cast(**{\"typ\": \"typing.Any\", \"val\": source})\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "cast-finite-keyword-unpack-keeps-value-context",
+        (
+            "import typing\n"
+            "value = typing.cast(**{\"typ\": str, \"val\": typing.Any})\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "cast-aliased-finite-keyword-unpack-rejects-type",
+        (
+            "import typing\n"
+            "Arguments = {\"typ\": \"typing.Any\", \"val\": source}\n"
+            "value = typing.cast(**Arguments)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "cast-dynamic-keyword-unpack-rejected",
+        "import typing\nvalue = typing.cast(**arguments)\n",
+        True,
+    ),
+    _StubGateCase(
+        "vendor-cast-dynamic-keyword-unpack-safe",
+        "import vendor\nvalue = vendor.cast(**arguments)\n",
+        False,
+    ),
+    _StubGateCase(
+        "assert-type-finite-keyword-unpack-rejects-type",
+        (
+            "import typing\n"
+            "value = typing.assert_type(**{\"val\": source, \"typ\": \"typing.Any\"})\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "assert-type-finite-keyword-unpack-safe",
+        (
+            "import typing\n"
+            "value = typing.assert_type(**{\"val\": source, \"typ\": str})\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "assert-type-dynamic-keyword-unpack-rejected",
+        "import typing\nvalue = typing.assert_type(**arguments)\n",
+        True,
+    ),
+    _StubGateCase(
+        "vendor-assert-type-dynamic-keyword-unpack-safe",
+        "import vendor\nvalue = vendor.assert_type(**arguments)\n",
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-class-finite-keyword-unpack-rejects-extra-items",
+        (
+            "import typing\n"
+            "class Record(typing.TypedDict, **{\"extra_items\": \"typing.Any\"}): ...\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "typed-dict-class-finite-keyword-unpack-safe",
+        (
+            "import typing\n"
+            "class Record(typing.TypedDict, **{\"extra_items\": str}): ...\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-class-value-keywords-remain-values",
+        (
+            "import typing\n"
+            "Configuration = {\"total\": typing.Any, \"closed\": typing.Any}\n"
+            "class Record(typing.TypedDict, **Configuration): ...\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-class-dynamic-keyword-unpack-rejected",
+        "import typing\nclass Record(typing.TypedDict, **configuration): ...\n",
+        True,
+    ),
+    _StubGateCase(
+        "vendor-class-dynamic-keyword-unpack-safe",
+        "import vendor\nclass Record(vendor.TypedDict, **configuration): ...\n",
+        False,
+    ),
+    _StubGateCase(
+        "ordinary-class-extra-items-keyword-unpack-is-value-context",
+        (
+            "import typing\n"
+            "class Record(Base, **{\"extra_items\": \"typing.Any\"}): ...\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "ordinary-class-metaclass-keyword-unpack-is-type-context",
+        (
+            "import typing\n"
+            "class Record(Base, **{\"metaclass\": \"typing.Any\"}): ...\n"
         ),
         True,
     ),
@@ -890,6 +1178,215 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         "literal-false-loop-is-unreachable",
         "import typing as t\nwhile False:\n    value: t.Any\n",
         False,
+    ),
+    _StubGateCase(
+        "false-and-unknown-branch-is-unreachable",
+        "import typing as t\nif False and FLAG:\n    value: t.Any\n",
+        False,
+    ),
+    _StubGateCase(
+        "unknown-and-false-branch-is-unreachable",
+        "import typing as t\nif FLAG and False:\n    value: t.Any\n",
+        False,
+    ),
+    _StubGateCase(
+        "true-or-unknown-else-is-unreachable",
+        (
+            "import typing as t\n"
+            "if True or FLAG:\n"
+            "    pass\n"
+            "else:\n"
+            "    value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "unknown-or-true-else-is-unreachable",
+        (
+            "import typing as t\n"
+            "if FLAG or True:\n"
+            "    pass\n"
+            "else:\n"
+            "    value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "true-and-unknown-remains-feasible",
+        "import typing as t\nif True and FLAG:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "unknown-and-true-remains-feasible",
+        "import typing as t\nif FLAG and True:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "false-or-unknown-remains-feasible",
+        "import typing as t\nif False or FLAG:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "unknown-or-false-remains-feasible",
+        "import typing as t\nif FLAG or False:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "not-unknown-remains-feasible",
+        "import typing as t\nif not FLAG:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "not-false-is-true",
+        "import typing as t\nif not False:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "false-and-unknown-loop-is-unreachable",
+        "import typing as t\nwhile False and FLAG:\n    value: t.Any\n",
+        False,
+    ),
+    _StubGateCase(
+        "unknown-and-false-loop-is-unreachable",
+        "import typing as t\nwhile FLAG and False:\n    value: t.Any\n",
+        False,
+    ),
+    _StubGateCase(
+        "true-or-unknown-loop-body-is-reachable",
+        "import typing as t\nwhile True or FLAG:\n    value: t.Any\n",
+        True,
+    ),
+    _StubGateCase(
+        "true-or-unknown-loop-else-is-unreachable",
+        (
+            "import typing as t\n"
+            "while True or FLAG:\n"
+            "    pass\n"
+            "else:\n"
+            "    value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "unknown-or-true-loop-else-is-unreachable",
+        (
+            "import typing as t\n"
+            "while FLAG or True:\n"
+            "    pass\n"
+            "else:\n"
+            "    value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "true-and-unknown-loop-else-remains-feasible",
+        (
+            "import typing as t\n"
+            "while True and FLAG:\n"
+            "    pass\n"
+            "else:\n"
+            "    value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "unknown-and-true-loop-else-remains-feasible",
+        (
+            "import typing as t\n"
+            "while FLAG and True:\n"
+            "    pass\n"
+            "else:\n"
+            "    value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "false-and-unknown-match-guard-is-unreachable",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if False and FLAG:\n"
+            "        value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "unknown-and-false-match-guard-is-unreachable",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if FLAG and False:\n"
+            "        value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "true-or-unknown-match-guard-is-reachable",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if True or FLAG:\n"
+            "        value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "unknown-or-true-match-guard-is-reachable",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if FLAG or True:\n"
+            "        value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "true-or-unknown-irrefutable-match-stops-fallthrough",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if True or FLAG:\n"
+            "        pass\n"
+            "    case _:\n"
+            "        value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "unknown-or-true-irrefutable-match-stops-fallthrough",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if FLAG or True:\n"
+            "        pass\n"
+            "    case _:\n"
+            "        value: t.Any\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "true-and-unknown-match-fallthrough-remains-feasible",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if True and FLAG:\n"
+            "        pass\n"
+            "    case _:\n"
+            "        value: t.Any\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "unknown-and-true-match-fallthrough-remains-feasible",
+        (
+            "import typing as t\n"
+            "match subject:\n"
+            "    case _ if FLAG and True:\n"
+            "        pass\n"
+            "    case _:\n"
+            "        value: t.Any\n"
+        ),
+        True,
     ),
     _StubGateCase(
         "try-handler-sees-every-prefix",

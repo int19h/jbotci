@@ -21,6 +21,11 @@ class _Binding:
 
 _BindingSet = frozenset[_Binding]
 _Bindings = dict[str, _BindingSet]
+_ForwardStringKey = tuple[
+    str,
+    int,
+    frozenset[tuple[str, _BindingSet]],
+]
 
 _OTHER = _Binding("other")
 
@@ -77,6 +82,19 @@ class _TypeRoot:
     scope: _Scope
     type_candidates: tuple[ast.expr, ...] = ()
     captures: _Bindings = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _LocatedExpression:
+    expression: ast.expr
+    captures: _Bindings
+    scope: _Scope
+
+
+@dataclass(frozen=True)
+class _CallShape:
+    positional: tuple[_LocatedExpression, ...] = ()
+    keywords: tuple[tuple[str, _LocatedExpression], ...] = ()
 
 
 @dataclass
@@ -142,14 +160,34 @@ class _Analyzer:
                 ):
                     continue
                 context = "type"
-            problems = self._scan(
-                root.expression,
-                root.captures,
-                root.scope,
-                context,
-                set(),
-                set(),
-            )
+            if context == "class-keyword-unpack":
+                typed_dict = any(
+                    "typed-dict"
+                    in self._possible_kinds(
+                        candidate,
+                        root.captures,
+                        root.scope,
+                        set(),
+                    )
+                    for candidate in root.type_candidates
+                )
+                problems = self._scan_class_keyword_unpack(
+                    root.expression,
+                    root.captures,
+                    root.scope,
+                    typed_dict=typed_dict,
+                    visiting=set(),
+                    strings=set(),
+                )
+            else:
+                problems = self._scan(
+                    root.expression,
+                    root.captures,
+                    root.scope,
+                    context,
+                    set(),
+                    set(),
+                )
             for problem in problems:
                 self._issues.add(
                     f"line {problem.line}: {root.label} {problem.description}"
@@ -446,7 +484,10 @@ class _Analyzer:
             for base in statement.bases:
                 self._add_root("class base", base, declaration_environment, "type")
             for keyword in statement.keywords:
-                if keyword.arg == "metaclass":
+                if keyword.arg is None:
+                    context = "class-keyword-unpack"
+                    label = "class keyword unpack"
+                elif keyword.arg == "metaclass":
                     context = "type"
                     label = "class metaclass"
                 elif keyword.arg == "extra_items":
@@ -896,7 +937,7 @@ class _Analyzer:
         scope: _Scope,
         context: str,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         if context in {"value", "metadata", "field-name"}:
             return set()
@@ -928,7 +969,7 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         if isinstance(expression, ast.Name):
             # A bare assignment is not itself a type declaration.  Reject a
@@ -970,7 +1011,7 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         if isinstance(expression, ast.Name):
             problems: set[_Problem] = set()
@@ -1013,9 +1054,14 @@ class _Analyzer:
         if isinstance(expression, ast.Constant):
             if not isinstance(expression.value, str):
                 return set()
-            if expression.value in strings:
+            string_key = (
+                expression.value,
+                id(scope),
+                frozenset(captures.items()),
+            )
+            if string_key in strings:
                 return set()
-            strings.add(expression.value)
+            strings.add(string_key)
             try:
                 try:
                     nested = ast.parse(expression.value, mode="eval").body
@@ -1034,7 +1080,7 @@ class _Analyzer:
                 # different abstract value.  Track only the active recursive
                 # string path so cycles terminate without suppressing sibling
                 # definitions that have distinct provenance.
-                strings.remove(expression.value)
+                strings.remove(string_key)
         if isinstance(expression, ast.Subscript):
             problems = self._scan_type(
                 expression.value, captures, scope, visiting, strings
@@ -1115,10 +1161,20 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         kinds = self._possible_kinds(expression.func, captures, scope, set())
         problems: set[_Problem] = set()
+        special_kinds = kinds - {"other"}
+        if not special_kinds:
+            return problems
+
+        shapes, supported = self._expand_call_shapes(
+            expression, captures, scope, set()
+        )
+        if not supported:
+            problems.add(_unsupported_invocation(expression))
+
         for kind in kinds - {"other"}:
             if kind in {"any", "catch-all"}:
                 problems.update(
@@ -1126,111 +1182,410 @@ class _Analyzer:
                         expression.func, captures, scope, visiting, strings
                     )
                 )
-            elif kind in {"type-alias-type", "new-type"}:
-                for argument in expression.args[1:2]:
-                    problems.update(
-                        self._scan_type(argument, captures, scope, visiting, strings)
-                    )
-                for keyword in expression.keywords:
-                    if keyword.arg in {"tp", "value", "type_params"}:
-                        problems.update(
-                            self._scan_type(keyword.value, captures, scope, visiting, strings)
-                        )
-            elif kind == "type-var":
-                for argument in expression.args[1:]:
-                    problems.update(
-                        self._scan_type(argument, captures, scope, visiting, strings)
-                    )
+                continue
+            for shape in shapes:
                 problems.update(
-                    self._scan_keywords(
-                        expression, {"bound", "default"}, captures, scope, visiting, strings
-                    )
-                )
-            elif kind in {"param-spec", "type-var-tuple"}:
-                problems.update(
-                    self._scan_keywords(
-                        expression, {"bound", "default"}, captures, scope, visiting, strings
-                    )
-                )
-            elif kind == "forward-ref":
-                for argument in expression.args[:1]:
-                    problems.update(
-                        self._scan_type(argument, captures, scope, visiting, strings)
-                    )
-                problems.update(
-                    self._scan_keywords(
-                        expression, {"arg"}, captures, scope, visiting, strings
-                    )
-                )
-            elif kind == "named-tuple":
-                fields = list(expression.args[1:2]) + [
-                    keyword.value
-                    for keyword in expression.keywords
-                    if keyword.arg == "fields"
-                ]
-                if fields:
-                    for fields_expression in fields:
-                        problems.update(
-                            self._scan_named_fields(
-                                fields_expression, captures, scope, visiting, strings
-                            )
-                        )
-                for keyword in expression.keywords:
-                    if keyword.arg not in {"fields", "rename", "defaults", "module"}:
-                        problems.update(
-                            self._scan_type(keyword.value, captures, scope, visiting, strings)
-                        )
-            elif kind == "typed-dict":
-                fields = list(expression.args[1:2]) + [
-                    keyword.value
-                    for keyword in expression.keywords
-                    if keyword.arg == "fields"
-                ]
-                if fields:
-                    for fields_expression in fields:
-                        problems.update(
-                            self._scan_typed_fields(
-                                fields_expression, captures, scope, visiting, strings
-                            )
-                        )
-                for keyword in expression.keywords:
-                    if keyword.arg == "extra_items":
-                        problems.update(
-                            self._scan_type(keyword.value, captures, scope, visiting, strings)
-                        )
-                    elif keyword.arg not in {"fields", "total", "closed", "module"}:
-                        problems.update(
-                            self._scan_type(keyword.value, captures, scope, visiting, strings)
-                        )
-            elif kind in {"cast", "assert-type"}:
-                for argument in expression.args[:1]:
-                    problems.update(
-                        self._scan_type(argument, captures, scope, visiting, strings)
-                    )
-                problems.update(
-                    self._scan_keywords(
-                        expression, {"typ", "type"}, captures, scope, visiting, strings
+                    self._scan_call_shape(
+                        kind, shape, visiting=visiting, strings=strings
                     )
                 )
         return problems
 
-    def _scan_keywords(
+    def _scan_call_shape(
+        self,
+        kind: str,
+        shape: _CallShape,
+        *,
+        visiting: set[tuple[int, str]],
+        strings: set[_ForwardStringKey],
+    ) -> set[_Problem]:
+        problems: set[_Problem] = set()
+
+        def scan_type(argument: _LocatedExpression) -> None:
+            problems.update(
+                self._scan_type(
+                    argument.expression,
+                    argument.captures,
+                    argument.scope,
+                    visiting,
+                    strings,
+                )
+            )
+
+        def scan_named_fields(argument: _LocatedExpression) -> None:
+            problems.update(
+                self._scan_named_fields(
+                    argument.expression,
+                    argument.captures,
+                    argument.scope,
+                    visiting,
+                    strings,
+                )
+            )
+
+        def scan_typed_fields(argument: _LocatedExpression) -> None:
+            problems.update(
+                self._scan_typed_fields(
+                    argument.expression,
+                    argument.captures,
+                    argument.scope,
+                    visiting,
+                    strings,
+                )
+            )
+
+        if kind in {"type-alias-type", "new-type"}:
+            for argument in shape.positional[1:2]:
+                scan_type(argument)
+            type_keywords = {"tp", "value", "type_params"}
+        elif kind == "type-var":
+            for argument in shape.positional[1:]:
+                scan_type(argument)
+            type_keywords = {"bound", "default"}
+        elif kind in {"param-spec", "type-var-tuple"}:
+            type_keywords = {"bound", "default"}
+        elif kind == "forward-ref":
+            for argument in shape.positional[:1]:
+                scan_type(argument)
+            type_keywords = {"arg"}
+        elif kind == "named-tuple":
+            for argument in shape.positional[1:2]:
+                scan_named_fields(argument)
+            for name, argument in shape.keywords:
+                if name == "fields":
+                    scan_named_fields(argument)
+                elif name not in {"rename", "defaults", "module"}:
+                    scan_type(argument)
+            return problems
+        elif kind == "typed-dict":
+            for argument in shape.positional[1:2]:
+                scan_typed_fields(argument)
+            for name, argument in shape.keywords:
+                if name == "fields":
+                    scan_typed_fields(argument)
+                elif name == "extra_items" or name not in {
+                    "total",
+                    "closed",
+                    "module",
+                }:
+                    scan_type(argument)
+            return problems
+        elif kind in {"cast", "assert-type"}:
+            for argument in shape.positional[:1]:
+                scan_type(argument)
+            type_keywords = {"typ", "type"}
+        else:
+            return problems
+
+        for name, argument in shape.keywords:
+            if name in type_keywords:
+                scan_type(argument)
+        return problems
+
+    def _expand_call_shapes(
         self,
         expression: ast.Call,
-        names: set[str],
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
-    ) -> set[_Problem]:
-        problems: set[_Problem] = set()
-        for keyword in expression.keywords:
-            if keyword.arg in names:
-                problems.update(
-                    self._scan_type(
-                        keyword.value, captures, scope, visiting, strings
-                    )
+    ) -> tuple[list[_CallShape], bool]:
+        shapes = [_CallShape()]
+        for argument in expression.args:
+            if isinstance(argument, ast.Starred):
+                alternatives, supported = self._expand_sequence(
+                    argument.value, captures, scope, visiting
                 )
+                if not supported:
+                    return shapes, False
+                shapes = [
+                    _CallShape(shape.positional + alternative, shape.keywords)
+                    for shape in shapes
+                    for alternative in alternatives
+                ]
+            else:
+                located = _LocatedExpression(argument, captures, scope)
+                shapes = [
+                    _CallShape(shape.positional + (located,), shape.keywords)
+                    for shape in shapes
+                ]
+        for keyword in expression.keywords:
+            if keyword.arg is None:
+                alternatives, supported = self._expand_mapping(
+                    keyword.value, captures, scope, visiting
+                )
+                if not supported:
+                    return shapes, False
+                shapes = [
+                    _CallShape(shape.positional, shape.keywords + alternative)
+                    for shape in shapes
+                    for alternative in alternatives
+                ]
+            else:
+                item = (
+                    keyword.arg,
+                    _LocatedExpression(keyword.value, captures, scope),
+                )
+                shapes = [
+                    _CallShape(shape.positional, shape.keywords + (item,))
+                    for shape in shapes
+                ]
+        return shapes, True
+
+    def _expand_sequence(
+        self,
+        expression: ast.expr,
+        captures: _Bindings,
+        scope: _Scope,
+        visiting: set[tuple[int, str]],
+    ) -> tuple[list[tuple[_LocatedExpression, ...]], bool]:
+        key = (id(expression), "call-sequence")
+        if key in visiting:
+            return [], False
+        visiting.add(key)
+        try:
+            if isinstance(expression, ast.Name):
+                alternatives, supported = self._expression_alternatives(
+                    expression, captures, scope
+                )
+                expanded: list[tuple[_LocatedExpression, ...]] = []
+                for (
+                    alternative,
+                    alternative_captures,
+                    alternative_scope,
+                ) in alternatives:
+                    nested, nested_supported = self._expand_sequence(
+                        alternative,
+                        alternative_captures,
+                        alternative_scope,
+                        visiting,
+                    )
+                    expanded.extend(nested)
+                    supported = supported and nested_supported
+                return expanded, supported and bool(alternatives)
+            if isinstance(expression, (ast.List, ast.Tuple)):
+                shapes: list[tuple[_LocatedExpression, ...]] = [()]
+                for element in expression.elts:
+                    if isinstance(element, ast.Starred):
+                        alternatives, supported = self._expand_sequence(
+                            element.value, captures, scope, visiting
+                        )
+                        if not supported:
+                            return shapes, False
+                    else:
+                        alternatives = [
+                            (_LocatedExpression(element, captures, scope),)
+                        ]
+                    shapes = [
+                        shape + alternative
+                        for shape in shapes
+                        for alternative in alternatives
+                    ]
+                return shapes, True
+            if isinstance(expression, ast.IfExp):
+                body, body_supported = self._expand_sequence(
+                    expression.body, captures, scope, visiting
+                )
+                otherwise, otherwise_supported = self._expand_sequence(
+                    expression.orelse, captures, scope, visiting
+                )
+                return body + otherwise, body_supported and otherwise_supported
+            if isinstance(expression, ast.BinOp) and isinstance(
+                expression.op, ast.Add
+            ):
+                left, left_supported = self._expand_sequence(
+                    expression.left, captures, scope, visiting
+                )
+                right, right_supported = self._expand_sequence(
+                    expression.right, captures, scope, visiting
+                )
+                return (
+                    [
+                        left_shape + right_shape
+                        for left_shape in left
+                        for right_shape in right
+                    ],
+                    left_supported and right_supported,
+                )
+            if isinstance(expression, ast.Call):
+                kinds = self._possible_kinds(
+                    expression.func, captures, scope, set()
+                )
+                if kinds and kinds <= {"builtin-list", "builtin-tuple"}:
+                    if not expression.args and not expression.keywords:
+                        return [()], True
+                    if len(expression.args) == 1 and not expression.keywords:
+                        return self._expand_sequence(
+                            expression.args[0], captures, scope, visiting
+                        )
+            return [], False
+        finally:
+            visiting.remove(key)
+
+    def _expand_mapping(
+        self,
+        expression: ast.expr,
+        captures: _Bindings,
+        scope: _Scope,
+        visiting: set[tuple[int, str]],
+    ) -> tuple[list[tuple[tuple[str, _LocatedExpression], ...]], bool]:
+        key = (id(expression), "call-mapping")
+        if key in visiting:
+            return [], False
+        visiting.add(key)
+        try:
+            if isinstance(expression, ast.Name):
+                alternatives, supported = self._expression_alternatives(
+                    expression, captures, scope
+                )
+                expanded: list[tuple[tuple[str, _LocatedExpression], ...]] = []
+                for (
+                    alternative,
+                    alternative_captures,
+                    alternative_scope,
+                ) in alternatives:
+                    nested, nested_supported = self._expand_mapping(
+                        alternative,
+                        alternative_captures,
+                        alternative_scope,
+                        visiting,
+                    )
+                    expanded.extend(nested)
+                    supported = supported and nested_supported
+                return expanded, supported and bool(alternatives)
+            if isinstance(expression, ast.Dict):
+                shapes: list[tuple[tuple[str, _LocatedExpression], ...]] = [()]
+                for item_key, value in zip(
+                    expression.keys, expression.values, strict=True
+                ):
+                    if item_key is None:
+                        alternatives, supported = self._expand_mapping(
+                            value, captures, scope, visiting
+                        )
+                        if not supported:
+                            return shapes, False
+                    elif isinstance(item_key, ast.Constant) and isinstance(
+                        item_key.value, str
+                    ):
+                        alternatives = [
+                            (
+                                (
+                                    item_key.value,
+                                    _LocatedExpression(value, captures, scope),
+                                ),
+                            )
+                        ]
+                    else:
+                        return shapes, False
+                    shapes = [
+                        shape + alternative
+                        for shape in shapes
+                        for alternative in alternatives
+                    ]
+                return shapes, True
+            if isinstance(expression, ast.IfExp):
+                body, body_supported = self._expand_mapping(
+                    expression.body, captures, scope, visiting
+                )
+                otherwise, otherwise_supported = self._expand_mapping(
+                    expression.orelse, captures, scope, visiting
+                )
+                return body + otherwise, body_supported and otherwise_supported
+            if isinstance(expression, ast.BinOp) and isinstance(
+                expression.op, ast.BitOr
+            ):
+                left, left_supported = self._expand_mapping(
+                    expression.left, captures, scope, visiting
+                )
+                right, right_supported = self._expand_mapping(
+                    expression.right, captures, scope, visiting
+                )
+                return (
+                    [
+                        left_shape + right_shape
+                        for left_shape in left
+                        for right_shape in right
+                    ],
+                    left_supported and right_supported,
+                )
+            if isinstance(expression, ast.Call):
+                kinds = self._possible_kinds(
+                    expression.func, captures, scope, set()
+                )
+                if kinds and kinds <= {"builtin-dict"}:
+                    shapes: list[tuple[tuple[str, _LocatedExpression], ...]] = [()]
+                    for argument in expression.args:
+                        if isinstance(argument, ast.Starred):
+                            return shapes, False
+                        alternatives, supported = self._expand_mapping(
+                            argument, captures, scope, visiting
+                        )
+                        if not supported:
+                            return shapes, False
+                        shapes = [
+                            shape + alternative
+                            for shape in shapes
+                            for alternative in alternatives
+                        ]
+                    for keyword in expression.keywords:
+                        if keyword.arg is None:
+                            alternatives, supported = self._expand_mapping(
+                                keyword.value, captures, scope, visiting
+                            )
+                            if not supported:
+                                return shapes, False
+                        else:
+                            alternatives = [
+                                (
+                                    (
+                                        keyword.arg,
+                                        _LocatedExpression(
+                                            keyword.value, captures, scope
+                                        ),
+                                    ),
+                                )
+                            ]
+                        shapes = [
+                            shape + alternative
+                            for shape in shapes
+                            for alternative in alternatives
+                        ]
+                    return shapes, True
+            return [], False
+        finally:
+            visiting.remove(key)
+
+    def _scan_class_keyword_unpack(
+        self,
+        expression: ast.expr,
+        captures: _Bindings,
+        scope: _Scope,
+        *,
+        typed_dict: bool,
+        visiting: set[tuple[int, str]],
+        strings: set[_ForwardStringKey],
+    ) -> set[_Problem]:
+        mappings, supported = self._expand_mapping(
+            expression, captures, scope, set()
+        )
+        if not supported:
+            return (
+                {_unsupported_class_keyword_unpack(expression)}
+                if typed_dict
+                else set()
+            )
+        problems: set[_Problem] = set()
+        for mapping in mappings:
+            for name, argument in mapping:
+                if name == "metaclass" or (typed_dict and name == "extra_items"):
+                    problems.update(
+                        self._scan_type(
+                            argument.expression,
+                            argument.captures,
+                            argument.scope,
+                            visiting,
+                            strings,
+                        )
+                    )
         return problems
 
     def _expression_alternatives(
@@ -1262,7 +1617,7 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         if isinstance(expression, ast.Name):
             key = (id(expression), "named-tuple-fields")
@@ -1343,7 +1698,7 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         if isinstance(expression, ast.Name):
             key = (id(expression), "named-tuple-field")
@@ -1386,7 +1741,7 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         if isinstance(expression, ast.Name):
             key = (id(expression), "typed-dict-fields")
@@ -1477,7 +1832,7 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         visiting: set[tuple[int, str]],
-        strings: set[str],
+        strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
         problems: set[_Problem] = set()
         for element in expression.elts:
@@ -1558,6 +1913,23 @@ def _is_static_method(declaration: ast.FunctionDef | ast.AsyncFunctionDef) -> bo
 def _literal_truth(expression: ast.expr | None) -> bool | None:
     if expression is None:
         return None
+    if isinstance(expression, ast.BoolOp):
+        values = tuple(_literal_truth(value) for value in expression.values)
+        if isinstance(expression.op, ast.And):
+            if any(value is False for value in values):
+                return False
+            if all(value is True for value in values):
+                return True
+            return None
+        if isinstance(expression.op, ast.Or):
+            if any(value is True for value in values):
+                return True
+            if all(value is False for value in values):
+                return False
+            return None
+    if isinstance(expression, ast.UnaryOp) and isinstance(expression.op, ast.Not):
+        value = _literal_truth(expression.operand)
+        return None if value is None else not value
     try:
         value = ast.literal_eval(expression)
     except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
@@ -1594,6 +1966,20 @@ def _pattern_is_irrefutable(pattern: ast.pattern) -> bool:
 def _unsupported_fields(kind: str, expression: ast.expr) -> _Problem:
     return _Problem(
         f"has an unsupported dynamic {kind} field specification",
+        expression.lineno,
+    )
+
+
+def _unsupported_invocation(expression: ast.expr) -> _Problem:
+    return _Problem(
+        "has an unsupported dynamic special typing invocation",
+        expression.lineno,
+    )
+
+
+def _unsupported_class_keyword_unpack(expression: ast.expr) -> _Problem:
+    return _Problem(
+        "has an unsupported dynamic TypedDict class keyword unpack",
         expression.lineno,
     )
 
