@@ -1804,6 +1804,12 @@ fn normalize_binding_path(
                     ),
                 ));
             }
+            if !generated_models.contains("FreeModifierSyntax") {
+                return Err(syn::Error::new_spanned(
+                    field,
+                    "unsupported generated model field shape; `WithFreeModifiers` requires a generated `FreeModifierSyntax` model so its binding schema does not contain a dangling model reference",
+                ));
+            }
             Ok(BindingType::WithFreeModifiers {
                 value: Box::new(normalize_binding_type(args[0], generated_models, field)?),
                 free_modifier: Box::new(BindingType::Reference {
@@ -10366,6 +10372,27 @@ mod tests {
                 .to_string()
                 .contains("second `WithFreeModifiers` type argument must be `FreeModifierSyntax`"),
             "unexpected free-modifier type error: {error}",
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn with_free_modifiers_requires_generated_free_modifier_model() {
+        let generated_models = BTreeSet::new();
+        let field = format_ident!("missing_model");
+        let ty = parse_quote!(WithFreeModifiers<Token, FreeModifierSyntax>);
+
+        let error = match normalize_binding_type(&ty, &generated_models, &field) {
+            Ok(_) => panic!("a canonical name must not create a dangling model reference"),
+            Err(error) => error,
+        };
+
+        assert!(
+            error
+                .to_string()
+                .contains("requires a generated `FreeModifierSyntax` model"),
+            "unexpected missing free-modifier model error: {error}",
         );
     }
 }

@@ -809,52 +809,52 @@ pub mod generated_model {
 
     /// Product node for forethought bridi connection; preserves `gek`, `first`, `first_branch`, and 4 other fields in source order.
     rule "forethought bridi connection" direct_forethought_bridi_connection(subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `gek` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// The opening forethought connective that determines how the subbridi branches are combined.
         field gek <- modal_forethought_connective(tense_modal);
-        /// The source-ordered `first` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// The first subbridi branch, which follows the opening connective without an intervening GIK.
         field first <- arc(subbridi);
-        /// The source-ordered `first_branch` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// The first GIK-led subbridi branch paired with the opening connective.
         field first_branch <- forethought_bridi_branch(subbridi);
-        /// The source-ordered `additional_branches` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// Additional Zantufa GIK-led subbridi branches, retained in source order.
         field additional_branches <- [zero_or_more zantufa_forethought_bridi_branch(subbridi)];
-        /// The source-ordered `gihi` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// The optional experimental GIhI terminator following the complete branch sequence.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
-        /// The source-ordered `tail_terms` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// Terms attached to the completed forethought bridi after its connected subbridi branches.
         field tail_terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `direct_forethought_bridi_connection` syntax node.
+        /// The optional elidable VAU terminator for the bridi tail.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for forethought bridi connection; preserves `gek`, `first`, `first_branch`, and 3 other fields in source order.
     rule "forethought bridi connection" direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal) -> struct {
-        /// The source-ordered `gek` component retained by the `direct_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The opening forethought connective that determines how the subbridi branches are combined.
         field gek <- modal_forethought_connective(tense_modal);
-        /// The source-ordered `first` component retained by the `direct_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The first subbridi branch, which follows the opening connective without an intervening GIK.
         field first <- arc(subbridi);
-        /// The source-ordered `first_branch` component retained by the `direct_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The first GIK-led subbridi branch paired with the opening connective.
         field first_branch <- forethought_bridi_branch(subbridi);
-        /// The source-ordered `additional_branches` component retained by the `direct_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// Additional Zantufa GIK-led subbridi branches, retained in source order.
         field additional_branches <- [zero_or_more zantufa_forethought_bridi_branch(subbridi)];
-        /// The source-ordered `gihi` component retained by the `direct_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The optional experimental GIhI terminator following the complete branch sequence.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
-        /// The source-ordered `vau` component retained by the `direct_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The optional elidable VAU terminator for the bridi tail.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for forethought bridi branch; preserves `gik` and `branch` in source order.
     rule "forethought bridi branch" forethought_bridi_branch(subbridi) -> struct {
-        /// The source-ordered `gik` component retained by the `forethought_bridi_branch` syntax node.
+        /// The GIK connective that introduces this branch and pairs with the opening forethought connective.
         field gik <- gik_connective;
-        /// The source-ordered `branch` component retained by the `forethought_bridi_branch` syntax node.
+        /// The subbridi governed by this branch's GIK connective.
         field branch <- arc(subbridi);
     }
 
     /// Product node for forethought bridi branch; preserves `gik` and `branch` in source order.
     rule "forethought bridi branch" zantufa_forethought_bridi_branch(subbridi) -> struct {
         assert feature(ZantufaConnectives);
-        /// The source-ordered `gik` component retained by the `zantufa_forethought_bridi_branch` syntax node.
+        /// The additional Zantufa GIK connective that introduces this branch.
         field gik <- zantufa_extra_gik_connective;
-        /// The source-ordered `branch` component retained by the `zantufa_forethought_bridi_branch` syntax node.
+        /// The subbridi governed by this additional branch's GIK connective.
         field branch <- arc(subbridi);
     }
 
@@ -1175,40 +1175,40 @@ pub mod generated_model {
 
     /// Product node for termset; preserves `m_nuhi`, `gek`, `terms`, and 4 other fields in source order.
     rule "termset" forethought_termset(term, tense_modal) -> struct {
-        /// The source-ordered `m_nuhi` component retained by the `forethought_termset` syntax node.
+        /// An optional NUhI marker introducing the forethought termset before its connective.
         field m_nuhi <- opt(cmavo(Nuhi).wf());
-        /// The source-ordered `gek` component retained by the `forethought_termset` syntax node.
+        /// The opening forethought connective that determines how the term sequences are combined.
         field gek <- modal_forethought_connective(tense_modal);
-        /// The source-ordered `terms` component retained by the `forethought_termset` syntax node.
+        /// The initial nonempty term sequence following the opening connective.
         field terms <- [one_or_more arc(term)];
-        /// The source-ordered `nuhu` component retained by the `forethought_termset` syntax node.
+        /// The optional elidable NUhU terminator closing the initial term sequence.
         field nuhu <- opt(cmavo(Nuhu).wf()).elidable_terminator(Nuhu);
-        /// The source-ordered `first_branch` component retained by the `forethought_termset` syntax node.
+        /// The first GIK-led term-sequence branch paired with the opening connective.
         field first_branch <- forethought_termset_branch(term);
-        /// The source-ordered `additional_branches` component retained by the `forethought_termset` syntax node.
+        /// Additional Zantufa GIK-led term-sequence branches, retained in source order.
         field additional_branches <- [zero_or_more zantufa_forethought_termset_branch(term)];
-        /// The source-ordered `gihi` component retained by the `forethought_termset` syntax node.
+        /// The optional experimental GIhI terminator following the complete branch sequence.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
     }
 
     /// Product node for termset; preserves `gik`, `terms`, and `nuhu` in source order.
     rule "termset" forethought_termset_branch(term) -> struct {
-        /// The source-ordered `gik` component retained by the `forethought_termset_branch` syntax node.
+        /// The GIK connective that introduces this branch and pairs with the opening forethought connective.
         field gik <- gik_connective;
-        /// The source-ordered `terms` component retained by the `forethought_termset_branch` syntax node.
+        /// The nonempty term sequence governed by this branch's GIK connective.
         field terms <- [one_or_more arc(term)];
-        /// The source-ordered `nuhu` component retained by the `forethought_termset_branch` syntax node.
+        /// The optional elidable NUhU terminator closing this branch's term sequence.
         field nuhu <- opt(cmavo(Nuhu).wf()).elidable_terminator(Nuhu);
     }
 
     /// Product node for termset; preserves `gik`, `terms`, and `nuhu` in source order.
     rule "termset" zantufa_forethought_termset_branch(term) -> struct {
         assert feature(ZantufaConnectives);
-        /// The source-ordered `gik` component retained by the `zantufa_forethought_termset_branch` syntax node.
+        /// The additional Zantufa GIK connective that introduces this branch.
         field gik <- zantufa_extra_gik_connective;
-        /// The source-ordered `terms` component retained by the `zantufa_forethought_termset_branch` syntax node.
+        /// The nonempty term sequence governed by this additional branch's GIK connective.
         field terms <- [one_or_more arc(term)];
-        /// The source-ordered `nuhu` component retained by the `zantufa_forethought_termset_branch` syntax node.
+        /// The optional elidable NUhU terminator closing this branch's term sequence.
         field nuhu <- opt(cmavo(Nuhu).wf()).elidable_terminator(Nuhu);
     }
 
@@ -1497,32 +1497,32 @@ pub mod generated_model {
 
     /// Product node for forethought sumti connection; preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi` in source order.
     rule "forethought sumti connection" forethought_sumti(sumti, sumti_forethought, tense_modal, statement) -> struct {
-        /// The source-ordered `gek` component retained by the `forethought_sumti` syntax node.
+        /// The opening forethought connective that determines how the sumti branches are combined.
         field gek <- modal_forethought_connective(tense_modal);
-        /// The source-ordered `leading_sumti` component retained by the `forethought_sumti` syntax node.
+        /// The first sumti branch, which follows the opening connective without an intervening GIK.
         field leading_sumti <- arc(sumti);
-        /// The source-ordered `first_branch` component retained by the `forethought_sumti` syntax node.
+        /// The first GIK-led sumti branch paired with the opening connective.
         field first_branch <- forethought_sumti_branch(sumti_forethought);
-        /// The source-ordered `additional_branches` component retained by the `forethought_sumti` syntax node.
+        /// Additional Zantufa GIK-led sumti branches, retained in source order.
         field additional_branches <- [zero_or_more zantufa_forethought_sumti_branch(sumti_forethought)];
-        /// The source-ordered `gihi` component retained by the `forethought_sumti` syntax node.
+        /// The optional experimental GIhI terminator following the complete branch sequence.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
     }
 
     /// Product node for forethought sumti connection; preserves `gik` and `sumti` in source order.
     rule "forethought sumti connection" forethought_sumti_branch(sumti_forethought) -> struct {
-        /// The source-ordered `gik` component retained by the `forethought_sumti_branch` syntax node.
+        /// The GIK connective that introduces this branch and pairs with the opening forethought connective.
         field gik <- gik_connective;
-        /// The source-ordered `sumti` component retained by the `forethought_sumti_branch` syntax node.
+        /// The sumti governed by this branch's GIK connective.
         field sumti <- arc(sumti_forethought);
     }
 
     /// Product node for forethought sumti connection; preserves `gik` and `sumti` in source order.
     rule "forethought sumti connection" zantufa_forethought_sumti_branch(sumti_forethought) -> struct {
         assert feature(ZantufaConnectives);
-        /// The source-ordered `gik` component retained by the `zantufa_forethought_sumti_branch` syntax node.
+        /// The additional Zantufa GIK connective that introduces this branch.
         field gik <- zantufa_extra_gik_connective;
-        /// The source-ordered `sumti` component retained by the `zantufa_forethought_sumti_branch` syntax node.
+        /// The sumti governed by this additional branch's GIK connective.
         field sumti <- arc(sumti_forethought);
     }
 
