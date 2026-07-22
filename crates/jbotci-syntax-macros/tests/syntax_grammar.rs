@@ -816,16 +816,20 @@ mod binding_schema {
             /// A small repeated token sequence.
             field small: smallvec::SmallVec<[Token; 2]> = smallvec::SmallVec::new();
             /// A non-empty small token sequence.
-            // These schema-only container probes are outside the synthetic tree's traversal domain.
+            // This initialized-unreachable schema probe is outside this synthetic model's
+            // traversal contract.
             #[tree_child(false)]
             field small_non_empty: vec1::smallvec_v1::SmallVec1<[Token; 2]> = unreachable!();
             /// Exactly two tokens.
+            // This initialized-unreachable schema probe is outside this synthetic model's
+            // traversal contract.
             #[tree_child(false)]
             field fixed: [Token; 2] = unreachable!();
             /// A pair of token values.
             field tuple: (Token, Token) = unreachable!();
             /// A token already represented as an explicit recovery field.
-            // This schema-only recovery probe is already wrapped and must not be traversed again.
+            // This initialized-unreachable schema probe is outside this synthetic model's
+            // traversal contract.
             #[tree_child(false)]
             field explicit_recovered: Recovered<Token> = unreachable!();
             /// An optional BE terminator recorded in generated model metadata.
