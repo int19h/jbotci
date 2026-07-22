@@ -8321,14 +8321,10 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
 
     match attempt.result {
         Err(error) => {
-            let diagnostic = error.to_diagnostic(
-                Some(SourceId("<fixture>".to_owned())),
-                &fixture.test_case.lojban,
-            );
             let mut diagnostics = morphology_warning_diagnostics;
-            diagnostics.extend(diagnostic_expectation_items(
+            diagnostics.extend(morphology_error_diagnostic_expectation_items(
                 &fixture.test_case.lojban,
-                std::slice::from_ref(&diagnostic),
+                &error,
             ));
             if migrate_morphology {
                 fixture
@@ -8423,14 +8419,10 @@ fn rederive_morphology_status_expectation(fixture: &mut LoadedTestCase, path: &P
             ExpectationStatus::Success
         }
         Err(error) => {
-            let diagnostic = error.to_diagnostic(
-                Some(SourceId("<fixture>".to_owned())),
-                &fixture.test_case.lojban,
-            );
             let mut diagnostics = morphology_warning_diagnostics;
-            diagnostics.extend(diagnostic_expectation_items(
+            diagnostics.extend(morphology_error_diagnostic_expectation_items(
                 &fixture.test_case.lojban,
-                std::slice::from_ref(&diagnostic),
+                &error,
             ));
             let morphology = fixture
                 .test_case
@@ -8674,14 +8666,10 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
             if refresh_syntax_failure
                 && let Some(syntax) = &mut fixture.test_case.expectations.syntax
             {
-                let diagnostic = error.to_diagnostic(
-                    Some(SourceId("<fixture>".to_owned())),
-                    &fixture.test_case.lojban,
-                );
                 let mut diagnostics = morphology_warning_diagnostics;
-                diagnostics.extend(diagnostic_expectation_items(
+                diagnostics.extend(morphology_error_diagnostic_expectation_items(
                     &fixture.test_case.lojban,
-                    std::slice::from_ref(&diagnostic),
+                    &error,
                 ));
                 syntax.diagnostics = diagnostics;
             }
@@ -9158,14 +9146,10 @@ fn current_syntax_failure_diagnostics(
     );
     let diagnostics = match attempt.result {
         Err(error) => {
-            let diagnostic = error.to_diagnostic(
-                Some(SourceId("<fixture>".to_owned())),
-                &fixture.test_case.lojban,
-            );
             let mut diagnostics = morphology_warning_diagnostics;
-            diagnostics.extend(diagnostic_expectation_items(
+            diagnostics.extend(morphology_error_diagnostic_expectation_items(
                 &fixture.test_case.lojban,
-                std::slice::from_ref(&diagnostic),
+                &error,
             ));
             diagnostics
         }
@@ -9247,14 +9231,10 @@ fn refresh_fixture_expectations(
         if morphology.status == ExpectationStatus::Failure
             && let Err(error) = &words
         {
-            let diagnostic = error.to_diagnostic(
-                Some(SourceId("<fixture>".to_owned())),
-                &fixture.test_case.lojban,
-            );
             let mut diagnostics = morphology_warning_diagnostics.clone();
-            diagnostics.extend(diagnostic_expectation_items(
+            diagnostics.extend(morphology_error_diagnostic_expectation_items(
                 &fixture.test_case.lojban,
-                std::slice::from_ref(&diagnostic),
+                error,
             ));
             morphology.diagnostics = diagnostics;
         } else if morphology.status == ExpectationStatus::Success {
@@ -9357,14 +9337,10 @@ fn refresh_fixture_expectations(
                 if refresh_syntax_failure
                     && let Some(syntax) = &mut fixture.test_case.expectations.syntax
                 {
-                    let diagnostic = error.to_diagnostic(
-                        Some(SourceId("<fixture>".to_owned())),
-                        &fixture.test_case.lojban,
-                    );
                     let mut diagnostics = morphology_warning_diagnostics.clone();
-                    diagnostics.extend(diagnostic_expectation_items(
+                    diagnostics.extend(morphology_error_diagnostic_expectation_items(
                         &fixture.test_case.lojban,
-                        std::slice::from_ref(&diagnostic),
+                        error,
                     ));
                     syntax.diagnostics = diagnostics;
                 }
