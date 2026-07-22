@@ -13,7 +13,6 @@ use std::{
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
-use jbotci_source::SourceSpan;
 use jbotci_tree::FieldRef;
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
@@ -188,7 +187,7 @@ impl<'tokens> TokenSourceAttributionOrder<'tokens> {
 #[cfg(test)]
 mod source_attribution_tests {
     use jbotci_morphology::{Phonemes, WordKind};
-    use jbotci_source::SourceId;
+    use jbotci_source::{SourceId, SourceSpan};
 
     use super::*;
 
