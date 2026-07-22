@@ -160,7 +160,19 @@ def test_prefix_lookup_is_normalized_ordered_and_handles_empty_prefix() -> None:
         )
         for entry in all_entries
     )
-    assert all_ordered_keys == tuple(sorted(all_ordered_keys))
+    # Reconstruct the Rust word index independently from the source-order
+    # sequence: normalized keys sort globally, and collision targets retain
+    # their source indexes in ascending order.
+    expected_word_index_order = tuple(
+        sorted(
+            (
+                dictionary.normalize_lookup_query(entry.word),
+                source_index,
+            )
+            for source_index, entry in enumerate(dictionary.english)
+        )
+    )
+    assert all_ordered_keys == expected_word_index_order
     assert sorted(index for _, index in all_ordered_keys) == list(
         range(len(dictionary.english))
     )
