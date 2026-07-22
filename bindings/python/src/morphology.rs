@@ -1474,6 +1474,26 @@ impl WithIndicatorsHandle {
 }
 
 #[requires(true)]
+#[ensures(
+    ret.is_some()
+        == matches!(
+            (value.as_data(), step),
+            (data!(WithIndicators::WithIndicator { .. }), WithIndicatorsStep::Base)
+        )
+)]
+fn with_indicators_child(
+    value: &WithIndicators<WordLike>,
+    step: WithIndicatorsStep,
+) -> Option<&WithIndicators<WordLike>> {
+    match (value.as_data(), step) {
+        (data!(WithIndicators::WithIndicator { base, .. }), WithIndicatorsStep::Base) => {
+            Some(base.as_ref())
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_some() == with_indicators_path_resolves(root, steps))]
 fn project_with_indicators<'a>(
     root: &'a WithIndicators<WordLike>,
@@ -1481,23 +1501,25 @@ fn project_with_indicators<'a>(
 ) -> Option<&'a WithIndicators<WordLike>> {
     let mut current = root;
     for step in steps {
-        current = match (current.as_data(), step) {
-            (data!(WithIndicators::WithIndicator { base, .. }), WithIndicatorsStep::Base) => {
-                base.as_ref()
-            }
-            _ => return None,
-        };
+        current = with_indicators_child(current, *step)?;
     }
     Some(current)
 }
 
 #[requires(true)]
-#[ensures(ret == project_with_indicators(root, steps).is_some())]
+#[ensures(steps.is_empty() -> ret)]
 fn with_indicators_path_resolves(
     root: &WithIndicators<WordLike>,
     steps: &[WithIndicatorsStep],
 ) -> bool {
-    project_with_indicators(root, steps).is_some()
+    let mut current = root;
+    for step in steps {
+        let Some(child) = with_indicators_child(current, *step) else {
+            return false;
+        };
+        current = child;
+    }
+    true
 }
 
 #[invariant(::Owned { .. } => true)]
@@ -1624,27 +1646,47 @@ impl WordLikeHandle {
 }
 
 #[requires(true)]
+#[ensures(ret.is_some() == word_like_step_resolves(value, step))]
+fn word_like_child(value: &WordLike, step: WordLikeStep) -> Option<&WordLike> {
+    match (value.as_data(), step) {
+        (data!(WordLike::LerfuWord { base, .. }), WordLikeStep::LerfuBase) => Some(base),
+        (data!(WordLike::ZeiCompound { left, .. }), WordLikeStep::ZeiLeft) => Some(left),
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_some() == word_like_path_resolves(root, steps))]
 fn project_word_like<'a>(root: &'a WordLike, steps: &[WordLikeStep]) -> Option<&'a WordLike> {
     let mut current = root;
     for step in steps {
-        current = match (current.as_data(), step) {
-            (data!(WordLike::LerfuWord { base, .. }), WordLikeStep::LerfuBase) => base,
-            (data!(WordLike::ZeiCompound { left, .. }), WordLikeStep::ZeiLeft) => left,
-            _ => return None,
-        };
+        current = word_like_child(current, *step)?;
     }
     Some(current)
 }
 
 #[requires(true)]
-#[ensures(ret == project_word_like(root, steps).is_some())]
+#[ensures(steps.is_empty() -> ret)]
 fn word_like_path_resolves(root: &WordLike, steps: &[WordLikeStep]) -> bool {
-    project_word_like(root, steps).is_some()
+    let mut current = root;
+    for step in steps {
+        let Some(child) = word_like_child(current, *step) else {
+            return false;
+        };
+        current = child;
+    }
+    true
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(
+    ret
+        == matches!(
+            (value.as_data(), step),
+            (data!(WordLike::LerfuWord { .. }), WordLikeStep::LerfuBase)
+                | (data!(WordLike::ZeiCompound { .. }), WordLikeStep::ZeiLeft)
+        )
+)]
 fn word_like_step_resolves(value: &WordLike, step: WordLikeStep) -> bool {
     matches!(
         (value.as_data(), step),
@@ -1818,8 +1860,33 @@ impl PartialEq for WordHandle {
 impl Eq for WordHandle {}
 
 #[requires(true)]
-#[ensures(ret.is_some() == word_slot_resolves(value, slot))]
-fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
+#[ensures(
+    ret.is_some()
+        == match (value.as_data(), slot) {
+            (data!(WordLike::PlainWord(_)), WordSlot::Plain)
+            | (data!(WordLike::QuotedWord { .. }), WordSlot::QuotedMarker | WordSlot::QuotedWord)
+            | (
+                data!(WordLike::SelmahoQuotedWord { .. }),
+                WordSlot::SelmahoMarker | WordSlot::SelmahoWord
+            )
+            | (
+                data!(WordLike::DelimitedNonLojbanQuote { .. }),
+                WordSlot::ZoiMarker
+                    | WordSlot::ZoiOpeningDelimiter
+                    | WordSlot::ZoiClosingDelimiter
+            )
+            | (data!(WordLike::QuotedWords { .. }), WordSlot::LohuMarker | WordSlot::LehuMarker)
+            | (data!(WordLike::DelimitedWordQuote { .. }), WordSlot::DelimitedWordMarker)
+            | (data!(WordLike::LerfuWord { .. }), WordSlot::BuSuffix)
+            | (data!(WordLike::ZeiCompound { .. }), WordSlot::ZeiLink | WordSlot::ZeiRight) => true,
+            (
+                data!(WordLike::QuotedWords { quoted_words, .. }),
+                WordSlot::QuotedWordsWord { index },
+            ) => index < quoted_words.len(),
+            _ => false,
+        }
+)]
+fn word_at_slot(value: &WordLike, slot: WordSlot) -> Option<&Word> {
     match (value.as_data(), slot) {
         (data!(WordLike::PlainWord(word)), WordSlot::Plain) => Some(word),
         (data!(WordLike::QuotedWord { zo, .. }), WordSlot::QuotedMarker) => Some(zo),
@@ -1858,14 +1925,46 @@ fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
 }
 
 #[requires(true)]
-#[ensures(ret == project_word(value, slot).is_some())]
-fn word_slot_resolves(value: &WordLike, slot: WordSlot) -> bool {
-    project_word(value, slot).is_some()
+#[ensures(ret.is_some() == word_slot_resolves(value, slot))]
+fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
+    word_at_slot(value, slot)
 }
 
 #[requires(true)]
-#[ensures(ret.is_some() == with_indicators_word_slot_resolves(value, slot))]
-fn project_with_indicators_word(
+#[ensures(ret == word_at_slot(value, slot).is_some())]
+fn word_slot_resolves(value: &WordLike, slot: WordSlot) -> bool {
+    word_at_slot(value, slot).is_some()
+}
+
+#[requires(true)]
+#[ensures(
+    ret.is_some()
+        == match (value.as_data(), slot) {
+            (data!(WithIndicators::Emphasized { .. }), WithIndicatorsWordSlot::EmphasisBahe) => true,
+            (
+                data!(WithIndicators::Emphasized { extra_bahe, .. }),
+                WithIndicatorsWordSlot::ExtraEmphasisBahe { index },
+            ) => index < extra_bahe.len(),
+            (
+                data!(WithIndicators::WithIndicator { indicator_bahe, .. }),
+                WithIndicatorsWordSlot::IndicatorBahe { index },
+            ) => index < indicator_bahe.len(),
+            (
+                data!(WithIndicators::WithIndicator { .. }),
+                WithIndicatorsWordSlot::Indicator,
+            ) => true,
+            (
+                data!(WithIndicators::WithIndicator { nai_bahe, .. }),
+                WithIndicatorsWordSlot::NaiBahe { index },
+            ) => index < nai_bahe.len(),
+            (
+                data!(WithIndicators::WithIndicator { nai, .. }),
+                WithIndicatorsWordSlot::Nai,
+            ) => nai.is_some(),
+            _ => false,
+        }
+)]
+fn with_indicators_word_at_slot(
     value: &WithIndicators<WordLike>,
     slot: WithIndicatorsWordSlot,
 ) -> Option<&Word> {
@@ -1897,12 +1996,21 @@ fn project_with_indicators_word(
 }
 
 #[requires(true)]
-#[ensures(ret == project_with_indicators_word(value, slot).is_some())]
+#[ensures(ret.is_some() == with_indicators_word_slot_resolves(value, slot))]
+fn project_with_indicators_word(
+    value: &WithIndicators<WordLike>,
+    slot: WithIndicatorsWordSlot,
+) -> Option<&Word> {
+    with_indicators_word_at_slot(value, slot)
+}
+
+#[requires(true)]
+#[ensures(ret == with_indicators_word_at_slot(value, slot).is_some())]
 fn with_indicators_word_slot_resolves(
     value: &WithIndicators<WordLike>,
     slot: WithIndicatorsWordSlot,
 ) -> bool {
-    project_with_indicators_word(value, slot).is_some()
+    with_indicators_word_at_slot(value, slot).is_some()
 }
 
 #[invariant(*index < word.get().lujvo_parts().map_or(0, |parts| parts.len()))]
@@ -2108,8 +2216,20 @@ impl LocatedVerbatim {
 }
 
 #[requires(true)]
-#[ensures(ret.is_some() == verbatim_slot_resolves(value, slot))]
-fn project_verbatim(value: &WordLike, slot: VerbatimSlot) -> Option<&Verbatim> {
+#[ensures(
+    ret.is_some()
+        == matches!(
+            (value.as_data(), slot),
+            (
+                data!(WordLike::DelimitedNonLojbanQuote { .. }),
+                VerbatimSlot::ZoiQuotedText,
+            ) | (
+                data!(WordLike::DelimitedWordQuote { .. }),
+                VerbatimSlot::DelimitedWordQuotedText,
+            )
+        )
+)]
+fn verbatim_at_slot(value: &WordLike, slot: VerbatimSlot) -> Option<&Verbatim> {
     match (value.as_data(), slot) {
         (
             data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }),
@@ -2124,9 +2244,15 @@ fn project_verbatim(value: &WordLike, slot: VerbatimSlot) -> Option<&Verbatim> {
 }
 
 #[requires(true)]
-#[ensures(ret == project_verbatim(value, slot).is_some())]
+#[ensures(ret.is_some() == verbatim_slot_resolves(value, slot))]
+fn project_verbatim(value: &WordLike, slot: VerbatimSlot) -> Option<&Verbatim> {
+    verbatim_at_slot(value, slot)
+}
+
+#[requires(true)]
+#[ensures(ret == verbatim_at_slot(value, slot).is_some())]
 fn verbatim_slot_resolves(value: &WordLike, slot: VerbatimSlot) -> bool {
-    project_verbatim(value, slot).is_some()
+    verbatim_at_slot(value, slot).is_some()
 }
 
 #[invariant(::Owned { value } => value.span.char_len() == value.text.chars().count())]
@@ -5412,6 +5538,23 @@ impl ClassificationHandle {
 }
 
 #[requires(true)]
+#[ensures(ret.is_some() == classification_step_resolves(value, step))]
+fn classification_child(
+    value: &ValsiClassification,
+    step: ClassificationStep,
+) -> Option<&ValsiClassification> {
+    match (value.as_data(), step) {
+        (data!(ValsiClassification::LerfuWord { base, .. }), ClassificationStep::LerfuBase) => {
+            Some(base)
+        }
+        (data!(ValsiClassification::ZeiCompound { left, .. }), ClassificationStep::ZeiLeft) => {
+            Some(left)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_some() == classification_path_resolves(root, steps))]
 fn project_classification<'a>(
     root: &'a ValsiClassification,
@@ -5419,27 +5562,38 @@ fn project_classification<'a>(
 ) -> Option<&'a ValsiClassification> {
     let mut current = root;
     for step in steps {
-        current = match (current.as_data(), step) {
-            (data!(ValsiClassification::LerfuWord { base, .. }), ClassificationStep::LerfuBase) => {
-                base
-            }
-            (data!(ValsiClassification::ZeiCompound { left, .. }), ClassificationStep::ZeiLeft) => {
-                left
-            }
-            _ => return None,
-        };
+        current = classification_child(current, *step)?;
     }
     Some(current)
 }
 
 #[requires(true)]
-#[ensures(ret == project_classification(root, steps).is_some())]
+#[ensures(steps.is_empty() -> ret)]
 fn classification_path_resolves(root: &ValsiClassification, steps: &[ClassificationStep]) -> bool {
-    project_classification(root, steps).is_some()
+    let mut current = root;
+    for step in steps {
+        let Some(child) = classification_child(current, *step) else {
+            return false;
+        };
+        current = child;
+    }
+    true
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(
+    ret
+        == matches!(
+            (value.as_data(), step),
+            (
+                data!(ValsiClassification::LerfuWord { .. }),
+                ClassificationStep::LerfuBase
+            ) | (
+                data!(ValsiClassification::ZeiCompound { .. }),
+                ClassificationStep::ZeiLeft
+            )
+        )
+)]
 fn classification_step_resolves(value: &ValsiClassification, step: ClassificationStep) -> bool {
     matches!(
         (value.as_data(), step),
@@ -5497,8 +5651,23 @@ impl LocatedPlainClassification {
 }
 
 #[requires(true)]
-#[ensures(ret.is_some() == plain_classification_slot_resolves(value, slot))]
-fn project_plain_classification(
+#[ensures(
+    ret.is_some()
+        == match (value.as_data(), slot) {
+            (data!(ValsiClassification::PlainWord { .. }), PlainClassificationSlot::PlainWord)
+            | (data!(ValsiClassification::QuotedWord { .. }), PlainClassificationSlot::QuotedMarker | PlainClassificationSlot::QuotedTarget)
+            | (data!(ValsiClassification::DelimitedNonLojbanQuote { .. }), PlainClassificationSlot::DelimitedMarker)
+            | (data!(ValsiClassification::QuotedWords { .. }), PlainClassificationSlot::QuotedWordsMarker)
+            | (data!(ValsiClassification::LerfuWord { .. }), PlainClassificationSlot::LerfuSuffix)
+            | (data!(ValsiClassification::ZeiCompound { .. }), PlainClassificationSlot::ZeiLink | PlainClassificationSlot::ZeiRight) => true,
+            (
+                data!(ValsiClassification::QuotedWords { quoted_words, .. }),
+                PlainClassificationSlot::QuotedWordsTarget { index },
+            ) => index < quoted_words.len(),
+            _ => false,
+        }
+)]
+fn plain_classification_at_slot(
     value: &ValsiClassification,
     slot: PlainClassificationSlot,
 ) -> Option<&PlainWordClassification> {
@@ -5543,12 +5712,21 @@ fn project_plain_classification(
 }
 
 #[requires(true)]
-#[ensures(ret == project_plain_classification(value, slot).is_some())]
+#[ensures(ret.is_some() == plain_classification_slot_resolves(value, slot))]
+fn project_plain_classification(
+    value: &ValsiClassification,
+    slot: PlainClassificationSlot,
+) -> Option<&PlainWordClassification> {
+    plain_classification_at_slot(value, slot)
+}
+
+#[requires(true)]
+#[ensures(ret == plain_classification_at_slot(value, slot).is_some())]
 fn plain_classification_slot_resolves(
     value: &ValsiClassification,
     slot: PlainClassificationSlot,
 ) -> bool {
-    project_plain_classification(value, slot).is_some()
+    plain_classification_at_slot(value, slot).is_some()
 }
 
 #[invariant(::Owned { value } => !value.phonemes.is_empty())]
