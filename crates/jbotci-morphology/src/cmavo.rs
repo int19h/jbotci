@@ -998,6 +998,26 @@ macro_rules! cmavo_canonical_text {
     };
 }
 
+macro_rules! cmavo_variant_name {
+    (($cmavo:expr) [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($selmaho:ident),* $(,)?] }),+ $(,)?]) => {
+        match $cmavo {
+            $(Self::$variant => stringify!($variant),)+
+        }
+    };
+}
+
+macro_rules! cmavo_variant_names {
+    (() [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($selmaho:ident),* $(,)?] }),+ $(,)?]) => {
+        &[$(stringify!($variant),)+]
+    };
+}
+
+macro_rules! cmavo_canonical_texts {
+    (() [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($selmaho:ident),* $(,)?] }),+ $(,)?]) => {
+        &[$($canonical_text,)+]
+    };
+}
+
 macro_rules! cmavo_selmaho_contains {
     (($selmaho:expr, $cmavo:expr) [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($member:ident),* $(,)?] }),+ $(,)?]) => {
         match $cmavo {
@@ -1007,6 +1027,9 @@ macro_rules! cmavo_selmaho_contains {
 }
 
 cmavo_table!(declare_cmavo_enum);
+
+const CMAVO_VARIANT_NAMES: &[&str] = cmavo_table!(cmavo_variant_names);
+const CMAVO_CANONICAL_TEXTS: &[&str] = cmavo_table!(cmavo_canonical_texts);
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1036,6 +1059,17 @@ impl Cmavo {
         cmavo_table!(cmavo_canonical_text, self)
     }
 
+    /// Stable Rust variant name generated from the canonical cmavo table.
+    ///
+    /// This is metadata for projections that need an identifier as well as
+    /// the canonical Lojban spelling. Both values remain sourced from the same
+    /// table as the enum declaration and parser lookup.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn variant_name(self) -> &'static str {
+        cmavo_table!(cmavo_variant_name, self)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub fn is_selmaho(self, selmaho: Selmaho) -> bool {
@@ -1047,6 +1081,23 @@ impl Cmavo {
     #[ensures(ret == self.quote_opener_kind().is_some())]
     pub const fn is_quote_opener(self) -> bool {
         self.quote_opener_kind().is_some()
+    }
+
+    /// Whether this cmavo quotes exactly one following source word as verbatim text.
+    #[requires(true)]
+    #[ensures(ret == matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord)))]
+    pub const fn is_single_word_quote_opener(self) -> bool {
+        matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord))
+    }
+
+    /// Whether this cmavo opens a delimiter-based non-Lojban quote.
+    #[requires(true)]
+    #[ensures(ret == matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::DelimitedNonLojban)))]
+    pub const fn is_delimited_non_lojban_quote_opener(self) -> bool {
+        matches!(
+            self.quote_opener_kind(),
+            Some(QuoteOpenerKind::DelimitedNonLojban)
+        )
     }
 
     #[requires(true)]
@@ -1078,6 +1129,223 @@ impl Cmavo {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+const fn static_str_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index] != right[index] {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+#[requires(true)]
+#[ensures(ret -> left.len() == right.len())]
+const fn static_str_eq_ignore_ascii_case(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index].to_ascii_lowercase() != right[index].to_ascii_lowercase() {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+const METADATA_HASH_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+const METADATA_HASH_PRIME: u64 = 0x0000_0100_0000_01b3;
+
+#[requires(true)]
+#[ensures(true)]
+const fn exact_metadata_hash(value: &str) -> u64 {
+    metadata_hash(value, false)
+}
+
+#[requires(true)]
+#[ensures(true)]
+const fn ascii_case_folded_metadata_hash(value: &str) -> u64 {
+    metadata_hash(value, true)
+}
+
+#[requires(true)]
+#[ensures(true)]
+const fn metadata_hash(value: &str, fold_ascii_case: bool) -> u64 {
+    let bytes = value.as_bytes();
+    let mut hash = METADATA_HASH_OFFSET;
+    let mut index = 0;
+    while index < bytes.len() {
+        let byte = if fold_ascii_case {
+            bytes[index].to_ascii_lowercase()
+        } else {
+            bytes[index]
+        };
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(METADATA_HASH_PRIME);
+        index += 1;
+    }
+
+    hash
+}
+
+#[requires(!slots.is_empty() && index < values.len())]
+#[ensures(true)]
+const fn insert_unique_metadata_index(
+    slots: &mut [usize],
+    values: &[&str],
+    index: usize,
+    hash: u64,
+    fold_ascii_case: bool,
+) -> bool {
+    let mut slot = (hash % slots.len() as u64) as usize;
+    let mut probes = 0;
+    while probes < slots.len() {
+        let stored_index_plus_one = slots[slot];
+        if stored_index_plus_one == 0 {
+            slots[slot] = index + 1;
+            return true;
+        }
+        if stored_index_plus_one > values.len() {
+            // Treat a malformed occupied slot as a closed proof failure.
+            return false;
+        }
+
+        let stored = values[stored_index_plus_one - 1];
+        let candidate = values[index];
+        let duplicate = if fold_ascii_case {
+            static_str_eq_ignore_ascii_case(stored, candidate)
+        } else {
+            static_str_eq(stored, candidate)
+        };
+        if duplicate {
+            return false;
+        }
+        slot += 1;
+        if slot == slots.len() {
+            slot = 0;
+        }
+        probes += 1;
+    }
+    // Exhausting every slot is also a closed failure, even though the
+    // generated tables deliberately keep the load factor below one half.
+    false
+}
+
+#[requires(true)]
+#[ensures(ret)]
+const fn cmavo_metadata_is_unique() -> bool {
+    let mut variant_slots = [0; CMAVO_VARIANT_NAMES.len() * 2 + 1];
+    let mut canonical_text_slots = [0; CMAVO_CANONICAL_TEXTS.len() * 2 + 1];
+    let mut index = 0;
+    while index < CMAVO_VARIANT_NAMES.len() {
+        if !insert_unique_metadata_index(
+            &mut variant_slots,
+            &CMAVO_VARIANT_NAMES,
+            index,
+            ascii_case_folded_metadata_hash(CMAVO_VARIANT_NAMES[index]),
+            true,
+        ) || !insert_unique_metadata_index(
+            &mut canonical_text_slots,
+            &CMAVO_CANONICAL_TEXTS,
+            index,
+            exact_metadata_hash(CMAVO_CANONICAL_TEXTS[index]),
+            false,
+        ) {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+const _: () = assert!(
+    cmavo_metadata_is_unique(),
+    "projected cmavo member names and canonical spellings must be unique"
+);
+
+#[cfg(test)]
+mod metadata_uniqueness_tests {
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    use super::insert_unique_metadata_index;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn hash_collisions_use_string_equality_and_full_tables_fail_closed() {
+        let values = ["Alpha", "Beta", "alpha"];
+
+        let mut exact_slots = [0; 3];
+        for index in 0..values.len() {
+            assert!(insert_unique_metadata_index(
+                &mut exact_slots,
+                &values,
+                index,
+                7,
+                false,
+            ));
+        }
+
+        let mut folded_slots = [0; 3];
+        for index in 0..2 {
+            assert!(insert_unique_metadata_index(
+                &mut folded_slots,
+                &values,
+                index,
+                7,
+                true,
+            ));
+        }
+        assert!(!insert_unique_metadata_index(
+            &mut folded_slots,
+            &values,
+            2,
+            7,
+            true,
+        ));
+
+        let mut full_slots = [0; 2];
+        for index in 0..full_slots.len() {
+            assert!(insert_unique_metadata_index(
+                &mut full_slots,
+                &values,
+                index,
+                7,
+                false,
+            ));
+        }
+        assert!(!insert_unique_metadata_index(
+            &mut full_slots,
+            &values,
+            2,
+            7,
+            false,
+        ));
+
+        let mut malformed_slots = [values.len() + 1, 0, 0];
+        assert!(!insert_unique_metadata_index(
+            &mut malformed_slots,
+            &values,
+            0,
+            0,
+            false,
+        ));
+    }
+}
+
 impl fmt::Display for Cmavo {
     #[requires(true)]
     #[ensures(true)]
@@ -1086,422 +1354,168 @@ impl fmt::Display for Cmavo {
     }
 }
 
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Selmaho {
-    A,
-    Bahe,
-    Bai,
-    Be,
-    Beho,
-    Bei,
-    Bihi,
-    Bu,
-    By,
-    Caha,
-    Cai,
-    Cehe,
-    Co,
-    Coi,
-    Cu,
-    Cuhe,
-    Daho,
-    Doi,
-    Fa,
-    Faha,
-    Faho,
-    Fuha,
-    Ga,
-    Gaho,
-    Gi,
-    Giha,
-    Gihi,
-    Goha,
-    Goi,
-    Guha,
-    I,
-    Ja,
-    Jai,
-    Jehi,
-    Johi,
-    Joi,
-    Koha,
-    Ku,
-    La,
-    Lahe,
-    Lau,
-    Le,
-    Lehu,
-    Li,
-    Lihau,
-    Lihu,
-    Loho,
-    Lohoi,
-    Lohu,
-    Lu,
-    Luhei,
-    Mai,
-    Me,
-    Mohe,
-    Mohi,
-    Moi,
-    Na,
-    Nahe,
-    Nai,
-    Niho,
-    Noi,
-    Noiha,
-    Nu,
-    Pa,
-    Pehe,
-    Pu,
-    Roi,
-    Sa,
-    Se,
-    Sehu,
-    Sei,
-    Si,
-    Soi,
-    Su,
-    Tahe,
-    To,
-    Toi,
-    Tuhe,
-    Ui,
-    Ui3a,
-    Va,
-    Vau,
-    Veha,
-    Veho,
-    Vei,
-    Viha,
-    Vuhu,
-    Xi,
-    Y,
-    Zaho,
-    Zeha,
-    Zei,
-    Zi,
-    Zo,
-    Zohu,
-    Zoi,
-}
-
-impl Selmaho {
-    /// Load-bearing primary-selma'o precedence.
-    ///
-    /// `Cmavo::primary_selmaho` returns the first entry here that contains the
-    /// cmavo. Keep this table complete and reorder it only as an intentional
-    /// precedence change for multi-selma'o cmavo.
-    pub const ALL: &'static [Self] = &[
-        Self::A,
-        Self::Bahe,
-        Self::Bai,
-        Self::Be,
-        Self::Beho,
-        Self::Bei,
-        Self::Bihi,
-        Self::Bu,
-        Self::By,
-        Self::Caha,
-        Self::Cai,
-        Self::Cehe,
-        Self::Co,
-        Self::Coi,
-        Self::Cu,
-        Self::Cuhe,
-        Self::Daho,
-        Self::Doi,
-        Self::Fa,
-        Self::Faha,
-        Self::Faho,
-        Self::Fuha,
-        Self::Ga,
-        Self::Gaho,
-        Self::Gi,
-        Self::Giha,
-        Self::Gihi,
-        Self::Goha,
-        Self::Goi,
-        Self::Guha,
-        Self::I,
-        Self::Ja,
-        Self::Jai,
-        Self::Jehi,
-        Self::Johi,
-        Self::Joi,
-        Self::Koha,
-        Self::Ku,
-        Self::La,
-        Self::Lahe,
-        Self::Lau,
-        Self::Le,
-        Self::Lehu,
-        Self::Li,
-        Self::Lihau,
-        Self::Lihu,
-        Self::Loho,
-        Self::Lohoi,
-        Self::Lohu,
-        Self::Lu,
-        Self::Luhei,
-        Self::Mai,
-        Self::Me,
-        Self::Mohe,
-        Self::Mohi,
-        Self::Moi,
-        Self::Na,
-        Self::Nahe,
-        Self::Nai,
-        Self::Niho,
-        Self::Noi,
-        Self::Noiha,
-        Self::Nu,
-        Self::Pa,
-        Self::Pehe,
-        Self::Pu,
-        Self::Roi,
-        Self::Sa,
-        Self::Se,
-        Self::Sehu,
-        Self::Sei,
-        Self::Si,
-        Self::Soi,
-        Self::Su,
-        Self::Tahe,
-        Self::To,
-        Self::Toi,
-        Self::Tuhe,
-        Self::Ui,
-        Self::Ui3a,
-        Self::Va,
-        Self::Vau,
-        Self::Veha,
-        Self::Veho,
-        Self::Vei,
-        Self::Viha,
-        Self::Vuhu,
-        Self::Xi,
-        Self::Y,
-        Self::Zaho,
-        Self::Zeha,
-        Self::Zei,
-        Self::Zi,
-        Self::Zo,
-        Self::Zohu,
-        Self::Zoi,
-    ];
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::A => "A",
-            Self::Bahe => "BAhE",
-            Self::Bai => "BAI",
-            Self::Be => "BE",
-            Self::Beho => "BEhO",
-            Self::Bei => "BEI",
-            Self::Bihi => "BIhI",
-            Self::Bu => "BU",
-            Self::By => "BY",
-            Self::Caha => "CAhA",
-            Self::Cai => "CAI",
-            Self::Cehe => "CEhE",
-            Self::Co => "CO",
-            Self::Coi => "COI",
-            Self::Cu => "CU",
-            Self::Cuhe => "CUhE",
-            Self::Daho => "DAhO",
-            Self::Doi => "DOI",
-            Self::Fa => "FA",
-            Self::Faha => "FAhA",
-            Self::Faho => "FAhO",
-            Self::Fuha => "FUhA",
-            Self::Ga => "GA",
-            Self::Gaho => "GAhO",
-            Self::Gi => "GI",
-            Self::Giha => "GIhA",
-            Self::Gihi => "GIhI",
-            Self::Goha => "GOhA",
-            Self::Goi => "GOI",
-            Self::Guha => "GUhA",
-            Self::I => "I",
-            Self::Ja => "JA",
-            Self::Jai => "JAI",
-            Self::Jehi => "JEhI",
-            Self::Johi => "JOhI",
-            Self::Joi => "JOI",
-            Self::Koha => "KOhA",
-            Self::Ku => "KU",
-            Self::La => "LA",
-            Self::Lahe => "LAhE",
-            Self::Lau => "LAU",
-            Self::Le => "LE",
-            Self::Lehu => "LEhU",
-            Self::Li => "LI",
-            Self::Lihau => "LIhAU",
-            Self::Lihu => "LIhU",
-            Self::Loho => "LOhO",
-            Self::Lohoi => "LOhOI",
-            Self::Lohu => "LOhU",
-            Self::Lu => "LU",
-            Self::Luhei => "LUhEI",
-            Self::Mai => "MAI",
-            Self::Me => "ME",
-            Self::Mohe => "MOhE",
-            Self::Mohi => "MOhI",
-            Self::Moi => "MOI",
-            Self::Na => "NA",
-            Self::Nahe => "NAhE",
-            Self::Nai => "NAI",
-            Self::Niho => "NIhO",
-            Self::Noi => "NOI",
-            Self::Noiha => "NOIhA",
-            Self::Nu => "NU",
-            Self::Pa => "PA",
-            Self::Pehe => "PEhE",
-            Self::Pu => "PU",
-            Self::Roi => "ROI",
-            Self::Sa => "SA",
-            Self::Se => "SE",
-            Self::Sehu => "SEhU",
-            Self::Sei => "SEI",
-            Self::Si => "SI",
-            Self::Soi => "SOI",
-            Self::Su => "SU",
-            Self::Tahe => "TAhE",
-            Self::To => "TO",
-            Self::Toi => "TOI",
-            Self::Tuhe => "TUhE",
-            Self::Ui => "UI",
-            Self::Ui3a => "UI3a",
-            Self::Va => "VA",
-            Self::Vau => "VAU",
-            Self::Veha => "VEhA",
-            Self::Veho => "VEhO",
-            Self::Vei => "VEI",
-            Self::Viha => "VIhA",
-            Self::Vuhu => "VUhU",
-            Self::Xi => "XI",
-            Self::Y => "Y",
-            Self::Zaho => "ZAhO",
-            Self::Zeha => "ZEhA",
-            Self::Zei => "ZEI",
-            Self::Zi => "ZI",
-            Self::Zo => "ZO",
-            Self::Zohu => "ZOhU",
-            Self::Zoi => "ZOI",
+macro_rules! define_selmaho {
+    ($( $variant:ident => $name:literal ),+ $(,)?) => {
+        #[invariant(true)]
+        #[repr(u8)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub enum Selmaho {
+            $( $variant, )+
         }
-    }
 
-    #[requires(!name.is_empty())]
-    #[ensures(ret.is_none() || ret.unwrap().name() == name)]
-    pub fn from_name(name: &str) -> Option<Self> {
-        Some(match name {
-            "A" => Self::A,
-            "BAhE" => Self::Bahe,
-            "BAI" => Self::Bai,
-            "BE" => Self::Be,
-            "BEhO" => Self::Beho,
-            "BEI" => Self::Bei,
-            "BIhI" => Self::Bihi,
-            "BU" => Self::Bu,
-            "BY" => Self::By,
-            "CAhA" => Self::Caha,
-            "CAI" => Self::Cai,
-            "CEhE" => Self::Cehe,
-            "CO" => Self::Co,
-            "COI" => Self::Coi,
-            "CU" => Self::Cu,
-            "CUhE" => Self::Cuhe,
-            "DAhO" => Self::Daho,
-            "DOI" => Self::Doi,
-            "FA" => Self::Fa,
-            "FAhA" => Self::Faha,
-            "FAhO" => Self::Faho,
-            "FUhA" => Self::Fuha,
-            "GA" => Self::Ga,
-            "GAhO" => Self::Gaho,
-            "GI" => Self::Gi,
-            "GIhA" => Self::Giha,
-            "GIhI" => Self::Gihi,
-            "GOhA" => Self::Goha,
-            "GOI" => Self::Goi,
-            "GUhA" => Self::Guha,
-            "I" => Self::I,
-            "JA" => Self::Ja,
-            "JAI" => Self::Jai,
-            "JEhI" => Self::Jehi,
-            "JOhI" => Self::Johi,
-            "JOI" => Self::Joi,
-            "KOhA" => Self::Koha,
-            "KU" => Self::Ku,
-            "LA" => Self::La,
-            "LAhE" => Self::Lahe,
-            "LAU" => Self::Lau,
-            "LE" => Self::Le,
-            "LEhU" => Self::Lehu,
-            "LI" => Self::Li,
-            "LIhAU" => Self::Lihau,
-            "LIhU" => Self::Lihu,
-            "LOhO" => Self::Loho,
-            "LOhOI" => Self::Lohoi,
-            "LOhU" => Self::Lohu,
-            "LU" => Self::Lu,
-            "LUhEI" => Self::Luhei,
-            "MAI" => Self::Mai,
-            "ME" => Self::Me,
-            "MOhE" => Self::Mohe,
-            "MOhI" => Self::Mohi,
-            "MOI" => Self::Moi,
-            "NA" => Self::Na,
-            "NAhE" => Self::Nahe,
-            "NAI" => Self::Nai,
-            "NIhO" => Self::Niho,
-            "NOI" => Self::Noi,
-            "NOIhA" => Self::Noiha,
-            "NU" => Self::Nu,
-            "PA" => Self::Pa,
-            "PEhE" => Self::Pehe,
-            "PU" => Self::Pu,
-            "ROI" => Self::Roi,
-            "SA" => Self::Sa,
-            "SE" => Self::Se,
-            "SEhU" => Self::Sehu,
-            "SEI" => Self::Sei,
-            "SI" => Self::Si,
-            "SOI" => Self::Soi,
-            "SU" => Self::Su,
-            "TAhE" => Self::Tahe,
-            "TO" => Self::To,
-            "TOI" => Self::Toi,
-            "TUhE" => Self::Tuhe,
-            "UI" => Self::Ui,
-            "UI3a" => Self::Ui3a,
-            "VA" => Self::Va,
-            "VAU" => Self::Vau,
-            "VEhA" => Self::Veha,
-            "VEhO" => Self::Veho,
-            "VEI" => Self::Vei,
-            "VIhA" => Self::Viha,
-            "VUhU" => Self::Vuhu,
-            "XI" => Self::Xi,
-            "Y" => Self::Y,
-            "ZAhO" => Self::Zaho,
-            "ZEhA" => Self::Zeha,
-            "ZEI" => Self::Zei,
-            "ZI" => Self::Zi,
-            "ZO" => Self::Zo,
-            "ZOhU" => Self::Zohu,
-            "ZOI" => Self::Zoi,
-            _ => return None,
-        })
-    }
+        impl Selmaho {
+            /// Load-bearing primary-selma'o precedence.
+            ///
+            /// `Cmavo::primary_selmaho` returns the first entry here that contains the
+            /// cmavo. Keep this table complete and reorder it only as an intentional
+            /// precedence change for multi-selma'o cmavo.
+            pub const ALL: &'static [Self] = &[$( Self::$variant, )+];
 
-    #[requires(true)]
-    #[ensures(true)]
-    pub const fn contains(self, cmavo: Cmavo) -> bool {
-        cmavo_table!(cmavo_selmaho_contains, self, cmavo)
-    }
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $name, )+
+                }
+            }
+
+            #[requires(!name.is_empty())]
+            #[ensures(ret.is_none() || ret.unwrap().name() == name)]
+            pub fn from_name(name: &str) -> Option<Self> {
+                Some(match name {
+                    $( $name => Self::$variant, )+
+                    _ => return None,
+                })
+            }
+
+            #[requires(true)]
+            #[ensures(true)]
+            pub const fn contains(self, cmavo: Cmavo) -> bool {
+                cmavo_table!(cmavo_selmaho_contains, self, cmavo)
+            }
+        }
+    };
 }
+
+define_selmaho! {
+    A => "A",
+    Bahe => "BAhE",
+    Bai => "BAI",
+    Be => "BE",
+    Beho => "BEhO",
+    Bei => "BEI",
+    Bihi => "BIhI",
+    Bu => "BU",
+    By => "BY",
+    Caha => "CAhA",
+    Cai => "CAI",
+    Cehe => "CEhE",
+    Co => "CO",
+    Coi => "COI",
+    Cu => "CU",
+    Cuhe => "CUhE",
+    Daho => "DAhO",
+    Doi => "DOI",
+    Fa => "FA",
+    Faha => "FAhA",
+    Faho => "FAhO",
+    Fuha => "FUhA",
+    Ga => "GA",
+    Gaho => "GAhO",
+    Gi => "GI",
+    Giha => "GIhA",
+    Gihi => "GIhI",
+    Goha => "GOhA",
+    Goi => "GOI",
+    Guha => "GUhA",
+    I => "I",
+    Ja => "JA",
+    Jai => "JAI",
+    Jehi => "JEhI",
+    Johi => "JOhI",
+    Joi => "JOI",
+    Koha => "KOhA",
+    Ku => "KU",
+    La => "LA",
+    Lahe => "LAhE",
+    Lau => "LAU",
+    Le => "LE",
+    Lehu => "LEhU",
+    Li => "LI",
+    Lihau => "LIhAU",
+    Lihu => "LIhU",
+    Loho => "LOhO",
+    Lohoi => "LOhOI",
+    Lohu => "LOhU",
+    Lu => "LU",
+    Luhei => "LUhEI",
+    Mai => "MAI",
+    Me => "ME",
+    Mohe => "MOhE",
+    Mohi => "MOhI",
+    Moi => "MOI",
+    Na => "NA",
+    Nahe => "NAhE",
+    Nai => "NAI",
+    Niho => "NIhO",
+    Noi => "NOI",
+    Noiha => "NOIhA",
+    Nu => "NU",
+    Pa => "PA",
+    Pehe => "PEhE",
+    Pu => "PU",
+    Roi => "ROI",
+    Sa => "SA",
+    Se => "SE",
+    Sehu => "SEhU",
+    Sei => "SEI",
+    Si => "SI",
+    Soi => "SOI",
+    Su => "SU",
+    Tahe => "TAhE",
+    To => "TO",
+    Toi => "TOI",
+    Tuhe => "TUhE",
+    Ui => "UI",
+    Ui3a => "UI3a",
+    Va => "VA",
+    Vau => "VAU",
+    Veha => "VEhA",
+    Veho => "VEhO",
+    Vei => "VEI",
+    Viha => "VIhA",
+    Vuhu => "VUhU",
+    Xi => "XI",
+    Y => "Y",
+    Zaho => "ZAhO",
+    Zeha => "ZEhA",
+    Zei => "ZEI",
+    Zi => "ZI",
+    Zo => "ZO",
+    Zohu => "ZOhU",
+    Zoi => "ZOI",
+}
+
+#[requires(true)]
+#[ensures(ret)]
+const fn selmaho_metadata_is_unique() -> bool {
+    let mut left_index = 0;
+    while left_index < Selmaho::ALL.len() {
+        let left = Selmaho::ALL[left_index];
+        let mut right_index = left_index + 1;
+        while right_index < Selmaho::ALL.len() {
+            let right = Selmaho::ALL[right_index];
+            if static_str_eq(left.name(), right.name()) {
+                return false;
+            }
+            right_index += 1;
+        }
+        left_index += 1;
+    }
+    true
+}
+
+const _: () = assert!(
+    selmaho_metadata_is_unique(),
+    "projected selma'o names must be unique"
+);

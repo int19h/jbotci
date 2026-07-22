@@ -1,5 +1,42 @@
 //! Lojban morphology model.
 
+macro_rules! define_string_enum_metadata {
+    (
+        $(#[$attribute:meta])*
+        pub enum $name:ident {
+            $($(#[$variant_attribute:meta])* $variant:ident => ($member:literal, $value:literal)),+ $(,)?
+        }
+    ) => {
+        #[bityzba::invariant(true)]
+        $(#[$attribute])*
+        pub enum $name {
+            $($(#[$variant_attribute])* $variant),+
+        }
+
+        #[bityzba::contract_trait]
+        impl $crate::StringEnumMetadata for $name {
+            fn variants() -> &'static [Self] {
+                const VALUES: &[$name] = &[$($name::$variant),+];
+                VALUES
+            }
+
+            fn variant_name(self) -> &'static str {
+                match self {
+                    $($name::$variant => $member),+
+                }
+            }
+
+            fn canonical_name(self) -> &'static str {
+                match self {
+                    $($name::$variant => $value),+
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use define_string_enum_metadata;
+
 mod cmavo;
 mod diacritics;
 mod dialect;
@@ -12,11 +49,11 @@ pub mod tree;
 
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use bityzba::{data, invariant, new, requires, try_new};
+use bityzba::{contract_trait, data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
-    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TracePhase,
-    TraceReport, source_span_from_char_offsets,
+    DiagnosticSpanError, DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment,
+    TraceOptions, TracePhase, TraceReport, source_span_from_char_offsets,
 };
 use jbotci_dialect::{DialectDefinition, DialectFeature};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
@@ -34,14 +71,16 @@ pub use diacritics::{
     strip_lojban_diacritic, strip_lojban_diacritics, stripped_lojban_diacritics_eq,
 };
 pub use dialect::{
-    CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord, DialectCompilationError,
+    CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectEntryData, CompiledDialectWord,
+    DialectCompilationError, DialectCompilationErrorData,
 };
 pub use lujvo::{
     ConsonantPairClass, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoCandidate,
-    bond_rafsis, choose_best_lujvo_candidate, choose_best_lujvo_candidate_from_parts,
-    consonant_pair_class, ends_with_consonant, ends_with_vowel, ensure_cmevla_word,
-    is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
-    permissible_consonant_pair, syllables_pattern,
+    LujvoCandidateData, RafsiShape, bond_rafsis, choose_best_lujvo_candidate,
+    choose_best_lujvo_candidate_from_parts, consonant_pair_class, ends_with_consonant,
+    ends_with_vowel, ensure_cmevla_word, is_bonding_hyphen, is_cmevla, is_consonant,
+    is_valid_lujvo_candidate_word, is_vowel, permissible_consonant_pair, rafsi_shape,
+    syllables_pattern,
 };
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
@@ -52,6 +91,56 @@ pub use tree::{
     AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
     WordLikeData,
 };
+
+/// Stable string metadata for finite fieldless domain enums.
+///
+/// Bindings and other projections consume this metadata instead of maintaining
+/// an independent variant inventory. Payload enums deliberately do not
+/// implement this trait.
+#[contract_trait]
+pub trait StringEnumMetadata: Copy + 'static {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn variants() -> &'static [Self];
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn variant_name(self) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn canonical_name(self) -> &'static str;
+}
+
+#[contract_trait]
+impl StringEnumMetadata for Cmavo {
+    fn variants() -> &'static [Self] {
+        Self::ALL
+    }
+
+    fn variant_name(self) -> &'static str {
+        Cmavo::variant_name(self)
+    }
+
+    fn canonical_name(self) -> &'static str {
+        self.canonical_text()
+    }
+}
+
+#[contract_trait]
+impl StringEnumMetadata for Selmaho {
+    fn variants() -> &'static [Self] {
+        Self::ALL
+    }
+
+    fn variant_name(self) -> &'static str {
+        self.name()
+    }
+
+    fn canonical_name(self) -> &'static str {
+        self.name()
+    }
+}
 
 pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "morphology",
@@ -198,6 +287,7 @@ impl MorphologyOptions {
 }
 
 #[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
+#[invariant(trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
 #[derive(Debug, Clone)]
 pub struct MorphologySegmentAttempt {
     pub result: Result<Vec<WordLike>, MorphologyError>,
@@ -284,18 +374,20 @@ fn morphology_error_recovery_start(error: &MorphologyError) -> Option<usize> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum WordKind {
-    #[serde(rename = "cmavo")]
-    Cmavo,
-    #[serde(rename = "gismu")]
-    Gismu,
-    #[serde(rename = "lujvo")]
-    Lujvo,
-    #[serde(rename = "fu'ivla")]
-    Fuhivla,
-    #[serde(rename = "cmevla")]
-    Cmevla,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    pub enum WordKind {
+        #[serde(rename = "cmavo")]
+        Cmavo => ("CMAVO", "cmavo"),
+        #[serde(rename = "gismu")]
+        Gismu => ("GISMU", "gismu"),
+        #[serde(rename = "lujvo")]
+        Lujvo => ("LUJVO", "lujvo"),
+        #[serde(rename = "fu'ivla")]
+        Fuhivla => ("FUIVLA", "fu'ivla"),
+        #[serde(rename = "cmevla")]
+        Cmevla => ("CMEVLA", "cmevla"),
+    }
 }
 
 #[invariant(result.is_valid() -> warnings.iter().all(|warning| warning.char_start < warning.char_end))]
@@ -328,12 +420,14 @@ impl ValsiAnalysisResult {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiAnalysisStatus {
-    Valid,
-    Invalid,
-    NotSingleWord,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiAnalysisStatus {
+        Valid => ("VALID", "valid"),
+        Invalid => ("INVALID", "invalid"),
+        NotSingleWord => ("NOT_SINGLE_WORD", "not-single-word"),
+    }
 }
 
 #[invariant(::PlainWord { word } => !word.phonemes.is_empty())]
@@ -537,16 +631,18 @@ impl Serialize for ValsiClassification {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiClassificationKind {
-    PlainWord,
-    QuotedWord,
-    DelimitedNonLojbanQuote,
-    QuotedWords,
-    DelimitedWordQuote,
-    LerfuWord,
-    ZeiCompound,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiClassificationKind {
+        PlainWord => ("PLAIN_WORD", "plain-word"),
+        QuotedWord => ("QUOTED_WORD", "quoted-word"),
+        DelimitedNonLojbanQuote => ("DELIMITED_NON_LOJBAN_QUOTE", "delimited-non-lojban-quote"),
+        QuotedWords => ("QUOTED_WORDS", "quoted-words"),
+        DelimitedWordQuote => ("DELIMITED_WORD_QUOTE", "delimited-word-quote"),
+        LerfuWord => ("LERFU_WORD", "lerfu-word"),
+        ZeiCompound => ("ZEI_COMPOUND", "zei-compound"),
+    }
 }
 
 #[invariant(!phonemes.is_empty())]
@@ -575,53 +671,63 @@ pub struct ValsiLujvoPart {
     pub rafsi_kind: Option<ValsiLujvoRafsiKind>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiLujvoPartKind {
-    Rafsi,
-    Hyphen,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiLujvoPartKind {
+        Rafsi => ("RAFSI", "rafsi"),
+        Hyphen => ("HYPHEN", "hyphen"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiLujvoRafsiKind {
-    Cvc,
-    Ccv,
-    Cvv,
-    Long,
-    Gismu,
-    Fuhivla,
-    Cultural,
-    Extended,
-    Unknown,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiLujvoRafsiKind {
+        Cvc => ("CVC", "cvc"),
+        Ccv => ("CCV", "ccv"),
+        Cvv => ("CVV", "cvv"),
+        Long => ("LONG", "long"),
+        Gismu => ("GISMU", "gismu"),
+        Fuhivla => ("FUIVLA", "fuhivla"),
+        Cultural => ("CULTURAL", "cultural"),
+        Extended => ("EXTENDED", "extended"),
+        Unknown => ("UNKNOWN", "unknown"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiFuhivlaStage {
-    Stage3,
-    Stage4,
-    Unknown,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiFuhivlaStage {
+        Stage3 => ("STAGE3", "stage3"),
+        Stage4 => ("STAGE4", "stage4"),
+        Unknown => ("UNKNOWN", "unknown"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum StressMark {
-    None,
-    Acute,
-    Caps,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum StressMark {
+        None => ("NONE", "none"),
+        Acute => ("ACUTE", "acute"),
+        Caps => ("CAPS", "caps"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum GlideMark {
-    None,
-    Breve,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum GlideMark {
+        None => ("NONE", "none"),
+        Breve => ("BREVE", "breve"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct PhonemeRenderOptions {
     pub mark_stress: StressMark,
     pub mark_glides: GlideMark,
@@ -1389,27 +1495,28 @@ where
     Ok(Verbatim::new(map_span((*data.span).clone())?, data.text))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum MorphologyErrorKind {
-    InvalidCharacter,
-    ExpectedWord,
-    UnrecognizedWord,
-    InvalidApostrophe,
-    GeminatedConsonant,
-    VoicingMismatch,
-    ForbiddenConsonantPair,
-    ForbiddenConsonantTriple,
-    VowelHiatus,
-    YHiatus,
-    BreveNotGlide,
-    DigitApostrophe,
-    DigitVowel,
-    Slinkuhi,
-    InvalidLujvo,
-    InvalidQuoteMarker,
-    InvalidZoiDelimiter,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum MorphologyErrorKind {
+        InvalidCharacter => ("INVALID_CHARACTER", "invalid-character"),
+        ExpectedWord => ("EXPECTED_WORD", "expected-word"),
+        UnrecognizedWord => ("UNRECOGNIZED_WORD", "unrecognized-word"),
+        InvalidApostrophe => ("INVALID_APOSTROPHE", "invalid-apostrophe"),
+        GeminatedConsonant => ("GEMINATED_CONSONANT", "geminated-consonant"),
+        VoicingMismatch => ("VOICING_MISMATCH", "voicing-mismatch"),
+        ForbiddenConsonantPair => ("FORBIDDEN_CONSONANT_PAIR", "forbidden-consonant-pair"),
+        ForbiddenConsonantTriple => ("FORBIDDEN_CONSONANT_TRIPLE", "forbidden-consonant-triple"),
+        VowelHiatus => ("VOWEL_HIATUS", "vowel-hiatus"),
+        YHiatus => ("Y_HIATUS", "y-hiatus"),
+        BreveNotGlide => ("BREVE_NOT_GLIDE", "breve-not-glide"),
+        DigitApostrophe => ("DIGIT_APOSTROPHE", "digit-apostrophe"),
+        DigitVowel => ("DIGIT_VOWEL", "digit-vowel"),
+        Slinkuhi => ("SLINKUHI", "slinkuhi"),
+        InvalidLujvo => ("INVALID_LUJVO", "invalid-lujvo"),
+        InvalidQuoteMarker => ("INVALID_QUOTE_MARKER", "invalid-quote-marker"),
+        InvalidZoiDelimiter => ("INVALID_ZOI_DELIMITER", "invalid-zoi-delimiter"),
+    }
 }
 
 impl MorphologyErrorKind {
@@ -1462,14 +1569,15 @@ impl MorphologyErrorKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum MorphologyWarningKind {
-    ExperimentalCgv,
-    ExperimentalMz,
-    BreveNotGlide,
-    IgnoredCharacters,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum MorphologyWarningKind {
+        ExperimentalCgv => ("EXPERIMENTAL_CGV", "experimental-cgv"),
+        ExperimentalMz => ("EXPERIMENTAL_MZ", "experimental-mz"),
+        BreveNotGlide => ("BREVE_NOT_GLIDE", "breve-not-glide"),
+        IgnoredCharacters => ("IGNORED_CHARACTERS", "ignored-characters"),
+    }
 }
 
 impl MorphologyWarningKind {
@@ -1587,8 +1695,12 @@ impl MorphologyWarning {
     }
 
     #[requires(true)]
-    #[ensures(!ret.code.is_empty())]
-    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+    #[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
+    pub fn to_diagnostic(
+        &self,
+        source_id: Option<SourceId>,
+        source: &str,
+    ) -> Result<Diagnostic, DiagnosticSpanError> {
         let (severity, message) = match self.kind {
             MorphologyWarningKind::IgnoredCharacters => {
                 let count = self
@@ -1618,15 +1730,15 @@ impl MorphologyWarning {
             self.char_end,
             self.kind.label(),
             self.context.as_ref(),
-        );
+        )?;
         if self.kind == MorphologyWarningKind::IgnoredCharacters {
-            return diagnostic;
+            return Ok(diagnostic);
         }
-        diagnostic.with_styled_notes(vec![morphology_detail_note(
+        Ok(diagnostic.with_styled_notes(vec![morphology_detail_note(
             self.kind.message(),
             &self.text,
             self.kind.detail_reason(),
-        )])
+        )]))
     }
 }
 
@@ -1638,21 +1750,22 @@ impl fmt::Display for MorphologyErrorKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum MorphologyContextKind {
-    Cmavo,
-    Gismu,
-    Lujvo,
-    Fuhivla,
-    Cmevla,
-    QuotedWord,
-    DelimitedNonLojbanQuote,
-    QuotedWords,
-    DelimitedWordQuote,
-    Bu,
-    Zei,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum MorphologyContextKind {
+        Cmavo => ("CMAVO", "cmavo"),
+        Gismu => ("GISMU", "gismu"),
+        Lujvo => ("LUJVO", "lujvo"),
+        Fuhivla => ("FUIVLA", "fuhivla"),
+        Cmevla => ("CMEVLA", "cmevla"),
+        QuotedWord => ("QUOTED_WORD", "quoted-word"),
+        DelimitedNonLojbanQuote => ("DELIMITED_NON_LOJBAN_QUOTE", "delimited-non-lojban-quote"),
+        QuotedWords => ("QUOTED_WORDS", "quoted-words"),
+        DelimitedWordQuote => ("DELIMITED_WORD_QUOTE", "delimited-word-quote"),
+        Bu => ("BU", "bu"),
+        Zei => ("ZEI", "zei"),
+    }
 }
 
 impl MorphologyContextKind {
@@ -1702,11 +1815,12 @@ impl MorphologyContext {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum LujvoParseExpectation {
-    InitialOrStandaloneFinalRafsi,
-    FinalOrInitialRafsi,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LujvoParseExpectation {
+        InitialOrStandaloneFinalRafsi => ("INITIAL_OR_STANDALONE_FINAL_RAFSI", "initial-or-standalone-final-rafsi"),
+        FinalOrInitialRafsi => ("FINAL_OR_INITIAL_RAFSI", "final-or-initial-rafsi"),
+    }
 }
 
 impl LujvoParseExpectation {
@@ -1720,14 +1834,15 @@ impl LujvoParseExpectation {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum ExpectedWordDetailKind {
-    PlainWord,
-    QuoteTarget,
-    BuOperand,
-    ZeiOperand,
-    ZoiDelimiter,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ExpectedWordDetailKind {
+        PlainWord => ("PLAIN_WORD", "plain-word"),
+        QuoteTarget => ("QUOTE_TARGET", "quote-target"),
+        BuOperand => ("BU_OPERAND", "bu-operand"),
+        ZeiOperand => ("ZEI_OPERAND", "zei-operand"),
+        ZoiDelimiter => ("ZOI_DELIMITER", "zoi-delimiter"),
+    }
 }
 
 impl ExpectedWordDetailKind {
@@ -1744,12 +1859,13 @@ impl ExpectedWordDetailKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum ZoiDelimiterDetailKind {
-    Missing,
-    YWord,
-    NotSingleWord,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ZoiDelimiterDetailKind {
+        Missing => ("MISSING", "missing"),
+        YWord => ("Y_WORD", "y-word"),
+        NotSingleWord => ("NOT_SINGLE_WORD", "not-single-word"),
+    }
 }
 
 impl ZoiDelimiterDetailKind {
@@ -1764,20 +1880,21 @@ impl ZoiDelimiterDetailKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum PhonotacticDetailKind {
-    InvalidCharacter,
-    InvalidApostrophe,
-    GeminatedConsonant,
-    VoicingMismatch,
-    ForbiddenConsonantPair,
-    ForbiddenConsonantTriple,
-    VowelHiatus,
-    YHiatus,
-    BreveNotGlide,
-    DigitApostrophe,
-    DigitVowel,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum PhonotacticDetailKind {
+        InvalidCharacter => ("INVALID_CHARACTER", "invalid-character"),
+        InvalidApostrophe => ("INVALID_APOSTROPHE", "invalid-apostrophe"),
+        GeminatedConsonant => ("GEMINATED_CONSONANT", "geminated-consonant"),
+        VoicingMismatch => ("VOICING_MISMATCH", "voicing-mismatch"),
+        ForbiddenConsonantPair => ("FORBIDDEN_CONSONANT_PAIR", "forbidden-consonant-pair"),
+        ForbiddenConsonantTriple => ("FORBIDDEN_CONSONANT_TRIPLE", "forbidden-consonant-triple"),
+        VowelHiatus => ("VOWEL_HIATUS", "vowel-hiatus"),
+        YHiatus => ("Y_HIATUS", "y-hiatus"),
+        BreveNotGlide => ("BREVE_NOT_GLIDE", "breve-not-glide"),
+        DigitApostrophe => ("DIGIT_APOSTROPHE", "digit-apostrophe"),
+        DigitVowel => ("DIGIT_VOWEL", "digit-vowel"),
+    }
 }
 
 impl PhonotacticDetailKind {
@@ -1900,11 +2017,11 @@ impl MorphologyErrorDetail {
     }
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Invalid => true)]
 #[invariant(::UnterminatedZoiQuote => true)]
 #[invariant(::SourceSpan(_) => true)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum MorphologyError {
     #[error("{kind} at character {char_start}: `{text}`")]
     Invalid {
@@ -1927,8 +2044,12 @@ pub enum MorphologyError {
 
 impl MorphologyError {
     #[requires(true)]
-    #[ensures(!ret.code.is_empty())]
-    pub fn to_diagnostic(&self, source_id: Option<SourceId>, source: &str) -> Diagnostic {
+    #[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
+    pub fn to_diagnostic(
+        &self,
+        source_id: Option<SourceId>,
+        source: &str,
+    ) -> Result<Diagnostic, DiagnosticSpanError> {
         match self {
             Self::Invalid {
                 kind,
@@ -1950,8 +2071,12 @@ impl MorphologyError {
                     *char_end,
                     kind.message(),
                     context.as_ref(),
-                );
-                diagnostic_with_optional_detail(diagnostic, text, detail.as_ref())
+                )?;
+                Ok(diagnostic_with_optional_detail(
+                    diagnostic,
+                    text,
+                    detail.as_ref(),
+                ))
             }
             Self::UnterminatedZoiQuote {
                 char_offset,
@@ -1959,7 +2084,7 @@ impl MorphologyError {
                 context,
             } => {
                 let source_end = source.chars().count();
-                morphology_diagnostic(
+                Ok(morphology_diagnostic(
                     source_id.clone(),
                     source,
                     new!(MorphologyDiagnosticDetails {
@@ -1971,17 +2096,16 @@ impl MorphologyError {
                     source_end,
                     &format!("expected closing delimiter `{delimiter}`"),
                     context.as_ref(),
-                )
+                )?
                 .with_styled_notes(vec![morphology_detail_note(
                     "unterminated ZOI quote",
                     delimiter,
                     "expected closing delimiter",
-                )])
+                )]))
             }
             Self::SourceSpan(error) => {
-                let span = source_span_from_char_offsets(source_id, source, 0, 0)
-                    .expect("the start of a source string is always a valid source span");
-                Diagnostic::new(
+                let span = source_span_from_char_offsets(source_id, source, 0, 0)?;
+                Ok(Diagnostic::new(
                     DiagnosticSeverity::Error,
                     DiagnosticPhase::Morphology,
                     "morphology.source-span".to_owned(),
@@ -1989,7 +2113,7 @@ impl MorphologyError {
                     vec![DiagnosticLabel::new(span, error.to_string(), true)],
                     Vec::new(),
                     None,
-                )
+                ))
             }
         }
     }
@@ -2067,8 +2191,7 @@ struct MorphologyDiagnosticDetails {
 }
 
 #[requires(!label.is_empty())]
-#[requires(char_start <= char_end)]
-#[ensures(!ret.code.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|diagnostic| !diagnostic.code.is_empty()) || ret.is_err())]
 fn morphology_diagnostic(
     source_id: Option<SourceId>,
     source: &str,
@@ -2077,24 +2200,24 @@ fn morphology_diagnostic(
     char_end: usize,
     label: &str,
     context: Option<&MorphologyContext>,
-) -> Diagnostic {
+) -> Result<Diagnostic, DiagnosticSpanError> {
     let details = details.into_data();
-    let span = source_span_from_char_offsets(source_id.clone(), source, char_start, char_end)
-        .expect("morphology errors store offsets derived from the same source text");
+    let span = source_span_from_char_offsets(source_id.clone(), source, char_start, char_end)?;
     let mut labels = vec![DiagnosticLabel::new(span, label.to_owned(), true)];
-    if let Some(context_label) = context.and_then(|context| {
-        source_span_from_char_offsets(
+    if let Some(context) = context {
+        let context_span = source_span_from_char_offsets(
             source_id.clone(),
             source,
             context.char_start,
             context.char_end,
-        )
-        .ok()
-        .map(|span| DiagnosticLabel::new(span, context.label().to_owned(), false))
-    }) {
-        labels.push(context_label);
+        )?;
+        labels.push(DiagnosticLabel::new(
+            context_span,
+            context.label().to_owned(),
+            false,
+        ));
     }
-    Diagnostic::new(
+    Ok(Diagnostic::new(
         details.severity,
         DiagnosticPhase::Morphology,
         details.code.to_owned(),
@@ -2102,7 +2225,7 @@ fn morphology_diagnostic(
         labels,
         Vec::new(),
         None,
-    )
+    ))
 }
 
 #[requires(true)]
@@ -2410,8 +2533,30 @@ pub fn segment_words_for_display_with_options_and_source_id(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
-    grammar::segment_words_for_display(input, options, source_id)
-        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect))
+    segment_words_for_display_with_options_and_source_id_attempt(input, options, source_id)
+        .into_data()
+        .result
+}
+
+/// Run display-oriented segmentation while retaining warnings and trace data.
+#[requires(true)]
+#[ensures(ret.trace.is_some() == options.trace.includes(TracePhase::Morphology))]
+#[ensures(ret.trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
+pub fn segment_words_for_display_with_options_and_source_id_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> MorphologySegmentAttempt {
+    let attempt = grammar::segment_words_for_display_attempt(input, options, source_id);
+    let data = attempt.into_data();
+    let result = data
+        .result
+        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect));
+    new!(MorphologySegmentAttempt {
+        result,
+        warnings: data.warnings,
+        trace: data.trace,
+    })
 }
 
 #[requires(!phonemes.as_str().is_empty())]
@@ -3439,7 +3584,9 @@ mod tests {
     #[ensures(true)]
     fn morphology_diagnostic_uses_precise_vowel_hiatus_span() {
         let error = segment_words_with_modifiers("aa").expect_err("vowel hiatus must fail");
-        let diagnostic = error.to_diagnostic(None, "aa");
+        let diagnostic = error
+            .to_diagnostic(None, "aa")
+            .expect("parser error offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.vowel-hiatus");
         let label = diagnostic.primary_label();
@@ -3456,7 +3603,9 @@ mod tests {
     fn morphology_diagnostic_maps_non_ascii_source_span() {
         let source = "éa";
         let error = segment_words_with_modifiers(source).expect_err("vowel hiatus must fail");
-        let diagnostic = error.to_diagnostic(None, source);
+        let diagnostic = error
+            .to_diagnostic(None, source)
+            .expect("parser error offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.vowel-hiatus");
         let label = diagnostic.primary_label();
@@ -3474,6 +3623,37 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn morphology_diagnostic_conversion_rejects_foreign_offsets() {
+        let invalid = MorphologyError::Invalid {
+            kind: MorphologyErrorKind::InvalidCharacter,
+            char_start: 1,
+            char_end: 0,
+            text: String::new(),
+            context: None,
+            detail: None,
+        };
+        assert!(invalid.to_diagnostic(None, "é").is_err());
+
+        let out_of_bounds = MorphologyError::UnterminatedZoiQuote {
+            char_offset: 2,
+            delimiter: "gy".to_owned(),
+            context: None,
+        };
+        assert!(out_of_bounds.to_diagnostic(None, "é").is_err());
+
+        let warning = MorphologyWarning::new(
+            MorphologyWarningKind::ExperimentalCgv,
+            1,
+            2,
+            "x".to_owned(),
+            None,
+        );
+        assert!(warning.to_diagnostic(None, "é").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_warning_diagnostic_maps_comma_crossing_cgv_span() {
         let source = "melxi,or.";
         let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
@@ -3484,7 +3664,9 @@ mod tests {
         let data = attempt.into_data();
         data.result.expect("CgV relaxation should parse");
         assert_eq!(data.warnings.len(), 1);
-        let diagnostic = data.warnings[0].to_diagnostic(None, source);
+        let diagnostic = data.warnings[0]
+            .to_diagnostic(None, source)
+            .expect("parser warning offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.warning.experimental-cgv");
         let label = diagnostic.primary_label();
@@ -3506,7 +3688,9 @@ mod tests {
         let data = attempt.into_data();
         data.result.expect("MZ relaxation should parse");
         assert_eq!(data.warnings.len(), 1);
-        let diagnostic = data.warnings[0].to_diagnostic(None, source);
+        let diagnostic = data.warnings[0]
+            .to_diagnostic(None, source)
+            .expect("parser warning offsets belong to the source");
 
         assert_eq!(diagnostic.code, "morphology.warning.experimental-mz");
         let label = diagnostic.primary_label();
@@ -3805,6 +3989,55 @@ mod tests {
 
         let zei_words = segment_words_for_display("zei").expect("valid display morphology");
         assert_eq!(base_phoneme_texts(&zei_words), vec!["zeĭ"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn display_attempt_retains_warnings_traces_and_failure() {
+        let options = MorphologyOptions {
+            permissive_lexer: true,
+            trace: jbotci_diagnostics::TraceOptions::enabled(
+                jbotci_diagnostics::TraceLevel::Top,
+                None,
+                TracePhase::Morphology,
+                jbotci_diagnostics::DEFAULT_TRACE_LIMIT,
+            ),
+            ..MorphologyOptions::default()
+        };
+        let attempt =
+            segment_words_for_display_with_options_and_source_id_attempt("xu@no", &options, None)
+                .into_data();
+        assert_eq!(
+            base_phoneme_texts(&attempt.result.expect("permissive display segmentation")),
+            vec!["xu", "no"]
+        );
+        assert_eq!(attempt.warnings.len(), 1);
+        assert_eq!(
+            attempt.warnings[0].kind,
+            MorphologyWarningKind::IgnoredCharacters
+        );
+        assert_eq!(attempt.warnings[0].text, "@");
+        let trace = attempt.trace.expect("trace-enabled display segmentation");
+        assert_eq!(trace.phase, TracePhase::Morphology);
+        assert!(!trace.events.is_empty());
+
+        let failure =
+            segment_words_for_display_with_options_and_source_id_attempt("aa", &options, None)
+                .into_data();
+        assert!(matches!(
+            failure.result,
+            Err(MorphologyError::Invalid {
+                kind: MorphologyErrorKind::VowelHiatus,
+                char_start: 0,
+                char_end: 2,
+                ..
+            })
+        ));
+        assert_eq!(
+            failure.trace.expect("trace-enabled display failure").phase,
+            TracePhase::Morphology
+        );
     }
 
     #[test]
@@ -4170,7 +4403,9 @@ mod tests {
             Some(3)
         );
 
-        let diagnostic = ignored.to_diagnostic(None, source);
+        let diagnostic = ignored
+            .to_diagnostic(None, source)
+            .expect("parser warning offsets belong to the source");
         assert_eq!(diagnostic.severity, DiagnosticSeverity::Advice);
         assert_eq!(diagnostic.code, "morphology.advice.ignored-characters");
         assert_eq!(diagnostic.message, "3 non-Lojban characters ignored");

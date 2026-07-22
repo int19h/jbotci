@@ -884,18 +884,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental quote erasure tags are private static category names",
     ),
     (
-        "crates/jbotci-morphology/src/segment/phonotactics.rs:ConsonantPairClass::Forbidden",
-        "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment/phonotactics.rs:ConsonantPairClass::Initial",
-        "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment/phonotactics.rs:ConsonantPairClass::Permissible",
-        "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
-    ),
-    (
         "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Display",
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
@@ -1922,14 +1910,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Vague",
         "vagueness kind owns the payload validity",
-    ),
-    (
-        "crates/jbotci-source/src/lib.rs:SourceLocationError::ByteRangeInverted",
-        "diagnostic enum records rejected constructor inputs",
-    ),
-    (
-        "crates/jbotci-source/src/lib.rs:SourceLocationError::CharRangeInverted",
-        "diagnostic enum records rejected constructor inputs",
     ),
     (
         "crates/jbotci-syntax/src/lib.rs:SyntaxError::Parse",

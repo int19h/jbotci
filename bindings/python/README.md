@@ -36,10 +36,14 @@ install, rather than the source tree, resolves `jbotci`.
   Pyclasses are frozen and non-subclassable by default. Value objects implement
   equality, and implement hashing only when the underlying Rust value is also
   hashable. Their `repr` is constructor-shaped and includes the public module.
-- `Option<T>` maps to `T | None`. Rust sequences are materialized as immutable
-  Python tuples, never mutable lists. Numeric newtypes keep their semantic
-  Python class and validate range/units in the constructor instead of leaking a
-  bare integer or a lossy cast.
+- `Option<T>` maps to `T | None`. Ordered collection inputs use
+  `collections.abc.Sequence`, so lists and tuples are accepted after every
+  element is validated; unordered iterables such as sets are rejected. Rust
+  sequences are materialized as immutable Python tuples, never mutable lists.
+  The same validation applies to pure-Python public wrappers such as
+  `MorphologyError`, including an immutable copy of each accepted sequence.
+  Numeric newtypes keep their semantic Python class and validate range/units in
+  the constructor instead of leaking a bare integer or a lossy cast.
 - A Python wrapper for borrowed Rust data must retain a strong owner. The
   internal `OwnedReference` helper stores an `Arc` plus a projection function;
   wrappers must never expose Rust lifetimes or construct self-references. Static
@@ -50,6 +54,16 @@ install, rather than the source tree, resolves `jbotci`.
   `JbotciError`. Python-visible exceptions use stable messages and arguments;
   Rust implementation types (`Box`, `Arc`, bityzba data wrappers, lifetimes,
   and serde payloads) never cross the boundary.
+  `TraceLevel.from_number` delegates every value in Rust's `u8` domain to Rust;
+  invalid values from 0 through 255 raise `TraceOptionError` with an
+  `InvalidTraceLevel` payload. Integers outside that domain raise
+  `InvalidInputError` (or Python `OverflowError` before binding conversion when
+  they do not fit the signed native argument at all).
+  Source constructors retain `SourceLocationError` variants in
+  `SourceLocationException`; source-text offset helpers retain every
+  `DiagnosticSpanError` variant in `DiagnosticSpanException`, including nested
+  source-location payloads. Binding-side precondition guards construct those
+  same Rust error variants before calling contracted core helpers.
 - Fieldless Rust enums that represent finite choices become genuine
   `enum.Enum` classes, preferably with stable canonical string values. Payload
   enums and grammar ADTs instead become a closed set of frozen,

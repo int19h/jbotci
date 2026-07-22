@@ -1463,7 +1463,11 @@ fn morphology_warning_diagnostics(
 ) -> Vec<Diagnostic> {
     warnings
         .iter()
-        .map(|warning| warning.to_diagnostic(source_id.clone(), source))
+        .map(|warning| {
+            warning
+                .to_diagnostic(source_id.clone(), source)
+                .expect("morphology warning offsets belong to the parser source")
+        })
         .collect()
 }
 

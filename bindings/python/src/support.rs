@@ -3,11 +3,14 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use bityzba::{contract_trait, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, requires};
 use pyo3::PyClass;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyModule, PyString, PyTuple, PyType};
+use pyo3::types::{
+    PyByteArray, PyBytes, PyDict, PyModule, PySequence, PySequenceMethods, PyString, PyTuple,
+    PyType,
+};
 
 /// Supplies stable Python metadata for a fieldless Rust enum.
 ///
@@ -91,6 +94,40 @@ where
     PyTuple::new(py, values)
 }
 
+/// Copy an ordered Python sequence after validating every element.
+///
+/// Text and byte strings are deliberately excluded: although Python registers
+/// them as sequences, treating one string as a collection of string elements
+/// is almost always an accidental cardinality change at an API boundary.
+#[requires(!parameter.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn extract_sequence<T, F>(
+    value: &Bound<'_, PyAny>,
+    parameter: &str,
+    mut extract: F,
+) -> PyResult<Vec<T>>
+where
+    F: FnMut(&Bound<'_, PyAny>) -> PyResult<T>,
+{
+    if value.is_instance_of::<PyString>()
+        || value.is_instance_of::<PyBytes>()
+        || value.is_instance_of::<PyByteArray>()
+    {
+        return Err(PyTypeError::new_err(format!(
+            "{parameter} must be a non-string Python sequence such as a list or tuple"
+        )));
+    }
+    let sequence = value.cast::<PySequence>().map_err(|_| {
+        PyTypeError::new_err(format!(
+            "{parameter} must be a Python sequence such as a list or tuple"
+        ))
+    })?;
+    let len = sequence.len()?;
+    (0..len)
+        .map(|index| sequence.get_item(index).and_then(|item| extract(&item)))
+        .collect()
+}
+
 /// Register a Python class under a unique private native export key.
 #[requires(private_export_name.starts_with('_'))]
 #[ensures(true)]
@@ -115,6 +152,31 @@ where
 {
     ensure_private_export_available(module, private_export_name)?;
     module.add(private_export_name, value)
+}
+
+/// Instantiate a public Python exception class with one structured value.
+///
+/// The public facade owns exception behavior while Rust owns the closed value
+/// variants. Looking the class up at the conversion boundary keeps native and
+/// public entry points on the same exception type without parsing a display
+/// message or duplicating payloads.
+#[requires(!public_module_name.is_empty())]
+#[requires(!exception_name.is_empty())]
+#[ensures(true)]
+pub(crate) fn public_exception_with_value(
+    py: Python<'_>,
+    public_module_name: &str,
+    exception_name: &str,
+    value: Py<PyAny>,
+) -> PyErr {
+    let instance = py
+        .import(public_module_name)
+        .and_then(|module| module.getattr(exception_name))
+        .and_then(|exception_type| exception_type.call1((value,)));
+    match instance {
+        Ok(instance) => PyErr::from_value(instance),
+        Err(error) => error,
+    }
 }
 
 #[requires(private_export_name.starts_with('_'))]

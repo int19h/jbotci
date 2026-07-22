@@ -1,14 +1,13 @@
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, requires};
 
-#[invariant(::Forbidden => true)]
-#[invariant(::Permissible => true)]
-#[invariant(::Initial => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConsonantPairClass {
-    Forbidden,
-    Permissible,
-    Initial,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ConsonantPairClass {
+        Forbidden => ("FORBIDDEN", "forbidden"),
+        Permissible => ("PERMISSIBLE", "permissible"),
+        Initial => ("INITIAL", "initial"),
+    }
 }
 
 impl ConsonantPairClass {

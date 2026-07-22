@@ -64,12 +64,11 @@ fn render_tersmu(
     );
     if !morphology.errors.is_empty() {
         let mut diagnostics = morphology_diagnostics;
-        diagnostics.extend(
-            morphology
-                .errors
-                .iter()
-                .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
-        );
+        diagnostics.extend(morphology.errors.iter().map(|error| {
+            error
+                .to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                .expect("morphology error offsets belong to the parser source")
+        }));
         let mut stderr = morphology_trace_stderr;
         stderr.push_str(&render_source_diagnostics(
             &source_label,

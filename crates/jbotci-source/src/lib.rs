@@ -1,13 +1,13 @@
 //! Shared source-location types.
 
-use bityzba::{data, invariant, requires};
+use bityzba::{data, expensive_ensures, invariant, requires};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
 /// Stable identifier for an input source.
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-#[invariant(true)]
 pub struct SourceId(pub String);
 
 /// One-indexed line and column in source text.
@@ -154,6 +154,27 @@ impl SourceSpan {
         })))
     }
 
+    /// Attach optional human-facing line/column endpoints.
+    ///
+    /// The byte and character offsets remain the source of truth. In
+    /// particular, this method intentionally does not require the two
+    /// line/column endpoints to be present as a pair: `SourceSpan` has no such
+    /// invariant, and callers may enrich either endpoint independently.
+    #[requires(true)]
+    #[ensures(ret.start == start)]
+    #[ensures(ret.end == end)]
+    #[ensures(ret.byte_start == old(self.byte_start))]
+    #[ensures(ret.byte_end == old(self.byte_end))]
+    #[ensures(ret.char_start == old(self.char_start))]
+    #[ensures(ret.char_end == old(self.char_end))]
+    #[expensive_ensures(ret.source_id == old(self.source_id.clone()))]
+    pub fn with_line_columns(self, start: Option<LineColumn>, end: Option<LineColumn>) -> Self {
+        self.with_data(data! {
+            start: start,
+            end: end,
+        })
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub fn byte_len(&self) -> usize {
@@ -174,24 +195,26 @@ impl SourceSpan {
 }
 
 /// A value with source provenance attached.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Spanned<T> {
     pub span: SourceSpan,
     pub value: T,
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::ByteRangeInverted => true)]
-#[invariant(::CharRangeInverted => true)]
+#[invariant(::ByteRangeInverted => true, "error payloads preserve supplied byte endpoints without independently constraining them")]
+#[invariant(::CharRangeInverted => true, "error payloads preserve supplied character endpoints without independently constraining them")]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum SourceLocationError {
     #[error("line numbers are one-indexed and cannot be zero")]
     ZeroLine,
     #[error("column numbers are one-indexed and cannot be zero")]
     ZeroColumn,
+    /// Endpoints reported by a failed range operation; direct construction preserves any pair.
     #[error("byte range end {end} precedes start {start}")]
     ByteRangeInverted { start: usize, end: usize },
+    /// Endpoints reported by a failed range operation; direct construction preserves any pair.
     #[error("character range end {end} precedes start {start}")]
     CharRangeInverted { start: usize, end: usize },
 }
@@ -213,6 +236,19 @@ mod tests {
             SourceSpan::new(None, 0, 0, 4, 3),
             Err(SourceLocationError::CharRangeInverted { .. })
         ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn span_line_column_endpoints_remain_independently_optional() {
+        let start = LineColumn::new(1, 1).expect("one-indexed location");
+        let span = SourceSpan::new(None, 0, 0, 0, 0)
+            .expect("empty ordered span")
+            .with_line_columns(Some(start), None);
+
+        assert_eq!(span.start, Some(start));
+        assert_eq!(span.end, None);
     }
 
     #[test]

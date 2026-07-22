@@ -4,15 +4,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::LazyLock;
 
-use bityzba::{data, invariant, new, requires};
+use bityzba::{data, expensive_ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 const DIALECT_SWAP_OPERATOR: &str = "\u{1f8d0}";
 
+#[invariant(true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[error("{message}")]
-#[invariant(true)]
 pub struct DialectError {
     message: String,
 }
@@ -31,71 +31,57 @@ impl DialectError {
     }
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DialectFeature {
-    Cbm,
-    Gadganzu,
-    CaseInsensitive,
-    PermissiveLexer,
-    SoiAdverbials,
-    TermHierarchy,
-    ZantufaAdverbials,
-    ZantufaConnectives,
-    ZantufaMex,
-    ZantufaMorphology,
-    ZantufaQuotes,
-    ZantufaTags,
-    ZantufaTerms,
+macro_rules! define_dialect_features {
+    ($($variant:ident => $name:literal),+ $(,)?) => {
+        #[invariant(true)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        pub enum DialectFeature {
+            $(
+                #[serde(rename = $name)]
+                $variant,
+            )+
+        }
+
+        impl DialectFeature {
+            pub const ALL: &'static [Self] = &[$(Self::$variant),+];
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn all() -> &'static [Self] {
+                Self::ALL
+            }
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $name),+
+                }
+            }
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub fn atom_name(self) -> String {
+                self.name().to_ascii_uppercase()
+            }
+        }
+    };
 }
 
-impl DialectFeature {
-    #[requires(true)]
-    #[ensures(true)]
-    pub const fn all() -> &'static [Self] {
-        &[
-            Self::Cbm,
-            Self::Gadganzu,
-            Self::CaseInsensitive,
-            Self::PermissiveLexer,
-            Self::SoiAdverbials,
-            Self::TermHierarchy,
-            Self::ZantufaAdverbials,
-            Self::ZantufaConnectives,
-            Self::ZantufaMex,
-            Self::ZantufaMorphology,
-            Self::ZantufaQuotes,
-            Self::ZantufaTags,
-            Self::ZantufaTerms,
-        ]
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Cbm => "cbm",
-            Self::Gadganzu => "gadganzu",
-            Self::CaseInsensitive => "case-insensitive",
-            Self::PermissiveLexer => "permissive-lexer",
-            Self::SoiAdverbials => "soi-adverbials",
-            Self::TermHierarchy => "term-hierarchy",
-            Self::ZantufaAdverbials => "zantufa-adverbials",
-            Self::ZantufaConnectives => "zantufa-connectives",
-            Self::ZantufaMex => "zantufa-mex",
-            Self::ZantufaMorphology => "zantufa-morphology",
-            Self::ZantufaQuotes => "zantufa-quotes",
-            Self::ZantufaTags => "zantufa-tags",
-            Self::ZantufaTerms => "zantufa-terms",
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub fn atom_name(self) -> String {
-        self.name().to_ascii_uppercase()
-    }
+define_dialect_features! {
+    Cbm => "cbm",
+    Gadganzu => "gadganzu",
+    CaseInsensitive => "case-insensitive",
+    PermissiveLexer => "permissive-lexer",
+    SoiAdverbials => "soi-adverbials",
+    TermHierarchy => "term-hierarchy",
+    ZantufaAdverbials => "zantufa-adverbials",
+    ZantufaConnectives => "zantufa-connectives",
+    ZantufaMex => "zantufa-mex",
+    ZantufaMorphology => "zantufa-morphology",
+    ZantufaQuotes => "zantufa-quotes",
+    ZantufaTags => "zantufa-tags",
+    ZantufaTerms => "zantufa-terms",
 }
 
 impl fmt::Display for DialectFeature {
@@ -121,7 +107,61 @@ pub enum CmavoDialectEntry {
     },
 }
 
-#[invariant(true, "dialect word entry validity is guaranteed by CmavoDialectEntry")]
+impl CmavoDialectEntry {
+    #[requires(true)]
+    #[ensures(ret.is_ok() == old(is_basic_dialect_word(&left) && is_basic_dialect_word(&right)))]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().ok().and_then(|entry| match entry.as_data() {
+        data!(CmavoDialectEntry::Swap { left, right }) => Some((left.clone(), right.clone())),
+        _ => None,
+    }) == Some(old((left.clone(), right.clone()))))]
+    pub fn swap(left: String, right: String) -> Result<Self, DialectError> {
+        if !is_basic_dialect_word(&left) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {left}"
+            )));
+        }
+        if !is_basic_dialect_word(&right) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {right}"
+            )));
+        }
+        Ok(new!(CmavoDialectEntry::Swap { left, right }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() == old(is_basic_dialect_word(&source) && !replacement.is_empty() && replacement.iter().all(|word| is_basic_dialect_word(word))))]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().ok().and_then(|entry| match entry.as_data() {
+        data!(CmavoDialectEntry::Expansion { source, replacement }) =>
+            Some((source.clone(), replacement.clone())),
+        _ => None,
+    }) == Some(old((source.clone(), replacement.clone()))))]
+    pub fn expansion(source: String, replacement: Vec<String>) -> Result<Self, DialectError> {
+        if !is_basic_dialect_word(&source) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {source}"
+            )));
+        }
+        if replacement.is_empty() {
+            return Err(DialectError::new(
+                "Cmavo dialect expansion replacement must not be empty.".to_owned(),
+            ));
+        }
+        if let Some(word) = replacement.iter().find(|word| !is_basic_dialect_word(word)) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {word}"
+            )));
+        }
+        Ok(new!(CmavoDialectEntry::Expansion {
+            source,
+            replacement,
+        }))
+    }
+}
+
+#[invariant(
+    true,
+    "entry validity is carried by CmavoDialectEntry, and every feature set is valid"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DialectDefinition {
@@ -130,6 +170,18 @@ pub struct DialectDefinition {
 }
 
 impl DialectDefinition {
+    #[requires(true)]
+    #[ensures(ret.cmavo_entries.len() == old(cmavo_entries.len()))]
+    #[ensures(ret.features.len() == old(features.len()))]
+    #[expensive_ensures(ret.cmavo_entries == old(cmavo_entries.clone()))]
+    #[expensive_ensures(ret.features == old(features.clone()))]
+    pub fn new(cmavo_entries: Vec<CmavoDialectEntry>, features: BTreeSet<DialectFeature>) -> Self {
+        Self {
+            cmavo_entries,
+            features,
+        }
+    }
+
     #[requires(true)]
     #[ensures(ret.is_baseline())]
     pub fn baseline() -> Self {
@@ -143,52 +195,52 @@ impl DialectDefinition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuiltinDialect {
     pub name: &'static str,
     pub definition: &'static str,
     pub dialect: DialectDefinition,
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct CustomDialect {
     pub name: String,
     pub definition: String,
     pub show_in_gentufa: bool,
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct DialectSettings {
     pub custom_dialects: Vec<CustomDialect>,
     pub hidden_builtin_gentufa_dialects: BTreeSet<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Atom(_) => true)]
 #[invariant(::Group(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DialectFormulaComponent {
     Atom(String),
     Group(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct JohauShorthandSwap {
     code: char,
     left: &'static str,
     right: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Cmavo(_) => true)]
 #[invariant(::Feature(_, _) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DialectDefinitionEntry {
     Cmavo(CmavoDialectEntry),
     Feature(DialectFeatureToggle, DialectFeature),
@@ -200,9 +252,9 @@ enum DialectFeatureToggle {
     Disable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Atom(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DialectToken {
     OpenParen,
     CloseParen,

@@ -469,14 +469,17 @@ pub fn analyze_gentufa_morphology_source(
     let mut diagnostics = morphology
         .warnings
         .iter()
-        .map(|warning| warning.to_diagnostic(source_id.clone(), source))
+        .map(|warning| {
+            warning
+                .to_diagnostic(source_id.clone(), source)
+                .expect("morphology warning offsets belong to the parser source")
+        })
         .collect::<Vec<_>>();
-    diagnostics.extend(
-        morphology
-            .errors
-            .iter()
-            .map(|error| error.to_diagnostic(source_id.clone(), source)),
-    );
+    diagnostics.extend(morphology.errors.iter().map(|error| {
+        error
+            .to_diagnostic(source_id.clone(), source)
+            .expect("morphology error offsets belong to the parser source")
+    }));
 
     Ok(new!(GentufaMorphologyAnalysis {
         dialect,
@@ -6839,7 +6842,11 @@ mod tests {
             let diagnostics = morphology
                 .warnings
                 .iter()
-                .map(|warning| warning.to_diagnostic(source_id.clone(), source))
+                .map(|warning| {
+                    warning
+                        .to_diagnostic(source_id.clone(), source)
+                        .expect("morphology warning offsets belong to the parser source")
+                })
                 .collect::<Vec<_>>();
             let words = morphology
                 .result

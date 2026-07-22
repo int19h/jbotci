@@ -3,10 +3,12 @@ use bityzba::{data, ensures, invariant, new, requires};
 
 pub use crate::segment::ConsonantPairClass;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LujvoBuildMode {
-    Lujvo,
-    Cmevla,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LujvoBuildMode {
+        Lujvo => ("LUJVO", "lujvo"),
+        Cmevla => ("CMEVLA", "cmevla"),
+    }
 }
 
 #[invariant(!word.is_empty())]
@@ -18,18 +20,19 @@ pub struct LujvoCandidate {
     pub score: i32,
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum RafsiShape {
-    Cvccv,
-    Cvcc,
-    Ccvcv,
-    Ccvc,
-    Cvc,
-    CvhV,
-    Ccv,
-    Cvv,
-    Other,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum RafsiShape {
+        Cvccv => ("CVCCV", "cvccv"),
+        Cvcc => ("CVCC", "cvcc"),
+        Ccvcv => ("CCVCV", "ccvcv"),
+        Ccvc => ("CCVC", "ccvc"),
+        Cvc => ("CVC", "cvc"),
+        CvhV => ("CVH_V", "cvh-v"),
+        Ccv => ("CCV", "ccv"),
+        Cvv => ("CVV", "cvv"),
+        Other => ("OTHER", "other"),
+    }
 }
 
 impl RafsiShape {
@@ -76,11 +79,14 @@ impl LujvoBuildPart {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(choices.iter().flatten().any(|text| text.is_empty()) -> ret.is_none())]
 pub fn choose_best_lujvo_candidate(
     mode: LujvoBuildMode,
     choices: &[Vec<String>],
 ) -> Option<LujvoCandidate> {
+    if choices.iter().flatten().any(|text| text.is_empty()) {
+        return None;
+    }
     let typed_choices = choices
         .iter()
         .map(|choice| {
@@ -153,8 +159,11 @@ fn select_better_candidate(
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(rafsis.iter().any(|text| text.is_empty()) -> ret.is_none())]
 pub fn bond_rafsis(rafsis: &[String]) -> Option<Vec<String>> {
+    if rafsis.iter().any(|text| text.is_empty()) {
+        return None;
+    }
     let parts = rafsis
         .iter()
         .cloned()
@@ -517,7 +526,7 @@ fn lujvo_score(rafsi_sequence: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::{ensures, requires, try_new};
 
     use super::*;
 
@@ -548,6 +557,22 @@ mod tests {
             bond_rafsis(&["jbon".to_owned(), "bau".to_owned()]),
             Some(vec!["jbon".to_owned(), "y".to_owned(), "bau".to_owned()])
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn textual_lujvo_helpers_reject_empty_parts() {
+        assert_eq!(bond_rafsis(&[String::new(), "jbo".to_owned()]), None);
+        assert_eq!(
+            choose_best_lujvo_candidate(
+                LujvoBuildMode::Lujvo,
+                &[vec![String::new(), "jbo".to_owned()]],
+            ),
+            None
+        );
+        assert!(try_new!(LujvoBuildPart::Rafsi(String::new())).is_err());
+        assert!(try_new!(LujvoBuildPart::BrivlaCore(String::new())).is_err());
     }
 
     #[test]

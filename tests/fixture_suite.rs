@@ -106,21 +106,31 @@ fn recovered_morphology_preserves_strict_first_error_for_failure_fixtures() {
         let mut old_diagnostics = strict
             .warnings
             .iter()
-            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .map(|warning| {
+                warning
+                    .to_diagnostic(source_id.clone(), &fixture.test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source")
+            })
             .collect::<Vec<_>>();
-        old_diagnostics
-            .push(strict_error.to_diagnostic(source_id.clone(), &fixture.test_case.lojban));
+        old_diagnostics.push(
+            strict_error
+                .to_diagnostic(source_id.clone(), &fixture.test_case.lojban)
+                .expect("morphology error offsets belong to the fixture source"),
+        );
         let mut new_diagnostics = capped
             .warnings
             .iter()
-            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .map(|warning| {
+                warning
+                    .to_diagnostic(source_id.clone(), &fixture.test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source")
+            })
             .collect::<Vec<_>>();
-        new_diagnostics.extend(
-            capped
-                .errors
-                .iter()
-                .map(|error| error.to_diagnostic(source_id.clone(), &fixture.test_case.lojban)),
-        );
+        new_diagnostics.extend(capped.errors.iter().map(|error| {
+            error
+                .to_diagnostic(source_id.clone(), &fixture.test_case.lojban)
+                .expect("morphology error offsets belong to the fixture source")
+        }));
         assert_eq!(
             render_fixture_diagnostics(&fixture.test_case.lojban, &new_diagnostics),
             render_fixture_diagnostics(&fixture.test_case.lojban, &old_diagnostics),
@@ -889,13 +899,21 @@ fn recovered_syntax_first_error_fixture_range(
         let mut old_diagnostics = morphology
             .warnings
             .iter()
-            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .map(|warning| {
+                warning
+                    .to_diagnostic(source_id.clone(), &fixture.test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source")
+            })
             .collect::<Vec<_>>();
         old_diagnostics.push(strict.to_diagnostic(source_id.clone(), &fixture.test_case.lojban));
         let mut new_diagnostics = morphology
             .warnings
             .iter()
-            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .map(|warning| {
+                warning
+                    .to_diagnostic(source_id.clone(), &fixture.test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source")
+            })
             .collect::<Vec<_>>();
         new_diagnostics.extend(
             recovered
@@ -1686,7 +1704,9 @@ fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyE
         .map(|warning| {
             DiagnosticExpectation::from_diagnostic(
                 &test_case.lojban,
-                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+                &warning
+                    .to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source"),
             )
         })
         .collect::<Vec<_>>();
@@ -1699,7 +1719,9 @@ fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyE
         (ExpectationStatus::Failure, Err(error)) => {
             diagnostics.push(DiagnosticExpectation::from_diagnostic(
                 &test_case.lojban,
-                &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+                &error
+                    .to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban)
+                    .expect("morphology error offsets belong to the fixture source"),
             ));
         }
         (ExpectationStatus::Success, Err(error)) => {
@@ -1830,13 +1852,17 @@ fn recovered_morphology_diagnostics(
         .map(|warning| {
             DiagnosticExpectation::from_diagnostic(
                 &test_case.lojban,
-                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+                &warning
+                    .to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source"),
             )
         })
         .chain(recovered.errors.iter().map(|error| {
             DiagnosticExpectation::from_diagnostic(
                 &test_case.lojban,
-                &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+                &error
+                    .to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban)
+                    .expect("morphology error offsets belong to the fixture source"),
             )
         }))
         .collect::<Vec<_>>();
@@ -1916,7 +1942,9 @@ fn morphology_warning_diagnostics_from_warnings(
         .map(|warning| {
             DiagnosticExpectation::from_diagnostic(
                 &test_case.lojban,
-                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+                &warning
+                    .to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban)
+                    .expect("morphology warning offsets belong to the fixture source"),
             )
         })
         .collect()
