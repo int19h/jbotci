@@ -9692,6 +9692,40 @@ mod tests {
     use super::*;
     use quote::quote;
 
+    #[requires(!name.is_empty())]
+    #[ensures(ret.ident == name)]
+    fn generated_struct(expanded: TokenStream2, name: &str) -> syn::ItemStruct {
+        let expanded = syn::parse2::<syn::File>(expanded)
+            .expect("successful grammar expansion must be valid Rust syntax");
+        let tree_model = expanded
+            .items
+            .iter()
+            .find_map(|item| match item {
+                syn::Item::Macro(item)
+                    if item
+                        .mac
+                        .path
+                        .segments
+                        .last()
+                        .is_some_and(|segment| segment.ident == "tree_model") =>
+                {
+                    Some(item.mac.tokens.clone())
+                }
+                _ => None,
+            })
+            .expect("generated grammar expansion contains a tree-model macro");
+        let tree_model = syn::parse2::<syn::File>(tree_model)
+            .expect("generated tree-model contents must be valid Rust items");
+        tree_model
+            .items
+            .into_iter()
+            .find_map(|item| match item {
+                syn::Item::Struct(item) if item.ident == name => Some(item),
+                _ => None,
+            })
+            .expect("requested generated struct is present")
+    }
+
     #[requires(true)]
     #[ensures(true)]
     #[test]
@@ -10070,11 +10104,30 @@ mod tests {
         })
         .expect("grammar parses before expansion");
 
-        let expanded = grammar.expand().to_string();
-        assert!(
-            expanded.contains("pub struct ItemSyntax (pub Token)"),
-            "single-field generated structs should be model newtypes: {expanded}"
+        let expanded = grammar.expand();
+        let item = generated_struct(expanded.clone(), "ItemSyntax");
+        let syn::Fields::Unnamed(fields) = &item.fields else {
+            panic!("single-field generated structs must be tuple newtypes")
+        };
+        assert_eq!(fields.unnamed.len(), 1);
+        let field = fields
+            .unnamed
+            .first()
+            .expect("tuple-newtype field count was checked");
+        assert!(matches!(field.vis, syn::Visibility::Public(_)));
+        assert!(type_token_streams_match(
+            &field.ty.to_token_stream(),
+            &quote!(Token),
+        ));
+        let docs = canonical_documentation(&field.attrs, &item.ident, "model field")
+            .expect("generated tuple-newtype field retains canonical documentation");
+        assert_eq!(docs.len(), 1);
+        assert_eq!(
+            docs[0].value().trim(),
+            "The source-ordered `token` component retained by the `item` syntax node."
         );
+
+        let expanded = expanded.to_string();
         assert!(
             expanded.contains("ItemSyntax (token)"),
             "single-field generated struct parser should construct a newtype: {expanded}"
@@ -10282,12 +10335,42 @@ mod tests {
         })
         .expect("grammar parses before documentation validation");
 
-        let expanded = compact_tokens(&grammar.expand());
+        let item = generated_struct(grammar.expand(), "ItemSyntax");
+        let doc_metadata = item
+            .attrs
+            .iter()
+            .filter_map(|attr| {
+                let Meta::List(list) = &attr.meta else {
+                    return None;
+                };
+                list.path
+                    .is_ident("doc")
+                    .then(|| syn::parse2::<Meta>(list.tokens.clone()).expect("valid doc metadata"))
+            })
+            .collect::<Vec<_>>();
         assert!(
-            !expanded.contains("compile_error")
-                && expanded.contains("doc(hidden)")
-                && expanded.contains("doc(alias=\"schema item\")"),
-            "non-text rustdoc attributes must survive Rust model expansion: {expanded}"
+            doc_metadata
+                .iter()
+                .any(|meta| matches!(meta, Meta::Path(path) if path.is_ident("hidden"))),
+            "the hidden Rustdoc marker must survive model expansion"
+        );
+        assert!(
+            doc_metadata.iter().any(|meta| {
+                matches!(
+                    meta,
+                    Meta::NameValue(name_value)
+                        if name_value.path.is_ident("alias")
+                            && matches!(
+                                &name_value.value,
+                                Expr::Lit(expr)
+                                    if matches!(
+                                        &expr.lit,
+                                        Lit::Str(value) if value.value() == "schema item"
+                                    )
+                            )
+                )
+            }),
+            "the literal-preserving Rustdoc alias must survive model expansion"
         );
     }
 
