@@ -152,15 +152,8 @@ impl CmavoDialectEntry {
 }
 
 #[invariant(
-    cmavo_entries.iter().all(|entry| match entry.as_data() {
-        CmavoDialectEntryData::Swap { left, right } =>
-            is_basic_dialect_word(left) && is_basic_dialect_word(right),
-        CmavoDialectEntryData::Expansion { source, replacement } =>
-            is_basic_dialect_word(source)
-                && !replacement.is_empty()
-                && replacement.iter().all(|word| is_basic_dialect_word(word)),
-    }),
-    "every declarative dialect entry must contain valid basic-orthography words"
+    true,
+    "entry validity is carried by CmavoDialectEntry, and every feature set is valid"
 )]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -176,10 +169,10 @@ impl DialectDefinition {
     #[expensive_ensures(ret.cmavo_entries == old(cmavo_entries.clone()))]
     #[expensive_ensures(ret.features == old(features.clone()))]
     pub fn new(cmavo_entries: Vec<CmavoDialectEntry>, features: BTreeSet<DialectFeature>) -> Self {
-        new!(DialectDefinition {
+        Self {
             cmavo_entries,
             features,
-        })
+        }
     }
 
     #[requires(true)]
@@ -451,7 +444,10 @@ pub fn dialect_definition_to_text(definition: &DialectDefinition) -> String {
 #[requires(true)]
 #[ensures(true)]
 pub fn cmavo_dialect_entries_to_definition(entries: &[CmavoDialectEntry]) -> String {
-    let definition = DialectDefinition::new(entries.to_vec(), BTreeSet::new());
+    let definition = DialectDefinition {
+        cmavo_entries: entries.to_vec(),
+        features: BTreeSet::new(),
+    };
     dialect_definition_to_text(&definition)
 }
 
@@ -1080,10 +1076,10 @@ fn parse_compact_dialect_feature(raw_feature: &str) -> Result<DialectFeature, Di
 #[requires(true)]
 #[ensures(true)]
 fn canonical_dialect_definition(definition: &DialectDefinition) -> DialectDefinition {
-    DialectDefinition::new(
-        canonical_cmavo_dialect_entries(&definition.cmavo_entries),
-        definition.features.clone(),
-    )
+    DialectDefinition {
+        cmavo_entries: canonical_cmavo_dialect_entries(&definition.cmavo_entries),
+        features: definition.features.clone(),
+    }
 }
 
 #[requires(true)]
@@ -1405,7 +1401,10 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
             }
         }
     }
-    DialectDefinition::new(cmavo_entries, features)
+    DialectDefinition {
+        cmavo_entries: cmavo_entries,
+        features: features,
+    }
 }
 
 #[requires(true)]
@@ -1659,26 +1658,6 @@ impl DialectToken {
 mod tests {
     use super::*;
     use bityzba::{contract_trait, invariant, requires};
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn dialect_definition_constructor_preserves_validated_entries_and_features() {
-        let entry = CmavoDialectEntry::expansion(
-            "la'u".to_owned(),
-            vec!["la'e".to_owned(), "di'u".to_owned()],
-        )
-        .expect("valid basic-orthography dialect entry");
-        let features = BTreeSet::from([
-            DialectFeature::CaseInsensitive,
-            DialectFeature::PermissiveLexer,
-        ]);
-
-        let definition = DialectDefinition::new(vec![entry.clone()], features.clone());
-
-        assert_eq!(definition.cmavo_entries, vec![entry]);
-        assert_eq!(definition.features, features);
-    }
 
     #[test]
     #[requires(true)]

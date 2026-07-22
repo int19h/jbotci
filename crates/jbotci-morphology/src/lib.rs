@@ -4498,10 +4498,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_cbm_dialect_to_morphology_options() {
-        let dialect = DialectDefinition::new(
-            Vec::new(),
-            std::collections::BTreeSet::from([DialectFeature::Cbm]),
-        );
+        let dialect = DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::Cbm]),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words = segment_words_with_modifiers_with_options_and_source_id(
             "mi .alis. do sa broda",
@@ -4520,10 +4520,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_case_insensitive_dialect_to_morphology_options() {
-        let dialect = DialectDefinition::new(
-            Vec::new(),
-            std::collections::BTreeSet::from([DialectFeature::CaseInsensitive]),
-        );
+        let dialect = DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::CaseInsensitive]),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words =
             segment_words_with_modifiers_with_options_and_source_id("NALSELTRO", &options, None)
@@ -4535,10 +4535,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_combined_dialect_formula_to_morphology_options() {
-        let dialect = DialectDefinition::new(
-            Vec::new(),
-            std::collections::BTreeSet::from([DialectFeature::CaseInsensitive]),
-        );
+        let dialect = DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::CaseInsensitive]),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words =
             segment_words_with_modifiers_with_options_and_source_id("la ITALIAS.", &options, None)
@@ -4550,8 +4550,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_cmavo_dialect_swaps_in_order() {
-        let dialect = DialectDefinition::new(
-            vec![
+        let dialect = DialectDefinition {
+            cmavo_entries: vec![
                 new!(CmavoDialectEntry::Swap {
                     left: "ce'u".to_owned(),
                     right: "ce".to_owned(),
@@ -4561,8 +4561,8 @@ mod tests {
                     right: "ki".to_owned(),
                 }),
             ],
-            std::collections::BTreeSet::new(),
-        );
+            features: std::collections::BTreeSet::new(),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
         let words = segment_words_with_modifiers_with_options_and_source_id("ce", &options, None)
@@ -4575,13 +4575,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_cmavo_dialect_expansions() {
-        let dialect = DialectDefinition::new(
-            vec![new!(CmavoDialectEntry::Expansion {
+        let dialect = DialectDefinition {
+            cmavo_entries: vec![new!(CmavoDialectEntry::Expansion {
                 source: "la'u".to_owned(),
                 replacement: vec!["la'e".to_owned(), "di'u".to_owned()],
             })],
-            std::collections::BTreeSet::new(),
-        );
+            features: std::collections::BTreeSet::new(),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
         let words = segment_words_with_modifiers_with_options_and_source_id("la'u", &options, None)
@@ -4622,8 +4622,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_multiple_cmavo_dialect_entries() {
-        let dialect = DialectDefinition::new(
-            vec![
+        let dialect = DialectDefinition {
+            cmavo_entries: vec![
                 new!(CmavoDialectEntry::Expansion {
                     source: "po".to_owned(),
                     replacement: vec!["lo".to_owned(), "su'u".to_owned()],
@@ -4649,8 +4649,8 @@ mod tests {
                     right: "su".to_owned(),
                 }),
             ],
-            std::collections::BTreeSet::new(),
-        );
+            features: std::collections::BTreeSet::new(),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
         let words = segment_words_with_modifiers_with_options_and_source_id(
@@ -5164,10 +5164,10 @@ mod tests {
     #[requires(true)]
     #[ensures(ret.permissive_lexer)]
     fn permissive_lexer_options() -> MorphologyOptions {
-        MorphologyOptions::default().with_dialect_definition(&DialectDefinition::new(
-            Vec::new(),
-            std::collections::BTreeSet::from([DialectFeature::PermissiveLexer]),
-        ))
+        MorphologyOptions::default().with_dialect_definition(&DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::PermissiveLexer]),
+        })
     }
 
     #[requires(!phonemes.is_empty())]
