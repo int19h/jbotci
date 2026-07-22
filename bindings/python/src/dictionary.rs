@@ -2,6 +2,13 @@
 
 use std::mem::size_of;
 use std::sync::Arc;
+#[cfg(test)]
+use std::{
+    cell::RefCell,
+    marker::PhantomData,
+    panic::{AssertUnwindSafe, catch_unwind},
+    rc::Rc,
+};
 
 #[cfg(test)]
 use bityzba::try_new;
@@ -26,6 +33,39 @@ use crate::support::{
 };
 
 const PUBLIC_MODULE: &str = "jbotci.dictionary";
+
+#[cfg(test)]
+thread_local! {
+    // Embedded-Python unit tests construct private, unregistered modules. A
+    // thread-local resolver keeps concurrent test threads independent even on
+    // free-threaded Python, without replacing process-global `sys.modules`.
+    static TEST_NATIVE_MODULE: RefCell<Option<Py<PyModule>>> = const { RefCell::new(None) };
+    static TEST_PUBLIC_MODULE: RefCell<Option<Py<PyModule>>> = const { RefCell::new(None) };
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn native_module<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyModule>> {
+    #[cfg(test)]
+    if let Some(module) =
+        TEST_NATIVE_MODULE.with(|slot| slot.borrow().as_ref().map(|module| module.clone_ref(py)))
+    {
+        return Ok(module.into_bound(py));
+    }
+    py.import("jbotci._native")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn public_module<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyModule>> {
+    #[cfg(test)]
+    if let Some(module) =
+        TEST_PUBLIC_MODULE.with(|slot| slot.borrow().as_ref().map(|module| module.clone_ref(py)))
+    {
+        return Ok(module.into_bound(py));
+    }
+    py.import(PUBLIC_MODULE)
+}
 
 /// Ordered inventory of native names owned by this domain.
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
@@ -1539,7 +1579,7 @@ impl PyDictionaryEntry {
     #[ensures(true)]
     #[getter]
     fn word_type(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let module = py.import("jbotci._native")?;
+        let module = native_module(py)?;
         string_enum_member(&module, self.entry().word_type).map(Bound::unbind)
     }
 
@@ -1842,7 +1882,7 @@ impl PyRafsiMatch {
     #[ensures(true)]
     #[getter]
     fn source(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let module = py.import("jbotci._native")?;
+        let module = native_module(py)?;
         string_enum_member(&module, self.source).map(Bound::unbind)
     }
 
@@ -2187,7 +2227,7 @@ impl PyDictionaryLujvoSegment {
     #[ensures(true)]
     #[getter]
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let module = py.import("jbotci._native")?;
+        let module = native_module(py)?;
         string_enum_member(&module, self.segment().kind).map(Bound::unbind)
     }
 
@@ -2693,8 +2733,7 @@ fn dictionary_validation_py_err(
         )?
         .into_any(),
     };
-    let exception = py
-        .import(PUBLIC_MODULE)?
+    let exception = public_module(py)?
         .getattr("DictionaryValidationError")?
         .call1((detail,))?;
     Ok(PyErr::from_value(exception))
@@ -2721,7 +2760,7 @@ fn py_normalize_pattern_lookup_key(raw: &str) -> String {
 #[ensures(true)]
 #[pyfunction(name = "universal_gismu_rafsi_forms")]
 fn py_universal_gismu_rafsi_forms(py: Python<'_>, word: &str) -> PyResult<Py<PyTuple>> {
-    let module = py.import("jbotci._native")?;
+    let module = native_module(py)?;
     let values = universal_gismu_rafsi_forms(word)
         .into_iter()
         .map(|(rafsi, source)| {
@@ -2738,7 +2777,7 @@ fn py_universal_gismu_rafsi_forms(py: Python<'_>, word: &str) -> PyResult<Py<PyT
 #[ensures(true)]
 #[pyfunction(name = "_word_type_is_gismu_like")]
 fn py_word_type_is_gismu_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
-    let module = py.import("jbotci._native")?;
+    let module = native_module(py)?;
     Ok(extract_string_enum::<WordType>(&module, value)?.is_gismu_like())
 }
 
@@ -2747,7 +2786,7 @@ fn py_word_type_is_gismu_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyRes
 #[ensures(true)]
 #[pyfunction(name = "_word_type_is_lujvo_like")]
 fn py_word_type_is_lujvo_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
-    let module = py.import("jbotci._native")?;
+    let module = native_module(py)?;
     Ok(extract_string_enum::<WordType>(&module, value)?.is_lujvo_like())
 }
 
@@ -2856,6 +2895,45 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[invariant(true)]
+    struct TestModuleOverrideScope {
+        previous_native: Option<Py<PyModule>>,
+        previous_public: Option<Py<PyModule>>,
+        not_send: PhantomData<Rc<()>>,
+    }
+
+    impl TestModuleOverrideScope {
+        #[requires(true)]
+        #[ensures(true)]
+        fn enter(
+            native: Option<&Bound<'_, PyModule>>,
+            public: Option<&Bound<'_, PyModule>>,
+        ) -> Self {
+            let previous_native = TEST_NATIVE_MODULE
+                .with(|slot| slot.replace(native.map(|module| module.clone().unbind())));
+            let previous_public = TEST_PUBLIC_MODULE
+                .with(|slot| slot.replace(public.map(|module| module.clone().unbind())));
+            Self {
+                previous_native,
+                previous_public,
+                not_send: PhantomData,
+            }
+        }
+    }
+
+    impl Drop for TestModuleOverrideScope {
+        #[requires(true)]
+        #[ensures(true)]
+        fn drop(&mut self) {
+            TEST_PUBLIC_MODULE.with(|slot| {
+                slot.replace(self.previous_public.take());
+            });
+            TEST_NATIVE_MODULE.with(|slot| {
+                slot.replace(self.previous_native.take());
+            });
+        }
+    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -3001,23 +3079,67 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn test_module_overrides_are_thread_local_and_panic_safe() {
+        Python::initialize();
+        Python::attach(|py| {
+            assert!(TEST_NATIVE_MODULE.with(|slot| slot.borrow().is_none()));
+            assert!(TEST_PUBLIC_MODULE.with(|slot| slot.borrow().is_none()));
+            let modules_any = py.import("sys").unwrap().getattr("modules").unwrap();
+            let modules = modules_any.cast::<PyDict>().unwrap();
+            let native_before = modules
+                .get_item("jbotci._native")
+                .unwrap()
+                .map(|module| module.as_ptr());
+            let public_before = modules
+                .get_item(PUBLIC_MODULE)
+                .unwrap()
+                .map(|module| module.as_ptr());
+            let native_override = PyModule::new(py, "test_native_override").unwrap();
+            let public_override = PyModule::new(py, "test_public_override").unwrap();
+
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                let _scope =
+                    TestModuleOverrideScope::enter(Some(&native_override), Some(&public_override));
+                assert_eq!(
+                    native_module(py).unwrap().as_ptr(),
+                    native_override.as_ptr()
+                );
+                assert_eq!(
+                    public_module(py).unwrap().as_ptr(),
+                    public_override.as_ptr()
+                );
+                panic!("exercise panic-safe test module restoration");
+            }));
+            assert!(result.is_err());
+            assert!(TEST_NATIVE_MODULE.with(|slot| slot.borrow().is_none()));
+            assert!(TEST_PUBLIC_MODULE.with(|slot| slot.borrow().is_none()));
+            assert_eq!(
+                modules
+                    .get_item("jbotci._native")
+                    .unwrap()
+                    .map(|module| module.as_ptr()),
+                native_before
+            );
+            assert_eq!(
+                modules
+                    .get_item(PUBLIC_MODULE)
+                    .unwrap()
+                    .map(|module| module.as_ptr()),
+                public_before
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn validation_failures_have_public_typed_python_details() {
         Python::initialize();
         Python::attach(|py| {
             let native_module = PyModule::new(py, "jbotci._native").unwrap();
             register(&native_module).unwrap();
-            let modules_any = py.import("sys").unwrap().getattr("modules").unwrap();
-            let modules = modules_any.cast::<PyDict>().unwrap();
-            let previous_package = modules.get_item("jbotci").unwrap();
-            let previous_native_module = modules.get_item("jbotci._native").unwrap();
-            let previous_public_module = modules.get_item(PUBLIC_MODULE).unwrap();
-
-            let package = PyModule::new(py, "jbotci").unwrap();
-            package.add("_native", &native_module).unwrap();
-            modules.set_item("jbotci", package).unwrap();
-            modules.set_item("jbotci._native", &native_module).unwrap();
-            let public_module = PyModule::from_code(
-                py,
+            let public_module = PyModule::new(py, PUBLIC_MODULE).unwrap();
+            py.run(
                 c"\
 class JbotciError(Exception):
     pass
@@ -3027,11 +3149,11 @@ class DictionaryValidationError(JbotciError):
         self.detail = detail
         super().__init__(str(detail))
 ",
-                c"<dictionary-validation-test>",
-                c"jbotci.dictionary",
+                Some(&public_module.dict()),
+                None,
             )
             .unwrap();
-            modules.set_item(PUBLIC_MODULE, &public_module).unwrap();
+            let _scope = TestModuleOverrideScope::enter(Some(&native_module), Some(&public_module));
             let exception_type = public_module.getattr("DictionaryValidationError").unwrap();
             assert_eq!(
                 exception_type
@@ -3121,26 +3243,6 @@ class DictionaryValidationError(JbotciError):
                 Some(13),
                 Some("lujvo reason"),
             );
-
-            if let Some(previous_public_module) = previous_public_module {
-                modules
-                    .set_item(PUBLIC_MODULE, previous_public_module)
-                    .unwrap();
-            } else {
-                modules.del_item(PUBLIC_MODULE).unwrap();
-            }
-            if let Some(previous_native_module) = previous_native_module {
-                modules
-                    .set_item("jbotci._native", previous_native_module)
-                    .unwrap();
-            } else {
-                modules.del_item("jbotci._native").unwrap();
-            }
-            if let Some(previous_package) = previous_package {
-                modules.set_item("jbotci", previous_package).unwrap();
-            } else {
-                modules.del_item("jbotci").unwrap();
-            }
         });
     }
 
@@ -3152,15 +3254,7 @@ class DictionaryValidationError(JbotciError):
         Python::attach(|py| {
             let module = PyModule::new(py, "jbotci._native").unwrap();
             register(&module).unwrap();
-            let modules_any = py.import("sys").unwrap().getattr("modules").unwrap();
-            let modules = modules_any.cast::<PyDict>().unwrap();
-            let previous_package = modules.get_item("jbotci").unwrap();
-            let previous_module = modules.get_item("jbotci._native").unwrap();
-            let package = PyModule::new(py, "jbotci").unwrap();
-            package.add("_native", &module).unwrap();
-            modules.set_item("jbotci", package).unwrap();
-            modules.set_item("jbotci._native", &module).unwrap();
-
+            let _scope = TestModuleOverrideScope::enter(Some(&module), None);
             let rust_dictionary = english();
             let python_dictionary = module.getattr("_dictionary_english").unwrap();
             assert_eq!(
@@ -3528,17 +3622,6 @@ class DictionaryValidationError(JbotciError):
                     .unwrap(),
                 rust_metadata.entry_count
             );
-
-            if let Some(previous_module) = previous_module {
-                modules.set_item("jbotci._native", previous_module).unwrap();
-            } else {
-                modules.del_item("jbotci._native").unwrap();
-            }
-            if let Some(previous_package) = previous_package {
-                modules.set_item("jbotci", previous_package).unwrap();
-            } else {
-                modules.del_item("jbotci").unwrap();
-            }
         });
     }
 
