@@ -31,71 +31,57 @@ impl DialectError {
     }
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DialectFeature {
-    Cbm,
-    Gadganzu,
-    CaseInsensitive,
-    PermissiveLexer,
-    SoiAdverbials,
-    TermHierarchy,
-    ZantufaAdverbials,
-    ZantufaConnectives,
-    ZantufaMex,
-    ZantufaMorphology,
-    ZantufaQuotes,
-    ZantufaTags,
-    ZantufaTerms,
+macro_rules! define_dialect_features {
+    ($($variant:ident => $name:literal),+ $(,)?) => {
+        #[invariant(true)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        pub enum DialectFeature {
+            $(
+                #[serde(rename = $name)]
+                $variant,
+            )+
+        }
+
+        impl DialectFeature {
+            pub const ALL: &'static [Self] = &[$(Self::$variant),+];
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn all() -> &'static [Self] {
+                Self::ALL
+            }
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $name),+
+                }
+            }
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub fn atom_name(self) -> String {
+                self.name().to_ascii_uppercase()
+            }
+        }
+    };
 }
 
-impl DialectFeature {
-    #[requires(true)]
-    #[ensures(true)]
-    pub const fn all() -> &'static [Self] {
-        &[
-            Self::Cbm,
-            Self::Gadganzu,
-            Self::CaseInsensitive,
-            Self::PermissiveLexer,
-            Self::SoiAdverbials,
-            Self::TermHierarchy,
-            Self::ZantufaAdverbials,
-            Self::ZantufaConnectives,
-            Self::ZantufaMex,
-            Self::ZantufaMorphology,
-            Self::ZantufaQuotes,
-            Self::ZantufaTags,
-            Self::ZantufaTerms,
-        ]
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Cbm => "cbm",
-            Self::Gadganzu => "gadganzu",
-            Self::CaseInsensitive => "case-insensitive",
-            Self::PermissiveLexer => "permissive-lexer",
-            Self::SoiAdverbials => "soi-adverbials",
-            Self::TermHierarchy => "term-hierarchy",
-            Self::ZantufaAdverbials => "zantufa-adverbials",
-            Self::ZantufaConnectives => "zantufa-connectives",
-            Self::ZantufaMex => "zantufa-mex",
-            Self::ZantufaMorphology => "zantufa-morphology",
-            Self::ZantufaQuotes => "zantufa-quotes",
-            Self::ZantufaTags => "zantufa-tags",
-            Self::ZantufaTerms => "zantufa-terms",
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub fn atom_name(self) -> String {
-        self.name().to_ascii_uppercase()
-    }
+define_dialect_features! {
+    Cbm => "cbm",
+    Gadganzu => "gadganzu",
+    CaseInsensitive => "case-insensitive",
+    PermissiveLexer => "permissive-lexer",
+    SoiAdverbials => "soi-adverbials",
+    TermHierarchy => "term-hierarchy",
+    ZantufaAdverbials => "zantufa-adverbials",
+    ZantufaConnectives => "zantufa-connectives",
+    ZantufaMex => "zantufa-mex",
+    ZantufaMorphology => "zantufa-morphology",
+    ZantufaQuotes => "zantufa-quotes",
+    ZantufaTags => "zantufa-tags",
+    ZantufaTerms => "zantufa-terms",
 }
 
 impl fmt::Display for DialectFeature {

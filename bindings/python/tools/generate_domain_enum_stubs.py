@@ -17,6 +17,23 @@ from typing import final
 
 """
 
+ENUM_METHODS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("diagnostics", "TracePhase"): (
+        "    def includes(self, phase: _diagnostics_TracePhase) -> bool: ...",
+    ),
+    ("diagnostics", "TraceLevel"): (
+        "    def number(self) -> int: ...",
+        "    @staticmethod",
+        "    def from_number(value: int) -> _diagnostics_TraceLevel: ...",
+    ),
+    ("diagnostics", "DiagnosticNoteMode"): (
+        "    def visible_in(self, detail: _diagnostics_DiagnosticDetailMode) -> bool: ...",
+    ),
+    ("dialect", "DialectFeature"): (
+        "    def atom_name(self) -> str: ...",
+    ),
+}
+
 
 def braced_body(source: str, start: int) -> str:
     """Return the contents of the brace that starts at or after ``start``."""
@@ -33,16 +50,6 @@ def braced_body(source: str, start: int) -> str:
     raise ValueError("unterminated Rust brace block")
 
 
-def impl_function_pairs(source: str, type_name: str, function_name: str) -> list[tuple[str, str]]:
-    """Extract ``Self::Variant => \"value\"`` pairs from one inherent method."""
-
-    impl_start = source.index(f"impl {type_name} {{")
-    impl_body = braced_body(source, impl_start)
-    function_start = impl_body.index(f"fn {function_name}")
-    function_body = braced_body(impl_body, function_start)
-    return re.findall(r'Self::(\w+)\s*=>\s*"([^"]+)"', function_body)
-
-
 def metadata_enums(sources: list[str]) -> list[tuple[str, list[tuple[str, str]]]]:
     """Extract member/value pairs from single-source Rust enum declarations."""
 
@@ -55,26 +62,51 @@ def metadata_enums(sources: list[str]) -> list[tuple[str, list[tuple[str, str]]]
             if type_match is None:
                 raise ValueError("string-enum declaration has no public enum")
             enum_body = braced_body(body, type_match.start())
-            pairs = re.findall(
-                r'\w+\s*=>\s*\("([^"]+)",\s*"([^"]+)"\)', enum_body
+            declared_variants = re.findall(r"^\s*(\w+)\s*=>", enum_body, re.MULTILINE)
+            entries = re.findall(
+                r'^\s*(\w+)\s*=>\s*\("([^"]+)",\s*"([^"]+)"\)',
+                enum_body,
+                re.MULTILINE,
             )
+            if declared_variants != [variant for variant, _, _ in entries]:
+                raise ValueError(
+                    f"metadata extraction omitted a variant of {type_match.group(1)}"
+                )
+            pairs = [(member, value) for _, member, value in entries]
             if not pairs:
                 raise ValueError(f"no metadata entries found for {type_match.group(1)}")
             values.append((type_match.group(1), pairs))
     return values
 
 
-def declared_string_enum(
-    source: str, type_name: str
-) -> tuple[str, list[tuple[str, str]]]:
-    """Read pairs from a ``define_string_enum!`` single-source declaration."""
+def declared_string_enums(source: str) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Read every ``define_string_enum!`` single-source declaration."""
 
-    declaration = source.index(f"pub enum {type_name} {{")
-    body = braced_body(source, declaration)
-    values = re.findall(r'\w+\s*=>\s*"([^"]+)"', body)
-    if not values:
-        raise ValueError(f"no string-enum declaration entries found for {type_name}")
-    return type_name, [(value.replace("-", "_").upper(), value) for value in values]
+    values: list[tuple[str, list[tuple[str, str]]]] = []
+    invocation = re.compile(r"(?:crate::)?define_string_enum!\s*\{")
+    for match in invocation.finditer(source):
+        declaration = braced_body(source, match.start())
+        type_match = re.search(r"pub enum (\w+)\s*\{", declaration)
+        if type_match is None:
+            raise ValueError("string-enum declaration has no public enum")
+        body = braced_body(declaration, type_match.start())
+        declared_variants = re.findall(r"^\s*(\w+)\s*=>", body, re.MULTILINE)
+        entries = re.findall(r'^\s*(\w+)\s*=>\s*"([^"]+)"', body, re.MULTILINE)
+        type_name = type_match.group(1)
+        if declared_variants != [variant for variant, _ in entries]:
+            raise ValueError(f"string-enum extraction omitted a variant of {type_name}")
+        if not entries:
+            raise ValueError(f"no string-enum declaration entries found for {type_name}")
+        values.append(
+            (
+                type_name,
+                [
+                    (value.replace("-", "_").upper(), value)
+                    for _, value in entries
+                ],
+            )
+        )
+    return values
 
 
 def cmavo_pairs(source: str) -> list[tuple[str, str]]:
@@ -83,27 +115,41 @@ def cmavo_pairs(source: str) -> list[tuple[str, str]]:
     table = source[
         source.index("macro_rules! cmavo_table") : source.index("macro_rules! declare_cmavo_enum")
     ]
+    declared_variants = re.findall(r"^\s*(\w+)\s*=>", table, re.MULTILINE)
+    entries = re.findall(
+        r'^\s*(\w+)\s*=>\s*\{\s*text:\s*"([^"]+)"', table, re.MULTILINE
+    )
+    if declared_variants != [variant for variant, _ in entries]:
+        raise ValueError("cmavo metadata extraction omitted a table entry")
+    return [(variant.upper(), spelling) for variant, spelling in entries]
+
+
+def dialect_feature_pairs(source: str) -> list[tuple[str, str]]:
+    """Extract Python members from the single declarative dialect-feature table."""
+
+    start = source.index("define_dialect_features! {")
+    body = braced_body(source, start)
+    declared_variants = re.findall(r"^\s*(\w+)\s*=>", body, re.MULTILINE)
+    entries = re.findall(
+        r'^\s*(\w+)\s*=>\s*"([^"]+)"', body, re.MULTILINE
+    )
+    if declared_variants != [variant for variant, _ in entries]:
+        raise ValueError("dialect feature metadata extraction omitted a table entry")
     return [
-        (variant.upper(), spelling)
-        for variant, spelling in re.findall(
-            r'^\s*(\w+)\s*=>\s*\{\s*text:\s*"([^"]+)"', table, re.MULTILINE
-        )
+        (value.replace("-", "_").upper(), value) for _, value in entries
     ]
 
 
-def inherent_enum(
-    source: str,
-    type_name: str,
-    member_function: str,
-    value_function: str,
-) -> tuple[str, list[tuple[str, str]]]:
-    """Join member and value methods by their Rust variant identifier."""
+def selmaho_pairs(source: str) -> list[tuple[str, str]]:
+    """Extract Python members from the single selma'o metadata table."""
 
-    members = dict(impl_function_pairs(source, type_name, member_function))
-    values = dict(impl_function_pairs(source, type_name, value_function))
-    if members.keys() != values.keys():
-        raise ValueError(f"metadata methods disagree for {type_name}")
-    return type_name, [(members[variant], values[variant]) for variant in members]
+    start = source.index("define_selmaho! {")
+    body = braced_body(source, start)
+    declared_variants = re.findall(r"^\s*(\w+)\s*=>", body, re.MULTILINE)
+    entries = re.findall(r'^\s*(\w+)\s*=>\s*"([^"]+)"', body, re.MULTILINE)
+    if declared_variants != [variant for variant, _ in entries]:
+        raise ValueError("selma'o metadata extraction omitted a table entry")
+    return [(value.upper(), value) for _, value in entries]
 
 
 def render_enum(native_prefix: str, type_name: str, pairs: list[tuple[str, str]]) -> str:
@@ -119,6 +165,7 @@ def render_enum(native_prefix: str, type_name: str, pairs: list[tuple[str, str]]
         raise ValueError(f"duplicate canonical value in {type_name}")
     lines = ["@final", f"class _{native_prefix}_{type_name}(StrEnum):"]
     lines.extend(f"    {name} = {value!r}" for name, value in pairs)
+    lines.extend(ENUM_METHODS.get((native_prefix, type_name), ()))
     return "\n".join(lines)
 
 
@@ -128,34 +175,21 @@ def generate() -> str:
     diagnostics = (REPOSITORY_ROOT / "crates/jbotci-diagnostics/src/lib.rs").read_text()
     dialect = (REPOSITORY_ROOT / "crates/jbotci-dialect/src/lib.rs").read_text()
     morphology_root = REPOSITORY_ROOT / "crates/jbotci-morphology/src"
-    morphology = (morphology_root / "lib.rs").read_text()
     morphology_metadata_sources = [
-        morphology,
-        (morphology_root / "lujvo.rs").read_text(),
-        (morphology_root / "segment/phonotactics.rs").read_text(),
-        (morphology_root / "surface.rs").read_text(),
+        path.read_text() for path in sorted(morphology_root.rglob("*.rs"))
     ]
     cmavo = (REPOSITORY_ROOT / "crates/jbotci-morphology/src/cmavo.rs").read_text()
 
     enums: list[tuple[str, str, list[tuple[str, str]]]] = []
-    for type_name in (
-        "DiagnosticSeverity",
-        "DiagnosticPhase",
-        "TracePhase",
-        "TraceLevel",
-        "TraceEventKind",
-        "DiagnosticDetailMode",
-        "DiagnosticNoteMode",
-        "DiagnosticTextRole",
-    ):
-        _, pairs = declared_string_enum(diagnostics, type_name)
-        enums.append(("diagnostics", type_name, pairs))
-    dialect_values = impl_function_pairs(dialect, "DialectFeature", "name")
+    enums.extend(
+        ("diagnostics", type_name, pairs)
+        for type_name, pairs in declared_string_enums(diagnostics)
+    )
     enums.append(
         (
             "dialect",
             "DialectFeature",
-            [(value.replace("-", "_").upper(), value) for _, value in dialect_values],
+            dialect_feature_pairs(dialect),
         )
     )
     enums.extend(
@@ -163,10 +197,7 @@ def generate() -> str:
         for type_name, pairs in metadata_enums(morphology_metadata_sources)
     )
     enums.append(("morphology", "Cmavo", cmavo_pairs(cmavo)))
-    selmaho_values = impl_function_pairs(cmavo, "Selmaho", "name")
-    enums.append(
-        ("morphology", "Selmaho", [(value.upper(), value) for _, value in selmaho_values])
-    )
+    enums.append(("morphology", "Selmaho", selmaho_pairs(cmavo)))
 
     return HEADER + "\n\n".join(
         render_enum(prefix, type_name, pairs) for prefix, type_name, pairs in enums

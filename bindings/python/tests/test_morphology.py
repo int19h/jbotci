@@ -310,6 +310,8 @@ def test_cmavo_selmaho_round_trips_are_exact() -> None:
         assert morphology.selmaho_from_name(selmaho.value) is selmaho
         assert morphology.selmaho_name(selmaho) == selmaho.value
     assert morphology.cmavo_is_selmaho(morphology.Cmavo.ZO, morphology.Selmaho.ZO)
+    with pytest.raises(InvalidInputError):
+        morphology.selmaho_from_name("")
     with pytest.raises(TypeError):
         morphology.cmavo_text("zo")  # type: ignore[arg-type]
 

@@ -18,6 +18,7 @@ class _diagnostics_TracePhase(StrEnum):
     MORPHOLOGY = 'morphology'
     SYNTAX = 'syntax'
     ALL = 'all'
+    def includes(self, phase: _diagnostics_TracePhase) -> bool: ...
 
 @final
 class _diagnostics_TraceLevel(StrEnum):
@@ -25,6 +26,9 @@ class _diagnostics_TraceLevel(StrEnum):
     DETAILED = 'detailed'
     ALL = 'all'
     PRIMITIVES = 'primitives'
+    def number(self) -> int: ...
+    @staticmethod
+    def from_number(value: int) -> _diagnostics_TraceLevel: ...
 
 @final
 class _diagnostics_TraceEventKind(StrEnum):
@@ -50,6 +54,7 @@ class _diagnostics_DiagnosticNoteMode(StrEnum):
     ALWAYS = 'always'
     SUMMARY = 'summary'
     DETAILED = 'detailed'
+    def visible_in(self, detail: _diagnostics_DiagnosticDetailMode) -> bool: ...
 
 @final
 class _diagnostics_DiagnosticTextRole(StrEnum):
@@ -76,6 +81,7 @@ class _dialect_DialectFeature(StrEnum):
     ZANTUFA_QUOTES = 'zantufa-quotes'
     ZANTUFA_TAGS = 'zantufa-tags'
     ZANTUFA_TERMS = 'zantufa-terms'
+    def atom_name(self) -> str: ...
 
 @final
 class _morphology_WordKind(StrEnum):

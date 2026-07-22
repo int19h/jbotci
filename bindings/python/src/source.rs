@@ -123,7 +123,7 @@ impl PyByteRangeInverted {
     #[allow(non_upper_case_globals)]
     const __match_args__: (&'static str, &'static str) = ("start", "end");
 
-    /// Construct an inverted-byte-range error with its original endpoints.
+    /// Preserve a byte-range error payload exactly, without revalidating endpoint order.
     #[requires(true)]
     #[ensures(matches!(ret.value, SourceLocationError::ByteRangeInverted { start: value_start, end: value_end } if value_start == start && value_end == end))]
     #[new]
@@ -176,7 +176,7 @@ impl PyCharRangeInverted {
     #[allow(non_upper_case_globals)]
     const __match_args__: (&'static str, &'static str) = ("start", "end");
 
-    /// Construct an inverted-character-range error with its original endpoints.
+    /// Preserve a character-range error payload exactly, without revalidating endpoint order.
     #[requires(true)]
     #[ensures(matches!(ret.value, SourceLocationError::CharRangeInverted { start: value_start, end: value_end } if value_start == start && value_end == end))]
     #[new]

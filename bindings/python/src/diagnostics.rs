@@ -1,6 +1,7 @@
 //! Immutable Python projection of diagnostics and parser trace products.
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_diagnostics::{
@@ -33,6 +34,10 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_diagnostics_DiagnosticDetailMode",
     "_diagnostics_DiagnosticNoteMode",
     "_diagnostics_DiagnosticTextRole",
+    "_diagnostics_trace_phase_includes",
+    "_diagnostics_trace_level_number",
+    "_diagnostics_trace_level_from_number",
+    "_diagnostics_diagnostic_note_mode_visible_in",
     "_diagnostics_TraceFilter",
     "_diagnostics_TraceOptions",
     "_diagnostics_TraceEvent",
@@ -283,7 +288,7 @@ impl PyTraceOptions {
     #[ensures(true)]
     #[getter]
     fn phase(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.phase)
+        enum_to_python(py, self.rust().phase)
     }
 
     /// Return the non-zero trace event limit.
@@ -313,12 +318,162 @@ impl PyTraceOptions {
         }
         Ok(Self::from_rust(self.value.clone().with_limit(limit)))
     }
+
+    /// Return whether tracing is enabled for the requested parser phase.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|included| self.value.enabled || !*included) || ret.is_err())]
+    fn includes(&self, py: Python<'_>, phase: &Bound<'_, PyAny>) -> PyResult<bool> {
+        Ok(self.value.includes(enum_from_python(py, phase)?))
+    }
 }
 
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Report { root, index } => *index < root.events.len())]
+#[derive(Debug, Clone)]
+enum TraceEventStorage {
+    Owned {
+        value: Arc<TraceEvent>,
+    },
+    Report {
+        root: Arc<TraceReport>,
+        index: usize,
+    },
+}
+
+impl TraceEventStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &TraceEvent {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Report { root, index } => &root.events[*index],
+        }
+    }
+}
+
+impl PartialEq for TraceEventStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for TraceEventStorage {}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Report { root } => root.failure.is_some())]
+#[derive(Debug, Clone)]
+enum TraceFailureSummaryStorage {
+    Owned { value: Arc<TraceFailureSummary> },
+    Report { root: Arc<TraceReport> },
+}
+
+impl TraceFailureSummaryStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &TraceFailureSummary {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Report { root } => root
+                .failure
+                .as_ref()
+                .expect("typed trace-summary locator requires a report failure"),
+        }
+    }
+}
+
+impl PartialEq for TraceFailureSummaryStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for TraceFailureSummaryStorage {}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Summary { owner, index } => *index < owner.get().branches.len())]
+#[derive(Debug, Clone)]
+enum TraceFailureBranchStorage {
+    Owned {
+        value: Arc<TraceFailureBranch>,
+    },
+    Summary {
+        owner: TraceFailureSummaryStorage,
+        index: usize,
+    },
+}
+
+impl TraceFailureBranchStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &TraceFailureBranch {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Summary { owner, index } => &owner.get().branches[*index],
+        }
+    }
+}
+
+impl PartialEq for TraceFailureBranchStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for TraceFailureBranchStorage {}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Branch { owner, index } => *index < owner.get().contexts.len())]
+#[invariant(::SummaryCurrent { owner } => owner.get().current_context.is_some())]
+#[derive(Debug, Clone)]
+enum TraceContextStorage {
+    Owned {
+        value: Arc<TraceContext>,
+    },
+    Branch {
+        owner: TraceFailureBranchStorage,
+        index: usize,
+    },
+    SummaryCurrent {
+        owner: TraceFailureSummaryStorage,
+    },
+}
+
+impl TraceContextStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &TraceContext {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Branch { owner, index } => &owner.get().contexts[*index],
+            Self::SummaryCurrent { owner } => owner
+                .get()
+                .current_context
+                .as_ref()
+                .expect("typed context locator requires a current context"),
+        }
+    }
+}
+
+impl PartialEq for TraceContextStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for TraceContextStorage {}
+
 /// One immutable event emitted by parser tracing.
-#[invariant(value.byte_start <= value.byte_end)]
-#[invariant(value.phase != TracePhase::All)]
-#[invariant(!value.label.is_empty())]
+#[invariant(value.get().byte_start <= value.get().byte_end)]
+#[invariant(value.get().phase != TracePhase::All)]
+#[invariant(!value.get().label.is_empty())]
 #[pyclass(
     name = "TraceEvent",
     frozen,
@@ -328,16 +483,40 @@ impl PyTraceOptions {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyTraceEvent {
-    value: TraceEvent,
+    value: TraceEventStorage,
 }
 
 impl PyTraceEvent {
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(value.phase != TracePhase::All)]
     #[requires(!value.label.is_empty())]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: TraceEvent) -> Self {
-        new!(PyTraceEvent { value })
+        new!(PyTraceEvent {
+            value: new!(TraceEventStorage::Owned {
+                value: Arc::new(value),
+            }),
+        })
+    }
+
+    #[requires(index < root.events.len())]
+    #[expensive_ensures(ret.value.get() == &old(root.clone()).events[index])]
+    fn from_report(root: Arc<TraceReport>, index: usize) -> Self {
+        new!(PyTraceEvent {
+            value: new!(TraceEventStorage::Report { root, index }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &TraceEvent {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> TraceEvent {
+        self.value.get().clone()
     }
 }
 
@@ -395,7 +574,7 @@ impl PyTraceEvent {
     #[ensures(true)]
     #[getter]
     fn phase(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.phase)
+        enum_to_python(py, self.rust().phase)
     }
 
     /// Return the event detail level.
@@ -403,15 +582,15 @@ impl PyTraceEvent {
     #[ensures(true)]
     #[getter]
     fn level(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.level)
+        enum_to_python(py, self.rust().level)
     }
 
     /// Return the parser nesting depth.
     #[requires(true)]
-    #[ensures(ret == self.value.depth)]
+    #[ensures(ret == self.value.get().depth)]
     #[getter]
     fn depth(&self) -> usize {
-        self.value.depth
+        self.rust().depth
     }
 
     /// Return the trace event kind.
@@ -419,45 +598,45 @@ impl PyTraceEvent {
     #[ensures(true)]
     #[getter]
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.kind)
+        enum_to_python(py, self.rust().kind)
     }
 
     /// Return the event label.
     #[requires(true)]
-    #[ensures(ret == self.value.label.as_str())]
+    #[ensures(ret == self.value.get().label.as_str())]
     #[getter]
     fn label(&self) -> &str {
-        &self.value.label
+        &self.rust().label
     }
 
     /// Return the inclusive event byte offset.
     #[requires(true)]
-    #[ensures(ret == self.value.byte_start)]
+    #[ensures(ret == self.value.get().byte_start)]
     #[getter]
     fn byte_start(&self) -> usize {
-        self.value.byte_start
+        self.rust().byte_start
     }
 
     /// Return the exclusive event byte offset.
     #[requires(true)]
-    #[ensures(ret == self.value.byte_end)]
+    #[ensures(ret == self.value.get().byte_end)]
     #[getter]
     fn byte_end(&self) -> usize {
-        self.value.byte_end
+        self.rust().byte_end
     }
 
     /// Return optional event-specific detail text.
     #[requires(true)]
-    #[ensures(ret == self.value.detail.as_deref())]
+    #[ensures(ret == self.value.get().detail.as_deref())]
     #[getter]
     fn detail(&self) -> Option<&str> {
-        self.value.detail.as_deref()
+        self.rust().detail.as_deref()
     }
 }
 
 /// Grammar construct active at a trace location.
-#[invariant(value.byte_start <= value.byte_end)]
-#[invariant(!value.construct.is_empty())]
+#[invariant(value.get().byte_start <= value.get().byte_end)]
+#[invariant(!value.get().construct.is_empty())]
 #[pyclass(
     name = "TraceContext",
     frozen,
@@ -467,15 +646,47 @@ impl PyTraceEvent {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyTraceContext {
-    value: TraceContext,
+    value: TraceContextStorage,
 }
 
 impl PyTraceContext {
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(!value.construct.is_empty())]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: TraceContext) -> Self {
-        new!(PyTraceContext { value })
+        new!(PyTraceContext {
+            value: new!(TraceContextStorage::Owned {
+                value: Arc::new(value),
+            }),
+        })
+    }
+
+    #[requires(index < owner.get().contexts.len())]
+    #[expensive_ensures(ret.value.get() == &old(owner.clone()).get().contexts[index])]
+    fn from_branch(owner: TraceFailureBranchStorage, index: usize) -> Self {
+        new!(PyTraceContext {
+            value: new!(TraceContextStorage::Branch { owner, index }),
+        })
+    }
+
+    #[requires(owner.get().current_context.is_some())]
+    #[expensive_ensures(ret.value.get() == old(owner.clone()).get().current_context.as_ref().unwrap())]
+    fn from_summary_current(owner: TraceFailureSummaryStorage) -> Self {
+        new!(PyTraceContext {
+            value: new!(TraceContextStorage::SummaryCurrent { owner }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &TraceContext {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> TraceContext {
+        self.value.get().clone()
     }
 }
 
@@ -503,26 +714,26 @@ impl PyTraceContext {
 
     /// Return the grammar construct name.
     #[requires(true)]
-    #[ensures(ret == self.value.construct.as_str())]
+    #[ensures(ret == self.value.get().construct.as_str())]
     #[getter]
     fn construct(&self) -> &str {
-        &self.value.construct
+        &self.rust().construct
     }
 
     /// Return the inclusive context byte offset.
     #[requires(true)]
-    #[ensures(ret == self.value.byte_start)]
+    #[ensures(ret == self.value.get().byte_start)]
     #[getter]
     fn byte_start(&self) -> usize {
-        self.value.byte_start
+        self.rust().byte_start
     }
 
     /// Return the exclusive context byte offset.
     #[requires(true)]
-    #[ensures(ret == self.value.byte_end)]
+    #[ensures(ret == self.value.get().byte_end)]
     #[getter]
     fn byte_end(&self) -> usize {
-        self.value.byte_end
+        self.rust().byte_end
     }
 }
 
@@ -537,14 +748,38 @@ impl PyTraceContext {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyTraceFailureBranch {
-    value: TraceFailureBranch,
+    value: TraceFailureBranchStorage,
 }
 
 impl PyTraceFailureBranch {
     #[requires(true)]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: TraceFailureBranch) -> Self {
-        Self { value }
+        Self {
+            value: new!(TraceFailureBranchStorage::Owned {
+                value: Arc::new(value),
+            }),
+        }
+    }
+
+    #[requires(index < owner.get().branches.len())]
+    #[expensive_ensures(ret.value.get() == &old(owner.clone()).get().branches[index])]
+    fn from_summary(owner: TraceFailureSummaryStorage, index: usize) -> Self {
+        Self {
+            value: new!(TraceFailureBranchStorage::Summary { owner, index }),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &TraceFailureBranch {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> TraceFailureBranch {
+        self.value.get().clone()
     }
 }
 
@@ -552,15 +787,15 @@ impl PyTraceFailureBranch {
 impl PyTraceFailureBranch {
     /// Construct a failure branch from contexts and expected items.
     #[requires(true)]
-    #[ensures(ret.value.contexts.len() == contexts.len())]
-    #[ensures(ret.value.expected.len() == old(expected.len()))]
+    #[ensures(ret.value.get().contexts.len() == contexts.len())]
+    #[ensures(ret.value.get().expected.len() == old(expected.len()))]
     #[new]
     #[pyo3(signature = (contexts=Vec::new(), expected=Vec::new()))]
     fn new(contexts: Vec<PyRef<'_, PyTraceContext>>, expected: Vec<String>) -> Self {
         Self::from_rust(new!(TraceFailureBranch {
             contexts: contexts
                 .iter()
-                .map(|context| context.value.clone())
+                .map(|context| context.clone_rust())
                 .collect(),
             expected,
         }))
@@ -573,11 +808,8 @@ impl PyTraceFailureBranch {
     fn contexts(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .contexts
-                .iter()
-                .cloned()
-                .map(PyTraceContext::from_rust),
+            (0..self.rust().contexts.len())
+                .map(|index| PyTraceContext::from_branch(self.value.clone(), index)),
         )
         .map(Bound::unbind)
     }
@@ -587,13 +819,13 @@ impl PyTraceFailureBranch {
     #[ensures(true)]
     #[getter]
     fn expected(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
-        sequence_to_tuple(py, self.value.expected.iter().cloned()).map(Bound::unbind)
+        sequence_to_tuple(py, self.rust().expected.iter().map(String::as_str)).map(Bound::unbind)
     }
 }
 
 /// Structured summary of the parser's furthest traced failure.
-#[invariant(value.byte_start <= value.byte_end)]
-#[invariant(!value.reason.is_empty())]
+#[invariant(value.get().byte_start <= value.get().byte_end)]
+#[invariant(!value.get().reason.is_empty())]
 #[pyclass(
     name = "TraceFailureSummary",
     frozen,
@@ -603,15 +835,39 @@ impl PyTraceFailureBranch {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyTraceFailureSummary {
-    value: TraceFailureSummary,
+    value: TraceFailureSummaryStorage,
 }
 
 impl PyTraceFailureSummary {
     #[requires(value.byte_start <= value.byte_end)]
     #[requires(!value.reason.is_empty())]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: TraceFailureSummary) -> Self {
-        new!(PyTraceFailureSummary { value })
+        new!(PyTraceFailureSummary {
+            value: new!(TraceFailureSummaryStorage::Owned {
+                value: Arc::new(value),
+            }),
+        })
+    }
+
+    #[requires(root.failure.is_some())]
+    #[expensive_ensures(ret.value.get() == old(root.clone()).failure.as_ref().unwrap())]
+    fn from_report(root: Arc<TraceReport>) -> Self {
+        new!(PyTraceFailureSummary {
+            value: new!(TraceFailureSummaryStorage::Report { root }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &TraceFailureSummary {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> TraceFailureSummary {
+        self.value.get().clone()
     }
 }
 
@@ -644,35 +900,33 @@ impl PyTraceFailureSummary {
             byte_start,
             byte_end,
             reason,
-            branches: branches.iter().map(|branch| branch.value.clone()).collect(),
-            current_context: current_context
-                .as_ref()
-                .map(|context| context.value.clone()),
+            branches: branches.iter().map(|branch| branch.clone_rust()).collect(),
+            current_context: current_context.as_ref().map(|context| context.clone_rust()),
         })))
     }
 
     /// Return the inclusive failure byte offset.
     #[requires(true)]
-    #[ensures(ret == self.value.byte_start)]
+    #[ensures(ret == self.value.get().byte_start)]
     #[getter]
     fn byte_start(&self) -> usize {
-        self.value.byte_start
+        self.rust().byte_start
     }
 
     /// Return the exclusive failure byte offset.
     #[requires(true)]
-    #[ensures(ret == self.value.byte_end)]
+    #[ensures(ret == self.value.get().byte_end)]
     #[getter]
     fn byte_end(&self) -> usize {
-        self.value.byte_end
+        self.rust().byte_end
     }
 
     /// Return the summarized failure reason.
     #[requires(true)]
-    #[ensures(ret == self.value.reason.as_str())]
+    #[ensures(ret == self.value.get().reason.as_str())]
     #[getter]
     fn reason(&self) -> &str {
-        &self.value.reason
+        &self.rust().reason
     }
 
     /// Return the immutable alternative failure branches.
@@ -682,11 +936,8 @@ impl PyTraceFailureSummary {
     fn branches(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .branches
-                .iter()
-                .cloned()
-                .map(PyTraceFailureBranch::from_rust),
+            (0..self.rust().branches.len())
+                .map(|index| PyTraceFailureBranch::from_summary(self.value.clone(), index)),
         )
         .map(Bound::unbind)
     }
@@ -696,10 +947,10 @@ impl PyTraceFailureSummary {
     #[ensures(true)]
     #[getter]
     fn current_context(&self) -> Option<PyTraceContext> {
-        self.value
+        self.rust()
             .current_context
-            .clone()
-            .map(PyTraceContext::from_rust)
+            .as_ref()
+            .map(|_| PyTraceContext::from_summary_current(self.value.clone()))
     }
 }
 
@@ -714,14 +965,22 @@ impl PyTraceFailureSummary {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyTraceReport {
-    value: TraceReport,
+    value: Arc<TraceReport>,
 }
 
 impl PyTraceReport {
     #[requires(value.phase != TracePhase::All)]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
     pub(crate) fn from_rust(value: TraceReport) -> Self {
-        new!(PyTraceReport { value })
+        new!(PyTraceReport {
+            value: Arc::new(value),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.as_ref())]
+    fn rust(&self) -> &TraceReport {
+        self.value.as_ref()
     }
 }
 
@@ -745,11 +1004,16 @@ impl PyTraceReport {
                 "trace report phase must be morphology or syntax, not all",
             ));
         }
+        if events.iter().any(|event| event.rust().phase != phase) {
+            return Err(InvalidInputError::new_err(
+                "every trace event must have the same phase as its report",
+            ));
+        }
         Ok(Self::from_rust(new!(TraceReport {
             phase,
-            events: events.iter().map(|event| event.value.clone()).collect(),
+            events: events.iter().map(|event| event.clone_rust()).collect(),
             truncated,
-            failure: failure.as_ref().map(|failure| failure.value.clone()),
+            failure: failure.as_ref().map(|failure| failure.clone_rust()),
         })))
     }
 
@@ -758,7 +1022,7 @@ impl PyTraceReport {
     #[ensures(true)]
     #[getter]
     fn phase(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.phase)
+        enum_to_python(py, self.rust().phase)
     }
 
     /// Return the immutable trace events.
@@ -768,11 +1032,8 @@ impl PyTraceReport {
     fn events(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .events
-                .iter()
-                .cloned()
-                .map(PyTraceEvent::from_rust),
+            (0..self.rust().events.len())
+                .map(|index| PyTraceEvent::from_report(Arc::clone(&self.value), index)),
         )
         .map(Bound::unbind)
     }
@@ -782,7 +1043,7 @@ impl PyTraceReport {
     #[ensures(ret == self.value.truncated)]
     #[getter]
     fn truncated(&self) -> bool {
-        self.value.truncated
+        self.rust().truncated
     }
 
     /// Return the optional failure summary.
@@ -790,15 +1051,163 @@ impl PyTraceReport {
     #[ensures(true)]
     #[getter]
     fn failure(&self) -> Option<PyTraceFailureSummary> {
-        self.value
+        self.rust()
             .failure
-            .clone()
-            .map(PyTraceFailureSummary::from_rust)
+            .as_ref()
+            .map(|_| PyTraceFailureSummary::from_report(Arc::clone(&self.value)))
     }
 }
 
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Diagnostic { root, index } => *index < root.styled_notes.len())]
+#[derive(Debug, Clone)]
+enum DiagnosticStyledNoteStorage {
+    Owned { value: Arc<DiagnosticStyledNote> },
+    Diagnostic { root: Arc<Diagnostic>, index: usize },
+}
+
+impl DiagnosticStyledNoteStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &DiagnosticStyledNote {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Diagnostic { root, index } => &root.styled_notes[*index],
+        }
+    }
+}
+
+impl PartialEq for DiagnosticStyledNoteStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for DiagnosticStyledNoteStorage {}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Diagnostic { root, index } => *index < root.labels.len())]
+#[derive(Debug, Clone)]
+enum DiagnosticLabelStorage {
+    Owned { value: Arc<DiagnosticLabel> },
+    Diagnostic { root: Arc<Diagnostic>, index: usize },
+}
+
+impl DiagnosticLabelStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &DiagnosticLabel {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Diagnostic { root, index } => &root.labels[*index],
+        }
+    }
+}
+
+impl PartialEq for DiagnosticLabelStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for DiagnosticLabelStorage {}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::StyledNote { owner, index } => *index < owner.get().segments.len())]
+#[invariant(::DiagnosticMessage { root, index } => *index < root.message_segments.len())]
+#[invariant(::DiagnosticNote { root, note_index, segment_index } => *note_index < root.note_segments.len() && *segment_index < root.note_segments[*note_index].len())]
+#[invariant(::LabelMessage { owner, index } => *index < owner.get().message_segments.len())]
+#[derive(Debug, Clone)]
+enum DiagnosticTextSegmentStorage {
+    Owned {
+        value: Arc<DiagnosticTextSegment>,
+    },
+    StyledNote {
+        owner: DiagnosticStyledNoteStorage,
+        index: usize,
+    },
+    DiagnosticMessage {
+        root: Arc<Diagnostic>,
+        index: usize,
+    },
+    DiagnosticNote {
+        root: Arc<Diagnostic>,
+        note_index: usize,
+        segment_index: usize,
+    },
+    LabelMessage {
+        owner: DiagnosticLabelStorage,
+        index: usize,
+    },
+}
+
+impl DiagnosticTextSegmentStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &DiagnosticTextSegment {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::StyledNote { owner, index } => &owner.get().segments[*index],
+            Self::DiagnosticMessage { root, index } => &root.message_segments[*index],
+            Self::DiagnosticNote {
+                root,
+                note_index,
+                segment_index,
+            } => &root.note_segments[*note_index][*segment_index],
+            Self::LabelMessage { owner, index } => &owner.get().message_segments[*index],
+        }
+    }
+}
+
+impl PartialEq for DiagnosticTextSegmentStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for DiagnosticTextSegmentStorage {}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Segment { owner } => owner.get().link.is_some())]
+#[derive(Debug, Clone)]
+enum DiagnosticLinkStorage {
+    Owned { value: Arc<DiagnosticTextLink> },
+    Segment { owner: DiagnosticTextSegmentStorage },
+}
+
+impl DiagnosticLinkStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &DiagnosticTextLink {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Segment { owner } => owner
+                .get()
+                .link
+                .as_ref()
+                .expect("typed diagnostic-link locator requires a linked segment"),
+        }
+    }
+}
+
+impl PartialEq for DiagnosticLinkStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for DiagnosticLinkStorage {}
+
 /// Diagnostic hyperlink targeting a valsi dictionary entry.
-#[invariant(matches!(value.as_data(), bityzba::data!(DiagnosticTextLink::VlackuWord { .. })))]
+#[invariant(matches!(value.get().as_data(), bityzba::data!(DiagnosticTextLink::VlackuWord { .. })))]
 #[pyclass(
     name = "VlackuWordLink",
     frozen,
@@ -808,7 +1217,7 @@ impl PyTraceReport {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyVlackuWordLink {
-    value: DiagnosticTextLink,
+    value: DiagnosticLinkStorage,
 }
 
 #[pymethods]
@@ -828,7 +1237,9 @@ impl PyVlackuWordLink {
             ));
         }
         Ok(new!(PyVlackuWordLink {
-            value: new!(DiagnosticTextLink::VlackuWord { word }),
+            value: new!(DiagnosticLinkStorage::Owned {
+                value: Arc::new(new!(DiagnosticTextLink::VlackuWord { word })),
+            }),
         }))
     }
 
@@ -838,13 +1249,14 @@ impl PyVlackuWordLink {
     #[getter]
     fn word(&self) -> &str {
         self.value
+            .get()
             .vlacku_word()
             .expect("wrapper variant guarantees a vlacku word")
     }
 }
 
 /// Diagnostic hyperlink targeting a CLL section and optional anchor.
-#[invariant(matches!(value.as_data(), bityzba::data!(DiagnosticTextLink::CllSection { .. })))]
+#[invariant(matches!(value.get().as_data(), bityzba::data!(DiagnosticTextLink::CllSection { .. })))]
 #[pyclass(
     name = "CllSectionLink",
     frozen,
@@ -854,7 +1266,7 @@ impl PyVlackuWordLink {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyCllSectionLink {
-    value: DiagnosticTextLink,
+    value: DiagnosticLinkStorage,
 }
 
 #[pymethods]
@@ -880,7 +1292,9 @@ impl PyCllSectionLink {
             ));
         }
         Ok(new!(PyCllSectionLink {
-            value: new!(DiagnosticTextLink::CllSection { section_id, anchor }),
+            value: new!(DiagnosticLinkStorage::Owned {
+                value: Arc::new(new!(DiagnosticTextLink::CllSection { section_id, anchor })),
+            }),
         }))
     }
 
@@ -890,6 +1304,7 @@ impl PyCllSectionLink {
     #[getter]
     fn section_id(&self) -> &str {
         self.value
+            .get()
             .cll_section()
             .expect("wrapper variant guarantees a CLL section")
             .0
@@ -901,6 +1316,7 @@ impl PyCllSectionLink {
     #[getter]
     fn anchor(&self) -> Option<&str> {
         self.value
+            .get()
             .cll_section()
             .expect("wrapper variant guarantees a CLL section")
             .1
@@ -908,7 +1324,7 @@ impl PyCllSectionLink {
 }
 
 /// Diagnostic hyperlink targeting a named EBNF rule.
-#[invariant(matches!(value.as_data(), bityzba::data!(DiagnosticTextLink::EbnfRule { .. })))]
+#[invariant(matches!(value.get().as_data(), bityzba::data!(DiagnosticTextLink::EbnfRule { .. })))]
 #[pyclass(
     name = "EbnfRuleLink",
     frozen,
@@ -918,7 +1334,7 @@ impl PyCllSectionLink {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyEbnfRuleLink {
-    value: DiagnosticTextLink,
+    value: DiagnosticLinkStorage,
 }
 
 #[pymethods]
@@ -938,7 +1354,9 @@ impl PyEbnfRuleLink {
             ));
         }
         Ok(new!(PyEbnfRuleLink {
-            value: new!(DiagnosticTextLink::EbnfRule { rule_name }),
+            value: new!(DiagnosticLinkStorage::Owned {
+                value: Arc::new(new!(DiagnosticTextLink::EbnfRule { rule_name })),
+            }),
         }))
     }
 
@@ -948,6 +1366,7 @@ impl PyEbnfRuleLink {
     #[getter]
     fn rule_name(&self) -> &str {
         self.value
+            .get()
             .ebnf_rule()
             .expect("wrapper variant guarantees an EBNF rule")
     }
@@ -957,13 +1376,13 @@ impl PyEbnfRuleLink {
 #[ensures(true)]
 fn diagnostic_link_from_python(value: &Bound<'_, PyAny>) -> PyResult<DiagnosticTextLink> {
     if let Ok(value) = value.extract::<PyRef<'_, PyVlackuWordLink>>() {
-        return Ok(value.value.clone());
+        return Ok(value.value.get().clone());
     }
     if let Ok(value) = value.extract::<PyRef<'_, PyCllSectionLink>>() {
-        return Ok(value.value.clone());
+        return Ok(value.value.get().clone());
     }
     if let Ok(value) = value.extract::<PyRef<'_, PyEbnfRuleLink>>() {
-        return Ok(value.value.clone());
+        return Ok(value.value.get().clone());
     }
     Err(PyTypeError::new_err(
         "expected a jbotci.diagnostics diagnostic text link variant",
@@ -972,23 +1391,35 @@ fn diagnostic_link_from_python(value: &Bound<'_, PyAny>) -> PyResult<DiagnosticT
 
 #[requires(true)]
 #[ensures(true)]
-fn diagnostic_link_to_python(py: Python<'_>, value: DiagnosticTextLink) -> PyResult<Py<PyAny>> {
-    let value = match value.as_data() {
-        bityzba::data!(DiagnosticTextLink::VlackuWord { .. }) => {
-            Py::new(py, new!(PyVlackuWordLink { value }))?.into_any()
-        }
-        bityzba::data!(DiagnosticTextLink::CllSection { .. }) => {
-            Py::new(py, new!(PyCllSectionLink { value }))?.into_any()
-        }
-        bityzba::data!(DiagnosticTextLink::EbnfRule { .. }) => {
-            Py::new(py, new!(PyEbnfRuleLink { value }))?.into_any()
-        }
+fn diagnostic_link_to_python(py: Python<'_>, value: DiagnosticLinkStorage) -> PyResult<Py<PyAny>> {
+    let value = match value.get().as_data() {
+        bityzba::data!(DiagnosticTextLink::VlackuWord { .. }) => Py::new(
+            py,
+            new!(PyVlackuWordLink {
+                value: value.clone(),
+            }),
+        )?
+        .into_any(),
+        bityzba::data!(DiagnosticTextLink::CllSection { .. }) => Py::new(
+            py,
+            new!(PyCllSectionLink {
+                value: value.clone(),
+            }),
+        )?
+        .into_any(),
+        bityzba::data!(DiagnosticTextLink::EbnfRule { .. }) => Py::new(
+            py,
+            new!(PyEbnfRuleLink {
+                value: value.clone(),
+            }),
+        )?
+        .into_any(),
     };
     Ok(value)
 }
 
 /// Styled, optionally linked segment of diagnostic text.
-#[invariant(!value.text.is_empty())]
+#[invariant(!value.get().text.is_empty())]
 #[pyclass(
     name = "DiagnosticTextSegment",
     frozen,
@@ -998,14 +1429,71 @@ fn diagnostic_link_to_python(py: Python<'_>, value: DiagnosticTextLink) -> PyRes
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyDiagnosticTextSegment {
-    value: DiagnosticTextSegment,
+    value: DiagnosticTextSegmentStorage,
 }
 
 impl PyDiagnosticTextSegment {
     #[requires(!value.text.is_empty())]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: DiagnosticTextSegment) -> Self {
-        new!(PyDiagnosticTextSegment { value })
+        new!(PyDiagnosticTextSegment {
+            value: new!(DiagnosticTextSegmentStorage::Owned {
+                value: Arc::new(value),
+            }),
+        })
+    }
+
+    #[requires(index < owner.get().segments.len())]
+    #[expensive_ensures(ret.value.get() == &old(owner.clone()).get().segments[index])]
+    fn from_styled_note(owner: DiagnosticStyledNoteStorage, index: usize) -> Self {
+        new!(PyDiagnosticTextSegment {
+            value: new!(DiagnosticTextSegmentStorage::StyledNote { owner, index }),
+        })
+    }
+
+    #[requires(index < root.message_segments.len())]
+    #[expensive_ensures(ret.value.get() == &old(root.clone()).message_segments[index])]
+    fn from_diagnostic_message(root: Arc<Diagnostic>, index: usize) -> Self {
+        new!(PyDiagnosticTextSegment {
+            value: new!(DiagnosticTextSegmentStorage::DiagnosticMessage { root, index }),
+        })
+    }
+
+    #[requires(note_index < root.note_segments.len())]
+    #[requires(segment_index < root.note_segments[note_index].len())]
+    #[expensive_ensures(ret.value.get() == &old(root.clone()).note_segments[note_index][segment_index])]
+    fn from_diagnostic_note(
+        root: Arc<Diagnostic>,
+        note_index: usize,
+        segment_index: usize,
+    ) -> Self {
+        new!(PyDiagnosticTextSegment {
+            value: new!(DiagnosticTextSegmentStorage::DiagnosticNote {
+                root,
+                note_index,
+                segment_index,
+            }),
+        })
+    }
+
+    #[requires(index < owner.get().message_segments.len())]
+    #[expensive_ensures(ret.value.get() == &old(owner.clone()).get().message_segments[index])]
+    fn from_label_message(owner: DiagnosticLabelStorage, index: usize) -> Self {
+        new!(PyDiagnosticTextSegment {
+            value: new!(DiagnosticTextSegmentStorage::LabelMessage { owner, index }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &DiagnosticTextSegment {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> DiagnosticTextSegment {
+        self.value.get().clone()
     }
 }
 
@@ -1042,15 +1530,15 @@ impl PyDiagnosticTextSegment {
     #[ensures(true)]
     #[getter]
     fn role(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.role)
+        enum_to_python(py, self.rust().role)
     }
 
     /// Return the segment text.
     #[requires(true)]
-    #[ensures(ret == self.value.text.as_str())]
+    #[ensures(ret == self.value.get().text.as_str())]
     #[getter]
     fn text(&self) -> &str {
-        &self.value.text
+        &self.rust().text
     }
 
     /// Return the optional typed diagnostic hyperlink.
@@ -1058,16 +1546,23 @@ impl PyDiagnosticTextSegment {
     #[ensures(true)]
     #[getter]
     fn link(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        self.value
+        self.rust()
             .link
-            .clone()
-            .map(|link| diagnostic_link_to_python(py, link))
+            .as_ref()
+            .map(|_| {
+                diagnostic_link_to_python(
+                    py,
+                    new!(DiagnosticLinkStorage::Segment {
+                        owner: self.value.clone(),
+                    }),
+                )
+            })
             .transpose()
     }
 }
 
 /// Diagnostic note with explicit display mode and styled segments.
-#[invariant(!value.segments.is_empty())]
+#[invariant(!value.get().segments.is_empty())]
 #[pyclass(
     name = "DiagnosticStyledNote",
     frozen,
@@ -1077,14 +1572,38 @@ impl PyDiagnosticTextSegment {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyDiagnosticStyledNote {
-    value: DiagnosticStyledNote,
+    value: DiagnosticStyledNoteStorage,
 }
 
 impl PyDiagnosticStyledNote {
     #[requires(!value.segments.is_empty())]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: DiagnosticStyledNote) -> Self {
-        new!(PyDiagnosticStyledNote { value })
+        new!(PyDiagnosticStyledNote {
+            value: new!(DiagnosticStyledNoteStorage::Owned {
+                value: Arc::new(value),
+            }),
+        })
+    }
+
+    #[requires(index < root.styled_notes.len())]
+    #[expensive_ensures(ret.value.get() == &old(root.clone()).styled_notes[index])]
+    fn from_diagnostic(root: Arc<Diagnostic>, index: usize) -> Self {
+        new!(PyDiagnosticStyledNote {
+            value: new!(DiagnosticStyledNoteStorage::Diagnostic { root, index }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &DiagnosticStyledNote {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> DiagnosticStyledNote {
+        self.value.get().clone()
     }
 }
 
@@ -1108,7 +1627,7 @@ impl PyDiagnosticStyledNote {
             enum_from_python(py, mode)?,
             segments
                 .iter()
-                .map(|segment| segment.value.clone())
+                .map(|segment| segment.clone_rust())
                 .collect(),
         )))
     }
@@ -1118,7 +1637,7 @@ impl PyDiagnosticStyledNote {
     #[ensures(true)]
     #[getter]
     fn mode(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.mode)
+        enum_to_python(py, self.rust().mode)
     }
 
     /// Return the immutable styled text segments.
@@ -1128,18 +1647,15 @@ impl PyDiagnosticStyledNote {
     fn segments(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .segments
-                .iter()
-                .cloned()
-                .map(PyDiagnosticTextSegment::from_rust),
+            (0..self.rust().segments.len())
+                .map(|index| PyDiagnosticTextSegment::from_styled_note(self.value.clone(), index)),
         )
         .map(Bound::unbind)
     }
 }
 
 /// Source span and message attached to a diagnostic.
-#[invariant(!value.message.is_empty())]
+#[invariant(!value.get().message.is_empty())]
 #[pyclass(
     name = "DiagnosticLabel",
     frozen,
@@ -1149,14 +1665,38 @@ impl PyDiagnosticStyledNote {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyDiagnosticLabel {
-    value: DiagnosticLabel,
+    value: DiagnosticLabelStorage,
 }
 
 impl PyDiagnosticLabel {
     #[requires(!value.message.is_empty())]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: DiagnosticLabel) -> Self {
-        new!(PyDiagnosticLabel { value })
+        new!(PyDiagnosticLabel {
+            value: new!(DiagnosticLabelStorage::Owned {
+                value: Arc::new(value),
+            }),
+        })
+    }
+
+    #[requires(index < root.labels.len())]
+    #[expensive_ensures(ret.value.get() == &old(root.clone()).labels[index])]
+    fn from_diagnostic(root: Arc<Diagnostic>, index: usize) -> Self {
+        new!(PyDiagnosticLabel {
+            value: new!(DiagnosticLabelStorage::Diagnostic { root, index }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &DiagnosticLabel {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get().clone())]
+    fn clone_rust(&self) -> DiagnosticLabel {
+        self.value.get().clone()
     }
 }
 
@@ -1185,15 +1725,15 @@ impl PyDiagnosticLabel {
     #[ensures(true)]
     #[getter]
     fn span(&self) -> PySourceSpan {
-        PySourceSpan::from_rust(self.value.span.clone())
+        PySourceSpan::from_rust(self.rust().span.clone())
     }
 
     /// Return the plain label message.
     #[requires(true)]
-    #[ensures(ret == self.value.message.as_str())]
+    #[ensures(ret == self.value.get().message.as_str())]
     #[getter]
     fn message(&self) -> &str {
-        &self.value.message
+        &self.rust().message
     }
 
     /// Return the immutable styled message segments.
@@ -1203,21 +1743,19 @@ impl PyDiagnosticLabel {
     fn message_segments(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .message_segments
-                .iter()
-                .cloned()
-                .map(PyDiagnosticTextSegment::from_rust),
+            (0..self.rust().message_segments.len()).map(|index| {
+                PyDiagnosticTextSegment::from_label_message(self.value.clone(), index)
+            }),
         )
         .map(Bound::unbind)
     }
 
     /// Report whether this is a primary diagnostic label.
     #[requires(true)]
-    #[ensures(ret == self.value.primary)]
+    #[ensures(ret == self.value.get().primary)]
     #[getter]
     fn primary(&self) -> bool {
-        self.value.primary
+        self.rust().primary
     }
 }
 
@@ -1235,7 +1773,7 @@ impl PyDiagnosticLabel {
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PyDiagnostic {
-    value: Diagnostic,
+    value: Arc<Diagnostic>,
 }
 
 impl PyDiagnostic {
@@ -1243,9 +1781,17 @@ impl PyDiagnostic {
     #[requires(!value.message.is_empty())]
     #[requires(!value.labels.is_empty())]
     #[requires(value.labels.iter().any(|label| label.primary))]
-    #[expensive_ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
     pub(crate) fn from_rust(value: Diagnostic) -> Self {
-        new!(PyDiagnostic { value })
+        new!(PyDiagnostic {
+            value: Arc::new(value),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.as_ref())]
+    fn rust(&self) -> &Diagnostic {
+        self.value.as_ref()
     }
 }
 
@@ -1283,7 +1829,7 @@ impl PyDiagnostic {
                 "diagnostic must contain at least one label",
             ));
         }
-        if !labels.iter().any(|label| label.value.primary) {
+        if !labels.iter().any(|label| label.rust().primary) {
             return Err(InvalidInputError::new_err(
                 "diagnostic must contain a primary label",
             ));
@@ -1293,11 +1839,11 @@ impl PyDiagnostic {
             enum_from_python(py, phase)?,
             code,
             message,
-            labels.iter().map(|label| label.value.clone()).collect(),
+            labels.iter().map(|label| label.clone_rust()).collect(),
             notes,
             word_index,
         )
-        .with_styled_notes(styled_notes.iter().map(|note| note.value.clone()).collect());
+        .with_styled_notes(styled_notes.iter().map(|note| note.clone_rust()).collect());
         Ok(Self::from_rust(value))
     }
 
@@ -1306,7 +1852,7 @@ impl PyDiagnostic {
     #[ensures(true)]
     #[getter]
     fn severity(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.severity)
+        enum_to_python(py, self.rust().severity)
     }
 
     /// Return the producing analysis phase.
@@ -1314,7 +1860,7 @@ impl PyDiagnostic {
     #[ensures(true)]
     #[getter]
     fn phase(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        enum_to_python(py, self.value.phase)
+        enum_to_python(py, self.rust().phase)
     }
 
     /// Return the stable machine-readable diagnostic code.
@@ -1322,7 +1868,7 @@ impl PyDiagnostic {
     #[ensures(ret == self.value.code.as_str())]
     #[getter]
     fn code(&self) -> &str {
-        &self.value.code
+        &self.rust().code
     }
 
     /// Return the plain diagnostic message.
@@ -1330,7 +1876,7 @@ impl PyDiagnostic {
     #[ensures(ret == self.value.message.as_str())]
     #[getter]
     fn message(&self) -> &str {
-        &self.value.message
+        &self.rust().message
     }
 
     /// Return the immutable styled message segments.
@@ -1340,11 +1886,9 @@ impl PyDiagnostic {
     fn message_segments(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .message_segments
-                .iter()
-                .cloned()
-                .map(PyDiagnosticTextSegment::from_rust),
+            (0..self.rust().message_segments.len()).map(|index| {
+                PyDiagnosticTextSegment::from_diagnostic_message(Arc::clone(&self.value), index)
+            }),
         )
         .map(Bound::unbind)
     }
@@ -1356,11 +1900,8 @@ impl PyDiagnostic {
     fn labels(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .labels
-                .iter()
-                .cloned()
-                .map(PyDiagnosticLabel::from_rust),
+            (0..self.rust().labels.len())
+                .map(|index| PyDiagnosticLabel::from_diagnostic(Arc::clone(&self.value), index)),
         )
         .map(Bound::unbind)
     }
@@ -1370,7 +1911,7 @@ impl PyDiagnostic {
     #[ensures(true)]
     #[getter]
     fn notes(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
-        sequence_to_tuple(py, self.value.notes.iter().cloned()).map(Bound::unbind)
+        sequence_to_tuple(py, self.rust().notes.iter().map(String::as_str)).map(Bound::unbind)
     }
 
     /// Return the immutable styled segments for plain notes.
@@ -1379,16 +1920,20 @@ impl PyDiagnostic {
     #[getter]
     fn note_segments(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let notes = self
-            .value
+            .rust()
             .note_segments
             .iter()
-            .map(|segments| {
+            .enumerate()
+            .map(|(note_index, segments)| {
                 sequence_to_tuple(
                     py,
-                    segments
-                        .iter()
-                        .cloned()
-                        .map(PyDiagnosticTextSegment::from_rust),
+                    (0..segments.len()).map(|segment_index| {
+                        PyDiagnosticTextSegment::from_diagnostic_note(
+                            Arc::clone(&self.value),
+                            note_index,
+                            segment_index,
+                        )
+                    }),
                 )
                 .map(Bound::unbind)
             })
@@ -1403,11 +1948,9 @@ impl PyDiagnostic {
     fn styled_notes(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
-            self.value
-                .styled_notes
-                .iter()
-                .cloned()
-                .map(PyDiagnosticStyledNote::from_rust),
+            (0..self.rust().styled_notes.len()).map(|index| {
+                PyDiagnosticStyledNote::from_diagnostic(Arc::clone(&self.value), index)
+            }),
         )
         .map(Bound::unbind)
     }
@@ -1417,15 +1960,21 @@ impl PyDiagnostic {
     #[ensures(ret == self.value.word_index)]
     #[getter]
     fn word_index(&self) -> Option<usize> {
-        self.value.word_index
+        self.rust().word_index
     }
 
     /// Return the first primary label.
     #[requires(true)]
-    #[ensures(ret.value.primary)]
+    #[ensures(ret.value.get().primary)]
     #[getter]
     fn primary_label(&self) -> PyDiagnosticLabel {
-        PyDiagnosticLabel::from_rust(self.value.primary_label().clone())
+        let index = self
+            .rust()
+            .labels
+            .iter()
+            .position(|label| label.primary)
+            .expect("diagnostic invariant requires a primary label");
+        PyDiagnosticLabel::from_diagnostic(Arc::clone(&self.value), index)
     }
 }
 
@@ -1450,9 +1999,58 @@ fn diagnostic_text_segments(text: &str, py: Python<'_>) -> PyResult<Py<PyTuple>>
 fn diagnostic_text_segments_text(segments: Vec<PyRef<'_, PyDiagnosticTextSegment>>) -> String {
     let segments = segments
         .iter()
-        .map(|segment| segment.value.clone())
+        .map(|segment| segment.clone_rust())
         .collect::<Vec<_>>();
     rust_diagnostic_text_segments_text(&segments)
+}
+
+/// Return whether one trace-phase selector includes another phase.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+fn trace_phase_includes(
+    py: Python<'_>,
+    selector: &Bound<'_, PyAny>,
+    phase: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(enum_from_python::<TracePhase>(py, selector)?.includes(enum_from_python(py, phase)?))
+}
+
+/// Return the stable one-based numeric trace-detail level.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|number| (1..=4).contains(number)) || ret.is_err())]
+#[pyfunction]
+fn trace_level_number(py: Python<'_>, level: &Bound<'_, PyAny>) -> PyResult<u8> {
+    Ok(enum_from_python::<TraceLevel>(py, level)?.number())
+}
+
+/// Convert a stable one-based number to its exact trace-detail level.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+fn trace_level_from_number(py: Python<'_>, value: i64) -> PyResult<Py<PyAny>> {
+    let value = u8::try_from(value)
+        .ok()
+        .filter(|value| (1..=4).contains(value))
+        .ok_or_else(|| {
+            InvalidInputError::new_err("trace level number must be one of 1, 2, 3, or 4")
+        })?;
+    let level = TraceLevel::from_number(value)
+        .map_err(|error| InvalidInputError::new_err(error.to_string()))?;
+    enum_to_python(py, level)
+}
+
+/// Return whether a diagnostic note is visible in the selected detail mode.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+fn diagnostic_note_mode_visible_in(
+    py: Python<'_>,
+    note_mode: &Bound<'_, PyAny>,
+    detail_mode: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(enum_from_python::<DiagnosticNoteMode>(py, note_mode)?
+        .visible_in(enum_from_python(py, detail_mode)?))
 }
 
 #[requires(true)]
@@ -1466,6 +2064,26 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_string_enum::<DiagnosticDetailMode>(module)?;
     register_string_enum::<DiagnosticNoteMode>(module)?;
     register_string_enum::<DiagnosticTextRole>(module)?;
+    register_private_object(
+        module,
+        "_diagnostics_trace_phase_includes",
+        wrap_pyfunction!(trace_phase_includes, module)?,
+    )?;
+    register_private_object(
+        module,
+        "_diagnostics_trace_level_number",
+        wrap_pyfunction!(trace_level_number, module)?,
+    )?;
+    register_private_object(
+        module,
+        "_diagnostics_trace_level_from_number",
+        wrap_pyfunction!(trace_level_from_number, module)?,
+    )?;
+    register_private_object(
+        module,
+        "_diagnostics_diagnostic_note_mode_visible_in",
+        wrap_pyfunction!(diagnostic_note_mode_visible_in, module)?,
+    )?;
     register_type::<PyTraceFilter>(module, "_diagnostics_TraceFilter")?;
     register_type::<PyTraceOptions>(module, "_diagnostics_TraceOptions")?;
     register_type::<PyTraceEvent>(module, "_diagnostics_TraceEvent")?;

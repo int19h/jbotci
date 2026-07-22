@@ -1,5 +1,6 @@
 """Immutable diagnostics, styled text, and parser trace products."""
 
+from collections.abc import Sequence
 from typing import TypeAlias
 
 from ._native import (
@@ -25,11 +26,64 @@ from ._native import (
     _diagnostics_TracePhase as TracePhase,
     _diagnostics_TraceReport as TraceReport,
     _diagnostics_VlackuWordLink as VlackuWordLink,
-    _diagnostics_diagnostic_text_segments as diagnostic_text_segments,
-    _diagnostics_diagnostic_text_segments_text as diagnostic_text_segments_text,
+    _diagnostics_diagnostic_note_mode_visible_in as _rust_diagnostic_note_mode_visible_in,
+    _diagnostics_diagnostic_text_segments as _rust_diagnostic_text_segments,
+    _diagnostics_diagnostic_text_segments_text as _rust_diagnostic_text_segments_text,
+    _diagnostics_trace_level_from_number as _rust_trace_level_from_number,
+    _diagnostics_trace_level_number as _rust_trace_level_number,
+    _diagnostics_trace_phase_includes as _rust_trace_phase_includes,
 )
 
 DiagnosticTextLink: TypeAlias = VlackuWordLink | CllSectionLink | EbnfRuleLink
+
+
+def _trace_phase_includes(self: TracePhase, phase: TracePhase) -> bool:
+    """Return whether this trace-phase selector includes the requested phase."""
+
+    return _rust_trace_phase_includes(self, phase)
+
+
+def _trace_level_number(self: TraceLevel) -> int:
+    """Return this trace level's stable one-based number."""
+
+    return _rust_trace_level_number(self)
+
+
+def _trace_level_from_number(value: int) -> TraceLevel:
+    """Return the exact trace level for a stable one-based number."""
+
+    return _rust_trace_level_from_number(value)
+
+
+def _diagnostic_note_mode_visible_in(
+    self: DiagnosticNoteMode, detail: DiagnosticDetailMode
+) -> bool:
+    """Return whether this note mode is visible at the requested detail level."""
+
+    return _rust_diagnostic_note_mode_visible_in(self, detail)
+
+
+# Rust supplies these operations on fieldless enums. The exact enum classes are
+# constructed per interpreter from Rust metadata, so attach thin methods after
+# construction while delegating all domain behavior back to Rust.
+setattr(TracePhase, "includes", _trace_phase_includes)
+setattr(TraceLevel, "number", _trace_level_number)
+setattr(TraceLevel, "from_number", staticmethod(_trace_level_from_number))
+setattr(DiagnosticNoteMode, "visible_in", _diagnostic_note_mode_visible_in)
+
+
+def diagnostic_text_segments(text: str) -> tuple[DiagnosticTextSegment, ...]:
+    """Parse inline diagnostic markup into immutable styled segments."""
+
+    return _rust_diagnostic_text_segments(text)
+
+
+def diagnostic_text_segments_text(
+    segments: Sequence[DiagnosticTextSegment],
+) -> str:
+    """Concatenate styled diagnostic segments into their plain text."""
+
+    return _rust_diagnostic_text_segments_text(segments)
 
 __all__: tuple[str, ...] = (
     "DiagnosticSeverity",

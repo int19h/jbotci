@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use bityzba::{data, invariant, new, requires};
+use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_source::{LineColumn, SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -284,6 +284,7 @@ pub struct TraceFailureSummary {
 }
 
 #[invariant(*phase != TracePhase::All)]
+#[expensive_invariant(events.iter().all(|event| event.phase == *phase), "trace report events must belong to the report phase")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceReport {
     pub phase: TracePhase,

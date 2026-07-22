@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TypeAlias
+from collections.abc import Callable
+from functools import wraps
+from typing import ParamSpec, TypeAlias, TypeVar
 
 from . import _native as _rust
 from .diagnostics import Diagnostic, TraceReport
@@ -122,6 +124,24 @@ ValsiClassification: TypeAlias = (
 )
 CompiledDialectEntry: TypeAlias = CompiledDialectSwap | CompiledDialectExpansion
 LujvoBuildPart: TypeAlias = LujvoRafsiBuildPart | LujvoBrivlaCoreBuildPart
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def _public_native(
+    name: str, function: Callable[_P, _R]
+) -> Callable[_P, _R]:
+    """Give a private native callable stable public introspection metadata."""
+
+    @wraps(function)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        return function(*args, **kwargs)
+
+    wrapper.__name__ = name
+    wrapper.__qualname__ = name
+    wrapper.__module__ = __name__
+    return wrapper
 
 
 class MorphologyError(_rust.JbotciError):
@@ -253,67 +273,149 @@ def analyze_valsi(
     )
 
 
-normalize_input = _rust._morphology_normalize_input
-canonicalize_text = _rust._morphology_canonicalize_text
-canonical_text_eq = _rust._morphology_canonical_text_eq
-canonical_text_is_all = _rust._morphology_canonical_text_is_all
-normalize_cmavo_form = _rust._morphology_normalize_cmavo_form
-cmavo_phonemes = _rust._morphology_cmavo_phonemes
-pronunciation_syllables = _rust._morphology_pronunciation_syllables
-strip_lojban_diacritic = _rust._morphology_strip_lojban_diacritic
-fold_lojban_diacritic = _rust._morphology_fold_lojban_diacritic
-strip_lojban_diacritics = _rust._morphology_strip_lojban_diacritics
-fold_lojban_diacritics = _rust._morphology_fold_lojban_diacritics
-stripped_lojban_diacritics_eq = _rust._morphology_stripped_lojban_diacritics_eq
-folded_lojban_diacritics_eq = _rust._morphology_folded_lojban_diacritics_eq
-strip_diacritics = _rust._morphology_strip_diacritics
-strip_diacritics_eq = _rust._morphology_strip_diacritics_eq
-is_valid_phoneme = _rust._morphology_is_valid_phoneme
-is_word_forming_character = _rust._morphology_is_word_forming_character
-is_period_character = _rust._morphology_is_period_character
-is_permissive_ignorable_character = _rust._morphology_is_permissive_ignorable_character
-parse_lujvo_parts = _rust._morphology_parse_lujvo_parts
-parse_cmevla_lujvo_parts = _rust._morphology_parse_cmevla_lujvo_parts
-parse_cmevla_lujvo_part_candidates = (
-    _rust._morphology_parse_cmevla_lujvo_part_candidates
+normalize_input = _public_native("normalize_input", _rust._morphology_normalize_input)
+canonicalize_text = _public_native(
+    "canonicalize_text", _rust._morphology_canonicalize_text
 )
-bond_rafsis = _rust._morphology_bond_rafsis
-is_valid_lujvo_candidate_word = _rust._morphology_is_valid_lujvo_candidate_word
-ensure_cmevla_word = _rust._morphology_ensure_cmevla_word
-ends_with_consonant = _rust._morphology_ends_with_consonant
-ends_with_vowel = _rust._morphology_ends_with_vowel
-is_bonding_hyphen = _rust._morphology_is_bonding_hyphen
-syllables_pattern = _rust._morphology_syllables_pattern
-rafsi_shape = _rust._morphology_rafsi_shape
-rafsi_shape_score = _rust._morphology_rafsi_shape_score
-is_vowel = _rust._morphology_is_vowel
-is_consonant = _rust._morphology_is_consonant
-is_cmevla = _rust._morphology_is_cmevla
-consonant_pair_class = _rust._morphology_consonant_pair_class
-permissible_consonant_pair = _rust._morphology_permissible_consonant_pair
-consonant_pair_is_permissible = _rust._morphology_consonant_pair_is_permissible
-consonant_pair_is_initial = _rust._morphology_consonant_pair_is_initial
-word_needs_leading_pause = _rust._morphology_word_needs_leading_pause
-word_needs_leading_pause_in_context = (
-    _rust._morphology_word_needs_leading_pause_in_context
+canonical_text_eq = _public_native(
+    "canonical_text_eq", _rust._morphology_canonical_text_eq
 )
-word_syntax_eq = _rust._morphology_word_syntax_eq
-word_like_syntax_eq = _rust._morphology_word_like_syntax_eq
-cmavo_from_text = _rust._morphology_cmavo_from_text
-cmavo_text = _rust._morphology_cmavo_text
-cmavo_is_selmaho = _rust._morphology_cmavo_is_selmaho
-cmavo_primary_selmaho = _rust._morphology_cmavo_primary_selmaho
-cmavo_is_quote_opener = _rust._morphology_cmavo_is_quote_opener
-cmavo_is_single_word_quote_opener = _rust._morphology_cmavo_is_single_word_quote_opener
-cmavo_is_delimited_non_lojban_quote_opener = (
-    _rust._morphology_cmavo_is_delimited_non_lojban_quote_opener
+canonical_text_is_all = _public_native(
+    "canonical_text_is_all", _rust._morphology_canonical_text_is_all
 )
-selmaho_from_name = _rust._morphology_selmaho_from_name
-selmaho_name = _rust._morphology_selmaho_name
-selmaho_contains = _rust._morphology_selmaho_contains
-choose_best_lujvo_candidate = _rust._morphology_choose_best_lujvo_candidate
-choose_best_lujvo_candidate_from_parts = (
-    _rust._morphology_choose_best_lujvo_candidate_from_parts
+normalize_cmavo_form = _public_native(
+    "normalize_cmavo_form", _rust._morphology_normalize_cmavo_form
+)
+cmavo_phonemes = _public_native("cmavo_phonemes", _rust._morphology_cmavo_phonemes)
+pronunciation_syllables = _public_native(
+    "pronunciation_syllables", _rust._morphology_pronunciation_syllables
+)
+strip_lojban_diacritic = _public_native(
+    "strip_lojban_diacritic", _rust._morphology_strip_lojban_diacritic
+)
+fold_lojban_diacritic = _public_native(
+    "fold_lojban_diacritic", _rust._morphology_fold_lojban_diacritic
+)
+strip_lojban_diacritics = _public_native(
+    "strip_lojban_diacritics", _rust._morphology_strip_lojban_diacritics
+)
+fold_lojban_diacritics = _public_native(
+    "fold_lojban_diacritics", _rust._morphology_fold_lojban_diacritics
+)
+stripped_lojban_diacritics_eq = _public_native(
+    "stripped_lojban_diacritics_eq",
+    _rust._morphology_stripped_lojban_diacritics_eq,
+)
+folded_lojban_diacritics_eq = _public_native(
+    "folded_lojban_diacritics_eq", _rust._morphology_folded_lojban_diacritics_eq
+)
+strip_diacritics = _public_native("strip_diacritics", _rust._morphology_strip_diacritics)
+strip_diacritics_eq = _public_native(
+    "strip_diacritics_eq", _rust._morphology_strip_diacritics_eq
+)
+is_valid_phoneme = _public_native(
+    "is_valid_phoneme", _rust._morphology_is_valid_phoneme
+)
+is_word_forming_character = _public_native(
+    "is_word_forming_character", _rust._morphology_is_word_forming_character
+)
+is_period_character = _public_native(
+    "is_period_character", _rust._morphology_is_period_character
+)
+is_permissive_ignorable_character = _public_native(
+    "is_permissive_ignorable_character",
+    _rust._morphology_is_permissive_ignorable_character,
+)
+parse_lujvo_parts = _public_native(
+    "parse_lujvo_parts", _rust._morphology_parse_lujvo_parts
+)
+parse_cmevla_lujvo_parts = _public_native(
+    "parse_cmevla_lujvo_parts", _rust._morphology_parse_cmevla_lujvo_parts
+)
+parse_cmevla_lujvo_part_candidates = _public_native(
+    "parse_cmevla_lujvo_part_candidates",
+    _rust._morphology_parse_cmevla_lujvo_part_candidates,
+)
+bond_rafsis = _public_native("bond_rafsis", _rust._morphology_bond_rafsis)
+is_valid_lujvo_candidate_word = _public_native(
+    "is_valid_lujvo_candidate_word", _rust._morphology_is_valid_lujvo_candidate_word
+)
+ensure_cmevla_word = _public_native(
+    "ensure_cmevla_word", _rust._morphology_ensure_cmevla_word
+)
+ends_with_consonant = _public_native(
+    "ends_with_consonant", _rust._morphology_ends_with_consonant
+)
+ends_with_vowel = _public_native("ends_with_vowel", _rust._morphology_ends_with_vowel)
+is_bonding_hyphen = _public_native(
+    "is_bonding_hyphen", _rust._morphology_is_bonding_hyphen
+)
+syllables_pattern = _public_native(
+    "syllables_pattern", _rust._morphology_syllables_pattern
+)
+rafsi_shape = _public_native("rafsi_shape", _rust._morphology_rafsi_shape)
+rafsi_shape_score = _public_native(
+    "rafsi_shape_score", _rust._morphology_rafsi_shape_score
+)
+is_vowel = _public_native("is_vowel", _rust._morphology_is_vowel)
+is_consonant = _public_native("is_consonant", _rust._morphology_is_consonant)
+is_cmevla = _public_native("is_cmevla", _rust._morphology_is_cmevla)
+consonant_pair_class = _public_native(
+    "consonant_pair_class", _rust._morphology_consonant_pair_class
+)
+permissible_consonant_pair = _public_native(
+    "permissible_consonant_pair", _rust._morphology_permissible_consonant_pair
+)
+consonant_pair_is_permissible = _public_native(
+    "consonant_pair_is_permissible",
+    _rust._morphology_consonant_pair_is_permissible,
+)
+consonant_pair_is_initial = _public_native(
+    "consonant_pair_is_initial", _rust._morphology_consonant_pair_is_initial
+)
+word_needs_leading_pause = _public_native(
+    "word_needs_leading_pause", _rust._morphology_word_needs_leading_pause
+)
+word_needs_leading_pause_in_context = _public_native(
+    "word_needs_leading_pause_in_context",
+    _rust._morphology_word_needs_leading_pause_in_context,
+)
+word_syntax_eq = _public_native("word_syntax_eq", _rust._morphology_word_syntax_eq)
+word_like_syntax_eq = _public_native(
+    "word_like_syntax_eq", _rust._morphology_word_like_syntax_eq
+)
+cmavo_from_text = _public_native("cmavo_from_text", _rust._morphology_cmavo_from_text)
+cmavo_text = _public_native("cmavo_text", _rust._morphology_cmavo_text)
+cmavo_is_selmaho = _public_native(
+    "cmavo_is_selmaho", _rust._morphology_cmavo_is_selmaho
+)
+cmavo_primary_selmaho = _public_native(
+    "cmavo_primary_selmaho", _rust._morphology_cmavo_primary_selmaho
+)
+cmavo_is_quote_opener = _public_native(
+    "cmavo_is_quote_opener", _rust._morphology_cmavo_is_quote_opener
+)
+cmavo_is_single_word_quote_opener = _public_native(
+    "cmavo_is_single_word_quote_opener",
+    _rust._morphology_cmavo_is_single_word_quote_opener,
+)
+cmavo_is_delimited_non_lojban_quote_opener = _public_native(
+    "cmavo_is_delimited_non_lojban_quote_opener",
+    _rust._morphology_cmavo_is_delimited_non_lojban_quote_opener,
+)
+selmaho_from_name = _public_native(
+    "selmaho_from_name", _rust._morphology_selmaho_from_name
+)
+selmaho_name = _public_native("selmaho_name", _rust._morphology_selmaho_name)
+selmaho_contains = _public_native(
+    "selmaho_contains", _rust._morphology_selmaho_contains
+)
+choose_best_lujvo_candidate = _public_native(
+    "choose_best_lujvo_candidate", _rust._morphology_choose_best_lujvo_candidate
+)
+choose_best_lujvo_candidate_from_parts = _public_native(
+    "choose_best_lujvo_candidate_from_parts",
+    _rust._morphology_choose_best_lujvo_candidate_from_parts,
 )
 
 __all__: tuple[str, ...] = (

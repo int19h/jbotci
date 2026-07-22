@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import final
+from typing import Never, final
 
 @final
 class _dialect_CmavoSwap:
@@ -39,6 +39,7 @@ class _dialect_DialectDefinition:
 
 @final
 class _dialect_BuiltinDialect:
+    def __new__(cls) -> Never: ...
     @property
     def name(self) -> str: ...
     @property
@@ -117,3 +118,4 @@ def _dialect_import_johau_dialect_settings(
     raw_uri: str,
     settings: _dialect_DialectSettings,
 ) -> tuple[str, _dialect_DialectSettings]: ...
+def _dialect_dialect_feature_atom_name(feature: _dialect_DialectFeature) -> str: ...

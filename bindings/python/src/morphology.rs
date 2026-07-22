@@ -6247,6 +6247,9 @@ fn cmavo_is_delimited_non_lojban_quote_opener(
 #[pyfunction]
 #[pyo3(name = "_morphology_selmaho_from_name")]
 fn selmaho_from_name(py: Python<'_>, name: &str) -> PyResult<Option<Py<PyAny>>> {
+    if name.is_empty() {
+        return Err(InvalidInputError::new_err("selma'o name must not be empty"));
+    }
     Selmaho::from_name(name)
         .map(|value| enum_to_python(py, value))
         .transpose()

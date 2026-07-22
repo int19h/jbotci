@@ -203,16 +203,18 @@ pub struct Spanned<T> {
 }
 
 #[invariant(true)]
-#[invariant(::ByteRangeInverted => true)]
-#[invariant(::CharRangeInverted => true)]
+#[invariant(::ByteRangeInverted => true, "error payloads preserve supplied byte endpoints without independently constraining them")]
+#[invariant(::CharRangeInverted => true, "error payloads preserve supplied character endpoints without independently constraining them")]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum SourceLocationError {
     #[error("line numbers are one-indexed and cannot be zero")]
     ZeroLine,
     #[error("column numbers are one-indexed and cannot be zero")]
     ZeroColumn,
+    /// Endpoints reported by a failed range operation; direct construction preserves any pair.
     #[error("byte range end {end} precedes start {start}")]
     ByteRangeInverted { start: usize, end: usize },
+    /// Endpoints reported by a failed range operation; direct construction preserves any pair.
     #[error("character range end {end} precedes start {start}")]
     CharRangeInverted { start: usize, end: usize },
 }

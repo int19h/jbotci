@@ -10,17 +10,69 @@ from ._native import (
     _source_SourceSpan as SourceSpan,
     _source_ZeroColumn as ZeroColumn,
     _source_ZeroLine as ZeroLine,
-    _source_byte_offset_for_char_offset as byte_offset_for_char_offset,
-    _source_char_offset_for_byte_offset as char_offset_for_byte_offset,
-    _source_line_column_for_byte_offset as line_column_for_byte_offset,
-    _source_source_span_from_byte_offsets as source_span_from_byte_offsets,
-    _source_source_span_from_char_offsets as source_span_from_char_offsets,
-    _source_source_text_for_span as source_text_for_span,
+    _source_byte_offset_for_char_offset,
+    _source_char_offset_for_byte_offset,
+    _source_line_column_for_byte_offset,
+    _source_source_span_from_byte_offsets,
+    _source_source_span_from_char_offsets,
+    _source_source_text_for_span,
 )
 
 SourceLocationError: TypeAlias = (
     ZeroLine | ZeroColumn | ByteRangeInverted | CharRangeInverted
 )
+
+
+def source_span_from_char_offsets(
+    source: str,
+    char_start: int,
+    char_end: int,
+    *,
+    source_id: SourceId | None = None,
+) -> SourceSpan:
+    """Build a source span from validated Unicode-scalar offsets."""
+
+    return _source_source_span_from_char_offsets(
+        source, char_start, char_end, source_id=source_id
+    )
+
+
+def source_span_from_byte_offsets(
+    source: str,
+    byte_start: int,
+    byte_end: int,
+    *,
+    source_id: SourceId | None = None,
+) -> SourceSpan:
+    """Build a source span from validated UTF-8 boundary offsets."""
+
+    return _source_source_span_from_byte_offsets(
+        source, byte_start, byte_end, source_id=source_id
+    )
+
+
+def byte_offset_for_char_offset(source: str, char_offset: int) -> int:
+    """Convert a Unicode-scalar offset to its UTF-8 byte offset."""
+
+    return _source_byte_offset_for_char_offset(source, char_offset)
+
+
+def char_offset_for_byte_offset(source: str, byte_offset: int) -> int:
+    """Convert a UTF-8 boundary offset to its Unicode-scalar offset."""
+
+    return _source_char_offset_for_byte_offset(source, byte_offset)
+
+
+def line_column_for_byte_offset(source: str, byte_offset: int) -> LineColumn:
+    """Return the one-based source coordinates at a UTF-8 boundary."""
+
+    return _source_line_column_for_byte_offset(source, byte_offset)
+
+
+def source_text_for_span(source: str, span: SourceSpan) -> str:
+    """Slice source text using a span after validating its byte range."""
+
+    return _source_source_text_for_span(source, span)
 
 __all__: tuple[str, ...] = (
     "SourceId",

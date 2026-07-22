@@ -5,6 +5,7 @@ import enum
 import importlib
 import importlib.metadata
 import inspect
+import pickle
 import subprocess
 import sys
 import tomllib
@@ -151,6 +152,49 @@ def test_native_stub_exports_match_runtime() -> None:
     )
     assert declaration_names == set(native.__all__)
     assert all(hasattr(native, name) for name in native.__all__)
+
+
+def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
+    """Catch per-variant omissions or value drift in generated enum stubs."""
+
+    stub_path = PACKAGE_ROOT / "stubs" / "_native" / "domain_enums.pyi"
+    tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
+    declarations = tuple(node for node in tree.body if isinstance(node, ast.ClassDef))
+    for declaration in declarations:
+        expected = tuple(
+            (statement.targets[0].id, ast.literal_eval(statement.value))
+            for statement in declaration.body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+        )
+        runtime_enum = getattr(native, declaration.name)
+        actual = tuple(
+            (name, member.value) for name, member in runtime_enum.__members__.items()
+        )
+        assert actual == expected, declaration.name
+    domain_prefixes = ("_diagnostics_", "_dialect_", "_morphology_")
+    runtime_enums = {
+        name
+        for name in native.__all__
+        if name.startswith(domain_prefixes)
+        and isinstance((value := getattr(native, name)), type)
+        and issubclass(value, enum.StrEnum)
+    }
+    assert runtime_enums == {declaration.name for declaration in declarations}
+
+
+@pytest.mark.parametrize("module", (source, diagnostics, dialect, morphology))
+def test_public_callables_have_stable_introspection_and_pickle_identity(
+    module: ModuleType,
+) -> None:
+    for export_name in module.__all__:
+        exported = getattr(module, export_name)
+        if not callable(exported):
+            continue
+        assert exported.__module__ == module.__name__, export_name
+        assert exported.__name__ == export_name
+        assert getattr(module, export_name) is pickle.loads(pickle.dumps(exported))
 
 
 @pytest.mark.parametrize("module", (source, diagnostics, dialect, morphology))

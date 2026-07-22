@@ -1,5 +1,7 @@
 """Strict-type-check smoke coverage for packaged public declarations."""
 
+from typing import Never, assert_type
+
 from jbotci import (
     Sample,
     SampleMode,
@@ -82,6 +84,12 @@ def typed_dialect() -> dialect.DialectDefinition:
     return dialect.DialectDefinition(
         (entry,), (dialect.DialectFeature.CASE_INSENSITIVE,)
     )
+
+
+def returned_only_dialect_type() -> None:
+    """Builtin dialects cannot be constructed by typed consumers."""
+
+    assert_type(dialect.BuiltinDialect(), Never)
 
 
 def typed_morphology(text: str) -> tuple[morphology.WordLike, ...]:
@@ -204,7 +212,22 @@ def typed_diagnostic_products(span: source.SourceSpan) -> diagnostics.TraceRepor
         phase=diagnostics.TracePhase.MORPHOLOGY,
         limit=100,
     ).with_phase(diagnostics.TracePhase.MORPHOLOGY).with_limit(50)
-    assert options.enabled and linked_text == diagnostic.message
+    level_number: int = diagnostics.TraceLevel.DETAILED.number()
+    level: diagnostics.TraceLevel = diagnostics.TraceLevel.from_number(level_number)
+    phase_included: bool = diagnostics.TracePhase.ALL.includes(
+        diagnostics.TracePhase.SYNTAX
+    )
+    note_visible: bool = diagnostics.DiagnosticNoteMode.ALWAYS.visible_in(
+        diagnostics.DiagnosticDetailMode.DETAILED
+    )
+    assert (
+        options.enabled
+        and options.includes(diagnostics.TracePhase.MORPHOLOGY)
+        and linked_text == diagnostic.message
+        and level is diagnostics.TraceLevel.DETAILED
+        and phase_included
+        and note_visible
+    )
     return report
 
 
@@ -217,12 +240,14 @@ def typed_dialect_products() -> dialect.DialectSettings:
     definition = dialect.DialectDefinition(
         entries, (dialect.DialectFeature.CASE_INSENSITIVE,)
     )
+    feature_atom: str = dialect.DialectFeature.CASE_INSENSITIVE.atom_name()
     custom = dialect.CustomDialect("typed", dialect.dialect_definition_to_text(definition))
     settings = dialect.DialectSettings([custom], ["zantufa"])
     builtins: tuple[dialect.BuiltinDialect, ...] = dialect.builtin_dialects()
     if builtins:
         parsed: dialect.DialectDefinition = builtins[0].dialect
         assert isinstance(parsed.cmavo_entries, tuple)
+    assert feature_atom == "CASE-INSENSITIVE"
     return settings
 
 

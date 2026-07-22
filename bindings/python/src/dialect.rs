@@ -39,6 +39,7 @@ const PUBLIC_MODULE: &str = "jbotci.dialect";
 
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dialect_DialectFeature",
+    "_dialect_dialect_feature_atom_name",
     "_dialect_CmavoSwap",
     "_dialect_CmavoExpansion",
     "_dialect_DialectDefinition",
@@ -85,7 +86,7 @@ impl PythonStringEnum for DialectFeature {
     }
 
     fn variants() -> &'static [Self] {
-        Self::all()
+        Self::ALL
     }
 
     fn python_member_name(self) -> Cow<'static, str> {
@@ -113,6 +114,14 @@ fn feature_from_python(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Dia
 #[ensures(true)]
 fn feature_to_python(py: Python<'_>, value: DialectFeature) -> PyResult<Py<PyAny>> {
     string_enum_member(&native_module(py)?, value).map(Bound::unbind)
+}
+
+/// Return the uppercase atom used for a declarative dialect feature.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|atom| !atom.is_empty()) || ret.is_err())]
+#[pyfunction]
+fn dialect_feature_atom_name(py: Python<'_>, feature: &Bound<'_, PyAny>) -> PyResult<String> {
+    Ok(feature_from_python(py, feature)?.atom_name())
 }
 
 /// Declarative dialect entry that swaps two cmavo forms.
@@ -773,6 +782,11 @@ macro_rules! register_function {
 #[ensures(true)]
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_string_enum::<DialectFeature>(module)?;
+    register_function!(
+        module,
+        "_dialect_dialect_feature_atom_name",
+        dialect_feature_atom_name
+    );
     register_type::<PyCmavoSwap>(module, "_dialect_CmavoSwap")?;
     register_type::<PyCmavoExpansion>(module, "_dialect_CmavoExpansion")?;
     register_type::<PyDialectDefinition>(module, "_dialect_DialectDefinition")?;
