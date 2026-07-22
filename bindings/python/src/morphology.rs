@@ -608,7 +608,11 @@ impl PyInvalidDialectWord {
 
     /// Construct an invalid-dialect-word detail with its exact spelling.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|detail| detail.value.word == word) || ret.is_err())]
+    #[ensures(
+        ret.as_ref()
+            .is_ok_and(|detail| detail.value.word == old(word.clone()))
+            || ret.is_err()
+    )]
     #[new]
     fn new(word: String) -> PyResult<Self> {
         if word.is_empty() {
@@ -1396,7 +1400,10 @@ impl WithIndicatorsHandle {
     /// Retain an exact syntax token as the owner of its indicator tree.
     #[requires(true)]
     #[ensures(ret.steps.is_empty())]
-    #[ensures(ret.exact_token().is_some_and(|exact| exact == &token))]
+    #[ensures(
+        ret.exact_token()
+            .is_some_and(|exact| exact == &old(token.clone()))
+    )]
     pub(crate) fn from_token(token: TokenHandle) -> Self {
         new!(WithIndicatorsHandle {
             root: WithIndicatorsRoot::Token { token },
@@ -1743,7 +1750,10 @@ impl WordHandle {
 
     /// Locate a word stored directly in an indicator layer without cloning it.
     #[requires(true)]
-    #[ensures(ret.is_some() == with_indicators_word_slot_resolves(node.get(), slot))]
+    #[ensures(
+        ret.is_some()
+            == with_indicators_word_slot_resolves(old(node.clone()).get(), slot)
+    )]
     pub(crate) fn from_indicators(
         node: WithIndicatorsHandle,
         slot: WithIndicatorsWordSlot,
@@ -2227,8 +2237,8 @@ impl PyVerbatim {
     }
 }
 
-#[requires(span.char_len() > 0)]
-#[ensures(ret.kind() == kind)]
+#[requires(span.rust().char_len() > 0)]
+#[ensures(ret.get().kind() == kind)]
 fn plain_word(kind: WordKind, phonemes: &PyPhonemes, span: &PySourceSpan) -> WordHandle {
     WordHandle::from_owned(Word::from_kind(
         kind,
@@ -7727,7 +7737,7 @@ mod tests {
                 char_end,
                 text,
                 ..
-            } = &projected.result.errors[0]
+            } = projected.result.errors[0].as_ref()
             else {
                 panic!("recovery must retain an InvalidMorphology payload")
             };
