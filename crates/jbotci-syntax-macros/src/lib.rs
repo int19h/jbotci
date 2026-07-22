@@ -2053,19 +2053,11 @@ fn canonical_documentation(
 ) -> Result<Vec<LitStr>> {
     let mut docs = Vec::new();
     for attr in attrs.iter().filter(|attr| attr.path().is_ident("doc")) {
-        match &attr.meta {
-            Meta::NameValue(name_value)
-                if let Expr::Lit(expr) = &name_value.value
-                    && let Lit::Str(doc) = &expr.lit =>
-            {
-                docs.push(doc.clone());
-            }
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    attr,
-                    "binding schema documentation must be a string-valued `doc` attribute",
-                ));
-            }
+        if let Meta::NameValue(name_value) = &attr.meta
+            && let Expr::Lit(expr) = &name_value.value
+            && let Lit::Str(doc) = &expr.lit
+        {
+            docs.push(doc.clone());
         }
     }
     if !docs.iter().any(|doc| !doc.value().trim().is_empty()) {
@@ -10275,27 +10267,27 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
-    fn generated_models_reject_non_string_documentation_attributes() {
+    fn generated_models_preserve_non_text_rustdoc_attributes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
             tree_model {}
             model;
 
             /// A documented item.
             #[doc(hidden)]
+            #[doc(alias = "schema item")]
             rule "item" item -> struct {
-                /// The source-ordered `token` component retained by the `item` syntax node.
+                /// The BE token stored by the item.
                 field token <- cmavo(Be);
             }
         })
         .expect("grammar parses before documentation validation");
 
-        let expanded = grammar.expand().to_string();
+        let expanded = compact_tokens(&grammar.expand());
         assert!(
-            expanded.contains("compile_error")
-                && expanded.contains(
-                    "binding schema documentation must be a string-valued `doc` attribute"
-                ),
-            "non-string documentation attributes must be rejected: {expanded}"
+            !expanded.contains("compile_error")
+                && expanded.contains("doc(hidden)")
+                && expanded.contains("doc(alias=\"schema item\")"),
+            "non-text rustdoc attributes must survive Rust model expansion: {expanded}"
         );
     }
 

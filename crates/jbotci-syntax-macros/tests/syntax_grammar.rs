@@ -636,6 +636,7 @@ mod binding_schema {
     }
 
     type RecoveryTreeItem = ();
+    type Recovered<T> = jbotci_tree::Recovered<T, RecoveryTreeItem>;
 
     pub mod jbotci_source {
         #[bityzba::invariant(true)]
@@ -665,6 +666,8 @@ mod binding_schema {
         /// Canonical item documentation shared by Rust and bindings.
         ///
         /// Its blank paragraph separator must survive schema normalization.
+        #[doc(hidden)]
+        #[doc(alias = "schema item")]
         #[deny(missing_docs)]
         rule "item" item(item) -> struct {
             /// The item token.
@@ -689,6 +692,16 @@ mod binding_schema {
             field absolute_source_span: ::jbotci_source::SourceSpan = unreachable!();
             /// A small repeated token sequence.
             field small: smallvec::SmallVec<[Token; 2]> = smallvec::SmallVec::new();
+            /// A non-empty small token sequence.
+            field small_non_empty: vec1::smallvec_v1::SmallVec1<[Token; 2]> = unreachable!();
+            /// Exactly two tokens.
+            field fixed: [Token; 2] = unreachable!();
+            /// A pair of token values.
+            field tuple: (Token, Token) = unreachable!();
+            /// A token already represented as an explicit recovery field.
+            field explicit_recovered: Recovered<Token> = unreachable!();
+            /// An optional BE terminator recorded in generated model metadata.
+            field terminator <- opt(cmavo(Be)).elidable_terminator(Be);
         }
 
         /// Canonical free-modifier documentation.
@@ -701,6 +714,20 @@ mod binding_schema {
         rule "wrapper" wrapper -> struct {
             /// The wrapped token.
             field token <- cmavo(Be);
+        }
+
+        /// A source-ordered link in the representative item chain.
+        rule "chain link" chain_link(item) -> struct {
+            /// The BO connector introducing this link.
+            field connector <- cmavo(Bo);
+            /// The item contributed by this link.
+            field item <- item;
+        }
+
+        /// A representative chain whose first item and links have distinct payload types.
+        rule "item chain" item_chain(item) -> struct {
+            /// The first item followed by zero or more BO-linked items.
+            field run <- chain(first: item, zero_or_more: chain_link(item), element: item);
         }
 
         /// Canonical choice documentation.
@@ -721,6 +748,28 @@ mod binding_schema {
 
     __binding_schema_fixture!(capture_binding_schema);
 
+    #[bityzba::requires(!schema.is_empty() && !field.is_empty())]
+    #[bityzba::ensures(ret.starts_with("field{"))]
+    fn field_schema<'schema>(schema: &'schema str, field: &str) -> &'schema str {
+        let marker = format!("field{{source_name(\"{field}\"),");
+        let start = schema.find(&marker).expect("schema field is present");
+        let tail = &schema[start..];
+        let end = tail[marker.len()..]
+            .find("field{")
+            .map_or(tail.len(), |offset| marker.len() + offset);
+        &tail[..end]
+    }
+
+    #[bityzba::requires(!schema.is_empty() && !field.is_empty())]
+    #[bityzba::ensures(true)]
+    fn assert_field_shapes(schema: &str, field: &str, strict: &str, recovered: &str) {
+        let field_schema = field_schema(schema, field);
+        assert!(
+            field_schema.contains(&format!("strict({strict}),recovered({recovered})")),
+            "field `{field}` has unexpected strict/recovered schema: {field_schema}"
+        );
+    }
+
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
     #[test]
@@ -737,34 +786,124 @@ mod binding_schema {
         assert!(schema.contains("The item token."));
         assert!(schema.contains("The item alternative."));
         assert!(schema.contains("The wrapper alternative added directly from the grammar."));
+        assert!(
+            !schema.contains("schema item"),
+            "non-text rustdoc metadata is not duplicated into canonical schema text"
+        );
 
         let compact = schema.split_whitespace().collect::<String>();
         assert!(compact.contains("names(strict(\"ItemSyntax\"),recovered(\"ItemSyntax\"))"));
-        for shape in [
-            "optional(reference(leaf(kind(syntax_token)",
-            "repeated(reference(leaf(kind(syntax_token)",
-            "non_empty_repeated(reference(leaf(kind(syntax_token)",
-            "boxed(reference(model(\"ItemSyntax\")))",
-            "shared(reference(model(\"ItemSyntax\")))",
-            "with_free_modifiers(value(reference(leaf(kind(syntax_token)",
-            "with_indicators(reference(leaf(kind(morphology_word_like)",
-            "shared(reference(leaf(kind(source_span)",
-        ] {
-            assert!(
-                compact.contains(shape),
-                "missing schema shape {shape}: {schema}"
-            );
-        }
-        let small = compact
-            .find("source_name(\"small\")")
-            .expect("small-vector field");
-        let small_tail = &compact[small..];
-        let small_end = small_tail.find("field{").unwrap_or(small_tail.len());
-        assert!(
-            small_tail[..small_end].contains("strict(repeated(reference(leaf(kind(syntax_token)"),
-            "SmallVec is normalized as repeated cardinality"
+        let token = "reference(leaf(kind(syntax_token),absolute(false),path(\"Token\")))";
+        let recovered_token = format!("recovered_field({token})");
+        let item = "reference(model(\"ItemSyntax\"))";
+        let recovered_item = format!("recovered_field({item})");
+        assert_field_shapes(&compact, "token", token, &recovered_token);
+        assert_field_shapes(
+            &compact,
+            "optional",
+            &format!("optional({token})"),
+            &format!("optional({recovered_token})"),
         );
-        assert!(compact.contains("recovered(recovered_field(reference(leaf(kind(syntax_token)"));
+        assert_field_shapes(
+            &compact,
+            "repeated",
+            &format!("repeated({token})"),
+            &format!("repeated({recovered_token})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "non_empty",
+            &format!("non_empty_repeated({token})"),
+            &format!("non_empty_repeated({recovered_token})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "boxed",
+            &format!("boxed({item})"),
+            &format!("boxed({recovered_item})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "shared",
+            &format!("shared({item})"),
+            &format!("shared({recovered_item})"),
+        );
+        let free_modifier = "reference(model(\"FreeModifierSyntax\"))";
+        assert_field_shapes(
+            &compact,
+            "with_free_modifiers",
+            &format!("with_free_modifiers(value({token}),free_modifier({free_modifier}))"),
+            &format!(
+                "with_free_modifiers(value({recovered_token}),free_modifiers(repeated(recovered_field({free_modifier}))))"
+            ),
+        );
+        let word_like =
+            "reference(leaf(kind(morphology_word_like),absolute(false),path(\"WordLike\")))";
+        assert_field_shapes(
+            &compact,
+            "with_indicators",
+            &format!("with_indicators({word_like})"),
+            &format!("recovered_field(with_indicators({word_like}))"),
+        );
+        let source_span = "reference(leaf(kind(source_span),absolute(false),path(\"jbotci_source\",\"SourceSpan\")))";
+        assert_field_shapes(
+            &compact,
+            "source_span",
+            &format!("shared({source_span})"),
+            &format!("shared(recovered_field({source_span}))"),
+        );
+        let absolute_source_span = "reference(leaf(kind(source_span),absolute(true),path(\"jbotci_source\",\"SourceSpan\")))";
+        assert_field_shapes(
+            &compact,
+            "absolute_source_span",
+            absolute_source_span,
+            &format!("recovered_field({absolute_source_span})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "small",
+            &format!("repeated({token})"),
+            &format!("repeated({recovered_token})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "small_non_empty",
+            &format!("non_empty_repeated({token})"),
+            &format!("non_empty_repeated({recovered_token})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "fixed",
+            &format!("fixed(length(2),value({token}))"),
+            &format!("fixed(length(2),value({recovered_token}))"),
+        );
+        assert_field_shapes(
+            &compact,
+            "tuple",
+            &format!("tuple({token},{token})"),
+            &format!("tuple({recovered_token},{recovered_token})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "explicit_recovered",
+            &format!("recovered_field({token})"),
+            &format!("recovered_field({recovered_token})"),
+        );
+        assert_field_shapes(
+            &compact,
+            "terminator",
+            &format!("optional({token})"),
+            &format!("optional({recovered_token})"),
+        );
+        let chain_link = "reference(model(\"ChainLinkSyntax\"))";
+        assert_field_shapes(
+            &compact,
+            "run",
+            &format!("chain(first({item}),links(repeated({chain_link})))"),
+            &format!(
+                "chain(first({recovered_item}),links(repeated(recovered_field({chain_link}))))"
+            ),
+        );
         assert!(
             compact.contains("shape(tuple)"),
             "transparent products and variants are tuples"
@@ -772,7 +911,10 @@ mod binding_schema {
         assert!(compact.contains(
             "reference(leaf(kind(source_span),absolute(true),path(\"jbotci_source\",\"SourceSpan\")))"
         ));
-        assert!(compact.contains("transparent_constructors["));
+        assert!(compact.contains("transparent_field(\"Wrapper\",\"token\")"));
+        assert!(compact.contains("chain_link_element_field(\"ChainLink\",\"item\")"));
+        assert!(compact.contains("elidable_terminator(\"terminator\",\"Be\")"));
+        assert!(compact.contains("field_order(\"ChainLink\",[\"connector\",\"item\"])"));
         assert!(compact.contains("constructor_label(\"Item\",\"item\")"));
 
         let token = compact.find("source_name(\"token\")").expect("token field");

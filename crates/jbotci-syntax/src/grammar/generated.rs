@@ -138,25 +138,25 @@ pub mod generated_model {
     /// Product node for paragraphs; preserves `first` and `additional_niho` in source order.
     rule "paragraphs" text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `first` component retained by the `text_paragraph_with_additional_niho` syntax node.
+        /// The first component of this syntax node.
         field first <- paragraph;
-        /// The source-ordered `additional_niho` component retained by the `text_paragraph_with_additional_niho` syntax node.
+        /// Ordered sequence of zero or more additional niho components.
         field additional_niho <- [zero_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
     /// Transparent product node for paragraphs; preserves the `paragraphs` component.
     rule "paragraphs" text_niho_paragraphs(statement_or_fragment, free_modifier) -> struct {
-        /// The source-ordered `paragraphs` component retained by the `text_niho_paragraphs` syntax node.
+        /// Non-empty ordered sequence of paragraphs components.
         field paragraphs <- [one_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
     /// Product node for paragraph statement; preserves `i`, `connective`, and `free_modifiers` in source order.
     rule "paragraph statement" leading_i_statement(free_modifier, tense_modal) -> struct {
-        /// The source-ordered `i` component retained by the `leading_i_statement` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `connective` component retained by the `leading_i_statement` syntax node.
+        /// The optional connective component.
         field connective <- opt(arc(i_paragraph_statement_connective(tense_modal)));
-        /// The source-ordered `free_modifiers` component retained by the `leading_i_statement` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
@@ -171,69 +171,69 @@ pub mod generated_model {
     /// Transparent product node for paragraph; preserves the `statements` component.
     rule "paragraph" simple_paragraph(statement_or_fragment, free_modifier) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `statements` component retained by the `simple_paragraph` syntax node.
+        /// The statements component of this syntax node.
         field statements <- paragraph_statement_sequence(statement_or_fragment, free_modifier);
     }
 
     /// Product node for paragraph statement sequence; preserves `initial`, `following`, and `trailing` in source order.
     rule "paragraph statement sequence" paragraph_statement_sequence(statement_or_fragment, free_modifier) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `initial` component retained by the `paragraph_statement_sequence` syntax node.
+        /// The initial component of this syntax node.
         field initial <- initial_paragraph_statement(statement_or_fragment);
-        /// The source-ordered `following` component retained by the `paragraph_statement_sequence` syntax node.
+        /// Ordered sequence of zero or more following components.
         field following <- [zero_or_more following_paragraph_statement(statement_or_fragment, free_modifier)];
-        /// The source-ordered `trailing` component retained by the `paragraph_statement_sequence` syntax node.
+        /// Ordered sequence of zero or more trailing components.
         field trailing <- [zero_or_more trailing_ijek_paragraph_statement()];
     }
 
     /// Product node for paragraph; preserves `i`, `niho`, `free_modifiers`, and `statements` in source order.
     rule "paragraph" i_niho_paragraph(statement_or_fragment, free_modifier) -> struct {
-        /// The source-ordered `i` component retained by the `i_niho_paragraph` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `niho` component retained by the `i_niho_paragraph` syntax node.
+        /// Non-empty ordered sequence of niho components.
         field niho <- [one_or_more selmaho(Niho)];
-        /// The source-ordered `free_modifiers` component retained by the `i_niho_paragraph` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
         #[tree_child(primary)]
-        /// The source-ordered `statements` component retained by the `i_niho_paragraph` syntax node.
+        /// The optional statements component.
         field statements <- opt(arc(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
     /// Product node for paragraph; preserves `niho`, `free_modifiers`, and `statements` in source order.
     rule "paragraph" niho_paragraph(statement_or_fragment, free_modifier) -> struct {
-        /// The source-ordered `niho` component retained by the `niho_paragraph` syntax node.
+        /// Non-empty ordered sequence of niho components.
         field niho <- [one_or_more selmaho(Niho)];
-        /// The source-ordered `free_modifiers` component retained by the `niho_paragraph` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
         #[tree_child(primary)]
-        /// The source-ordered `statements` component retained by the `niho_paragraph` syntax node.
+        /// The optional statements component.
         field statements <- opt(arc(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
     /// Transparent product node for paragraph statement; preserves the `statement` component.
     rule "paragraph statement" initial_paragraph_statement(statement_or_fragment) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `statement` component retained by the `initial_paragraph_statement` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement_or_fragment);
     }
 
     /// Product node for paragraph statement; preserves `i`, `free_modifiers`, and `statement` in source order.
     rule "paragraph statement" following_paragraph_statement(statement_or_fragment, free_modifier) -> struct {
-        /// The source-ordered `i` component retained by the `following_paragraph_statement` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
         assert !statement_connective;
-        /// The source-ordered `free_modifiers` component retained by the `following_paragraph_statement` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
         #[tree_child(primary)]
-        /// The source-ordered `statement` component retained by the `following_paragraph_statement` syntax node.
+        /// The optional statement component.
         field statement <- opt(arc(statement_or_fragment));
     }
 
     /// Product node for paragraph statement; preserves `i` and `connective` in source order.
     rule "paragraph statement" trailing_ijek_paragraph_statement -> struct {
-        /// The source-ordered `i` component retained by the `trailing_ijek_paragraph_statement` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `connective` component retained by the `trailing_ijek_paragraph_statement` syntax node.
+        /// The connective component of this syntax node.
         field connective <- statement_connective;
     }
 
@@ -271,9 +271,9 @@ pub mod generated_model {
 
     /// Product node for paragraph statement; preserves `statement` and `tail` in source order.
     rule "paragraph statement" zantufa_statement_terms_statement(statement, term) -> struct {
-        /// The source-ordered `statement` component retained by the `zantufa_statement_terms_statement` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `tail` component retained by the `zantufa_statement_terms_statement` syntax node.
+        /// The tail component of this syntax node.
         field tail <- zantufa_statement_terms_tail(term);
     }
 
@@ -287,22 +287,22 @@ pub mod generated_model {
 
     /// Product node for paragraph statement; preserves `iau` and `terms` in source order.
     rule "paragraph statement" zantufa_iau_statement_terms_tail(term) -> struct {
-        /// The source-ordered `iau` component retained by the `zantufa_iau_statement_terms_tail` syntax node.
+        /// The `Ihau` cmavo marker.
         field iau <- cmavo(Ihau).warn(ExperimentalIauReset).wf();
-        /// The source-ordered `terms` component retained by the `zantufa_iau_statement_terms_tail` syntax node.
+        /// Ordered sequence of zero or more terms components.
         field terms <- [zero_or_more term];
     }
 
     /// Transparent product node for paragraph statement; preserves the `terms` component.
     rule "paragraph statement" zantufa_bare_statement_terms_tail(term) -> struct {
-        /// The source-ordered `terms` component retained by the `zantufa_bare_statement_terms_tail` syntax node.
+        /// Non-empty ordered sequence of terms components.
         field terms <- [one_or_more arc(term)];
     }
 
     /// Transparent product node for paragraph statement; preserves the `statement` component.
     rule "paragraph statement" statement_or_fragment_statement(statement) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `statement` component retained by the `statement_or_fragment_statement` syntax node.
+        /// The statement component of this syntax node.
         field statement <- statement;
     }
 
@@ -346,47 +346,47 @@ pub mod generated_model {
 
     /// Product node for fragment; preserves `first_na`, `second_na`, and `additional_na` in source order.
     rule "fragment" multiple_na_fragment -> struct {
-        /// The source-ordered `first_na` component retained by the `multiple_na_fragment` syntax node.
+        /// A word from selmaho `Na`.
         field first_na <- selmaho(Na);
-        /// The source-ordered `second_na` component retained by the `multiple_na_fragment` syntax node.
+        /// A word from selmaho `Na`.
         field second_na <- selmaho(Na);
-        /// The source-ordered `additional_na` component retained by the `multiple_na_fragment` syntax node.
+        /// Ordered sequence of zero or more additional na components.
         field additional_na <- [zero_or_more selmaho(Na)];
     }
 
     /// Transparent product node for fragment; preserves the `na` component.
     rule "fragment" single_na_fragment -> struct {
-        /// The source-ordered `na` component retained by the `single_na_fragment` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na).not_next_selmaho(Ku).wf();
     }
 
     /// Transparent product node for fragment; preserves the `connective` component.
     rule "fragment" ek_fragment -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `connective` component retained by the `ek_fragment` syntax node.
+        /// The connective component of this syntax node.
         field connective <- ek_connective();
     }
 
     /// Transparent product node for fragment; preserves the `connective` component.
     rule "fragment" gihek_fragment -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `connective` component retained by the `gihek_fragment` syntax node.
+        /// The connective component of this syntax node.
         field connective <- gihek_connective();
     }
 
     /// Product node for statement connection; preserves `leading_statement` and `continuations` in source order.
     rule "statement connection" i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
-        /// The source-ordered `leading_statement` component retained by the `i_statement_connection` syntax node.
+        /// The shared leading statement child syntax node.
         field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
-        /// The source-ordered `continuations` component retained by the `i_statement_connection` syntax node.
+        /// Non-empty ordered sequence of continuations components.
         field continuations <- [one_or_more i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens)];
     }
 
     /// Product node for statement connective; preserves `i` and `connective` in source order.
     rule "statement connective" pending_i_connective -> struct {
-        /// The source-ordered `i` component retained by the `pending_i_connective` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `connective` component retained by the `pending_i_connective` syntax node.
+        /// The connective component of this syntax node.
         field connective <- statement_connective;
         assert cmavo(I);
     }
@@ -401,67 +401,67 @@ pub mod generated_model {
 
     /// Product node for statement connection; preserves `pending`, `i`, `connective`, and `trailing_statement` in source order.
     rule "statement connection" chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
-        /// The source-ordered `pending` component retained by the `chained_i_connective_statement_tail` syntax node.
+        /// Non-empty ordered sequence of pending components.
         field pending <- [one_or_more pending_i_connective];
-        /// The source-ordered `i` component retained by the `chained_i_connective_statement_tail` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `connective` component retained by the `chained_i_connective_statement_tail` syntax node.
+        /// The connective component of this syntax node.
         field connective <- i_statement_connective(tense_modal);
-        /// The source-ordered `trailing_statement` component retained by the `chained_i_connective_statement_tail` syntax node.
+        /// The shared trailing statement child syntax node.
         field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text));
     }
 
     /// Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.
     rule "statement connection" simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
-        /// The source-ordered `i` component retained by the `simple_i_connective_statement_tail` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `connective` component retained by the `simple_i_connective_statement_tail` syntax node.
+        /// The connective component of this syntax node.
         field connective <- i_statement_connective(tense_modal);
-        /// The source-ordered `trailing_statement` component retained by the `simple_i_connective_statement_tail` syntax node.
+        /// The shared trailing statement child syntax node.
         field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text));
     }
 
     /// Product node for statement connection; preserves `leading_statement`, `connective`, `i`, and `trailing_statement` in source order.
     rule "statement connection" preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> struct {
-        /// The source-ordered `leading_statement` component retained by the `preposed_i_statement_connection` syntax node.
+        /// The shared leading statement child syntax node.
         field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
-        /// The source-ordered `connective` component retained by the `preposed_i_statement_connection` syntax node.
+        /// The connective component of this syntax node.
         field connective <- statement_connective;
-        /// The source-ordered `i` component retained by the `preposed_i_statement_connection` syntax node.
+        /// The `I` cmavo marker.
         field i <- cmavo(I);
-        /// The source-ordered `trailing_statement` component retained by the `preposed_i_statement_connection` syntax node.
+        /// The shared trailing statement child syntax node.
         field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text));
     }
 
     /// Product node for text group; preserves `tense_modal`, `tuhe`, `text`, and `tuhu` in source order.
     rule "text group" text_group_statement(text, tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `text_group_statement` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `tuhe` component retained by the `text_group_statement` syntax node.
+        /// The `Tuhe` cmavo marker.
         field tuhe <- cmavo(Tuhe).wf();
         #[tree_child(primary)]
-        /// The source-ordered `text` component retained by the `text_group_statement` syntax node.
+        /// The shared text child syntax node.
         field text <- arc(text);
-        /// The source-ordered `tuhu` component retained by the `text_group_statement` syntax node.
+        /// The optional `Tuhu` cmavo marker.
         field tuhu <- opt(cmavo(Tuhu).wf()).elidable_terminator(Tuhu);
     }
 
     /// Product node for prenex; preserves `terms` and `zohu` in source order.
     rule "prenex" prenex_fragment(term) -> struct {
-        /// The source-ordered `terms` component retained by the `prenex_fragment` syntax node.
+        /// Ordered sequence of zero or more terms components.
         field terms <- [zero_or_more term];
-        /// The source-ordered `zohu` component retained by the `prenex_fragment` syntax node.
+        /// The `Zohu` cmavo marker.
         field zohu <- cmavo(Zohu).wf();
     }
 
     /// Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_statement` in source order.
     rule "prenex" prenex_statement(statement, term) -> struct {
-        /// The source-ordered `prenex_terms` component retained by the `prenex_statement` syntax node.
+        /// Ordered sequence of zero or more prenex terms components.
         field prenex_terms <- [zero_or_more term];
-        /// The source-ordered `zohu` component retained by the `prenex_statement` syntax node.
+        /// The `Zohu` cmavo marker.
         field zohu <- cmavo(Zohu).wf();
         #[tree_child(primary)]
-        /// The source-ordered `inner_statement` component retained by the `prenex_statement` syntax node.
+        /// The shared inner statement child syntax node.
         field inner_statement <- arc(statement);
     }
 
@@ -481,27 +481,27 @@ pub mod generated_model {
 
     /// Product node for statement branch; preserves `gik` and `statement` in source order.
     rule "statement branch" forethought_statement_branch(statement) -> struct {
-        /// The source-ordered `gik` component retained by the `forethought_statement_branch` syntax node.
+        /// The gik component of this syntax node.
         field gik <- gik_connective;
-        /// The source-ordered `statement` component retained by the `forethought_statement_branch` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
     }
 
     /// Product node for statement branch; preserves `gik` and `statement` in source order.
     rule "statement branch" zantufa_forethought_statement_branch(statement) -> struct {
         assert feature(ZantufaConnectives);
-        /// The source-ordered `gik` component retained by the `zantufa_forethought_statement_branch` syntax node.
+        /// The gik component of this syntax node.
         field gik <- zantufa_extra_gik_connective;
-        /// The source-ordered `statement` component retained by the `zantufa_forethought_statement_branch` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
     }
 
     /// Product node for statement; preserves `bridi` and `continuations` in source order.
     rule "statement" bridi_statement(bridi, subbridi, tense_modal) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `bridi` component retained by the `bridi_statement` syntax node.
+        /// The shared bridi child syntax node.
         field bridi <- arc(bridi);
-        /// The source-ordered `continuations` component retained by the `bridi_statement` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more bridi_statement_continuation(subbridi, tense_modal)];
     }
 
@@ -516,87 +516,87 @@ pub mod generated_model {
     /// Product node for bridi continuation; preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi` in source order.
     rule "bridi continuation" bo_bridi_statement_continuation(subbridi, tense_modal) -> struct {
         assert feature(ZantufaConnectives).not();
-        /// The source-ordered `connective` component retained by the `bo_bridi_statement_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- bridi_tail_connective;
-        /// The source-ordered `tense_modal` component retained by the `bo_bridi_statement_continuation` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `bo_bridi_statement_continuation` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `trailing_subbridi` component retained by the `bo_bridi_statement_continuation` syntax node.
+        /// The shared trailing subbridi child syntax node.
         field trailing_subbridi <- arc(subbridi);
     }
 
     /// Product node for bridi continuation; preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe` in source order.
     rule "bridi continuation" ke_bridi_statement_continuation(subbridi, tense_modal) -> struct {
         assert feature(ZantufaConnectives).not();
-        /// The source-ordered `connective` component retained by the `ke_bridi_statement_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- relation_afterthought_connective;
-        /// The source-ordered `tense_modal` component retained by the `ke_bridi_statement_continuation` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `ke` component retained by the `ke_bridi_statement_continuation` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `trailing_subbridi` component retained by the `ke_bridi_statement_continuation` syntax node.
+        /// The shared trailing subbridi child syntax node.
         field trailing_subbridi <- arc(subbridi);
-        /// The source-ordered `kehe` component retained by the `ke_bridi_statement_continuation` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Transparent product node for selbri; preserves the `selbri` component.
     rule "selbri" selbri_fragment(selbri) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `selbri` component retained by the `selbri_fragment` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
     }
 
     /// Product node for terms; preserves `terms` and `vau` in source order.
     rule "terms" terms_fragment(term) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `terms` component retained by the `terms_fragment` syntax node.
+        /// Non-empty ordered sequence of terms components.
         field terms <- [one_or_more term];
-        /// The source-ordered `vau` component retained by the `terms_fragment` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(cmavo(Vau).wf()).elidable_terminator(Vau);
     }
 
     /// Transparent product node for mex; preserves the `quantifier` component.
     rule "mex" mekso_fragment(mekso, letter_tokens) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `quantifier` component retained by the `mekso_fragment` syntax node.
+        /// The shared quantifier child syntax node.
         field quantifier <- arc(quantifier(mekso, letter_tokens));
     }
 
     /// Transparent product node for mex; preserves the `expression` component.
     rule "mex" zantufa_mekso_fragment(mekso) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `expression` component retained by the `zantufa_mekso_fragment` syntax node.
+        /// The shared expression child syntax node.
         field expression: std::sync::Arc<MeksoSyntax> <- arc(mekso.complete_statement_item());
     }
 
     /// Product node for relative clauses; preserves `first` and `additional` in source order.
     rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `first` component retained by the `relative_clause_list` syntax node.
+        /// The first component of this syntax node.
         field first <- relative_clause_atom(sumti, subbridi, tense_modal, statement);
-        /// The source-ordered `additional` component retained by the `relative_clause_list` syntax node.
+        /// Ordered sequence of zero or more additional components.
         field additional <- [zero_or_more relative_clause_tail(sumti, subbridi, tense_modal, statement)];
     }
 
     /// Transparent product node for relative clauses; preserves the `relative_clauses` component.
     rule "relative clauses" relative_clause_fragment(sumti, subbridi, tense_modal, statement) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `relative_clauses` component retained by the `relative_clause_fragment` syntax node.
+        /// The relative clauses component of this syntax node.
         field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
     }
 
     /// Transparent product node for linked arguments; preserves the `bei_links` component.
     rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `bei_links` component retained by the `linked_sumti_continuation_fragment` syntax node.
+        /// Non-empty ordered sequence of bei links components.
         field bei_links <- [one_or_more bei_link(sumti, tense_modal)];
     }
 
     /// Transparent product node for linked arguments; preserves the `linkargs` component.
     rule "linked arguments" linked_sumti_fragment(sumti, tense_modal) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `linkargs` component retained by the `linked_sumti_fragment` syntax node.
+        /// The linkargs component of this syntax node.
         field linkargs <- linkargs(sumti, tense_modal);
     }
 
@@ -616,51 +616,51 @@ pub mod generated_model {
 
     /// Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.
     rule "bridi" bridi_with_leading_terms(term, bridi_tail) -> struct {
-        /// The source-ordered `leading_terms` component retained by the `bridi_with_leading_terms` syntax node.
+        /// Non-empty ordered sequence of leading terms components.
         field leading_terms <- [one_or_more term];
-        /// The source-ordered `cu` component retained by the `bridi_with_leading_terms` syntax node.
+        /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
-        /// The source-ordered `bridi_tail` component retained by the `bridi_with_leading_terms` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
     }
 
     /// Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.
     rule "bridi" bridi_with_post_cu_terms(term, bridi_tail) -> struct {
-        /// The source-ordered `leading_terms` component retained by the `bridi_with_post_cu_terms` syntax node.
+        /// Non-empty ordered sequence of leading terms components.
         field leading_terms <- [one_or_more term];
-        /// The source-ordered `cu` component retained by the `bridi_with_post_cu_terms` syntax node.
+        /// The `Cu` cmavo marker.
         field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
-        /// The source-ordered `bridi_tail` component retained by the `bridi_with_post_cu_terms` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(cu_terms_bridi_tail(term, bridi_tail));
     }
 
     /// Product node for bridi; preserves `cu` and `bridi_tail` in source order.
     rule "bridi" bare_cu_bridi(bridi_tail) -> struct {
-        /// The source-ordered `cu` component retained by the `bare_cu_bridi` syntax node.
+        /// The `Cu` cmavo marker.
         field cu <- arc(cmavo(Cu).wf());
-        /// The source-ordered `bridi_tail` component retained by the `bare_cu_bridi` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
     }
 
     /// Product node for bridi; preserves `cu` and `bridi_tail` in source order.
     rule "bridi" bare_cu_terms_bridi(term, bridi_tail) -> struct {
-        /// The source-ordered `cu` component retained by the `bare_cu_terms_bridi` syntax node.
+        /// The `Cu` cmavo marker.
         field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
-        /// The source-ordered `bridi_tail` component retained by the `bare_cu_terms_bridi` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(cu_terms_bridi_tail(term, bridi_tail));
     }
 
     /// Transparent product node for bridi; preserves the `bridi_tail` component.
     rule "bridi" relation_only_bridi(bridi_tail) -> struct {
-        /// The source-ordered `bridi_tail` component retained by the `relation_only_bridi` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
     }
 
     /// Product node for bridi tail; preserves `terms` and `bridi_tail` in source order.
     rule "bridi tail" cu_terms_bridi_tail(term, bridi_tail) -> struct {
-        /// The source-ordered `terms` component retained by the `cu_terms_bridi_tail` syntax node.
+        /// Non-empty ordered sequence of terms components.
         field terms <- [one_or_more term];
-        /// The source-ordered `bridi_tail` component retained by the `cu_terms_bridi_tail` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
     }
 
@@ -676,38 +676,38 @@ pub mod generated_model {
 
     /// Product node for bridi tail; preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau` in source order.
     rule "bridi tail" zantufa_grouped_bridi_tail(bridi_tail, term) -> struct {
-        /// The source-ordered `ke` component retained by the `zantufa_grouped_bridi_tail` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).warn(ExperimentalZantufaGroupedBridiTail).wf();
-        /// The source-ordered `bridi_tail` component retained by the `zantufa_grouped_bridi_tail` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
-        /// The source-ordered `kehe` component retained by the `zantufa_grouped_bridi_tail` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
-        /// The source-ordered `tail_terms` component retained by the `zantufa_grouped_bridi_tail` syntax node.
+        /// Ordered sequence of zero or more tail terms components.
         field tail_terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `zantufa_grouped_bridi_tail` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for bridi tail; preserves `first` and `ke_continuation` in source order.
     rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `first` component retained by the `bridi_tail_without_tail_terms` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
-        /// The source-ordered `ke_continuation` component retained by the `bridi_tail_without_tail_terms` syntax node.
+        /// The optional ke continuation component.
         field ke_continuation <- opt(arc(bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
     /// Product node for bridi tail; preserves `first` and `ke_continuation` in source order.
     rule "bridi tail" bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `first` component retained by the `bridi_tail_with_possible_tail_terms` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
         assert !(relation_connective_as_bridi_tail, opt(arc(tense_modal)), cmavo(Ke));
-        /// The source-ordered `ke_continuation` component retained by the `bridi_tail_with_possible_tail_terms` syntax node.
+        /// The optional ke continuation component.
         field ke_continuation <- opt(arc(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
     /// Transparent product node for bridi tail; preserves the `bridi_tails` component.
     rule "bridi tail" afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `bridi_tails` component retained by the `afterthought_bridi_tail_without_tail_terms` syntax node.
+        /// The bridi tails component of this syntax node.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail_without_tail_terms),
             zero_or_more: bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal),
@@ -717,7 +717,7 @@ pub mod generated_model {
 
     /// Transparent product node for bridi tail; preserves the `bridi_tails` component.
     rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `bridi_tails` component retained by the `afterthought_bridi_tail` syntax node.
+        /// The bridi tails component of this syntax node.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail),
             zero_or_more: bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal),
@@ -727,17 +727,17 @@ pub mod generated_model {
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
     rule "bridi tail" bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `first` component retained by the `bo_grouped_bridi_tail_without_tail_terms` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal));
-        /// The source-ordered `bo_continuation` component retained by the `bo_grouped_bridi_tail_without_tail_terms` syntax node.
+        /// The optional bo continuation component.
         field bo_continuation <- opt(arc(bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)));
     }
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
     rule "bridi tail" bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> struct {
-        /// The source-ordered `first` component retained by the `bo_grouped_bridi_tail` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal));
-        /// The source-ordered `bo_continuation` component retained by the `bo_grouped_bridi_tail` syntax node.
+        /// The optional bo continuation component.
         field bo_continuation <- opt(arc(bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal)));
     }
 
@@ -759,31 +759,31 @@ pub mod generated_model {
 
     /// Transparent product node for forethought bridi connection; preserves the `connection` component.
     rule "forethought bridi connection" forethought_simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> struct {
-        /// The source-ordered `connection` component retained by the `forethought_simple_bridi_tail_without_tail_terms` syntax node.
+        /// The shared connection child syntax node.
         field connection <- arc(forethought_bridi_connection_without_tail_terms);
     }
 
     /// Transparent product node for forethought bridi connection; preserves the `connection` component.
     rule "forethought bridi connection" forethought_simple_bridi_tail(forethought_bridi_connection) -> struct {
-        /// The source-ordered `connection` component retained by the `forethought_simple_bridi_tail` syntax node.
+        /// The shared connection child syntax node.
         field connection <- arc(forethought_bridi_connection);
     }
 
     /// Product node for bridi tail; preserves `selbri` and `vau` in source order.
     rule "bridi tail" selbri_simple_bridi_tail_without_tail_terms(selbri) -> struct {
-        /// The source-ordered `selbri` component retained by the `selbri_simple_bridi_tail_without_tail_terms` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `vau` component retained by the `selbri_simple_bridi_tail_without_tail_terms` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for bridi tail; preserves `selbri`, `terms`, and `vau` in source order.
     rule "bridi tail" selbri_simple_bridi_tail(selbri, term) -> struct {
-        /// The source-ordered `selbri` component retained by the `selbri_simple_bridi_tail` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `terms` component retained by the `selbri_simple_bridi_tail` syntax node.
+        /// Ordered sequence of zero or more terms components.
         field terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `selbri_simple_bridi_tail` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
@@ -860,135 +860,135 @@ pub mod generated_model {
 
     /// Product node for forethought bridi connection; preserves `tense_modal`, `ke`, `inner`, and `kehe` in source order.
     rule "forethought bridi connection" grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `grouped_forethought_bridi_connection` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `ke` component retained by the `grouped_forethought_bridi_connection` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `inner` component retained by the `grouped_forethought_bridi_connection` syntax node.
+        /// The shared inner child syntax node.
         field inner <- arc(forethought_bridi_connection);
-        /// The source-ordered `kehe` component retained by the `grouped_forethought_bridi_connection` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(arc(cmavo(Kehe).wf())).elidable_terminator(Kehe);
     }
 
     /// Product node for forethought bridi connection; preserves `tense_modal`, `ke`, `inner`, and `kehe` in source order.
     rule "forethought bridi connection" grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `grouped_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `ke` component retained by the `grouped_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `inner` component retained by the `grouped_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The shared inner child syntax node.
         field inner <- arc(forethought_bridi_connection_without_tail_terms);
-        /// The source-ordered `kehe` component retained by the `grouped_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(arc(cmavo(Kehe).wf())).elidable_terminator(Kehe);
     }
 
     /// Product node for forethought bridi connection; preserves `na` and `inner` in source order.
     rule "forethought bridi connection" negated_forethought_bridi_connection(forethought_bridi_connection) -> struct {
-        /// The source-ordered `na` component retained by the `negated_forethought_bridi_connection` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
-        /// The source-ordered `inner` component retained by the `negated_forethought_bridi_connection` syntax node.
+        /// The shared inner child syntax node.
         field inner <- arc(forethought_bridi_connection);
     }
 
     /// Product node for forethought bridi connection; preserves `na` and `inner` in source order.
     rule "forethought bridi connection" negated_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> struct {
-        /// The source-ordered `na` component retained by the `negated_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
-        /// The source-ordered `inner` component retained by the `negated_forethought_bridi_connection_without_tail_terms` syntax node.
+        /// The shared inner child syntax node.
         field inner <- arc(forethought_bridi_connection_without_tail_terms);
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.
     rule "bridi tail connective" bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> struct {
-        /// The source-ordered `connective` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- bridi_tail_connective;
-        /// The source-ordered `tense_modal` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `ke` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `bridi_tail` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
-        /// The source-ordered `kehe` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(arc(cmavo(Kehe).wf())).elidable_terminator(Kehe);
-        /// The source-ordered `tail_terms` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// Ordered sequence of zero or more tail terms components.
         field tail_terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `bridi_tail_ke_continuation` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.
     rule "bridi tail connective" gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> struct {
-        /// The source-ordered `connective` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- gihek_connective();
-        /// The source-ordered `tense_modal` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `ke` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `bridi_tail` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
-        /// The source-ordered `kehe` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(arc(cmavo(Kehe).wf())).elidable_terminator(Kehe);
-        /// The source-ordered `tail_terms` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// Ordered sequence of zero or more tail terms components.
         field tail_terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `gihek_bridi_tail_ke_continuation` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, `cu`, and `bridi_tail` in source order.
     rule "bridi tail connective" bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> struct {
-        /// The source-ordered `connective` component retained by the `bridi_tail_bo_continuation_without_tail_terms` syntax node.
+        /// The connective component of this syntax node.
         field connective <- bridi_tail_connective;
-        /// The source-ordered `tense_modal` component retained by the `bridi_tail_bo_continuation_without_tail_terms` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `bridi_tail_bo_continuation_without_tail_terms` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `cu` component retained by the `bridi_tail_bo_continuation_without_tail_terms` syntax node.
+        /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
-        /// The source-ordered `bridi_tail` component retained by the `bridi_tail_bo_continuation_without_tail_terms` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bo_grouped_bridi_tail_without_tail_terms);
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and 4 other fields in source order.
     rule "bridi tail connective" bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
-        /// The source-ordered `connective` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- bridi_tail_connective;
-        /// The source-ordered `tense_modal` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `cu` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
-        /// The source-ordered `bridi_tail` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bo_grouped_bridi_tail);
-        /// The source-ordered `tail_terms` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// Ordered sequence of zero or more tail terms components.
         field tail_terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `bridi_tail_bo_continuation` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `cu`, and `bridi_tail` in source order.
     rule "bridi tail connective" bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> struct {
         assert !(bridi_tail_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke))));
-        /// The source-ordered `connective` component retained by the `bridi_tail_continuation_without_tail_terms` syntax node.
+        /// The connective component of this syntax node.
         field connective <- bridi_tail_connective;
-        /// The source-ordered `cu` component retained by the `bridi_tail_continuation_without_tail_terms` syntax node.
+        /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
-        /// The source-ordered `bridi_tail` component retained by the `bridi_tail_continuation_without_tail_terms` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bo_grouped_bridi_tail_without_tail_terms);
     }
 
     /// Product node for bridi tail connective; preserves `connective`, `cu`, `bridi_tail`, `tail_terms`, and `vau` in source order.
     rule "bridi tail connective" bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
         assert !(bridi_tail_connective, opt(arc(tense_modal)), choice((cmavo(Bo), cmavo(Ke))));
-        /// The source-ordered `connective` component retained by the `bridi_tail_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- bridi_tail_connective;
-        /// The source-ordered `cu` component retained by the `bridi_tail_continuation` syntax node.
+        /// The optional `Cu` cmavo marker.
         field cu <- opt(arc(cmavo(Cu).wf()));
-        /// The source-ordered `bridi_tail` component retained by the `bridi_tail_continuation` syntax node.
+        /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bo_grouped_bridi_tail);
-        /// The source-ordered `tail_terms` component retained by the `bridi_tail_continuation` syntax node.
+        /// Ordered sequence of zero or more tail terms components.
         field tail_terms <- [zero_or_more term];
-        /// The source-ordered `vau` component retained by the `bridi_tail_continuation` syntax node.
+        /// The optional `Vau` cmavo marker.
         field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
     }
 
@@ -1002,17 +1002,17 @@ pub mod generated_model {
 
     /// Transparent product node for subbridi; preserves the `bridi` component.
     rule "subbridi" bridi_subbridi(bridi) -> struct {
-        /// The source-ordered `bridi` component retained by the `bridi_subbridi` syntax node.
+        /// The shared bridi child syntax node.
         field bridi <- arc(bridi);
     }
 
     /// Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_subbridi` in source order.
     rule "prenex" prenex_subbridi(subbridi, term) -> struct {
-        /// The source-ordered `prenex_terms` component retained by the `prenex_subbridi` syntax node.
+        /// Ordered sequence of zero or more prenex terms components.
         field prenex_terms <- [zero_or_more term];
-        /// The source-ordered `zohu` component retained by the `prenex_subbridi` syntax node.
+        /// The `Zohu` cmavo marker.
         field zohu <- cmavo(Zohu).wf();
-        /// The source-ordered `inner_subbridi` component retained by the `prenex_subbridi` syntax node.
+        /// The shared inner subbridi child syntax node.
         field inner_subbridi <- arc(subbridi);
     }
 
@@ -1036,19 +1036,19 @@ pub mod generated_model {
     /// Product node for termset connection; preserves `leading_term` and `continuations` in source order.
     rule "termset connection" pehe_termset_connection(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
         assert term_guard();
-        /// The source-ordered `leading_term` component retained by the `pehe_termset_connection` syntax node.
+        /// The shared leading term child syntax node.
         field leading_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
-        /// The source-ordered `continuations` component retained by the `pehe_termset_connection` syntax node.
+        /// Non-empty ordered sequence of continuations components.
         field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier)];
     }
 
     /// Product node for termset connection continuation; preserves `pehe`, `connective`, and `trailing_term` in source order.
     rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
-        /// The source-ordered `pehe` component retained by the `pehe_termset_connection_continuation` syntax node.
+        /// The `Pehe` cmavo marker.
         field pehe <- cmavo(Pehe).wf();
-        /// The source-ordered `connective` component retained by the `pehe_termset_connection_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- statement_connective;
-        /// The source-ordered `trailing_term` component retained by the `pehe_termset_connection_continuation` syntax node.
+        /// The shared trailing term child syntax node.
         field trailing_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
     }
 
@@ -1095,11 +1095,11 @@ pub mod generated_model {
     /// Product node for term connection; preserves `leading_term`, `connective`, `bo`, and `trailing_term` in source order.
     rule "term connection" bound_term_connection(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
         assert term_guard();
-        /// The source-ordered `leading_term` component retained by the `bound_term_connection` syntax node.
+        /// The shared leading term child syntax node.
         field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
-        /// The source-ordered `connective` component retained by the `bound_term_connection` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(bound_term_connective);
-        /// The source-ordered `bo` component retained by the `bound_term_connection` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         assert choice((
             feature(TermHierarchy),
@@ -1108,7 +1108,7 @@ pub mod generated_model {
                 sumti.not(),
             ).ignored(),
         ));
-        /// The source-ordered `trailing_term` component retained by the `bound_term_connection` syntax node.
+        /// The shared trailing term child syntax node.
         field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
         assert choice((
             feature(TermHierarchy),
@@ -1130,17 +1130,17 @@ pub mod generated_model {
     /// Product node for term connection; preserves `leading_term` and `continuations` in source order.
     rule "term connection" connected_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
         assert term_guard();
-        /// The source-ordered `leading_term` component retained by the `connected_term` syntax node.
+        /// The shared leading term child syntax node.
         field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
-        /// The source-ordered `continuations` component retained by the `connected_term` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more connected_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier)];
     }
 
     /// Product node for term connection continuation; preserves `connective` and `trailing_term` in source order.
     rule "term connection continuation" connected_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
-        /// The source-ordered `connective` component retained by the `connected_term_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- connected_term_connective;
-        /// The source-ordered `trailing_term` component retained by the `connected_term_continuation` syntax node.
+        /// The shared trailing term child syntax node.
         field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
     }
 
@@ -1159,17 +1159,17 @@ pub mod generated_model {
     /// Product node for termset; preserves `leading_term` and `continuations` in source order.
     rule "termset" termset_group(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
         assert term_guard();
-        /// The source-ordered `leading_term` component retained by the `termset_group` syntax node.
+        /// The shared leading term child syntax node.
         field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
-        /// The source-ordered `continuations` component retained by the `termset_group` syntax node.
+        /// Non-empty ordered sequence of continuations components.
         field continuations <- [one_or_more termset_group_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier)];
     }
 
     /// Product node for termset continuation; preserves `cehe` and `trailing_term` in source order.
     rule "termset continuation" termset_group_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
-        /// The source-ordered `cehe` component retained by the `termset_group_continuation` syntax node.
+        /// The `Cehe` cmavo marker.
         field cehe <- cmavo(Cehe).wf();
-        /// The source-ordered `trailing_term` component retained by the `termset_group_continuation` syntax node.
+        /// The shared trailing term child syntax node.
         field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
     }
 
@@ -1214,21 +1214,21 @@ pub mod generated_model {
 
     /// Product node for termset; preserves `nuhi`, `termset`, and `nuhu` in source order.
     rule "termset" nuhi_termset(term) -> struct {
-        /// The source-ordered `nuhi` component retained by the `nuhi_termset` syntax node.
+        /// The `Nuhi` cmavo marker.
         field nuhi <- cmavo(Nuhi).wf();
-        /// The source-ordered `termset` component retained by the `nuhi_termset` syntax node.
+        /// Non-empty ordered sequence of termset components.
         field termset <- [one_or_more arc(term)];
-        /// The source-ordered `nuhu` component retained by the `nuhi_termset` syntax node.
+        /// The optional `Nuhu` cmavo marker.
         field nuhu <- opt(cmavo(Nuhu).wf()).elidable_terminator(Nuhu);
     }
 
     /// Product node for termset; preserves `ke`, `termset`, and `kehe` in source order.
     rule "termset" ke_termset(term) -> struct {
-        /// The source-ordered `ke` component retained by the `ke_termset` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).warn(ExperimentalKeTermset).wf();
-        /// The source-ordered `termset` component retained by the `ke_termset` syntax node.
+        /// Non-empty ordered sequence of termset components.
         field termset <- [one_or_more arc(term)];
-        /// The source-ordered `kehe` component retained by the `ke_termset` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
@@ -1242,71 +1242,71 @@ pub mod generated_model {
 
     /// Product node for NOIhA adverbial; preserves `poiha`, `free_modifiers`, `selbri`, and `brigahi_ku` in source order.
     rule "NOIhA adverbial" noiha_variable_adverbial_term(free_modifier, selbri) -> struct {
-        /// The source-ordered `poiha` component retained by the `noiha_variable_adverbial_term` syntax node.
+        /// A word from selmaho `Noiha`.
         field poiha <- selmaho(Noiha).wf();
-        /// The source-ordered `free_modifiers` component retained by the `noiha_variable_adverbial_term` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
-        /// The source-ordered `selbri` component retained by the `noiha_variable_adverbial_term` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `brigahi_ku` component retained by the `noiha_variable_adverbial_term` syntax node.
+        /// The `Ku` cmavo marker.
         field brigahi_ku <- cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
     }
 
     /// Product node for NOIhA adverbial; preserves `noiha`, `selbri`, and `fehu` in source order.
     rule "NOIhA adverbial" noiha_relative_adverbial_term(selbri) -> struct {
-        /// The source-ordered `noiha` component retained by the `noiha_relative_adverbial_term` syntax node.
+        /// A word from selmaho `Noiha`.
         field noiha <- selmaho(Noiha).wf();
-        /// The source-ordered `selbri` component retained by the `noiha_relative_adverbial_term` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `fehu` component retained by the `noiha_relative_adverbial_term` syntax node.
+        /// The optional `Fehu` cmavo marker.
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
 
     /// Product node for FIhOI adverbial; preserves `fihoi`, `statement`, and `fihau` in source order.
     rule "FIhOI adverbial" fihoi_adverbial_term(statement) -> struct {
-        /// The source-ordered `fihoi` component retained by the `fihoi_adverbial_term` syntax node.
+        /// The `Fihoi` cmavo marker.
         field fihoi <- cmavo(Fihoi).warn(ExperimentalFihoiAdverbial).wf();
-        /// The source-ordered `statement` component retained by the `fihoi_adverbial_term` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `fihau` component retained by the `fihoi_adverbial_term` syntax node.
+        /// The optional `Fihau` cmavo marker.
         field fihau <- opt(cmavo(Fihau).wf()).elidable_terminator(Fihau);
     }
 
     /// Product node for SOI adverbial; preserves `soi`, `statement`, and `sehu` in source order.
     rule "SOI adverbial" soi_adverbial_term(statement) -> struct {
-        /// The source-ordered `soi` component retained by the `soi_adverbial_term` syntax node.
+        /// A word from selmaho `Soi`.
         field soi <- selmaho(Soi).warn(ExperimentalSoiAdverbial).wf();
-        /// The source-ordered `statement` component retained by the `soi_adverbial_term` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `sehu` component retained by the `soi_adverbial_term` syntax node.
+        /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).wf()).elidable_terminator(Sehu);
     }
 
     /// Transparent product node for term; preserves the `sumti` component.
     rule "term" sumti_term(sumti) -> struct {
-        /// The source-ordered `sumti` component retained by the `sumti_term` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
 
     /// Product node for place tag; preserves `fa` and `sumti` in source order.
     rule "place tag" place_tagged_sumti_term(sumti) -> struct {
-        /// The source-ordered `fa` component retained by the `place_tagged_sumti_term` syntax node.
+        /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).wf();
-        /// The source-ordered `sumti` component retained by the `place_tagged_sumti_term` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
 
     /// Product node for NA KU term; preserves `na` and `na_ku` in source order.
     rule "NA KU term" na_ku_term -> struct {
-        /// The source-ordered `na` component retained by the `na_ku_term` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na);
-        /// The source-ordered `na_ku` component retained by the `na_ku_term` syntax node.
+        /// The `Ku` cmavo marker.
         field na_ku <- cmavo(Ku).wf();
     }
 
     /// Transparent product node for NA term; preserves the `na` component.
     rule "NA term" bare_na_term(selbri, tense_modal) -> struct {
-        /// The source-ordered `na` component retained by the `bare_na_term` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
         assert !choice((
             selbri.ignored(),
@@ -1326,7 +1326,7 @@ pub mod generated_model {
     /// Transparent product node for tag; preserves the `tense_modal` component.
     rule "tag" tagged_sumti_before_tag_term(tense_modal, selbri) -> struct {
         assert !modal_forethought_connective(tense_modal);
-        /// The source-ordered `tense_modal` component retained by the `tagged_sumti_before_tag_term` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(tense_modal, selbri));
         assert tense_modal.lookahead();
     }
@@ -1334,21 +1334,21 @@ pub mod generated_model {
     /// Product node for tag; preserves `tense_modal` and `sumti` in source order.
     rule "tag" tagged_sumti_term(tense_modal, sumti, selbri) -> struct {
         assert !modal_forethought_connective(tense_modal);
-        /// The source-ordered `tense_modal` component retained by the `tagged_sumti_term` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(tense_modal, selbri));
         assert !selbri;
-        /// The source-ordered `sumti` component retained by the `tagged_sumti_term` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
 
     /// Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.
     rule "tag" jai_tagged_sumti_term(tense_modal, sumti) -> struct {
         assert feature(ZantufaTags);
-        /// The source-ordered `jai` component retained by the `jai_tagged_sumti_term` syntax node.
+        /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
-        /// The source-ordered `tag` component retained by the `jai_tagged_sumti_term` syntax node.
+        /// The optional tag component.
         field tag <- opt(arc(tense_modal));
-        /// The source-ordered `sumti` component retained by the `jai_tagged_sumti_term` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
 
@@ -1374,60 +1374,60 @@ pub mod generated_model {
 
     /// Product node for tag; preserves `pu` and `nai` in source order.
     rule "tag" pu_before_nahe_leading_term_tag_tense -> struct {
-        /// The source-ordered `pu` component retained by the `pu_before_nahe_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Pu`.
         field pu <- selmaho(Pu).wf();
-        /// The source-ordered `nai` component retained by the `pu_before_nahe_leading_term_tag_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
         assert selmaho(Nahe);
     }
 
     /// Product node for tag; preserves `pu`, `nai`, and `distance` in source order.
     rule "tag" pu_distance_before_tag_leading_term_tag_tense -> struct {
-        /// The source-ordered `pu` component retained by the `pu_distance_before_tag_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Pu`.
         field pu <- selmaho(Pu).wf();
-        /// The source-ordered `nai` component retained by the `pu_distance_before_tag_leading_term_tag_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `distance` component retained by the `pu_distance_before_tag_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Zi`.
         field distance <- selmaho(Zi).wf();
         assert selmaho(Zi);
     }
 
     /// Transparent product node for tag; preserves the `zi` component.
     rule "tag" zi_before_zi_leading_term_tag_tense -> struct {
-        /// The source-ordered `zi` component retained by the `zi_before_zi_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Zi`.
         field zi <- selmaho(Zi).wf();
         assert selmaho(Zi);
     }
 
     /// Transparent product node for tag; preserves the `va` component.
     rule "tag" va_before_va_leading_term_tag_tense -> struct {
-        /// The source-ordered `va` component retained by the `va_before_va_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Va`.
         field va <- selmaho(Va).wf();
         assert selmaho(Va);
     }
 
     /// Product node for tag; preserves `mohi`, `direction`, `nai`, and `distance` in source order.
     rule "tag" mohi_before_mohi_leading_term_tag_tense -> struct {
-        /// The source-ordered `mohi` component retained by the `mohi_before_mohi_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Mohi`.
         field mohi <- selmaho(Mohi).wf();
-        /// The source-ordered `direction` component retained by the `mohi_before_mohi_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Faha`.
         field direction <- selmaho(Faha).wf();
-        /// The source-ordered `nai` component retained by the `mohi_before_mohi_leading_term_tag_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `distance` component retained by the `mohi_before_mohi_leading_term_tag_tense` syntax node.
+        /// The optional distance component.
         field distance <- opt(selmaho(Va).wf());
         assert selmaho(Mohi);
     }
 
     /// Transparent product node for tag; preserves the `caha` component.
     rule "tag" caha_before_tag_leading_term_tag_tense(tense_modal) -> struct {
-        /// The source-ordered `caha` component retained by the `caha_before_tag_leading_term_tag_tense` syntax node.
+        /// A word from selmaho `Caha`.
         field caha <- selmaho(Caha).wf().followed_by(tense_modal.lookahead());
     }
 
     /// Transparent product node for interval property; preserves the `property` component.
     rule "interval property" interval_property_leading_term_tag_tense(selbri) -> struct {
-        /// The source-ordered `property` component retained by the `interval_property_leading_term_tag_tense` syntax node.
+        /// The shared property child syntax node.
         field property <- arc(interval_property_tense().followed_by(choice((
             selmaho(Pu).ignored(),
             selmaho(Zi).ignored(),
@@ -1451,39 +1451,39 @@ pub mod generated_model {
 
     /// Transparent product node for elided sumti; preserves the `maybe_ku` component.
     rule "elided sumti" tagged_elided_sumti -> struct {
-        /// The source-ordered `maybe_ku` component retained by the `tagged_elided_sumti` syntax node.
+        /// The optional `Ku` cmavo marker.
         field maybe_ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for sumti; preserves `base_sumti` and `vuho_attachment` in source order.
     rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `base_sumti` component retained by the `sumti` syntax node.
+        /// The shared base sumti child syntax node.
         field base_sumti <- arc(sumti_grouped);
-        /// The source-ordered `vuho_attachment` component retained by the `sumti` syntax node.
+        /// The optional vuho attachment component.
         field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement));
     }
 
     /// Product node for sumti connection; preserves `leading_sumti` and `grouped_tail` in source order.
     rule "sumti connection" sumti_grouped(sumti, sumti_afterthought, tense_modal, statement) -> struct {
-        /// The source-ordered `leading_sumti` component retained by the `sumti_grouped` syntax node.
+        /// The shared leading sumti child syntax node.
         field leading_sumti <- arc(sumti_afterthought);
-        /// The source-ordered `grouped_tail` component retained by the `sumti_grouped` syntax node.
+        /// The optional grouped tail component.
         field grouped_tail <- opt(grouped_sumti_tail(sumti, tense_modal));
     }
 
     /// Product node for sumti connection; preserves `leading_sumti` and `continuations` in source order.
     rule "sumti connection" sumti_afterthought(sumti_bound, statement) -> struct {
-        /// The source-ordered `leading_sumti` component retained by the `sumti_afterthought` syntax node.
+        /// The shared leading sumti child syntax node.
         field leading_sumti <- arc(sumti_bound);
-        /// The source-ordered `continuations` component retained by the `sumti_afterthought` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more sumti_afterthought_tail(sumti_bound)];
     }
 
     /// Product node for sumti connection; preserves `leading_sumti` and `bound_tail` in source order.
     rule "sumti connection" sumti_bound(sumti_bound, sumti_forethought, tense_modal, statement) -> struct {
-        /// The source-ordered `leading_sumti` component retained by the `sumti_bound` syntax node.
+        /// The shared leading sumti child syntax node.
         field leading_sumti <- arc(sumti_forethought);
-        /// The source-ordered `bound_tail` component retained by the `sumti_bound` syntax node.
+        /// The optional bound tail component.
         field bound_tail <- opt(bound_sumti_tail(sumti_bound, tense_modal));
     }
 
@@ -1528,35 +1528,35 @@ pub mod generated_model {
 
     /// Product node for sumti connection; preserves `connective`, `tense_modal`, `bo`, and `trailing_sumti` in source order.
     rule "sumti connection" bound_sumti_tail(sumti_bound, tense_modal) -> struct {
-        /// The source-ordered `connective` component retained by the `bound_sumti_tail` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(argument_connective);
-        /// The source-ordered `tense_modal` component retained by the `bound_sumti_tail` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `bound_sumti_tail` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `trailing_sumti` component retained by the `bound_sumti_tail` syntax node.
+        /// The shared trailing sumti child syntax node.
         field trailing_sumti <- arc(sumti_bound);
     }
 
     /// Product node for sumti connective; preserves `connective` and `sumti` in source order.
     rule "sumti connective" sumti_afterthought_tail(sumti_bound) -> struct {
-        /// The source-ordered `connective` component retained by the `sumti_afterthought_tail` syntax node.
+        /// The connective component of this syntax node.
         field connective <- argument_connective;
-        /// The source-ordered `sumti` component retained by the `sumti_afterthought_tail` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti_bound);
     }
 
     /// Product node for sumti connection; preserves `connective`, `tense_modal`, `ke`, `inner_sumti`, and `kehe` in source order.
     rule "sumti connection" grouped_sumti_tail(sumti, tense_modal) -> struct {
-        /// The source-ordered `connective` component retained by the `grouped_sumti_tail` syntax node.
+        /// The connective component of this syntax node.
         field connective <- argument_connective;
-        /// The source-ordered `tense_modal` component retained by the `grouped_sumti_tail` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `ke` component retained by the `grouped_sumti_tail` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `inner_sumti` component retained by the `grouped_sumti_tail` syntax node.
+        /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
-        /// The source-ordered `kehe` component retained by the `grouped_sumti_tail` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
@@ -1570,27 +1570,27 @@ pub mod generated_model {
 
     /// Product node for sumti relative phrase; preserves `vuho`, `relative_clauses`, and `sumti_connection` in source order.
     rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `vuho` component retained by the `vuho_relative_sumti_attachment_tail` syntax node.
+        /// The `Vuho` cmavo marker.
         field vuho <- cmavo(Vuho).wf();
-        /// The source-ordered `relative_clauses` component retained by the `vuho_relative_sumti_attachment_tail` syntax node.
+        /// The relative clauses component of this syntax node.
         field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
-        /// The source-ordered `sumti_connection` component retained by the `vuho_relative_sumti_attachment_tail` syntax node.
+        /// The optional sumti connection component.
         field sumti_connection <- opt(arc(sumti_connection_tail(sumti)));
     }
 
     /// Product node for sumti relative phrase; preserves `vuho` and `sumti_connection` in source order.
     rule "sumti relative phrase" vuho_connected_sumti_attachment_tail(sumti) -> struct {
-        /// The source-ordered `vuho` component retained by the `vuho_connected_sumti_attachment_tail` syntax node.
+        /// The `Vuho` cmavo marker.
         field vuho <- cmavo(Vuho).wf();
-        /// The source-ordered `sumti_connection` component retained by the `vuho_connected_sumti_attachment_tail` syntax node.
+        /// The shared sumti connection child syntax node.
         field sumti_connection <- arc(sumti_connection_tail(sumti));
     }
 
     /// Product node for sumti; preserves `base_sumti` and `relative_clauses` in source order.
     rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> struct {
-        /// The source-ordered `base_sumti` component retained by the `simple_sumti` syntax node.
+        /// The shared base sumti child syntax node.
         field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement));
-        /// The source-ordered `relative_clauses` component retained by the `simple_sumti` syntax node.
+        /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
@@ -1640,35 +1640,35 @@ pub mod generated_model {
 
     /// Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.
     rule "quantified sumti" quantified_sumti(sumti_base, mekso, letter_tokens) -> struct {
-        /// The source-ordered `quantifier` component retained by the `quantified_sumti` syntax node.
+        /// The quantifier component of this syntax node.
         field quantifier <- quantifier(mekso, letter_tokens);
-        /// The source-ordered `inner_sumti` component retained by the `quantified_sumti` syntax node.
+        /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti_base);
     }
 
     /// Product node for sumti connective; preserves `connective` and `sumti` in source order.
     rule "sumti connective" sumti_connection_tail(sumti) -> struct {
-        /// The source-ordered `connective` component retained by the `sumti_connection_tail` syntax node.
+        /// The connective component of this syntax node.
         field connective <- argument_connective;
-        /// The source-ordered `sumti` component retained by the `sumti_connection_tail` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
 
     /// Product node for quantifier; preserves `number` and `boi` in source order.
     rule "quantifier" pa_run_quantifier(letter_tokens) -> struct {
-        /// The source-ordered `number` component retained by the `pa_run_quantifier` syntax node.
+        /// The number component of this syntax node.
         field number <- number_words(letter_tokens).wf();
-        /// The source-ordered `boi` component retained by the `pa_run_quantifier` syntax node.
+        /// The optional `Boi` cmavo marker.
         field boi <- opt(cmavo(Boi).wf()).elidable_terminator(Boi);
     }
 
     /// Product node for quantifier; preserves `vei`, `mekso`, and `veho` in source order.
     rule "quantifier" mekso_quantifier(mekso) -> struct {
-        /// The source-ordered `vei` component retained by the `mekso_quantifier` syntax node.
+        /// The `Vei` cmavo marker.
         field vei <- cmavo(Vei).wf();
-        /// The source-ordered `mekso` component retained by the `mekso_quantifier` syntax node.
+        /// The shared mekso child syntax node.
         field mekso <- arc(mekso);
-        /// The source-ordered `veho` component retained by the `mekso_quantifier` syntax node.
+        /// The optional `Veho` cmavo marker.
         field veho <- opt(cmavo(Veho).wf()).elidable_terminator(Veho);
     }
 
@@ -1700,14 +1700,14 @@ pub mod generated_model {
     /// Transparent product node for quantifier; preserves the `mekso` component.
     rule "quantifier" zantufa_raw_mekso_quantifier(mekso, letter_tokens) -> struct {
         assert zantufa_raw_mekso_quantifier_guard(letter_tokens);
-        /// The source-ordered `mekso` component retained by the `zantufa_raw_mekso_quantifier` syntax node.
+        /// The shared mekso child syntax node.
         field mekso <- arc(mekso);
     }
 
     /// Transparent product node for quantifier; preserves the `mekso` component.
     rule "quantifier" zantufa_priority_raw_mekso_quantifier(mekso, letter_tokens) -> struct {
         assert zantufa_raw_mekso_quantifier_guard(letter_tokens);
-        /// The source-ordered `mekso` component retained by the `zantufa_priority_raw_mekso_quantifier` syntax node.
+        /// The shared mekso child syntax node.
         field mekso <- arc(mekso);
     }
 
@@ -1725,13 +1725,13 @@ pub mod generated_model {
 
     /// Transparent product node for number mex; preserves the `quantifier` component.
     rule "number mex" number_mekso(letter_tokens) -> struct {
-        /// The source-ordered `quantifier` component retained by the `number_mekso` syntax node.
+        /// The shared quantifier child syntax node.
         field quantifier <- arc(pa_run_quantifier(letter_tokens));
     }
 
     /// Transparent product node for VUhU operator; preserves the `vuhu` component.
     rule "VUhU operator" primitive_mekso_operator -> struct {
-        /// The source-ordered `vuhu` component retained by the `primitive_mekso_operator` syntax node.
+        /// A word from selmaho `Vuhu`.
         field vuhu <- selmaho(Vuhu).wf();
     }
 
@@ -1747,7 +1747,7 @@ pub mod generated_model {
 
     /// Transparent product node for operator; preserves the `operators` component.
     rule "operator" afterthought_mekso_operator(mekso, mekso_operator, sumti, selbri) -> struct {
-        /// The source-ordered `operators` component retained by the `afterthought_mekso_operator` syntax node.
+        /// The operators component of this syntax node.
         field operators <- chain(
             first: arc(bound_or_atom_mekso_operator(mekso, mekso_operator, sumti, selbri)),
             zero_or_more: afterthought_mekso_operator_continuation(mekso, mekso_operator, sumti, selbri),
@@ -1757,9 +1757,9 @@ pub mod generated_model {
 
     /// Product node for operator continuation; preserves `connective` and `trailing_operator` in source order.
     rule "operator continuation" afterthought_mekso_operator_continuation(mekso, mekso_operator, sumti, selbri) -> struct {
-        /// The source-ordered `connective` component retained by the `afterthought_mekso_operator_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- standard_statement_connective;
-        /// The source-ordered `trailing_operator` component retained by the `afterthought_mekso_operator_continuation` syntax node.
+        /// The shared trailing operator child syntax node.
         field trailing_operator <- arc(bound_or_atom_mekso_operator(mekso, mekso_operator, sumti, selbri));
     }
 
@@ -1773,13 +1773,13 @@ pub mod generated_model {
 
     /// Product node for operator; preserves `left_operator`, `connective`, `bo`, and `right_operator` in source order.
     rule "operator" bound_mekso_operator(mekso, mekso_operator, sumti, selbri) -> struct {
-        /// The source-ordered `left_operator` component retained by the `bound_mekso_operator` syntax node.
+        /// The shared left operator child syntax node.
         field left_operator <- arc(simple_mekso_operator(mekso, mekso_operator, sumti, selbri));
-        /// The source-ordered `connective` component retained by the `bound_mekso_operator` syntax node.
+        /// The connective component of this syntax node.
         field connective <- standard_statement_connective;
-        /// The source-ordered `bo` component retained by the `bound_mekso_operator` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `right_operator` component retained by the `bound_mekso_operator` syntax node.
+        /// The shared right operator child syntax node.
         field right_operator <- arc(mekso_operator);
     }
 
@@ -1809,85 +1809,85 @@ pub mod generated_model {
 
     /// Product node for converted operator; preserves `se` and `inner_operator` in source order.
     rule "converted operator" converted_mekso_operator(mekso_operator) -> struct {
-        /// The source-ordered `se` component retained by the `converted_mekso_operator` syntax node.
+        /// A word from selmaho `Se`.
         field se <- selmaho(Se).wf();
-        /// The source-ordered `inner_operator` component retained by the `converted_mekso_operator` syntax node.
+        /// The shared inner operator child syntax node.
         field inner_operator <- arc(mekso_operator);
     }
 
     /// Product node for converted operator; preserves `nahe` and `inner_operator` in source order.
     rule "converted operator" scalar_negated_mekso_operator(mekso_operator) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_mekso_operator` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
-        /// The source-ordered `inner_operator` component retained by the `scalar_negated_mekso_operator` syntax node.
+        /// The shared inner operator child syntax node.
         field inner_operator <- arc(mekso_operator);
     }
 
     /// Product node for operator; preserves `guhek`, `left_operator`, `gik`, and `right_operator` in source order.
     rule "operator" forethought_mekso_operator(mekso_operator) -> struct {
-        /// The source-ordered `guhek` component retained by the `forethought_mekso_operator` syntax node.
+        /// The guhek component of this syntax node.
         field guhek <- guhek_connective;
-        /// The source-ordered `left_operator` component retained by the `forethought_mekso_operator` syntax node.
+        /// The shared left operator child syntax node.
         field left_operator <- arc(mekso_operator);
-        /// The source-ordered `gik` component retained by the `forethought_mekso_operator` syntax node.
+        /// The gik component of this syntax node.
         field gik <- gik_connective;
-        /// The source-ordered `right_operator` component retained by the `forethought_mekso_operator` syntax node.
+        /// The shared right operator child syntax node.
         field right_operator <- arc(mekso_operator);
     }
 
     /// Product node for grouped operator; preserves `ke`, `inner_operator`, and `kehe` in source order.
     rule "grouped operator" grouped_mekso_operator(mekso_operator) -> struct {
-        /// The source-ordered `ke` component retained by the `grouped_mekso_operator` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `inner_operator` component retained by the `grouped_mekso_operator` syntax node.
+        /// The shared inner operator child syntax node.
         field inner_operator <- arc(mekso_operator);
-        /// The source-ordered `kehe` component retained by the `grouped_mekso_operator` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for selbri-to-operator; preserves `nahu`, `selbri`, and `tehu` in source order.
     rule "selbri-to-operator" selbri_mekso_operator(selbri) -> struct {
-        /// The source-ordered `nahu` component retained by the `selbri_mekso_operator` syntax node.
+        /// The `Nahu` cmavo marker.
         field nahu <- cmavo(Nahu).wf();
-        /// The source-ordered `selbri` component retained by the `selbri_mekso_operator` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `tehu` component retained by the `selbri_mekso_operator` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for operand-to-operator; preserves `maho`, `mekso`, and `tehu` in source order.
     rule "operand-to-operator" operand_mekso_operator(mekso) -> struct {
-        /// The source-ordered `maho` component retained by the `operand_mekso_operator` syntax node.
+        /// The `Maho` cmavo marker.
         field maho <- cmavo(Maho).wf();
-        /// The source-ordered `mekso` component retained by the `operand_mekso_operator` syntax node.
+        /// The shared mekso child syntax node.
         field mekso <- arc(mekso);
-        /// The source-ordered `tehu` component retained by the `operand_mekso_operator` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for selbri-to-operator; preserves `maho`, `selbri`, and `tehu` in source order.
     rule "selbri-to-operator" zantufa_maho_selbri_mekso_operator(selbri) -> struct {
-        /// The source-ordered `maho` component retained by the `zantufa_maho_selbri_mekso_operator` syntax node.
+        /// The `Maho` cmavo marker.
         field maho <- cmavo(Maho).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `selbri` component retained by the `zantufa_maho_selbri_mekso_operator` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `tehu` component retained by the `zantufa_maho_selbri_mekso_operator` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for sumti-to-operator; preserves `maho`, `sumti`, and `tehu` in source order.
     rule "sumti-to-operator" zantufa_maho_sumti_mekso_operator(sumti) -> struct {
-        /// The source-ordered `maho` component retained by the `zantufa_maho_sumti_mekso_operator` syntax node.
+        /// The `Maho` cmavo marker.
         field maho <- cmavo(Maho).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `sumti` component retained by the `zantufa_maho_sumti_mekso_operator` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
-        /// The source-ordered `tehu` component retained by the `zantufa_maho_sumti_mekso_operator` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Transparent product node for connective operator; preserves the `connective` component.
     rule "connective operator" zantufa_connective_mekso_operator -> struct {
-        /// The source-ordered `connective` component retained by the `zantufa_connective_mekso_operator` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(operand_connective);
         assert !cmavo(Cu);
     }
@@ -1904,7 +1904,7 @@ pub mod generated_model {
 
     /// Transparent product node for operand connective; preserves the `operands` component.
     rule "operand connective" afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
-        /// The source-ordered `operands` component retained by the `afterthought_mekso_operand` syntax node.
+        /// The operands component of this syntax node.
         field operands <- chain(
             first: arc(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier)),
             zero_or_more: afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
@@ -1914,9 +1914,9 @@ pub mod generated_model {
 
     /// Product node for operand continuation; preserves `operand_connective` and `trailing_expression` in source order.
     rule "operand continuation" afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
-        /// The source-ordered `operand_connective` component retained by the `afterthought_mekso_operand_continuation` syntax node.
+        /// The operand connective component of this syntax node.
         field operand_connective <- operand_connective;
-        /// The source-ordered `trailing_expression` component retained by the `afterthought_mekso_operand_continuation` syntax node.
+        /// The shared trailing expression child syntax node.
         field trailing_expression <- arc(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
     }
 
@@ -1930,15 +1930,15 @@ pub mod generated_model {
 
     /// Product node for operand connective; preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression` in source order.
     rule "operand connective" bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
-        /// The source-ordered `left_expression` component retained by the `bound_mekso_operand` syntax node.
+        /// The shared left expression child syntax node.
         field left_expression <- arc(simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-        /// The source-ordered `operand_connective` component retained by the `bound_mekso_operand` syntax node.
+        /// The operand connective component of this syntax node.
         field operand_connective <- operand_connective;
-        /// The source-ordered `tense_modal` component retained by the `bound_mekso_operand` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `bound_mekso_operand` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `right_expression` component retained by the `bound_mekso_operand` syntax node.
+        /// The shared right expression child syntax node.
         field right_expression <- arc(mekso_operand);
     }
 
@@ -1968,91 +1968,91 @@ pub mod generated_model {
 
     /// Product node for scalar-negated operand; preserves `nahe` and `inner_expression` in source order.
     rule "scalar-negated operand" zantufa_scalar_negated_mekso_operand(mekso_operand) -> struct {
-        /// The source-ordered `nahe` component retained by the `zantufa_scalar_negated_mekso_operand` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `inner_expression` component retained by the `zantufa_scalar_negated_mekso_operand` syntax node.
+        /// The shared inner expression child syntax node.
         field inner_expression <- arc(mekso_operand);
     }
 
     /// Product node for qualified operand; preserves `nahe`, `bo`, `inner_expression`, and `luhu` in source order.
     rule "qualified operand" qualified_mekso_operand(mekso_operand) -> struct {
-        /// The source-ordered `nahe` component retained by the `qualified_mekso_operand` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe);
-        /// The source-ordered `bo` component retained by the `qualified_mekso_operand` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo);
-        /// The source-ordered `inner_expression` component retained by the `qualified_mekso_operand` syntax node.
+        /// The shared inner expression child syntax node.
         field inner_expression <- arc(mekso_operand);
-        /// The source-ordered `luhu` component retained by the `qualified_mekso_operand` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for forethought mex; preserves `gek`, `left_expression`, `gik`, and `right_expression` in source order.
     rule "forethought mex" forethought_mekso_operand(mekso_operand, tense_modal) -> struct {
-        /// The source-ordered `gek` component retained by the `forethought_mekso_operand` syntax node.
+        /// The gek component of this syntax node.
         field gek <- modal_forethought_connective(tense_modal);
-        /// The source-ordered `left_expression` component retained by the `forethought_mekso_operand` syntax node.
+        /// The shared left expression child syntax node.
         field left_expression <- arc(mekso_operand);
-        /// The source-ordered `gik` component retained by the `forethought_mekso_operand` syntax node.
+        /// The gik component of this syntax node.
         field gik <- gik_connective;
-        /// The source-ordered `right_expression` component retained by the `forethought_mekso_operand` syntax node.
+        /// The shared right expression child syntax node.
         field right_expression <- arc(mekso_operand);
     }
 
     /// Product node for sumti operand; preserves `mohe`, `sumti`, and `tehu` in source order.
     rule "sumti operand" sumti_mekso_operand(sumti) -> struct {
-        /// The source-ordered `mohe` component retained by the `sumti_mekso_operand` syntax node.
+        /// The `Mohe` cmavo marker.
         field mohe <- cmavo(Mohe).wf();
-        /// The source-ordered `sumti` component retained by the `sumti_mekso_operand` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
-        /// The source-ordered `tehu` component retained by the `sumti_mekso_operand` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for selbri operand; preserves `mohe`, `selbri`, and `tehu` in source order.
     rule "selbri operand" zantufa_selbri_mohe_mekso_operand(selbri) -> struct {
-        /// The source-ordered `mohe` component retained by the `zantufa_selbri_mohe_mekso_operand` syntax node.
+        /// The `Mohe` cmavo marker.
         field mohe <- cmavo(Mohe).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `selbri` component retained by the `zantufa_selbri_mohe_mekso_operand` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `tehu` component retained by the `zantufa_selbri_mohe_mekso_operand` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for selbri operand; preserves `nihe`, `selbri`, and `tehu` in source order.
     rule "selbri operand" selbri_mekso_operand(selbri) -> struct {
-        /// The source-ordered `nihe` component retained by the `selbri_mekso_operand` syntax node.
+        /// The `Nihe` cmavo marker.
         field nihe <- cmavo(Nihe).wf();
-        /// The source-ordered `selbri` component retained by the `selbri_mekso_operand` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `tehu` component retained by the `selbri_mekso_operand` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for parenthesized mex; preserves `vei`, `inner_expression`, and `veho` in source order.
     rule "parenthesized mex" parenthesized_mekso_operand(mekso) -> struct {
-        /// The source-ordered `vei` component retained by the `parenthesized_mekso_operand` syntax node.
+        /// The `Vei` cmavo marker.
         field vei <- cmavo(Vei).wf();
-        /// The source-ordered `inner_expression` component retained by the `parenthesized_mekso_operand` syntax node.
+        /// The shared inner expression child syntax node.
         field inner_expression <- arc(mekso);
-        /// The source-ordered `veho` component retained by the `parenthesized_mekso_operand` syntax node.
+        /// The optional `Veho` cmavo marker.
         field veho <- opt(cmavo(Veho).wf()).elidable_terminator(Veho);
     }
 
     /// Product node for mekso array; preserves `johi`, `expressions`, and `tehu` in source order.
     rule "mekso array" array_mekso_operand(mekso) -> struct {
-        /// The source-ordered `johi` component retained by the `array_mekso_operand` syntax node.
+        /// The `Johi` cmavo marker.
         field johi <- cmavo(Johi).wf();
-        /// The source-ordered `expressions` component retained by the `array_mekso_operand` syntax node.
+        /// Non-empty ordered sequence of expressions components.
         field expressions <- [one_or_more mekso];
-        /// The source-ordered `tehu` component retained by the `array_mekso_operand` syntax node.
+        /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
     }
 
     /// Product node for lerfu string; preserves `first_letter` and `continuations` in source order.
     rule "lerfu string" letter_string(letter_tokens) -> struct {
-        /// The source-ordered `first_letter` component retained by the `letter_string` syntax node.
+        /// The shared first letter child syntax node.
         field first_letter <- arc(letter_tokens);
-        /// The source-ordered `continuations` component retained by the `letter_string` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more letter_string_continuation(letter_tokens)];
     }
 
@@ -2066,21 +2066,21 @@ pub mod generated_model {
 
     /// Transparent product node for lerfu string continuation; preserves the `pa` component.
     rule "lerfu string continuation" letter_string_pa_continuation -> struct {
-        /// The source-ordered `pa` component retained by the `letter_string_pa_continuation` syntax node.
+        /// The pa component of this syntax node.
         field pa <- pa_word();
     }
 
     /// Transparent product node for lerfu string continuation; preserves the `letter` component.
     rule "lerfu string continuation" letter_string_lerfu_continuation(letter_tokens) -> struct {
-        /// The source-ordered `letter` component retained by the `letter_string_lerfu_continuation` syntax node.
+        /// The shared letter child syntax node.
         field letter <- arc(letter_tokens);
     }
 
     /// Product node for number; preserves `first_number` and `continuations` in source order.
     rule "number" number_words(letter_tokens) -> struct {
-        /// The source-ordered `first_number` component retained by the `number_words` syntax node.
+        /// The first number component of this syntax node.
         field first_number <- pa_word();
-        /// The source-ordered `continuations` component retained by the `number_words` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more number_word_continuation(letter_tokens)];
     }
 
@@ -2094,13 +2094,13 @@ pub mod generated_model {
 
     /// Transparent product node for number continuation; preserves the `pa` component.
     rule "number continuation" number_word_pa_continuation -> struct {
-        /// The source-ordered `pa` component retained by the `number_word_pa_continuation` syntax node.
+        /// The pa component of this syntax node.
         field pa <- pa_word();
     }
 
     /// Transparent product node for number continuation; preserves the `letter` component.
     rule "number continuation" number_word_lerfu_continuation(letter_tokens) -> struct {
-        /// The source-ordered `letter` component retained by the `number_word_lerfu_continuation` syntax node.
+        /// The shared letter child syntax node.
         field letter <- arc(letter_tokens);
     }
 
@@ -2124,35 +2124,35 @@ pub mod generated_model {
 
     /// Transparent product node for lerfu word; preserves the `word` component.
     rule "lerfu word" simple_lerfu_word -> struct {
-        /// The source-ordered `word` component retained by the `simple_lerfu_word` syntax node.
+        /// The word component of this syntax node.
         field word <- word_category(LetterWord);
     }
 
     /// Product node for lerfu word; preserves `lau` and `letter` in source order.
     rule "lerfu word" lau_lerfu_word(letter_tokens) -> struct {
-        /// The source-ordered `lau` component retained by the `lau_lerfu_word` syntax node.
+        /// A word from selmaho `Lau`.
         field lau <- selmaho(Lau);
-        /// The source-ordered `letter` component retained by the `lau_lerfu_word` syntax node.
+        /// The shared letter child syntax node.
         field letter <- arc(letter_tokens);
     }
 
     /// Product node for lerfu word; preserves `tei`, `letters`, and `foi` in source order.
     rule "lerfu word" tei_lerfu_word(letter_string) -> struct {
-        /// The source-ordered `tei` component retained by the `tei_lerfu_word` syntax node.
+        /// The `Tei` cmavo marker.
         field tei <- cmavo(Tei);
-        /// The source-ordered `letters` component retained by the `tei_lerfu_word` syntax node.
+        /// The shared letters child syntax node.
         field letters <- arc(letter_string);
-        /// The source-ordered `foi` component retained by the `tei_lerfu_word` syntax node.
+        /// The `Foi` cmavo marker.
         field foi <- cmavo(Foi);
     }
 
     /// Product node for lerfu string; preserves `letters`, `boi`, and `free_modifiers` in source order.
     rule "lerfu string" lerfu_string_mekso(letter_string, free_modifier) -> struct {
-        /// The source-ordered `letters` component retained by the `lerfu_string_mekso` syntax node.
+        /// The letters component of this syntax node.
         field letters <- letter_string;
-        /// The source-ordered `boi` component retained by the `lerfu_string_mekso` syntax node.
+        /// The optional `Boi` cmavo marker.
         field boi <- opt(cmavo(Boi)).elidable_terminator(Boi);
-        /// The source-ordered `free_modifiers` component retained by the `lerfu_string_mekso` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
@@ -2170,89 +2170,89 @@ pub mod generated_model {
 
     /// Product node for grouped mex; preserves `first` and `continuations` in source order.
     rule "grouped mex" zantufa_bo_grouped_mekso_base(mekso_operand) -> struct {
-        /// The source-ordered `first` component retained by the `zantufa_bo_grouped_mekso_base` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(mekso_operand);
-        /// The source-ordered `continuations` component retained by the `zantufa_bo_grouped_mekso_base` syntax node.
+        /// Non-empty ordered sequence of continuations components.
         field continuations <- [one_or_more zantufa_bo_grouped_mekso_continuation(mekso_operand)];
     }
 
     /// Product node for grouped mex; preserves `bo` and `expression` in source order.
     rule "grouped mex" zantufa_bo_grouped_mekso_continuation(mekso_operand) -> struct {
-        /// The source-ordered `bo` component retained by the `zantufa_bo_grouped_mekso_continuation` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `expression` component retained by the `zantufa_bo_grouped_mekso_continuation` syntax node.
+        /// The shared expression child syntax node.
         field expression <- arc(mekso_operand);
     }
 
     /// Product node for grouped mex; preserves `ke`, `operands`, and `kehe` in source order.
     rule "grouped mex" zantufa_grouped_mekso_operand_sequence(mekso_operand) -> struct {
-        /// The source-ordered `ke` component retained by the `zantufa_grouped_mekso_operand_sequence` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `operands` component retained by the `zantufa_grouped_mekso_operand_sequence` syntax node.
+        /// Non-empty ordered sequence of operands components.
         field operands <- [one_or_more arc(mekso_operand)];
-        /// The source-ordered `kehe` component retained by the `zantufa_grouped_mekso_operand_sequence` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for mex; preserves `left_expression` and `tail` in source order.
     rule "mex" mekso_precedence(mekso_base, mekso_precedence, mekso_operator) -> struct {
-        /// The source-ordered `left_expression` component retained by the `mekso_precedence` syntax node.
+        /// The shared left expression child syntax node.
         field left_expression <- arc(mekso_base);
-        /// The source-ordered `tail` component retained by the `mekso_precedence` syntax node.
+        /// The optional tail component.
         field tail <- opt(mekso_precedence_tail(mekso_precedence, mekso_operator));
     }
 
     /// Product node for mex precedence tail; preserves `bihe`, `operator`, and `right_expression` in source order.
     rule "mex precedence tail" mekso_precedence_tail(mekso_precedence, mekso_operator) -> struct {
-        /// The source-ordered `bihe` component retained by the `mekso_precedence_tail` syntax node.
+        /// The `Bihe` cmavo marker.
         field bihe <- cmavo(Bihe).wf();
-        /// The source-ordered `operator` component retained by the `mekso_precedence_tail` syntax node.
+        /// The shared operator child syntax node.
         field operator <- arc(mekso_operator);
-        /// The source-ordered `right_expression` component retained by the `mekso_precedence_tail` syntax node.
+        /// The shared right expression child syntax node.
         field right_expression <- arc(mekso_precedence);
     }
 
     /// Product node for mex; preserves `first_expression` and `continuations` in source order.
     rule "mex" infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
-        /// The source-ordered `first_expression` component retained by the `infix_mekso` syntax node.
+        /// The shared first expression child syntax node.
         field first_expression <- arc(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
-        /// The source-ordered `continuations` component retained by the `infix_mekso` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more infix_mekso_continuation(mekso_precedence, mekso_operator)];
     }
 
     /// Product node for mex continuation; preserves `operator` and `right_expression` in source order.
     rule "mex continuation" infix_mekso_continuation(mekso_precedence, mekso_operator) -> struct {
-        /// The source-ordered `operator` component retained by the `infix_mekso_continuation` syntax node.
+        /// The shared operator child syntax node.
         field operator <- arc(mekso_operator);
-        /// The source-ordered `right_expression` component retained by the `infix_mekso_continuation` syntax node.
+        /// The shared right expression child syntax node.
         field right_expression <- arc(mekso_precedence);
     }
 
     /// Product node for mex; preserves `first_expression` and `continuations` in source order.
     rule "mex" zantufa_infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
-        /// The source-ordered `first_expression` component retained by the `zantufa_infix_mekso` syntax node.
+        /// The shared first expression child syntax node.
         field first_expression <- arc(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
-        /// The source-ordered `continuations` component retained by the `zantufa_infix_mekso` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more zantufa_infix_mekso_continuation(mekso_precedence, mekso_operator)];
     }
 
     /// Product node for mex continuation; preserves `operators` and `right_expression` in source order.
     rule "mex continuation" zantufa_infix_mekso_continuation(mekso_precedence, mekso_operator) -> struct {
-        /// The source-ordered `operators` component retained by the `zantufa_infix_mekso_continuation` syntax node.
+        /// Non-empty ordered sequence of operators components.
         field operators <- [one_or_more arc(mekso_operator)];
-        /// The source-ordered `right_expression` component retained by the `zantufa_infix_mekso_continuation` syntax node.
+        /// The optional right expression component.
         field right_expression <- opt(arc(mekso_precedence));
     }
 
     /// Product node for forethought mex; preserves `peho`, `operator`, `operands`, and `kuhe` in source order.
     rule "forethought mex" forethought_call_mekso(mekso_base, mekso_operator) -> struct {
-        /// The source-ordered `peho` component retained by the `forethought_call_mekso` syntax node.
+        /// The optional `Peho` cmavo marker.
         field peho <- opt(cmavo(Peho).wf());
-        /// The source-ordered `operator` component retained by the `forethought_call_mekso` syntax node.
+        /// The shared operator child syntax node.
         field operator <- arc(mekso_operator);
-        /// The source-ordered `operands` component retained by the `forethought_call_mekso` syntax node.
+        /// Non-empty ordered sequence of operands components.
         field operands <- [one_or_more mekso_base];
-        /// The source-ordered `kuhe` component retained by the `forethought_call_mekso` syntax node.
+        /// The optional `Kuhe` cmavo marker.
         field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
     }
 
@@ -2270,247 +2270,247 @@ pub mod generated_model {
 
     /// Product node for reverse Polish mex; preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe` in source order.
     rule "reverse Polish mex" zantufa_reverse_polish_mekso(mekso_base, mekso_operator) -> struct {
-        /// The source-ordered `fuha` component retained by the `zantufa_reverse_polish_mekso` syntax node.
+        /// The `Fuha` cmavo marker.
         field fuha <- cmavo(Fuha).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `operands` component retained by the `zantufa_reverse_polish_mekso` syntax node.
+        /// Non-empty ordered sequence of operands components.
         field operands <- [one_or_more mekso_base];
-        /// The source-ordered `operator` component retained by the `zantufa_reverse_polish_mekso` syntax node.
+        /// The shared operator child syntax node.
         field operator <- arc(mekso_operator);
-        /// The source-ordered `tails` component retained by the `zantufa_reverse_polish_mekso` syntax node.
+        /// Ordered sequence of zero or more tails components.
         field tails <- [zero_or_more zantufa_reverse_polish_tail(mekso_base, mekso_operator)];
-        /// The source-ordered `kuhe` component retained by the `zantufa_reverse_polish_mekso` syntax node.
+        /// The optional `Kuhe` cmavo marker.
         field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
     }
 
     /// Product node for reverse Polish mex tail; preserves `operands` and `operator` in source order.
     rule "reverse Polish mex tail" zantufa_reverse_polish_tail(mekso_base, mekso_operator) -> struct {
-        /// The source-ordered `operands` component retained by the `zantufa_reverse_polish_tail` syntax node.
+        /// Ordered sequence of zero or more operands components.
         field operands <- [zero_or_more mekso_base];
-        /// The source-ordered `operator` component retained by the `zantufa_reverse_polish_tail` syntax node.
+        /// The shared operator child syntax node.
         field operator <- arc(mekso_operator);
     }
 
     /// Product node for reverse Polish mex; preserves `first_operand` and `tails` in source order.
     rule "reverse Polish mex" reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> struct {
-        /// The source-ordered `first_operand` component retained by the `reverse_polish_parts` syntax node.
+        /// The shared first operand child syntax node.
         field first_operand <- arc(mekso_operand);
-        /// The source-ordered `tails` component retained by the `reverse_polish_parts` syntax node.
+        /// Ordered sequence of zero or more tails components.
         field tails <- [zero_or_more reverse_polish_parts_tail(reverse_polish_parts, mekso_operator)];
     }
 
     /// Product node for reverse Polish mex tail; preserves `right_parts` and `operator` in source order.
     rule "reverse Polish mex tail" reverse_polish_parts_tail(reverse_polish_parts, mekso_operator) -> struct {
-        /// The source-ordered `right_parts` component retained by the `reverse_polish_parts_tail` syntax node.
+        /// The shared right parts child syntax node.
         field right_parts <- arc(reverse_polish_parts);
-        /// The source-ordered `operator` component retained by the `reverse_polish_parts_tail` syntax node.
+        /// The operator component of this syntax node.
         field operator <- mekso_operator;
     }
 
     /// Product node for reverse Polish mex; preserves `fuha` and `parts` in source order.
     rule "reverse Polish mex" reverse_polish_mekso(reverse_polish_parts) -> struct {
-        /// The source-ordered `fuha` component retained by the `reverse_polish_mekso` syntax node.
+        /// The `Fuha` cmavo marker.
         field fuha <- cmavo(Fuha).wf();
-        /// The source-ordered `parts` component retained by the `reverse_polish_mekso` syntax node.
+        /// The shared parts child syntax node.
         field parts <- arc(reverse_polish_parts);
     }
 
     /// Product node for number sumti; preserves `li`, `expression`, and `loho` in source order.
     rule "number sumti" number_sumti(mekso) -> struct {
-        /// The source-ordered `li` component retained by the `number_sumti` syntax node.
+        /// A word from selmaho `Li`.
         field li <- selmaho(Li).wf();
         #[tree_child(primary)]
-        /// The source-ordered `expression` component retained by the `number_sumti` syntax node.
+        /// The shared expression child syntax node.
         field expression <- arc(mekso);
-        /// The source-ordered `loho` component retained by the `number_sumti` syntax node.
+        /// The optional `Loho` cmavo marker.
         field loho <- opt(cmavo(Loho).wf()).elidable_terminator(Loho);
     }
 
     /// Product node for lerfu string; preserves `words`, `boi`, and `free_modifiers` in source order.
     rule "lerfu string" lerfu_string_sumti(letter_string, free_modifier) -> struct {
-        /// The source-ordered `words` component retained by the `lerfu_string_sumti` syntax node.
+        /// The words component of this syntax node.
         field words <- letter_string;
         assert !selmaho(Moi);
         assert !selmaho(Mai);
-        /// The source-ordered `boi` component retained by the `lerfu_string_sumti` syntax node.
+        /// The optional `Boi` cmavo marker.
         field boi <- opt(cmavo(Boi)).elidable_terminator(Boi);
-        /// The source-ordered `free_modifiers` component retained by the `lerfu_string_sumti` syntax node.
+        /// Ordered sequence of zero or more free modifiers components.
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
     /// Product node for converted sumti; preserves `lahe`, `relative_clauses`, `inner_sumti`, and `luhu` in source order.
     rule "converted sumti" lahe_sumti(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `lahe` component retained by the `lahe_sumti` syntax node.
+        /// A word from selmaho `Lahe`.
         field lahe <- selmaho(Lahe).wf();
-        /// The source-ordered `relative_clauses` component retained by the `lahe_sumti` syntax node.
+        /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         #[tree_child(primary)]
-        /// The source-ordered `inner_sumti` component retained by the `lahe_sumti` syntax node.
+        /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
-        /// The source-ordered `luhu` component retained by the `lahe_sumti` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for converted term; preserves `lahe`, `inner_term`, and `luhu` in source order.
     rule "converted term" lahe_term_wrapper(term) -> struct {
-        /// The source-ordered `lahe` component retained by the `lahe_term_wrapper` syntax node.
+        /// A word from selmaho `Lahe`.
         field lahe <- selmaho(Lahe).wf();
         #[tree_child(primary)]
-        /// The source-ordered `inner_term` component retained by the `lahe_term_wrapper` syntax node.
+        /// The shared inner term child syntax node.
         field inner_term <- arc(term);
-        /// The source-ordered `luhu` component retained by the `lahe_term_wrapper` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for scalar-negated term; preserves `nahe`, `bo`, `inner_term`, and `luhu` in source order.
     rule "scalar-negated term" scalar_negated_term_wrapper_with_bo(term) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_term_wrapper_with_bo` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe);
-        /// The source-ordered `bo` component retained by the `scalar_negated_term_wrapper_with_bo` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         #[tree_child(primary)]
-        /// The source-ordered `inner_term` component retained by the `scalar_negated_term_wrapper_with_bo` syntax node.
+        /// The shared inner term child syntax node.
         field inner_term <- arc(term);
-        /// The source-ordered `luhu` component retained by the `scalar_negated_term_wrapper_with_bo` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for scalar-negated term; preserves `nahe`, `inner_term`, and `luhu` in source order.
     rule "scalar-negated term" scalar_negated_term_wrapper(term) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_term_wrapper` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         #[tree_child(primary)]
-        /// The source-ordered `inner_term` component retained by the `scalar_negated_term_wrapper` syntax node.
+        /// The shared inner term child syntax node.
         field inner_term <- arc(term);
-        /// The source-ordered `luhu` component retained by the `scalar_negated_term_wrapper` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for scalar-negated sumti; preserves `nahe`, `bo`, `inner_sumti`, and `luhu` in source order.
     rule "scalar-negated sumti" scalar_negated_sumti_with_bo(sumti) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_sumti_with_bo` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe);
-        /// The source-ordered `bo` component retained by the `scalar_negated_sumti_with_bo` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         #[tree_child(primary)]
-        /// The source-ordered `inner_sumti` component retained by the `scalar_negated_sumti_with_bo` syntax node.
+        /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
-        /// The source-ordered `luhu` component retained by the `scalar_negated_sumti_with_bo` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for scalar-negated sumti; preserves `nahe`, `inner_sumti`, and `luhu` in source order.
     rule "scalar-negated sumti" scalar_negated_sumti(sumti) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_sumti` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         #[tree_child(primary)]
-        /// The source-ordered `inner_sumti` component retained by the `scalar_negated_sumti` syntax node.
+        /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
-        /// The source-ordered `luhu` component retained by the `scalar_negated_sumti` syntax node.
+        /// The optional `Luhu` cmavo marker.
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
     /// Product node for bridi description; preserves `lohoi`, `additional_heads`, `statement`, and `kuhau` in source order.
     rule "bridi description" bridi_description_sumti(statement) -> struct {
-        /// The source-ordered `lohoi` component retained by the `bridi_description_sumti` syntax node.
+        /// A word from selmaho `Lohoi`.
         field lohoi <- selmaho(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
-        /// The source-ordered `additional_heads` component retained by the `bridi_description_sumti` syntax node.
+        /// Ordered sequence of zero or more additional heads components.
         field additional_heads <- [zero_or_more lohoi_description_head_continuation()];
         #[tree_child(primary)]
-        /// The source-ordered `statement` component retained by the `bridi_description_sumti` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `kuhau` component retained by the `bridi_description_sumti` syntax node.
+        /// The optional `Kuhau` cmavo marker.
         field kuhau <- opt(cmavo(Kuhau).wf()).elidable_terminator(Kuhau);
     }
 
     /// Product node for bridi description; preserves `connective` and `lohoi` in source order.
     rule "bridi description" lohoi_description_head_continuation -> struct {
-        /// The source-ordered `connective` component retained by the `lohoi_description_head_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- joik_connective;
-        /// The source-ordered `lohoi` component retained by the `lohoi_description_head_continuation` syntax node.
+        /// A word from selmaho `Lohoi`.
         field lohoi <- selmaho(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
     }
 
     /// Transparent product node for sumti; preserves the `koha` component.
     rule "sumti" pro_sumti -> struct {
-        /// The source-ordered `koha` component retained by the `pro_sumti` syntax node.
+        /// The koha component of this syntax node.
         field koha <- word_category(ProSumti).wf();
     }
 
     /// Product node for name; preserves `la` and `names` in source order.
     rule "name" name_sumti -> struct {
-        /// The source-ordered `la` component retained by the `name_sumti` syntax node.
+        /// A word from selmaho `La`.
         field la <- selmaho(La).wf();
-        /// The source-ordered `names` component retained by the `name_sumti` syntax node.
+        /// Non-empty ordered sequence of names components.
         field names <- [one_or_more cmevla_word()].wf();
     }
 
     /// Transparent product node for descriptor; preserves the `description` component.
     rule "descriptor" description_head -> struct {
-        /// The source-ordered `description` component retained by the `description_head` syntax node.
+        /// A word from selmaho `Le`.
         field description <- choice((selmaho(Le), selmaho(La))).wf();
     }
 
     /// Transparent product node for descriptor connective; preserves the `connective` component.
     rule "descriptor connective" description_head_connective -> struct {
-        /// The source-ordered `connective` component retained by the `description_head_connective` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(jek_connective);
     }
 
     /// Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.
     rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
-        /// The source-ordered `leading_description_head` component retained by the `description_connection_sumti` syntax node.
+        /// The shared leading description head child syntax node.
         field leading_description_head <- arc(description_head());
-        /// The source-ordered `connective` component retained by the `description_connection_sumti` syntax node.
+        /// The connective component of this syntax node.
         field connective <- description_head_connective();
-        /// The source-ordered `trailing_description_head` component retained by the `description_connection_sumti` syntax node.
+        /// The shared trailing description head child syntax node.
         field trailing_description_head <- arc(description_head());
-        /// The source-ordered `tail` component retained by the `description_connection_sumti` syntax node.
+        /// The tail component of this syntax node.
         field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
-        /// The source-ordered `ku` component retained by the `description_connection_sumti` syntax node.
+        /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
     rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
-        /// The source-ordered `description` component retained by the `descriptor_with_gadri_sumti` syntax node.
+        /// The description component of this syntax node.
         field description <- description_head();
-        /// The source-ordered `tail` component retained by the `descriptor_with_gadri_sumti` syntax node.
+        /// The tail component of this syntax node.
         field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
-        /// The source-ordered `ku` component retained by the `descriptor_with_gadri_sumti` syntax node.
+        /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `outer_quantifier`, `description`, `tail`, and `ku` in source order.
     rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
-        /// The source-ordered `outer_quantifier` component retained by the `descriptor_with_outer_quantifier_sumti` syntax node.
+        /// The outer quantifier component of this syntax node.
         field outer_quantifier <- quantifier(mekso, letter_tokens);
-        /// The source-ordered `description` component retained by the `descriptor_with_outer_quantifier_sumti` syntax node.
+        /// The description component of this syntax node.
         field description <- description_head();
-        /// The source-ordered `tail` component retained by the `descriptor_with_outer_quantifier_sumti` syntax node.
+        /// The tail component of this syntax node.
         field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
-        /// The source-ordered `ku` component retained by the `descriptor_with_outer_quantifier_sumti` syntax node.
+        /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `quantifier`, `selbri`, `ku`, and `relative_clauses` in source order.
     rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
-        /// The source-ordered `quantifier` component retained by the `descriptor_without_gadri_sumti` syntax node.
+        /// The quantifier component of this syntax node.
         field quantifier <- quantifier(mekso, letter_tokens);
         assert !selmaho(Roi);
         #[tree_child(primary)]
-        /// The source-ordered `selbri` component retained by the `descriptor_without_gadri_sumti` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `ku` component retained by the `descriptor_without_gadri_sumti` syntax node.
+        /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
-        /// The source-ordered `relative_clauses` component retained by the `descriptor_without_gadri_sumti` syntax node.
+        /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     /// Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.
     rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
-        /// The source-ordered `leading_tail_elements` component retained by the `description_tail` syntax node.
+        /// The leading tail elements component of this syntax node.
         field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement);
-        /// The source-ordered `tail` component retained by the `description_tail` syntax node.
+        /// The shared tail child syntax node.
         field tail <- arc(description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement));
     }
 
@@ -2526,43 +2526,43 @@ pub mod generated_model {
 
     /// Product node for description tail; preserves `tail_sumti` and `relative_clauses` in source order.
     rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement) -> struct {
-        /// The source-ordered `tail_sumti` component retained by the `leading_description_tail_elements` syntax node.
+        /// The optional tail sumti component.
         field tail_sumti <- opt(description_tail_sumti(sumti_base));
-        /// The source-ordered `relative_clauses` component retained by the `leading_description_tail_elements` syntax node.
+        /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     /// Transparent product node for description tail; preserves the `sumti` component.
     rule "description tail" description_tail_sumti(sumti_base) -> struct {
         assert !pa_word();
-        /// The source-ordered `sumti` component retained by the `description_tail_sumti` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti_base);
     }
 
     /// Product node for description tail; preserves `selbri` and `relative_clauses` in source order.
     rule "description tail" relation_description_tail(sumti, subbridi, selbri, tense_modal, statement) -> struct {
-        /// The source-ordered `selbri` component retained by the `relation_description_tail` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `relative_clauses` component retained by the `relation_description_tail` syntax node.
+        /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     /// Product node for description tail; preserves `quantifier`, `selbri`, and `relative_clauses` in source order.
     rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
-        /// The source-ordered `quantifier` component retained by the `quantifier_relation_description_tail` syntax node.
+        /// The quantifier component of this syntax node.
         field quantifier <- quantifier(mekso, letter_tokens);
         assert !selmaho(Roi);
-        /// The source-ordered `selbri` component retained by the `quantifier_relation_description_tail` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `relative_clauses` component retained by the `quantifier_relation_description_tail` syntax node.
+        /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     /// Product node for description tail; preserves `quantifier` and `sumti` in source order.
     rule "description tail" quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> struct {
-        /// The source-ordered `quantifier` component retained by the `quantifier_sumti_description_tail` syntax node.
+        /// The quantifier component of this syntax node.
         field quantifier <- quantifier(mekso, letter_tokens);
-        /// The source-ordered `sumti` component retained by the `quantifier_sumti_description_tail` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
 
@@ -2584,23 +2584,23 @@ pub mod generated_model {
 
     /// Product node for text quote; preserves `lu`, `text`, and `lihu` in source order.
     rule "text quote" text_quote(text) -> struct {
-        /// The source-ordered `lu` component retained by the `text_quote` syntax node.
+        /// The `Lu` cmavo marker.
         field lu <- cmavo(Lu).wf();
-        /// The source-ordered `text` component retained by the `text_quote` syntax node.
+        /// The shared text child syntax node.
         field text <- arc(text);
-        /// The source-ordered `lihu` component retained by the `text_quote` syntax node.
+        /// The optional `Lihu` cmavo marker.
         field lihu <- opt(cmavo(Lihu).wf()).elidable_terminator(Lihu);
     }
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" experimental_mehoi_compound_quote -> struct {
-        /// The source-ordered `quote` component retained by the `experimental_mehoi_compound_quote` syntax node.
+        /// The quote component of this syntax node.
         field quote <- quote_marker(Mehoi).warn(ExperimentalMehOiQuote).wf();
     }
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" experimental_zohoi_compound_quote -> struct {
-        /// The source-ordered `quote` component retained by the `experimental_zohoi_compound_quote` syntax node.
+        /// The quote component of this syntax node.
         field quote <- choice((
             quote_marker(Zohoi),
             quote_marker(Lahoi),
@@ -2609,13 +2609,13 @@ pub mod generated_model {
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" experimental_rahoi_compound_quote -> struct {
-        /// The source-ordered `quote` component retained by the `experimental_rahoi_compound_quote` syntax node.
+        /// The quote component of this syntax node.
         field quote <- quote_marker(Rahoi).warn(ExperimentalZantufaRahoiQuote).wf();
     }
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" experimental_gohoi_compound_quote -> struct {
-        /// The source-ordered `quote` component retained by the `experimental_gohoi_compound_quote` syntax node.
+        /// The quote component of this syntax node.
         field quote <- choice((
             quote_marker(Gohoi),
             quote_marker(Zehoi),
@@ -2626,35 +2626,35 @@ pub mod generated_model {
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" generic_compound_quote -> struct {
-        /// The source-ordered `quote` component retained by the `generic_compound_quote` syntax node.
+        /// The quote component of this syntax node.
         field quote <- word_category(Quote).wf();
     }
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" quoted_sumti(text) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `quote` component retained by the `quoted_sumti` syntax node.
+        /// The shared quote child syntax node.
         field quote <- arc(quote(text));
     }
 
     /// Product node for vocative phrase; preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses` in source order.
     rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal, statement) -> struct {
-        /// The source-ordered `leading_relative_clauses` component retained by the `selbri_vocative_sumti` syntax node.
+        /// The optional leading relative clauses component.
         field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         #[tree_child(primary)]
-        /// The source-ordered `selbri` component retained by the `selbri_vocative_sumti` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `trailing_relative_clauses` component retained by the `selbri_vocative_sumti` syntax node.
+        /// The optional trailing relative clauses component.
         field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     /// Product node for vocative phrase; preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses` in source order.
     rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `leading_relative_clauses` component retained by the `cmevla_vocative_sumti` syntax node.
+        /// The optional leading relative clauses component.
         field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
-        /// The source-ordered `names` component retained by the `cmevla_vocative_sumti` syntax node.
+        /// Non-empty ordered sequence of names components.
         field names <- [one_or_more cmevla_word()].wf();
-        /// The source-ordered `trailing_relative_clauses` component retained by the `cmevla_vocative_sumti` syntax node.
+        /// The optional trailing relative clauses component.
         field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
@@ -2678,27 +2678,27 @@ pub mod generated_model {
 
     /// Product node for vocative marker; preserves `first_coi`, `first_nai`, `additional_coi`, and `doi` in source order.
     rule "vocative marker" coi_vocative_marker_words -> struct {
-        /// The source-ordered `first_coi` component retained by the `coi_vocative_marker_words` syntax node.
+        /// A word from selmaho `Coi`.
         field first_coi <- selmaho(Coi);
-        /// The source-ordered `first_nai` component retained by the `coi_vocative_marker_words` syntax node.
+        /// The optional `Nai` cmavo marker.
         field first_nai <- opt(cmavo(Nai));
-        /// The source-ordered `additional_coi` component retained by the `coi_vocative_marker_words` syntax node.
+        /// Ordered sequence of zero or more additional coi components.
         field additional_coi <- [zero_or_more additional_coi_vocative_marker()];
-        /// The source-ordered `doi` component retained by the `coi_vocative_marker_words` syntax node.
+        /// The optional `Doi` cmavo marker.
         field doi <- opt(cmavo(Doi));
     }
 
     /// Product node for vocative marker; preserves `coi` and `nai` in source order.
     rule "vocative marker" additional_coi_vocative_marker -> struct {
-        /// The source-ordered `coi` component retained by the `additional_coi_vocative_marker` syntax node.
+        /// A word from selmaho `Coi`.
         field coi <- selmaho(Coi);
-        /// The source-ordered `nai` component retained by the `additional_coi_vocative_marker` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
 
     /// Transparent product node for vocative marker; preserves the `doi` component.
     rule "vocative marker" doi_vocative_marker_words -> struct {
-        /// The source-ordered `doi` component retained by the `doi_vocative_marker_words` syntax node.
+        /// The `Doi` cmavo marker.
         field doi <- cmavo(Doi);
     }
 
@@ -2726,45 +2726,45 @@ pub mod generated_model {
 
     /// Product node for vocative phrase; preserves `vocative_markers`, `sumti`, and `dohu` in source order.
     rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal, statement) -> struct {
-        /// The source-ordered `vocative_markers` component retained by the `vocative_free_modifier` syntax node.
+        /// The vocative markers component of this syntax node.
         field vocative_markers <- vocative_marker_words().wf();
-        /// The source-ordered `sumti` component retained by the `vocative_free_modifier` syntax node.
+        /// The optional sumti component.
         field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, tense_modal, statement)));
-        /// The source-ordered `dohu` component retained by the `vocative_free_modifier` syntax node.
+        /// The optional `Dohu` cmavo marker.
         field dohu <- opt(cmavo(Dohu).prohibited_wf()).elidable_terminator(Dohu);
     }
 
     /// Product node for parenthetical text; preserves `to`, `text`, and `toi` in source order.
     rule "parenthetical text" parenthetical_text(text) -> struct {
-        /// The source-ordered `to` component retained by the `parenthetical_text` syntax node.
+        /// A word from selmaho `To`.
         field to <- selmaho(To).wf();
-        /// The source-ordered `text` component retained by the `parenthetical_text` syntax node.
+        /// The shared text child syntax node.
         field text <- arc(text);
-        /// The source-ordered `toi` component retained by the `parenthetical_text` syntax node.
+        /// The optional `Toi` cmavo marker.
         field toi <- opt(cmavo(Toi).prohibited_wf()).elidable_terminator(Toi);
     }
 
     /// Product node for metalinguistic comment; preserves `sei`, `terms`, `cu`, `selbri`, and `sehu` in source order.
     rule "metalinguistic comment" sei_free_modifier(term, selbri) -> struct {
-        /// The source-ordered `sei` component retained by the `sei_free_modifier` syntax node.
+        /// A word from selmaho `Sei`.
         field sei <- selmaho(Sei).wf();
-        /// The source-ordered `terms` component retained by the `sei_free_modifier` syntax node.
+        /// Ordered sequence of zero or more terms components.
         field terms <- [zero_or_more term];
-        /// The source-ordered `cu` component retained by the `sei_free_modifier` syntax node.
+        /// The optional `Cu` cmavo marker.
         field cu <- opt(cmavo(Cu).wf());
-        /// The source-ordered `selbri` component retained by the `sei_free_modifier` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `sehu` component retained by the `sei_free_modifier` syntax node.
+        /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).prohibited_wf()).elidable_terminator(Sehu);
     }
 
     /// Product node for metalinguistic comment; preserves `sei`, `statement`, and `sehu` in source order.
     rule "metalinguistic comment" zantufa_sei_statement_free_modifier(statement) -> struct {
-        /// The source-ordered `sei` component retained by the `zantufa_sei_statement_free_modifier` syntax node.
+        /// A word from selmaho `Sei`.
         field sei <- selmaho(Sei).warn(ExperimentalZantufaStatementFreeModifier).wf();
-        /// The source-ordered `statement` component retained by the `zantufa_sei_statement_free_modifier` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `sehu` component retained by the `zantufa_sei_statement_free_modifier` syntax node.
+        /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).prohibited_wf()).elidable_terminator(Sehu);
     }
 
@@ -2780,54 +2780,54 @@ pub mod generated_model {
 
     /// Product node for subscript; preserves `xi` and `expression` in source order.
     rule "subscript" xi_number_free_modifier(letter_tokens) -> struct {
-        /// The source-ordered `xi` component retained by the `xi_number_free_modifier` syntax node.
+        /// A word from selmaho `Xi`.
         field xi <- selmaho(Xi).wf();
-        /// The source-ordered `expression` component retained by the `xi_number_free_modifier` syntax node.
+        /// The shared expression child syntax node.
         field expression <- arc(number_mekso(letter_tokens));
     }
 
     /// Product node for subscript; preserves `xi` and `expression` in source order.
     rule "subscript" xi_lerfu_string_free_modifier(letter_string, free_modifier) -> struct {
-        /// The source-ordered `xi` component retained by the `xi_lerfu_string_free_modifier` syntax node.
+        /// A word from selmaho `Xi`.
         field xi <- selmaho(Xi).wf();
-        /// The source-ordered `expression` component retained by the `xi_lerfu_string_free_modifier` syntax node.
+        /// The shared expression child syntax node.
         field expression <- arc(lerfu_string_mekso(letter_string, free_modifier));
     }
 
     /// Product node for subscript; preserves `xi` and `expression` in source order.
     rule "subscript" xi_parenthesized_free_modifier(mekso) -> struct {
-        /// The source-ordered `xi` component retained by the `xi_parenthesized_free_modifier` syntax node.
+        /// A word from selmaho `Xi`.
         field xi <- selmaho(Xi).wf();
-        /// The source-ordered `expression` component retained by the `xi_parenthesized_free_modifier` syntax node.
+        /// The shared expression child syntax node.
         field expression <- arc(parenthesized_mekso_operand(mekso));
     }
 
     /// Product node for utterance ordinal; preserves `number` and `mai` in source order.
     rule "utterance ordinal" mai_free_modifier(letter_tokens, letter_string) -> struct {
-        /// The source-ordered `number` component retained by the `mai_free_modifier` syntax node.
+        /// The number component of this syntax node.
         field number <- number_or_letter_words(letter_tokens, letter_string)
             .followed_by(selmaho(Mai).ignored());
-        /// The source-ordered `mai` component retained by the `mai_free_modifier` syntax node.
+        /// A word from selmaho `Mai`.
         field mai <- selmaho(Mai).wf();
     }
 
     /// Product node for utterance ordinal; preserves `expression` and `mai` in source order.
     rule "utterance ordinal" zantufa_mekso_mai_free_modifier(mekso) -> struct {
-        /// The source-ordered `expression` component retained by the `zantufa_mekso_mai_free_modifier` syntax node.
+        /// A word from selmaho `Mai`.
         field expression <- arc(mekso.followed_by(selmaho(Mai).ignored()));
-        /// The source-ordered `mai` component retained by the `zantufa_mekso_mai_free_modifier` syntax node.
+        /// A word from selmaho `Mai`.
         field mai <- selmaho(Mai).warn(ExperimentalZantufaMex).wf();
     }
 
     /// Product node for reciprocal; preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu` in source order.
     rule "reciprocal" soi_free_modifier(sumti) -> struct {
-        /// The source-ordered `soi` component retained by the `soi_free_modifier` syntax node.
+        /// The `Soi` cmavo marker.
         field soi <- cmavo(Soi).wf();
-        /// The source-ordered `leading_sumti` component retained by the `soi_free_modifier` syntax node.
+        /// The shared leading sumti child syntax node.
         field leading_sumti <- arc(sumti);
-        /// The source-ordered `trailing_sumti` component retained by the `soi_free_modifier` syntax node.
+        /// The optional trailing sumti component.
         field trailing_sumti <- opt(arc(sumti));
-        /// The source-ordered `sehu` component retained by the `soi_free_modifier` syntax node.
+        /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).wf()).elidable_terminator(Sehu);
     }
 
@@ -2849,31 +2849,31 @@ pub mod generated_model {
 
     /// Product node for replacement phrase; preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai` in source order.
     rule "replacement phrase" full_text_replacement_free_modifier -> struct {
-        /// The source-ordered `lohai` component retained by the `full_text_replacement_free_modifier` syntax node.
+        /// The `Lohai` cmavo marker.
         field lohai <- cmavo(Lohai);
-        /// The source-ordered `old_words` component retained by the `full_text_replacement_free_modifier` syntax node.
+        /// Ordered sequence of zero or more old words components.
         field old_words <- [zero_or_more word_before_sahai_or_lehai()];
-        /// The source-ordered `sahai` component retained by the `full_text_replacement_free_modifier` syntax node.
+        /// The optional `Sahai` cmavo marker.
         field sahai <- opt(cmavo(Sahai));
-        /// The source-ordered `new_words` component retained by the `full_text_replacement_free_modifier` syntax node.
+        /// Ordered sequence of zero or more new words components.
         field new_words <- [zero_or_more word_before_lehai()];
-        /// The source-ordered `lehai` component retained by the `full_text_replacement_free_modifier` syntax node.
+        /// The `Lehai` cmavo marker.
         field lehai <- cmavo(Lehai).wf();
     }
 
     /// Product node for replacement phrase; preserves `sahai`, `new_words`, and `lehai` in source order.
     rule "replacement phrase" new_only_text_replacement_free_modifier -> struct {
-        /// The source-ordered `sahai` component retained by the `new_only_text_replacement_free_modifier` syntax node.
+        /// The `Sahai` cmavo marker.
         field sahai <- cmavo(Sahai);
-        /// The source-ordered `new_words` component retained by the `new_only_text_replacement_free_modifier` syntax node.
+        /// Ordered sequence of zero or more new words components.
         field new_words <- [zero_or_more word_before_lehai()];
-        /// The source-ordered `lehai` component retained by the `new_only_text_replacement_free_modifier` syntax node.
+        /// The `Lehai` cmavo marker.
         field lehai <- cmavo(Lehai).wf();
     }
 
     /// Transparent product node for replacement phrase; preserves the `lehai` component.
     rule "replacement phrase" close_only_text_replacement_free_modifier -> struct {
-        /// The source-ordered `lehai` component retained by the `close_only_text_replacement_free_modifier` syntax node.
+        /// The `Lehai` cmavo marker.
         field lehai <- cmavo(Lehai).wf();
     }
 
@@ -2887,17 +2887,17 @@ pub mod generated_model {
 
     /// Product node for relative clause; preserves `zihe` and `inner` in source order.
     rule "relative clause" joined_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `zihe` component retained by the `joined_relative_clause_tail` syntax node.
+        /// The `Zihe` cmavo marker.
         field zihe <- cmavo(Zihe).wf();
-        /// The source-ordered `inner` component retained by the `joined_relative_clause_tail` syntax node.
+        /// The shared inner child syntax node.
         field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
     }
 
     /// Product node for relative clause; preserves `connective` and `inner` in source order.
     rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The source-ordered `connective` component retained by the `connected_relative_clause_tail` syntax node.
+        /// The connective component of this syntax node.
         field connective <- relative_clause_connective;
-        /// The source-ordered `inner` component retained by the `connected_relative_clause_tail` syntax node.
+        /// The shared inner child syntax node.
         field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
     }
 
@@ -2919,11 +2919,11 @@ pub mod generated_model {
 
     /// Product node for sumti association phrase; preserves `association_marker`, `sumti`, and `gehu` in source order.
     rule "sumti association phrase" sumti_association_relative_clause(sumti, tense_modal) -> struct {
-        /// The source-ordered `association_marker` component retained by the `sumti_association_relative_clause` syntax node.
+        /// A word from selmaho `Goi`.
         field association_marker <- selmaho(Goi).wf();
-        /// The source-ordered `sumti` component retained by the `sumti_association_relative_clause` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(relative_sumti(sumti, tense_modal));
-        /// The source-ordered `gehu` component retained by the `sumti_association_relative_clause` syntax node.
+        /// The optional `Gehu` cmavo marker.
         field gehu <- opt(cmavo(Gehu).wf()).elidable_terminator(Gehu);
     }
 
@@ -2939,23 +2939,23 @@ pub mod generated_model {
 
     /// Product node for sumti association phrase; preserves `na` and `ku` in source order.
     rule "sumti association phrase" na_ku_relative_sumti -> struct {
-        /// The source-ordered `na` component retained by the `na_ku_relative_sumti` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na);
-        /// The source-ordered `ku` component retained by the `na_ku_relative_sumti` syntax node.
+        /// The `Ku` cmavo marker.
         field ku <- cmavo(Ku).wf();
     }
 
     /// Product node for tagged sumti; preserves `tense_modal` and `sumti` in source order.
     rule "tagged sumti" tense_tagged_relative_sumti(tense_modal, sumti) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `tense_tagged_relative_sumti` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
-        /// The source-ordered `sumti` component retained by the `tense_tagged_relative_sumti` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
 
     /// Transparent product node for sumti association phrase; preserves the `sumti` component.
     rule "sumti association phrase" plain_relative_sumti(sumti) -> struct {
-        /// The source-ordered `sumti` component retained by the `plain_relative_sumti` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
 
@@ -2973,96 +2973,96 @@ pub mod generated_model {
 
     /// Product node for relative clause; preserves `poi`, `statement`, and `kuho` in source order.
     rule "relative clause" zantufa_restrictive_statement_relative_clause(statement) -> struct {
-        /// The source-ordered `poi` component retained by the `zantufa_restrictive_statement_relative_clause` syntax node.
+        /// The poi component of this syntax node.
         field poi <- choice((
             cmavo(Poi),
             cmavo(Pohoi),
             cmavo(Voi),
             cmavo(Voihi),
         )).warn(ExperimentalZantufaStatementRelativeClause).wf();
-        /// The source-ordered `statement` component retained by the `zantufa_restrictive_statement_relative_clause` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `kuho` component retained by the `zantufa_restrictive_statement_relative_clause` syntax node.
+        /// The optional `Kuho` cmavo marker.
         field kuho <- opt(cmavo(Kuho).wf()).elidable_terminator(Kuho);
     }
 
     /// Product node for relative clause; preserves `noi`, `statement`, and `kuho` in source order.
     rule "relative clause" zantufa_incidental_statement_relative_clause(statement) -> struct {
-        /// The source-ordered `noi` component retained by the `zantufa_incidental_statement_relative_clause` syntax node.
+        /// The noi component of this syntax node.
         field noi <- choice((
             cmavo(Noi),
             cmavo(Nohoi),
         )).warn(ExperimentalZantufaStatementRelativeClause).wf();
-        /// The source-ordered `statement` component retained by the `zantufa_incidental_statement_relative_clause` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `kuho` component retained by the `zantufa_incidental_statement_relative_clause` syntax node.
+        /// The optional `Kuho` cmavo marker.
         field kuho <- opt(cmavo(Kuho).wf()).elidable_terminator(Kuho);
     }
 
     /// Product node for relative clause; preserves `poi`, `subbridi`, and `kuho` in source order.
     rule "relative clause" restrictive_bridi_relative_clause(subbridi, statement) -> struct {
-        /// The source-ordered `poi` component retained by the `restrictive_bridi_relative_clause` syntax node.
+        /// The poi component of this syntax node.
         field poi <- choice((
             cmavo(Poi),
             cmavo(Pohoi),
             cmavo(Voi),
             cmavo(Voihi),
         )).wf();
-        /// The source-ordered `subbridi` component retained by the `restrictive_bridi_relative_clause` syntax node.
+        /// The shared subbridi child syntax node.
         field subbridi <- arc(subbridi);
-        /// The source-ordered `kuho` component retained by the `restrictive_bridi_relative_clause` syntax node.
+        /// The optional `Kuho` cmavo marker.
         field kuho <- opt(cmavo(Kuho).wf()).elidable_terminator(Kuho);
     }
 
     /// Product node for relative clause; preserves `noi`, `subbridi`, and `kuho` in source order.
     rule "relative clause" incidental_bridi_relative_clause(subbridi, statement) -> struct {
-        /// The source-ordered `noi` component retained by the `incidental_bridi_relative_clause` syntax node.
+        /// The noi component of this syntax node.
         field noi <- choice((
             cmavo(Noi),
             cmavo(Nohoi),
         )).wf();
-        /// The source-ordered `subbridi` component retained by the `incidental_bridi_relative_clause` syntax node.
+        /// The shared subbridi child syntax node.
         field subbridi <- arc(subbridi);
-        /// The source-ordered `kuho` component retained by the `incidental_bridi_relative_clause` syntax node.
+        /// The optional `Kuho` cmavo marker.
         field kuho <- opt(cmavo(Kuho).wf()).elidable_terminator(Kuho);
     }
 
     /// Product node for ek; preserves `na`, `se`, `a`, and `nai` in source order.
     rule "ek" ek_connective -> struct {
-        /// The source-ordered `na` component retained by the `ek_connective` syntax node.
+        /// The optional na component.
         field na <- opt(selmaho(Na));
-        /// The source-ordered `se` component retained by the `ek_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `a` component retained by the `ek_connective` syntax node.
+        /// A word from selmaho `A`.
         field a <- selmaho(A).wf();
-        /// The source-ordered `nai` component retained by the `ek_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for ek; preserves `na`, `se`, `jehi`, and `nai` in source order.
     rule "ek" jehi_connective -> struct {
-        /// The source-ordered `na` component retained by the `jehi_connective` syntax node.
+        /// The optional na component.
         field na <- opt(selmaho(Na));
-        /// The source-ordered `se` component retained by the `jehi_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `jehi` component retained by the `jehi_connective` syntax node.
+        /// A word from selmaho `Jehi`.
         field jehi <- selmaho(Jehi).wf();
-        /// The source-ordered `nai` component retained by the `jehi_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for jek; preserves `na`, `se`, `ja`, and `nai` in source order.
     rule "jek" jek_connective -> struct {
-        /// The source-ordered `na` component retained by the `jek_connective` syntax node.
+        /// The optional na component.
         field na <- opt(selmaho(Na));
-        /// The source-ordered `se` component retained by the `jek_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `ja` component retained by the `jek_connective` syntax node.
+        /// A word from selmaho `Ja`.
         field ja <- selmaho(Ja).wf();
-        /// The source-ordered `nai` component retained by the `jek_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
@@ -3078,47 +3078,47 @@ pub mod generated_model {
 
     /// Product node for joik; preserves `se`, `joi`, and `nai` in source order.
     rule "joik" joi_connective -> struct {
-        /// The source-ordered `se` component retained by the `joi_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `joi` component retained by the `joi_connective` syntax node.
+        /// A word from selmaho `Joi`.
         field joi <- selmaho(Joi).wf();
-        /// The source-ordered `nai` component retained by the `joi_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for interval; preserves `se`, `bihi`, and `nai` in source order.
     rule "interval" simple_interval_connective -> struct {
-        /// The source-ordered `se` component retained by the `simple_interval_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `bihi` component retained by the `simple_interval_connective` syntax node.
+        /// A word from selmaho `Bihi`.
         field bihi <- selmaho(Bihi).wf();
-        /// The source-ordered `nai` component retained by the `simple_interval_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for interval; preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval` in source order.
     rule "interval" closed_interval_connective -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `left_interval` component retained by the `closed_interval_connective` syntax node.
+        /// A word from selmaho `Gaho`.
         field left_interval <- selmaho(Gaho);
-        /// The source-ordered `se` component retained by the `closed_interval_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `bihi` component retained by the `closed_interval_connective` syntax node.
+        /// A word from selmaho `Bihi`.
         field bihi <- selmaho(Bihi);
-        /// The source-ordered `nai` component retained by the `closed_interval_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
         #[tree_child(primary)]
-        /// The source-ordered `right_interval` component retained by the `closed_interval_connective` syntax node.
+        /// A word from selmaho `Gaho`.
         field right_interval <- selmaho(Gaho).wf();
     }
 
     /// Transparent product node for non-logical connective; preserves the `vuhu` component.
     rule "non-logical connective" vuhu_nonlogical_connective -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `vuhu` component retained by the `vuhu_nonlogical_connective` syntax node.
+        /// A word from selmaho `Vuhu`.
         field vuhu <- selmaho(Vuhu).wf();
     }
 
@@ -3197,9 +3197,9 @@ pub mod generated_model {
     /// Product node for statement connective; preserves `connective` and `tag_bo` in source order.
     rule "statement connective" i_standard_statement_connective(tense_modal) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `connective` component retained by the `i_standard_statement_connective` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(statement_connective);
-        /// The source-ordered `tag_bo` component retained by the `i_standard_statement_connective` syntax node.
+        /// The optional `Bo` cmavo marker.
         field tag_bo <- opt((opt(arc(tense_modal)), cmavo(Bo).wf()));
     }
 
@@ -3214,9 +3214,9 @@ pub mod generated_model {
     /// Product node for statement connective; preserves `connective` and `tag_bo` in source order.
     rule "statement connective" i_standard_paragraph_statement_connective(tense_modal) -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `connective` component retained by the `i_standard_paragraph_statement_connective` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(paragraph_standard_statement_connective);
-        /// The source-ordered `tag_bo` component retained by the `i_standard_paragraph_statement_connective` syntax node.
+        /// The optional `Bo` cmavo marker.
         field tag_bo <- opt((opt(arc(tense_modal)), cmavo(Bo)));
     }
 
@@ -3234,104 +3234,104 @@ pub mod generated_model {
 
     /// Product node for jek; preserves `na`, `se`, `ja`, and `nai` in source order.
     rule "jek" paragraph_jek_connective -> struct {
-        /// The source-ordered `na` component retained by the `paragraph_jek_connective` syntax node.
+        /// The optional na component.
         field na <- opt(selmaho(Na));
-        /// The source-ordered `se` component retained by the `paragraph_jek_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `ja` component retained by the `paragraph_jek_connective` syntax node.
+        /// A word from selmaho `Ja`.
         field ja <- selmaho(Ja);
-        /// The source-ordered `nai` component retained by the `paragraph_jek_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
 
     /// Product node for joik; preserves `se`, `joi`, and `nai` in source order.
     rule "joik" paragraph_joi_connective -> struct {
-        /// The source-ordered `se` component retained by the `paragraph_joi_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `joi` component retained by the `paragraph_joi_connective` syntax node.
+        /// A word from selmaho `Joi`.
         field joi <- selmaho(Joi);
-        /// The source-ordered `nai` component retained by the `paragraph_joi_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
 
     /// Product node for interval; preserves `se`, `bihi`, and `nai` in source order.
     rule "interval" paragraph_simple_interval_connective -> struct {
-        /// The source-ordered `se` component retained by the `paragraph_simple_interval_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `bihi` component retained by the `paragraph_simple_interval_connective` syntax node.
+        /// A word from selmaho `Bihi`.
         field bihi <- selmaho(Bihi);
-        /// The source-ordered `nai` component retained by the `paragraph_simple_interval_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
     }
 
     /// Product node for interval; preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval` in source order.
     rule "interval" paragraph_closed_interval_connective -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `left_interval` component retained by the `paragraph_closed_interval_connective` syntax node.
+        /// A word from selmaho `Gaho`.
         field left_interval <- selmaho(Gaho);
-        /// The source-ordered `se` component retained by the `paragraph_closed_interval_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `bihi` component retained by the `paragraph_closed_interval_connective` syntax node.
+        /// A word from selmaho `Bihi`.
         field bihi <- selmaho(Bihi);
-        /// The source-ordered `nai` component retained by the `paragraph_closed_interval_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai));
         #[tree_child(primary)]
-        /// The source-ordered `right_interval` component retained by the `paragraph_closed_interval_connective` syntax node.
+        /// A word from selmaho `Gaho`.
         field right_interval <- selmaho(Gaho);
     }
 
     /// Product node for statement connective; preserves `tense_modal` and `bo` in source order.
     rule "statement connective" i_tag_bo_paragraph_statement_connective(tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `i_tag_bo_paragraph_statement_connective` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `i_tag_bo_paragraph_statement_connective` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo);
     }
 
     /// Product node for statement connective; preserves `tense_modal` and `bo` in source order.
     rule "statement connective" i_tag_bo_statement_connective(tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `i_tag_bo_statement_connective` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `i_tag_bo_statement_connective` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
     }
 
     /// Product node for termset connective; preserves `cehe` and `nai` in source order.
     rule "termset connective" cehe_connective -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `cehe` component retained by the `cehe_connective` syntax node.
+        /// The `Cehe` cmavo marker.
         field cehe <- cmavo(Cehe).wf();
-        /// The source-ordered `nai` component retained by the `cehe_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for gihek; preserves `na`, `se`, `giha`, and `nai` in source order.
     rule "gihek" gihek_connective -> struct {
-        /// The source-ordered `na` component retained by the `gihek_connective` syntax node.
+        /// The optional na component.
         field na <- opt(selmaho(Na));
-        /// The source-ordered `se` component retained by the `gihek_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `giha` component retained by the `gihek_connective` syntax node.
+        /// A word from selmaho `Giha`.
         field giha <- selmaho(Giha).wf();
-        /// The source-ordered `nai` component retained by the `gihek_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for forethought selbri connective; preserves `nahe`, `se`, `guha`, and `nai` in source order.
     rule "forethought selbri connective" guhek_connective -> struct {
-        /// The source-ordered `nahe` component retained by the `guhek_connective` syntax node.
+        /// The optional nahe component.
         field nahe <- opt(selmaho(Nahe));
-        /// The source-ordered `se` component retained by the `guhek_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `guha` component retained by the `guhek_connective` syntax node.
+        /// A word from selmaho `Guha`.
         field guha <- selmaho(Guha).wf();
-        /// The source-ordered `nai` component retained by the `guhek_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
@@ -3346,7 +3346,7 @@ pub mod generated_model {
     /// Transparent product node for bridi tail connective; preserves the `connective` component.
     rule "bridi tail connective" relation_connective_as_bridi_tail -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `connective` component retained by the `relation_connective_as_bridi_tail` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(relation_afterthought_connective);
     }
 
@@ -3366,75 +3366,75 @@ pub mod generated_model {
 
     /// Product node for forethought connective; preserves `se`, `ga`, and `nai` in source order.
     rule "forethought connective" ga_forethought_connective -> struct {
-        /// The source-ordered `se` component retained by the `ga_forethought_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `ga` component retained by the `ga_forethought_connective` syntax node.
+        /// A word from selmaho `Ga`.
         field ga <- selmaho(Ga).wf();
-        /// The source-ordered `nai` component retained by the `ga_forethought_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for forethought connective; preserves `gi`, `tail`, and `bo` in source order.
     rule "forethought connective" zantufa_initial_gi_forethought_connective -> struct {
-        /// The source-ordered `gi` component retained by the `zantufa_initial_gi_forethought_connective` syntax node.
+        /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).warn(ExperimentalZantufaGek).wf();
-        /// The source-ordered `tail` component retained by the `zantufa_initial_gi_forethought_connective` syntax node.
+        /// The shared tail child syntax node.
         field tail <- arc(standard_statement_connective);
-        /// The source-ordered `bo` component retained by the `zantufa_initial_gi_forethought_connective` syntax node.
+        /// The optional `Bo` cmavo marker.
         field bo <- opt(cmavo(Bo).wf());
     }
 
     /// Product node for forethought connective; preserves `connective`, `gi`, and `bo` in source order.
     rule "forethought connective" joik_jek_gi_forethought_connective -> struct {
-        /// The source-ordered `connective` component retained by the `joik_jek_gi_forethought_connective` syntax node.
+        /// The shared connective child syntax node.
         field connective <- arc(joik_connective);
-        /// The source-ordered `gi` component retained by the `joik_jek_gi_forethought_connective` syntax node.
+        /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
-        /// The source-ordered `bo` component retained by the `joik_jek_gi_forethought_connective` syntax node.
+        /// The optional `Bo` cmavo marker.
         field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
     }
 
     /// Product node for forethought connective; preserves `na`, `se`, `ja`, and 3 other fields in source order.
     rule "forethought connective" jek_gi_forethought_connective -> struct {
-        /// The source-ordered `na` component retained by the `jek_gi_forethought_connective` syntax node.
+        /// The optional na component.
         field na <- opt(selmaho(Na));
-        /// The source-ordered `se` component retained by the `jek_gi_forethought_connective` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
-        /// The source-ordered `ja` component retained by the `jek_gi_forethought_connective` syntax node.
+        /// A word from selmaho `Ja`.
         field ja <- selmaho(Ja).warn(ExperimentalZantufaGek).wf();
-        /// The source-ordered `nai` component retained by the `jek_gi_forethought_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `gi` component retained by the `jek_gi_forethought_connective` syntax node.
+        /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
-        /// The source-ordered `bo` component retained by the `jek_gi_forethought_connective` syntax node.
+        /// The optional `Bo` cmavo marker.
         field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
     }
 
     /// Product node for forethought connective; preserves `tense_modal`, `gi`, and `bo` in source order.
     rule "forethought connective" modal_gi_forethought_connective(tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `modal_gi_forethought_connective` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
-        /// The source-ordered `gi` component retained by the `modal_gi_forethought_connective` syntax node.
+        /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
-        /// The source-ordered `bo` component retained by the `modal_gi_forethought_connective` syntax node.
+        /// The optional `Bo` cmavo marker.
         field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
     }
 
     /// Product node for forethought connective; preserves `gi` and `nai` in source order.
     rule "forethought connective" gik_connective -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `gi` component retained by the `gik_connective` syntax node.
+        /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
-        /// The source-ordered `nai` component retained by the `gik_connective` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Transparent product node for forethought connective; preserves the `gi` component.
     rule "forethought connective" zantufa_extra_gik_connective -> struct {
         #[tree_child(primary)]
-        /// The source-ordered `gi` component retained by the `zantufa_extra_gik_connective` syntax node.
+        /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).warn(ExperimentalZantufaNaryForethought).wf();
     }
 
@@ -3463,7 +3463,7 @@ pub mod generated_model {
             pa_word(),
         ));
         #[tree_child(primary)]
-        /// The source-ordered `body` component retained by the `tense_modal` syntax node.
+        /// The body component of this syntax node.
         field body <- tense_modal_body(selbri);
     }
 
@@ -3477,17 +3477,17 @@ pub mod generated_model {
 
     /// Product node for connected tag; preserves `first` and `continuations` in source order.
     rule "connected tag" connected_tense_modal(selbri) -> struct {
-        /// The source-ordered `first` component retained by the `connected_tense_modal` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(tense_modal_atom(selbri));
-        /// The source-ordered `continuations` component retained by the `connected_tense_modal` syntax node.
+        /// Non-empty ordered sequence of continuations components.
         field continuations <- [one_or_more connected_tense_modal_continuation(selbri)];
     }
 
     /// Product node for connected tag continuation; preserves `connective` and `tense_modal` in source order.
     rule "connected tag continuation" connected_tense_modal_continuation(selbri) -> struct {
-        /// The source-ordered `connective` component retained by the `connected_tense_modal_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- tense_modal_connective;
-        /// The source-ordered `tense_modal` component retained by the `connected_tense_modal_continuation` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal_atom(selbri));
     }
 
@@ -3521,17 +3521,17 @@ pub mod generated_model {
 
     /// Product node for FIhO modal; preserves `fiho`, `selbri`, and `fehu` in source order.
     rule "FIhO modal" fiho_tense(selbri) -> struct {
-        /// The source-ordered `fiho` component retained by the `fiho_tense` syntax node.
+        /// The `Fiho` cmavo marker.
         field fiho <- cmavo(Fiho).wf();
-        /// The source-ordered `selbri` component retained by the `fiho_tense` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
-        /// The source-ordered `fehu` component retained by the `fiho_tense` syntax node.
+        /// The optional `Fehu` cmavo marker.
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
 
     /// Transparent product node for tag; preserves the `fa` component.
     rule "tag" fa_flat_tag_tense -> struct {
-        /// The source-ordered `fa` component retained by the `fa_flat_tag_tense` syntax node.
+        /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
     }
 
@@ -3547,53 +3547,53 @@ pub mod generated_model {
 
     /// Transparent product node for tag; preserves the `fa` component.
     rule "tag" fa_flat_tag_atom -> struct {
-        /// The source-ordered `fa` component retained by the `fa_flat_tag_atom` syntax node.
+        /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
     }
 
     /// Transparent product node for modal tag; preserves the `modal` component.
     rule "modal tag" modal_flat_tag_atom -> struct {
-        /// The source-ordered `modal` component retained by the `modal_flat_tag_atom` syntax node.
+        /// The shared modal child syntax node.
         field modal <- arc(modal_tense());
     }
 
     /// Transparent product node for tag; preserves the `composite` component.
     rule "tag" composite_flat_tag_atom -> struct {
-        /// The source-ordered `composite` component retained by the `composite_flat_tag_atom` syntax node.
+        /// The shared composite child syntax node.
         field composite <- arc(composite_tense());
     }
 
     /// Product node for tag; preserves `nahe`, `se`, and `atom` in source order.
     rule "tag" nahe_se_flat_prefixed_tense -> struct {
-        /// The source-ordered `nahe` component retained by the `nahe_se_flat_prefixed_tense` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).warn(ExperimentalFlattenedTag).wf();
-        /// The source-ordered `se` component retained by the `nahe_se_flat_prefixed_tense` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se).wf());
-        /// The source-ordered `atom` component retained by the `nahe_se_flat_prefixed_tense` syntax node.
+        /// The atom component of this syntax node.
         field atom <- flat_tag_atom();
     }
 
     /// Product node for tag; preserves `se` and `atom` in source order.
     rule "tag" se_flat_prefixed_tense -> struct {
-        /// The source-ordered `se` component retained by the `se_flat_prefixed_tense` syntax node.
+        /// A word from selmaho `Se`.
         field se <- selmaho(Se).warn(ExperimentalFlattenedTag).wf();
-        /// The source-ordered `atom` component retained by the `se_flat_prefixed_tense` syntax node.
+        /// The atom component of this syntax node.
         field atom <- flat_tag_atom();
     }
 
     /// Product node for tag; preserves `first_prefix`, `additional_prefixes`, and `atom` in source order.
     rule "tag" zantufa_recursive_tag_tense -> struct {
-        /// The source-ordered `first_prefix` component retained by the `zantufa_recursive_tag_tense` syntax node.
+        /// The first prefix component of this syntax node.
         field first_prefix <- choice((
             selmaho(Nahe),
             selmaho(Se),
         )).warn(ExperimentalZantufaRecursiveTag).wf();
-        /// The source-ordered `additional_prefixes` component retained by the `zantufa_recursive_tag_tense` syntax node.
+        /// Ordered sequence of zero or more additional prefixes components.
         field additional_prefixes <- [zero_or_more choice((
             selmaho(Nahe),
             selmaho(Se),
         )).wf()];
-        /// The source-ordered `atom` component retained by the `zantufa_recursive_tag_tense` syntax node.
+        /// The atom component of this syntax node.
         field atom <- choice((
             selmaho(Fa).warn(ExperimentalFaAsTag),
             selmaho(Pu),
@@ -3622,19 +3622,19 @@ pub mod generated_model {
 
     /// Product node for tag; preserves `nahe`, `tense`, and `ki` in source order.
     rule "tag" prefixed_time_space_caha_tense -> struct {
-        /// The source-ordered `nahe` component retained by the `prefixed_time_space_caha_tense` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
-        /// The source-ordered `tense` component retained by the `prefixed_time_space_caha_tense` syntax node.
+        /// The shared tense child syntax node.
         field tense <- arc(time_space_caha_tense);
-        /// The source-ordered `ki` component retained by the `prefixed_time_space_caha_tense` syntax node.
+        /// The optional ki component.
         field ki <- opt(arc(ki_composite_tense()));
     }
 
     /// Product node for tag; preserves `tense` and `ki` in source order.
     rule "tag" time_space_caha_ki_tense -> struct {
-        /// The source-ordered `tense` component retained by the `time_space_caha_ki_tense` syntax node.
+        /// The shared tense child syntax node.
         field tense <- arc(time_space_caha_tense);
-        /// The source-ordered `ki` component retained by the `time_space_caha_ki_tense` syntax node.
+        /// The optional ki component.
         field ki <- opt(arc(ki_composite_tense()));
     }
 
@@ -3650,21 +3650,21 @@ pub mod generated_model {
 
     /// Product node for time tense; preserves `time`, `space`, and `caha` in source order.
     rule "time tense" time_then_space_caha_tense -> struct {
-        /// The source-ordered `time` component retained by the `time_then_space_caha_tense` syntax node.
+        /// The shared time child syntax node.
         field time <- arc(time_tense);
-        /// The source-ordered `space` component retained by the `time_then_space_caha_tense` syntax node.
+        /// The optional space component.
         field space <- opt(arc(space_tense));
-        /// The source-ordered `caha` component retained by the `time_then_space_caha_tense` syntax node.
+        /// The optional caha component.
         field caha <- opt(arc(caha_tense()));
     }
 
     /// Product node for space tense; preserves `space`, `time`, and `caha` in source order.
     rule "space tense" space_then_time_caha_tense -> struct {
-        /// The source-ordered `space` component retained by the `space_then_time_caha_tense` syntax node.
+        /// The shared space child syntax node.
         field space <- arc(space_tense);
-        /// The source-ordered `time` component retained by the `space_then_time_caha_tense` syntax node.
+        /// The optional time component.
         field time <- opt(arc(time_tense));
-        /// The source-ordered `caha` component retained by the `space_then_time_caha_tense` syntax node.
+        /// The optional caha component.
         field caha <- opt(arc(caha_tense()));
     }
 
@@ -3682,49 +3682,49 @@ pub mod generated_model {
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
     rule "time tense" time_tense_with_zi -> struct {
-        /// The source-ordered `zi` component retained by the `time_tense_with_zi` syntax node.
+        /// The shared zi child syntax node.
         field zi <- arc(zi_time_distance_tense());
-        /// The source-ordered `offsets` component retained by the `time_tense_with_zi` syntax node.
+        /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(pu_time_offset_tense())];
-        /// The source-ordered `zeha` component retained by the `time_tense_with_zi` syntax node.
+        /// The optional zeha component.
         field zeha <- opt(arc(zeha_time_interval_tense()));
-        /// The source-ordered `properties` component retained by the `time_tense_with_zi` syntax node.
+        /// Ordered sequence of zero or more properties components.
         field properties <- [zero_or_more arc(interval_property_tense)];
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
     rule "time tense" time_tense_with_offset -> struct {
-        /// The source-ordered `zi` component retained by the `time_tense_with_offset` syntax node.
+        /// The optional zi component.
         field zi <- opt(arc(zi_time_distance_tense()));
-        /// The source-ordered `offsets` component retained by the `time_tense_with_offset` syntax node.
+        /// Non-empty ordered sequence of offsets components.
         field offsets <- [one_or_more arc(pu_time_offset_tense())];
-        /// The source-ordered `zeha` component retained by the `time_tense_with_offset` syntax node.
+        /// The optional zeha component.
         field zeha <- opt(arc(zeha_time_interval_tense()));
-        /// The source-ordered `properties` component retained by the `time_tense_with_offset` syntax node.
+        /// Ordered sequence of zero or more properties components.
         field properties <- [zero_or_more arc(interval_property_tense)];
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
     rule "time tense" time_tense_with_interval -> struct {
-        /// The source-ordered `zi` component retained by the `time_tense_with_interval` syntax node.
+        /// The optional zi component.
         field zi <- opt(arc(zi_time_distance_tense()));
-        /// The source-ordered `offsets` component retained by the `time_tense_with_interval` syntax node.
+        /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(pu_time_offset_tense())];
-        /// The source-ordered `zeha` component retained by the `time_tense_with_interval` syntax node.
+        /// The shared zeha child syntax node.
         field zeha <- arc(zeha_time_interval_tense());
-        /// The source-ordered `properties` component retained by the `time_tense_with_interval` syntax node.
+        /// Ordered sequence of zero or more properties components.
         field properties <- [zero_or_more arc(interval_property_tense)];
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
     rule "time tense" time_tense_with_properties -> struct {
-        /// The source-ordered `zi` component retained by the `time_tense_with_properties` syntax node.
+        /// The optional zi component.
         field zi <- opt(arc(zi_time_distance_tense()));
-        /// The source-ordered `offsets` component retained by the `time_tense_with_properties` syntax node.
+        /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(pu_time_offset_tense())];
-        /// The source-ordered `zeha` component retained by the `time_tense_with_properties` syntax node.
+        /// The optional zeha component.
         field zeha <- opt(arc(zeha_time_interval_tense()));
-        /// The source-ordered `properties` component retained by the `time_tense_with_properties` syntax node.
+        /// Non-empty ordered sequence of properties components.
         field properties <- [one_or_more arc(interval_property_tense)];
     }
 
@@ -3740,19 +3740,19 @@ pub mod generated_model {
 
     /// Product node for interval property; preserves `number`, `roi`, and `nai` in source order.
     rule "interval property" numbered_interval_property_tense -> struct {
-        /// The source-ordered `number` component retained by the `numbered_interval_property_tense` syntax node.
+        /// The number component of this syntax node.
         field number <- interval_property_number_words().wf();
-        /// The source-ordered `roi` component retained by the `numbered_interval_property_tense` syntax node.
+        /// A word from selmaho `Roi`.
         field roi <- selmaho(Roi).wf();
-        /// The source-ordered `nai` component retained by the `numbered_interval_property_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for number; preserves `first_number` and `continuations` in source order.
     rule "number" interval_property_number_words -> struct {
-        /// The source-ordered `first_number` component retained by the `interval_property_number_words` syntax node.
+        /// The first number component of this syntax node.
         field first_number <- pa_word();
-        /// The source-ordered `continuations` component retained by the `interval_property_number_words` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more interval_property_number_word_continuation];
     }
 
@@ -3766,53 +3766,53 @@ pub mod generated_model {
 
     /// Transparent product node for number continuation; preserves the `pa` component.
     rule "number continuation" interval_property_number_pa_continuation -> struct {
-        /// The source-ordered `pa` component retained by the `interval_property_number_pa_continuation` syntax node.
+        /// The pa component of this syntax node.
         field pa <- pa_word();
     }
 
     /// Transparent product node for number continuation; preserves the `letter` component.
     rule "number continuation" interval_property_number_letter_continuation -> struct {
-        /// The source-ordered `letter` component retained by the `interval_property_number_letter_continuation` syntax node.
+        /// The letter component of this syntax node.
         field letter <- word_category(LetterWord);
     }
 
     /// Product node for interval property; preserves `tahe` and `nai` in source order.
     rule "interval property" tahe_interval_property_tense -> struct {
-        /// The source-ordered `tahe` component retained by the `tahe_interval_property_tense` syntax node.
+        /// A word from selmaho `Tahe`.
         field tahe <- selmaho(Tahe).wf();
-        /// The source-ordered `nai` component retained by the `tahe_interval_property_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for interval property; preserves `zaho` and `nai` in source order.
     rule "interval property" zaho_interval_property_tense -> struct {
-        /// The source-ordered `zaho` component retained by the `zaho_interval_property_tense` syntax node.
+        /// A word from selmaho `Zaho`.
         field zaho <- selmaho(Zaho).wf();
-        /// The source-ordered `nai` component retained by the `zaho_interval_property_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for time tense; preserves `pu`, `nai`, and `distance` in source order.
     rule "time tense" pu_time_offset_tense -> struct {
-        /// The source-ordered `pu` component retained by the `pu_time_offset_tense` syntax node.
+        /// A word from selmaho `Pu`.
         field pu <- selmaho(Pu).wf();
-        /// The source-ordered `nai` component retained by the `pu_time_offset_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `distance` component retained by the `pu_time_offset_tense` syntax node.
+        /// The optional distance component.
         field distance <- opt(selmaho(Zi).wf());
     }
 
     /// Transparent product node for time tense; preserves the `zi` component.
     rule "time tense" zi_time_distance_tense -> struct {
-        /// The source-ordered `zi` component retained by the `zi_time_distance_tense` syntax node.
+        /// A word from selmaho `Zi`.
         field zi <- selmaho(Zi).wf();
     }
 
     /// Product node for time interval; preserves `zeha` and `direction` in source order.
     rule "time interval" zeha_time_interval_tense -> struct {
-        /// The source-ordered `zeha` component retained by the `zeha_time_interval_tense` syntax node.
+        /// A word from selmaho `Zeha`.
         field zeha <- selmaho(Zeha).wf();
-        /// The source-ordered `direction` component retained by the `zeha_time_interval_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field direction <- opt((selmaho(Pu).wf(), opt(cmavo(Nai).wf())));
     }
 
@@ -3830,73 +3830,73 @@ pub mod generated_model {
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
     rule "space tense" space_tense_with_va -> struct {
-        /// The source-ordered `va` component retained by the `space_tense_with_va` syntax node.
+        /// The shared va child syntax node.
         field va <- arc(va_space_distance_tense());
-        /// The source-ordered `offsets` component retained by the `space_tense_with_va` syntax node.
+        /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(faha_space_offset_tense())];
-        /// The source-ordered `interval` component retained by the `space_tense_with_va` syntax node.
+        /// The optional interval component.
         field interval <- opt(arc(space_interval_tense));
-        /// The source-ordered `mohi` component retained by the `space_tense_with_va` syntax node.
+        /// The optional mohi component.
         field mohi <- opt(arc(mohi_space_offset_tense()));
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
     rule "space tense" space_tense_with_offset -> struct {
-        /// The source-ordered `va` component retained by the `space_tense_with_offset` syntax node.
+        /// The optional va component.
         field va <- opt(arc(va_space_distance_tense()));
-        /// The source-ordered `offsets` component retained by the `space_tense_with_offset` syntax node.
+        /// Non-empty ordered sequence of offsets components.
         field offsets <- [one_or_more arc(faha_space_offset_tense())];
-        /// The source-ordered `interval` component retained by the `space_tense_with_offset` syntax node.
+        /// The optional interval component.
         field interval <- opt(arc(space_interval_tense));
-        /// The source-ordered `mohi` component retained by the `space_tense_with_offset` syntax node.
+        /// The optional mohi component.
         field mohi <- opt(arc(mohi_space_offset_tense()));
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
     rule "space tense" space_tense_with_interval -> struct {
-        /// The source-ordered `va` component retained by the `space_tense_with_interval` syntax node.
+        /// The optional va component.
         field va <- opt(arc(va_space_distance_tense()));
-        /// The source-ordered `offsets` component retained by the `space_tense_with_interval` syntax node.
+        /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(faha_space_offset_tense())];
-        /// The source-ordered `interval` component retained by the `space_tense_with_interval` syntax node.
+        /// The shared interval child syntax node.
         field interval <- arc(space_interval_tense);
-        /// The source-ordered `mohi` component retained by the `space_tense_with_interval` syntax node.
+        /// The optional mohi component.
         field mohi <- opt(arc(mohi_space_offset_tense()));
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
     rule "space tense" space_tense_with_mohi -> struct {
-        /// The source-ordered `va` component retained by the `space_tense_with_mohi` syntax node.
+        /// The optional va component.
         field va <- opt(arc(va_space_distance_tense()));
-        /// The source-ordered `offsets` component retained by the `space_tense_with_mohi` syntax node.
+        /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(faha_space_offset_tense())];
-        /// The source-ordered `interval` component retained by the `space_tense_with_mohi` syntax node.
+        /// The optional interval component.
         field interval <- opt(arc(space_interval_tense));
-        /// The source-ordered `mohi` component retained by the `space_tense_with_mohi` syntax node.
+        /// The shared mohi child syntax node.
         field mohi <- arc(mohi_space_offset_tense());
     }
 
     /// Transparent product node for space tense; preserves the `va` component.
     rule "space tense" va_space_distance_tense -> struct {
-        /// The source-ordered `va` component retained by the `va_space_distance_tense` syntax node.
+        /// A word from selmaho `Va`.
         field va <- selmaho(Va).wf();
     }
 
     /// Product node for space tense; preserves `faha`, `nai`, and `distance` in source order.
     rule "space tense" faha_space_offset_tense -> struct {
-        /// The source-ordered `faha` component retained by the `faha_space_offset_tense` syntax node.
+        /// A word from selmaho `Faha`.
         field faha <- selmaho(Faha).wf();
-        /// The source-ordered `nai` component retained by the `faha_space_offset_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `distance` component retained by the `faha_space_offset_tense` syntax node.
+        /// The optional distance component.
         field distance <- opt(selmaho(Va).wf());
     }
 
     /// Product node for space interval; preserves `faha` and `nai` in source order.
     rule "space interval" faha_interval_direction_tense -> struct {
-        /// The source-ordered `faha` component retained by the `faha_interval_direction_tense` syntax node.
+        /// A word from selmaho `Faha`.
         field faha <- selmaho(Faha).wf();
-        /// The source-ordered `nai` component retained by the `faha_interval_direction_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
@@ -3910,11 +3910,11 @@ pub mod generated_model {
 
     /// Product node for space interval; preserves `extent`, `direction`, and `properties` in source order.
     rule "space interval" space_interval_with_extent_tense -> struct {
-        /// The source-ordered `extent` component retained by the `space_interval_with_extent_tense` syntax node.
+        /// The shared extent child syntax node.
         field extent <- arc(space_interval_extent_tense);
-        /// The source-ordered `direction` component retained by the `space_interval_with_extent_tense` syntax node.
+        /// The optional direction component.
         field direction <- opt(arc(faha_interval_direction_tense()));
-        /// The source-ordered `properties` component retained by the `space_interval_with_extent_tense` syntax node.
+        /// The optional properties component.
         field properties <- opt(arc(space_interval_properties_tense()));
     }
 
@@ -3928,77 +3928,77 @@ pub mod generated_model {
 
     /// Product node for space interval; preserves `first` and `additional` in source order.
     rule "space interval" space_interval_properties_tense -> struct {
-        /// The source-ordered `first` component retained by the `space_interval_properties_tense` syntax node.
+        /// The shared first child syntax node.
         field first <- arc(fehe_interval_property_tense());
-        /// The source-ordered `additional` component retained by the `space_interval_properties_tense` syntax node.
+        /// Ordered sequence of zero or more additional components.
         field additional <- [zero_or_more arc(fehe_interval_property_tense())];
     }
 
     /// Product node for space interval; preserves `veha` and `viha` in source order.
     rule "space interval" veha_space_interval_tense -> struct {
-        /// The source-ordered `veha` component retained by the `veha_space_interval_tense` syntax node.
+        /// A word from selmaho `Veha`.
         field veha <- selmaho(Veha).wf();
-        /// The source-ordered `viha` component retained by the `veha_space_interval_tense` syntax node.
+        /// The optional viha component.
         field viha <- opt(selmaho(Viha).wf());
     }
 
     /// Transparent product node for space interval; preserves the `viha` component.
     rule "space interval" viha_space_interval_tense -> struct {
-        /// The source-ordered `viha` component retained by the `viha_space_interval_tense` syntax node.
+        /// A word from selmaho `Viha`.
         field viha <- selmaho(Viha).wf();
     }
 
     /// Product node for space interval property; preserves `fehe` and `property` in source order.
     rule "space interval property" fehe_interval_property_tense -> struct {
-        /// The source-ordered `fehe` component retained by the `fehe_interval_property_tense` syntax node.
+        /// The `Fehe` cmavo marker.
         field fehe <- cmavo(Fehe).wf();
-        /// The source-ordered `property` component retained by the `fehe_interval_property_tense` syntax node.
+        /// The shared property child syntax node.
         field property <- arc(interval_property_tense);
     }
 
     /// Product node for space tense; preserves `mohi` and `offset` in source order.
     rule "space tense" mohi_space_offset_tense -> struct {
-        /// The source-ordered `mohi` component retained by the `mohi_space_offset_tense` syntax node.
+        /// A word from selmaho `Mohi`.
         field mohi <- selmaho(Mohi).wf();
-        /// The source-ordered `offset` component retained by the `mohi_space_offset_tense` syntax node.
+        /// The shared offset child syntax node.
         field offset <- arc(faha_space_offset_tense());
     }
 
     /// Transparent product node for tag; preserves the `caha` component.
     rule "tag" caha_tense -> struct {
-        /// The source-ordered `caha` component retained by the `caha_tense` syntax node.
+        /// A word from selmaho `Caha`.
         field caha <- selmaho(Caha).wf();
     }
 
     /// Transparent product node for tag; preserves the `ki` component.
     rule "tag" ki_composite_tense -> struct {
-        /// The source-ordered `ki` component retained by the `ki_composite_tense` syntax node.
+        /// The `Ki` cmavo marker.
         field ki <- cmavo(Ki).wf();
     }
 
     /// Transparent product node for tag; preserves the `cuhe` component.
     rule "tag" cuhe_tense -> struct {
-        /// The source-ordered `cuhe` component retained by the `cuhe_tense` syntax node.
+        /// A word from selmaho `Cuhe`.
         field cuhe <- selmaho(Cuhe).wf();
     }
 
     /// Product node for modal tag; preserves `nahe`, `se`, `bai`, `nai`, and `ki` in source order.
     rule "modal tag" modal_tense -> struct {
-        /// The source-ordered `nahe` component retained by the `modal_tense` syntax node.
+        /// The optional nahe component.
         field nahe <- opt(selmaho(Nahe).wf());
-        /// The source-ordered `se` component retained by the `modal_tense` syntax node.
+        /// The optional se component.
         field se <- opt(selmaho(Se).wf());
-        /// The source-ordered `bai` component retained by the `modal_tense` syntax node.
+        /// A word from selmaho `Bai`.
         field bai <- selmaho(Bai).wf();
-        /// The source-ordered `nai` component retained by the `modal_tense` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `ki` component retained by the `modal_tense` syntax node.
+        /// The optional `Ki` cmavo marker.
         field ki <- opt(cmavo(Ki).wf());
     }
 
     /// Transparent product node for tag; preserves the `ki` component.
     rule "tag" sticky_tense -> struct {
-        /// The source-ordered `ki` component retained by the `sticky_tense` syntax node.
+        /// The `Ki` cmavo marker.
         field ki <- cmavo(Ki).wf();
     }
 
@@ -4022,94 +4022,94 @@ pub mod generated_model {
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
     rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal, statement) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `tagged_selbri` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
-        /// The source-ordered `inner_selbri` component retained by the `tagged_selbri` syntax node.
+        /// The shared inner selbri child syntax node.
         field inner_selbri <- arc(untagged_selbri(selbri, co_selbri, statement));
     }
 
     /// Product node for negated selbri; preserves `na` and `inner_selbri` in source order.
     rule "negated selbri" negated_selbri(selbri) -> struct {
-        /// The source-ordered `na` component retained by the `negated_selbri` syntax node.
+        /// A word from selmaho `Na`.
         field na <- selmaho(Na).not_next_selmaho(Ku).wf();
-        /// The source-ordered `inner_selbri` component retained by the `negated_selbri` syntax node.
+        /// The shared inner selbri child syntax node.
         field inner_selbri <- arc(selbri);
     }
 
     /// Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.
     rule "selbri" co_selbri(co_selbri, tanru_unit, statement) -> struct {
-        /// The source-ordered `leading_selbri` component retained by the `co_selbri` syntax node.
+        /// The shared leading selbri child syntax node.
         field leading_selbri <- arc(connected_selbri(tanru_unit, statement));
-        /// The source-ordered `co_tail` component retained by the `co_selbri` syntax node.
+        /// The optional co tail component.
         field co_tail <- opt(co_selbri_tail(co_selbri));
     }
 
     /// Product node for selbri; preserves `co` and `trailing_selbri` in source order.
     rule "selbri" co_selbri_tail(co_selbri) -> struct {
-        /// The source-ordered `co` component retained by the `co_selbri_tail` syntax node.
+        /// The `Co` cmavo marker.
         field co <- cmavo(Co).wf();
-        /// The source-ordered `trailing_selbri` component retained by the `co_selbri_tail` syntax node.
+        /// The shared trailing selbri child syntax node.
         field trailing_selbri <- arc(co_selbri);
     }
 
     /// Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.
     rule "forethought selbri connection" forethought_selbri_connection(selbri) -> struct {
-        /// The source-ordered `guhek` component retained by the `forethought_selbri_connection` syntax node.
+        /// The guhek component of this syntax node.
         field guhek <- guhek_connective;
-        /// The source-ordered `leading_selbri` component retained by the `forethought_selbri_connection` syntax node.
+        /// The shared leading selbri child syntax node.
         field leading_selbri <- arc(selbri);
-        /// The source-ordered `first_branch` component retained by the `forethought_selbri_connection` syntax node.
+        /// The first branch component of this syntax node.
         field first_branch <- forethought_selbri_branch(selbri);
-        /// The source-ordered `additional_branches` component retained by the `forethought_selbri_connection` syntax node.
+        /// Ordered sequence of zero or more additional branches components.
         field additional_branches <- [zero_or_more zantufa_forethought_selbri_branch(selbri)];
-        /// The source-ordered `gihi` component retained by the `forethought_selbri_connection` syntax node.
+        /// The optional gihi component.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
     }
 
     /// Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.
     rule "forethought selbri connection" forethought_selbri_branch(selbri) -> struct {
-        /// The source-ordered `gik` component retained by the `forethought_selbri_branch` syntax node.
+        /// The gik component of this syntax node.
         field gik <- gik_connective;
-        /// The source-ordered `selbri` component retained by the `forethought_selbri_branch` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
     }
 
     /// Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.
     rule "forethought selbri connection" zantufa_forethought_selbri_branch(selbri) -> struct {
         assert feature(ZantufaConnectives);
-        /// The source-ordered `gik` component retained by the `zantufa_forethought_selbri_branch` syntax node.
+        /// The gik component of this syntax node.
         field gik <- zantufa_extra_gik_connective;
-        /// The source-ordered `selbri` component retained by the `zantufa_forethought_selbri_branch` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
     }
 
     /// Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.
     rule "selbri connection" connected_selbri(tanru_unit, statement) -> struct {
-        /// The source-ordered `leading_selbri` component retained by the `connected_selbri` syntax node.
+        /// The shared leading selbri child syntax node.
         field leading_selbri <- arc(tanru_selbri(tanru_unit, statement));
-        /// The source-ordered `continuations` component retained by the `connected_selbri` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more connected_selbri_continuation(tanru_unit, statement)];
     }
 
     /// Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.
     rule "selbri connection continuation" connected_selbri_continuation(tanru_unit, statement) -> struct {
-        /// The source-ordered `connective` component retained by the `connected_selbri_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- relation_afterthought_connective;
-        /// The source-ordered `trailing_selbri` component retained by the `connected_selbri_continuation` syntax node.
+        /// The shared trailing selbri child syntax node.
         field trailing_selbri <- arc(tanru_selbri(tanru_unit, statement));
     }
 
     /// Product node for tanru; preserves `first_unit` and `additional_units` in source order.
     rule "tanru" tanru_selbri(tanru_unit, statement) -> struct {
-        /// The source-ordered `first_unit` component retained by the `tanru_selbri` syntax node.
+        /// The first unit component of this syntax node.
         field first_unit <- tanru_unit;
-        /// The source-ordered `additional_units` component retained by the `tanru_selbri` syntax node.
+        /// Ordered sequence of zero or more additional units components.
         field additional_units <- [zero_or_more tanru_unit];
     }
 
     /// Transparent product node for tanru unit; preserves the `units` component.
     rule "tanru unit" tanru_unit(bo_or_linked_tanru_unit, statement) -> struct {
-        /// The source-ordered `units` component retained by the `tanru_unit` syntax node.
+        /// The units component of this syntax node.
         field units <- chain(
             first: arc(bo_or_linked_tanru_unit),
             zero_or_more: tanru_unit_continuation(bo_or_linked_tanru_unit, statement),
@@ -4119,9 +4119,9 @@ pub mod generated_model {
 
     /// Product node for tanru unit continuation; preserves `connective` and `trailing_unit` in source order.
     rule "tanru unit continuation" tanru_unit_continuation(bo_or_linked_tanru_unit, statement) -> struct {
-        /// The source-ordered `connective` component retained by the `tanru_unit_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- relation_afterthought_connective;
-        /// The source-ordered `trailing_unit` component retained by the `tanru_unit_continuation` syntax node.
+        /// The shared trailing unit child syntax node.
         field trailing_unit <- arc(bo_or_linked_tanru_unit);
     }
 
@@ -4139,86 +4139,86 @@ pub mod generated_model {
 
     /// Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.
     rule "forethought selbri connection" forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri, statement) -> struct {
-        /// The source-ordered `guhek` component retained by the `forethought_selbri_group_tanru_unit` syntax node.
+        /// The guhek component of this syntax node.
         field guhek <- guhek_connective;
-        /// The source-ordered `leading_selbri` component retained by the `forethought_selbri_group_tanru_unit` syntax node.
+        /// The shared leading selbri child syntax node.
         field leading_selbri <- arc(selbri);
-        /// The source-ordered `first_branch` component retained by the `forethought_selbri_group_tanru_unit` syntax node.
+        /// The first branch component of this syntax node.
         field first_branch <- forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement);
-        /// The source-ordered `additional_branches` component retained by the `forethought_selbri_group_tanru_unit` syntax node.
+        /// Ordered sequence of zero or more additional branches components.
         field additional_branches <- [zero_or_more zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement)];
-        /// The source-ordered `gihi` component retained by the `forethought_selbri_group_tanru_unit` syntax node.
+        /// The optional gihi component.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
     }
 
     /// Product node for forethought selbri connection; preserves `gik` and `unit` in source order.
     rule "forethought selbri connection" forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement) -> struct {
-        /// The source-ordered `gik` component retained by the `forethought_selbri_group_branch` syntax node.
+        /// The gik component of this syntax node.
         field gik <- gik_connective;
-        /// The source-ordered `unit` component retained by the `forethought_selbri_group_branch` syntax node.
+        /// The shared unit child syntax node.
         field unit <- arc(bo_or_linked_tanru_unit);
     }
 
     /// Product node for forethought selbri connection; preserves `gik` and `unit` in source order.
     rule "forethought selbri connection" zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement) -> struct {
         assert feature(ZantufaConnectives);
-        /// The source-ordered `gik` component retained by the `zantufa_forethought_selbri_group_branch` syntax node.
+        /// The gik component of this syntax node.
         field gik <- zantufa_extra_gik_connective;
-        /// The source-ordered `unit` component retained by the `zantufa_forethought_selbri_group_branch` syntax node.
+        /// The shared unit child syntax node.
         field unit <- arc(bo_or_linked_tanru_unit);
     }
 
     /// Product node for BO-grouped tanru unit; preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit` in source order.
     rule "BO-grouped tanru unit" bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal, statement) -> struct {
-        /// The source-ordered `leading_unit` component retained by the `bound_tanru_unit` syntax node.
+        /// The shared leading unit child syntax node.
         field leading_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement));
-        /// The source-ordered `bo_connective` component retained by the `bound_tanru_unit` syntax node.
+        /// The optional bo connective component.
         field bo_connective <- opt(arc(relation_afterthought_connective));
-        /// The source-ordered `bo_tense_modal` component retained by the `bound_tanru_unit` syntax node.
+        /// The optional bo tense modal component.
         field bo_tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `bo` component retained by the `bound_tanru_unit` syntax node.
+        /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The source-ordered `trailing_unit` component retained by the `bound_tanru_unit` syntax node.
+        /// The shared trailing unit child syntax node.
         field trailing_unit <- arc(bo_or_linked_tanru_unit);
     }
 
     /// Product node for pro-bridi assignment; preserves `base` and `assignments` in source order.
     rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
-        /// The source-ordered `base` component retained by the `assigned_pro_bridi_tanru_unit` syntax node.
+        /// The shared base child syntax node.
         field base <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
-        /// The source-ordered `assignments` component retained by the `assigned_pro_bridi_tanru_unit` syntax node.
+        /// Non-empty ordered sequence of assignments components.
         field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement)];
     }
 
     /// Product node for pro-bridi assignment; preserves `cei` and `tanru_unit` in source order.
     rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
-        /// The source-ordered `cei` component retained by the `pro_bridi_tanru_unit_assignment` syntax node.
+        /// The `Cei` cmavo marker.
         field cei <- cmavo(Cei).wf();
-        /// The source-ordered `tanru_unit` component retained by the `pro_bridi_tanru_unit_assignment` syntax node.
+        /// The shared tanru unit child syntax node.
         field tanru_unit <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
     rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement) -> struct {
-        /// The source-ordered `base` component retained by the `linked_tanru_unit` syntax node.
+        /// The shared base child syntax node.
         field base <- arc(tanru_unit_atom);
-        /// The source-ordered `linkargs` component retained by the `linked_tanru_unit` syntax node.
+        /// The optional linkargs component.
         field linkargs <- opt(linkargs(sumti, tense_modal));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
     rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
-        /// The source-ordered `base` component retained by the `linked_tanru_unit_for_cei` syntax node.
+        /// The shared base child syntax node.
         field base <- arc(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
-        /// The source-ordered `linkargs` component retained by the `linked_tanru_unit_for_cei` syntax node.
+        /// The optional linkargs component.
         field linkargs <- opt(linkargs(sumti, tense_modal));
     }
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
     rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
-        /// The source-ordered `conversions` component retained by the `tanru_unit_atom_for_cei` syntax node.
+        /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
-        /// The source-ordered `base` component retained by the `tanru_unit_atom_for_cei` syntax node.
+        /// The shared base child syntax node.
         field base <- arc(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
     }
 
@@ -4264,9 +4264,9 @@ pub mod generated_model {
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
     rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
-        /// The source-ordered `conversions` component retained by the `tanru_unit_atom` syntax node.
+        /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
-        /// The source-ordered `base` component retained by the `tanru_unit_atom` syntax node.
+        /// The shared base child syntax node.
         field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
     }
 
@@ -4312,25 +4312,25 @@ pub mod generated_model {
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
     rule "tagged selbri" tagged_selbri_group_tanru_unit(tanru_unit, tense_modal, statement) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `tagged_selbri_group_tanru_unit` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
-        /// The source-ordered `inner_selbri` component retained by the `tagged_selbri_group_tanru_unit` syntax node.
+        /// The shared inner selbri child syntax node.
         field inner_selbri <- arc(connected_selbri(tanru_unit, statement));
     }
 
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
     rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal, statement) -> struct {
-        /// The source-ordered `linkargs` component retained by the `preposed_linkargs_tanru_unit` syntax node.
+        /// The linkargs component of this syntax node.
         field linkargs <- linkargs(sumti, tense_modal);
-        /// The source-ordered `base` component retained by the `preposed_linkargs_tanru_unit` syntax node.
+        /// The shared base child syntax node.
         field base <- arc(tanru_unit);
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
     rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal, statement) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_tanru_unit` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
-        /// The source-ordered `inner_unit` component retained by the `scalar_negated_tanru_unit` syntax node.
+        /// The shared inner unit child syntax node.
         field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal, statement));
     }
 
@@ -4346,11 +4346,11 @@ pub mod generated_model {
 
     /// Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.
     rule "modal conversion" jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal) -> struct {
-        /// The source-ordered `jai` component retained by the `jai_modal_tanru_unit` syntax node.
+        /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).wf();
-        /// The source-ordered `tense_modal` component retained by the `jai_modal_tanru_unit` syntax node.
+        /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The source-ordered `inner_unit` component retained by the `jai_modal_tanru_unit` syntax node.
+        /// The shared inner unit child syntax node.
         field inner_unit <- arc(jai_inner_tanru_unit);
     }
 
@@ -4382,23 +4382,23 @@ pub mod generated_model {
 
     /// Product node for converted tanru unit; preserves `se` and `inner_unit` in source order.
     rule "converted tanru unit" converted_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
-        /// The source-ordered `se` component retained by the `converted_jai_inner_tanru_unit` syntax node.
+        /// A word from selmaho `Se`.
         field se <- selmaho(Se).wf();
-        /// The source-ordered `inner_unit` component retained by the `converted_jai_inner_tanru_unit` syntax node.
+        /// The shared inner unit child syntax node.
         field inner_unit <- arc(jai_inner_tanru_unit);
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
     rule "scalar-negated tanru unit" scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
-        /// The source-ordered `nahe` component retained by the `scalar_negated_jai_inner_tanru_unit` syntax node.
+        /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
-        /// The source-ordered `inner_unit` component retained by the `scalar_negated_jai_inner_tanru_unit` syntax node.
+        /// The shared inner unit child syntax node.
         field inner_unit <- arc(jai_inner_tanru_unit);
     }
 
     /// Transparent product node for quoted bridi selbri; preserves the `quote` component.
     rule "quoted bridi selbri" quoted_bridi_selbri_tanru_unit -> struct {
-        /// The source-ordered `quote` component retained by the `quoted_bridi_selbri_tanru_unit` syntax node.
+        /// The quote component of this syntax node.
         field quote <- choice((
             quote_marker(Gohoi),
             quote_marker(Zehoi),
@@ -4409,45 +4409,45 @@ pub mod generated_model {
 
     /// Product node for text selbri; preserves `luhei`, `text`, and `lihau` in source order.
     rule "text selbri" text_selbri_tanru_unit(text) -> struct {
-        /// The source-ordered `luhei` component retained by the `text_selbri_tanru_unit` syntax node.
+        /// The `Luhei` cmavo marker.
         field luhei <- cmavo(Luhei).warn(ExperimentalZantufaLuheiSelbriUnit).wf();
-        /// The source-ordered `text` component retained by the `text_selbri_tanru_unit` syntax node.
+        /// The shared text child syntax node.
         field text <- arc(text);
-        /// The source-ordered `lihau` component retained by the `text_selbri_tanru_unit` syntax node.
+        /// The optional `Lihau` cmavo marker.
         field lihau <- opt(cmavo(Lihau).wf()).elidable_terminator(Lihau);
     }
 
     /// Transparent product node for quoted text selbri; preserves the `muhoi` component.
     rule "quoted text selbri" quoted_text_selbri_tanru_unit -> struct {
-        /// The source-ordered `muhoi` component retained by the `quoted_text_selbri_tanru_unit` syntax node.
+        /// The muhoi component of this syntax node.
         field muhoi <- delimited_quote_marker(Muhoi).warn(ExperimentalZantufaMuhoiSelbriUnit).wf();
     }
 
     /// Product node for tag selbri; preserves `xohi` and `tag` in source order.
     rule "tag selbri" tag_selbri_tanru_unit(tense_modal) -> struct {
-        /// The source-ordered `xohi` component retained by the `tag_selbri_tanru_unit` syntax node.
+        /// The `Xohi` cmavo marker.
         field xohi <- cmavo(Xohi).warn(ExperimentalXohiTagSelbri).wf();
-        /// The source-ordered `tag` component retained by the `tag_selbri_tanru_unit` syntax node.
+        /// The shared tag child syntax node.
         field tag <- arc(tense_modal);
     }
 
     /// Product node for ordinal selbri; preserves `number` and `moi` in source order.
     rule "ordinal selbri" ordinal_tanru_unit(letter_tokens, letter_string) -> struct {
-        /// The source-ordered `number` component retained by the `ordinal_tanru_unit` syntax node.
+        /// The number component of this syntax node.
         field number <- number_or_letter_words(letter_tokens, letter_string);
-        /// The source-ordered `moi` component retained by the `ordinal_tanru_unit` syntax node.
+        /// A word from selmaho `Moi`.
         field moi <- selmaho(Moi).wf();
     }
 
     /// Transparent product node for tanru unit; preserves the `word` component.
     rule "tanru unit" word_tanru_unit -> struct {
-        /// The source-ordered `word` component retained by the `word_tanru_unit` syntax node.
+        /// The word component of this syntax node.
         field word <- tanru_unit_relation_word().wf();
     }
 
     /// Transparent product node for tanru unit; preserves the `word` component.
     rule "tanru unit" goha_word_tanru_unit(free_modifier) -> struct {
-        /// The source-ordered `word` component retained by the `goha_word_tanru_unit` syntax node.
+        /// A word from selmaho `Goha`.
         field word <- selmaho(Goha)
             .followed_by(choice((
                 cmavo(Raho).ignored(),
@@ -4460,33 +4460,33 @@ pub mod generated_model {
 
     /// Product node for pro-bridi; preserves `goha` and `raho` in source order.
     rule "pro-bridi" pro_bridi_tanru_unit -> struct {
-        /// The source-ordered `goha` component retained by the `pro_bridi_tanru_unit` syntax node.
+        /// A word from selmaho `Goha`.
         field goha <- selmaho(Goha).wf();
-        /// The source-ordered `raho` component retained by the `pro_bridi_tanru_unit` syntax node.
+        /// The optional `Raho` cmavo marker.
         field raho <- opt(cmavo(Raho).wf());
     }
 
     /// Product node for sumti-to-selbri; preserves `me`, `sumti`, `mehu`, and `moi_marker` in source order.
     rule "sumti-to-selbri" sumti_selbri_tanru_unit(sumti, letter_string) -> struct {
-        /// The source-ordered `me` component retained by the `sumti_selbri_tanru_unit` syntax node.
+        /// The `Me` cmavo marker.
         field me <- cmavo(Me).wf();
-        /// The source-ordered `sumti` component retained by the `sumti_selbri_tanru_unit` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti_selbri_sumti(sumti, letter_string));
-        /// The source-ordered `mehu` component retained by the `sumti_selbri_tanru_unit` syntax node.
+        /// The optional `Mehu` cmavo marker.
         field mehu <- opt(cmavo(Mehu).wf()).elidable_terminator(Mehu);
-        /// The source-ordered `moi_marker` component retained by the `sumti_selbri_tanru_unit` syntax node.
+        /// The optional moi marker component.
         field moi_marker <- opt(selmaho(Moi).wf());
     }
 
     /// Product node for sumti-to-selbri; preserves `me`, `body`, `mehu`, and `moi_marker` in source order.
     rule "sumti-to-selbri" zantufa_me_tanru_unit(mekso, mekso_operator, tense_modal) -> struct {
-        /// The source-ordered `me` component retained by the `zantufa_me_tanru_unit` syntax node.
+        /// The `Me` cmavo marker.
         field me <- cmavo(Me).warn(ExperimentalZantufaMex).wf();
-        /// The source-ordered `body` component retained by the `zantufa_me_tanru_unit` syntax node.
+        /// The shared body child syntax node.
         field body <- arc(zantufa_me_selbri_body(mekso, mekso_operator, tense_modal));
-        /// The source-ordered `mehu` component retained by the `zantufa_me_tanru_unit` syntax node.
+        /// The optional `Mehu` cmavo marker.
         field mehu <- opt(cmavo(Mehu).wf()).elidable_terminator(Mehu);
-        /// The source-ordered `moi_marker` component retained by the `zantufa_me_tanru_unit` syntax node.
+        /// The optional moi marker component.
         field moi_marker <- opt(selmaho(Moi).wf());
     }
 
@@ -4502,27 +4502,27 @@ pub mod generated_model {
 
     /// Transparent product node for sumti-to-selbri; preserves the `operators` component.
     rule "sumti-to-selbri" zantufa_me_operator_selbri_body(mekso_operator) -> struct {
-        /// The source-ordered `operators` component retained by the `zantufa_me_operator_selbri_body` syntax node.
+        /// Non-empty ordered sequence of operators components.
         field operators <- [one_or_more mekso_operator];
     }
 
     /// Transparent product node for sumti-to-selbri; preserves the `expression` component.
     rule "sumti-to-selbri" zantufa_me_mekso_selbri_body(mekso) -> struct {
-        /// The source-ordered `expression` component retained by the `zantufa_me_mekso_selbri_body` syntax node.
+        /// The shared expression child syntax node.
         field expression <- arc(mekso);
     }
 
     /// Transparent product node for sumti-to-selbri; preserves the `tag` component.
     rule "sumti-to-selbri" zantufa_me_tag_selbri_body(tense_modal) -> struct {
-        /// The source-ordered `tag` component retained by the `zantufa_me_tag_selbri_body` syntax node.
+        /// The shared tag child syntax node.
         field tag <- arc(tense_modal);
     }
 
     /// Product node for mex selbri; preserves `expression` and `moi` in source order.
     rule "mex selbri" zantufa_mex_moi_tanru_unit(mekso) -> struct {
-        /// The source-ordered `expression` component retained by the `zantufa_mex_moi_tanru_unit` syntax node.
+        /// A word from selmaho `Moi`.
         field expression: std::sync::Arc<MeksoSyntax> <- arc(mekso.complete_before_selmaho(Moi));
-        /// The source-ordered `moi` component retained by the `zantufa_mex_moi_tanru_unit` syntax node.
+        /// A word from selmaho `Moi`.
         field moi <- selmaho(Moi).warn(ExperimentalZantufaMex).wf();
     }
 
@@ -4536,59 +4536,59 @@ pub mod generated_model {
 
     /// Transparent product node for lerfu string; preserves the `words` component.
     rule "lerfu string" me_lerfu_sumti(letter_string) -> struct {
-        /// The source-ordered `words` component retained by the `me_lerfu_sumti` syntax node.
+        /// The words component of this syntax node.
         field words <- letter_string;
     }
 
     /// Product node for operator-to-selbri; preserves `nuha` and `mekso_operator` in source order.
     rule "operator-to-selbri" operator_selbri_tanru_unit(mekso_operator) -> struct {
-        /// The source-ordered `nuha` component retained by the `operator_selbri_tanru_unit` syntax node.
+        /// The `Nuha` cmavo marker.
         field nuha <- cmavo(Nuha).wf();
-        /// The source-ordered `mekso_operator` component retained by the `operator_selbri_tanru_unit` syntax node.
+        /// The shared mekso operator child syntax node.
         field mekso_operator <- arc(mekso_operator);
     }
 
     /// Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.
     rule "grouped tanru" grouped_tanru_unit(tanru_unit, statement) -> struct {
-        /// The source-ordered `ke` component retained by the `grouped_tanru_unit` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `selbri` component retained by the `grouped_tanru_unit` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(connected_selbri(tanru_unit, statement));
-        /// The source-ordered `kehe` component retained by the `grouped_tanru_unit` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.
     rule "grouped tanru" grouped_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
-        /// The source-ordered `ke` component retained by the `grouped_jai_inner_tanru_unit` syntax node.
+        /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
-        /// The source-ordered `selbri` component retained by the `grouped_jai_inner_tanru_unit` syntax node.
+        /// The shared selbri child syntax node.
         field selbri <- arc(connected_jai_inner_selbri(jai_inner_tanru_unit));
-        /// The source-ordered `kehe` component retained by the `grouped_jai_inner_tanru_unit` syntax node.
+        /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.
     rule "selbri connection" connected_jai_inner_selbri(jai_inner_tanru_unit) -> struct {
-        /// The source-ordered `leading_selbri` component retained by the `connected_jai_inner_selbri` syntax node.
+        /// The shared leading selbri child syntax node.
         field leading_selbri <- arc(tanru_jai_inner_selbri(jai_inner_tanru_unit));
-        /// The source-ordered `continuations` component retained by the `connected_jai_inner_selbri` syntax node.
+        /// Ordered sequence of zero or more continuations components.
         field continuations <- [zero_or_more connected_jai_inner_selbri_continuation(jai_inner_tanru_unit)];
     }
 
     /// Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.
     rule "selbri connection continuation" connected_jai_inner_selbri_continuation(jai_inner_tanru_unit) -> struct {
-        /// The source-ordered `connective` component retained by the `connected_jai_inner_selbri_continuation` syntax node.
+        /// The connective component of this syntax node.
         field connective <- relation_afterthought_connective;
-        /// The source-ordered `trailing_selbri` component retained by the `connected_jai_inner_selbri_continuation` syntax node.
+        /// The shared trailing selbri child syntax node.
         field trailing_selbri <- arc(tanru_jai_inner_selbri(jai_inner_tanru_unit));
     }
 
     /// Product node for selbri; preserves `first_unit` and `additional_units` in source order.
     rule "selbri" tanru_jai_inner_selbri(jai_inner_tanru_unit) -> struct {
-        /// The source-ordered `first_unit` component retained by the `tanru_jai_inner_selbri` syntax node.
+        /// The first unit component of this syntax node.
         field first_unit <- jai_inner_tanru_unit;
-        /// The source-ordered `additional_units` component retained by the `tanru_jai_inner_selbri` syntax node.
+        /// Ordered sequence of zero or more additional units components.
         field additional_units <- [zero_or_more jai_inner_tanru_unit];
     }
 
@@ -4606,23 +4606,23 @@ pub mod generated_model {
 
     /// Product node for linked arguments; preserves `fa` and `sumti` in source order.
     rule "linked arguments" place_tagged_linked_sumti(sumti) -> struct {
-        /// The source-ordered `fa` component retained by the `place_tagged_linked_sumti` syntax node.
+        /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).wf();
-        /// The source-ordered `sumti` component retained by the `place_tagged_linked_sumti` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
 
     /// Product node for linked arguments; preserves `tense_modal` and `sumti` in source order.
     rule "linked arguments" tense_tagged_linked_sumti(sumti, tense_modal) -> struct {
-        /// The source-ordered `tense_modal` component retained by the `tense_tagged_linked_sumti` syntax node.
+        /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
-        /// The source-ordered `sumti` component retained by the `tense_tagged_linked_sumti` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
 
     /// Transparent product node for linked arguments; preserves the `sumti` component.
     rule "linked arguments" plain_linked_sumti(sumti) -> struct {
-        /// The source-ordered `sumti` component retained by the `plain_linked_sumti` syntax node.
+        /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
 
@@ -4632,69 +4632,69 @@ pub mod generated_model {
 
     /// Product node for linked arguments; preserves `bei` and `link` in source order.
     rule "linked arguments" bei_link(sumti, tense_modal) -> struct {
-        /// The source-ordered `bei` component retained by the `bei_link` syntax node.
+        /// The `Bei` cmavo marker.
         field bei <- cmavo(Bei).wf();
-        /// The source-ordered `link` component retained by the `bei_link` syntax node.
+        /// The link component of this syntax node.
         field link <- linked_sumti(sumti, tense_modal);
     }
 
     /// Product node for linked arguments; preserves `be`, `first_link`, `bei_links`, and `beho` in source order.
     rule "linked arguments" linkargs(sumti, tense_modal) -> struct {
-        /// The source-ordered `be` component retained by the `linkargs` syntax node.
+        /// The `Be` cmavo marker.
         field be <- cmavo(Be).wf();
-        /// The source-ordered `first_link` component retained by the `linkargs` syntax node.
+        /// The first link component of this syntax node.
         field first_link <- linked_sumti(sumti, tense_modal);
-        /// The source-ordered `bei_links` component retained by the `linkargs` syntax node.
+        /// Ordered sequence of zero or more bei links components.
         field bei_links <- [zero_or_more bei_link(sumti, tense_modal)];
-        /// The source-ordered `beho` component retained by the `linkargs` syntax node.
+        /// The optional `Beho` cmavo marker.
         field beho <- opt(cmavo(Beho).wf()).elidable_terminator(Beho);
     }
 
     /// Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei` in source order.
     rule "abstraction" abstraction_tanru_unit(subbridi) -> struct {
-        /// The source-ordered `nu` component retained by the `abstraction_tanru_unit` syntax node.
+        /// A word from selmaho `Nu`.
         field nu <- selmaho(Nu).wf();
-        /// The source-ordered `nai` component retained by the `abstraction_tanru_unit` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `abstractor_connections` component retained by the `abstraction_tanru_unit` syntax node.
+        /// Ordered sequence of zero or more abstractor connections components.
         field abstractor_connections <- [zero_or_more abstractor_connection()];
-        /// The source-ordered `subbridi` component retained by the `abstraction_tanru_unit` syntax node.
+        /// The shared subbridi child syntax node.
         field subbridi <- arc(subbridi);
-        /// The source-ordered `kei` component retained by the `abstraction_tanru_unit` syntax node.
+        /// The optional `Kei` cmavo marker.
         field kei <- opt(cmavo(Kei).wf()).elidable_terminator(Kei);
     }
 
     /// Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.
     rule "abstractor connection" abstractor_connection -> struct {
-        /// The source-ordered `connective` component retained by the `abstractor_connection` syntax node.
+        /// The connective component of this syntax node.
         field connective <- standard_statement_connective;
-        /// The source-ordered `nu` component retained by the `abstractor_connection` syntax node.
+        /// A word from selmaho `Nu`.
         field nu <- selmaho(Nu).wf();
-        /// The source-ordered `nai` component retained by the `abstractor_connection` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei` in source order.
     rule "abstraction" zantufa_statement_abstraction_tanru_unit(statement) -> struct {
-        /// The source-ordered `nu` component retained by the `zantufa_statement_abstraction_tanru_unit` syntax node.
+        /// A word from selmaho `Nu`.
         field nu <- selmaho(Nu).warn(ExperimentalZantufaStatementAbstraction).wf();
-        /// The source-ordered `nai` component retained by the `zantufa_statement_abstraction_tanru_unit` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-        /// The source-ordered `abstractor_connections` component retained by the `zantufa_statement_abstraction_tanru_unit` syntax node.
+        /// Ordered sequence of zero or more abstractor connections components.
         field abstractor_connections <- [zero_or_more zantufa_abstractor_connection()];
-        /// The source-ordered `statement` component retained by the `zantufa_statement_abstraction_tanru_unit` syntax node.
+        /// The shared statement child syntax node.
         field statement <- arc(statement);
-        /// The source-ordered `kei` component retained by the `zantufa_statement_abstraction_tanru_unit` syntax node.
+        /// The optional `Kei` cmavo marker.
         field kei <- opt(cmavo(Kei).wf()).elidable_terminator(Kei);
     }
 
     /// Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.
     rule "abstractor connection" zantufa_abstractor_connection -> struct {
-        /// The source-ordered `connective` component retained by the `zantufa_abstractor_connection` syntax node.
+        /// The connective component of this syntax node.
         field connective <- joik_connective;
-        /// The source-ordered `nu` component retained by the `zantufa_abstractor_connection` syntax node.
+        /// A word from selmaho `Nu`.
         field nu <- selmaho(Nu).warn(ExperimentalZantufaStatementAbstraction).wf();
-        /// The source-ordered `nai` component retained by the `zantufa_abstractor_connection` syntax node.
+        /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
     }
     }

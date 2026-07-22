@@ -239,12 +239,46 @@ impl BindingType {
 #[bityzba::invariant(true)]
 struct SchemaSummary {
     models: Vec<ModelSchema>,
-    transparent_constructors: usize,
-    transparent_fields: usize,
-    chain_link_element_fields: usize,
-    constructor_labels: usize,
-    elidable_terminators: usize,
-    field_orders: usize,
+    transparent_constructors: Vec<String>,
+    transparent_fields: Vec<ConstructorFieldMetadata>,
+    chain_link_element_fields: Vec<ConstructorFieldMetadata>,
+    constructor_labels: Vec<ConstructorLabelMetadata>,
+    elidable_terminators: Vec<ElidableTerminatorMetadata>,
+    field_orders: Vec<FieldOrderMetadata>,
+}
+
+#[bityzba::invariant(!constructor.is_empty() && !field.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConstructorFieldMetadata {
+    constructor: String,
+    field: String,
+}
+
+#[bityzba::invariant(!constructor.is_empty() && !label.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ConstructorLabelMetadata {
+    constructor: String,
+    label: String,
+}
+
+#[bityzba::invariant(!field.is_empty() && !cmavo.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ElidableTerminatorMetadata {
+    field: String,
+    cmavo: String,
+}
+
+#[bityzba::invariant(!constructor.is_empty() && !fields.is_empty() && fields.iter().all(|field| !field.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FieldOrderMetadata {
+    constructor: String,
+    fields: Vec<String>,
+}
+
+#[bityzba::invariant(!first.is_empty() && !second.is_empty())]
+struct MetadataPair {
+    first: String,
+    second: String,
 }
 
 #[bityzba::requires(true)]
@@ -646,22 +680,23 @@ fn parse_metadata(stream: TokenStream) -> SchemaSummary {
     let transparent_constructors =
         parse_literal_list_property(&mut cursor, "transparent_constructors");
     cursor.expect_punct(',');
-    let transparent_fields =
-        parse_call_list_property(&mut cursor, "transparent_fields", "transparent_field");
+    let transparent_fields = parse_constructor_field_list_property(
+        &mut cursor,
+        "transparent_fields",
+        "transparent_field",
+    );
     cursor.expect_punct(',');
-    let chain_link_element_fields = parse_call_list_property(
+    let chain_link_element_fields = parse_constructor_field_list_property(
         &mut cursor,
         "chain_link_element_fields",
         "chain_link_element_field",
     );
     cursor.expect_punct(',');
-    let constructor_labels =
-        parse_call_list_property(&mut cursor, "constructor_labels", "constructor_label");
+    let constructor_labels = parse_constructor_label_list_property(&mut cursor);
     cursor.expect_punct(',');
-    let elidable_terminators =
-        parse_call_list_property(&mut cursor, "elidable_terminators", "elidable_terminator");
+    let elidable_terminators = parse_elidable_terminator_list_property(&mut cursor);
     cursor.expect_punct(',');
-    let field_orders = parse_call_list_property(&mut cursor, "field_orders", "field_order");
+    let field_orders = parse_field_order_list_property(&mut cursor);
     cursor.finish();
     SchemaSummary {
         models: Vec::new(),
@@ -676,27 +711,106 @@ fn parse_metadata(stream: TokenStream) -> SchemaSummary {
 
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
-fn parse_literal_list_property(cursor: &mut Cursor, name: &str) -> usize {
+fn parse_literal_list_property(cursor: &mut Cursor, name: &str) -> Vec<String> {
     cursor.expect_ident(name);
-    parse_string_list(cursor.take_group(Delimiter::Bracket)).len()
+    parse_string_list(cursor.take_group(Delimiter::Bracket))
 }
 
-#[bityzba::requires(true)]
+#[bityzba::requires(!name.is_empty() && !call.is_empty())]
 #[bityzba::ensures(true)]
-fn parse_call_list_property(cursor: &mut Cursor, name: &str, call: &str) -> usize {
+fn parse_constructor_field_list_property(
+    cursor: &mut Cursor,
+    name: &str,
+    call: &str,
+) -> Vec<ConstructorFieldMetadata> {
     cursor.expect_ident(name);
     let mut values = Cursor::new(cursor.take_group(Delimiter::Bracket));
-    let mut count = 0;
+    let mut metadata = Vec::new();
     while !values.is_done() {
-        values.expect_ident(call);
-        let args = values.take_group(Delimiter::Parenthesis);
-        assert!(!args.is_empty(), "metadata call has no arguments");
-        count += 1;
+        let pair = parse_metadata_pair(&mut values, call);
+        metadata.push(new!(ConstructorFieldMetadata {
+            constructor: pair.first,
+            field: pair.second,
+        }));
         if !values.is_done() {
             values.expect_punct(',');
         }
     }
-    count
+    metadata
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn parse_constructor_label_list_property(cursor: &mut Cursor) -> Vec<ConstructorLabelMetadata> {
+    cursor.expect_ident("constructor_labels");
+    let mut values = Cursor::new(cursor.take_group(Delimiter::Bracket));
+    let mut metadata = Vec::new();
+    while !values.is_done() {
+        let pair = parse_metadata_pair(&mut values, "constructor_label");
+        metadata.push(new!(ConstructorLabelMetadata {
+            constructor: pair.first,
+            label: pair.second,
+        }));
+        if !values.is_done() {
+            values.expect_punct(',');
+        }
+    }
+    metadata
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn parse_elidable_terminator_list_property(cursor: &mut Cursor) -> Vec<ElidableTerminatorMetadata> {
+    cursor.expect_ident("elidable_terminators");
+    let mut values = Cursor::new(cursor.take_group(Delimiter::Bracket));
+    let mut metadata = Vec::new();
+    while !values.is_done() {
+        let pair = parse_metadata_pair(&mut values, "elidable_terminator");
+        metadata.push(new!(ElidableTerminatorMetadata {
+            field: pair.first,
+            cmavo: pair.second,
+        }));
+        if !values.is_done() {
+            values.expect_punct(',');
+        }
+    }
+    metadata
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn parse_field_order_list_property(cursor: &mut Cursor) -> Vec<FieldOrderMetadata> {
+    cursor.expect_ident("field_orders");
+    let mut values = Cursor::new(cursor.take_group(Delimiter::Bracket));
+    let mut metadata = Vec::new();
+    while !values.is_done() {
+        values.expect_ident("field_order");
+        let mut args = Cursor::new(values.take_group(Delimiter::Parenthesis));
+        let constructor = parse_string_literal(&mut args);
+        args.expect_punct(',');
+        let fields = parse_string_list(args.take_group(Delimiter::Bracket));
+        args.finish();
+        metadata.push(new!(FieldOrderMetadata {
+            constructor,
+            fields,
+        }));
+        if !values.is_done() {
+            values.expect_punct(',');
+        }
+    }
+    metadata
+}
+
+#[bityzba::requires(!call.is_empty())]
+#[bityzba::ensures(true)]
+fn parse_metadata_pair(cursor: &mut Cursor, call: &str) -> MetadataPair {
+    cursor.expect_ident(call);
+    let mut args = Cursor::new(cursor.take_group(Delimiter::Parenthesis));
+    let first = parse_string_literal(&mut args);
+    args.expect_punct(',');
+    let second = parse_string_literal(&mut args);
+    args.finish();
+    new!(MetadataPair { first, second })
 }
 
 #[bityzba::requires(true)]
@@ -887,12 +1001,146 @@ fn validate_schema(summary: &SchemaSummary) {
         })
     );
 
-    assert!(summary.transparent_constructors > 0);
-    assert!(summary.transparent_fields > 0);
-    assert!(summary.chain_link_element_fields > 0);
-    assert!(summary.constructor_labels > 0);
-    assert!(summary.elidable_terminators > 0);
-    assert!(summary.field_orders > 0);
+    let item = model_by_name(summary, "ItemSyntax");
+    assert_eq!(
+        field_names(&item.fields),
+        [
+            "token",
+            "optional",
+            "repeated",
+            "non_empty",
+            "boxed",
+            "shared",
+            "with_free_modifiers",
+            "with_indicators",
+            "source_span",
+            "absolute_source_span",
+            "small",
+            "small_non_empty",
+            "fixed",
+            "tuple",
+            "explicit_recovered",
+            "terminator",
+        ]
+    );
+    let small_non_empty = field_by_name(&item.fields, "small_non_empty");
+    assert_eq!(
+        small_non_empty.strict,
+        new!(BindingType::NonEmptyRepeated {
+            value: Box::new(syntax_token()),
+        })
+    );
+    assert_eq!(
+        small_non_empty.recovered,
+        new!(BindingType::NonEmptyRepeated {
+            value: Box::new(recovered(syntax_token())),
+        })
+    );
+    let fixed = field_by_name(&item.fields, "fixed");
+    assert_eq!(
+        fixed.strict,
+        new!(BindingType::Fixed {
+            length: 2,
+            value: Box::new(syntax_token()),
+        })
+    );
+    assert_eq!(
+        fixed.recovered,
+        new!(BindingType::Fixed {
+            length: 2,
+            value: Box::new(recovered(syntax_token())),
+        })
+    );
+    let tuple = field_by_name(&item.fields, "tuple");
+    assert_eq!(
+        tuple.strict,
+        new!(BindingType::Tuple {
+            elements: vec![syntax_token(), syntax_token()],
+        })
+    );
+    assert_eq!(
+        tuple.recovered,
+        new!(BindingType::Tuple {
+            elements: vec![recovered(syntax_token()), recovered(syntax_token())],
+        })
+    );
+    let explicit_recovered = field_by_name(&item.fields, "explicit_recovered");
+    assert_eq!(explicit_recovered.strict, recovered(syntax_token()));
+    assert_eq!(
+        explicit_recovered.recovered,
+        recovered(recovered(syntax_token()))
+    );
+
+    let chain = model_by_name(summary, "ItemChainSyntax");
+    let run = field_by_name(&chain.fields, "run");
+    assert_eq!(
+        run.strict,
+        new!(BindingType::Chain {
+            first: Box::new(model_reference("ItemSyntax")),
+            links: Box::new(new!(BindingType::Repeated {
+                value: Box::new(model_reference("ChainLinkSyntax")),
+            })),
+        })
+    );
+    assert_eq!(
+        run.recovered,
+        new!(BindingType::Chain {
+            first: Box::new(recovered(model_reference("ItemSyntax"))),
+            links: Box::new(new!(BindingType::Repeated {
+                value: Box::new(recovered(model_reference("ChainLinkSyntax"))),
+            })),
+        })
+    );
+
+    assert!(
+        summary
+            .transparent_constructors
+            .iter()
+            .any(|constructor| constructor == "Wrapper")
+    );
+    assert!(
+        summary
+            .transparent_fields
+            .contains(&new!(ConstructorFieldMetadata {
+                constructor: "Wrapper".to_owned(),
+                field: "token".to_owned(),
+            }))
+    );
+    assert!(
+        summary
+            .chain_link_element_fields
+            .contains(&new!(ConstructorFieldMetadata {
+                constructor: "ChainLink".to_owned(),
+                field: "item".to_owned(),
+            }))
+    );
+    assert!(
+        summary
+            .constructor_labels
+            .contains(&new!(ConstructorLabelMetadata {
+                constructor: "Item".to_owned(),
+                label: "item".to_owned(),
+            }))
+    );
+    assert!(
+        summary
+            .elidable_terminators
+            .contains(&new!(ElidableTerminatorMetadata {
+                field: "terminator".to_owned(),
+                cmavo: "Be".to_owned(),
+            }))
+    );
+    assert!(summary.field_orders.contains(&new!(FieldOrderMetadata {
+        constructor: "ChainLink".to_owned(),
+        fields: vec!["connector".to_owned(), "item".to_owned()],
+    })));
+    assert!(summary.field_orders.contains(&new!(FieldOrderMetadata {
+        constructor: "Item".to_owned(),
+        fields: field_names(&item.fields)
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+    })));
 }
 
 #[bityzba::requires(true)]
@@ -913,6 +1161,15 @@ fn model_by_name<'a>(summary: &'a SchemaSummary, name: &str) -> &'a ModelSchema 
         .expect("representative schema model is missing")
 }
 
+#[bityzba::requires(!name.is_empty())]
+#[bityzba::ensures(ret.source_name == name)]
+fn field_by_name<'a>(fields: &'a [FieldSchema], name: &str) -> &'a FieldSchema {
+    fields
+        .iter()
+        .find(|field| field.source_name == name)
+        .expect("representative schema field is missing")
+}
+
 #[bityzba::requires(true)]
 #[bityzba::ensures(ret.len() == fields.len())]
 fn field_names(fields: &[FieldSchema]) -> Vec<&str> {
@@ -929,6 +1186,22 @@ fn syntax_token() -> BindingType {
         kind: "syntax_token".to_owned(),
         absolute: false,
         path: vec!["Token".to_owned()],
+    })
+}
+
+#[bityzba::requires(!name.is_empty())]
+#[bityzba::ensures(true)]
+fn model_reference(name: &str) -> BindingType {
+    new!(BindingType::ModelReference {
+        name: name.to_owned(),
+    })
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
+fn recovered(value: BindingType) -> BindingType {
+    new!(BindingType::RecoveredField {
+        value: Box::new(value),
     })
 }
 
