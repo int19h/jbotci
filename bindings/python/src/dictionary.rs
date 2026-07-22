@@ -16,6 +16,8 @@ use jbotci_phonetic::{IpaSegmentId, ipa_segment_symbol};
 use pyo3::exceptions::{PyIndexError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
+#[cfg(test)]
+use pyo3::types::PyDict;
 use pyo3::types::{PyAny, PyModule, PySlice, PySliceMethods, PyString, PyTuple};
 
 use crate::support::{
