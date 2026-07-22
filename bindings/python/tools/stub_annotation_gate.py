@@ -931,6 +931,12 @@ class _Analyzer:
             if "typing-module" in module_kinds:
                 kinds.add(_TYPING_KINDS.get(expression.attr, "other"))
             return kinds or {"other"}
+        if isinstance(expression, ast.IfExp):
+            return self._possible_kinds(
+                expression.body, captures, scope, visiting
+            ) | self._possible_kinds(
+                expression.orelse, captures, scope, visiting
+            )
         return {"other"}
 
     def _scan(
