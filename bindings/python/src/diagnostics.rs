@@ -3,13 +3,14 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticNoteMode,
     DiagnosticPhase, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
     DiagnosticTextRole, DiagnosticTextSegment, TraceContext, TraceEvent, TraceEventKind,
-    TraceFailureBranch, TraceFailureSummary, TraceFilter, TraceLevel, TraceOptions, TracePhase,
-    TraceReport, diagnostic_text_segments as rust_diagnostic_text_segments,
+    TraceFailureBranch, TraceFailureSummary, TraceFilter, TraceLevel, TraceOptionError,
+    TraceOptions, TracePhase, TraceReport,
+    diagnostic_text_segments as rust_diagnostic_text_segments,
     diagnostic_text_segments_text as rust_diagnostic_text_segments_text,
 };
 use pyo3::exceptions::PyTypeError;
@@ -19,13 +20,14 @@ use pyo3::types::{PyAny, PyModule, PyTuple};
 use crate::InvalidInputError;
 use crate::source::PySourceSpan;
 use crate::support::{
-    PythonStringEnum, extract_string_enum, register_private_object, register_string_enum,
-    register_type, sequence_to_tuple, string_enum_member, string_repr,
+    PythonStringEnum, extract_string_enum, public_exception_with_value, register_private_object,
+    register_string_enum, register_type, sequence_to_tuple, string_enum_member, string_repr,
 };
 
 const PUBLIC_MODULE: &str = "jbotci.diagnostics";
 
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
+    "_diagnostics_DEFAULT_TRACE_LIMIT",
     "_diagnostics_DiagnosticSeverity",
     "_diagnostics_DiagnosticPhase",
     "_diagnostics_TracePhase",
@@ -37,6 +39,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_diagnostics_trace_phase_includes",
     "_diagnostics_trace_level_number",
     "_diagnostics_trace_level_from_number",
+    "_diagnostics_InvalidTraceLevel",
     "_diagnostics_diagnostic_note_mode_visible_in",
     "_diagnostics_TraceFilter",
     "_diagnostics_TraceOptions",
@@ -55,6 +58,82 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_diagnostics_diagnostic_text_segments",
     "_diagnostics_diagnostic_text_segments_text",
 ];
+
+/// Trace-option failure carrying the exact unsupported Rust `u8` level.
+#[invariant(value == 0 || value > 4, "only unsupported trace levels are representable")]
+#[pyclass(
+    name = "InvalidTraceLevel",
+    frozen,
+    eq,
+    hash,
+    module = "jbotci.diagnostics",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct PyInvalidTraceLevel {
+    value: u8,
+}
+
+#[pymethods]
+impl PyInvalidTraceLevel {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("value",);
+
+    /// Construct an unsupported trace-level value from the Rust `u8` domain.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|detail| detail.value == value) || ret.is_err())]
+    #[new]
+    fn new(value: u8) -> PyResult<Self> {
+        if (1..=4).contains(&value) {
+            return Err(InvalidInputError::new_err(
+                "invalid trace-level detail must not contain a valid level",
+            ));
+        }
+        Ok(new!(PyInvalidTraceLevel { value }))
+    }
+
+    /// Return the exact unsupported numeric level.
+    #[requires(true)]
+    #[ensures(ret == self.value)]
+    #[getter]
+    fn value(&self) -> u8 {
+        self.value
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        format!(
+            "invalid trace level {}; expected 1, 2, 3, or 4",
+            self.value
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.diagnostics.InvalidTraceLevel(value={})",
+            self.value
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn trace_option_error_to_python(py: Python<'_>, error: TraceOptionError) -> PyErr {
+    let data!(TraceOptionError::InvalidLevel { value }) = error.as_data();
+    match Py::new(py, new!(PyInvalidTraceLevel { value: *value })) {
+        Ok(value) => public_exception_with_value(
+            py,
+            PUBLIC_MODULE,
+            "TraceOptionError",
+            value.into_any(),
+        ),
+        Err(error) => error,
+    }
+}
 
 macro_rules! impl_python_string_enum {
     ($type:ty, $native_name:literal, $python_name:literal) => {
@@ -2065,14 +2144,11 @@ fn trace_level_number(py: Python<'_>, level: &Bound<'_, PyAny>) -> PyResult<u8> 
 #[ensures(ret.is_ok() || ret.is_err())]
 #[pyfunction]
 fn trace_level_from_number(py: Python<'_>, value: i64) -> PyResult<Py<PyAny>> {
-    let value = u8::try_from(value)
-        .ok()
-        .filter(|value| (1..=4).contains(value))
-        .ok_or_else(|| {
-            InvalidInputError::new_err("trace level number must be one of 1, 2, 3, or 4")
-        })?;
+    let value = u8::try_from(value).map_err(|_| {
+        InvalidInputError::new_err("trace level number must be between 0 and 255")
+    })?;
     let level = TraceLevel::from_number(value)
-        .map_err(|error| InvalidInputError::new_err(error.to_string()))?;
+        .map_err(|error| trace_option_error_to_python(py, error))?;
     enum_to_python(py, level)
 }
 
@@ -2092,6 +2168,11 @@ fn diagnostic_note_mode_visible_in(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_private_object(
+        module,
+        "_diagnostics_DEFAULT_TRACE_LIMIT",
+        DEFAULT_TRACE_LIMIT,
+    )?;
     register_string_enum::<DiagnosticSeverity>(module)?;
     register_string_enum::<DiagnosticPhase>(module)?;
     register_string_enum::<TracePhase>(module)?;
@@ -2105,6 +2186,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
         "_diagnostics_trace_phase_includes",
         wrap_pyfunction!(trace_phase_includes, module)?,
     )?;
+    register_type::<PyInvalidTraceLevel>(module, "_diagnostics_InvalidTraceLevel")?;
     register_private_object(
         module,
         "_diagnostics_trace_level_number",

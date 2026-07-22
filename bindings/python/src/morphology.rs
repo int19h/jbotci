@@ -8,7 +8,8 @@ use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, 
 use jbotci_diagnostics::source_span_from_char_offsets;
 use jbotci_morphology::{
     Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord,
-    ConsonantPairClass, ExpectedWordDetailKind, GlideMark, LeadingPauseContext,
+    ConsonantPairClass, DialectCompilationError, ExpectedWordDetailKind, GlideMark,
+    LeadingPauseContext,
     LeadingPauseVowelMode, LujvoBuildMode, LujvoBuildPart, LujvoCandidate, LujvoParseExpectation,
     LujvoPart, MorphologyContext, MorphologyContextKind, MorphologyError as RustMorphologyError,
     MorphologyErrorDetail, MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt,
@@ -17,7 +18,8 @@ use jbotci_morphology::{
     RecoveredMorphologySegmentation, Selmaho, StressMark, StringEnumMetadata, ValsiAnalysis,
     ValsiAnalysisResult, ValsiAnalysisStatus, ValsiClassification, ValsiClassificationKind,
     ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word,
-    WordKey, WordKind, WordLike, ZoiDelimiterDetailKind,
+    WordKey, WordKind, WordLike, ZoiDelimiterDetailKind, MORPHOLOGY_TRACE_FILTERS,
+    PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
 };
 use jbotci_syntax::{Token, WithIndicators};
 use pyo3::prelude::*;
@@ -31,13 +33,16 @@ use crate::source::{
     PySourceId, PySourceSpan, source_location_error_from_python, source_location_error_to_python,
 };
 use crate::support::{
-    PythonStringEnum, extract_sequence, extract_string_enum, register_private_object,
-    register_string_enum, register_type, string_enum_member, string_repr,
+    PythonStringEnum, extract_sequence, extract_string_enum, public_exception_with_value,
+    register_private_object, register_string_enum, register_type, sequence_to_tuple,
+    string_enum_member, string_repr,
 };
 
 const PUBLIC_MODULE: &str = "jbotci.morphology";
 
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
+    "_morphology_MORPHOLOGY_TRACE_FILTERS",
+    "_morphology_PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS",
     "_morphology_WordKind",
     "_morphology_ValsiAnalysisStatus",
     "_morphology_ValsiClassificationKind",
@@ -65,6 +70,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_morphology_WordKey",
     "_morphology_MorphologyOptions",
     "_morphology_CompiledDialectDefinition",
+    "_morphology_InvalidDialectWord",
     "_morphology_CompiledDialectSwap",
     "_morphology_CompiledDialectExpansion",
     "_morphology_CompiledDialectWord",
@@ -565,6 +571,88 @@ impl PyWordKey {
     }
 }
 
+/// Dialect-compilation failure carrying the exact invalid word.
+#[invariant(!word.is_empty(), "dialect compilation errors retain a non-empty word")]
+#[pyclass(
+    name = "InvalidDialectWord",
+    frozen,
+    eq,
+    hash,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PyInvalidDialectWord {
+    word: String,
+}
+
+#[pymethods]
+impl PyInvalidDialectWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("word",);
+
+    /// Construct an invalid-dialect-word detail with its exact spelling.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|detail| detail.word == word) || ret.is_err())]
+    #[new]
+    fn new(word: String) -> PyResult<Self> {
+        if word.is_empty() {
+            return Err(InvalidInputError::new_err(
+                "invalid dialect word must not be empty",
+            ));
+        }
+        Ok(new!(PyInvalidDialectWord { word }))
+    }
+
+    /// Return the exact word rejected by morphology compilation.
+    #[requires(true)]
+    #[ensures(ret == self.word.as_str())]
+    #[getter]
+    fn word(&self) -> &str {
+        &self.word
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        format!(
+            "dialect word is not morphologically valid: {}",
+            self.word
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "jbotci.morphology.InvalidDialectWord(word={})",
+            string_repr(py, &self.word)?
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn dialect_compilation_error_to_python(
+    py: Python<'_>,
+    error: DialectCompilationError,
+) -> PyErr {
+    let data!(DialectCompilationError::InvalidWord { word }) = error.as_data();
+    match Py::new(
+        py,
+        new!(PyInvalidDialectWord { word: word.clone() }),
+    ) {
+        Ok(value) => public_exception_with_value(
+            py,
+            PUBLIC_MODULE,
+            "DialectCompilationError",
+            value.into_any(),
+        ),
+        Err(error) => error,
+    }
+}
+
 #[invariant(
     ::Owned { .. } => true,
     "Arc ownership and CompiledDialectDefinition validation fully constrain this variant"
@@ -654,10 +742,13 @@ impl PyCompiledDialectDefinition {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     #[pyo3(signature = (definition=None))]
-    fn new(definition: Option<PyRef<'_, PyDialectDefinition>>) -> PyResult<Self> {
+    fn new(
+        py: Python<'_>,
+        definition: Option<PyRef<'_, PyDialectDefinition>>,
+    ) -> PyResult<Self> {
         let value = match definition {
             Some(definition) => CompiledDialectDefinition::compile(definition.rust())
-                .map_err(|error| InvalidInputError::new_err(error.to_string()))?,
+                .map_err(|error| dialect_compilation_error_to_python(py, error))?,
             None => CompiledDialectDefinition::default(),
         };
         Ok(Self::from_rust(value))
@@ -993,6 +1084,7 @@ impl PyMorphologyOptions {
     #[new]
     #[pyo3(signature = (*, accept_latin=true, accept_cyrillic=true, accept_zbalermorna=true, dialect=None, cmevla_as_relation_words=false, permissive_lexer=false, uppercase_marks_stress=true, max_recovery_errors=20, trace=None))]
     fn new(
+        py: Python<'_>,
         accept_latin: bool,
         accept_cyrillic: bool,
         accept_zbalermorna: bool,
@@ -1024,7 +1116,7 @@ impl PyMorphologyOptions {
         if let Some(dialect) = dialect {
             value = value
                 .try_with_dialect_definition(dialect.rust())
-                .map_err(|error| InvalidInputError::new_err(error.to_string()))?;
+                .map_err(|error| dialect_compilation_error_to_python(py, error))?;
         }
         Ok(Self::from_rust(value))
     }
@@ -1049,13 +1141,17 @@ impl PyMorphologyOptions {
     /// Return a copy compiled from the supplied declarative dialect definition.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|options| options.value.compiled_dialect.entries.len() == dialect.value.cmavo_entries.len()) || ret.is_err())]
-    fn with_dialect(&self, dialect: PyRef<'_, PyDialectDefinition>) -> PyResult<Self> {
+    fn with_dialect(
+        &self,
+        py: Python<'_>,
+        dialect: PyRef<'_, PyDialectDefinition>,
+    ) -> PyResult<Self> {
         self.value
             .as_ref()
             .clone()
             .try_with_dialect_definition(dialect.rust())
             .map(Self::from_rust)
-            .map_err(|error| InvalidInputError::new_err(error.to_string()))
+            .map_err(|error| dialect_compilation_error_to_python(py, error))
     }
 
     /// Return a copy using the supplied immutable trace options.
@@ -7187,6 +7283,21 @@ macro_rules! register_function {
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_private_object(
+        module,
+        "_morphology_MORPHOLOGY_TRACE_FILTERS",
+        sequence_to_tuple(module.py(), MORPHOLOGY_TRACE_FILTERS.iter().copied())?,
+    )?;
+    register_private_object(
+        module,
+        "_morphology_PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS",
+        sequence_to_tuple(
+            module.py(),
+            PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS
+                .iter()
+                .map(|character| character.to_string()),
+        )?,
+    )?;
     register_string_enum::<WordKind>(module)?;
     register_string_enum::<ValsiAnalysisStatus>(module)?;
     register_string_enum::<ValsiClassificationKind>(module)?;
@@ -7213,6 +7324,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyPhonemeRenderOptions>(module, "_morphology_PhonemeRenderOptions")?;
     register_type::<PyPhonemes>(module, "_morphology_Phonemes")?;
     register_type::<PyWordKey>(module, "_morphology_WordKey")?;
+    register_type::<PyInvalidDialectWord>(module, "_morphology_InvalidDialectWord")?;
     register_type::<PyMorphologyOptions>(module, "_morphology_MorphologyOptions")?;
     register_type::<PyCompiledDialectDefinition>(module, "_morphology_CompiledDialectDefinition")?;
     register_type::<PyCompiledDialectSwap>(module, "_morphology_CompiledDialectSwap")?;

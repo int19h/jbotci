@@ -25,6 +25,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = PACKAGE_ROOT.parents[1]
 
 MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
+    "_morphology_InvalidDialectWord": ("word",),
     "_morphology_CompiledDialectSwap": ("left", "right"),
     "_morphology_CompiledDialectExpansion": ("source", "replacement"),
     "_morphology_LujvoRafsi": ("phonemes",),
@@ -110,6 +111,7 @@ NON_MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_diagnostics_VlackuWordLink": ("word",),
     "_diagnostics_CllSectionLink": ("section_id", "anchor"),
     "_diagnostics_EbnfRuleLink": ("rule_name",),
+    "_diagnostics_InvalidTraceLevel": ("value",),
     "_dialect_CmavoSwap": ("left", "right"),
     "_dialect_CmavoExpansion": ("source", "replacement"),
 }
@@ -228,6 +230,18 @@ MANUAL_STUB_FRAGMENTS: dict[str, str] = {
     "_diagnostics_": "diagnostics.pyi",
     "_dialect_": "dialect.pyi",
     "_morphology_": "morphology.pyi",
+}
+
+PUBLIC_RUST_CONSTANTS: dict[str, dict[str, str]] = {
+    "diagnostics.py": {
+        "DEFAULT_TRACE_LIMIT": "_diagnostics_DEFAULT_TRACE_LIMIT",
+    },
+    "morphology.py": {
+        "MORPHOLOGY_TRACE_FILTERS": "_morphology_MORPHOLOGY_TRACE_FILTERS",
+        "PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS": (
+            "_morphology_PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS"
+        ),
+    },
 }
 
 MORPHOLOGY_RETURNED_ONLY_CLASSES: frozenset[str] = frozenset(
@@ -604,6 +618,33 @@ def test_native_stub_exports_match_runtime() -> None:
     )
     assert declaration_names == set(native.__all__)
     assert all(hasattr(native, name) for name in native.__all__)
+
+
+def test_public_constants_are_direct_rust_native_exports() -> None:
+    """Prevent consumer constants from acquiring drift-prone Python values."""
+
+    for filename, expected in PUBLIC_RUST_CONSTANTS.items():
+        facade_path = PACKAGE_ROOT / "python" / "jbotci" / filename
+        tree = ast.parse(
+            facade_path.read_text(encoding="utf-8"), filename=str(facade_path)
+        )
+        declarations = {
+            statement.target.id: statement
+            for statement in tree.body
+            if isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id in expected
+        }
+        assert set(declarations) == set(expected), filename
+        for public_name, native_name in expected.items():
+            declaration = declarations[public_name]
+            assert isinstance(declaration.annotation, ast.Subscript)
+            assert isinstance(declaration.annotation.value, ast.Name)
+            assert declaration.annotation.value.id == "Final"
+            assert isinstance(declaration.value, ast.Attribute)
+            assert isinstance(declaration.value.value, ast.Name)
+            assert declaration.value.value.id == "_rust"
+            assert declaration.value.attr == native_name
 
 
 def _stub_classes(path: Path) -> dict[str, ast.ClassDef]:
@@ -1676,7 +1717,7 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         for name, declaration in classes.items()
         if name.startswith("_morphology_")
     }
-    assert len(declarations) == 52
+    assert len(declarations) == 53
     declared_match_args = {
         name
         for name, declaration in declarations.items()

@@ -54,6 +54,11 @@ install, rather than the source tree, resolves `jbotci`.
   `JbotciError`. Python-visible exceptions use stable messages and arguments;
   Rust implementation types (`Box`, `Arc`, bityzba data wrappers, lifetimes,
   and serde payloads) never cross the boundary.
+  `TraceLevel.from_number` delegates every value in Rust's `u8` domain to Rust;
+  invalid values from 0 through 255 raise `TraceOptionError` with an
+  `InvalidTraceLevel` payload. Integers outside that domain raise
+  `InvalidInputError` (or Python `OverflowError` before binding conversion when
+  they do not fit the signed native argument at all).
 - Fieldless Rust enums that represent finite choices become genuine
   `enum.Enum` classes, preferably with stable canonical string values. Payload
   enums and grammar ADTs instead become a closed set of frozen,

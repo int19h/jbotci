@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use bityzba::{contract_trait, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, requires};
 use pyo3::PyClass;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -152,6 +152,31 @@ where
 {
     ensure_private_export_available(module, private_export_name)?;
     module.add(private_export_name, value)
+}
+
+/// Instantiate a public Python exception class with one structured value.
+///
+/// The public facade owns exception behavior while Rust owns the closed value
+/// variants. Looking the class up at the conversion boundary keeps native and
+/// public entry points on the same exception type without parsing a display
+/// message or duplicating payloads.
+#[requires(!public_module_name.is_empty())]
+#[requires(!exception_name.is_empty())]
+#[ensures(true)]
+pub(crate) fn public_exception_with_value(
+    py: Python<'_>,
+    public_module_name: &str,
+    exception_name: &str,
+    value: Py<PyAny>,
+) -> PyErr {
+    let instance = py
+        .import(public_module_name)
+        .and_then(|module| module.getattr(exception_name))
+        .and_then(|exception_type| exception_type.call1((value,)));
+    match instance {
+        Ok(instance) => PyErr::from_value(instance),
+        Err(error) => error,
+    }
 }
 
 #[requires(private_export_name.starts_with('_'))]

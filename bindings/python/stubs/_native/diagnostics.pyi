@@ -1,5 +1,18 @@
 from collections.abc import Sequence
-from typing import final
+from typing import Final, final
+
+_diagnostics_DEFAULT_TRACE_LIMIT: Final[int]
+
+@final
+class _diagnostics_InvalidTraceLevel:
+    __match_args__: tuple[str]
+    def __new__(cls, value: int) -> _diagnostics_InvalidTraceLevel: ...
+    @property
+    def value(self) -> int: ...
+    def __str__(self, /) -> str: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __hash__(self, /) -> int: ...
 
 @final
 class _diagnostics_TraceFilter:

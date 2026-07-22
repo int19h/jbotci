@@ -411,6 +411,70 @@ def test_children_keep_arc_root_alive_after_parent_deletion() -> None:
     )
 
 
+def test_dialect_compilation_errors_retain_exact_rust_payloads() -> None:
+    invalid_word = "aaa"
+    definition = dialect.DialectDefinition(
+        (dialect.CmavoSwap(invalid_word, "coi"),)
+    )
+    operations = (
+        lambda: morphology.CompiledDialectDefinition(definition),
+        lambda: morphology.MorphologyOptions(dialect=definition),
+        lambda: morphology.MorphologyOptions().with_dialect(definition),
+    )
+    for operation in operations:
+        with pytest.raises(morphology.DialectCompilationError) as caught:
+            operation()
+        detail = caught.value.value
+        assert detail == morphology.InvalidDialectWord(invalid_word)
+        assert hash(detail) == hash(morphology.InvalidDialectWord(invalid_word))
+        assert detail.word == invalid_word
+        assert caught.value.args == (str(detail),)
+        assert str(detail) == (
+            f"dialect word is not morphologically valid: {invalid_word}"
+        )
+        assert repr(detail) == (
+            "jbotci.morphology.InvalidDialectWord(word='aaa')"
+        )
+        match detail:
+            case morphology.InvalidDialectWord(word):
+                assert word == invalid_word
+            case _:
+                pytest.fail("dialect error did not retain its exact word")
+        match caught.value:
+            case morphology.DialectCompilationError(
+                morphology.InvalidDialectWord(word)
+            ):
+                assert word == invalid_word
+            case _:
+                pytest.fail("dialect exception did not expose its typed value")
+
+    unicode_detail = morphology.InvalidDialectWord("café")
+    unicode_error = morphology.DialectCompilationError(unicode_detail)
+    assert unicode_error.value.word == "café"
+    assert unicode_error.args == (str(unicode_detail),)
+    assert morphology.InvalidDialectWord.__module__ == "jbotci.morphology"
+    assert morphology.DialectCompilationError.__module__ == "jbotci.morphology"
+    assert morphology.DialectCompilationError.__qualname__ == (
+        "DialectCompilationError"
+    )
+    with pytest.raises(InvalidInputError):
+        morphology.InvalidDialectWord("")
+    with pytest.raises(AttributeError):
+        unicode_error.value = morphology.InvalidDialectWord("coi")  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        unicode_error.args = ("changed",)
+    with pytest.raises(TypeError):
+        morphology.DialectCompilationError("invalid")  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        type(
+            "DerivedDialectCompilationError",
+            (morphology.DialectCompilationError,),
+            {},
+        )
+    with pytest.raises(TypeError):
+        type("DerivedInvalidDialectWord", (morphology.InvalidDialectWord,), {})
+
+
 def test_locator_backed_children_compare_by_projected_rust_values() -> None:
     quote = morphology.segment("zo broda")[0]
     assert isinstance(quote, morphology.QuotedWord)

@@ -52,6 +52,11 @@ def typed_source_and_diagnostics(text: str) -> diagnostics.Diagnostic:
         source.ByteRangeInverted(2, 1),
         source.CharRangeInverted(2, 1),
     )
+    assert_type(diagnostics.DEFAULT_TRACE_LIMIT, int)
+    trace_detail = diagnostics.InvalidTraceLevel(5)
+    assert_type(trace_detail.value, int)
+    trace_error = diagnostics.TraceOptionError(trace_detail)
+    assert_type(trace_error.value, diagnostics.InvalidTraceLevel)
     span: source.SourceSpan = source.source_span_from_char_offsets(
         text, 0, len(text), source_id=source_id
     )
@@ -89,6 +94,15 @@ def typed_dialect() -> dialect.DialectDefinition:
 def typed_morphology(text: str) -> tuple[morphology.WordLike, ...]:
     """Exercise every recursive result union without falling back to Any."""
 
+    assert_type(morphology.MORPHOLOGY_TRACE_FILTERS, tuple[str, ...])
+    assert_type(
+        morphology.PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
+        tuple[str, ...],
+    )
+    dialect_detail = morphology.InvalidDialectWord("aaa")
+    assert_type(dialect_detail.word, str)
+    dialect_error = morphology.DialectCompilationError(dialect_detail)
+    assert_type(dialect_error.value, morphology.InvalidDialectWord)
     options = morphology.MorphologyOptions(dialect=typed_dialect())
     attempt: morphology.MorphologySegmentAttempt = morphology.segment_attempt(
         text, options=options

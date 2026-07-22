@@ -4,7 +4,8 @@ import gc
 
 import pytest
 
-from jbotci import InvalidInputError, diagnostics, dialect, source
+import jbotci._native as native
+from jbotci import InvalidInputError, diagnostics, dialect, morphology, source
 
 
 def test_builtin_dialect_has_no_runtime_constructor() -> None:
@@ -137,14 +138,93 @@ def test_diagnostic_domain_operations_delegate_to_rust() -> None:
     )
     assert diagnostics.TraceLevel.DETAILED.number() == 2
     assert diagnostics.TraceLevel.from_number(4) is diagnostics.TraceLevel.PRIMITIVES
-    with pytest.raises(InvalidInputError):
+    with pytest.raises(diagnostics.TraceOptionError) as caught:
         diagnostics.TraceLevel.from_number(0)
+    assert caught.value.value == diagnostics.InvalidTraceLevel(0)
     assert diagnostics.TraceOptions(enabled=True).includes(
         diagnostics.TracePhase.MORPHOLOGY
     )
     assert diagnostics.DiagnosticNoteMode.ALWAYS.visible_in(
         diagnostics.DiagnosticDetailMode.SUMMARY
     )
+
+
+def test_rust_trace_constant_and_structured_errors_are_exact() -> None:
+    assert diagnostics.DEFAULT_TRACE_LIMIT is native._diagnostics_DEFAULT_TRACE_LIMIT
+    assert diagnostics.DEFAULT_TRACE_LIMIT == 10_000
+
+    for value in (0, 5, 255):
+        with pytest.raises(diagnostics.TraceOptionError) as caught:
+            diagnostics.TraceLevel.from_number(value)
+        detail = caught.value.value
+        assert detail == diagnostics.InvalidTraceLevel(value)
+        assert hash(detail) == hash(diagnostics.InvalidTraceLevel(value))
+        assert detail.value == value
+        assert caught.value.args == (str(detail),)
+        assert str(detail) == (
+            f"invalid trace level {value}; expected 1, 2, 3, or 4"
+        )
+        assert repr(detail) == (
+            f"jbotci.diagnostics.InvalidTraceLevel(value={value})"
+        )
+        match detail:
+            case diagnostics.InvalidTraceLevel(retained):
+                assert retained == value
+            case _:
+                pytest.fail("trace error did not retain its exact value")
+        match caught.value:
+            case diagnostics.TraceOptionError(
+                diagnostics.InvalidTraceLevel(retained)
+            ):
+                assert retained == value
+            case _:
+                pytest.fail("trace exception did not expose its typed value")
+
+    for value in (-1, 256):
+        with pytest.raises(InvalidInputError, match="between 0 and 255"):
+            diagnostics.TraceLevel.from_number(value)
+    with pytest.raises(OverflowError):
+        diagnostics.TraceLevel.from_number(2**100)
+    with pytest.raises(InvalidInputError):
+        diagnostics.InvalidTraceLevel(1)
+
+    error = diagnostics.TraceOptionError(diagnostics.InvalidTraceLevel(5))
+    assert diagnostics.InvalidTraceLevel.__module__ == "jbotci.diagnostics"
+    assert diagnostics.TraceOptionError.__module__ == "jbotci.diagnostics"
+    assert diagnostics.TraceOptionError.__qualname__ == "TraceOptionError"
+    with pytest.raises(AttributeError):
+        error.value = diagnostics.InvalidTraceLevel(6)  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        error.args = ("changed",)
+    with pytest.raises(TypeError):
+        diagnostics.TraceOptionError("invalid")  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        type("DerivedTraceOptionError", (diagnostics.TraceOptionError,), {})
+    with pytest.raises(TypeError):
+        type("DerivedInvalidTraceLevel", (diagnostics.InvalidTraceLevel,), {})
+
+
+def test_rust_morphology_constants_are_ordered_immutable_tuples() -> None:
+    assert (
+        morphology.MORPHOLOGY_TRACE_FILTERS
+        is native._morphology_MORPHOLOGY_TRACE_FILTERS
+    )
+    assert (
+        morphology.PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS
+        is native._morphology_PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS
+    )
+    assert isinstance(morphology.MORPHOLOGY_TRACE_FILTERS, tuple)
+    assert isinstance(
+        morphology.PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS, tuple
+    )
+    assert all(
+        len(character) == 1
+        for character in morphology.PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS
+    )
+    with pytest.raises(TypeError):
+        morphology.MORPHOLOGY_TRACE_FILTERS[0] = "changed"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        morphology.PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS[0] = "x"  # type: ignore[index]
 
 
 def test_diagnostic_and_trace_children_retain_arc_roots() -> None:

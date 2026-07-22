@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import ParamSpec, TypeAlias, TypeVar
+from typing import Final, ParamSpec, TypeAlias, TypeVar, final
 
 from . import _native as _rust
+from ._errors import _StructuredError
 from ._validation import immutable_typed_sequence
 from .diagnostics import Diagnostic, TraceReport
 from .source import SourceId, SourceSpan
@@ -42,6 +43,7 @@ CompiledDialectDefinition = _rust._morphology_CompiledDialectDefinition
 CompiledDialectSwap = _rust._morphology_CompiledDialectSwap
 CompiledDialectExpansion = _rust._morphology_CompiledDialectExpansion
 CompiledDialectWord = _rust._morphology_CompiledDialectWord
+InvalidDialectWord = _rust._morphology_InvalidDialectWord
 LujvoRafsi = _rust._morphology_LujvoRafsi
 LujvoHyphen = _rust._morphology_LujvoHyphen
 Verbatim = _rust._morphology_Verbatim
@@ -91,6 +93,13 @@ LujvoRafsiBuildPart = _rust._morphology_LujvoRafsiBuildPart
 LujvoBrivlaCoreBuildPart = _rust._morphology_LujvoBrivlaCoreBuildPart
 LujvoCandidate = _rust._morphology_LujvoCandidate
 
+MORPHOLOGY_TRACE_FILTERS: Final[tuple[str, ...]] = (
+    _rust._morphology_MORPHOLOGY_TRACE_FILTERS
+)
+PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS: Final[tuple[str, ...]] = (
+    _rust._morphology_PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS
+)
+
 Word: TypeAlias = CmavoWord | GismuWord | LujvoWord | FuhivlaWord | CmevlaWord
 LujvoPart: TypeAlias = LujvoRafsi | LujvoHyphen
 WordLike: TypeAlias = (
@@ -128,6 +137,21 @@ LujvoBuildPart: TypeAlias = LujvoRafsiBuildPart | LujvoBrivlaCoreBuildPart
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+
+
+@final
+class DialectCompilationError(_StructuredError[InvalidDialectWord]):
+    """Dialect compilation failure retaining its exact Rust error value."""
+
+    __slots__ = ()
+
+    def __init__(self, value: InvalidDialectWord) -> None:
+        if not isinstance(value, InvalidDialectWord):
+            raise TypeError("value must be an InvalidDialectWord")
+        super().__init__(value)
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("DialectCompilationError is final")
 
 
 def _public_native(
@@ -441,6 +465,7 @@ choose_best_lujvo_candidate_from_parts = _public_native(
 )
 
 __all__: tuple[str, ...] = (
+    "MORPHOLOGY_TRACE_FILTERS", "PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS",
     "WordKind", "ValsiAnalysisStatus", "ValsiClassificationKind",
     "ValsiLujvoPartKind", "ValsiLujvoRafsiKind", "ValsiFuhivlaStage",
     "StressMark", "GlideMark", "MorphologyErrorKind", "MorphologyWarningKind",
@@ -449,6 +474,7 @@ __all__: tuple[str, ...] = (
     "RafsiShape", "ConsonantPairClass", "LeadingPauseVowelMode",
     "LeadingPauseContext", "Cmavo", "Selmaho", "PhonemeRenderOptions",
     "Phonemes", "WordKey", "MorphologyOptions", "CompiledDialectDefinition",
+    "InvalidDialectWord", "DialectCompilationError",
     "CompiledDialectSwap", "CompiledDialectExpansion", "CompiledDialectWord",
     "CompiledDialectEntry", "LujvoRafsi", "LujvoHyphen", "LujvoPart",
     "Verbatim", "CmavoWord", "GismuWord", "LujvoWord", "FuhivlaWord",

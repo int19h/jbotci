@@ -1,8 +1,10 @@
 """Immutable diagnostics, styled text, and parser trace products."""
 
 from collections.abc import Sequence
-from typing import TypeAlias
+from typing import Final, TypeAlias, final
 
+from ._errors import _StructuredError
+from . import _native as _rust
 from ._native import (
     _diagnostics_CllSectionLink as CllSectionLink,
     _diagnostics_Diagnostic as Diagnostic,
@@ -22,6 +24,7 @@ from ._native import (
     _diagnostics_TraceFailureSummary as TraceFailureSummary,
     _diagnostics_TraceFilter as TraceFilter,
     _diagnostics_TraceLevel as TraceLevel,
+    _diagnostics_InvalidTraceLevel as InvalidTraceLevel,
     _diagnostics_TraceOptions as TraceOptions,
     _diagnostics_TracePhase as TracePhase,
     _diagnostics_TraceReport as TraceReport,
@@ -34,7 +37,24 @@ from ._native import (
     _diagnostics_trace_phase_includes as _rust_trace_phase_includes,
 )
 
+DEFAULT_TRACE_LIMIT: Final[int] = _rust._diagnostics_DEFAULT_TRACE_LIMIT
+
 DiagnosticTextLink: TypeAlias = VlackuWordLink | CllSectionLink | EbnfRuleLink
+
+
+@final
+class TraceOptionError(_StructuredError[InvalidTraceLevel]):
+    """Invalid trace configuration retaining its exact Rust error value."""
+
+    __slots__ = ()
+
+    def __init__(self, value: InvalidTraceLevel) -> None:
+        if not isinstance(value, InvalidTraceLevel):
+            raise TypeError("value must be an InvalidTraceLevel")
+        super().__init__(value)
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("TraceOptionError is final")
 
 
 def _trace_phase_includes(self: TracePhase, phase: TracePhase) -> bool:
@@ -86,10 +106,13 @@ def diagnostic_text_segments_text(
     return _rust_diagnostic_text_segments_text(segments)
 
 __all__: tuple[str, ...] = (
+    "DEFAULT_TRACE_LIMIT",
     "DiagnosticSeverity",
     "DiagnosticPhase",
     "TracePhase",
     "TraceLevel",
+    "InvalidTraceLevel",
+    "TraceOptionError",
     "TraceEventKind",
     "DiagnosticDetailMode",
     "DiagnosticNoteMode",
