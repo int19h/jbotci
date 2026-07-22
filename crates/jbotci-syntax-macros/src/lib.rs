@@ -1513,54 +1513,54 @@ impl BindingType {
     #[requires(true)]
     #[ensures(true)]
     fn expand_strict(&self) -> TokenStream2 {
-        match self {
-            Self::Reference { reference } => reference.expand(),
-            Self::Optional { value } => {
+        match self.as_data() {
+            data!(BindingType::Reference { reference }) => reference.expand(),
+            data!(BindingType::Optional { value }) => {
                 let value = value.expand_strict();
                 quote!(optional(#value))
             }
-            Self::Repeated { value } => {
+            data!(BindingType::Repeated { value }) => {
                 let value = value.expand_strict();
                 quote!(repeated(#value))
             }
-            Self::NonEmptyRepeated { value } => {
+            data!(BindingType::NonEmptyRepeated { value }) => {
                 let value = value.expand_strict();
                 quote!(non_empty_repeated(#value))
             }
-            Self::Boxed { value } => {
+            data!(BindingType::Boxed { value }) => {
                 let value = value.expand_strict();
                 quote!(boxed(#value))
             }
-            Self::Shared { value } => {
+            data!(BindingType::Shared { value }) => {
                 let value = value.expand_strict();
                 quote!(shared(#value))
             }
-            Self::RecoveredField { value } => {
+            data!(BindingType::RecoveredField { value }) => {
                 let value = value.expand_strict();
                 quote!(recovered_field(#value))
             }
-            Self::WithIndicators { value } => {
+            data!(BindingType::WithIndicators { value }) => {
                 let value = value.expand_strict();
                 quote!(with_indicators(#value))
             }
-            Self::WithFreeModifiers {
+            data!(BindingType::WithFreeModifiers {
                 value,
                 free_modifier,
-            } => {
+            }) => {
                 let value = value.expand_strict();
                 let free_modifier = free_modifier.expand_strict();
                 quote!(with_free_modifiers(value(#value), free_modifier(#free_modifier)))
             }
-            Self::Chain { first, links } => {
+            data!(BindingType::Chain { first, links }) => {
                 let first = first.expand_strict();
                 let links = links.expand_strict();
                 quote!(chain(first(#first), links(#links)))
             }
-            Self::Tuple { elements } => {
-                let elements = elements.iter().map(Self::expand_strict);
+            data!(BindingType::Tuple { elements }) => {
+                let elements = elements.iter().map(BindingType::expand_strict);
                 quote!(tuple(#(#elements),*))
             }
-            Self::Fixed { value, length } => {
+            data!(BindingType::Fixed { value, length }) => {
                 let value = value.expand_strict();
                 quote!(fixed(length(#length), value(#value)))
             }
@@ -1570,53 +1570,53 @@ impl BindingType {
     #[requires(true)]
     #[ensures(true)]
     fn expand_recovered(&self) -> TokenStream2 {
-        match self {
-            Self::Reference { .. } | Self::WithIndicators { .. } => {
+        match self.as_data() {
+            data!(BindingType::Reference { .. }) | data!(BindingType::WithIndicators { .. }) => {
                 let value = self.expand_strict();
                 quote!(recovered_field(#value))
             }
-            Self::Optional { value } => {
+            data!(BindingType::Optional { value }) => {
                 let value = value.expand_recovered();
                 quote!(optional(#value))
             }
-            Self::Repeated { value } => {
+            data!(BindingType::Repeated { value }) => {
                 let value = value.expand_recovered();
                 quote!(repeated(#value))
             }
-            Self::NonEmptyRepeated { value } => {
+            data!(BindingType::NonEmptyRepeated { value }) => {
                 let value = value.expand_recovered();
                 quote!(non_empty_repeated(#value))
             }
-            Self::Boxed { value } => {
+            data!(BindingType::Boxed { value }) => {
                 let value = value.expand_recovered();
                 quote!(boxed(#value))
             }
-            Self::Shared { value } => {
+            data!(BindingType::Shared { value }) => {
                 let value = value.expand_recovered();
                 quote!(shared(#value))
             }
-            Self::RecoveredField { value } => {
+            data!(BindingType::RecoveredField { value }) => {
                 let value = value.expand_recovered();
                 quote!(recovered_field(#value))
             }
-            Self::WithFreeModifiers {
+            data!(BindingType::WithFreeModifiers {
                 value,
                 free_modifier,
-            } => {
+            }) => {
                 let value = value.expand_recovered();
                 let free_modifier = free_modifier.expand_recovered();
                 quote!(with_free_modifiers(value(#value), free_modifiers(repeated(#free_modifier))))
             }
-            Self::Chain { first, links } => {
+            data!(BindingType::Chain { first, links }) => {
                 let first = first.expand_recovered();
                 let links = links.expand_recovered();
                 quote!(chain(first(#first), links(#links)))
             }
-            Self::Tuple { elements } => {
-                let elements = elements.iter().map(Self::expand_recovered);
+            data!(BindingType::Tuple { elements }) => {
+                let elements = elements.iter().map(BindingType::expand_recovered);
                 quote!(tuple(#(#elements),*))
             }
-            Self::Fixed { value, length } => {
+            data!(BindingType::Fixed { value, length }) => {
                 let value = value.expand_recovered();
                 quote!(fixed(length(#length), value(#value)))
             }
@@ -1681,7 +1681,7 @@ fn normalize_binding_type(
             .iter()
             .map(|element| normalize_binding_type(element, generated_models, field))
             .collect::<Result<Vec<_>>>()
-            .map(|elements| BindingType::Tuple { elements }),
+            .map(|elements| new!(BindingType::Tuple { elements })),
         Type::Array(array) => {
             let Expr::Lit(length) = &array.len else {
                 return Err(unsupported_binding_field(field, ty));
@@ -1693,10 +1693,10 @@ fn normalize_binding_type(
                 .base10_parse::<usize>()
                 .map_err(|_| unsupported_binding_field(field, ty))?;
             let value = normalize_binding_type(&array.elem, generated_models, field)?;
-            Ok(BindingType::Fixed {
+            Ok(new!(BindingType::Fixed {
                 value: Box::new(value),
                 length,
-            })
+            }))
         }
         Type::Paren(paren) => normalize_binding_type(&paren.elem, generated_models, field),
         Type::Group(group) => normalize_binding_type(&group.elem, generated_models, field),
@@ -1731,9 +1731,9 @@ fn normalize_binding_path(
             ));
         }
         if path.segments.len() == 1 && generated_models.contains(&name) {
-            return Ok(BindingType::Reference {
+            return Ok(new!(BindingType::Reference {
                 reference: new!(BindingReference::Model { name }),
-            });
+            }));
         }
         let kind = binding_leaf_kind(path);
         let absolute = path.leading_colon.is_some();
@@ -1742,13 +1742,13 @@ fn normalize_binding_path(
             .iter()
             .map(|segment| segment.ident.to_string())
             .collect();
-        return Ok(BindingType::Reference {
+        return Ok(new!(BindingType::Reference {
             reference: new!(BindingReference::Leaf {
                 kind,
                 absolute,
                 path,
             }),
-        });
+        }));
     }
 
     let args = binding_type_arguments(&segment.arguments)
@@ -1761,15 +1761,19 @@ fn normalize_binding_path(
         Ok(constructor(Box::new(value)))
     };
     match binding_wrapper_kind(path).ok_or_else(|| unsupported_binding_path(field, path))? {
-        BindingWrapperKind::Optional => unary(|value| BindingType::Optional { value }),
-        BindingWrapperKind::Repeated => unary(|value| BindingType::Repeated { value }),
+        BindingWrapperKind::Optional => unary(|value| new!(BindingType::Optional { value })),
+        BindingWrapperKind::Repeated => unary(|value| new!(BindingType::Repeated { value })),
         BindingWrapperKind::NonEmptyRepeated => {
-            unary(|value| BindingType::NonEmptyRepeated { value })
+            unary(|value| new!(BindingType::NonEmptyRepeated { value }))
         }
-        BindingWrapperKind::Boxed => unary(|value| BindingType::Boxed { value }),
-        BindingWrapperKind::Shared => unary(|value| BindingType::Shared { value }),
-        BindingWrapperKind::RecoveredField => unary(|value| BindingType::RecoveredField { value }),
-        BindingWrapperKind::WithIndicators => unary(|value| BindingType::WithIndicators { value }),
+        BindingWrapperKind::Boxed => unary(|value| new!(BindingType::Boxed { value })),
+        BindingWrapperKind::Shared => unary(|value| new!(BindingType::Shared { value })),
+        BindingWrapperKind::RecoveredField => {
+            unary(|value| new!(BindingType::RecoveredField { value }))
+        }
+        BindingWrapperKind::WithIndicators => {
+            unary(|value| new!(BindingType::WithIndicators { value }))
+        }
         kind @ (BindingWrapperKind::SmallRepeated | BindingWrapperKind::SmallNonEmptyRepeated) => {
             if args.len() != 1 {
                 return Err(unsupported_binding_path(field, path));
@@ -1779,13 +1783,13 @@ fn normalize_binding_path(
             };
             let value = normalize_binding_type(&array.elem, generated_models, field)?;
             if matches!(kind, BindingWrapperKind::SmallRepeated) {
-                Ok(BindingType::Repeated {
+                Ok(new!(BindingType::Repeated {
                     value: Box::new(value),
-                })
+                }))
             } else {
-                Ok(BindingType::NonEmptyRepeated {
+                Ok(new!(BindingType::NonEmptyRepeated {
                     value: Box::new(value),
-                })
+                }))
             }
         }
         BindingWrapperKind::WithFreeModifiers => {
@@ -1810,23 +1814,23 @@ fn normalize_binding_path(
                     "unsupported generated model field shape; `WithFreeModifiers` requires a generated `FreeModifierSyntax` model so its binding schema does not contain a dangling model reference",
                 ));
             }
-            Ok(BindingType::WithFreeModifiers {
+            Ok(new!(BindingType::WithFreeModifiers {
                 value: Box::new(normalize_binding_type(args[0], generated_models, field)?),
-                free_modifier: Box::new(BindingType::Reference {
+                free_modifier: Box::new(new!(BindingType::Reference {
                     reference: new!(BindingReference::Model {
                         name: "FreeModifierSyntax".to_owned(),
                     }),
-                }),
-            })
+                })),
+            }))
         }
         BindingWrapperKind::Chain => {
             if args.len() != 2 {
                 return Err(unsupported_binding_path(field, path));
             }
-            Ok(BindingType::Chain {
+            Ok(new!(BindingType::Chain {
                 first: Box::new(normalize_binding_type(args[0], generated_models, field)?),
                 links: Box::new(normalize_binding_type(args[1], generated_models, field)?),
-            })
+            }))
         }
     }
 }
