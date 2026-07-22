@@ -18,6 +18,7 @@ use jbotci_morphology::{
     ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word,
     WordKey, WordKind, WordLike, ZoiDelimiterDetailKind,
 };
+use jbotci_syntax::{Token, WithIndicators};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
 
@@ -1133,6 +1134,262 @@ impl PyMorphologyOptions {
     }
 }
 
+/// Identity-preserving owner for a syntax token projected into morphology wrappers.
+///
+/// `Token` already contains its immutable `Arc<WithIndicators<WordLike>>`. Keeping the token
+/// itself here lets later syntax bindings recover the exact token rather than guessing identity
+/// from a source span, which is not unique for dialect-expansion siblings.
+#[invariant(true, "Token enforces its own validated source-bearing invariant")]
+#[derive(Debug, Clone)]
+pub(crate) struct TokenHandle {
+    value: Token,
+}
+
+impl PartialEq for TokenHandle {
+    #[requires(true)]
+    #[ensures(ret == Token::ptr_eq(self.get(), other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        Token::ptr_eq(self.get(), other.get())
+    }
+}
+
+impl Eq for TokenHandle {}
+
+impl TokenHandle {
+    /// Retain the exact Arc-backed token supplied by a syntax owner.
+    #[requires(true)]
+    #[ensures(Token::ptr_eq(ret.get(), &old(value.clone())))]
+    pub(crate) fn from_rust(value: Token) -> Self {
+        new!(TokenHandle { value })
+    }
+
+    /// Borrow the exact token, including its stable Arc identity.
+    #[requires(true)]
+    #[ensures(Token::ptr_eq(ret, &self.value))]
+    pub(crate) fn get(&self) -> &Token {
+        &self.value
+    }
+
+    /// Clone the token's Arc, not its recursive indicator or morphology tree.
+    #[requires(true)]
+    #[ensures(Token::ptr_eq(&ret, self.get()))]
+    pub(crate) fn clone_rust(&self) -> Token {
+        self.value.clone()
+    }
+
+    /// Locate the token's complete indicator tree without cloning it.
+    #[requires(true)]
+    #[ensures(ret.exact_token().is_some_and(|token| token == self))]
+    pub(crate) fn indicators(&self) -> WithIndicatorsHandle {
+        WithIndicatorsHandle::from_token(self.clone())
+    }
+
+    /// Locate the token's core morphology word-like value without cloning it.
+    #[requires(true)]
+    #[ensures(ret.root_token().is_some_and(|token| token == self))]
+    pub(crate) fn core_word(&self) -> WordLikeHandle {
+        self.indicators().core_word()
+    }
+}
+
+#[invariant(::Base => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WithIndicatorsStep {
+    Base,
+}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Token { .. } => true)]
+#[derive(Debug, Clone)]
+enum WithIndicatorsRoot {
+    Owned {
+        value: Arc<WithIndicators<WordLike>>,
+    },
+    Token {
+        token: TokenHandle,
+    },
+}
+
+impl WithIndicatorsRoot {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &WithIndicators<WordLike> {
+        match self.as_data() {
+            data!(WithIndicatorsRoot::Owned { value }) => value.as_ref(),
+            data!(WithIndicatorsRoot::Token { token }) => token.get().as_indicators(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none() || matches!(self.as_data(), data!(WithIndicatorsRoot::Token { .. })))]
+    fn root_token(&self) -> Option<&TokenHandle> {
+        match self.as_data() {
+            data!(WithIndicatorsRoot::Owned { .. }) => None,
+            data!(WithIndicatorsRoot::Token { token }) => Some(token),
+        }
+    }
+}
+
+/// Strongly typed path to one `WithIndicators<WordLike>` value.
+#[invariant(with_indicators_path_resolves(root.get(), steps))]
+#[derive(Debug, Clone)]
+pub(crate) struct WithIndicatorsHandle {
+    root: WithIndicatorsRoot,
+    steps: Vec<WithIndicatorsStep>,
+}
+
+impl PartialEq for WithIndicatorsHandle {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for WithIndicatorsHandle {}
+
+impl WithIndicatorsHandle {
+    /// Own a standalone indicator tree created at a Python construction boundary.
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    #[expensive_ensures(ret.get() == &old(value.clone()))]
+    pub(crate) fn from_owned(value: WithIndicators<WordLike>) -> Self {
+        new!(WithIndicatorsHandle {
+            root: new!(WithIndicatorsRoot::Owned {
+                value: Arc::new(value),
+            }),
+            steps: Vec::new(),
+        })
+    }
+
+    /// Retain an exact syntax token as the owner of its indicator tree.
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    #[ensures(ret.exact_token().is_some_and(|exact| exact == &token))]
+    pub(crate) fn from_token(token: TokenHandle) -> Self {
+        new!(WithIndicatorsHandle {
+            root: new!(WithIndicatorsRoot::Token { token }),
+            steps: Vec::new(),
+        })
+    }
+
+    /// Locate the recursive base of an indicator layer when one exists.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.get().as_data(), data!(WithIndicators::WithIndicator { .. })))]
+    pub(crate) fn base(&self) -> Option<Self> {
+        if !matches!(
+            self.get().as_data(),
+            data!(WithIndicators::WithIndicator { .. })
+        ) {
+            return None;
+        }
+        let mut steps = self.steps.clone();
+        steps.push(new!(WithIndicatorsStep::Base));
+        Some(new!(WithIndicatorsHandle {
+            root: self.root.clone(),
+            steps,
+        }))
+    }
+
+    /// Borrow the located indicator value without materializing its recursive tree.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn get(&self) -> &WithIndicators<WordLike> {
+        project_with_indicators(self.root.get(), &self.steps)
+            .expect("indicator handle is valid by construction")
+    }
+
+    /// Return the exact token that owns this locator, when it is token-backed.
+    #[requires(true)]
+    #[ensures(ret.is_none() == self.root.root_token().is_none())]
+    pub(crate) fn root_token(&self) -> Option<&TokenHandle> {
+        self.root.root_token()
+    }
+
+    /// Return this value as an exact complete token indicator tree, when possible.
+    ///
+    /// A nested `base` locator still retains its root token for lifetime and identity, but it is
+    /// not itself the full indicator value represented by that token.
+    #[requires(true)]
+    #[ensures(ret.is_some() -> self.steps.is_empty())]
+    pub(crate) fn exact_token(&self) -> Option<&TokenHandle> {
+        if self.steps.is_empty() {
+            self.root.root_token()
+        } else {
+            None
+        }
+    }
+
+    /// Locate the core morphology word-like value without cloning it.
+    #[requires(true)]
+    #[ensures(ret.get() == self.get().core_word())]
+    pub(crate) fn core_word(&self) -> WordLikeHandle {
+        WordLikeHandle::from_indicators(self.clone())
+    }
+
+    /// Materialize an owned indicator value only for an owned Rust construction boundary.
+    #[requires(true)]
+    #[ensures(ret == self.get().clone())]
+    pub(crate) fn into_owned(self) -> WithIndicators<WordLike> {
+        self.get().clone()
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == with_indicators_path_resolves(root, steps))]
+fn project_with_indicators<'a>(
+    root: &'a WithIndicators<WordLike>,
+    steps: &[WithIndicatorsStep],
+) -> Option<&'a WithIndicators<WordLike>> {
+    let mut current = root;
+    for step in steps {
+        current = match (current.as_data(), step) {
+            (data!(WithIndicators::WithIndicator { base, .. }), WithIndicatorsStep::Base) => {
+                base.as_ref()
+            }
+            _ => return None,
+        };
+    }
+    Some(current)
+}
+
+#[requires(true)]
+#[ensures(ret == project_with_indicators(root, steps).is_some())]
+fn with_indicators_path_resolves(
+    root: &WithIndicators<WordLike>,
+    steps: &[WithIndicatorsStep],
+) -> bool {
+    project_with_indicators(root, steps).is_some()
+}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Indicators { .. } => true)]
+#[derive(Debug, Clone)]
+enum WordLikeRoot {
+    Owned { value: Arc<WordLike> },
+    Indicators { handle: WithIndicatorsHandle },
+}
+
+impl WordLikeRoot {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &WordLike {
+        match self.as_data() {
+            data!(WordLikeRoot::Owned { value }) => value.as_ref(),
+            data!(WordLikeRoot::Indicators { handle }) => handle.get().core_word(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn root_token(&self) -> Option<&TokenHandle> {
+        match self.as_data() {
+            data!(WordLikeRoot::Owned { .. }) => None,
+            data!(WordLikeRoot::Indicators { handle }) => handle.root_token(),
+        }
+    }
+}
+
 #[invariant(::LerfuBase => true)]
 #[invariant(::ZeiLeft => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1141,10 +1398,10 @@ enum WordLikeStep {
     ZeiLeft,
 }
 
-#[invariant(word_like_path_resolves(root.as_ref(), steps))]
+#[invariant(word_like_path_resolves(root.get(), steps))]
 #[derive(Debug, Clone)]
 pub(crate) struct WordLikeHandle {
-    root: Arc<WordLike>,
+    root: WordLikeRoot,
     steps: Vec<WordLikeStep>,
 }
 
@@ -1161,18 +1418,32 @@ impl Eq for WordLikeHandle {}
 impl WordLikeHandle {
     #[requires(true)]
     #[ensures(ret.steps.is_empty())]
-    fn root(value: WordLike) -> Self {
+    #[expensive_ensures(ret.get() == &old(value.clone()))]
+    pub(crate) fn root(value: WordLike) -> Self {
         new!(WordLikeHandle {
-            root: Arc::new(value),
+            root: new!(WordLikeRoot::Owned {
+                value: Arc::new(value),
+            }),
             steps: Vec::new(),
         })
     }
 
     #[requires(true)]
     #[ensures(ret.steps.is_empty())]
-    fn from_arc(root: Arc<WordLike>) -> Self {
+    #[expensive_ensures(ret.get() == old(value.clone()).as_ref())]
+    pub(crate) fn from_arc(value: Arc<WordLike>) -> Self {
         new!(WordLikeHandle {
-            root,
+            root: new!(WordLikeRoot::Owned { value }),
+            steps: Vec::new(),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    #[expensive_ensures(ret.get() == old(handle.clone()).get().core_word())]
+    pub(crate) fn from_indicators(handle: WithIndicatorsHandle) -> Self {
+        new!(WordLikeHandle {
+            root: new!(WordLikeRoot::Indicators { handle }),
             steps: Vec::new(),
         })
     }
@@ -1183,7 +1454,7 @@ impl WordLikeHandle {
         let mut steps = self.steps.clone();
         steps.push(step);
         new!(WordLikeHandle {
-            root: Arc::clone(&self.root),
+            root: self.root.clone(),
             steps,
         })
     }
@@ -1191,15 +1462,22 @@ impl WordLikeHandle {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn get(&self) -> &WordLike {
-        project_word_like(self.root.as_ref(), &self.steps)
+        project_word_like(self.root.get(), &self.steps)
             .expect("word-like handle is valid by construction")
+    }
+
+    /// Return the exact owning token when this projection originated in syntax.
+    #[requires(true)]
+    #[ensures(ret.is_none() == self.root.root_token().is_none())]
+    pub(crate) fn root_token(&self) -> Option<&TokenHandle> {
+        self.root.root_token()
     }
 
     /// Materialize the projected Rust subtree for an owned parser input.
     ///
     /// Python values and their children otherwise retain the shared root and typed path. The
-    /// future syntax binding should localize its unavoidable owned parser-input clone here instead
-    /// of reconstructing a `WordLike` through Python fields or serialized data.
+    /// syntax binding should use `root_token` when a token-backed value crosses back into Rust;
+    /// this owned clone is only for independently constructed morphology values.
     #[requires(true)]
     #[ensures(ret == self.get().clone())]
     pub(crate) fn into_owned(self) -> WordLike {
@@ -1271,55 +1549,119 @@ enum WordSlot {
     ZeiRight,
 }
 
+/// Typed locator for a `Word` stored directly in one indicator layer.
+#[invariant(::EmphasisBahe => true)]
+#[invariant(::ExtraEmphasisBahe { .. } => true, "the enclosing handle validates the index")]
+#[invariant(::IndicatorBahe { .. } => true, "the enclosing handle validates the index")]
+#[invariant(::Indicator => true)]
+#[invariant(::NaiBahe { .. } => true, "the enclosing handle validates the index")]
+#[invariant(::Nai => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WithIndicatorsWordSlot {
+    EmphasisBahe,
+    ExtraEmphasisBahe { index: usize },
+    IndicatorBahe { index: usize },
+    Indicator,
+    NaiBahe { index: usize },
+    Nai,
+}
+
 #[invariant(::WordLike { node, slot } => word_slot_resolves(node.get(), *slot))]
+#[invariant(::Indicators { node, slot } => with_indicators_word_slot_resolves(node.get(), *slot))]
 #[invariant(::Compiled { .. } => true, "compiled-word validity is carried by its typed handle")]
 #[derive(Debug, Clone)]
-enum WordHandle {
+enum WordHandleStorage {
     WordLike {
         node: WordLikeHandle,
         slot: WordSlot,
+    },
+    Indicators {
+        node: WithIndicatorsHandle,
+        slot: WithIndicatorsWordSlot,
     },
     Compiled {
         handle: CompiledWordHandle,
     },
 }
 
+#[invariant(true, "private typed storage enforces every word locator")]
+#[derive(Debug, Clone)]
+pub(crate) struct WordHandle {
+    value: WordHandleStorage,
+}
+
 impl WordHandle {
     #[requires(true)]
     #[expensive_ensures(ret.get() == &old(word.clone()))]
-    fn from_owned(word: Word) -> Self {
-        new!(WordHandle::WordLike {
-            node: WordLikeHandle::root(WordLike::bare(word)),
-            slot: new!(WordSlot::Plain),
+    pub(crate) fn from_owned(word: Word) -> Self {
+        new!(WordHandle {
+            value: new!(WordHandleStorage::WordLike {
+                node: WordLikeHandle::root(WordLike::bare(word)),
+                slot: new!(WordSlot::Plain),
+            }),
         })
     }
 
     #[requires(word_slot_resolves(node.get(), slot))]
     #[ensures(true)]
     fn new(node: WordLikeHandle, slot: WordSlot) -> Self {
-        new!(WordHandle::WordLike { node, slot })
+        new!(WordHandle {
+            value: new!(WordHandleStorage::WordLike { node, slot }),
+        })
+    }
+
+    /// Locate a word stored directly in an indicator layer without cloning it.
+    #[requires(true)]
+    #[ensures(ret.is_some() == with_indicators_word_slot_resolves(node.get(), slot))]
+    pub(crate) fn from_indicators(
+        node: WithIndicatorsHandle,
+        slot: WithIndicatorsWordSlot,
+    ) -> Option<Self> {
+        if !with_indicators_word_slot_resolves(node.get(), slot) {
+            return None;
+        }
+        Some(new!(WordHandle {
+            value: new!(WordHandleStorage::Indicators { node, slot }),
+        }))
     }
 
     #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(WordHandle::Compiled { .. })))]
+    #[ensures(matches!(ret.value.as_data(), data!(WordHandleStorage::Compiled { .. })))]
     fn from_compiled(handle: CompiledWordHandle) -> Self {
-        new!(WordHandle::Compiled { handle })
+        new!(WordHandle {
+            value: new!(WordHandleStorage::Compiled { handle }),
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn get(&self) -> &Word {
-        match self.as_data() {
-            data!(WordHandle::WordLike { node, slot }) => {
+        match self.value.as_data() {
+            data!(WordHandleStorage::WordLike { node, slot }) => {
                 project_word(node.get(), *slot).expect("word handle is valid by construction")
             }
-            data!(WordHandle::Compiled { handle }) => &handle.get().word,
+            data!(WordHandleStorage::Indicators { node, slot }) => {
+                project_with_indicators_word(node.get(), *slot)
+                    .expect("indicator-word handle is valid by construction")
+            }
+            data!(WordHandleStorage::Compiled { handle }) => &handle.get().word,
+        }
+    }
+
+    /// Return the exact owning token when this word originated in syntax.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn root_token(&self) -> Option<&TokenHandle> {
+        match self.value.as_data() {
+            data!(WordHandleStorage::WordLike { node, .. }) => node.root_token(),
+            data!(WordHandleStorage::Indicators { node, .. }) => node.root_token(),
+            data!(WordHandleStorage::Compiled { .. }) => None,
         }
     }
 
     #[requires(true)]
     #[ensures(ret == self.get().clone())]
-    fn clone_rust(&self) -> Word {
+    pub(crate) fn clone_rust(&self) -> Word {
         self.get().clone()
     }
 }
@@ -1385,6 +1727,49 @@ fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
 #[ensures(ret == project_word(value, slot).is_some())]
 fn word_slot_resolves(value: &WordLike, slot: WordSlot) -> bool {
     project_word(value, slot).is_some()
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == with_indicators_word_slot_resolves(value, slot))]
+fn project_with_indicators_word(
+    value: &WithIndicators<WordLike>,
+    slot: WithIndicatorsWordSlot,
+) -> Option<&Word> {
+    match (value.as_data(), slot.as_data()) {
+        (
+            data!(WithIndicators::Emphasized { bahe, .. }),
+            data!(WithIndicatorsWordSlot::EmphasisBahe),
+        ) => Some(bahe),
+        (
+            data!(WithIndicators::Emphasized { extra_bahe, .. }),
+            data!(WithIndicatorsWordSlot::ExtraEmphasisBahe { index }),
+        ) => extra_bahe.get(*index),
+        (
+            data!(WithIndicators::WithIndicator { indicator_bahe, .. }),
+            data!(WithIndicatorsWordSlot::IndicatorBahe { index }),
+        ) => indicator_bahe.get(*index),
+        (
+            data!(WithIndicators::WithIndicator { indicator, .. }),
+            data!(WithIndicatorsWordSlot::Indicator),
+        ) => Some(indicator),
+        (
+            data!(WithIndicators::WithIndicator { nai_bahe, .. }),
+            data!(WithIndicatorsWordSlot::NaiBahe { index }),
+        ) => nai_bahe.get(*index),
+        (data!(WithIndicators::WithIndicator { nai, .. }), data!(WithIndicatorsWordSlot::Nai)) => {
+            nai.as_ref()
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == project_with_indicators_word(value, slot).is_some())]
+fn with_indicators_word_slot_resolves(
+    value: &WithIndicators<WordLike>,
+    slot: WithIndicatorsWordSlot,
+) -> bool {
+    project_with_indicators_word(value, slot).is_some()
 }
 
 #[invariant(index < word.get().lujvo_parts().map_or(0, |parts| parts.len()))]
@@ -2285,9 +2670,10 @@ impl PyLujvoWord {
     }
 }
 
+/// Extract the canonical Rust-backed handle from any public Python `Word` variant.
 #[requires(true)]
 #[ensures(true)]
-fn word_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<WordHandle> {
+pub(crate) fn word_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<WordHandle> {
     if let Ok(value) = value.extract::<PyRef<'_, PyCmavoWord>>() {
         return Ok(value.handle.clone());
     }
@@ -2308,9 +2694,10 @@ fn word_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<WordHandle> {
     ))
 }
 
+/// Project a located Rust `Word` through the one public Python class family.
 #[requires(true)]
 #[ensures(true)]
-fn word_to_python(py: Python<'_>, handle: WordHandle) -> PyResult<Py<PyAny>> {
+pub(crate) fn word_to_python(py: Python<'_>, handle: WordHandle) -> PyResult<Py<PyAny>> {
     match handle.get().kind() {
         WordKind::Cmavo => Ok(Py::new(py, new!(PyCmavoWord { handle }))?.into_any()),
         WordKind::Gismu => Ok(Py::new(py, new!(PyGismuWord { handle }))?.into_any()),
@@ -3140,9 +3527,10 @@ pub(crate) fn extract_word_like(value: &Bound<'_, PyAny>) -> PyResult<WordLikeHa
     ))
 }
 
+/// Project a located Rust `WordLike` through the one public Python class family.
 #[requires(true)]
 #[ensures(true)]
-fn word_like_to_python(py: Python<'_>, handle: WordLikeHandle) -> PyResult<Py<PyAny>> {
+pub(crate) fn word_like_to_python(py: Python<'_>, handle: WordLikeHandle) -> PyResult<Py<PyAny>> {
     match handle.get().as_data() {
         data!(WordLike::PlainWord(_)) => Ok(Py::new(py, new!(PyPlainWord { handle }))?.into_any()),
         data!(WordLike::QuotedWord { .. }) => {
@@ -3166,6 +3554,107 @@ fn word_like_to_python(py: Python<'_>, handle: WordLikeHandle) -> PyResult<Py<Py
         data!(WordLike::ZeiCompound { .. }) => {
             Ok(Py::new(py, new!(PyZeiCompound { handle }))?.into_any())
         }
+    }
+}
+
+/// Project a syntax token's core word through the canonical `WordLike` classes.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn token_core_word_to_python(py: Python<'_>, token: TokenHandle) -> PyResult<Py<PyAny>> {
+    word_like_to_python(py, token.core_word())
+}
+
+/// Project an indicator tree's core word through the canonical `WordLike` classes.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn with_indicators_core_word_to_python(
+    py: Python<'_>,
+    indicators: WithIndicatorsHandle,
+) -> PyResult<Py<PyAny>> {
+    word_like_to_python(py, indicators.core_word())
+}
+
+/// Project a directly stored indicator modifier through the canonical `Word` classes.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn with_indicators_word_to_python(
+    py: Python<'_>,
+    indicators: WithIndicatorsHandle,
+    slot: WithIndicatorsWordSlot,
+) -> PyResult<Option<Py<PyAny>>> {
+    WordHandle::from_indicators(indicators, slot)
+        .map(|word| word_to_python(py, word))
+        .transpose()
+}
+
+#[cfg(test)]
+mod syntax_leaf_projection_tests {
+    use jbotci_source::SourceSpan;
+
+    use super::*;
+
+    #[requires(jbotci_morphology::cmavo_phonemes(text).is_some())]
+    #[ensures(ret.kind() == WordKind::Cmavo)]
+    fn cmavo_word(text: &str) -> Word {
+        let phonemes = jbotci_morphology::cmavo_phonemes(text)
+            .expect("test cmavo must have canonical phonemes");
+        let scalar_len = text.chars().count();
+        let span = SourceSpan::new(None, 0, text.len(), 0, scalar_len)
+            .expect("test source span must be ordered");
+        Word::from_kind(WordKind::Cmavo, phonemes, span)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn token_backed_word_locators_preserve_exact_arc_identity() {
+        let word_like = WordLike::bare(cmavo_word("coi"));
+        let first = Token::bare(word_like.clone());
+        let equal_span_sibling = Token::bare(word_like);
+        assert!(!Token::ptr_eq(&first, &equal_span_sibling));
+
+        let first_handle = TokenHandle::from_rust(first.clone());
+        let sibling_handle = TokenHandle::from_rust(equal_span_sibling);
+        assert_ne!(first_handle, sibling_handle);
+
+        let core = first_handle.core_word();
+        let located_word = WordHandle::new(core.clone(), new!(WordSlot::Plain));
+        let recovered_from_word_like = core
+            .root_token()
+            .expect("token-backed core must retain its token")
+            .clone_rust();
+        let recovered_from_word = located_word
+            .root_token()
+            .expect("token-backed word must retain its token")
+            .clone_rust();
+        assert!(Token::ptr_eq(&first, &recovered_from_word_like));
+        assert!(Token::ptr_eq(&first, &recovered_from_word));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn indicator_word_locators_retain_their_token_owner() {
+        let token = Token::emphasized(cmavo_word("ba'e"), WordLike::bare(cmavo_word("coi")));
+        let handle = TokenHandle::from_rust(token.clone());
+        let indicators = handle.indicators();
+        assert!(Token::ptr_eq(
+            &token,
+            indicators
+                .exact_token()
+                .expect("top-level indicators must recover their exact token")
+                .get(),
+        ));
+        let bahe =
+            WordHandle::from_indicators(indicators, new!(WithIndicatorsWordSlot::EmphasisBahe))
+                .expect("emphasized token must expose its ba'e modifier");
+        assert!(bahe.get().is_cmavo(Cmavo::Bahe));
+        assert!(Token::ptr_eq(
+            &token,
+            bahe.root_token()
+                .expect("indicator word must retain its token")
+                .get(),
+        ));
     }
 }
 
