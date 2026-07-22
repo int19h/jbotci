@@ -2446,7 +2446,7 @@ pub mod generated_model {
 
     /// Transparent product node for descriptor; preserves the `description` component.
     rule "descriptor" description_head -> struct {
-        /// A word from selmaho `Le`.
+        /// The required description-head word from either selmaho `Le` or selmaho `La`.
         field description <- choice((selmaho(Le), selmaho(La))).wf();
     }
 

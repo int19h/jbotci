@@ -29,6 +29,10 @@ fn canonical_generated_grammar_has_no_placeholder_field_documentation() {
             !declaration.contains("arc("),
             "shared syntax field is misdocumented as a selmaho word: {declaration}"
         );
+        assert!(
+            !declaration.contains("<- choice("),
+            "multi-family choice field is misdocumented as one selmaho family: {declaration}"
+        );
     }
 }
 
