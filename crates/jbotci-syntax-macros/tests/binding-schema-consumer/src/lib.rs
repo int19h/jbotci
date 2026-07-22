@@ -946,6 +946,8 @@ fn validate_schema(summary: &SchemaSummary) {
         }
     }
 
+    // This proc macro consumes the canonical grammar export. Synthetic type-shape
+    // probes are validated by the syntax-grammar fixture that owns those models.
     let leading = model_by_name(summary, "LeadingIndicatorSyntax");
     assert_eq!(leading.rule, "leading_indicator");
     assert_eq!(field_names(&leading.fields), ["indicator", "nai"]);
@@ -1004,145 +1006,47 @@ fn validate_schema(summary: &SchemaSummary) {
         })
     );
 
-    let item = model_by_name(summary, "ItemSyntax");
-    assert_eq!(
-        field_names(&item.fields),
-        [
-            "token",
-            "optional",
-            "repeated",
-            "non_empty",
-            "boxed",
-            "shared",
-            "with_free_modifiers",
-            "with_indicators",
-            "source_span",
-            "absolute_source_span",
-            "small",
-            "small_non_empty",
-            "fixed",
-            "tuple",
-            "explicit_recovered",
-            "terminator",
-        ]
-    );
-    let small_non_empty = field_by_name(&item.fields, "small_non_empty");
-    assert_eq!(
-        small_non_empty.strict,
-        new!(BindingType::NonEmptyRepeated {
-            value: Box::new(syntax_token()),
-        })
-    );
-    assert_eq!(
-        small_non_empty.recovered,
-        new!(BindingType::NonEmptyRepeated {
-            value: Box::new(recovered(syntax_token())),
-        })
-    );
-    let fixed = field_by_name(&item.fields, "fixed");
-    assert_eq!(
-        fixed.strict,
-        new!(BindingType::Fixed {
-            length: 2,
-            value: Box::new(syntax_token()),
-        })
-    );
-    assert_eq!(
-        fixed.recovered,
-        new!(BindingType::Fixed {
-            length: 2,
-            value: Box::new(recovered(syntax_token())),
-        })
-    );
-    let tuple = field_by_name(&item.fields, "tuple");
-    assert_eq!(
-        tuple.strict,
-        new!(BindingType::Tuple {
-            elements: vec![syntax_token(), syntax_token()],
-        })
-    );
-    assert_eq!(
-        tuple.recovered,
-        new!(BindingType::Tuple {
-            elements: vec![recovered(syntax_token()), recovered(syntax_token())],
-        })
-    );
-    let explicit_recovered = field_by_name(&item.fields, "explicit_recovered");
-    assert_eq!(explicit_recovered.strict, recovered(syntax_token()));
-    assert_eq!(
-        explicit_recovered.recovered,
-        recovered(recovered(syntax_token()))
-    );
-
-    let chain = model_by_name(summary, "ItemChainSyntax");
-    let run = field_by_name(&chain.fields, "run");
-    assert_eq!(
-        run.strict,
-        new!(BindingType::Chain {
-            first: Box::new(model_reference("ItemSyntax")),
-            links: Box::new(new!(BindingType::Repeated {
-                value: Box::new(model_reference("ChainLinkSyntax")),
-            })),
-        })
-    );
-    assert_eq!(
-        run.recovered,
-        new!(BindingType::Chain {
-            first: Box::new(recovered(model_reference("ItemSyntax"))),
-            links: Box::new(new!(BindingType::Repeated {
-                value: Box::new(recovered(model_reference("ChainLinkSyntax"))),
-            })),
-        })
-    );
-
     assert!(
         summary
             .transparent_constructors
             .iter()
-            .any(|constructor| constructor == "Wrapper")
+            .any(|constructor| constructor == "Text")
     );
     assert!(
         summary
             .transparent_fields
             .contains(&new!(ConstructorFieldMetadata {
-                constructor: "Wrapper".to_owned(),
-                field: "token".to_owned(),
+                constructor: "ExplicitXauhaLohoiText".to_owned(),
+                field: "paragraphs".to_owned(),
             }))
     );
     assert!(
         summary
             .chain_link_element_fields
             .contains(&new!(ConstructorFieldMetadata {
-                constructor: "ChainLink".to_owned(),
-                field: "item".to_owned(),
+                constructor: "BridiTailContinuation".to_owned(),
+                field: "bridi_tail".to_owned(),
             }))
     );
     assert!(
         summary
             .constructor_labels
             .contains(&new!(ConstructorLabelMetadata {
-                constructor: "Item".to_owned(),
-                label: "item".to_owned(),
+                constructor: "LeadingIndicator".to_owned(),
+                label: "leading indicator".to_owned(),
             }))
     );
     assert!(
         summary
             .elidable_terminators
             .contains(&new!(ElidableTerminatorMetadata {
-                field: "terminator".to_owned(),
-                cmavo: "Be".to_owned(),
+                field: "tuhu".to_owned(),
+                cmavo: "Tuhu".to_owned(),
             }))
     );
     assert!(summary.field_orders.contains(&new!(FieldOrderMetadata {
-        constructor: "ChainLink".to_owned(),
-        fields: vec!["connector".to_owned(), "item".to_owned()],
-    })));
-    assert!(summary.field_orders.contains(&new!(FieldOrderMetadata {
-        constructor: "Item".to_owned(),
-        fields: field_names(&item.fields)
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
+        constructor: "LeadingIndicator".to_owned(),
+        fields: vec!["indicator".to_owned(), "nai".to_owned()],
     })));
 }
 
@@ -1164,15 +1068,6 @@ fn model_by_name<'a>(summary: &'a SchemaSummary, name: &str) -> &'a ModelSchema 
         .expect("representative schema model is missing")
 }
 
-#[bityzba::requires(!name.is_empty())]
-#[bityzba::ensures(ret.source_name == name)]
-fn field_by_name<'a>(fields: &'a [FieldSchema], name: &str) -> &'a FieldSchema {
-    fields
-        .iter()
-        .find(|field| field.source_name == name)
-        .expect("representative schema field is missing")
-}
-
 #[bityzba::requires(true)]
 #[bityzba::ensures(ret.len() == fields.len())]
 fn field_names(fields: &[FieldSchema]) -> Vec<&str> {
@@ -1189,22 +1084,6 @@ fn syntax_token() -> BindingType {
         kind: "syntax_token".to_owned(),
         absolute: false,
         path: vec!["Token".to_owned()],
-    })
-}
-
-#[bityzba::requires(!name.is_empty())]
-#[bityzba::ensures(true)]
-fn model_reference(name: &str) -> BindingType {
-    new!(BindingType::ModelReference {
-        name: name.to_owned(),
-    })
-}
-
-#[bityzba::requires(true)]
-#[bityzba::ensures(true)]
-fn recovered(value: BindingType) -> BindingType {
-    new!(BindingType::RecoveredField {
-        value: Box::new(value),
     })
 }
 
