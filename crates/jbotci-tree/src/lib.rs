@@ -382,67 +382,6 @@ where
 }
 
 #[contract_trait]
-impl<A> RecoveredFieldState for vec1::smallvec_v1::SmallVec1<A>
-where
-    A: smallvec::Array,
-    A::Item: RecoveredFieldState,
-{
-    #[requires(true)]
-    #[ensures(true)]
-    fn recovery_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::recovery_error_slots)
-            .sum()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn missing_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::missing_error_slots)
-            .sum()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::invalid_error_slots)
-            .sum()
-    }
-}
-
-#[contract_trait]
-impl<T, const N: usize> RecoveredFieldState for [T; N]
-where
-    T: RecoveredFieldState,
-{
-    #[requires(true)]
-    #[ensures(true)]
-    fn recovery_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::recovery_error_slots)
-            .sum()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn missing_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::missing_error_slots)
-            .sum()
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn invalid_error_slots(&self) -> usize {
-        self.iter()
-            .map(RecoveredFieldState::invalid_error_slots)
-            .sum()
-    }
-}
-
-#[contract_trait]
 impl<T> RecoveredFieldState for Vec1<T>
 where
     T: RecoveredFieldState,
@@ -1447,29 +1386,6 @@ mod tests {
             walker.events.borrow().as_slice(),
             ["error:Missing", "error:Invalid", "leaf", "atom:leaf",].as_slice()
         );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn fixed_and_nonempty_small_collections_aggregate_recovery_state() {
-        let fixed = [
-            recovered::Recovered::error(RecoveryTreeItem::Missing),
-            recovered::Recovered::prefix(vec![RecoveryTreeItem::Invalid], "value".to_owned()),
-        ];
-        assert_eq!(fixed.recovery_error_slots(), 2);
-        assert_eq!(fixed.missing_error_slots(), 1);
-        assert_eq!(fixed.invalid_error_slots(), 1);
-
-        let small =
-            vec1::smallvec_v1::SmallVec1::<[recovered::Recovered<String>; 2]>::try_from_vec(vec![
-                recovered::Recovered::valid("value".to_owned()),
-                recovered::Recovered::error(RecoveryTreeItem::Invalid),
-            ])
-            .expect("fixture collection is non-empty");
-        assert_eq!(small.recovery_error_slots(), 1);
-        assert_eq!(small.missing_error_slots(), 0);
-        assert_eq!(small.invalid_error_slots(), 1);
     }
 
     #[test]
