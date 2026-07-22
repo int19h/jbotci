@@ -1,21 +1,23 @@
 #[allow(unused_imports)]
 use bityzba::ensures;
-use bityzba::{invariant, requires};
+use bityzba::requires;
 
 use crate::{Cmavo, Selmaho, Word, WordKind, fold_lojban_diacritic};
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LeadingPauseVowelMode {
-    FoldedVowels,
-    LatinSurfaceVowels,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LeadingPauseVowelMode {
+        FoldedVowels => ("FOLDED_VOWELS", "folded-vowels"),
+        LatinSurfaceVowels => ("LATIN_SURFACE_VOWELS", "latin-surface-vowels"),
+    }
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LeadingPauseContext {
-    IndependentWord,
-    BuLetterBase,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LeadingPauseContext {
+        IndependentWord => ("INDEPENDENT_WORD", "independent-word"),
+        BuLetterBase => ("BU_LETTER_BASE", "bu-letter-base"),
+    }
 }
 
 #[requires(true)]

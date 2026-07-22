@@ -1,5 +1,42 @@
 //! Lojban morphology model.
 
+macro_rules! define_string_enum_metadata {
+    (
+        $(#[$attribute:meta])*
+        pub enum $name:ident {
+            $($(#[$variant_attribute:meta])* $variant:ident => ($member:literal, $value:literal)),+ $(,)?
+        }
+    ) => {
+        #[bityzba::invariant(true)]
+        $(#[$attribute])*
+        pub enum $name {
+            $($(#[$variant_attribute])* $variant),+
+        }
+
+        #[bityzba::contract_trait]
+        impl $crate::StringEnumMetadata for $name {
+            fn variants() -> &'static [Self] {
+                const VALUES: &[$name] = &[$($name::$variant),+];
+                VALUES
+            }
+
+            fn variant_name(self) -> &'static str {
+                match self {
+                    $($name::$variant => $member),+
+                }
+            }
+
+            fn canonical_name(self) -> &'static str {
+                match self {
+                    $($name::$variant => $value),+
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use define_string_enum_metadata;
+
 mod cmavo;
 mod diacritics;
 mod dialect;
@@ -12,7 +49,7 @@ pub mod tree;
 
 use std::{fmt, num::NonZeroUsize, sync::Arc};
 
-use bityzba::{data, invariant, new, requires, try_new};
+use bityzba::{contract_trait, data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
     DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TracePhase,
@@ -38,10 +75,10 @@ pub use dialect::{
 };
 pub use lujvo::{
     ConsonantPairClass, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoCandidate,
-    bond_rafsis, choose_best_lujvo_candidate, choose_best_lujvo_candidate_from_parts,
+    RafsiShape, bond_rafsis, choose_best_lujvo_candidate, choose_best_lujvo_candidate_from_parts,
     consonant_pair_class, ends_with_consonant, ends_with_vowel, ensure_cmevla_word,
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
-    permissible_consonant_pair, syllables_pattern,
+    permissible_consonant_pair, rafsi_shape, syllables_pattern,
 };
 pub use surface::{
     LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
@@ -52,6 +89,56 @@ pub use tree::{
     AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
     WordLikeData,
 };
+
+/// Stable string metadata for finite fieldless domain enums.
+///
+/// Bindings and other projections consume this metadata instead of maintaining
+/// an independent variant inventory. Payload enums deliberately do not
+/// implement this trait.
+#[contract_trait]
+pub trait StringEnumMetadata: Copy + 'static {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn variants() -> &'static [Self];
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn variant_name(self) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn canonical_name(self) -> &'static str;
+}
+
+#[contract_trait]
+impl StringEnumMetadata for Cmavo {
+    fn variants() -> &'static [Self] {
+        Self::ALL
+    }
+
+    fn variant_name(self) -> &'static str {
+        Cmavo::variant_name(self)
+    }
+
+    fn canonical_name(self) -> &'static str {
+        self.canonical_text()
+    }
+}
+
+#[contract_trait]
+impl StringEnumMetadata for Selmaho {
+    fn variants() -> &'static [Self] {
+        Self::ALL
+    }
+
+    fn variant_name(self) -> &'static str {
+        self.name()
+    }
+
+    fn canonical_name(self) -> &'static str {
+        self.name()
+    }
+}
 
 pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "morphology",
@@ -284,18 +371,20 @@ fn morphology_error_recovery_start(error: &MorphologyError) -> Option<usize> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum WordKind {
-    #[serde(rename = "cmavo")]
-    Cmavo,
-    #[serde(rename = "gismu")]
-    Gismu,
-    #[serde(rename = "lujvo")]
-    Lujvo,
-    #[serde(rename = "fu'ivla")]
-    Fuhivla,
-    #[serde(rename = "cmevla")]
-    Cmevla,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    pub enum WordKind {
+        #[serde(rename = "cmavo")]
+        Cmavo => ("CMAVO", "cmavo"),
+        #[serde(rename = "gismu")]
+        Gismu => ("GISMU", "gismu"),
+        #[serde(rename = "lujvo")]
+        Lujvo => ("LUJVO", "lujvo"),
+        #[serde(rename = "fu'ivla")]
+        Fuhivla => ("FUIVLA", "fu'ivla"),
+        #[serde(rename = "cmevla")]
+        Cmevla => ("CMEVLA", "cmevla"),
+    }
 }
 
 #[invariant(result.is_valid() -> warnings.iter().all(|warning| warning.char_start < warning.char_end))]
@@ -328,12 +417,14 @@ impl ValsiAnalysisResult {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiAnalysisStatus {
-    Valid,
-    Invalid,
-    NotSingleWord,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiAnalysisStatus {
+        Valid => ("VALID", "valid"),
+        Invalid => ("INVALID", "invalid"),
+        NotSingleWord => ("NOT_SINGLE_WORD", "not-single-word"),
+    }
 }
 
 #[invariant(::PlainWord { word } => !word.phonemes.is_empty())]
@@ -537,16 +628,18 @@ impl Serialize for ValsiClassification {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiClassificationKind {
-    PlainWord,
-    QuotedWord,
-    DelimitedNonLojbanQuote,
-    QuotedWords,
-    DelimitedWordQuote,
-    LerfuWord,
-    ZeiCompound,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiClassificationKind {
+        PlainWord => ("PLAIN_WORD", "plain-word"),
+        QuotedWord => ("QUOTED_WORD", "quoted-word"),
+        DelimitedNonLojbanQuote => ("DELIMITED_NON_LOJBAN_QUOTE", "delimited-non-lojban-quote"),
+        QuotedWords => ("QUOTED_WORDS", "quoted-words"),
+        DelimitedWordQuote => ("DELIMITED_WORD_QUOTE", "delimited-word-quote"),
+        LerfuWord => ("LERFU_WORD", "lerfu-word"),
+        ZeiCompound => ("ZEI_COMPOUND", "zei-compound"),
+    }
 }
 
 #[invariant(!phonemes.is_empty())]
@@ -575,53 +668,63 @@ pub struct ValsiLujvoPart {
     pub rafsi_kind: Option<ValsiLujvoRafsiKind>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiLujvoPartKind {
-    Rafsi,
-    Hyphen,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiLujvoPartKind {
+        Rafsi => ("RAFSI", "rafsi"),
+        Hyphen => ("HYPHEN", "hyphen"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiLujvoRafsiKind {
-    Cvc,
-    Ccv,
-    Cvv,
-    Long,
-    Gismu,
-    Fuhivla,
-    Cultural,
-    Extended,
-    Unknown,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiLujvoRafsiKind {
+        Cvc => ("CVC", "cvc"),
+        Ccv => ("CCV", "ccv"),
+        Cvv => ("CVV", "cvv"),
+        Long => ("LONG", "long"),
+        Gismu => ("GISMU", "gismu"),
+        Fuhivla => ("FUIVLA", "fuhivla"),
+        Cultural => ("CULTURAL", "cultural"),
+        Extended => ("EXTENDED", "extended"),
+        Unknown => ("UNKNOWN", "unknown"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ValsiFuhivlaStage {
-    Stage3,
-    Stage4,
-    Unknown,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ValsiFuhivlaStage {
+        Stage3 => ("STAGE3", "stage3"),
+        Stage4 => ("STAGE4", "stage4"),
+        Unknown => ("UNKNOWN", "unknown"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum StressMark {
-    None,
-    Acute,
-    Caps,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum StressMark {
+        None => ("NONE", "none"),
+        Acute => ("ACUTE", "acute"),
+        Caps => ("CAPS", "caps"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum GlideMark {
-    None,
-    Breve,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum GlideMark {
+        None => ("NONE", "none"),
+        Breve => ("BREVE", "breve"),
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct PhonemeRenderOptions {
     pub mark_stress: StressMark,
     pub mark_glides: GlideMark,
@@ -1389,27 +1492,28 @@ where
     Ok(Verbatim::new(map_span((*data.span).clone())?, data.text))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum MorphologyErrorKind {
-    InvalidCharacter,
-    ExpectedWord,
-    UnrecognizedWord,
-    InvalidApostrophe,
-    GeminatedConsonant,
-    VoicingMismatch,
-    ForbiddenConsonantPair,
-    ForbiddenConsonantTriple,
-    VowelHiatus,
-    YHiatus,
-    BreveNotGlide,
-    DigitApostrophe,
-    DigitVowel,
-    Slinkuhi,
-    InvalidLujvo,
-    InvalidQuoteMarker,
-    InvalidZoiDelimiter,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum MorphologyErrorKind {
+        InvalidCharacter => ("INVALID_CHARACTER", "invalid-character"),
+        ExpectedWord => ("EXPECTED_WORD", "expected-word"),
+        UnrecognizedWord => ("UNRECOGNIZED_WORD", "unrecognized-word"),
+        InvalidApostrophe => ("INVALID_APOSTROPHE", "invalid-apostrophe"),
+        GeminatedConsonant => ("GEMINATED_CONSONANT", "geminated-consonant"),
+        VoicingMismatch => ("VOICING_MISMATCH", "voicing-mismatch"),
+        ForbiddenConsonantPair => ("FORBIDDEN_CONSONANT_PAIR", "forbidden-consonant-pair"),
+        ForbiddenConsonantTriple => ("FORBIDDEN_CONSONANT_TRIPLE", "forbidden-consonant-triple"),
+        VowelHiatus => ("VOWEL_HIATUS", "vowel-hiatus"),
+        YHiatus => ("Y_HIATUS", "y-hiatus"),
+        BreveNotGlide => ("BREVE_NOT_GLIDE", "breve-not-glide"),
+        DigitApostrophe => ("DIGIT_APOSTROPHE", "digit-apostrophe"),
+        DigitVowel => ("DIGIT_VOWEL", "digit-vowel"),
+        Slinkuhi => ("SLINKUHI", "slinkuhi"),
+        InvalidLujvo => ("INVALID_LUJVO", "invalid-lujvo"),
+        InvalidQuoteMarker => ("INVALID_QUOTE_MARKER", "invalid-quote-marker"),
+        InvalidZoiDelimiter => ("INVALID_ZOI_DELIMITER", "invalid-zoi-delimiter"),
+    }
 }
 
 impl MorphologyErrorKind {
@@ -1462,14 +1566,15 @@ impl MorphologyErrorKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum MorphologyWarningKind {
-    ExperimentalCgv,
-    ExperimentalMz,
-    BreveNotGlide,
-    IgnoredCharacters,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum MorphologyWarningKind {
+        ExperimentalCgv => ("EXPERIMENTAL_CGV", "experimental-cgv"),
+        ExperimentalMz => ("EXPERIMENTAL_MZ", "experimental-mz"),
+        BreveNotGlide => ("BREVE_NOT_GLIDE", "breve-not-glide"),
+        IgnoredCharacters => ("IGNORED_CHARACTERS", "ignored-characters"),
+    }
 }
 
 impl MorphologyWarningKind {
@@ -1638,21 +1743,22 @@ impl fmt::Display for MorphologyErrorKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub enum MorphologyContextKind {
-    Cmavo,
-    Gismu,
-    Lujvo,
-    Fuhivla,
-    Cmevla,
-    QuotedWord,
-    DelimitedNonLojbanQuote,
-    QuotedWords,
-    DelimitedWordQuote,
-    Bu,
-    Zei,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum MorphologyContextKind {
+        Cmavo => ("CMAVO", "cmavo"),
+        Gismu => ("GISMU", "gismu"),
+        Lujvo => ("LUJVO", "lujvo"),
+        Fuhivla => ("FUIVLA", "fuhivla"),
+        Cmevla => ("CMEVLA", "cmevla"),
+        QuotedWord => ("QUOTED_WORD", "quoted-word"),
+        DelimitedNonLojbanQuote => ("DELIMITED_NON_LOJBAN_QUOTE", "delimited-non-lojban-quote"),
+        QuotedWords => ("QUOTED_WORDS", "quoted-words"),
+        DelimitedWordQuote => ("DELIMITED_WORD_QUOTE", "delimited-word-quote"),
+        Bu => ("BU", "bu"),
+        Zei => ("ZEI", "zei"),
+    }
 }
 
 impl MorphologyContextKind {
@@ -1702,11 +1808,12 @@ impl MorphologyContext {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum LujvoParseExpectation {
-    InitialOrStandaloneFinalRafsi,
-    FinalOrInitialRafsi,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LujvoParseExpectation {
+        InitialOrStandaloneFinalRafsi => ("INITIAL_OR_STANDALONE_FINAL_RAFSI", "initial-or-standalone-final-rafsi"),
+        FinalOrInitialRafsi => ("FINAL_OR_INITIAL_RAFSI", "final-or-initial-rafsi"),
+    }
 }
 
 impl LujvoParseExpectation {
@@ -1720,14 +1827,15 @@ impl LujvoParseExpectation {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum ExpectedWordDetailKind {
-    PlainWord,
-    QuoteTarget,
-    BuOperand,
-    ZeiOperand,
-    ZoiDelimiter,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ExpectedWordDetailKind {
+        PlainWord => ("PLAIN_WORD", "plain-word"),
+        QuoteTarget => ("QUOTE_TARGET", "quote-target"),
+        BuOperand => ("BU_OPERAND", "bu-operand"),
+        ZeiOperand => ("ZEI_OPERAND", "zei-operand"),
+        ZoiDelimiter => ("ZOI_DELIMITER", "zoi-delimiter"),
+    }
 }
 
 impl ExpectedWordDetailKind {
@@ -1744,12 +1852,13 @@ impl ExpectedWordDetailKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum ZoiDelimiterDetailKind {
-    Missing,
-    YWord,
-    NotSingleWord,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum ZoiDelimiterDetailKind {
+        Missing => ("MISSING", "missing"),
+        YWord => ("Y_WORD", "y-word"),
+        NotSingleWord => ("NOT_SINGLE_WORD", "not-single-word"),
+    }
 }
 
 impl ZoiDelimiterDetailKind {
@@ -1764,20 +1873,21 @@ impl ZoiDelimiterDetailKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-pub enum PhonotacticDetailKind {
-    InvalidCharacter,
-    InvalidApostrophe,
-    GeminatedConsonant,
-    VoicingMismatch,
-    ForbiddenConsonantPair,
-    ForbiddenConsonantTriple,
-    VowelHiatus,
-    YHiatus,
-    BreveNotGlide,
-    DigitApostrophe,
-    DigitVowel,
+define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum PhonotacticDetailKind {
+        InvalidCharacter => ("INVALID_CHARACTER", "invalid-character"),
+        InvalidApostrophe => ("INVALID_APOSTROPHE", "invalid-apostrophe"),
+        GeminatedConsonant => ("GEMINATED_CONSONANT", "geminated-consonant"),
+        VoicingMismatch => ("VOICING_MISMATCH", "voicing-mismatch"),
+        ForbiddenConsonantPair => ("FORBIDDEN_CONSONANT_PAIR", "forbidden-consonant-pair"),
+        ForbiddenConsonantTriple => ("FORBIDDEN_CONSONANT_TRIPLE", "forbidden-consonant-triple"),
+        VowelHiatus => ("VOWEL_HIATUS", "vowel-hiatus"),
+        YHiatus => ("Y_HIATUS", "y-hiatus"),
+        BreveNotGlide => ("BREVE_NOT_GLIDE", "breve-not-glide"),
+        DigitApostrophe => ("DIGIT_APOSTROPHE", "digit-apostrophe"),
+        DigitVowel => ("DIGIT_VOWEL", "digit-vowel"),
+    }
 }
 
 impl PhonotacticDetailKind {
@@ -1900,11 +2010,11 @@ impl MorphologyErrorDetail {
     }
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Invalid => true)]
 #[invariant(::UnterminatedZoiQuote => true)]
 #[invariant(::SourceSpan(_) => true)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum MorphologyError {
     #[error("{kind} at character {char_start}: `{text}`")]
     Invalid {

@@ -998,6 +998,14 @@ macro_rules! cmavo_canonical_text {
     };
 }
 
+macro_rules! cmavo_variant_name {
+    (($cmavo:expr) [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($selmaho:ident),* $(,)?] }),+ $(,)?]) => {
+        match $cmavo {
+            $(Self::$variant => stringify!($variant),)+
+        }
+    };
+}
+
 macro_rules! cmavo_selmaho_contains {
     (($selmaho:expr, $cmavo:expr) [$($variant:ident => { text: $canonical_text:literal, selmaho: [$($member:ident),* $(,)?] }),+ $(,)?]) => {
         match $cmavo {
@@ -1036,6 +1044,17 @@ impl Cmavo {
         cmavo_table!(cmavo_canonical_text, self)
     }
 
+    /// Stable Rust variant name generated from the canonical cmavo table.
+    ///
+    /// This is metadata for projections that need an identifier as well as
+    /// the canonical Lojban spelling. Both values remain sourced from the same
+    /// table as the enum declaration and parser lookup.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn variant_name(self) -> &'static str {
+        cmavo_table!(cmavo_variant_name, self)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub fn is_selmaho(self, selmaho: Selmaho) -> bool {
@@ -1047,6 +1066,23 @@ impl Cmavo {
     #[ensures(ret == self.quote_opener_kind().is_some())]
     pub const fn is_quote_opener(self) -> bool {
         self.quote_opener_kind().is_some()
+    }
+
+    /// Whether this cmavo quotes exactly one following source word as verbatim text.
+    #[requires(true)]
+    #[ensures(ret == (self.quote_opener_kind() == Some(QuoteOpenerKind::SingleWord)))]
+    pub const fn is_single_word_quote_opener(self) -> bool {
+        matches!(self.quote_opener_kind(), Some(QuoteOpenerKind::SingleWord))
+    }
+
+    /// Whether this cmavo opens a delimiter-based non-Lojban quote.
+    #[requires(true)]
+    #[ensures(ret == (self.quote_opener_kind() == Some(QuoteOpenerKind::DelimitedNonLojban)))]
+    pub const fn is_delimited_non_lojban_quote_opener(self) -> bool {
+        matches!(
+            self.quote_opener_kind(),
+            Some(QuoteOpenerKind::DelimitedNonLojban)
+        )
     }
 
     #[requires(true)]
@@ -1077,6 +1113,50 @@ impl Cmavo {
             .find(|selmaho| selmaho.contains(self))
     }
 }
+
+#[requires(true)]
+#[ensures(true)]
+const fn static_str_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut index = 0;
+    while index < left.len() {
+        if left[index] != right[index] {
+            return false;
+        }
+        index += 1;
+    }
+    true
+}
+
+#[requires(true)]
+#[ensures(true)]
+const fn cmavo_metadata_is_unique() -> bool {
+    let mut left_index = 0;
+    while left_index < Cmavo::ALL.len() {
+        let left = Cmavo::ALL[left_index];
+        let mut right_index = left_index + 1;
+        while right_index < Cmavo::ALL.len() {
+            let right = Cmavo::ALL[right_index];
+            if static_str_eq(left.variant_name(), right.variant_name())
+                || static_str_eq(left.canonical_text(), right.canonical_text())
+            {
+                return false;
+            }
+            right_index += 1;
+        }
+        left_index += 1;
+    }
+    true
+}
+
+const _: () = assert!(
+    cmavo_metadata_is_unique(),
+    "cmavo variant names and canonical spellings must be unique"
+);
 
 impl fmt::Display for Cmavo {
     #[requires(true)]

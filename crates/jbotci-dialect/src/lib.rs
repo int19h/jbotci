@@ -10,9 +10,9 @@ use thiserror::Error;
 
 const DIALECT_SWAP_OPERATOR: &str = "\u{1f8d0}";
 
+#[invariant(true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[error("{message}")]
-#[invariant(true)]
 pub struct DialectError {
     message: String,
 }
@@ -121,6 +121,48 @@ pub enum CmavoDialectEntry {
     },
 }
 
+impl CmavoDialectEntry {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|entry| matches!(entry.as_data(), data!(CmavoDialectEntry::Swap { left: entry_left, right: entry_right }) if entry_left == &left && entry_right == &right)) || ret.is_err())]
+    pub fn swap(left: String, right: String) -> Result<Self, DialectError> {
+        if !is_basic_dialect_word(&left) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {left}"
+            )));
+        }
+        if !is_basic_dialect_word(&right) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {right}"
+            )));
+        }
+        Ok(new!(CmavoDialectEntry::Swap { left, right }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|entry| matches!(entry.as_data(), data!(CmavoDialectEntry::Expansion { source: entry_source, replacement: entry_replacement }) if entry_source == &source && entry_replacement == &replacement)) || ret.is_err())]
+    pub fn expansion(source: String, replacement: Vec<String>) -> Result<Self, DialectError> {
+        if !is_basic_dialect_word(&source) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {source}"
+            )));
+        }
+        if replacement.is_empty() {
+            return Err(DialectError::new(
+                "Cmavo dialect expansion replacement must not be empty.".to_owned(),
+            ));
+        }
+        if let Some(word) = replacement.iter().find(|word| !is_basic_dialect_word(word)) {
+            return Err(DialectError::new(format!(
+                "Invalid cmavo dialect word: {word}"
+            )));
+        }
+        Ok(new!(CmavoDialectEntry::Expansion {
+            source,
+            replacement,
+        }))
+    }
+}
+
 #[invariant(true, "dialect word entry validity is guaranteed by CmavoDialectEntry")]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -130,6 +172,16 @@ pub struct DialectDefinition {
 }
 
 impl DialectDefinition {
+    #[requires(true)]
+    #[ensures(ret.cmavo_entries == cmavo_entries)]
+    #[ensures(ret.features == features)]
+    pub fn new(cmavo_entries: Vec<CmavoDialectEntry>, features: BTreeSet<DialectFeature>) -> Self {
+        new!(DialectDefinition {
+            cmavo_entries,
+            features,
+        })
+    }
+
     #[requires(true)]
     #[ensures(ret.is_baseline())]
     pub fn baseline() -> Self {
@@ -143,52 +195,52 @@ impl DialectDefinition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuiltinDialect {
     pub name: &'static str,
     pub definition: &'static str,
     pub dialect: DialectDefinition,
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct CustomDialect {
     pub name: String,
     pub definition: String,
     pub show_in_gentufa: bool,
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct DialectSettings {
     pub custom_dialects: Vec<CustomDialect>,
     pub hidden_builtin_gentufa_dialects: BTreeSet<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Atom(_) => true)]
 #[invariant(::Group(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DialectFormulaComponent {
     Atom(String),
     Group(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct JohauShorthandSwap {
     code: char,
     left: &'static str,
     right: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Cmavo(_) => true)]
 #[invariant(::Feature(_, _) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DialectDefinitionEntry {
     Cmavo(CmavoDialectEntry),
     Feature(DialectFeatureToggle, DialectFeature),
@@ -200,9 +252,9 @@ enum DialectFeatureToggle {
     Disable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Atom(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum DialectToken {
     OpenParen,
     CloseParen,

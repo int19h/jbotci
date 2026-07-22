@@ -3,10 +3,12 @@ use bityzba::{data, ensures, invariant, new, requires};
 
 pub use crate::segment::ConsonantPairClass;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LujvoBuildMode {
-    Lujvo,
-    Cmevla,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LujvoBuildMode {
+        Lujvo => ("LUJVO", "lujvo"),
+        Cmevla => ("CMEVLA", "cmevla"),
+    }
 }
 
 #[invariant(!word.is_empty())]
@@ -18,18 +20,19 @@ pub struct LujvoCandidate {
     pub score: i32,
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum RafsiShape {
-    Cvccv,
-    Cvcc,
-    Ccvcv,
-    Ccvc,
-    Cvc,
-    CvhV,
-    Ccv,
-    Cvv,
-    Other,
+crate::define_string_enum_metadata! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum RafsiShape {
+        Cvccv => ("CVCCV", "cvccv"),
+        Cvcc => ("CVCC", "cvcc"),
+        Ccvcv => ("CCVCV", "ccvcv"),
+        Ccvc => ("CCVC", "ccvc"),
+        Cvc => ("CVC", "cvc"),
+        CvhV => ("CVH_V", "cvh-v"),
+        Ccv => ("CCV", "ccv"),
+        Cvv => ("CVV", "cvv"),
+        Other => ("OTHER", "other"),
+    }
 }
 
 impl RafsiShape {

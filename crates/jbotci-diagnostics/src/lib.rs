@@ -7,29 +7,62 @@ use jbotci_source::{LineColumn, SourceId, SourceLocationError, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DiagnosticSeverity {
-    Error,
-    Warning,
-    Advice,
+macro_rules! define_string_enum {
+    (
+        $(#[$attribute:meta])*
+        pub enum $name:ident {
+            $($variant:ident => $value:literal),+ $(,)?
+        }
+    ) => {
+        #[invariant(true)]
+        $(#[$attribute])*
+        pub enum $name {
+            $($variant),+
+        }
+
+        impl $name {
+            pub const ALL: &'static [Self] = &[$(Self::$variant),+];
+
+            #[requires(true)]
+            #[ensures(!ret.is_empty())]
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $value),+
+                }
+            }
+        }
+    };
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DiagnosticPhase {
-    Morphology,
-    Syntax,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum DiagnosticSeverity {
+        Error => "error",
+        Warning => "warning",
+        Advice => "advice",
+    }
+}
+
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum DiagnosticPhase {
+        Morphology => "morphology",
+        Syntax => "syntax",
+    }
 }
 
 pub const DEFAULT_TRACE_LIMIT: usize = 10_000;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TracePhase {
-    Morphology,
-    Syntax,
-    All,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum TracePhase {
+        Morphology => "morphology",
+        Syntax => "syntax",
+        All => "all",
+    }
 }
 
 impl TracePhase {
@@ -40,13 +73,15 @@ impl TracePhase {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TraceLevel {
-    Top,
-    Detailed,
-    All,
-    Primitives,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum TraceLevel {
+        Top => "top",
+        Detailed => "detailed",
+        All => "all",
+        Primitives => "primitives",
+    }
 }
 
 impl TraceLevel {
@@ -82,9 +117,9 @@ impl Default for TraceLevel {
     }
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::InvalidLevel => true)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum TraceOptionError {
     #[error("invalid trace level {value}; expected 1, 2, 3, or 4")]
     InvalidLevel { value: u8 },
@@ -175,20 +210,22 @@ impl TraceOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TraceEventKind {
-    ConstructEnter,
-    ConstructSuccess,
-    ConstructFailure,
-    TerminalAttempt,
-    TerminalSuccess,
-    TerminalFailure,
-    Token,
-    Save,
-    Rewind,
-    MorphologyStep,
-    MorphologyFailure,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum TraceEventKind {
+        ConstructEnter => "construct-enter",
+        ConstructSuccess => "construct-success",
+        ConstructFailure => "construct-failure",
+        TerminalAttempt => "terminal-attempt",
+        TerminalSuccess => "terminal-success",
+        TerminalFailure => "terminal-failure",
+        Token => "token",
+        Save => "save",
+        Rewind => "rewind",
+        MorphologyStep => "morphology-step",
+        MorphologyFailure => "morphology-failure",
+    }
 }
 
 #[invariant(*phase != TracePhase::All)]
@@ -228,8 +265,8 @@ impl TraceContext {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceFailureBranch {
     pub contexts: Vec<TraceContext>,
     pub expected: Vec<String>,
@@ -255,9 +292,9 @@ pub struct TraceReport {
     pub failure: Option<TraceFailureSummary>,
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
 #[invariant(::Active(_) => true)]
+#[derive(Debug, Clone)]
 pub enum TraceRecorder {
     Disabled,
     Active(Box<TraceRecorderState>),
@@ -361,8 +398,8 @@ impl TraceRecorder {
     }
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
+#[derive(Debug, Clone)]
 pub struct TraceRecorderState {
     options: TraceOptions,
     phase: TracePhase,
@@ -527,19 +564,23 @@ impl TraceRecorderState {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DiagnosticDetailMode {
-    Summary,
-    Detailed,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum DiagnosticDetailMode {
+        Summary => "summary",
+        Detailed => "detailed",
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DiagnosticNoteMode {
-    Always,
-    Summary,
-    Detailed,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum DiagnosticNoteMode {
+        Always => "always",
+        Summary => "summary",
+        Detailed => "detailed",
+    }
 }
 
 impl DiagnosticNoteMode {
@@ -555,16 +596,18 @@ impl DiagnosticNoteMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DiagnosticTextRole {
-    Construct,
-    SpecificWord,
-    Selmaho,
-    WordCategory,
-    Keyword,
-    Punctuation,
-    Plain,
+define_string_enum! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum DiagnosticTextRole {
+        Construct => "construct",
+        SpecificWord => "specific-word",
+        Selmaho => "selmaho",
+        WordCategory => "word-category",
+        Keyword => "keyword",
+        Punctuation => "punctuation",
+        Plain => "plain",
+    }
 }
 
 #[invariant(::VlackuWord { word } => !word.is_empty())]
@@ -1262,12 +1305,12 @@ const DIAGNOSTIC_SELMAHO_NAMES: &[&str] = &[
     "ZEI", "ZEhA", "ZI", "ZIhE", "ZO", "ZOhU", "ZOI",
 ];
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::CharOffsetOutOfBounds => true)]
 #[invariant(::ByteOffsetOutOfBounds => true)]
 #[invariant(::ByteOffsetNotCharBoundary => true)]
 #[invariant(::SourceLocation(..) => true)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum DiagnosticSpanError {
     #[error("character offset {offset} exceeds source character length {source_len}")]
     CharOffsetOutOfBounds { offset: usize, source_len: usize },
