@@ -135,6 +135,12 @@ NON_MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_dialect_CmavoExpansion": ("source", "replacement"),
 }
 
+_OPAQUE_PYO3_DEFAULT = object()
+
+# These maps describe exact ``inspect.signature`` metadata. PyO3 renders
+# nonliteral Rust default expressions as ``Ellipsis``; those opaque entries use
+# a private sentinel here and require separate semantic witnesses. Literal and
+# ``None`` defaults remain concrete.
 MORPHOLOGY_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_morphology_PhonemeRenderOptions.__new__": {
         "mark_stress": None,
@@ -170,14 +176,14 @@ MORPHOLOGY_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_morphology_PlainWordClassification.__new__": {
         "selmaho": None,
         "split": None,
-        "parts": [],
+        "parts": _OPAQUE_PYO3_DEFAULT,
         "stage": None,
     },
     "_morphology_ValsiAnalysisResult.__new__": {
         "word": None,
         "classification": None,
         "error": None,
-        "words": [],
+        "words": _OPAQUE_PYO3_DEFAULT,
     },
     "_morphology_segment_attempt": {"options": None, "source_id": None},
     "_morphology_segment_recovered_attempt": {
@@ -193,8 +199,6 @@ MORPHOLOGY_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_morphology_is_word_forming_character": {"options": None},
 }
 
-# Stubs conventionally spell every default as ``...``. Keep concrete values in
-# this independent oracle so runtime and stub presence cannot drift together.
 MANUAL_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_source_SourceSpan.__new__": {
         "source_id": None,
@@ -208,19 +212,19 @@ MANUAL_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
         "level": None,
         "filter": None,
         "phase": None,
-        "limit": 10_000,
+        "limit": _OPAQUE_PYO3_DEFAULT,
     },
     "_diagnostics_TraceEvent.__new__": {"detail": None},
     "_diagnostics_TraceFailureBranch.__new__": {
-        "contexts": [],
-        "expected": [],
+        "contexts": _OPAQUE_PYO3_DEFAULT,
+        "expected": _OPAQUE_PYO3_DEFAULT,
     },
     "_diagnostics_TraceFailureSummary.__new__": {
-        "branches": [],
+        "branches": _OPAQUE_PYO3_DEFAULT,
         "current_context": None,
     },
     "_diagnostics_TraceReport.__new__": {
-        "events": [],
+        "events": _OPAQUE_PYO3_DEFAULT,
         "truncated": False,
         "failure": None,
     },
@@ -228,8 +232,8 @@ MANUAL_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_diagnostics_DiagnosticTextSegment.__new__": {"link": None},
     "_diagnostics_DiagnosticLabel.__new__": {"primary": False},
     "_diagnostics_Diagnostic.__new__": {
-        "notes": [],
-        "styled_notes": [],
+        "notes": _OPAQUE_PYO3_DEFAULT,
+        "styled_notes": _OPAQUE_PYO3_DEFAULT,
         "word_index": None,
     },
     "_dialect_DialectDefinition.__new__": {
@@ -238,8 +242,8 @@ MANUAL_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     },
     "_dialect_CustomDialect.__new__": {"show_in_gentufa": True},
     "_dialect_DialectSettings.__new__": {
-        "custom_dialects": [],
-        "hidden_builtin_gentufa_dialects": [],
+        "custom_dialects": _OPAQUE_PYO3_DEFAULT,
+        "hidden_builtin_gentufa_dialects": _OPAQUE_PYO3_DEFAULT,
     },
     **MORPHOLOGY_CALLABLE_DEFAULTS,
 }
@@ -826,6 +830,24 @@ def _runtime_parameter_defaults(signature: inspect.Signature) -> dict[str, objec
     }
 
 
+def _assert_runtime_parameter_defaults(
+    actual: dict[str, object],
+    expected: dict[str, object],
+    *,
+    callable_name: str,
+) -> None:
+    assert actual.keys() == expected.keys(), callable_name
+    for parameter_name, expected_default in expected.items():
+        actual_default = actual[parameter_name]
+        if expected_default is _OPAQUE_PYO3_DEFAULT:
+            assert actual_default is Ellipsis, (callable_name, parameter_name)
+        else:
+            assert actual_default == expected_default, (
+                callable_name,
+                parameter_name,
+            )
+
+
 def _generated_enum_runtime_type_name(annotation: object) -> str:
     if annotation is bool:
         return "bool"
@@ -861,6 +883,119 @@ def test_native_stub_sources_and_output_do_not_use_any() -> None:
         assert _STANDALONE_ANY.search(source_text) is None, stub_path.relative_to(
             PACKAGE_ROOT
         )
+
+
+def test_opaque_pyo3_introspection_defaults_have_semantic_witnesses() -> None:
+    witnessed: set[tuple[str, str]] = set()
+
+    trace_options = diagnostics.TraceOptions()
+    assert trace_options.limit == diagnostics.DEFAULT_TRACE_LIMIT == 10_000
+    assert (
+        diagnostics.TraceOptions(limit=diagnostics.DEFAULT_TRACE_LIMIT).limit
+        == trace_options.limit
+    )
+    witnessed.add(("_diagnostics_TraceOptions.__new__", "limit"))
+
+    failure_branch = diagnostics.TraceFailureBranch()
+    explicit_failure_branch = diagnostics.TraceFailureBranch([], [])
+    assert failure_branch.contexts == explicit_failure_branch.contexts == ()
+    assert failure_branch.expected == explicit_failure_branch.expected == ()
+    witnessed.update(
+        {
+            ("_diagnostics_TraceFailureBranch.__new__", "contexts"),
+            ("_diagnostics_TraceFailureBranch.__new__", "expected"),
+        }
+    )
+
+    failure_summary = diagnostics.TraceFailureSummary(0, 0, "expected word")
+    explicit_failure_summary = diagnostics.TraceFailureSummary(
+        0, 0, "expected word", []
+    )
+    assert failure_summary.branches == explicit_failure_summary.branches == ()
+    witnessed.add(("_diagnostics_TraceFailureSummary.__new__", "branches"))
+
+    trace_report = diagnostics.TraceReport(diagnostics.TracePhase.MORPHOLOGY)
+    explicit_trace_report = diagnostics.TraceReport(
+        diagnostics.TracePhase.MORPHOLOGY, []
+    )
+    assert trace_report.events == explicit_trace_report.events == ()
+    witnessed.add(("_diagnostics_TraceReport.__new__", "events"))
+
+    span = source.source_span_from_char_offsets("mi", 0, 2)
+    label = diagnostics.DiagnosticLabel(span, "input", primary=True)
+    diagnostic = diagnostics.Diagnostic(
+        diagnostics.DiagnosticSeverity.ERROR,
+        diagnostics.DiagnosticPhase.MORPHOLOGY,
+        "test.default",
+        "default collections",
+        [label],
+    )
+    explicit_diagnostic = diagnostics.Diagnostic(
+        diagnostics.DiagnosticSeverity.ERROR,
+        diagnostics.DiagnosticPhase.MORPHOLOGY,
+        "test.default",
+        "default collections",
+        [label],
+        [],
+        styled_notes=[],
+    )
+    assert diagnostic.notes == explicit_diagnostic.notes == ()
+    assert diagnostic.styled_notes == explicit_diagnostic.styled_notes == ()
+    witnessed.update(
+        {
+            ("_diagnostics_Diagnostic.__new__", "notes"),
+            ("_diagnostics_Diagnostic.__new__", "styled_notes"),
+        }
+    )
+
+    dialect_settings = dialect.DialectSettings()
+    explicit_dialect_settings = dialect.DialectSettings([], [])
+    assert (
+        dialect_settings.custom_dialects
+        == explicit_dialect_settings.custom_dialects
+        == ()
+    )
+    assert (
+        dialect_settings.hidden_builtin_gentufa_dialects
+        == explicit_dialect_settings.hidden_builtin_gentufa_dialects
+        == ()
+    )
+    witnessed.update(
+        {
+            ("_dialect_DialectSettings.__new__", "custom_dialects"),
+            (
+                "_dialect_DialectSettings.__new__",
+                "hidden_builtin_gentufa_dialects",
+            ),
+        }
+    )
+
+    classification = morphology.PlainWordClassification(
+        morphology.WordKind.GISMU, "broda"
+    )
+    explicit_classification = morphology.PlainWordClassification(
+        morphology.WordKind.GISMU, "broda", parts=[]
+    )
+    assert classification.parts == explicit_classification.parts == ()
+    witnessed.add(("_morphology_PlainWordClassification.__new__", "parts"))
+
+    analysis_result = morphology.ValsiAnalysisResult(
+        morphology.ValsiAnalysisStatus.NOT_SINGLE_WORD
+    )
+    explicit_analysis_result = morphology.ValsiAnalysisResult(
+        morphology.ValsiAnalysisStatus.NOT_SINGLE_WORD, words=[]
+    )
+    assert analysis_result.words == explicit_analysis_result.words == ()
+    witnessed.add(("_morphology_ValsiAnalysisResult.__new__", "words"))
+
+    expected_witnesses = {
+        (callable_name, parameter_name)
+        for default_map in (MANUAL_CALLABLE_DEFAULTS, MORPHOLOGY_CALLABLE_DEFAULTS)
+        for callable_name, defaults in default_map.items()
+        for parameter_name, expected_default in defaults.items()
+        if expected_default is _OPAQUE_PYO3_DEFAULT
+    }
+    assert witnessed == expected_witnesses
 
 
 def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
@@ -990,7 +1125,11 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
                 ), callable_name
                 runtime_defaults = _runtime_parameter_defaults(runtime_signature)
                 if runtime_defaults:
-                    assert runtime_defaults == MANUAL_CALLABLE_DEFAULTS[callable_name]
+                    _assert_runtime_parameter_defaults(
+                        runtime_defaults,
+                        MANUAL_CALLABLE_DEFAULTS[callable_name],
+                        callable_name=callable_name,
+                    )
                     checked_default_callables.add(callable_name)
 
         for name, declaration in functions.items():
@@ -1000,7 +1139,11 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
             ), name
             runtime_defaults = _runtime_parameter_defaults(runtime_signature)
             if runtime_defaults:
-                assert runtime_defaults == MANUAL_CALLABLE_DEFAULTS[name]
+                _assert_runtime_parameter_defaults(
+                    runtime_defaults,
+                    MANUAL_CALLABLE_DEFAULTS[name],
+                    callable_name=name,
+                )
                 checked_default_callables.add(name)
 
     assert checked_default_callables == set(MANUAL_CALLABLE_DEFAULTS)
@@ -1169,7 +1312,11 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
             ), callable_name
             runtime_defaults = _runtime_parameter_defaults(runtime_signature)
             if runtime_defaults:
-                assert runtime_defaults == MORPHOLOGY_CALLABLE_DEFAULTS[callable_name]
+                _assert_runtime_parameter_defaults(
+                    runtime_defaults,
+                    MORPHOLOGY_CALLABLE_DEFAULTS[callable_name],
+                    callable_name=callable_name,
+                )
                 checked_default_callables.add(callable_name)
 
     stub_tree = ast.parse(
@@ -1193,7 +1340,11 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         ), name
         runtime_defaults = _runtime_parameter_defaults(runtime_signature)
         if runtime_defaults:
-            assert runtime_defaults == MORPHOLOGY_CALLABLE_DEFAULTS[name]
+            _assert_runtime_parameter_defaults(
+                runtime_defaults,
+                MORPHOLOGY_CALLABLE_DEFAULTS[name],
+                callable_name=name,
+            )
             checked_default_callables.add(name)
 
     assert checked_default_callables == set(MORPHOLOGY_CALLABLE_DEFAULTS)
