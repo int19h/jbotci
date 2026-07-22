@@ -1,0 +1,60 @@
+"""Immutable diagnostics, styled text, and parser trace products."""
+
+from typing import TypeAlias
+
+from ._native import (
+    _diagnostics_CllSectionLink as CllSectionLink,
+    _diagnostics_Diagnostic as Diagnostic,
+    _diagnostics_DiagnosticDetailMode as DiagnosticDetailMode,
+    _diagnostics_DiagnosticLabel as DiagnosticLabel,
+    _diagnostics_DiagnosticNoteMode as DiagnosticNoteMode,
+    _diagnostics_DiagnosticPhase as DiagnosticPhase,
+    _diagnostics_DiagnosticSeverity as DiagnosticSeverity,
+    _diagnostics_DiagnosticStyledNote as DiagnosticStyledNote,
+    _diagnostics_DiagnosticTextRole as DiagnosticTextRole,
+    _diagnostics_DiagnosticTextSegment as DiagnosticTextSegment,
+    _diagnostics_EbnfRuleLink as EbnfRuleLink,
+    _diagnostics_TraceContext as TraceContext,
+    _diagnostics_TraceEvent as TraceEvent,
+    _diagnostics_TraceEventKind as TraceEventKind,
+    _diagnostics_TraceFailureBranch as TraceFailureBranch,
+    _diagnostics_TraceFailureSummary as TraceFailureSummary,
+    _diagnostics_TraceFilter as TraceFilter,
+    _diagnostics_TraceLevel as TraceLevel,
+    _diagnostics_TraceOptions as TraceOptions,
+    _diagnostics_TracePhase as TracePhase,
+    _diagnostics_TraceReport as TraceReport,
+    _diagnostics_VlackuWordLink as VlackuWordLink,
+    _diagnostics_diagnostic_text_segments as diagnostic_text_segments,
+    _diagnostics_diagnostic_text_segments_text as diagnostic_text_segments_text,
+)
+
+DiagnosticTextLink: TypeAlias = VlackuWordLink | CllSectionLink | EbnfRuleLink
+
+__all__: tuple[str, ...] = (
+    "DiagnosticSeverity",
+    "DiagnosticPhase",
+    "TracePhase",
+    "TraceLevel",
+    "TraceEventKind",
+    "DiagnosticDetailMode",
+    "DiagnosticNoteMode",
+    "DiagnosticTextRole",
+    "TraceFilter",
+    "TraceOptions",
+    "TraceEvent",
+    "TraceContext",
+    "TraceFailureBranch",
+    "TraceFailureSummary",
+    "TraceReport",
+    "VlackuWordLink",
+    "CllSectionLink",
+    "EbnfRuleLink",
+    "DiagnosticTextLink",
+    "DiagnosticTextSegment",
+    "DiagnosticStyledNote",
+    "DiagnosticLabel",
+    "Diagnostic",
+    "diagnostic_text_segments",
+    "diagnostic_text_segments_text",
+)
