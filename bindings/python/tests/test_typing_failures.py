@@ -30,9 +30,9 @@ def test_dictionary_misuse_is_rejected_by_strict_mypy() -> None:
         line for line in result.stdout.splitlines() if ": error:" in line
     )
     assert result.returncode == 1, result.stdout + result.stderr
-    assert len(diagnostics) == 5, result.stdout
+    assert len(diagnostics) == 7, result.stdout
     assert sum("[attr-defined]" in line for line in diagnostics) == 2
-    assert sum("[call-arg]" in line for line in diagnostics) == 3
+    assert sum("[call-arg]" in line for line in diagnostics) == 5
 
 
 def test_unordered_collection_inputs_are_rejected_by_strict_mypy() -> None:

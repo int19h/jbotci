@@ -19,7 +19,7 @@ use jbotci_dictionary::{
     normalize_lookup_query, normalize_pattern_lookup_key, universal_gismu_rafsi_forms,
 };
 use jbotci_dictionary_data::{DictionarySnapshotMetadata, english, english_metadata};
-use jbotci_phonetic::{IpaSegmentId, ipa_segment_symbol};
+use jbotci_phonetic::{IpaSegmentId, PronunciationTargetId, ipa_segment_symbol};
 use pyo3::exceptions::{PyIndexError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
@@ -85,6 +85,8 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dictionary_DictionarySoundEntry",
     "_dictionary_IpaTokenSequenceView",
     "_dictionary_IpaSegmentId",
+    "_dictionary_PronunciationTargetSequenceView",
+    "_dictionary_PronunciationTargetId",
     "_dictionary_DictionaryLujvoEntry",
     "_dictionary_DictionaryLujvoSegment",
     "_dictionary_DictionaryLujvoSegmentKind",
@@ -1960,6 +1962,26 @@ impl PyDictionarySoundEntry {
         )
     }
 
+    /// Return the retained Lojban pronunciation-target sequence used by scoring.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|view| {
+        let view = view.bind(py).borrow();
+        Arc::ptr_eq(&view.reference.owner, &self.reference.owner)
+            && view.reference.position == self.reference.position
+    }) || ret.is_err())]
+    #[getter]
+    fn pronunciation_targets(
+        &self,
+        py: Python<'_>,
+    ) -> PyResult<Py<PyPronunciationTargetSequenceView>> {
+        Py::new(
+            py,
+            new!(PyPronunciationTargetSequenceView {
+                reference: self.reference.clone(),
+            }),
+        )
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
@@ -2112,6 +2134,192 @@ impl PyIpaSegmentId {
             self.value.get(),
             string_repr(py, self.symbol())?
         ))
+    }
+}
+
+/// Borrowed Lojban pronunciation targets retained through their dictionary owner.
+#[invariant(
+    reference.position.0 < reference.owner.dictionary().sound_index().len(),
+    "the sound position exists in the retained dictionary"
+)]
+#[pyclass(
+    name = "PronunciationTargetSequenceView",
+    frozen,
+    module = "jbotci.dictionary",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone)]
+struct PyPronunciationTargetSequenceView {
+    reference: SoundReference,
+}
+
+impl PyPronunciationTargetSequenceView {
+    #[requires(self.reference.position.0 < self.reference.owner.dictionary().sound_index().len())]
+    #[ensures(ret == self.reference.sound().pronunciation_targets)]
+    fn sequence(&self) -> jbotci_phonetic::PronunciationTargetSequenceView<'static> {
+        self.reference.sound().pronunciation_targets
+    }
+}
+
+#[pymethods]
+impl PyPronunciationTargetSequenceView {
+    /// Return pronunciation target identifiers in sequence order.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|targets| {
+        targets.bind(py).len() == self.sequence().target_count()
+    }) || ret.is_err())]
+    #[getter]
+    fn targets(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
+        let values = self
+            .sequence()
+            .targets
+            .iter()
+            .copied()
+            .map(|value| new!(PyPronunciationTargetId { value }));
+        Ok(sequence_to_tuple(py, values)?.unbind())
+    }
+
+    /// Return the precomputed pronunciation-target ALINE self-similarity.
+    #[requires(true)]
+    #[ensures(ret.to_bits() == self.sequence().self_similarity.to_bits())]
+    #[getter]
+    fn self_similarity(&self) -> f64 {
+        self.sequence().self_similarity
+    }
+
+    /// Return the number of pronunciation targets.
+    #[requires(true)]
+    #[ensures(ret == self.sequence().target_count())]
+    fn __len__(&self) -> usize {
+        self.sequence().target_count()
+    }
+
+    /// Return the number of pronunciation targets.
+    #[requires(true)]
+    #[ensures(ret == self.sequence().target_count())]
+    fn target_count(&self) -> usize {
+        self.sequence().target_count()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with(PUBLIC_MODULE))]
+    fn __repr__(&self) -> String {
+        format!(
+            "{PUBLIC_MODULE}.PronunciationTargetSequenceView(target_count={}, self_similarity={:?})",
+            self.sequence().target_count(),
+            self.sequence().self_similarity
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+        && self.reference.position == other.reference.position))]
+    fn __eq__(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.reference.owner, &other.reference.owner)
+            && self.reference.position == other.reference.position
+    }
+}
+
+/// Identifier for one Lojban pronunciation target and its accepted realizations.
+#[invariant(
+    value.realization_count() > 0,
+    "the wrapped Rust target always admits at least one realization"
+)]
+#[pyclass(
+    name = "PronunciationTargetId",
+    frozen,
+    eq,
+    hash,
+    ord,
+    module = "jbotci.dictionary",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct PyPronunciationTargetId {
+    value: PronunciationTargetId,
+}
+
+#[pymethods]
+impl PyPronunciationTargetId {
+    /// Return the bounded static pronunciation-target inventory index.
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    #[getter]
+    fn value(&self) -> u16 {
+        self.value.get()
+    }
+
+    /// Return the number of accepted concrete IPA realizations.
+    #[requires(true)]
+    #[ensures(ret == self.value.realization_count())]
+    #[getter]
+    fn realization_count(&self) -> usize {
+        self.value.realization_count()
+    }
+
+    /// Return one accepted IPA realization, or `None` when out of bounds.
+    ///
+    /// Negative indices return `None`; unlike the `realizations` tuple, this
+    /// Rust-parity method does not apply Python negative-index normalization.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|result| result.as_ref().is_none_or(|segment| {
+        (0..self.value.realization_count())
+            .any(|index| self.value.realization(index) == Some(segment.value))
+    })) || ret.is_err())]
+    fn realization(
+        &self,
+        py: Python<'_>,
+        index: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<PyIpaSegmentId>> {
+        let index = py.import("operator")?.getattr("index")?.call1((index,))?;
+        if index.lt(0)? || index.ge(self.value.realization_count())? {
+            return Ok(None);
+        }
+        let index = index
+            .extract::<usize>()
+            .expect("an integer bounded by realization_count must fit usize");
+        Ok(self
+            .value
+            .realization(index)
+            .map(|value| PyIpaSegmentId { value }))
+    }
+
+    /// Return every accepted concrete IPA realization in Rust inventory order.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|realizations| {
+        realizations.bind(py).len() == self.value.realization_count()
+    }) || ret.is_err())]
+    #[getter]
+    fn realizations(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
+        let values = (0..self.value.realization_count()).map(|index| PyIpaSegmentId {
+            value: self
+                .value
+                .realization(index)
+                .expect("indices below realization_count must have a realization"),
+        });
+        Ok(sequence_to_tuple(py, values)?.unbind())
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn __int__(&self) -> u16 {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn __index__(&self) -> u16 {
+        self.value.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with(PUBLIC_MODULE))]
+    fn __repr__(&self) -> String {
+        format!(
+            "{PUBLIC_MODULE}.PronunciationTargetId(value={}, realization_count={})",
+            self.value.get(),
+            self.value.realization_count()
+        )
     }
 }
 
@@ -2807,6 +3015,11 @@ fn register_types(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyDictionarySoundEntry>(module, "_dictionary_DictionarySoundEntry")?;
     register_type::<PyIpaTokenSequenceView>(module, "_dictionary_IpaTokenSequenceView")?;
     register_type::<PyIpaSegmentId>(module, "_dictionary_IpaSegmentId")?;
+    register_type::<PyPronunciationTargetSequenceView>(
+        module,
+        "_dictionary_PronunciationTargetSequenceView",
+    )?;
+    register_type::<PyPronunciationTargetId>(module, "_dictionary_PronunciationTargetId")?;
     register_type::<PyDictionaryLujvoEntry>(module, "_dictionary_DictionaryLujvoEntry")?;
     register_type::<PyDictionaryLujvoSegment>(module, "_dictionary_DictionaryLujvoSegment")?;
     register_type::<PyDictionaryPatternEntry>(module, "_dictionary_DictionaryPatternEntry")?;
@@ -3040,6 +3253,39 @@ mod tests {
         assert_eq!(Arc::strong_count(&owner), 2);
         drop(owner);
         assert_eq!(keyword.word(), "language");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn pronunciation_target_view_retains_its_sound_owner() {
+        let owner = Arc::new(DictionaryOwner::english());
+        let entry = owner.dictionary().lookup_word("prami").unwrap();
+        let entry_index = owner.dictionary().entry_index_for_entry(entry).unwrap();
+        let position = owner
+            .dictionary()
+            .sound_index()
+            .iter()
+            .position(|sound| sound.entry_index == entry_index)
+            .expect("prami has a generated sound record");
+        assert_eq!(Arc::strong_count(&owner), 1);
+        let sequence = new!(PyPronunciationTargetSequenceView {
+            reference: SoundReference::new(Arc::clone(&owner), SoundPosition(position)),
+        });
+        assert_eq!(Arc::strong_count(&owner), 2);
+        drop(owner);
+
+        let rhotic = new!(PyPronunciationTargetId {
+            value: sequence
+                .sequence()
+                .targets
+                .iter()
+                .copied()
+                .find(|target| target.realization_count() > 1)
+                .expect("prami contains the multi-realization rhotic target"),
+        });
+        assert!(rhotic.realization_count() > 1);
+        assert!(rhotic.value.realization(0).is_some());
     }
 
     #[test]
@@ -3500,6 +3746,72 @@ class DictionaryValidationError(JbotciError):
                         .map(|segment| segment.get())
                         .collect::<Vec<_>>()
                 );
+
+                let python_target_sequence = python_sound.getattr("pronunciation_targets").unwrap();
+                assert_eq!(
+                    python_target_sequence
+                        .getattr("self_similarity")
+                        .unwrap()
+                        .extract::<f64>()
+                        .unwrap()
+                        .to_bits(),
+                    rust_sound.pronunciation_targets.self_similarity.to_bits()
+                );
+                assert_eq!(
+                    python_target_sequence.len().unwrap(),
+                    rust_sound.pronunciation_targets.target_count()
+                );
+                assert_eq!(
+                    python_target_sequence
+                        .call_method0("target_count")
+                        .unwrap()
+                        .extract::<usize>()
+                        .unwrap(),
+                    rust_sound.pronunciation_targets.target_count()
+                );
+                let python_targets_any = python_target_sequence.getattr("targets").unwrap();
+                let python_targets = python_targets_any.cast::<PyTuple>().unwrap();
+                assert_eq!(
+                    python_targets.len(),
+                    rust_sound.pronunciation_targets.targets.len()
+                );
+                for (python_target, rust_target) in python_targets
+                    .iter()
+                    .zip(rust_sound.pronunciation_targets.targets)
+                {
+                    assert_eq!(
+                        python_target
+                            .getattr("value")
+                            .unwrap()
+                            .extract::<u16>()
+                            .unwrap(),
+                        rust_target.get()
+                    );
+                    assert_eq!(
+                        python_target
+                            .getattr("realization_count")
+                            .unwrap()
+                            .extract::<usize>()
+                            .unwrap(),
+                        rust_target.realization_count()
+                    );
+                    let python_realizations_any = python_target.getattr("realizations").unwrap();
+                    let python_realizations = python_realizations_any.cast::<PyTuple>().unwrap();
+                    assert_eq!(python_realizations.len(), rust_target.realization_count());
+                    for (index, python_realization) in python_realizations.iter().enumerate() {
+                        assert_eq!(
+                            python_realization
+                                .getattr("value")
+                                .unwrap()
+                                .extract::<u16>()
+                                .unwrap(),
+                            rust_target
+                                .realization(index)
+                                .expect("indices below realization_count must be present")
+                                .get()
+                        );
+                    }
+                }
             }
 
             let python_lujvo_any = python_dictionary.getattr("lujvo_index").unwrap();
@@ -3629,6 +3941,86 @@ class DictionaryValidationError(JbotciError):
                     .extract::<usize>()
                     .unwrap(),
                 rust_metadata.entry_count
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn python_prami_target_preserves_every_rust_rhotic_realization() {
+        Python::initialize();
+        Python::attach(|py| {
+            let module = PyModule::new(py, "jbotci._native").unwrap();
+            register(&module).unwrap();
+            let _scope = TestModuleOverrideScope::enter(Some(&module), None);
+            let rust_dictionary = english();
+            let rust_entry = rust_dictionary.lookup_word("prami").unwrap();
+            let rust_entry_index = rust_dictionary.entry_index_for_entry(rust_entry).unwrap();
+            let sound_position = rust_dictionary
+                .sound_index()
+                .iter()
+                .position(|sound| sound.entry_index == rust_entry_index)
+                .expect("prami has a generated sound record");
+            let (target_position, rust_target) = rust_dictionary.sound_index()[sound_position]
+                .pronunciation_targets
+                .targets
+                .iter()
+                .copied()
+                .enumerate()
+                .find(|(_, target)| target.realization_count() > 1)
+                .expect("prami contains the multi-realization rhotic target");
+            assert!(rust_target.realization_count() > 1);
+
+            let python_dictionary = module.getattr("_dictionary_english").unwrap();
+            let python_sounds_any = python_dictionary.getattr("sound_index").unwrap();
+            let python_sound = python_sounds_any
+                .cast::<PyTuple>()
+                .unwrap()
+                .get_item(sound_position)
+                .unwrap();
+            let python_targets_any = python_sound
+                .getattr("pronunciation_targets")
+                .unwrap()
+                .getattr("targets")
+                .unwrap();
+            let python_target = python_targets_any
+                .cast::<PyTuple>()
+                .unwrap()
+                .get_item(target_position)
+                .unwrap();
+
+            for index in 0..rust_target.realization_count() {
+                let python_realization =
+                    python_target.call_method1("realization", (index,)).unwrap();
+                assert_eq!(
+                    python_realization
+                        .getattr("value")
+                        .unwrap()
+                        .extract::<u16>()
+                        .unwrap(),
+                    rust_target
+                        .realization(index)
+                        .expect("indices below realization_count must be present")
+                        .get()
+                );
+            }
+            for index in [
+                rust_target.realization_count(),
+                rust_target.realization_count() + 100,
+            ] {
+                assert!(
+                    python_target
+                        .call_method1("realization", (index,))
+                        .unwrap()
+                        .is_none()
+                );
+            }
+            assert!(
+                python_target
+                    .call_method1("realization", (-1,))
+                    .unwrap()
+                    .is_none()
             );
         });
     }

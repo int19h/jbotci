@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+import ast
 import enum
 import gc
 import inspect
 import math
+import operator
 import subprocess
 import sys
 import types
 from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
 
 import jbotci._native as native
 import jbotci.dictionary as dictionary
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
 def required_entry(word: str) -> dictionary.DictionaryEntry:
@@ -41,6 +46,14 @@ def required_index_for_entry(
 def test_english_objects_have_stable_identity_and_metadata() -> None:
     assert dictionary.english is native._dictionary_english
     assert dictionary.english_metadata is native._dictionary_english_metadata
+    assert (
+        dictionary.PronunciationTargetId
+        is native._dictionary_PronunciationTargetId
+    )
+    assert (
+        dictionary.PronunciationTargetSequenceView
+        is native._dictionary_PronunciationTargetSequenceView
+    )
     assert len(dictionary.english) == 17_415
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
@@ -58,6 +71,10 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
     assert dictionary.WordType.__name__ == "WordType"
     assert not hasattr(native, "Dictionary")
     assert all(hasattr(dictionary, name) for name in dictionary.__all__)
+    assert {
+        "PronunciationTargetId",
+        "PronunciationTargetSequenceView",
+    } <= set(dictionary.__all__)
 
 
 def test_import_does_not_materialize_python_entry_objects() -> None:
@@ -282,6 +299,79 @@ def test_sound_records_expose_exact_ipa_and_typed_segments_without_search() -> N
     assert not hasattr(dictionary.english, "lookup_sound")
 
 
+def test_sound_records_preserve_pronunciation_targets_and_rhotic_realizations() -> None:
+    sounds = {sound.entry_index: sound for sound in dictionary.english.sound_index}
+    klama = sounds[entry_index("klama")]
+    targets = klama.pronunciation_targets
+    assert targets.target_count() == len(targets) == len(targets.targets)
+    assert targets.target_count() == klama.token_sequence.segment_count()
+    singleton = next(target for target in targets.targets if target.realization_count == 1)
+    realization = singleton.realization(0)
+    assert isinstance(realization, dictionary.IpaSegmentId)
+    assert singleton.realizations == (realization,)
+
+    # Keep this public lookup witness literal. The embedded Rust parity test
+    # independently derives all expected target and realization IDs from the
+    # Rust `prami` sound record, so this test never copies inventory numbers.
+    prami_entry = required_entry("prami")
+    prami = sounds[required_index_for_entry(prami_entry)]
+    rhotics = tuple(
+        target
+        for target in prami.pronunciation_targets.targets
+        if target.realization_count > 1
+    )
+    assert len(rhotics) == 1
+    rhotic = rhotics[0]
+    assert rhotic.realizations == tuple(
+        rhotic.realization(index) for index in range(rhotic.realization_count)
+    )
+    assert all(isinstance(value, dictionary.IpaSegmentId) for value in rhotic.realizations)
+    assert len(set(rhotic.realizations)) == rhotic.realization_count
+
+    assert rhotic.realization(rhotic.realization_count) is None
+    assert rhotic.realization(rhotic.realization_count + 100) is None
+    assert rhotic.realization(10**100) is None
+    assert rhotic.realization(-1) is None
+    assert rhotic.realization(-(10**100)) is None
+    assert rhotic.realizations[-1] == rhotic.realizations[rhotic.realization_count - 1]
+    with pytest.raises(TypeError):
+        rhotic.realization(0.0)  # type: ignore[arg-type]
+
+
+def test_pronunciation_target_protocols_follow_existing_id_and_view_policy() -> None:
+    sounds = {sound.entry_index: sound for sound in dictionary.english.sound_index}
+    prami = sounds[entry_index("prami")]
+    first_view = prami.pronunciation_targets
+    second_view = prami.pronunciation_targets
+    other_view = sounds[entry_index("klama")].pronunciation_targets
+    assert first_view == second_view
+    assert first_view != other_view
+    assert repr(first_view) == (
+        "jbotci.dictionary.PronunciationTargetSequenceView("
+        f"target_count={first_view.target_count()}, "
+        f"self_similarity={first_view.self_similarity!r})"
+    )
+    with pytest.raises(TypeError):
+        hash(first_view)
+    with pytest.raises(TypeError):
+        _ = first_view < second_view  # type: ignore[operator]
+
+    first_target = first_view.targets[0]
+    same_target = second_view.targets[0]
+    assert first_target == same_target
+    assert hash(first_target) == hash(same_target)
+    assert int(first_target) == first_target.value
+    assert operator.index(first_target) == first_target.value
+    assert repr(first_target) == (
+        "jbotci.dictionary.PronunciationTargetId("
+        f"value={first_target.value}, "
+        f"realization_count={first_target.realization_count})"
+    )
+    assert tuple(sorted(first_view.targets)) == tuple(
+        sorted(first_view.targets, key=lambda target: target.value)
+    )
+
+
 def test_lujvo_decomposition_records_preserve_segments_and_source_words() -> None:
     decompositions = dictionary.english.lujvo_index
     assert isinstance(decompositions, tuple)
@@ -333,6 +423,9 @@ def test_child_records_retain_owner_after_parent_and_results_are_dropped() -> No
         dictionary.Rafsi,
         dictionary.DictionaryUser,
         dictionary.IpaTokenSequenceView,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
+        dictionary.IpaSegmentId,
         dictionary.DictionaryLujvoSegment,
     ]:
         owner = dictionary.english
@@ -343,22 +436,41 @@ def test_child_records_retain_owner_after_parent_and_results_are_dropped() -> No
         ]
         decomposition = owner.lujvo_decomposition_for_entry_index(entry_index("jbobau"))
         assert decomposition is not None
+        target_sequence = sound.pronunciation_targets
+        target = target_sequence.targets[0]
+        realization = target.realizations[0]
         return (
             entry,
             entry.gloss_keywords[0],
             entry.rafsi[0],
             entry.user,
             sound.token_sequence,
+            target_sequence,
+            target,
+            realization,
             decomposition.segments[0],
         )
 
-    entry, keyword, rafsi, user, sequence, segment = retain_children()
+    (
+        entry,
+        keyword,
+        rafsi,
+        user,
+        sequence,
+        target_sequence,
+        target,
+        realization,
+        segment,
+    ) = retain_children()
     gc.collect()
     assert entry.word == "bangu"
     assert keyword.word == "language"
     assert rafsi.value == "ban"
     assert user.username == "officialdata"
     assert sequence.segment_count() == 5
+    assert target_sequence.target_count() == 5
+    assert target.realization(0) == realization
+    assert realization.symbol
     assert segment.source_word == "lojbo"
 
 
@@ -378,6 +490,8 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.DictionarySoundEntry,
         dictionary.IpaTokenSequenceView,
         dictionary.IpaSegmentId,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
         dictionary.DictionaryLujvoEntry,
         dictionary.DictionaryLujvoSegment,
         dictionary.DictionaryPatternEntry,
@@ -403,6 +517,8 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.DictionarySoundEntry,
         dictionary.IpaTokenSequenceView,
         dictionary.IpaSegmentId,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
         dictionary.DictionaryLujvoEntry,
         dictionary.DictionaryLujvoSegment,
         dictionary.DictionaryPatternEntry,
@@ -437,6 +553,9 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         first_sound,
         first_sound.token_sequence,
         first_sound.token_sequence.segments[0],
+        first_sound.pronunciation_targets,
+        first_sound.pronunciation_targets.targets[0],
+        first_sound.pronunciation_targets.targets[0].realizations[0],
         first_pattern,
     )
     for value in values:
@@ -457,6 +576,136 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
             types.new_class("DerivedEnum", (enum_type,))
 
 
+def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
+    target_members = {
+        name for name in vars(dictionary.PronunciationTargetId) if not name.startswith("_")
+    }
+    assert target_members == {
+        "realization",
+        "realization_count",
+        "realizations",
+        "value",
+    }
+    sequence_members = {
+        name
+        for name in vars(dictionary.PronunciationTargetSequenceView)
+        if not name.startswith("_")
+    }
+    assert sequence_members == {"self_similarity", "target_count", "targets"}
+    assert str(inspect.signature(dictionary.PronunciationTargetId.realization)) == (
+        "(self, index)"
+    )
+    assert str(
+        inspect.signature(dictionary.PronunciationTargetSequenceView.target_count)
+    ) == "(self)"
+    assert not hasattr(dictionary.PronunciationTargetId, "__match_args__")
+    assert not hasattr(dictionary.PronunciationTargetSequenceView, "__match_args__")
+
+    stub_path = PACKAGE_ROOT / "stubs" / "_native" / "dictionary.pyi"
+    tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
+    classes = {
+        declaration.name: declaration
+        for declaration in tree.body
+        if isinstance(declaration, ast.ClassDef)
+    }
+    expected_functions = {
+        "_dictionary_PronunciationTargetId": {
+            "__eq__",
+            "__ge__",
+            "__gt__",
+            "__hash__",
+            "__index__",
+            "__int__",
+            "__le__",
+            "__lt__",
+            "__new__",
+            "__repr__",
+            "realization",
+            "realization_count",
+            "realizations",
+            "value",
+        },
+        "_dictionary_PronunciationTargetSequenceView": {
+            "__eq__",
+            "__len__",
+            "__new__",
+            "__repr__",
+            "self_similarity",
+            "target_count",
+            "targets",
+        },
+    }
+    for class_name, function_names in expected_functions.items():
+        declaration = classes[class_name]
+        functions = {
+            statement.name: statement
+            for statement in declaration.body
+            if isinstance(statement, ast.FunctionDef)
+        }
+        assert set(functions) == function_names
+        constructor = functions["__new__"]
+        assert len(constructor.args.args) == 2
+        sentinel = constructor.args.args[1]
+        assert sentinel.arg == "_nonconstructible"
+        assert isinstance(sentinel.annotation, ast.Name)
+        assert sentinel.annotation.id == "Never"
+        assert not any(
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "__match_args__"
+            for statement in declaration.body
+        )
+
+    target_realization = next(
+        statement
+        for statement in classes["_dictionary_PronunciationTargetId"].body
+        if isinstance(statement, ast.FunctionDef) and statement.name == "realization"
+    )
+    assert [argument.arg for argument in target_realization.args.args] == ["self", "index"]
+    sequence_count = next(
+        statement
+        for statement in classes["_dictionary_PronunciationTargetSequenceView"].body
+        if isinstance(statement, ast.FunctionDef) and statement.name == "target_count"
+    )
+    assert [argument.arg for argument in sequence_count.args.args] == ["self"]
+
+    sound_class = classes["_dictionary_DictionarySoundEntry"]
+    sound_properties = {
+        statement.name
+        for statement in sound_class.body
+        if isinstance(statement, ast.FunctionDef)
+        and any(
+            isinstance(decorator, ast.Name) and decorator.id == "property"
+            for decorator in statement.decorator_list
+        )
+    }
+    assert sound_properties == {
+        "entry_index",
+        "ipa",
+        "pronunciation_targets",
+        "token_sequence",
+    }
+
+    composed = (PACKAGE_ROOT / "python" / "jbotci" / "_native.pyi").read_text(
+        encoding="utf-8"
+    )
+    for class_name in expected_functions:
+        assert composed.count(f"class {class_name}:") == 1
+
+
+def test_dictionary_public_annotations_do_not_use_any() -> None:
+    for path in (
+        PACKAGE_ROOT / "python" / "jbotci" / "dictionary.py",
+        PACKAGE_ROOT / "stubs" / "_native" / "dictionary.pyi",
+    ):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        assert not any(
+            (isinstance(node, ast.Name) and node.id == "Any")
+            or (isinstance(node, ast.Attribute) and node.attr == "Any")
+            for node in ast.walk(tree)
+        ), path
+
+
 def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
     documented_classes = (
         dictionary.DefinitionId,
@@ -473,6 +722,8 @@ def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
         dictionary.DictionarySoundEntry,
         dictionary.IpaTokenSequenceView,
         dictionary.IpaSegmentId,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
         dictionary.DictionaryLujvoEntry,
         dictionary.DictionaryLujvoSegment,
         dictionary.DictionaryPatternEntry,
