@@ -12,7 +12,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprArray, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument,
-    Ident, LitStr, Path, PathArguments, Result, Token, Type, braced, bracketed, parenthesized,
+    Ident, Lit, LitStr, Meta, Path, PathArguments, Result, Token, Type, braced, bracketed,
+    parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -29,6 +30,7 @@ pub fn syntax_grammar(input: TokenStream) -> TokenStream {
 mod kw {
     syn::custom_keyword!(alias);
     syn::custom_keyword!(assert);
+    syn::custom_keyword!(binding_schema);
     syn::custom_keyword!(env);
     syn::custom_keyword!(feature);
     syn::custom_keyword!(field);
@@ -50,6 +52,7 @@ struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
     model_outputs: Option<BTreeSet<String>>,
+    binding_schema: Option<Ident>,
     model_path: Option<Path>,
     env: Option<Type>,
     generate_parsers: bool,
@@ -344,6 +347,18 @@ impl Parse for SyntaxGrammar {
             (false, None)
         };
 
+        let binding_schema = if input.peek(kw::binding_schema) {
+            input.parse::<kw::binding_schema>()?;
+            let binding_schema = input.parse()?;
+            input.parse::<Token![;]>()?;
+            Some(binding_schema)
+        } else {
+            None
+        };
+        if binding_schema.is_some() && !generate_model {
+            return Err(input.error("`binding_schema` requires generated `model` output"));
+        }
+
         let model_path = if input.peek(kw::model_path) {
             input.parse::<kw::model_path>()?;
             let path = input.parse()?;
@@ -380,7 +395,7 @@ impl Parse for SyntaxGrammar {
                 recursive = parse_recursive_block(input)?;
             } else if input.peek(kw::alias) {
                 rules.push(Rule::Alias(input.parse()?));
-            } else if input.peek(kw::rule) {
+            } else if input.peek(kw::rule) || input.peek(Token![#]) {
                 rules.push(parse_explicit_rule(input)?);
             } else {
                 return Err(input.error("expected `recursive`, `alias`, or `rule`"));
@@ -393,6 +408,7 @@ impl Parse for SyntaxGrammar {
             tree_model,
             generate_model,
             model_outputs,
+            binding_schema,
             model_path,
             env,
             generate_parsers,
@@ -570,8 +586,18 @@ impl SyntaxGrammar {
     #[requires(true)]
     #[ensures(true)]
     fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<GeneratedTreeModel> {
+        if let Some(binding_schema) = &self.binding_schema
+            && !self.generates_recovered_model()
+        {
+            return Err(syn::Error::new_spanned(
+                binding_schema,
+                "binding schema hooks require `#![tree_recovered]` so every strict model has a recovered counterpart",
+            ));
+        }
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
+        let mut enum_declarations = BTreeMap::<String, (Vec<Attribute>, Ident)>::new();
+        let mut model_order = Vec::<String>::new();
         let mut transparent_constructors = BTreeSet::<String>::new();
         let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
         let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
@@ -594,6 +620,19 @@ impl SyntaxGrammar {
                     if !self.generates_model_output_name(&output.to_string()) {
                         continue;
                     }
+                    let enum_name = output.to_string();
+                    if let Some((_, existing_rule)) = enum_declarations
+                        .insert(enum_name.clone(), (rule.attrs.clone(), rule.name.clone()))
+                    {
+                        return Err(syn::Error::new_spanned(
+                            &rule.name,
+                            format!(
+                                "cannot generate one enum `{enum_name}` from both `{existing_rule}` and `{}`; generated model ownership must be one rule per enum",
+                                rule.name,
+                            ),
+                        ));
+                    }
+                    model_order.push(enum_name);
                     let enum_constructor = generated_constructor_name(&output);
                     transparent_constructors.insert(enum_constructor.clone());
                     constructor_labels.insert(enum_constructor.clone(), rule.context.value());
@@ -633,16 +672,23 @@ impl SyntaxGrammar {
                             variant_constructor.clone(),
                             snake_case(&variant_constructor),
                         ));
-                        let field = GeneratedFieldModel::from_data(data!(GeneratedFieldModel {
-                            attrs: branch.attrs.clone(),
+                        let field = GeneratedFieldModel {
+                            attrs: branch
+                                .attrs
+                                .iter()
+                                .filter(|attr| attr.path().is_ident("doc"))
+                                .cloned()
+                                .collect(),
                             name: branch.name.clone(),
-                            ty: quote!(#branch_output),
-                        }));
+                            ty: branch_output.clone(),
+                        };
                         push_generated_variant(
                             &mut enums,
                             output.to_string(),
                             GeneratedVariantModel::from_data(data!(GeneratedVariantModel {
+                                attrs: branch.attrs.clone(),
                                 variant,
+                                source_name: branch.name.clone(),
                                 rule_name: rule.name.clone(),
                                 fields: vec![field],
                                 tuple: true,
@@ -659,6 +705,7 @@ impl SyntaxGrammar {
                 continue;
             }
             let key = output.to_string();
+            model_order.push(key.clone());
             for (field, cmavo) in rule.generated_elidable_terminator_fields()? {
                 if let Some(existing) =
                     elidable_terminator_fields.insert(field.clone(), cmavo.clone())
@@ -695,6 +742,7 @@ impl SyntaxGrammar {
             structs.insert(
                 key,
                 GeneratedStructModel {
+                    attrs: rule.attrs.clone(),
                     visibility: quote!(pub),
                     ident: output.clone(),
                     rule_name: rule.name.clone(),
@@ -713,14 +761,38 @@ impl SyntaxGrammar {
             }
         }
 
+        let binding_schema = expand_binding_schema(
+            &model_order,
+            &structs,
+            &enums,
+            &enum_declarations,
+            &transparent_constructors,
+            &transparent_field_pairs,
+            &chain_link_element_fields,
+            &variant_struct_outputs,
+            &constructor_labels,
+            &elidable_terminator_fields,
+        )?;
+        let binding_schema_hook = self
+            .binding_schema
+            .as_ref()
+            .map(|name| expand_binding_schema_hook(name, &binding_schema));
+
         let mut items = Vec::new();
         items.extend(structs.values().map(GeneratedStructModel::expand));
         items.extend(enums.iter().map(|(name, variants)| {
             let ident = format_ident!("{name}");
+            let (attrs, _) = enum_declarations
+                .get(name)
+                .expect("every generated enum has its declaration metadata");
+            let doc_attrs = attrs.iter().filter(|attr| attr.path().is_ident("doc"));
+            let other_attrs = attrs.iter().filter(|attr| !attr.path().is_ident("doc"));
             let invariants = variants.iter().map(GeneratedVariantModel::invariant_attr);
             quote! {
+                #(#doc_attrs)*
                 #[bityzba::invariant(true)]
                 #(#invariants)*
+                #(#other_attrs)*
                 #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
                 pub enum #ident {
                     #(#variants,)*
@@ -771,7 +843,7 @@ impl SyntaxGrammar {
                     }))
                 });
         let field_order_items = struct_field_order_items.chain(variant_field_order_items);
-        let support_items = vec![quote! {
+        let mut support_items = vec![quote! {
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub struct GeneratedModelFieldOrder {
                 pub constructor: &'static str,
@@ -814,6 +886,7 @@ impl SyntaxGrammar {
                 #(#field_order_items,)*
             ];
         }];
+        support_items.extend(binding_schema_hook);
         Ok(GeneratedTreeModel {
             tree_items: items,
             support_items,
@@ -828,6 +901,17 @@ impl SyntaxGrammar {
             .iter()
             .find(|rule| rule.name().to_string() == name)
             .and_then(Rule::context_label)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn generates_recovered_model(&self) -> bool {
+        self.tree_model.as_ref().is_some_and(|tree_model| {
+            tree_model
+                .attrs
+                .iter()
+                .any(|attr| attr.path().is_ident("tree_recovered"))
+        })
     }
 }
 
@@ -1184,6 +1268,7 @@ fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
 
 #[invariant(true)]
 struct GeneratedStructModel {
+    attrs: Vec<Attribute>,
     visibility: TokenStream2,
     ident: Ident,
     rule_name: Ident,
@@ -1194,6 +1279,11 @@ impl GeneratedStructModel {
     #[requires(true)]
     #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
+        let doc_attrs = self.attrs.iter().filter(|attr| attr.path().is_ident("doc"));
+        let other_attrs = self
+            .attrs
+            .iter()
+            .filter(|attr| !attr.path().is_ident("doc"));
         let visibility = &self.visibility;
         let ident = &self.ident;
         if self.fields.len() == 1 {
@@ -1202,7 +1292,9 @@ impl GeneratedStructModel {
                 .iter()
                 .map(GeneratedFieldModel::expand_tuple_struct);
             return quote! {
+                #(#doc_attrs)*
                 #[bityzba::invariant(true)]
+                #(#other_attrs)*
                 #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
                 #visibility struct #ident(#(#fields),*);
             };
@@ -1212,7 +1304,9 @@ impl GeneratedStructModel {
             .iter()
             .map(GeneratedFieldModel::expand_named_struct);
         quote! {
+            #(#doc_attrs)*
             #[bityzba::invariant(true)]
+            #(#other_attrs)*
             #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
             #visibility struct #ident {
                 #(#fields,)*
@@ -1223,7 +1317,9 @@ impl GeneratedStructModel {
 
 #[invariant(!fields.is_empty(), "generated enum variants carry at least one field")]
 struct GeneratedVariantModel {
+    attrs: Vec<Attribute>,
     variant: Ident,
+    source_name: Ident,
     rule_name: Ident,
     fields: Vec<GeneratedFieldModel>,
     tuple: bool,
@@ -1244,29 +1340,30 @@ impl GeneratedVariantModel {
 
 impl ToTokens for GeneratedVariantModel {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let attrs = &self.attrs;
         let variant = &self.variant;
         let expanded = if self.tuple {
             let types = self
                 .fields
                 .iter()
                 .map(GeneratedFieldModel::expand_tuple_variant);
-            quote!(#variant(#(#types),*))
+            quote!(#(#attrs)* #variant(#(#types),*))
         } else {
             let fields = self
                 .fields
                 .iter()
                 .map(GeneratedFieldModel::expand_variant_named);
-            quote!(#variant { #(#fields,)* })
+            quote!(#(#attrs)* #variant { #(#fields,)* })
         };
         tokens.extend(expanded);
     }
 }
 
-#[invariant(!ty.is_empty(), "generated model field type tokens must not be empty")]
+#[invariant(true)]
 struct GeneratedFieldModel {
     attrs: Vec<Attribute>,
     name: Ident,
-    ty: TokenStream2,
+    ty: Type,
 }
 
 impl GeneratedFieldModel {
@@ -1302,6 +1399,723 @@ impl GeneratedFieldModel {
         let attrs = &self.attrs;
         let ty = &self.ty;
         quote!(#(#attrs)* #ty)
+    }
+}
+
+#[invariant(true)]
+#[invariant(::Reference { .. } => true)]
+#[invariant(::Optional { .. } => true)]
+#[invariant(::Repeated { .. } => true)]
+#[invariant(::NonEmptyRepeated { .. } => true)]
+#[invariant(::Boxed { .. } => true)]
+#[invariant(::Shared { .. } => true)]
+#[invariant(::RecoveredField { .. } => true)]
+#[invariant(::WithIndicators { .. } => true)]
+#[invariant(::WithFreeModifiers { .. } => true)]
+#[invariant(::Chain { .. } => true)]
+#[invariant(::Tuple { .. } => true)]
+#[invariant(::Fixed { .. } => true)]
+enum BindingType {
+    Reference {
+        reference: BindingReference,
+    },
+    Optional {
+        value: Box<BindingType>,
+    },
+    Repeated {
+        value: Box<BindingType>,
+    },
+    NonEmptyRepeated {
+        value: Box<BindingType>,
+    },
+    Boxed {
+        value: Box<BindingType>,
+    },
+    Shared {
+        value: Box<BindingType>,
+    },
+    RecoveredField {
+        value: Box<BindingType>,
+    },
+    WithIndicators {
+        value: Box<BindingType>,
+    },
+    WithFreeModifiers {
+        value: Box<BindingType>,
+        free_modifier: Box<BindingType>,
+    },
+    Chain {
+        first: Box<BindingType>,
+        links: Box<BindingType>,
+    },
+    Tuple {
+        elements: Vec<BindingType>,
+    },
+    Fixed {
+        value: Box<BindingType>,
+        length: usize,
+    },
+}
+
+#[invariant(true)]
+#[invariant(::Model { name } => !name.is_empty())]
+#[invariant(::Leaf { path, .. } => !path.is_empty())]
+enum BindingReference {
+    Model {
+        name: String,
+    },
+    Leaf {
+        kind: BindingLeafKind,
+        path: Vec<String>,
+    },
+}
+
+#[invariant(true)]
+#[derive(Clone, Copy)]
+enum BindingLeafKind {
+    SyntaxToken,
+    MorphologyCmavo,
+    MorphologySelmaho,
+    MorphologyWord,
+    MorphologyWordLike,
+    SourceId,
+    SourceSpan,
+    Boolean,
+    Integer,
+    String,
+    External,
+}
+
+impl BindingType {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_strict(&self) -> TokenStream2 {
+        match self {
+            Self::Reference { reference } => reference.expand(),
+            Self::Optional { value } => {
+                let value = value.expand_strict();
+                quote!(optional(#value))
+            }
+            Self::Repeated { value } => {
+                let value = value.expand_strict();
+                quote!(repeated(#value))
+            }
+            Self::NonEmptyRepeated { value } => {
+                let value = value.expand_strict();
+                quote!(non_empty_repeated(#value))
+            }
+            Self::Boxed { value } => {
+                let value = value.expand_strict();
+                quote!(boxed(#value))
+            }
+            Self::Shared { value } => {
+                let value = value.expand_strict();
+                quote!(shared(#value))
+            }
+            Self::RecoveredField { value } => {
+                let value = value.expand_strict();
+                quote!(recovered_field(#value))
+            }
+            Self::WithIndicators { value } => {
+                let value = value.expand_strict();
+                quote!(with_indicators(#value))
+            }
+            Self::WithFreeModifiers {
+                value,
+                free_modifier,
+            } => {
+                let value = value.expand_strict();
+                let free_modifier = free_modifier.expand_strict();
+                quote!(with_free_modifiers(value(#value), free_modifier(#free_modifier)))
+            }
+            Self::Chain { first, links } => {
+                let first = first.expand_strict();
+                let links = links.expand_strict();
+                quote!(chain(first(#first), links(#links)))
+            }
+            Self::Tuple { elements } => {
+                let elements = elements.iter().map(Self::expand_strict);
+                quote!(tuple(#(#elements),*))
+            }
+            Self::Fixed { value, length } => {
+                let value = value.expand_strict();
+                quote!(fixed(length(#length), value(#value)))
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_recovered(&self) -> TokenStream2 {
+        match self {
+            Self::Reference { .. } | Self::WithIndicators { .. } => {
+                let value = self.expand_strict();
+                quote!(recovered_field(#value))
+            }
+            Self::Optional { value } => {
+                let value = value.expand_recovered();
+                quote!(optional(#value))
+            }
+            Self::Repeated { value } => {
+                let value = value.expand_recovered();
+                quote!(repeated(#value))
+            }
+            Self::NonEmptyRepeated { value } => {
+                let value = value.expand_recovered();
+                quote!(non_empty_repeated(#value))
+            }
+            Self::Boxed { value } => {
+                let value = value.expand_recovered();
+                quote!(boxed(#value))
+            }
+            Self::Shared { value } => {
+                let value = value.expand_recovered();
+                quote!(shared(#value))
+            }
+            Self::RecoveredField { value } => {
+                let value = value.expand_recovered();
+                quote!(recovered_field(#value))
+            }
+            Self::WithFreeModifiers {
+                value,
+                free_modifier,
+            } => {
+                let value = value.expand_recovered();
+                let free_modifier = free_modifier.expand_recovered();
+                quote!(with_free_modifiers(value(#value), free_modifiers(repeated(#free_modifier))))
+            }
+            Self::Chain { first, links } => {
+                let first = first.expand_recovered();
+                let links = links.expand_recovered();
+                quote!(chain(first(#first), links(#links)))
+            }
+            Self::Tuple { elements } => {
+                let elements = elements.iter().map(Self::expand_recovered);
+                quote!(tuple(#(#elements),*))
+            }
+            Self::Fixed { value, length } => {
+                let value = value.expand_recovered();
+                quote!(fixed(length(#length), value(#value)))
+            }
+        }
+    }
+}
+
+impl BindingReference {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        match self.as_data() {
+            data!(BindingReference::Model { name }) => quote!(reference(model(#name))),
+            data!(BindingReference::Leaf { kind, path }) => {
+                let kind = kind.ident();
+                quote!(reference(leaf(kind(#kind), path(#(#path),*))))
+            }
+        }
+    }
+}
+
+impl BindingLeafKind {
+    #[requires(true)]
+    #[ensures(true)]
+    fn ident(self) -> Ident {
+        format_ident!(
+            "{}",
+            match self {
+                Self::SyntaxToken => "syntax_token",
+                Self::MorphologyCmavo => "morphology_cmavo",
+                Self::MorphologySelmaho => "morphology_selmaho",
+                Self::MorphologyWord => "morphology_word",
+                Self::MorphologyWordLike => "morphology_word_like",
+                Self::SourceId => "source_id",
+                Self::SourceSpan => "source_span",
+                Self::Boolean => "boolean",
+                Self::Integer => "integer",
+                Self::String => "string",
+                Self::External => "external",
+            }
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_binding_type(
+    ty: &Type,
+    generated_models: &BTreeSet<String>,
+    field: &Ident,
+) -> Result<BindingType> {
+    match ty {
+        Type::Path(path) if path.qself.is_none() => {
+            normalize_binding_path(&path.path, generated_models, field)
+        }
+        Type::Tuple(tuple) => tuple
+            .elems
+            .iter()
+            .map(|element| normalize_binding_type(element, generated_models, field))
+            .collect::<Result<Vec<_>>>()
+            .map(|elements| BindingType::Tuple { elements }),
+        Type::Array(array) => {
+            let Expr::Lit(length) = &array.len else {
+                return Err(unsupported_binding_field(field, ty));
+            };
+            let Lit::Int(length) = &length.lit else {
+                return Err(unsupported_binding_field(field, ty));
+            };
+            let length = length
+                .base10_parse::<usize>()
+                .map_err(|_| unsupported_binding_field(field, ty))?;
+            let value = normalize_binding_type(&array.elem, generated_models, field)?;
+            Ok(BindingType::Fixed {
+                value: Box::new(value),
+                length,
+            })
+        }
+        Type::Paren(paren) => normalize_binding_type(&paren.elem, generated_models, field),
+        Type::Group(group) => normalize_binding_type(&group.elem, generated_models, field),
+        _ => Err(unsupported_binding_field(field, ty)),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_binding_path(
+    path: &Path,
+    generated_models: &BTreeSet<String>,
+    field: &Ident,
+) -> Result<BindingType> {
+    let segment = path
+        .segments
+        .last()
+        .ok_or_else(|| syn::Error::new_spanned(field, "model fields need a non-empty type path"))?;
+    let name = segment.ident.to_string();
+    if matches!(segment.arguments, PathArguments::None) {
+        if path
+            .segments
+            .iter()
+            .any(|segment| !matches!(segment.arguments, PathArguments::None))
+        {
+            return Err(unsupported_binding_field(
+                field,
+                &Type::Path(syn::TypePath {
+                    qself: None,
+                    path: path.clone(),
+                }),
+            ));
+        }
+        if path.segments.len() == 1 && generated_models.contains(&name) {
+            return Ok(BindingType::Reference {
+                reference: new!(BindingReference::Model { name }),
+            });
+        }
+        let kind = binding_leaf_kind(&name);
+        let path = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect();
+        return Ok(BindingType::Reference {
+            reference: new!(BindingReference::Leaf { kind, path }),
+        });
+    }
+
+    let args = binding_type_arguments(&segment.arguments)
+        .ok_or_else(|| unsupported_binding_path(field, path))?;
+    let unary = |constructor: fn(Box<BindingType>) -> BindingType| -> Result<BindingType> {
+        if args.len() != 1 {
+            return Err(unsupported_binding_path(field, path));
+        }
+        let value = normalize_binding_type(args[0], generated_models, field)?;
+        Ok(constructor(Box::new(value)))
+    };
+    match name.as_str() {
+        "Option" => unary(|value| BindingType::Optional { value }),
+        "Vec" => unary(|value| BindingType::Repeated { value }),
+        "Vec1" => unary(|value| BindingType::NonEmptyRepeated { value }),
+        "Box" => unary(|value| BindingType::Boxed { value }),
+        "Arc" => unary(|value| BindingType::Shared { value }),
+        "Recovered" => unary(|value| BindingType::RecoveredField { value }),
+        "WithIndicators" => unary(|value| BindingType::WithIndicators { value }),
+        "SmallVec" | "SmallVec1" => {
+            if args.len() != 1 {
+                return Err(unsupported_binding_path(field, path));
+            }
+            let Type::Array(array) = args[0] else {
+                return Err(unsupported_binding_path(field, path));
+            };
+            let value = normalize_binding_type(&array.elem, generated_models, field)?;
+            if name == "SmallVec" {
+                Ok(BindingType::Repeated {
+                    value: Box::new(value),
+                })
+            } else {
+                Ok(BindingType::NonEmptyRepeated {
+                    value: Box::new(value),
+                })
+            }
+        }
+        "WithFreeModifiers" => {
+            if args.len() != 2 {
+                return Err(unsupported_binding_path(field, path));
+            }
+            Ok(BindingType::WithFreeModifiers {
+                value: Box::new(normalize_binding_type(args[0], generated_models, field)?),
+                free_modifier: Box::new(normalize_binding_type(args[1], generated_models, field)?),
+            })
+        }
+        "Chain" => {
+            if args.len() != 2 {
+                return Err(unsupported_binding_path(field, path));
+            }
+            Ok(BindingType::Chain {
+                first: Box::new(normalize_binding_type(args[0], generated_models, field)?),
+                links: Box::new(normalize_binding_type(args[1], generated_models, field)?),
+            })
+        }
+        _ => Err(unsupported_binding_path(field, path)),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn binding_type_arguments(arguments: &PathArguments) -> Option<Vec<&Type>> {
+    let PathArguments::AngleBracketed(arguments) = arguments else {
+        return None;
+    };
+    arguments
+        .args
+        .iter()
+        .map(|argument| match argument {
+            GenericArgument::Type(ty) => Some(ty),
+            _ => None,
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn binding_leaf_kind(name: &str) -> BindingLeafKind {
+    match name {
+        "Token" => BindingLeafKind::SyntaxToken,
+        "Cmavo" => BindingLeafKind::MorphologyCmavo,
+        "Selmaho" => BindingLeafKind::MorphologySelmaho,
+        "Word" => BindingLeafKind::MorphologyWord,
+        "WordLike" => BindingLeafKind::MorphologyWordLike,
+        "SourceId" => BindingLeafKind::SourceId,
+        "SourceSpan" => BindingLeafKind::SourceSpan,
+        "bool" => BindingLeafKind::Boolean,
+        "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128"
+        | "usize" => BindingLeafKind::Integer,
+        "String" => BindingLeafKind::String,
+        _ => BindingLeafKind::External,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unsupported_binding_path(field: &Ident, path: &Path) -> syn::Error {
+    unsupported_binding_field(
+        field,
+        &Type::Path(syn::TypePath {
+            qself: None,
+            path: path.clone(),
+        }),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn unsupported_binding_field(field: &Ident, ty: &Type) -> syn::Error {
+    syn::Error::new_spanned(
+        field,
+        format!(
+            "unsupported generated model field shape `{}`; binding schema fields must use plain model/leaf paths or the supported Option, Vec, Vec1, SmallVec, SmallVec1, Box, Arc, Recovered, WithIndicators, WithFreeModifiers, Chain, tuple, and fixed-array shapes",
+            compact_tokens(ty),
+        ),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|docs| docs.iter().all(|doc| !doc.value().trim().is_empty())))]
+fn canonical_documentation(
+    attrs: &[Attribute],
+    target: &Ident,
+    description: &str,
+    required: bool,
+) -> Result<Vec<LitStr>> {
+    let mut docs = Vec::new();
+    for attr in attrs.iter().filter(|attr| attr.path().is_ident("doc")) {
+        match &attr.meta {
+            Meta::NameValue(name_value)
+                if let Expr::Lit(expr) = &name_value.value
+                    && let Lit::Str(doc) = &expr.lit =>
+            {
+                if !doc.value().trim().is_empty() {
+                    docs.push(doc.clone());
+                }
+            }
+            Meta::List(_) | Meta::Path(_) => {}
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "binding schema documentation must be a string-valued `doc` attribute",
+                ));
+            }
+        }
+    }
+    if required && docs.is_empty() {
+        return Err(syn::Error::new_spanned(
+            target,
+            format!("generated {description} needs canonical `///` documentation"),
+        ));
+    }
+    Ok(docs)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[requires(true)]
+#[ensures(true)]
+fn expand_binding_schema(
+    model_order: &[String],
+    structs: &BTreeMap<String, GeneratedStructModel>,
+    enums: &BTreeMap<String, Vec<GeneratedVariantModel>>,
+    enum_declarations: &BTreeMap<String, (Vec<Attribute>, Ident)>,
+    transparent_constructors: &BTreeSet<String>,
+    transparent_field_pairs: &BTreeSet<(String, String)>,
+    chain_link_element_fields: &BTreeSet<(String, String)>,
+    variant_struct_outputs: &BTreeSet<(String, String)>,
+    constructor_labels: &BTreeMap<String, String>,
+    elidable_terminator_fields: &BTreeMap<String, String>,
+) -> Result<TokenStream2> {
+    let generated_models = structs
+        .keys()
+        .chain(enums.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let models = model_order
+        .iter()
+        .map(|name| {
+            if let Some(model) = structs.get(name) {
+                expand_binding_product(model, &generated_models, constructor_labels)
+            } else {
+                let variants = enums
+                    .get(name)
+                    .expect("model order contains only collected structs and enums");
+                let (attrs, rule_name) = enum_declarations
+                    .get(name)
+                    .expect("generated enum declaration metadata is complete");
+                expand_binding_sum(
+                    name,
+                    attrs,
+                    rule_name,
+                    variants,
+                    &generated_models,
+                    constructor_labels,
+                )
+            }
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let transparent_constructors = transparent_constructors.iter();
+    let transparent_fields = transparent_field_pairs
+        .iter()
+        .map(|(constructor, field)| quote!(transparent_field(#constructor, #field)));
+    let chain_link_fields = chain_link_element_fields
+        .iter()
+        .map(|(constructor, field)| quote!(chain_link_element_field(#constructor, #field)));
+    let constructor_labels = constructor_labels
+        .iter()
+        .map(|(constructor, label)| quote!(constructor_label(#constructor, #label)));
+    let elidable_terminators = elidable_terminator_fields
+        .iter()
+        .map(|(field, cmavo)| quote!(elidable_terminator(#field, #cmavo)));
+    let struct_field_orders =
+        structs
+            .values()
+            .filter(|model| model.fields.len() > 1)
+            .map(|model| {
+                let constructor = generated_constructor_name(&model.ident);
+                let fields = model.fields.iter().map(|field| field.name.to_string());
+                quote!(field_order(#constructor, [#(#fields),*]))
+            });
+    let variant_field_orders = variant_struct_outputs
+        .iter()
+        .filter_map(|(constructor, output)| {
+            let model = structs.get(output)?;
+            if model.fields.len() <= 1 {
+                return None;
+            }
+            let fields = model.fields.iter().map(|field| field.name.to_string());
+            Some(quote!(field_order(#constructor, [#(#fields),*])))
+        });
+    let field_orders = struct_field_orders.chain(variant_field_orders);
+
+    Ok(quote! {
+        syntax_binding_schema {
+            version(1),
+            models [#(#models),*],
+            metadata {
+                transparent_constructors [#(#transparent_constructors),*],
+                transparent_fields [#(#transparent_fields),*],
+                chain_link_element_fields [#(#chain_link_fields),*],
+                constructor_labels [#(#constructor_labels),*],
+                elidable_terminators [#(#elidable_terminators),*],
+                field_orders [#(#field_orders),*]
+            }
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_binding_product(
+    model: &GeneratedStructModel,
+    generated_models: &BTreeSet<String>,
+    constructor_labels: &BTreeMap<String, String>,
+) -> Result<TokenStream2> {
+    let docs = canonical_documentation(&model.attrs, &model.ident, "model type", true)?;
+    let name = model.ident.to_string();
+    let rule = model.rule_name.to_string();
+    let constructor = generated_constructor_name(&model.ident);
+    let label = constructor_labels
+        .get(&constructor)
+        .map_or_else(|| quote!(none), |label| quote!(some(#label)));
+    let shape = if model.fields.len() == 1 {
+        format_ident!("tuple")
+    } else {
+        format_ident!("named")
+    };
+    let fields = model
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            expand_binding_field(field, index, model.fields.len() != 1, generated_models)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! {
+        product {
+            names(strict(#name), recovered(#name)),
+            rule(#rule),
+            docs [#(#docs),*],
+            constructor(name(#constructor), label(#label)),
+            shape(#shape),
+            fields [#(#fields),*]
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_binding_sum(
+    name: &str,
+    attrs: &[Attribute],
+    rule_name: &Ident,
+    variants: &[GeneratedVariantModel],
+    generated_models: &BTreeSet<String>,
+    constructor_labels: &BTreeMap<String, String>,
+) -> Result<TokenStream2> {
+    let ident = format_ident!("{name}");
+    let docs = canonical_documentation(attrs, &ident, "model enum", true)?;
+    let rule = rule_name.to_string();
+    let constructor = generated_constructor_name(&ident);
+    let label = constructor_labels
+        .get(&constructor)
+        .map_or_else(|| quote!(none), |label| quote!(some(#label)));
+    let variants = variants
+        .iter()
+        .map(|variant| expand_binding_variant(variant, generated_models, constructor_labels))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! {
+        sum {
+            names(strict(#name), recovered(#name)),
+            rule(#rule),
+            docs [#(#docs),*],
+            constructor(name(#constructor), label(#label)),
+            variants [#(#variants),*]
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_binding_variant(
+    variant: &GeneratedVariantModel,
+    generated_models: &BTreeSet<String>,
+    constructor_labels: &BTreeMap<String, String>,
+) -> Result<TokenStream2> {
+    let docs = canonical_documentation(&variant.attrs, &variant.variant, "enum variant", true)?;
+    let name = variant.variant.to_string();
+    let source_rule = variant.source_name.to_string();
+    let owner_rule = variant.rule_name.to_string();
+    let label = constructor_labels
+        .get(&name)
+        .map_or_else(|| quote!(none), |label| quote!(some(#label)));
+    let shape = if variant.tuple {
+        format_ident!("tuple")
+    } else {
+        format_ident!("named")
+    };
+    let fields = variant
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| expand_binding_field(field, index, !variant.tuple, generated_models))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! {
+        variant {
+            name(#name),
+            owner_rule(#owner_rule),
+            source_rule(#source_rule),
+            docs [#(#docs),*],
+            constructor(name(#name), label(#label)),
+            shape(#shape),
+            fields [#(#fields),*]
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_binding_field(
+    field: &GeneratedFieldModel,
+    index: usize,
+    named: bool,
+    generated_models: &BTreeSet<String>,
+) -> Result<TokenStream2> {
+    let docs = canonical_documentation(&field.attrs, &field.name, "model field", false)?;
+    let source_name = field.name.to_string();
+    let rust_name = if named {
+        quote!(named(#source_name))
+    } else {
+        quote!(tuple(#index))
+    };
+    let ty = normalize_binding_type(&field.ty, generated_models, &field.name)?;
+    let strict = ty.expand_strict();
+    let recovered = ty.expand_recovered();
+    Ok(quote! {
+        field {
+            source_name(#source_name),
+            rust_name(#rust_name),
+            index(#index),
+            docs [#(#docs),*],
+            strict(#strict),
+            recovered(#recovered)
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_binding_schema_hook(name: &Ident, schema: &TokenStream2) -> TokenStream2 {
+    quote! {
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #name {
+            ($consumer:ident) => {
+                $consumer! { #schema }
+            };
+        }
     }
 }
 
@@ -2354,6 +3168,7 @@ impl Parse for AliasRule {
 
 #[invariant(!branches.is_empty(), "enum rules need at least one branch")]
 struct EnumRule {
+    attrs: Vec<Attribute>,
     name: Ident,
     arguments: Vec<Ident>,
     output: Type,
@@ -2698,6 +3513,7 @@ impl EnumRule {
 
 #[invariant(true)]
 struct NodeRule {
+    attrs: Vec<Attribute>,
     name: Ident,
     arguments: Vec<Ident>,
     output: Type,
@@ -6697,6 +7513,7 @@ fn is_unit_type(output: &Type) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
+    let attrs = input.call(Attribute::parse_outer)?;
     input.parse::<kw::rule>()?;
     let context: LitStr = input.parse()?;
     let name: Ident = input.parse()?;
@@ -6708,6 +7525,7 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
         braced!(content in input);
         let fields = parse_explicit_struct_fields(&content)?;
         Ok(Rule::Struct(NodeRule {
+            attrs,
             output: syntax_type_for_rule(&name),
             name,
             arguments,
@@ -6743,6 +7561,7 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
             return Err(content.error("enum rules need at least one branch"));
         }
         Ok(Rule::Enum(EnumRule::from_data(data!(EnumRule {
+            attrs: attrs,
             output: syntax_type_for_rule(&name),
             name,
             arguments,
@@ -6924,12 +7743,18 @@ impl FieldItem {
             syn::Error::new_spanned(self.parser.to_token_stream(), "model fields need a name")
         })?;
         let ty = match (&self.ty, &self.kind) {
-            (Some(ty), _) => quote!(#ty),
+            (Some(ty), _) => ty.clone(),
             (None, FieldKind::Field) => {
-                parser_output_type(&self.parser, type_env, argument_types).ok_or_else(|| {
+                let tokens = parser_output_type(&self.parser, type_env, argument_types).ok_or_else(|| {
                     syn::Error::new_spanned(
                         self.parser.to_token_stream(),
                         "cannot infer generated model field type from parser expression; add an explicit `: Type` annotation",
+                    )
+                })?;
+                syn::parse2(tokens).map_err(|error| {
+                    syn::Error::new_spanned(
+                        self.name.as_ref().unwrap_or(&name),
+                        format!("cannot normalize inferred generated model field type: {error}"),
                     )
                 })?
             }
@@ -6943,11 +7768,11 @@ impl FieldItem {
                 unreachable!("parser-only fields are filtered before model field generation")
             }
         };
-        Ok(GeneratedFieldModel::from_data(data!(GeneratedFieldModel {
+        Ok(GeneratedFieldModel {
             attrs: self.attrs.clone(),
             name,
             ty,
-        })))
+        })
     }
 
     #[requires(true)]
@@ -8693,6 +9518,7 @@ mod tests {
     #[test]
     fn grammar_rejects_build_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token <- cmavo(Be);
                 build |token| ItemSyntax { token };
@@ -8716,6 +9542,7 @@ mod tests {
     #[test]
     fn grammar_does_not_support_recovered_build_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token <- cmavo(Be);
                 recovered_build |token| ItemSyntax { token };
@@ -8766,6 +9593,7 @@ mod tests {
     #[test]
     fn grammar_rejects_old_struct_body_forms() {
         let old_fields = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 fields {
                     field token = cmavo(Be);
@@ -8773,16 +9601,19 @@ mod tests {
             }
         });
         let old_default = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 default token = cmavo(Be);
             }
         });
         let old_scratch = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 scratch token = cmavo(Be);
             }
         });
         let old_construct = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 construct variant Item;
                 field token <- cmavo(Be);
@@ -8898,6 +9729,7 @@ mod tests {
     #[test]
     fn grammar_rejects_duplicate_rule_names() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token <- cmavo(Be);
             }
@@ -8924,6 +9756,7 @@ mod tests {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
             env SyntaxGrammarEnv;
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field tokens <- [one_or_more cmavo(Be)].wf();
             }
@@ -8945,15 +9778,18 @@ mod tests {
             tree_model {}
             model;
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token <- cmavo(Be);
             }
 
+            /// Syntax model for link parsed by the `link` grammar rule.
             rule "link" link -> struct {
                 field connector <- cmavo(Bo);
                 field item <- item;
             }
 
+            /// Syntax model for chain parsed by the `chain` grammar rule.
             rule "chain" chain -> struct {
                 field run <- chain(first: item, zero_or_more: link, element: missing);
             }
@@ -8982,11 +9818,14 @@ mod tests {
                 item: ItemSyntax;
             }
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item(item) -> struct {
                 field inner <- item;
             }
 
+            /// Syntax model for wrapper parsed by the `wrapper` grammar rule.
             rule "wrapper" wrapper(item) -> enum {
+                /// The `item` alternative of wrapper.
                 item,
             }
         })
@@ -9013,6 +9852,7 @@ mod tests {
             env generated_runtime::SyntaxGrammarEnv;
             strict_parsers;
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token <- cmavo(Be);
             }
@@ -9038,12 +9878,16 @@ mod tests {
             tree_model {}
             model;
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token <- cmavo(Be);
             }
 
+            /// Syntax model for choice parsed by the `choice` grammar rule.
             rule "choice" choice -> enum {
+                /// The `item` alternative of choice.
                 item,
+                /// The `item` alternative of choice.
                 item,
             }
         })
@@ -9065,6 +9909,7 @@ mod tests {
             env generated_runtime::SyntaxGrammarEnv;
             strict_parsers;
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token: std::sync::Arc<Token> <- arc(unknown_parser());
             }
@@ -9087,6 +9932,7 @@ mod tests {
             env generated_runtime::SyntaxGrammarEnv;
             strict_parsers;
 
+            /// Syntax model for item parsed by the `item` grammar rule.
             rule "item" item -> struct {
                 field token: std::sync::Arc<Token> <- arc(cmavo(Be).payload_start());
             }
@@ -9113,6 +9959,7 @@ mod tests {
                 item: ItemSyntax;
             }
 
+            /// Syntax model for other parsed by the `other` grammar rule.
             rule "other" other -> struct {
                 field token <- cmavo(Be);
             }
@@ -9124,6 +9971,56 @@ mod tests {
             expanded.contains("compile_error")
                 && expanded.contains("recursive parser declaration has no matching rule"),
             "missing recursive root rules should be reported: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_model_types_require_canonical_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            rule "undocumented" undocumented -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("generated model type needs canonical"),
+            "undocumented model types must be rejected: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_enum_variants_require_canonical_documentation() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            /// A documented enum.
+            rule "choice" choice -> enum {
+                item,
+            }
+
+            /// A documented item.
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("generated enum variant needs canonical"),
+            "undocumented enum variants must be rejected: {expanded}"
         );
     }
 }

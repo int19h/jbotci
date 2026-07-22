@@ -50,6 +50,7 @@ jbotci_syntax_macros::syntax_grammar! {
     alias "statement" passthrough_statement(statement) =
         cmavo(Bo).not().ignore_then(statement);
 
+    /// Syntax model for linked arguments parsed by the `linkargs` grammar rule.
     rule "linked arguments" linkargs(sumti) -> struct {
         field be <- cmavo(Be).wf();
         assert !cmavo(Bo);
@@ -63,6 +64,7 @@ jbotci_syntax_macros::syntax_grammar! {
         field computed: usize = 0usize;
     }
 
+    /// Syntax model for bo sumti tail parsed by the `bo_sumti_tail` grammar rule.
     rule "bo sumti tail" bo_sumti_tail -> struct {
         field connective <- choice(joik(), jek());
         field bo <- cmavo(Bo).wf();
@@ -201,6 +203,7 @@ mod recovery_classification {
     jbotci_syntax_macros::syntax_grammar! {
         env SyntaxGrammarEnv;
 
+        /// Syntax model for token helpers parsed by the `token_helpers` grammar rule.
         rule "token helpers" token_helpers -> struct {
             field pa <- pa_word();
             field cmevla <- cmevla_word();
@@ -258,14 +261,21 @@ mod anchor_metadata {
             item: ItemSyntax;
         }
 
+        /// Syntax model for item parsed by the `item` grammar rule.
         rule "item" item(item) -> enum {
+            /// The `literal_item` alternative of item.
             literal_item,
+            /// The `recursive_item` alternative of item.
             recursive_item,
+            /// The `gated_item` alternative of item.
             when feature(ZantufaTags) gated_item,
+            /// The `nullable_item` alternative of item.
             nullable_item,
+            /// The `explicit_argument_item` alternative of item.
             explicit_argument_item,
         }
 
+        /// Syntax model for literal item parsed by the `literal_item` grammar rule.
         rule "literal item" literal_item(item) -> struct {
             field be <- cmavo(Be).wf();
             field bo <- cmavo(Bo).wf();
@@ -273,34 +283,41 @@ mod anchor_metadata {
             field tail <- opt(arc(item));
         }
 
+        /// Syntax model for optional run item parsed by the `optional_run_item` grammar rule.
         rule "optional run item" optional_run_item -> struct {
             field na <- opt(selmaho(Na).wf());
             field se <- opt(selmaho(Se).wf());
             field a <- selmaho(A).wf();
         }
 
+        /// Syntax model for recursive item parsed by the `recursive_item` grammar rule.
         rule "recursive item" recursive_item(item) -> struct {
             field inner <- opt(arc(item));
             field pa <- selmaho(Pa).wf();
         }
 
+        /// Syntax model for repeated item parsed by the `repeated_item` grammar rule.
         rule "repeated item" repeated_item(item) -> struct {
             field items <- [zero_or_more item];
         }
 
+        /// Syntax model for gated item parsed by the `gated_item` grammar rule.
         rule "gated item" gated_item -> struct {
             field fa <- selmaho(Fa).warn(ExperimentalAnchorMetadata).wf();
             when feature(ZantufaTags) field bo <- cmavo(Bo).wf();
         }
 
+        /// Syntax model for nullable item parsed by the `nullable_item` grammar rule.
         rule "nullable item" nullable_item -> struct {
             field maybe_bo <- opt(cmavo(Bo));
         }
 
+        /// Syntax model for explicit argument item parsed by the `explicit_argument_item` grammar rule.
         rule "explicit argument item" explicit_argument_item(item) -> struct {
             field inner <- literal_item(item);
         }
 
+        /// Syntax model for text quote parsed by the `text_quote` grammar rule.
         rule "text quote" text_quote(text) -> struct {
             field be <- cmavo(Be).wf();
             field text <- arc(text);
@@ -481,7 +498,7 @@ mod generated_model {
     use crate::Cmavo;
 
     #[bityzba::invariant(true)]
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     pub struct Token;
 
     jbotci_syntax_macros::syntax_grammar! {
@@ -500,6 +517,7 @@ mod generated_model {
 
         alias "item" item_alias = item;
 
+        /// Syntax model for pair parsed by the `pair` grammar rule.
         rule "pair" pair(item) -> struct {
             field head <- cmavo(Be);
             field nonempty <- [one_or_more cmavo(Be)];
@@ -510,19 +528,25 @@ mod generated_model {
             field child <- boxed(item);
         }
 
+        /// Syntax model for choice parsed by the `choice` grammar rule.
         rule "choice" choice -> enum {
+            /// The `choice_first` alternative of choice.
             choice_first,
+            /// The `choice_second` alternative of choice.
             choice_second,
         }
 
+        /// Syntax model for choice first parsed by the `choice_first` grammar rule.
         rule "choice first" choice_first -> struct {
             field token <- cmavo(Be);
         }
 
+        /// Syntax model for choice second parsed by the `choice_second` grammar rule.
         rule "choice second" choice_second(item) -> struct {
             field item <- boxed(item);
         }
 
+        /// Syntax model for helper product parsed by the `helper_product` grammar rule.
         rule "helper product" helper_product -> struct {
             field token <- cmavo(Be);
         }
@@ -550,6 +574,179 @@ mod generated_model {
     }
 }
 
+mod binding_schema {
+    #![allow(dead_code)]
+
+    use crate::Cmavo;
+
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    pub struct WordLike;
+
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    pub struct Token;
+
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    pub struct WithIndicators<T>(pub T);
+
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct WithFreeModifiers<T, F> {
+        pub value: T,
+        pub free_modifiers: Vec<F>,
+    }
+
+    type RecoveryTreeItem = ();
+
+    pub mod jbotci_source {
+        #[bityzba::invariant(true)]
+        #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+        pub struct SourceSpan;
+
+        #[bityzba::contract_trait]
+        impl jbotci_tree::RecoveredFieldState for SourceSpan {
+            fn recovery_error_slots(&self) -> usize {
+                0
+            }
+        }
+    }
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {
+            #![tree_recovered]
+            #![tree_with_free_modifiers]
+        }
+        model;
+        binding_schema __binding_schema_fixture;
+
+        recursive {
+            item: ItemSyntax;
+        }
+
+        /// Canonical item documentation shared by Rust and bindings.
+        #[deny(missing_docs)]
+        rule "item" item(item) -> struct {
+            /// The item token.
+            field token <- cmavo(Be);
+            /// An optional token.
+            field optional <- opt(cmavo(Be));
+            /// A possibly empty token sequence.
+            field repeated <- [zero_or_more cmavo(Be)];
+            /// A non-empty token sequence.
+            field non_empty <- [one_or_more cmavo(Be)];
+            /// A boxed recursive item.
+            field boxed <- boxed(item);
+            /// A shared recursive item.
+            field shared <- arc(item);
+            /// A token carrying following free modifiers.
+            field with_free_modifiers <- cmavo(Be).wf();
+            /// A morphology value carrying indicators.
+            field with_indicators: WithIndicators<WordLike> = unreachable!();
+            /// A shared source span.
+            field source_span: std::sync::Arc<jbotci_source::SourceSpan> = unreachable!();
+            /// A small repeated token sequence.
+            field small: smallvec::SmallVec<[Token; 2]> = smallvec::SmallVec::new();
+        }
+
+        /// Canonical free-modifier documentation.
+        rule "free modifier" free_modifier -> struct {
+            /// The free-modifier token.
+            field token <- cmavo(Be);
+        }
+
+        /// Canonical transparent-wrapper documentation.
+        rule "wrapper" wrapper -> struct {
+            /// The wrapped token.
+            field token <- cmavo(Be);
+        }
+
+        /// Canonical choice documentation.
+        #[deny(missing_docs)]
+        rule "choice" choice(item) -> enum {
+            /// The item alternative.
+            item,
+            /// The wrapper alternative added directly from the grammar.
+            wrapper,
+        }
+    }
+
+    macro_rules! capture_binding_schema {
+        ($($schema:tt)*) => {
+            const CAPTURED_BINDING_SCHEMA: &str = stringify!($($schema)*);
+        };
+    }
+
+    __binding_schema_fixture!(capture_binding_schema);
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn callback_exports_documented_normalized_strict_and_recovered_shapes() {
+        let schema = CAPTURED_BINDING_SCHEMA;
+        assert!(schema.contains("Canonical item documentation shared by Rust and bindings."));
+        assert!(schema.contains("The item token."));
+        assert!(schema.contains("The item alternative."));
+        assert!(schema.contains("The wrapper alternative added directly from the grammar."));
+
+        let compact = schema.split_whitespace().collect::<String>();
+        assert!(compact.contains("names(strict(\"ItemSyntax\"),recovered(\"ItemSyntax\"))"));
+        for shape in [
+            "optional(reference(leaf(kind(syntax_token)",
+            "repeated(reference(leaf(kind(syntax_token)",
+            "non_empty_repeated(reference(leaf(kind(syntax_token)",
+            "boxed(reference(model(\"ItemSyntax\")))",
+            "shared(reference(model(\"ItemSyntax\")))",
+            "with_free_modifiers(value(reference(leaf(kind(syntax_token)",
+            "with_indicators(reference(leaf(kind(morphology_word_like)",
+            "shared(reference(leaf(kind(source_span)",
+        ] {
+            assert!(
+                compact.contains(shape),
+                "missing schema shape {shape}: {schema}"
+            );
+        }
+        let small = compact
+            .find("source_name(\"small\")")
+            .expect("small-vector field");
+        let small_tail = &compact[small..];
+        let small_end = small_tail.find("field{").unwrap_or(small_tail.len());
+        assert!(
+            small_tail[..small_end].contains("strict(repeated(reference(leaf(kind(syntax_token)"),
+            "SmallVec is normalized as repeated cardinality"
+        );
+        assert!(compact.contains("recovered(recovered_field(reference(leaf(kind(syntax_token)"));
+        assert!(
+            compact.contains("shape(tuple)"),
+            "transparent products and variants are tuples"
+        );
+        assert!(compact.contains("transparent_constructors["));
+        assert!(compact.contains("constructor_label(\"Item\",\"item\")"));
+
+        let token = compact.find("source_name(\"token\")").expect("token field");
+        let optional = compact
+            .find("source_name(\"optional\")")
+            .expect("optional field");
+        let repeated = compact
+            .find("source_name(\"repeated\")")
+            .expect("repeated field");
+        assert!(
+            token < optional && optional < repeated,
+            "source field order is preserved"
+        );
+
+        let item_variant = compact.find("source_rule(\"item\")").expect("item variant");
+        let wrapper_variant = compact
+            .find("source_rule(\"wrapper\")")
+            .expect("wrapper variant");
+        assert!(
+            item_variant < wrapper_variant,
+            "enum branch order is preserved"
+        );
+    }
+}
+
 mod generated_model_filter {
     use crate::Cmavo;
 
@@ -561,14 +758,17 @@ mod generated_model_filter {
         tree_model {}
         model { KeptSyntax };
 
+        /// Syntax model for kept parsed by the `kept` grammar rule.
         rule "kept" kept -> struct {
             field token <- cmavo(Be);
         }
 
+        /// Syntax model for skipped first parsed by the `skipped_first` grammar rule.
         rule "skipped first" skipped_first -> struct {
             field token <- cmavo(Be);
         }
 
+        /// Syntax model for skipped second parsed by the `skipped_second` grammar rule.
         rule "skipped second" skipped_second -> struct {
             field token <- cmavo(Bo);
         }
@@ -599,6 +799,7 @@ mod generated_model_with_env {
         model { EnvNodeSyntax };
         env SyntaxGrammarEnv;
 
+        /// Syntax model for env node parsed by the `env_node` grammar rule.
         rule "env node" env_node -> struct {
             field token <- cmavo(Be);
         }
@@ -641,6 +842,7 @@ mod new_dsl {
             external: ExternalSyntax;
         }
 
+        /// Syntax model for item parsed by the `item` grammar rule.
         rule "item" item -> struct {
             field token <- cmavo(Be);
             field computed: usize = 1usize;
@@ -650,14 +852,17 @@ mod new_dsl {
             assert !cmavo(Bo);
         }
 
+        /// Syntax model for other item parsed by the `other_item` grammar rule.
         rule "other item" other_item -> struct {
             field token <- cmavo(Bo);
         }
 
+        /// Syntax model for gated item parsed by the `gated_item` grammar rule.
         rule "gated item" gated_item -> struct {
             field token <- cmavo(Be);
         }
 
+        /// Syntax model for token list parsed by the `token_list` grammar rule.
         rule "token list" token_list -> struct {
             field tokens <- [
                 cmavo(Be);
@@ -668,6 +873,7 @@ mod new_dsl {
             ];
         }
 
+        /// Syntax model for nested token list parsed by the `nested_token_list` grammar rule.
         rule "nested token list" nested_token_list -> struct {
             field tokens <- choice((
                 [cmavo(Be)],
@@ -675,14 +881,21 @@ mod new_dsl {
             ));
         }
 
+        /// Syntax model for item choice parsed by the `item_choice` grammar rule.
         rule "item choice" item_choice -> enum {
+            /// The `item` alternative of item choice.
             item,
+            /// The `other_item` alternative of item choice.
             other_item,
+            /// The `gated_item` alternative of item choice.
             when feature(ZantufaTags) gated_item,
         }
 
+        /// Syntax model for item choice parsed by the `external_item_choice` grammar rule.
         rule "item choice" external_item_choice(external) -> enum {
+            /// The `external` alternative of item choice.
             external,
+            /// The `item` alternative of item choice.
             item,
         }
 
@@ -690,11 +903,13 @@ mod new_dsl {
 
         alias "guarded item alias" guarded_item_alias = cmavo(Bo).not().ignore_then(item);
 
+        /// Syntax model for chain link parsed by the `chain_link` grammar rule.
         rule "chain link" chain_link -> struct {
             field connector <- cmavo(Bo);
             field item <- item;
         }
 
+        /// Syntax model for item chain parsed by the `item_chain` grammar rule.
         rule "item chain" item_chain -> struct {
             field run <- chain(first: item, zero_or_more: chain_link, element: item);
         }
