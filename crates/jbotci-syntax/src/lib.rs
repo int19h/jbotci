@@ -3416,6 +3416,17 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn empty_text_is_valid_syntax_with_vacuously_ordered_attribution() {
+        let parse = parse_syntax_tree(&[]).expect("empty text is valid syntax");
+
+        assert!(text_syntax_tokens_have_ordered_source_attribution(
+            &parse.parse_tree,
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn empty_expectation_merging_is_an_identity() {
         assert!(merge_expectations_by_reason(&[]).is_empty());
     }

@@ -11,7 +11,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_tree::FieldRef;
 use serde::ser::{SerializeSeq, Serializer};
@@ -111,41 +111,46 @@ fn syntax_recovery_tokens_have_ordered_source_attribution(tokens: &Vec1<Token>) 
 /// core words, which is how dialect expansion siblings retain attribution to
 /// their shared source word. Modifier spans may surround that shared core but
 /// may not overlap anything in the adjacent token.
-#[invariant(::Empty => true)]
-#[invariant(::Ordered { previous_token } => previous_token
-    .source_spans()
-    .windows(2)
-    .all(|pair| pair[0].byte_end <= pair[1].byte_start))]
-#[invariant(::Invalid => true)]
+#[invariant(*ordered || previous_token.is_some(), "only a non-empty stream can become invalid")]
+#[expensive_invariant(!*ordered || previous_token.as_ref().is_none_or(|token| {
+    token
+        .source_spans()
+        .windows(2)
+        .all(|pair| pair[0].byte_end <= pair[1].byte_start)
+}))]
 #[derive(Debug)]
-pub(crate) enum TokenSourceAttributionOrder<'tokens> {
-    Empty,
-    Ordered { previous_token: &'tokens Token },
-    Invalid,
+pub(crate) struct TokenSourceAttributionOrder<'tokens> {
+    previous_token: Option<&'tokens Token>,
+    ordered: bool,
 }
 
 impl<'tokens> TokenSourceAttributionOrder<'tokens> {
     #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(TokenSourceAttributionOrder::Empty)))]
+    #[ensures(ret.previous_token.is_none() && ret.ordered)]
     pub(crate) fn new() -> Self {
-        new!(TokenSourceAttributionOrder::Empty)
+        new!(TokenSourceAttributionOrder {
+            previous_token: None,
+            ordered: true,
+        })
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn observe_token(&mut self, token: &'tokens Token) {
-        let previous_token = match self.as_data() {
-            data!(TokenSourceAttributionOrder::Empty) => None,
-            data!(TokenSourceAttributionOrder::Ordered { previous_token }) => Some(*previous_token),
-            data!(TokenSourceAttributionOrder::Invalid) => return,
-        };
+        if !self.ordered {
+            return;
+        }
+        let previous_token = self.previous_token;
 
         let spans = token.source_spans();
         if spans
             .windows(2)
             .any(|pair| pair[1].byte_start < pair[0].byte_end)
         {
-            *self = new!(TokenSourceAttributionOrder::Invalid);
+            *self = new!(TokenSourceAttributionOrder {
+                previous_token: Some(token),
+                ordered: false,
+            });
             return;
         }
 
@@ -162,25 +167,26 @@ impl<'tokens> TokenSourceAttributionOrder<'tokens> {
                             previous_span != shared_core_span || *current_span != shared_core_span
                         })
                     {
-                        *self = new!(TokenSourceAttributionOrder::Invalid);
+                        *self = new!(TokenSourceAttributionOrder {
+                            previous_token: Some(token),
+                            ordered: false,
+                        });
                         return;
                     }
                 }
             }
         }
 
-        *self = new!(TokenSourceAttributionOrder::Ordered {
-            previous_token: token,
+        *self = new!(TokenSourceAttributionOrder {
+            previous_token: Some(token),
+            ordered: true,
         });
     }
 
     #[requires(true)]
-    #[ensures(ret == matches!(self.as_data(), data!(TokenSourceAttributionOrder::Ordered { .. })))]
+    #[ensures(ret == self.ordered)]
     pub(crate) fn is_ordered(&self) -> bool {
-        matches!(
-            self.as_data(),
-            data!(TokenSourceAttributionOrder::Ordered { .. })
-        )
+        self.ordered
     }
 }
 
@@ -224,6 +230,13 @@ mod source_attribution_tests {
         Token::bare(WordLike::bare(word_with_span(
             phonemes, source_id, byte_start, byte_end,
         )))
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn empty_stream_is_vacuously_ordered() {
+        assert!(TokenSourceAttributionOrder::new().is_ordered());
     }
 
     #[test]
