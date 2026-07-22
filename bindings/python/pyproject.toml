@@ -1,0 +1,53 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2"]
+build-backend = "maturin"
+
+[project]
+name = "jbotci"
+dynamic = ["version"]
+description = "Pre-alpha Python bindings for the unstable jbotci Rust API."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Pavel Minaev" }]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/int19h/jbotci"
+Issues = "https://github.com/int19h/jbotci/issues"
+
+[dependency-groups]
+dev = [
+    "maturin>=1.9.4,<2",
+    "mypy>=1.18,<2",
+    "pytest>=8,<10",
+]
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "jbotci._native"
+python-source = "python"
+
+# Maturin owns the editable installation. uv manages only the locked developer
+# tools so subsequent `uv run` invocations do not replace the native module.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["python", "tests"]

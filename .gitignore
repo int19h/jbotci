@@ -1,5 +1,8 @@
 node_modules/
 __pycache__/
+.mypy_cache/
+.pytest_cache/
+.venv/
 target/
 .DS_Store
 *.log
@@ -14,3 +17,9 @@ target/
 /dist/
 /review/
 /tmp/
+
+# `maturin develop` places the editable native extension beside the Python
+# sources. The committed `_native.pyi` remains tracked separately.
+/bindings/python/python/jbotci/_native.*.so
+/bindings/python/python/jbotci/_native.*.pyd
+/bindings/python/python/jbotci/_native.*.dylib
