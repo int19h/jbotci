@@ -1006,8 +1006,8 @@ mod binding_schema {
         assert_field_shapes(
             &compact,
             "fixed",
-            &format!("fixed(length(2),value({token}))"),
-            &format!("fixed(length(2),value({recovered_token}))"),
+            &format!("fixed(length(2usize),value({token}))"),
+            &format!("fixed(length(2usize),value({recovered_token}))"),
         );
         assert_field_shapes(
             &compact,
