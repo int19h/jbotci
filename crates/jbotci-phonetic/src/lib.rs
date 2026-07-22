@@ -1364,8 +1364,8 @@ pub struct PreparedAlineQuery {
     query_self_similarity: f64,
 }
 
-#[invariant(::Concrete(_) => true)]
-#[invariant(::Target(_) => true)]
+#[invariant(::Concrete(segment) => ((*segment).get() as usize) < IPA_SEGMENT_SYMBOLS.len())]
+#[invariant(::Target(target) => ((*target).get() as usize) < PRONUNCIATION_TARGET_COUNT)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PronunciationUnit {
     Concrete(IpaSegmentId),
