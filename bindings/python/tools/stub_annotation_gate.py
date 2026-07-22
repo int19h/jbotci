@@ -171,13 +171,16 @@ class _Analyzer:
                     )
                     for candidate in root.type_candidates
                 )
-                problems = self._scan_class_keyword_unpack(
-                    root.expression,
-                    root.captures,
-                    root.scope,
-                    typed_dict=typed_dict,
-                    visiting=set(),
-                    strings=set(),
+                problems = (
+                    self._scan_class_keyword_unpack(
+                        root.expression,
+                        root.captures,
+                        root.scope,
+                        visiting=set(),
+                        strings=set(),
+                    )
+                    if typed_dict
+                    else set()
                 )
             else:
                 problems = self._scan(
@@ -1254,7 +1257,12 @@ class _Analyzer:
             for name, argument in shape.keywords:
                 if name == "fields":
                     scan_named_fields(argument)
-                elif name not in {"rename", "defaults", "module"}:
+                elif name not in {
+                    "typename",
+                    "rename",
+                    "defaults",
+                    "module",
+                }:
                     scan_type(argument)
             return problems
         elif kind == "typed-dict":
@@ -1264,14 +1272,19 @@ class _Analyzer:
                 if name == "fields":
                     scan_typed_fields(argument)
                 elif name == "extra_items" or name not in {
+                    "typename",
                     "total",
                     "closed",
                     "module",
                 }:
                     scan_type(argument)
             return problems
-        elif kind in {"cast", "assert-type"}:
+        elif kind == "cast":
             for argument in shape.positional[:1]:
+                scan_type(argument)
+            type_keywords = {"typ", "type"}
+        elif kind == "assert-type":
+            for argument in shape.positional[1:2]:
                 scan_type(argument)
             type_keywords = {"typ", "type"}
         else:
@@ -1560,7 +1573,6 @@ class _Analyzer:
         captures: _Bindings,
         scope: _Scope,
         *,
-        typed_dict: bool,
         visiting: set[tuple[int, str]],
         strings: set[_ForwardStringKey],
     ) -> set[_Problem]:
@@ -1568,15 +1580,11 @@ class _Analyzer:
             expression, captures, scope, set()
         )
         if not supported:
-            return (
-                {_unsupported_class_keyword_unpack(expression)}
-                if typed_dict
-                else set()
-            )
+            return {_unsupported_class_keyword_unpack(expression)}
         problems: set[_Problem] = set()
         for mapping in mappings:
             for name, argument in mapping:
-                if name == "metaclass" or (typed_dict and name == "extra_items"):
+                if name in {"metaclass", "extra_items"}:
                     problems.update(
                         self._scan_type(
                             argument.expression,

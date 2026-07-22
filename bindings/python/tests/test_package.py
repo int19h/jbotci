@@ -875,6 +875,59 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         True,
     ),
     _StubGateCase(
+        "exact-nested-forward-string-provenance-reject",
+        (
+            "import typing as t\n"
+            "X = 't.Any'\n"
+            "X = 'X'\n"
+            "value: 'X'\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "exact-nested-forward-string-vendor-control",
+        (
+            "import vendor as t\n"
+            "X = 't.Any'\n"
+            "X = 'X'\n"
+            "value: 'X'\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "nested-forward-string-named-tuple-field-provenance",
+        (
+            "import typing as t\n"
+            "X = 't.Any'\n"
+            "X = 'X'\n"
+            "Record = t.NamedTuple('Record', [('field', 'X')])\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "nested-forward-string-typed-dict-field-provenance",
+        (
+            "import typing as t\n"
+            "X = 't.Any'\n"
+            "X = 'X'\n"
+            "Record = t.TypedDict('Record', {'field': 'X'})\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "nested-identical-forward-string-branch-join-provenance",
+        (
+            "import typing as t\n"
+            "X = 't.Any'\n"
+            "if FLAG:\n"
+            "    X = 'X'\n"
+            "else:\n"
+            "    X = 'X'\n"
+            "value: 'X'\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
         "forward-string-branch-join-keeps-unsafe-provenance",
         (
             "import vendor as t\n"
@@ -976,6 +1029,31 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         False,
     ),
     _StubGateCase(
+        "named-tuple-partially-starred-finite-fields-safe",
+        (
+            "import typing\n"
+            "Record = typing.NamedTuple(\"Record\", *[[(\"field\", str)]])\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "named-tuple-partially-starred-finite-fields-reject-any",
+        (
+            "import typing\n"
+            "Record = typing.NamedTuple(\"Record\", *[[(\"field\", typing.Any)]])\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "named-tuple-finite-keyword-mapping-safe",
+        (
+            "import typing\n"
+            "Arguments = {\"typename\": \"typing.Any\", \"fields\": [(\"field\", str)]}\n"
+            "Record = typing.NamedTuple(**Arguments)\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
         "named-tuple-aliased-finite-starred-fields-reject-any",
         (
             "import typing\n"
@@ -1003,6 +1081,15 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         False,
     ),
     _StubGateCase(
+        "mixed-named-tuple-finite-starred-fields-safe",
+        (
+            "import typing\n"
+            "Builder = typing.NamedTuple if FLAG else vendor.NamedTuple\n"
+            "Record = Builder(\"Record\", *[[(\"field\", str)]])\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
         "typed-dict-finite-starred-fields-reject-any",
         (
             "import typing\n"
@@ -1013,6 +1100,15 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
     _StubGateCase(
         "typed-dict-finite-starred-fields-safe",
         "import typing\nRecord = typing.TypedDict(*(\"Record\", {\"field\": str}))\n",
+        False,
+    ),
+    _StubGateCase(
+        "typed-dict-finite-keyword-mapping-safe",
+        (
+            "import typing\n"
+            "Arguments = {\"typename\": \"typing.Any\", \"fields\": {\"field\": str}}\n"
+            "Record = typing.TypedDict(**Arguments)\n"
+        ),
         False,
     ),
     _StubGateCase(
@@ -1068,6 +1164,11 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         True,
     ),
     _StubGateCase(
+        "cast-finite-starred-value-any-is-safe",
+        "import typing\nvalue = typing.cast(*(str, typing.Any))\n",
+        False,
+    ),
+    _StubGateCase(
         "cast-dynamic-keyword-unpack-rejected",
         "import typing\nvalue = typing.cast(**arguments)\n",
         True,
@@ -1076,6 +1177,15 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         "vendor-cast-dynamic-keyword-unpack-safe",
         "import vendor\nvalue = vendor.cast(**arguments)\n",
         False,
+    ),
+    _StubGateCase(
+        "mixed-cast-dynamic-keyword-unpack-rejected",
+        (
+            "import typing\n"
+            "convert = typing.cast if FLAG else vendor.cast\n"
+            "value = convert(**arguments)\n"
+        ),
+        True,
     ),
     _StubGateCase(
         "assert-type-finite-keyword-unpack-rejects-type",
@@ -1092,6 +1202,26 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
             "value = typing.assert_type(**{\"val\": source, \"typ\": str})\n"
         ),
         False,
+    ),
+    _StubGateCase(
+        "assert-type-positional-type-rejects-any",
+        "import typing\nvalue = typing.assert_type(source, typing.Any)\n",
+        True,
+    ),
+    _StubGateCase(
+        "assert-type-positional-value-any-is-safe",
+        "import typing\nvalue = typing.assert_type(typing.Any, str)\n",
+        False,
+    ),
+    _StubGateCase(
+        "assert-type-finite-starred-value-any-is-safe",
+        "import typing\nvalue = typing.assert_type(*(typing.Any, str))\n",
+        False,
+    ),
+    _StubGateCase(
+        "assert-type-finite-starred-type-any-rejected",
+        "import typing\nvalue = typing.assert_type(*(source, typing.Any))\n",
+        True,
     ),
     _StubGateCase(
         "assert-type-dynamic-keyword-unpack-rejected",
@@ -1147,12 +1277,12 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
         False,
     ),
     _StubGateCase(
-        "ordinary-class-metaclass-keyword-unpack-is-type-context",
+        "ordinary-class-metaclass-keyword-unpack-is-outside-gate",
         (
             "import typing\n"
             "class Record(Base, **{\"metaclass\": \"typing.Any\"}): ...\n"
         ),
-        True,
+        False,
     ),
     _StubGateCase(
         "while-loop-carried-typing-alias",
@@ -1527,7 +1657,7 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
     ),
     _StubGateCase(
         "assert-type-type-argument",
-        "import typing\nvalue = typing.assert_type('typing.Any', source)\n",
+        "import typing\nvalue = typing.assert_type(source, 'typing.Any')\n",
         True,
     ),
     _StubGateCase(
@@ -1548,6 +1678,30 @@ STUB_GATE_ADVERSARIAL_CASES: tuple[_StubGateCase, ...] = (
             "else:\n"
             "    convert = vendor.cast\n"
             "value = convert('typing.Any', source)\n"
+        ),
+        True,
+    ),
+    _StubGateCase(
+        "cast-mixed-provenance-finite-starred-value-any-is-safe",
+        (
+            "import typing\n"
+            "if FLAG:\n"
+            "    convert = typing.cast\n"
+            "else:\n"
+            "    convert = vendor.cast\n"
+            "value = convert(*(str, typing.Any))\n"
+        ),
+        False,
+    ),
+    _StubGateCase(
+        "cast-mixed-provenance-finite-starred-type-any-rejected",
+        (
+            "import typing\n"
+            "if FLAG:\n"
+            "    convert = typing.cast\n"
+            "else:\n"
+            "    convert = vendor.cast\n"
+            "value = convert(*(typing.Any, source))\n"
         ),
         True,
     ),
