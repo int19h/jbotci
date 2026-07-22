@@ -1,6 +1,10 @@
 //! Private native implementation for the `jbotci` Python package.
 
+mod diagnostics;
+mod dialect;
 mod dictionary;
+mod morphology;
+mod source;
 mod support;
 
 use bityzba::{contract_trait, invariant, requires};
@@ -35,6 +39,14 @@ const ROOT_NATIVE_EXPORTS: &[&str] = &[
     "InvalidInputError",
     "_root_Sample",
     "_root_SampleMode",
+];
+const NATIVE_EXPORT_GROUPS: &[&[&str]] = &[
+    ROOT_NATIVE_EXPORTS,
+    dictionary::NATIVE_EXPORTS,
+    source::NATIVE_EXPORTS,
+    diagnostics::NATIVE_EXPORTS,
+    dialect::NATIVE_EXPORTS,
+    morphology::NATIVE_EXPORTS,
 ];
 
 /// Structured errors produced inside the binding layer.
@@ -207,10 +219,9 @@ fn register_root(module: &Bound<'_, PyModule>) -> PyResult<()> {
 #[ensures(true)]
 fn register_metadata(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    let exports = ROOT_NATIVE_EXPORTS
+    let exports = NATIVE_EXPORT_GROUPS
         .iter()
-        .copied()
-        .chain(dictionary::NATIVE_EXPORTS.iter().copied())
+        .flat_map(|group| group.iter().copied())
         .collect::<Vec<_>>();
     module.add("__all__", sequence_to_tuple(module.py(), exports)?)?;
     Ok(())
@@ -224,6 +235,10 @@ fn register_metadata(module: &Bound<'_, PyModule>) -> PyResult<()> {
 fn native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_root(module)?;
     dictionary::register(module)?;
+    source::register(module)?;
+    diagnostics::register(module)?;
+    dialect::register(module)?;
+    morphology::register(module)?;
     register_metadata(module)?;
     Ok(())
 }
@@ -267,10 +282,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn native_export_inventory_has_no_collisions() {
-        let mut exports = ROOT_NATIVE_EXPORTS
+        let mut exports = NATIVE_EXPORT_GROUPS
             .iter()
-            .chain(dictionary::NATIVE_EXPORTS.iter())
-            .copied()
+            .flat_map(|group| group.iter().copied())
             .collect::<Vec<_>>();
         let original_len = exports.len();
         exports.sort_unstable();
