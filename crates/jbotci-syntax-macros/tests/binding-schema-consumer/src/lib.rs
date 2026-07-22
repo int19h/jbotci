@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeSet, VecDeque};
 
-use bityzba::{data, invariant, new};
+use bityzba::{data, new};
 use proc_macro::{Delimiter, TokenStream, TokenTree};
 
 #[bityzba::invariant(true)]
@@ -88,7 +88,7 @@ impl Cursor {
     ::Product => shape == "named" || shape == "tuple",
     "product shapes are normalized to named or tuple"
 )]
-#[invariant(::Sum => true)]
+#[bityzba::invariant(::Sum => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ModelKind {
     Product { shape: String },
@@ -157,17 +157,17 @@ struct FieldSchema {
         && path.iter().all(|component| !component.is_empty()),
     "leaf references have a kind and a nonempty path"
 )]
-#[invariant(::Optional => true)]
-#[invariant(::Repeated => true)]
-#[invariant(::NonEmptyRepeated => true)]
-#[invariant(::Boxed => true)]
-#[invariant(::Shared => true)]
-#[invariant(::RecoveredField => true)]
-#[invariant(::WithIndicators => true)]
-#[invariant(::WithFreeModifiers => true)]
-#[invariant(::Chain => true)]
-#[invariant(::Tuple => true)]
-#[invariant(::Fixed => true)]
+#[bityzba::invariant(::Optional => true)]
+#[bityzba::invariant(::Repeated => true)]
+#[bityzba::invariant(::NonEmptyRepeated => true)]
+#[bityzba::invariant(::Boxed => true)]
+#[bityzba::invariant(::Shared => true)]
+#[bityzba::invariant(::RecoveredField => true)]
+#[bityzba::invariant(::WithIndicators => true)]
+#[bityzba::invariant(::WithFreeModifiers => true)]
+#[bityzba::invariant(::Chain => true)]
+#[bityzba::invariant(::Tuple => true)]
+#[bityzba::invariant(::Fixed => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum BindingType {
     ModelReference {

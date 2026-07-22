@@ -2463,6 +2463,39 @@ fn enum_placeholder_invariant_audit_is_current() {
     );
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn qualified_invariant_attributes_are_audited_by_final_path_segment() {
+    let source = concat!(
+        "#[invariant(::Unqualified => true)]\n",
+        "#[bityzba::invariant(\n",
+        "    ::Qualified => true\n",
+        ")]\n",
+        "#[bityzba::not_invariant(::NearMiss => true)]\n",
+        "enum Example {\n",
+        "    Unqualified,\n",
+        "    Qualified,\n",
+        "    NearMiss,\n",
+        "}\n",
+    );
+    let mut placeholders = BTreeSet::new();
+
+    scan_rust_source(
+        Path::new("tests/qualified_invariant_fixture.rs"),
+        source,
+        &mut placeholders,
+    );
+
+    assert_eq!(
+        placeholders,
+        BTreeSet::from([
+            "tests/qualified_invariant_fixture.rs:Example::Qualified".to_owned(),
+            "tests/qualified_invariant_fixture.rs:Example::Unqualified".to_owned(),
+        ]),
+    );
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn allowed_placeholder_keys() -> BTreeSet<String> {
@@ -2563,7 +2596,7 @@ fn normalized_source_path(relative_path: &Path) -> String {
 #[ensures(true)]
 fn invariant_attribute(lines: &[&str], index: usize) -> Option<(Option<String>, usize)> {
     let line = lines[index].trim();
-    if !line.starts_with("#[invariant(") {
+    if invariant_attribute_arguments(line).is_none() {
         return None;
     }
 
@@ -2579,15 +2612,29 @@ fn invariant_attribute(lines: &[&str], index: usize) -> Option<(Option<String>, 
 
 #[requires(true)]
 #[ensures(true)]
-fn placeholder_variant(line: &str) -> Option<&str> {
-    let rest = line.strip_prefix("#[invariant(::")?;
-    if !rest.contains("=> true)]") {
+fn invariant_attribute_arguments(attribute: &str) -> Option<&str> {
+    let attribute = attribute.trim().strip_prefix("#[")?;
+    let open = attribute.find('(')?;
+    let path = attribute[..open].trim();
+    if path.rsplit("::").next()?.trim() != "invariant" {
         return None;
     }
+    Some(&attribute[open + 1..])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn placeholder_variant(attribute: &str) -> Option<&str> {
+    let rest = invariant_attribute_arguments(attribute)?
+        .trim_start()
+        .strip_prefix("::")?;
     let end = rest
         .char_indices()
         .find(|(_, ch)| !(*ch == '_' || ch.is_ascii_alphanumeric()))
         .map_or(rest.len(), |(index, _)| index);
+    if rest[end..].trim() != "=> true)]" {
+        return None;
+    }
     Some(&rest[..end])
 }
 
