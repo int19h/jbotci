@@ -18,6 +18,46 @@ import jbotci._native as native
 import jbotci.dictionary as dictionary
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_DICTIONARY_EXPORTS = (
+    "DefinitionId",
+    "Dictionary",
+    "DictionaryEntries",
+    "DictionaryEntry",
+    "DictionaryLujvoEntry",
+    "DictionaryLujvoSegment",
+    "DictionaryLujvoSegmentKind",
+    "DictionaryPatternEntry",
+    "DictionarySnapshotMetadata",
+    "DictionarySoundEntry",
+    "DictionaryUser",
+    "DictionaryValidationDetail",
+    "DictionaryValidationError",
+    "EntryIndex",
+    "InvalidEntryValidationDetail",
+    "InvalidLujvoIndexEntryValidationDetail",
+    "InvalidSoundIndexEntryValidationDetail",
+    "IpaSegmentId",
+    "IpaTokenSequenceView",
+    "Keyword",
+    "PatternIndexMismatchValidationDetail",
+    "PronunciationTargetId",
+    "PronunciationTargetSequenceView",
+    "Rafsi",
+    "RafsiIndexMismatchValidationDetail",
+    "RafsiMatch",
+    "RafsiSource",
+    "RawSelmaho",
+    "Score",
+    "SelmahoIndexMismatchValidationDetail",
+    "WordIndexMismatchValidationDetail",
+    "WordType",
+    "english",
+    "english_metadata",
+    "first_gloss_keywords_for_words",
+    "normalize_lookup_query",
+    "normalize_pattern_lookup_key",
+    "universal_gismu_rafsi_forms",
+)
 
 
 def required_entry(word: str) -> dictionary.DictionaryEntry:
@@ -41,6 +81,18 @@ def required_index_for_entry(
     index = dictionary.english.entry_index_for_entry(entry)
     assert index is not None
     return index
+
+
+def required_sound(word: str) -> dictionary.DictionarySoundEntry:
+    """Return the generated sound record for a required public word witness."""
+    owner = dictionary.english
+    entry = owner.lookup_word(word)
+    assert entry is not None
+    index = owner.entry_index_for_entry(entry)
+    assert index is not None
+    sound = next((value for value in owner.sound_index if value.entry_index == index), None)
+    assert sound is not None
+    return sound
 
 
 def test_english_objects_have_stable_identity_and_metadata() -> None:
@@ -70,11 +122,8 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
     assert dictionary.Dictionary.__name__ == "Dictionary"
     assert dictionary.WordType.__name__ == "WordType"
     assert not hasattr(native, "Dictionary")
-    assert all(hasattr(dictionary, name) for name in dictionary.__all__)
-    assert {
-        "PronunciationTargetId",
-        "PronunciationTargetSequenceView",
-    } <= set(dictionary.__all__)
+    assert dictionary.__all__ == EXPECTED_DICTIONARY_EXPORTS
+    assert all(hasattr(dictionary, name) for name in EXPECTED_DICTIONARY_EXPORTS)
 
 
 def test_import_does_not_materialize_python_entry_objects() -> None:
@@ -84,6 +133,8 @@ def test_import_does_not_materialize_python_entry_objects() -> None:
 import gc
 import jbotci.dictionary as dictionary
 assert not any(isinstance(value, dictionary.DictionaryEntry) for value in gc.get_objects())
+assert not any(isinstance(value, dictionary.PronunciationTargetId) for value in gc.get_objects())
+assert not any(isinstance(value, dictionary.PronunciationTargetSequenceView) for value in gc.get_objects())
 assert not isinstance(dictionary.english.entries, tuple)
 """
     subprocess.run([sys.executable, "-c", code], check=True)
@@ -356,17 +407,39 @@ def test_pronunciation_target_protocols_follow_existing_id_and_view_policy() -> 
     with pytest.raises(TypeError):
         _ = first_view < second_view  # type: ignore[operator]
 
-    first_target = first_view.targets[0]
-    same_target = second_view.targets[0]
-    assert first_target == same_target
-    assert hash(first_target) == hash(same_target)
-    assert int(first_target) == first_target.value
-    assert operator.index(first_target) == first_target.value
-    assert repr(first_target) == (
-        "jbotci.dictionary.PronunciationTargetId("
-        f"value={first_target.value}, "
-        f"realization_count={first_target.realization_count})"
+    first_targets = {target.value: target for target in first_view.targets}
+    assert len(first_targets) >= 2
+    lower_value, higher_value = sorted(first_targets)[:2]
+    lower = first_targets[lower_value]
+    higher = first_targets[higher_value]
+    equal_lower = next(
+        target for target in second_view.targets if target.value == lower_value
     )
+
+    assert lower == equal_lower
+    assert lower != higher
+    assert len({lower, equal_lower, higher}) == 2
+    assert hash(lower) == hash(equal_lower)
+    assert int(lower) == lower.value
+    assert operator.index(lower) == lower.value
+    assert repr(lower) == (
+        "jbotci.dictionary.PronunciationTargetId("
+        f"value={lower.value}, "
+        f"realization_count={lower.realization_count})"
+    )
+
+    assert lower < higher
+    assert lower <= higher
+    assert higher > lower
+    assert higher >= lower
+    assert not higher < lower
+    assert not higher <= lower
+    assert not lower > higher
+    assert not lower >= higher
+    assert not lower < equal_lower
+    assert lower <= equal_lower
+    assert not lower > equal_lower
+    assert lower >= equal_lower
     assert tuple(sorted(first_view.targets)) == tuple(
         sorted(first_view.targets, key=lambda target: target.value)
     )
@@ -423,9 +496,6 @@ def test_child_records_retain_owner_after_parent_and_results_are_dropped() -> No
         dictionary.Rafsi,
         dictionary.DictionaryUser,
         dictionary.IpaTokenSequenceView,
-        dictionary.PronunciationTargetSequenceView,
-        dictionary.PronunciationTargetId,
-        dictionary.IpaSegmentId,
         dictionary.DictionaryLujvoSegment,
     ]:
         owner = dictionary.english
@@ -436,42 +506,63 @@ def test_child_records_retain_owner_after_parent_and_results_are_dropped() -> No
         ]
         decomposition = owner.lujvo_decomposition_for_entry_index(entry_index("jbobau"))
         assert decomposition is not None
-        target_sequence = sound.pronunciation_targets
-        target = target_sequence.targets[0]
-        realization = target.realizations[0]
         return (
             entry,
             entry.gloss_keywords[0],
             entry.rafsi[0],
             entry.user,
             sound.token_sequence,
-            target_sequence,
-            target,
-            realization,
             decomposition.segments[0],
         )
 
-    (
-        entry,
-        keyword,
-        rafsi,
-        user,
-        sequence,
-        target_sequence,
-        target,
-        realization,
-        segment,
-    ) = retain_children()
+    entry, keyword, rafsi, user, sequence, segment = retain_children()
     gc.collect()
     assert entry.word == "bangu"
     assert keyword.word == "language"
     assert rafsi.value == "ban"
     assert user.username == "officialdata"
     assert sequence.segment_count() == 5
-    assert target_sequence.target_count() == 5
-    assert target.realization(0) == realization
-    assert realization.symbol
     assert segment.source_word == "lojbo"
+
+
+def test_pronunciation_target_sequence_survives_gc_independently() -> None:
+    expected_count = required_sound("klama").token_sequence.segment_count()
+
+    def retain_sequence() -> dictionary.PronunciationTargetSequenceView:
+        sound = required_sound("klama")
+        return sound.pronunciation_targets
+
+    sequence = retain_sequence()
+    gc.collect()
+    assert sequence.target_count() == expected_count
+    assert len(sequence.targets) == expected_count
+
+
+def test_pronunciation_target_id_survives_gc_independently() -> None:
+    def retain_target() -> dictionary.PronunciationTargetId:
+        sound = required_sound("prami")
+        sequence = sound.pronunciation_targets
+        return next(target for target in sequence.targets if target.realization_count > 1)
+
+    target = retain_target()
+    gc.collect()
+    assert target.value == int(target)
+    assert len(target.realizations) == target.realization_count
+
+
+def test_pronunciation_realization_survives_gc_independently() -> None:
+    def retain_realization() -> dictionary.IpaSegmentId:
+        sound = required_sound("prami")
+        sequence = sound.pronunciation_targets
+        target = next(
+            value for value in sequence.targets if value.realization_count > 1
+        )
+        return target.realizations[0]
+
+    realization = retain_realization()
+    gc.collect()
+    assert realization.value == int(realization)
+    assert realization.symbol
 
 
 def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
@@ -509,6 +600,7 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         with pytest.raises(TypeError):
             type("Derived", (data_class,), {})
 
+    first_sound = dictionary.english.sound_index[0]
     returned_only_classes = (
         dictionary.Dictionary,
         dictionary.DictionaryEntries,
@@ -534,8 +626,21 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
     for returned_only_class in returned_only_classes:
         with pytest.raises(TypeError):
             returned_only_class()  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(0)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(first_sound)  # type: ignore[arg-type]
 
-    first_sound = dictionary.english.sound_index[0]
+    target_sequence = first_sound.pronunciation_targets
+    target = target_sequence.targets[0]
+    for property_owner, property_names in (
+        (target, ("value", "realization_count", "realizations")),
+        (target_sequence, ("targets", "self_similarity")),
+    ):
+        for property_name in property_names:
+            with pytest.raises(AttributeError):
+                setattr(property_owner, property_name, None)
+
     first_pattern = dictionary.english.pattern_index[0]
     values: tuple[object, ...] = (
         dictionary.DefinitionId(0),
@@ -637,6 +742,10 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
     }
     for class_name, function_names in expected_functions.items():
         declaration = classes[class_name]
+        assert len(declaration.decorator_list) == 1
+        final_decorator = declaration.decorator_list[0]
+        assert isinstance(final_decorator, ast.Name)
+        assert final_decorator.id == "final"
         functions = {
             statement.name: statement
             for statement in declaration.body
@@ -662,6 +771,16 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
         if isinstance(statement, ast.FunctionDef) and statement.name == "realization"
     )
     assert [argument.arg for argument in target_realization.args.args] == ["self", "index"]
+    index_annotation = target_realization.args.args[1].annotation
+    assert isinstance(index_annotation, ast.Name)
+    assert index_annotation.id == "int"
+    return_annotation = target_realization.returns
+    assert isinstance(return_annotation, ast.BinOp)
+    assert isinstance(return_annotation.op, ast.BitOr)
+    assert isinstance(return_annotation.left, ast.Name)
+    assert return_annotation.left.id == "_dictionary_IpaSegmentId"
+    assert isinstance(return_annotation.right, ast.Constant)
+    assert return_annotation.right.value is None
     sequence_count = next(
         statement
         for statement in classes["_dictionary_PronunciationTargetSequenceView"].body
@@ -704,6 +823,34 @@ def test_dictionary_public_annotations_do_not_use_any() -> None:
             or (isinstance(node, ast.Attribute) and node.attr == "Any")
             for node in ast.walk(tree)
         ), path
+
+        allowed_object_annotations: set[int] = set()
+        for function in (
+            node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+        ):
+            arguments = (
+                *function.args.posonlyargs,
+                *function.args.args,
+                *function.args.kwonlyargs,
+            )
+            for argument in arguments:
+                annotation = argument.annotation
+                if annotation is None or not any(
+                    isinstance(node, ast.Name) and node.id == "object"
+                    for node in ast.walk(annotation)
+                ):
+                    continue
+                assert function.name == "__eq__"
+                assert argument.arg == "other"
+                assert isinstance(annotation, ast.Name)
+                assert annotation.id == "object"
+                allowed_object_annotations.add(id(annotation))
+        object_annotations = {
+            id(node)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and node.id == "object"
+        }
+        assert object_annotations == allowed_object_annotations, path
 
 
 def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
