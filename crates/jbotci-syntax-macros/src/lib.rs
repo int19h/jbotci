@@ -1486,6 +1486,22 @@ enum BindingLeafKind {
     External,
 }
 
+#[invariant(true)]
+#[derive(Clone, Copy)]
+enum BindingWrapperKind {
+    Optional,
+    Repeated,
+    NonEmptyRepeated,
+    Boxed,
+    Shared,
+    RecoveredField,
+    WithIndicators,
+    SmallRepeated,
+    SmallNonEmptyRepeated,
+    WithFreeModifiers,
+    Chain,
+}
+
 impl BindingType {
     #[requires(true)]
     #[ensures(true)]
@@ -1708,7 +1724,7 @@ fn normalize_binding_path(
                 reference: new!(BindingReference::Model { name }),
             });
         }
-        let kind = binding_leaf_kind(&name);
+        let kind = binding_leaf_kind(path);
         let path = path
             .segments
             .iter()
@@ -1728,15 +1744,17 @@ fn normalize_binding_path(
         let value = normalize_binding_type(args[0], generated_models, field)?;
         Ok(constructor(Box::new(value)))
     };
-    match name.as_str() {
-        "Option" => unary(|value| BindingType::Optional { value }),
-        "Vec" => unary(|value| BindingType::Repeated { value }),
-        "Vec1" => unary(|value| BindingType::NonEmptyRepeated { value }),
-        "Box" => unary(|value| BindingType::Boxed { value }),
-        "Arc" => unary(|value| BindingType::Shared { value }),
-        "Recovered" => unary(|value| BindingType::RecoveredField { value }),
-        "WithIndicators" => unary(|value| BindingType::WithIndicators { value }),
-        "SmallVec" | "SmallVec1" => {
+    match binding_wrapper_kind(path).ok_or_else(|| unsupported_binding_path(field, path))? {
+        BindingWrapperKind::Optional => unary(|value| BindingType::Optional { value }),
+        BindingWrapperKind::Repeated => unary(|value| BindingType::Repeated { value }),
+        BindingWrapperKind::NonEmptyRepeated => {
+            unary(|value| BindingType::NonEmptyRepeated { value })
+        }
+        BindingWrapperKind::Boxed => unary(|value| BindingType::Boxed { value }),
+        BindingWrapperKind::Shared => unary(|value| BindingType::Shared { value }),
+        BindingWrapperKind::RecoveredField => unary(|value| BindingType::RecoveredField { value }),
+        BindingWrapperKind::WithIndicators => unary(|value| BindingType::WithIndicators { value }),
+        kind @ (BindingWrapperKind::SmallRepeated | BindingWrapperKind::SmallNonEmptyRepeated) => {
             if args.len() != 1 {
                 return Err(unsupported_binding_path(field, path));
             }
@@ -1744,7 +1762,7 @@ fn normalize_binding_path(
                 return Err(unsupported_binding_path(field, path));
             };
             let value = normalize_binding_type(&array.elem, generated_models, field)?;
-            if name == "SmallVec" {
+            if matches!(kind, BindingWrapperKind::SmallRepeated) {
                 Ok(BindingType::Repeated {
                     value: Box::new(value),
                 })
@@ -1754,7 +1772,7 @@ fn normalize_binding_path(
                 })
             }
         }
-        "WithFreeModifiers" => {
+        BindingWrapperKind::WithFreeModifiers => {
             if args.len() != 2 {
                 return Err(unsupported_binding_path(field, path));
             }
@@ -1763,7 +1781,7 @@ fn normalize_binding_path(
                 free_modifier: Box::new(normalize_binding_type(args[1], generated_models, field)?),
             })
         }
-        "Chain" => {
+        BindingWrapperKind::Chain => {
             if args.len() != 2 {
                 return Err(unsupported_binding_path(field, path));
             }
@@ -1772,7 +1790,110 @@ fn normalize_binding_path(
                 links: Box::new(normalize_binding_type(args[1], generated_models, field)?),
             })
         }
-        _ => Err(unsupported_binding_path(field, path)),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn binding_wrapper_kind(path: &Path) -> Option<BindingWrapperKind> {
+    if binding_path_matches(
+        path,
+        &[
+            &["Option"],
+            &["core", "option", "Option"],
+            &["std", "option", "Option"],
+        ],
+    ) {
+        Some(BindingWrapperKind::Optional)
+    } else if binding_path_matches(
+        path,
+        &[&["Vec"], &["alloc", "vec", "Vec"], &["std", "vec", "Vec"]],
+    ) {
+        Some(BindingWrapperKind::Repeated)
+    } else if binding_path_matches(path, &[&["Vec1"], &["vec1", "Vec1"]]) {
+        Some(BindingWrapperKind::NonEmptyRepeated)
+    } else if binding_path_matches(
+        path,
+        &[
+            &["Box"],
+            &["alloc", "boxed", "Box"],
+            &["std", "boxed", "Box"],
+        ],
+    ) {
+        Some(BindingWrapperKind::Boxed)
+    } else if binding_path_matches(
+        path,
+        &[&["Arc"], &["alloc", "sync", "Arc"], &["std", "sync", "Arc"]],
+    ) {
+        Some(BindingWrapperKind::Shared)
+    } else if binding_path_matches(path, &[&["Recovered"]]) {
+        Some(BindingWrapperKind::RecoveredField)
+    } else if binding_path_matches(
+        path,
+        &[
+            &["WithIndicators"],
+            &["crate", "tree", "WithIndicators"],
+            &["jbotci_syntax", "tree", "WithIndicators"],
+        ],
+    ) {
+        Some(BindingWrapperKind::WithIndicators)
+    } else if binding_path_matches(path, &[&["SmallVec"], &["smallvec", "SmallVec"]]) {
+        Some(BindingWrapperKind::SmallRepeated)
+    } else if binding_path_matches(
+        path,
+        &[&["SmallVec1"], &["vec1", "smallvec_v1", "SmallVec1"]],
+    ) {
+        Some(BindingWrapperKind::SmallNonEmptyRepeated)
+    } else if binding_path_matches(
+        path,
+        &[
+            &["WithFreeModifiers"],
+            &["crate", "tree", "WithFreeModifiers"],
+            &["jbotci_syntax", "tree", "WithFreeModifiers"],
+        ],
+    ) {
+        Some(BindingWrapperKind::WithFreeModifiers)
+    } else if binding_path_matches(path, &[&["Chain"], &["jbotci_tree", "Chain"]]) {
+        Some(BindingWrapperKind::Chain)
+    } else {
+        None
+    }
+}
+
+#[requires(candidates.iter().all(|candidate| {
+    !candidate.is_empty() && candidate.iter().all(|component| !component.is_empty())
+}))]
+#[ensures(true)]
+fn binding_path_matches(path: &Path, candidates: &[&[&str]]) -> bool {
+    candidates.iter().any(|candidate| {
+        candidate.len() == path.segments.len()
+            && path.segments.iter().zip(candidate.iter()).enumerate().all(
+                |(index, (segment, expected))| {
+                    segment.ident == *expected
+                        && (index + 1 == candidate.len()
+                            || matches!(segment.arguments, PathArguments::None))
+                },
+            )
+    })
+}
+
+#[requires(!names.is_empty())]
+#[ensures(true)]
+fn binding_primitive_path_matches(path: &Path, names: &[&str]) -> bool {
+    let mut segments = path.segments.iter();
+    match (
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+    ) {
+        (Some(name), None, None, None) => names.iter().any(|expected| name.ident == *expected),
+        (Some(root), Some(primitive), Some(name), None)
+            if (root.ident == "core" || root.ident == "std") && primitive.ident == "primitive" =>
+        {
+            names.iter().any(|expected| name.ident == *expected)
+        }
+        _ => false,
     }
 }
 
@@ -1792,22 +1913,46 @@ fn binding_type_arguments(arguments: &PathArguments) -> Option<Vec<&Type>> {
         .collect()
 }
 
-#[requires(true)]
+#[requires(path.segments.iter().all(|segment| matches!(segment.arguments, PathArguments::None)))]
 #[ensures(true)]
-fn binding_leaf_kind(name: &str) -> BindingLeafKind {
-    match name {
-        "Token" => BindingLeafKind::SyntaxToken,
-        "Cmavo" => BindingLeafKind::MorphologyCmavo,
-        "Selmaho" => BindingLeafKind::MorphologySelmaho,
-        "Word" => BindingLeafKind::MorphologyWord,
-        "WordLike" => BindingLeafKind::MorphologyWordLike,
-        "SourceId" => BindingLeafKind::SourceId,
-        "SourceSpan" => BindingLeafKind::SourceSpan,
-        "bool" => BindingLeafKind::Boolean,
-        "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128"
-        | "usize" => BindingLeafKind::Integer,
-        "String" => BindingLeafKind::String,
-        _ => BindingLeafKind::External,
+fn binding_leaf_kind(path: &Path) -> BindingLeafKind {
+    if binding_path_matches(
+        path,
+        &[&["Token"], &["crate", "Token"], &["jbotci_syntax", "Token"]],
+    ) {
+        BindingLeafKind::SyntaxToken
+    } else if binding_path_matches(path, &[&["Cmavo"], &["jbotci_morphology", "Cmavo"]]) {
+        BindingLeafKind::MorphologyCmavo
+    } else if binding_path_matches(path, &[&["Selmaho"], &["jbotci_morphology", "Selmaho"]]) {
+        BindingLeafKind::MorphologySelmaho
+    } else if binding_path_matches(path, &[&["Word"], &["jbotci_morphology", "Word"]]) {
+        BindingLeafKind::MorphologyWord
+    } else if binding_path_matches(path, &[&["WordLike"], &["jbotci_morphology", "WordLike"]]) {
+        BindingLeafKind::MorphologyWordLike
+    } else if binding_path_matches(path, &[&["SourceId"], &["jbotci_source", "SourceId"]]) {
+        BindingLeafKind::SourceId
+    } else if binding_path_matches(path, &[&["SourceSpan"], &["jbotci_source", "SourceSpan"]]) {
+        BindingLeafKind::SourceSpan
+    } else if binding_primitive_path_matches(path, &["bool"]) {
+        BindingLeafKind::Boolean
+    } else if binding_primitive_path_matches(
+        path,
+        &[
+            "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize",
+        ],
+    ) {
+        BindingLeafKind::Integer
+    } else if binding_path_matches(
+        path,
+        &[
+            &["String"],
+            &["alloc", "string", "String"],
+            &["std", "string", "String"],
+        ],
+    ) {
+        BindingLeafKind::String
+    } else {
+        BindingLeafKind::External
     }
 }
 
@@ -10045,5 +10190,60 @@ mod tests {
                 ),
             "non-string documentation attributes must be rejected: {expanded}"
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn qualified_leaf_basename_collisions_remain_external() {
+        let generated_models = BTreeSet::new();
+        let field = format_ident!("value");
+
+        for (ty, expected) in [
+            (
+                parse_quote!(foreign::Token),
+                "reference(leaf(kind(external),path(\"foreign\",\"Token\")))",
+            ),
+            (
+                parse_quote!(foreign::SourceSpan),
+                "reference(leaf(kind(external),path(\"foreign\",\"SourceSpan\")))",
+            ),
+            (
+                parse_quote!(jbotci_source::SourceSpan),
+                "reference(leaf(kind(source_span),path(\"jbotci_source\",\"SourceSpan\")))",
+            ),
+            (
+                parse_quote!(std::sync::Arc<jbotci_source::SourceSpan>),
+                "shared(reference(leaf(kind(source_span),path(\"jbotci_source\",\"SourceSpan\"))))",
+            ),
+        ] {
+            let normalized = normalize_binding_type(&ty, &generated_models, &field)
+                .expect("supported leaf or canonical wrapper path normalizes");
+            assert_eq!(compact_tokens(&normalized.expand_strict()), expected);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn qualified_wrapper_basename_collisions_are_rejected() {
+        let generated_models = BTreeSet::new();
+        let field = format_ident!("collision");
+
+        for ty in [
+            parse_quote!(foreign::Option<Token>),
+            parse_quote!(foreign::Vec<Token>),
+        ] {
+            let error = match normalize_binding_type(&ty, &generated_models, &field) {
+                Ok(_) => panic!("foreign generic wrappers must be unsupported"),
+                Err(error) => error,
+            };
+            assert!(
+                error
+                    .to_string()
+                    .contains("unsupported generated model field shape"),
+                "unexpected collision error: {error}"
+            );
+        }
     }
 }
