@@ -68,6 +68,9 @@ def test_string_enum_uses_stable_names_and_values() -> None:
     assert jbotci.sample_mode() is jbotci.SampleMode.BASIC
     assert jbotci.sample_mode(advanced=True) is jbotci.SampleMode.ADVANCED
     assert jbotci.SampleMode.__module__ == "jbotci"
+    assert jbotci.SampleMode.__name__ == "SampleMode"
+    assert native._root_SampleMode is jbotci.SampleMode
+    assert native._root_Sample is jbotci.Sample
     with pytest.raises(ValueError):
         jbotci.SampleMode(0)  # type: ignore[arg-type]
 
@@ -86,18 +89,21 @@ def test_structured_error_conversion_uses_public_hierarchy() -> None:
         ("source", ()),
         ("morphology", ()),
         ("syntax", ()),
-        ("dictionary", ()),
+        ("dictionary", None),
         ("jvozba", ()),
         ("semantics", ("references",)),
         ("semantics.references", ()),
     ],
 )
 def test_typed_namespace_is_importable(
-    module_name: str, exports: tuple[str, ...]
+    module_name: str, exports: tuple[str, ...] | None
 ) -> None:
     module = importlib.import_module(f"jbotci.{module_name}")
     assert isinstance(module, ModuleType)
-    assert getattr(module, "__all__") == exports
+    if exports is None:
+        assert getattr(module, "__all__")
+    else:
+        assert getattr(module, "__all__") == exports
 
 
 def test_stub_composition_is_current() -> None:
@@ -126,3 +132,4 @@ def test_native_stub_exports_match_runtime() -> None:
         and node.target.id != "__all__"
     )
     assert declaration_names == set(native.__all__)
+    assert all(hasattr(native, name) for name in native.__all__)

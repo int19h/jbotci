@@ -4,8 +4,8 @@ from . import dictionary, jvozba, morphology, semantics, source, syntax
 from ._native import (
     InvalidInputError,
     JbotciError,
-    Sample,
-    SampleMode,
+    _root_Sample as Sample,
+    _root_SampleMode as SampleMode,
     __version__,
     raise_sample_error,
     sample_mode,

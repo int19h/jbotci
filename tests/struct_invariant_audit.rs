@@ -1528,6 +1528,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "recovery parse attempt combines a validated strict-or-recovered outcome with an independent optional trace report",
     ),
     (
+        "crates/jbotci-syntax/src/tree.rs:TokenIdentity",
+        "private Arc-backed cache key is constructed only from validated Token and intentionally defines identity by allocation address",
+    ),
+    (
         "crates/jbotci-syntax/src/tree.rs:WithFreeModifiers",
         "generic wrapper delegates validity to its payload and FreeModifierSyntax",
     ),

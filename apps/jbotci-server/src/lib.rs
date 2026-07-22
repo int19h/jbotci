@@ -5,8 +5,10 @@ mod mcp;
 
 pub use discord::register_discord_commands_from_env;
 
+use std::future::Future;
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -88,7 +90,12 @@ pub(crate) struct AppState {
     base_path: String,
     public_dir: PathBuf,
     tool_services: ToolServices,
+    page_meta_builder: PageMetaBuilder,
 }
+
+type PageMetaTaskResult = std::result::Result<PageMeta, tokio::task::JoinError>;
+type PageMetaFuture = Pin<Box<dyn Future<Output = PageMetaTaskResult> + Send>>;
+type PageMetaBuilder = fn(String, WebRoute) -> PageMetaFuture;
 
 const UNHASHED_WEB_MODULE_ASSET_PATHS: &[&str] = &[
     "/assets/app-module-ready.js",
@@ -107,12 +114,13 @@ const WASM_BINDGEN_STABLE_MODULE_ASSET_NAMES: &[&str] = &[
 impl AppState {
     #[requires(true)]
     #[ensures(ret.base_path.starts_with('/'))]
-    fn new(config: ServerConfig) -> Self {
+    fn new(config: ServerConfig, page_meta_builder: PageMetaBuilder) -> Self {
         let config = config.into_data();
         new!(AppState {
             base_path: config.base_path,
             public_dir: config.public_dir,
             tool_services: ToolServices::new(),
+            page_meta_builder,
         })
     }
 
@@ -449,7 +457,16 @@ async fn shutdown_signal() {
 #[requires(true)]
 #[ensures(true)]
 pub fn router(config: ServerConfig) -> Router {
-    let state = Arc::new(AppState::new(config));
+    router_with_page_meta_builder(config, production_page_meta_builder)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn router_with_page_meta_builder(
+    config: ServerConfig,
+    page_meta_builder: PageMetaBuilder,
+) -> Router {
+    let state = Arc::new(AppState::new(config, page_meta_builder));
     // The MCP spec's Origin-validation MUST protects localhost servers with
     // ambient authority from DNS rebinding. It does not apply to this public,
     // stateless endpoint whose tools are nonmutating pure functions, so open
@@ -641,9 +658,11 @@ async fn static_or_spa(
         return plain_response(StatusCode::NOT_FOUND, "not found");
     };
     if asset_path == "/index.html" {
-        return spa_index_response(&state, &headers, &uri)
-            .await
-            .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"));
+        return match spa_index_response(&state, &headers, &uri).await {
+            Ok(Some(response)) => response,
+            Ok(None) => plain_response(StatusCode::NOT_FOUND, "not found"),
+            Err(error) => page_meta_task_failure_response(request_path, &error),
+        };
     }
     if let Some(response) = static_dir_response(
         &state.public_dir,
@@ -663,8 +682,10 @@ async fn spa_index_response(
     state: &AppState,
     headers: &HeaderMap,
     uri: &Uri,
-) -> Option<Response<Body>> {
-    let bytes = load_index_html_bytes(state).await?;
+) -> std::result::Result<Option<Response<Body>>, tokio::task::JoinError> {
+    let Some(bytes) = load_index_html_bytes(state).await else {
+        return Ok(None);
+    };
     let html = String::from_utf8_lossy(&bytes);
     let logical_path = strip_base_path(uri.path(), &state.base_path).unwrap_or_else(|| {
         if uri.path().starts_with('/') {
@@ -674,14 +695,14 @@ async fn spa_index_response(
         }
     });
     let route = parse_web_route(&logical_path, uri.query().unwrap_or_default());
-    let meta = build_page_meta_blocking(state.base_path.clone(), route).await?;
+    let meta = (state.page_meta_builder)(state.base_path.clone(), route).await?;
     let rendered = apply_spa_head_metadata(&html, request_origin(headers).as_deref(), &meta);
-    Some(asset_response(
+    Ok(Some(asset_response(
         StatusCode::OK,
         "/index.html",
         None,
         Body::from(rendered),
-    ))
+    )))
 }
 
 #[requires(true)]
@@ -712,10 +733,35 @@ async fn gentufa_export_response(format: GentufaExportFormat, query: String) -> 
 
 #[requires(base_path.starts_with('/'))]
 #[ensures(true)]
-async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> Option<PageMeta> {
-    tokio::task::spawn_blocking(move || build_page_meta(&base_path, &route))
-        .await
-        .ok()
+async fn build_page_meta_blocking(base_path: String, route: WebRoute) -> PageMetaTaskResult {
+    run_page_meta_task(move || build_page_meta(&base_path, &route)).await
+}
+
+#[requires(base_path.starts_with('/'))]
+#[ensures(true)]
+fn production_page_meta_builder(base_path: String, route: WebRoute) -> PageMetaFuture {
+    Box::pin(build_page_meta_blocking(base_path, route))
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn run_page_meta_task(
+    task: impl FnOnce() -> PageMeta + Send + 'static,
+) -> PageMetaTaskResult {
+    tokio::task::spawn_blocking(task).await
+}
+
+#[requires(request_path.starts_with('/'))]
+#[ensures(ret.status() == StatusCode::INTERNAL_SERVER_ERROR)]
+fn page_meta_task_failure_response(
+    request_path: &str,
+    error: &tokio::task::JoinError,
+) -> Response<Body> {
+    // The public response intentionally omits panic and task internals. The
+    // server-side report keeps the affected route path (but not its possibly
+    // sensitive query) together with Tokio's panic/cancellation diagnosis.
+    eprintln!("SPA metadata task failed for request path `{request_path}`: {error}");
+    plain_response(StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
 }
 
 #[requires(true)]
@@ -1195,6 +1241,14 @@ mod tests {
             base_path,
             public_dir,
         )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn panicking_page_meta_builder(_base_path: String, _route: WebRoute) -> PageMetaFuture {
+        Box::pin(run_page_meta_task(|| -> PageMeta {
+            panic!("deterministic metadata worker failure")
+        }))
     }
 
     #[requires(true)]
@@ -3366,6 +3420,28 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn missing_spa_index_returns_404() {
+        let static_dir = test_static_dir();
+        std::fs::remove_file(static_dir.join("index.html")).expect("remove test index");
+        let app =
+            router_with_page_meta_builder(test_config(static_dir), panicking_page_meta_builder);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response_text(response).await, "not found");
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn embedding_assets_reject_path_traversal() {
         let static_dir = test_static_dir();
         let secret_path = static_dir
@@ -3569,6 +3645,55 @@ mod tests {
             "name=\"twitter:image\" content=\"https://example.test/jbotci/gentufa.png?text=mi+klama\""
         ));
         assert!(!body.contains("gentufa.svg"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn reported_jboponei_gentufa_url_renders_spa_metadata() {
+        let app = router(test_config_with_base_path("/", test_static_dir()));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri(concat!(
+                        "/gentufa?text=i+lo+drasmu+cu+na+jai+fasnu+ri%27a+po%21%21++",
+                        "lo%27e+finti+cu+jai+gau+smuni+ei+dai+do%27e+lo+cnino+terbri",
+                        "&dialect=%28jboponei%29",
+                    ))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+        assert!(body.contains("<title>i lo drasmu cu na jai fasnu"));
+        assert!(body.contains("- jbotci gentufa</title>"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn metadata_worker_panic_returns_sanitized_500() {
+        let app = router_with_page_meta_builder(
+            test_config(test_static_dir()),
+            panicking_page_meta_builder,
+        );
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/jbotci/gentufa?text=mi+klama")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = response_text(response).await;
+        assert_eq!(body, "internal server error");
+        assert!(!body.contains("deterministic metadata worker failure"));
     }
 
     #[tokio::test]
