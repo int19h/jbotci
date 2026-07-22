@@ -3557,7 +3557,10 @@ fn gimfihi_metadata_description(
 ) -> String {
     let sources = sources
         .iter()
-        .map(|source| format!("{}:{} ×{}", source.language, source.word, source.weight))
+        .map(|source| match &source.ipa {
+            Some(ipa) => format!("{}:[{ipa}] ×{}", source.language, source.weight),
+            None => format!("{}:{} ×{}", source.language, source.word, source.weight),
+        })
         .collect::<Vec<_>>()
         .join(" + ");
     let description = format!("{candidate} = {sources}");
@@ -7993,6 +7996,60 @@ mod tests {
         assert!(meta.description.contains("eng:ekspekt ×160"));
         assert!(meta.canonical_url.starts_with("/gimfihi?"));
         assert!(meta.canonical_url.contains("highlight=nanpe"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_metadata_preserves_each_sources_original_representation() {
+        let sources = vec![
+            new!(ResolvedSource {
+                language: "eng".to_owned(),
+                weight: 160,
+                word: "fyrment".to_owned(),
+                ipa: Some("fɚmɛnt".to_owned()),
+            }),
+            new!(ResolvedSource {
+                language: "spa".to_owned(),
+                weight: 347,
+                word: "ferment".to_owned(),
+                ipa: None,
+            }),
+        ];
+
+        assert_eq!(
+            gimfihi_metadata_description("femre", &sources, GimfihiScorer::Phonetic),
+            "femre = eng:[fɚmɛnt] ×160 + spa:ferment ×347 (phonetic scoring)"
+        );
+        assert_eq!(
+            gimfihi_metadata_description("femre", &sources, GimfihiScorer::Classic),
+            "femre = eng:[fɚmɛnt] ×160 + spa:ferment ×347"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gimfihi_classic_plain_metadata_format_is_unchanged() {
+        let sources = vec![
+            new!(ResolvedSource {
+                language: "cmn".to_owned(),
+                weight: 347,
+                word: "uan".to_owned(),
+                ipa: None,
+            }),
+            new!(ResolvedSource {
+                language: "eng".to_owned(),
+                weight: 160,
+                word: "ekspekt".to_owned(),
+                ipa: None,
+            }),
+        ];
+
+        assert_eq!(
+            gimfihi_metadata_description("nanpe", &sources, GimfihiScorer::Classic),
+            "nanpe = cmn:uan ×347 + eng:ekspekt ×160"
+        );
     }
 
     #[test]
