@@ -7,6 +7,7 @@ from functools import wraps
 from typing import ParamSpec, TypeAlias, TypeVar
 
 from . import _native as _rust
+from ._validation import immutable_typed_sequence
 from .diagnostics import Diagnostic, TraceReport
 from .source import SourceId, SourceSpan
 
@@ -166,6 +167,14 @@ class MorphologyError(_rust.JbotciError):
         warnings: Sequence[MorphologyWarning] = (),
         trace: TraceReport | None = None,
     ) -> None:
+        checked_warnings = immutable_typed_sequence(
+            warnings,
+            parameter="warnings",
+            element_type=MorphologyWarning,
+        )
+        if trace is not None and not isinstance(trace, TraceReport):
+            raise TypeError("trace must be a TraceReport or None")
+
         super().__init__(str(value))
         self.value = value
         self.original_source = original_source
@@ -175,7 +184,7 @@ class MorphologyError(_rust.JbotciError):
         self.spans = tuple(label.span for label in self.diagnostic.labels)
         self.context = getattr(value, "context", None)
         self.detail = getattr(value, "detail", None)
-        self.warnings = tuple(warnings)
+        self.warnings = checked_warnings
         self.trace = trace
 
 

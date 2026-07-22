@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import gc
+from collections.abc import Sequence
+from typing import cast
 
 import pytest
 
@@ -347,6 +349,90 @@ def test_morphology_error_construction_uses_checked_diagnostic_conversion() -> N
     )
     with pytest.raises(InvalidInputError):
         morphology.MorphologyError(value, "é", None)
+
+
+def test_morphology_error_validates_and_copies_warning_sequences() -> None:
+    value = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 1, "x"
+    )
+    warning = morphology.MorphologyWarning(
+        morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 0, 1, "x"
+    )
+    trace = diagnostics.TraceReport(diagnostics.TracePhase.MORPHOLOGY)
+
+    warning_list = [warning]
+    from_list = morphology.MorphologyError(value, "x", None, warning_list, trace)
+    warning_list.clear()
+    assert from_list.warnings == (warning,)
+    assert from_list.trace is trace
+
+    from_tuple = morphology.MorphologyError(value, "x", None, (warning,), trace)
+    assert from_tuple.warnings == (warning,)
+    assert from_tuple.trace is trace
+
+
+def test_morphology_error_rejects_non_sequence_warning_inputs() -> None:
+    value = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 1, "x"
+    )
+    warning = morphology.MorphologyWarning(
+        morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 0, 1, "x"
+    )
+    invalid_inputs: tuple[object, ...] = (
+        "warning",
+        b"warning",
+        bytearray(b"warning"),
+        set(),
+        (item for item in (warning,)),
+        object(),
+    )
+
+    for invalid in invalid_inputs:
+        with pytest.raises(
+            TypeError,
+            match="^warnings must be an ordered Sequence of MorphologyWarning$",
+        ):
+            morphology.MorphologyError(
+                value,
+                "x",
+                None,
+                cast(Sequence[morphology.MorphologyWarning], invalid),
+            )
+
+
+def test_morphology_error_rejects_invalid_warning_elements_and_trace() -> None:
+    value = morphology.InvalidMorphology(
+        morphology.MorphologyErrorKind.INVALID_CHARACTER, 0, 1, "x"
+    )
+    warning = morphology.MorphologyWarning(
+        morphology.MorphologyWarningKind.EXPERIMENTAL_CGV, 0, 1, "x"
+    )
+    invalid_sequences: tuple[object, ...] = (
+        [object()],
+        [warning, object()],
+        ["warning"],
+    )
+
+    for invalid in invalid_sequences:
+        with pytest.raises(
+            TypeError,
+            match=r"^warnings\[\d+\] must be a MorphologyWarning$",
+        ):
+            morphology.MorphologyError(
+                value,
+                "x",
+                None,
+                cast(Sequence[morphology.MorphologyWarning], invalid),
+            )
+
+    with pytest.raises(TypeError, match="^trace must be a TraceReport or None$"):
+        morphology.MorphologyError(
+            value,
+            "x",
+            None,
+            (warning,),
+            cast(diagnostics.TraceReport, object()),
+        )
 
 
 def test_strict_exception_retains_typed_details_and_provenance() -> None:

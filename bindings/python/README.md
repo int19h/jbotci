@@ -40,6 +40,8 @@ install, rather than the source tree, resolves `jbotci`.
   `collections.abc.Sequence`, so lists and tuples are accepted after every
   element is validated; unordered iterables such as sets are rejected. Rust
   sequences are materialized as immutable Python tuples, never mutable lists.
+  The same validation applies to pure-Python public wrappers such as
+  `MorphologyError`, including an immutable copy of each accepted sequence.
   Numeric newtypes keep their semantic Python class and validate range/units in
   the constructor instead of leaking a bare integer or a lossy cast.
 - A Python wrapper for borrowed Rust data must retain a strong owner. The
