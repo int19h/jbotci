@@ -285,6 +285,84 @@ def test_all_quote_and_modifier_word_like_variants() -> None:
     assert isinstance(morphology.segment("broda zei brode")[0], morphology.ZeiCompound)
 
 
+@pytest.mark.parametrize(
+    ("text", "word_type", "byte_range", "span_ranges"),
+    (
+        ("mi", morphology.PlainWord, (0, 2), (((0, 2), (0, 2)),)),
+        (
+            "zo broda",
+            morphology.QuotedWord,
+            (0, 8),
+            (((0, 2), (0, 2)), ((3, 8), (3, 8))),
+        ),
+        (
+            "ma'oi ba",
+            morphology.SelmahoQuotedWord,
+            (0, 8),
+            (((0, 5), (0, 5)), ((6, 8), (6, 8))),
+        ),
+        (
+            "zoi gy café gy",
+            morphology.DelimitedNonLojbanQuote,
+            (0, 15),
+            (
+                ((0, 3), (0, 3)),
+                ((4, 6), (4, 6)),
+                ((7, 12), (7, 11)),
+                ((13, 15), (12, 14)),
+            ),
+        ),
+        (
+            "lo'u mi do le'u",
+            morphology.QuotedWords,
+            (0, 15),
+            (
+                ((0, 4), (0, 4)),
+                ((5, 7), (5, 7)),
+                ((8, 10), (8, 10)),
+                ((11, 15), (11, 15)),
+            ),
+        ),
+        (
+            "zo'oi hello",
+            morphology.DelimitedWordQuote,
+            (0, 11),
+            (((0, 5), (0, 5)), ((6, 11), (6, 11))),
+        ),
+        (
+            "a bu",
+            morphology.LerfuWord,
+            (0, 4),
+            (((0, 1), (0, 1)), ((2, 4), (2, 4))),
+        ),
+        (
+            "broda zei brode",
+            morphology.ZeiCompound,
+            (0, 15),
+            (((0, 5), (0, 5)), ((6, 9), (6, 9)), ((10, 15), (10, 15))),
+        ),
+    ),
+)
+def test_every_word_like_has_exact_ordered_source_spans(
+    text: str,
+    word_type: type[object],
+    byte_range: tuple[int, int],
+    span_ranges: tuple[tuple[tuple[int, int], tuple[int, int]], ...],
+) -> None:
+    source_id = source.SourceId(f"word-like:{text}")
+    (value,) = morphology.segment(text, source_id=source_id)
+    assert isinstance(value, word_type)
+    assert value.byte_range == byte_range
+    assert len(value.source_spans) == len(span_ranges)
+    assert tuple(
+        (span.byte_range, span.char_range, span.source_id)
+        for span in value.source_spans
+    ) == tuple(
+        (expected_bytes, expected_chars, source_id)
+        for expected_bytes, expected_chars in span_ranges
+    )
+
+
 def test_erasure_and_display_segmentation_preserve_their_rust_distinction() -> None:
     assert plain_phonemes(morphology.segment("mi si do")) == ("do",)
     assert plain_phonemes(morphology.segment_for_display("mi si do")) == (
@@ -847,6 +925,76 @@ def test_unicode_recovery_retains_byte_char_regions_and_source_identity() -> Non
     )
 
 
+def test_recovered_attempt_retains_parser_warnings_and_trace() -> None:
+    source_id = source.SourceId("recovered-warning-trace")
+    options = morphology.MorphologyOptions(
+        trace=diagnostics.TraceOptions(enabled=True)
+    )
+    attempt = morphology.segment_recovered_attempt(
+        "namzi @@@ kamzifre", options=options, source_id=source_id
+    )
+
+    assert attempt.source == "namzi @@@ kamzifre"
+    assert attempt.source_id == source_id
+    assert attempt.trace is not None
+    assert attempt.trace.phase is diagnostics.TracePhase.MORPHOLOGY
+    assert attempt.trace.events
+    assert plain_phonemes(attempt.result.words) == ("námzi", "kamzífre")
+    assert len(attempt.result.errors) == len(attempt.result.error_regions) == 1
+    assert attempt.result.error_regions[0].byte_range == (6, 10)
+    assert attempt.result.error_regions[0].char_range == (6, 10)
+    assert tuple(
+        (
+            warning.kind,
+            warning.char_start,
+            warning.char_end,
+            warning.text,
+            None
+            if warning.context is None
+            else (
+                warning.context.kind,
+                warning.context.char_start,
+                warning.context.char_end,
+            ),
+            warning.ignored_character_count,
+        )
+        for warning in attempt.result.warnings
+    ) == (
+        (
+            morphology.MorphologyWarningKind.EXPERIMENTAL_MZ,
+            2,
+            4,
+            "mz",
+            (morphology.MorphologyContextKind.GISMU, 0, 5),
+            None,
+        ),
+        (
+            morphology.MorphologyWarningKind.EXPERIMENTAL_MZ,
+            12,
+            14,
+            "mz",
+            (morphology.MorphologyContextKind.LUJVO, 10, 18),
+            None,
+        ),
+    )
+
+
+def test_valsi_analysis_retains_parser_warnings() -> None:
+    analysis = morphology.analyze_valsi(
+        "namzi", source_id=source.SourceId("valsi-warning")
+    )
+    assert analysis.input == "namzi"
+    assert analysis.result.status is morphology.ValsiAnalysisStatus.VALID
+    assert len(analysis.warnings) == 1
+    (warning,) = analysis.warnings
+    assert warning.kind is morphology.MorphologyWarningKind.EXPERIMENTAL_MZ
+    assert (warning.char_start, warning.char_end, warning.text) == (2, 4, "mz")
+    assert warning.context is not None
+    assert warning.context.kind is morphology.MorphologyContextKind.GISMU
+    assert (warning.context.char_start, warning.context.char_end) == (0, 5)
+    assert warning.ignored_character_count is None
+
+
 def test_nested_quotes_and_valsi_analysis_retain_all_source_ids() -> None:
     source_id = source.SourceId("nested-provenance")
     (quote,) = morphology.segment(
@@ -894,8 +1042,18 @@ def test_analyze_valsi_status_and_variant_classification() -> None:
     assert valid.result.status is morphology.ValsiAnalysisStatus.VALID
     assert isinstance(valid.result.classification, morphology.PlainWordValsiClassification)
     classification = valid.result.classification.word
-    assert classification.category is morphology.WordKind.LUJVO
-    assert classification.parts
+    assert plain_classification_value(classification) == (
+        "lujvo",
+        "jetcybolxáda",
+        None,
+        "jetc-y-bolxáda",
+        (
+            ("rafsi", "jetc", "long"),
+            ("hyphen", "y", None),
+            ("rafsi", "bolxáda", "fuivla"),
+        ),
+        None,
+    )
 
     invalid = morphology.analyze_valsi("aa")
     assert invalid.result.status is morphology.ValsiAnalysisStatus.INVALID
@@ -904,6 +1062,27 @@ def test_analyze_valsi_status_and_variant_classification() -> None:
     multiple = morphology.analyze_valsi("coibroda")
     assert multiple.result.status is morphology.ValsiAnalysisStatus.NOT_SINGLE_WORD
     assert len(multiple.result.words) == 2
+
+
+@pytest.mark.parametrize(
+    ("text", "expected_stage"),
+    (
+        ("cidjrspageti", morphology.ValsiFuhivlaStage.STAGE3),
+        ("spageti", morphology.ValsiFuhivlaStage.STAGE4),
+    ),
+)
+def test_valsi_analysis_retains_exact_fuhivla_stage(
+    text: str, expected_stage: morphology.ValsiFuhivlaStage
+) -> None:
+    analysis = morphology.analyze_valsi(text)
+    assert analysis.result.status is morphology.ValsiAnalysisStatus.VALID
+    classification = analysis.result.classification
+    assert isinstance(classification, morphology.PlainWordValsiClassification)
+    assert classification.word.category is morphology.WordKind.FUHIVLA
+    assert classification.word.selmaho is None
+    assert classification.word.split is None
+    assert classification.word.parts == ()
+    assert classification.word.stage is expected_stage
 
 
 @pytest.mark.parametrize(

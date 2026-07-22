@@ -131,6 +131,150 @@ def typed_morphology(text: str) -> tuple[morphology.WordLike, ...]:
     return attempt.words
 
 
+def typed_every_morphology_free_function(
+    options: morphology.MorphologyOptions,
+    source_id: source.SourceId,
+    phonemes: morphology.Phonemes,
+    word: morphology.Word,
+    word_like: morphology.WordLike,
+    cmavo: morphology.Cmavo,
+    selmaho: morphology.Selmaho,
+    pair_class: morphology.ConsonantPairClass,
+    rafsi_shape: morphology.RafsiShape,
+    build_part: morphology.LujvoBuildPart,
+) -> None:
+    """Independently pin every public morphology function's input/output types."""
+
+    assert_type(
+        morphology.segment("mi", options=options, source_id=source_id),
+        tuple[morphology.WordLike, ...],
+    )
+    assert_type(
+        morphology.segment_attempt("mi", options=options, source_id=source_id),
+        morphology.MorphologySegmentAttempt,
+    )
+    assert_type(
+        morphology.segment_recovered("mi", options=options, source_id=source_id),
+        morphology.RecoveredMorphologySegmentation,
+    )
+    assert_type(
+        morphology.segment_recovered_attempt(
+            "mi", options=options, source_id=source_id
+        ),
+        morphology.RecoveredMorphologySegmentAttempt,
+    )
+    assert_type(
+        morphology.segment_for_display(
+            "mi", options=options, source_id=source_id
+        ),
+        tuple[morphology.WordLike, ...],
+    )
+    assert_type(
+        morphology.segment_for_display_attempt(
+            "mi", options=options, source_id=source_id
+        ),
+        morphology.MorphologySegmentAttempt,
+    )
+    assert_type(
+        morphology.analyze_valsi("mi", options=options, source_id=source_id),
+        morphology.ValsiAnalysis,
+    )
+    assert_type(morphology.normalize_input("mi", options=options), str | None)
+    assert_type(morphology.canonicalize_text("MI"), str)
+    assert_type(morphology.canonical_text_eq("MI", "mi"), bool)
+    assert_type(morphology.canonical_text_is_all("mi", "m"), bool)
+    assert_type(morphology.normalize_cmavo_form("coi"), str | None)
+    assert_type(morphology.cmavo_phonemes("coi"), morphology.Phonemes | None)
+    assert_type(morphology.pronunciation_syllables(phonemes), tuple[str, ...])
+    assert_type(morphology.strip_lojban_diacritic("á"), str | None)
+    assert_type(morphology.fold_lojban_diacritic("á"), str | None)
+    assert_type(morphology.strip_lojban_diacritics("á"), str)
+    assert_type(morphology.fold_lojban_diacritics("á"), str)
+    assert_type(morphology.stripped_lojban_diacritics_eq("á", "a"), bool)
+    assert_type(morphology.folded_lojban_diacritics_eq("á", "a"), bool)
+    assert_type(morphology.strip_diacritics("á"), str)
+    assert_type(morphology.strip_diacritics_eq("á", "a"), bool)
+    assert_type(morphology.is_valid_phoneme("a"), bool)
+    assert_type(
+        morphology.is_word_forming_character("a", options=options), bool
+    )
+    assert_type(morphology.is_period_character("."), bool)
+    assert_type(morphology.is_permissive_ignorable_character("@"), bool)
+    assert_type(
+        morphology.parse_lujvo_parts("jbogri"),
+        tuple[morphology.LujvoPart, ...] | None,
+    )
+    assert_type(
+        morphology.parse_cmevla_lujvo_parts("jbogris"),
+        tuple[morphology.LujvoPart, ...] | None,
+    )
+    assert_type(
+        morphology.parse_cmevla_lujvo_part_candidates("jbogris"),
+        tuple[tuple[morphology.LujvoPart, ...], ...],
+    )
+    assert_type(morphology.bond_rafsis(["jbo", "gri"]), tuple[str, ...] | None)
+    assert_type(morphology.is_valid_lujvo_candidate_word("jbogri"), bool)
+    assert_type(morphology.ensure_cmevla_word("alis"), str)
+    assert_type(morphology.ends_with_consonant("alis"), bool)
+    assert_type(morphology.ends_with_vowel("klama"), bool)
+    assert_type(morphology.is_bonding_hyphen("y"), bool)
+    assert_type(morphology.syllables_pattern("klama"), str | None)
+    assert_type(morphology.rafsi_shape("jbo"), morphology.RafsiShape)
+    assert_type(morphology.rafsi_shape_score(rafsi_shape), int)
+    assert_type(morphology.is_vowel("a"), bool)
+    assert_type(morphology.is_consonant("b"), bool)
+    assert_type(morphology.is_cmevla("alis"), bool)
+    assert_type(
+        morphology.consonant_pair_class("b", "l"),
+        morphology.ConsonantPairClass | None,
+    )
+    assert_type(morphology.permissible_consonant_pair("b", "l"), bool)
+    assert_type(morphology.consonant_pair_is_permissible(pair_class), bool)
+    assert_type(morphology.consonant_pair_is_initial(pair_class), bool)
+    assert_type(
+        morphology.word_needs_leading_pause(
+            word, morphology.LeadingPauseVowelMode.FOLDED_VOWELS
+        ),
+        bool,
+    )
+    assert_type(
+        morphology.word_needs_leading_pause_in_context(
+            word,
+            morphology.LeadingPauseVowelMode.FOLDED_VOWELS,
+            morphology.LeadingPauseContext.INDEPENDENT_WORD,
+        ),
+        bool,
+    )
+    assert_type(morphology.word_syntax_eq(word, word), bool)
+    assert_type(morphology.word_like_syntax_eq(word_like, word_like), bool)
+    assert_type(morphology.cmavo_from_text("zo"), morphology.Cmavo | None)
+    assert_type(morphology.cmavo_text(cmavo), str)
+    assert_type(morphology.cmavo_is_selmaho(cmavo, selmaho), bool)
+    assert_type(
+        morphology.cmavo_primary_selmaho(cmavo), morphology.Selmaho | None
+    )
+    assert_type(morphology.cmavo_is_quote_opener(cmavo), bool)
+    assert_type(morphology.cmavo_is_single_word_quote_opener(cmavo), bool)
+    assert_type(
+        morphology.cmavo_is_delimited_non_lojban_quote_opener(cmavo), bool
+    )
+    assert_type(morphology.selmaho_from_name("ZO"), morphology.Selmaho | None)
+    assert_type(morphology.selmaho_name(selmaho), str)
+    assert_type(morphology.selmaho_contains(selmaho, cmavo), bool)
+    assert_type(
+        morphology.choose_best_lujvo_candidate(
+            morphology.LujvoBuildMode.LUJVO, [["jbo"], ["gri"]]
+        ),
+        morphology.LujvoCandidate | None,
+    )
+    assert_type(
+        morphology.choose_best_lujvo_candidate_from_parts(
+            morphology.LujvoBuildMode.LUJVO, [[build_part]]
+        ),
+        morphology.LujvoCandidate | None,
+    )
+
+
 def typed_valsi(text: str) -> morphology.ValsiAnalysisResult:
     """Exercise classification payload variants and lujvo part declarations."""
 

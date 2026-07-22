@@ -58,3 +58,33 @@ def test_unordered_collection_inputs_are_rejected_by_strict_mypy() -> None:
     assert result.returncode == 1, result.stdout + result.stderr
     assert len(diagnostics) == 4, result.stdout
     assert all("[arg-type]" in line for line in diagnostics)
+
+
+def test_returned_only_morphology_classes_reject_construction_in_strict_mypy() -> None:
+    """Parser-owned morphology products require an impossible sentinel argument."""
+    fixture = (
+        PACKAGE_ROOT
+        / "tests"
+        / "typing_failures"
+        / "morphology_returned_only.py"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+            str(fixture),
+        ],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    diagnostics = tuple(
+        line for line in result.stdout.splitlines() if ": error:" in line
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert len(diagnostics) == 7, result.stdout
+    assert all("[call-arg]" in line for line in diagnostics)

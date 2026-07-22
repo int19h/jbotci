@@ -157,6 +157,245 @@ MORPHOLOGY_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_morphology_is_word_forming_character": {"options": None},
 }
 
+MORPHOLOGY_RETURNED_ONLY_CLASSES: frozenset[str] = frozenset(
+    {
+        "_morphology_CompiledDialectWord",
+        "_morphology_CompiledDialectSwap",
+        "_morphology_CompiledDialectExpansion",
+        "_morphology_MorphologySegmentAttempt",
+        "_morphology_RecoveredMorphologySegmentation",
+        "_morphology_RecoveredMorphologySegmentAttempt",
+        "_morphology_ValsiAnalysis",
+    }
+)
+
+# PyO3 currently exposes signatures for every manual morphology dunder. Keep an
+# explicit empty allowlist so a future uninspectable slot requires a separately
+# authored typing witness rather than silently losing signature coverage.
+MORPHOLOGY_UNINSPECTABLE_DUNDERS: frozenset[str] = frozenset()
+
+MORPHOLOGY_FUNCTION_TYPES: dict[
+    str, tuple[tuple[tuple[str, str], ...], str]
+] = {
+    "_morphology_segment_attempt": (
+        (
+            ("source", "str"),
+            ("options", "_morphology_MorphologyOptions | None"),
+            ("source_id", "_source_SourceId | None"),
+        ),
+        "_morphology_MorphologySegmentAttempt",
+    ),
+    "_morphology_segment_recovered_attempt": (
+        (
+            ("source", "str"),
+            ("options", "_morphology_MorphologyOptions | None"),
+            ("source_id", "_source_SourceId | None"),
+        ),
+        "_morphology_RecoveredMorphologySegmentAttempt",
+    ),
+    "_morphology_segment_for_display_attempt": (
+        (
+            ("source", "str"),
+            ("options", "_morphology_MorphologyOptions | None"),
+            ("source_id", "_source_SourceId | None"),
+        ),
+        "_morphology_MorphologySegmentAttempt",
+    ),
+    "_morphology_analyze_valsi": (
+        (
+            ("source", "str"),
+            ("options", "_morphology_MorphologyOptions | None"),
+            ("source_id", "_source_SourceId | None"),
+        ),
+        "_morphology_ValsiAnalysis",
+    ),
+    "_morphology_normalize_input": (
+        (("text", "str"), ("options", "_morphology_MorphologyOptions | None")),
+        "str | None",
+    ),
+    "_morphology_canonicalize_text": ((("text", "str"),), "str"),
+    "_morphology_canonical_text_eq": (
+        (("left", "str"), ("right", "str")),
+        "bool",
+    ),
+    "_morphology_canonical_text_is_all": (
+        (("text", "str"), ("expected", "str")),
+        "bool",
+    ),
+    "_morphology_normalize_cmavo_form": ((("text", "str"),), "str | None"),
+    "_morphology_cmavo_phonemes": (
+        (("text", "str"),),
+        "_morphology_Phonemes | None",
+    ),
+    "_morphology_pronunciation_syllables": (
+        (("phonemes", "_morphology_Phonemes"),),
+        "tuple[str, ...]",
+    ),
+    "_morphology_strip_lojban_diacritic": ((("value", "str"),), "str | None"),
+    "_morphology_fold_lojban_diacritic": ((("value", "str"),), "str | None"),
+    "_morphology_strip_lojban_diacritics": ((("text", "str"),), "str"),
+    "_morphology_fold_lojban_diacritics": ((("text", "str"),), "str"),
+    "_morphology_stripped_lojban_diacritics_eq": (
+        (("left", "str"), ("right", "str")),
+        "bool",
+    ),
+    "_morphology_folded_lojban_diacritics_eq": (
+        (("left", "str"), ("right", "str")),
+        "bool",
+    ),
+    "_morphology_strip_diacritics": ((("text", "str"),), "str"),
+    "_morphology_strip_diacritics_eq": (
+        (("left", "str"), ("right", "str")),
+        "bool",
+    ),
+    "_morphology_is_valid_phoneme": ((("value", "str"),), "bool"),
+    "_morphology_is_word_forming_character": (
+        (("value", "str"), ("options", "_morphology_MorphologyOptions | None")),
+        "bool",
+    ),
+    "_morphology_is_period_character": ((("value", "str"),), "bool"),
+    "_morphology_is_permissive_ignorable_character": (
+        (("value", "str"),),
+        "bool",
+    ),
+    "_morphology_parse_lujvo_parts": (
+        (("word", "str"),),
+        "tuple[_morphology_LujvoRafsi | _morphology_LujvoHyphen, ...] | None",
+    ),
+    "_morphology_parse_cmevla_lujvo_parts": (
+        (("word", "str"),),
+        "tuple[_morphology_LujvoRafsi | _morphology_LujvoHyphen, ...] | None",
+    ),
+    "_morphology_parse_cmevla_lujvo_part_candidates": (
+        (("word", "str"),),
+        "tuple[tuple[_morphology_LujvoRafsi | _morphology_LujvoHyphen, ...], ...]",
+    ),
+    "_morphology_bond_rafsis": (
+        (("rafsis", "Sequence[str]"),),
+        "tuple[str, ...] | None",
+    ),
+    "_morphology_is_valid_lujvo_candidate_word": (
+        (("word", "str"),),
+        "bool",
+    ),
+    "_morphology_ensure_cmevla_word": ((("word", "str"),), "str"),
+    "_morphology_ends_with_consonant": ((("word", "str"),), "bool"),
+    "_morphology_ends_with_vowel": ((("word", "str"),), "bool"),
+    "_morphology_is_bonding_hyphen": ((("part", "str"),), "bool"),
+    "_morphology_syllables_pattern": ((("text", "str"),), "str | None"),
+    "_morphology_rafsi_shape": (
+        (("text", "str"),),
+        "_morphology_RafsiShape",
+    ),
+    "_morphology_rafsi_shape_score": (
+        (("shape", "_morphology_RafsiShape"),),
+        "int",
+    ),
+    "_morphology_is_vowel": ((("value", "str"),), "bool"),
+    "_morphology_is_consonant": ((("value", "str"),), "bool"),
+    "_morphology_is_cmevla": ((("text", "str"),), "bool"),
+    "_morphology_consonant_pair_class": (
+        (("first", "str"), ("second", "str")),
+        "_morphology_ConsonantPairClass | None",
+    ),
+    "_morphology_permissible_consonant_pair": (
+        (("first", "str"), ("second", "str")),
+        "bool",
+    ),
+    "_morphology_consonant_pair_is_permissible": (
+        (("value", "_morphology_ConsonantPairClass"),),
+        "bool",
+    ),
+    "_morphology_consonant_pair_is_initial": (
+        (("value", "_morphology_ConsonantPairClass"),),
+        "bool",
+    ),
+    "_morphology_word_needs_leading_pause": (
+        (
+            ("word", "_MorphologyWord"),
+            ("mode", "_morphology_LeadingPauseVowelMode"),
+        ),
+        "bool",
+    ),
+    "_morphology_word_needs_leading_pause_in_context": (
+        (
+            ("word", "_MorphologyWord"),
+            ("mode", "_morphology_LeadingPauseVowelMode"),
+            ("context", "_morphology_LeadingPauseContext"),
+        ),
+        "bool",
+    ),
+    "_morphology_word_syntax_eq": (
+        (("left", "_MorphologyWord"), ("right", "_MorphologyWord")),
+        "bool",
+    ),
+    "_morphology_word_like_syntax_eq": (
+        (("left", "_MorphologyWordLike"), ("right", "_MorphologyWordLike")),
+        "bool",
+    ),
+    "_morphology_cmavo_from_text": (
+        (("text", "str"),),
+        "_morphology_Cmavo | None",
+    ),
+    "_morphology_cmavo_text": ((("cmavo", "_morphology_Cmavo"),), "str"),
+    "_morphology_cmavo_is_selmaho": (
+        (
+            ("cmavo", "_morphology_Cmavo"),
+            ("selmaho", "_morphology_Selmaho"),
+        ),
+        "bool",
+    ),
+    "_morphology_cmavo_primary_selmaho": (
+        (("cmavo", "_morphology_Cmavo"),),
+        "_morphology_Selmaho | None",
+    ),
+    "_morphology_cmavo_is_quote_opener": (
+        (("cmavo", "_morphology_Cmavo"),),
+        "bool",
+    ),
+    "_morphology_cmavo_is_single_word_quote_opener": (
+        (("cmavo", "_morphology_Cmavo"),),
+        "bool",
+    ),
+    "_morphology_cmavo_is_delimited_non_lojban_quote_opener": (
+        (("cmavo", "_morphology_Cmavo"),),
+        "bool",
+    ),
+    "_morphology_selmaho_from_name": (
+        (("name", "str"),),
+        "_morphology_Selmaho | None",
+    ),
+    "_morphology_selmaho_name": (
+        (("selmaho", "_morphology_Selmaho"),),
+        "str",
+    ),
+    "_morphology_selmaho_contains": (
+        (
+            ("selmaho", "_morphology_Selmaho"),
+            ("cmavo", "_morphology_Cmavo"),
+        ),
+        "bool",
+    ),
+    "_morphology_choose_best_lujvo_candidate": (
+        (
+            ("mode", "_morphology_LujvoBuildMode"),
+            ("choices", "Sequence[Sequence[str]]"),
+        ),
+        "_morphology_LujvoCandidate | None",
+    ),
+    "_morphology_choose_best_lujvo_candidate_from_parts": (
+        (
+            ("mode", "_morphology_LujvoBuildMode"),
+            (
+                "choices",
+                "Sequence[Sequence[_morphology_LujvoRafsiBuildPart | "
+                "_morphology_LujvoBrivlaCoreBuildPart]]",
+            ),
+        ),
+        "_morphology_LujvoCandidate | None",
+    ),
+}
+
 
 def test_version_comes_from_cargo_workspace() -> None:
     workspace_manifest = tomllib.loads(
@@ -341,6 +580,72 @@ def _stub_function_is_property(declaration: ast.FunctionDef) -> bool:
     )
 
 
+def _stub_function_annotations(declaration: ast.FunctionDef) -> tuple[ast.expr, ...]:
+    annotations: list[ast.expr] = []
+    arguments = [
+        *declaration.args.posonlyargs,
+        *declaration.args.args,
+        *declaration.args.kwonlyargs,
+    ]
+    if declaration.args.vararg is not None:
+        arguments.append(declaration.args.vararg)
+    if declaration.args.kwarg is not None:
+        arguments.append(declaration.args.kwarg)
+    for argument in arguments:
+        if argument.arg in {"self", "cls"}:
+            continue
+        assert argument.annotation is not None, f"{declaration.name}.{argument.arg}"
+        annotations.append(argument.annotation)
+    assert declaration.returns is not None, declaration.name
+    annotations.append(declaration.returns)
+    return tuple(annotations)
+
+
+def _stub_function_type_shape(
+    declaration: ast.FunctionDef,
+) -> tuple[tuple[tuple[str, str], ...], str]:
+    arguments = [
+        *declaration.args.posonlyargs,
+        *declaration.args.args,
+        *declaration.args.kwonlyargs,
+    ]
+    if declaration.args.vararg is not None:
+        arguments.append(declaration.args.vararg)
+    if declaration.args.kwarg is not None:
+        arguments.append(declaration.args.kwarg)
+    parameter_types = tuple(
+        (argument.arg, ast.unparse(argument.annotation))
+        for argument in arguments
+        if argument.annotation is not None
+    )
+    assert declaration.returns is not None
+    return (parameter_types, ast.unparse(declaration.returns))
+
+
+def _stub_is_returned_only_constructor(
+    declaration: ast.FunctionDef, class_name: str
+) -> bool:
+    arguments = declaration.args
+    if (
+        declaration.name != "__new__"
+        or arguments.posonlyargs
+        or [argument.arg for argument in arguments.args]
+        != ["cls", "_nonconstructible"]
+        or arguments.vararg is not None
+        or arguments.kwonlyargs
+        or arguments.kwarg is not None
+        or arguments.defaults
+    ):
+        return False
+    sentinel = arguments.args[1].annotation
+    return (
+        isinstance(sentinel, ast.Name)
+        and sentinel.id == "Never"
+        and isinstance(declaration.returns, ast.Name)
+        and declaration.returns.id == class_name
+    )
+
+
 def _stub_parameter_shape(
     declaration: ast.FunctionDef, *, constructor: bool
 ) -> tuple[tuple[str, str, bool], ...]:
@@ -412,7 +717,13 @@ def _stub_match_args_arity(annotation: ast.expr) -> int:
 
 def _annotation_mentions_any(annotation: ast.expr) -> bool:
     return any(
-        isinstance(node, ast.Name) and node.id == "Any"
+        (isinstance(node, ast.Name) and node.id == "Any")
+        or (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "typing"
+            and node.attr == "Any"
+        )
         for node in ast.walk(annotation)
     )
 
@@ -427,6 +738,7 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         for name, declaration in classes.items()
         if name.startswith("_morphology_")
     }
+    assert len(declarations) == 52
     declared_match_args = {
         name
         for name, declaration in declarations.items()
@@ -443,33 +755,64 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         if hasattr(getattr(native, name), "__match_args__")
     }
     assert runtime_match_args == declared_match_args == set(MORPHOLOGY_MATCH_ARGS)
+    returned_only_stubs = {
+        name
+        for name, declaration in declarations.items()
+        if any(
+            isinstance(statement, ast.FunctionDef)
+            and _stub_is_returned_only_constructor(statement, name)
+            for statement in declaration.body
+        )
+    }
+    assert returned_only_stubs == MORPHOLOGY_RETURNED_ONLY_CLASSES
     checked_default_callables: set[str] = set()
+    uninspectable_dunders: set[str] = set()
     for name, declaration in declarations.items():
         runtime_class = getattr(native, name)
         functions = _stub_class_functions(classes, declaration)
         attributes = _stub_class_attributes(classes, declaration)
-        public_stub_members = {
+        stub_properties = {
             function_name
-            for function_name in functions
+            for function_name, function in functions.items()
             if not function_name.startswith("_")
+            and _stub_function_is_property(function)
         }
-        public_stub_members.update(
+        stub_methods = {
+            function_name
+            for function_name, function in functions.items()
+            if not function_name.startswith("_")
+            and not _stub_function_is_property(function)
+        }
+        stub_attributes = {
             attribute_name
             for attribute_name in attributes
             if not attribute_name.startswith("_")
-        )
-        public_runtime_members = {
-            member_name
-            for member_name in dir(runtime_class)
-            if not member_name.startswith("_")
         }
-        assert public_runtime_members == public_stub_members, name
-        for property_name, function in functions.items():
-            if not _stub_function_is_property(function):
+        assert not (stub_properties & stub_methods)
+        assert not (stub_properties & stub_attributes)
+        assert not (stub_methods & stub_attributes)
+
+        runtime_properties: set[str] = set()
+        runtime_methods: set[str] = set()
+        runtime_attributes: set[str] = set()
+        for member_name in dir(runtime_class):
+            if member_name.startswith("_"):
                 continue
-            descriptor = inspect.getattr_static(runtime_class, property_name)
-            assert inspect.isdatadescriptor(descriptor), f"{name}.{property_name}"
-            assert not callable(descriptor), f"{name}.{property_name}"
+            descriptor = inspect.getattr_static(runtime_class, member_name)
+            if inspect.isdatadescriptor(descriptor):
+                runtime_properties.add(member_name)
+            elif callable(descriptor):
+                runtime_methods.add(member_name)
+            else:
+                runtime_attributes.add(member_name)
+        assert runtime_properties == stub_properties, name
+        assert runtime_methods == stub_methods, name
+        assert runtime_attributes == stub_attributes, name
+
+        for attribute_name in stub_attributes:
+            assert not _annotation_mentions_any(
+                attributes[attribute_name].annotation
+            ), f"{name}.{attribute_name}"
 
         if name in MORPHOLOGY_MATCH_ARGS:
             match_args_declaration = next(
@@ -485,28 +828,32 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
             assert runtime_class.__match_args__ == MORPHOLOGY_MATCH_ARGS[name], name
 
         for function_name, function in functions.items():
-            assert function.returns is not None, f"{name}.{function_name}"
-            assert not _annotation_mentions_any(
-                function.returns
+            assert all(
+                not _annotation_mentions_any(annotation)
+                for annotation in _stub_function_annotations(function)
             ), f"{name}.{function_name}"
-            if function_name.startswith("__") and function_name != "__new__":
-                continue
             if _stub_function_is_property(function):
                 continue
+            if _stub_is_returned_only_constructor(function, name):
+                continue
             if function_name == "__new__":
-                runtime_signature = inspect.signature(runtime_class)
                 constructor = True
+                callable_value = runtime_class
             else:
-                runtime_signature = inspect.signature(
-                    getattr(runtime_class, function_name)
-                )
                 constructor = False
+                callable_value = getattr(runtime_class, function_name)
+            callable_name = f"{name}.{function_name}"
+            try:
+                runtime_signature = inspect.signature(callable_value)
+            except (TypeError, ValueError):
+                assert callable_name in MORPHOLOGY_UNINSPECTABLE_DUNDERS
+                uninspectable_dunders.add(callable_name)
+                continue
             assert _runtime_parameter_shape(runtime_signature) == (
                 _stub_parameter_shape(function, constructor=constructor)
-            ), f"{name}.{function_name}"
+            ), callable_name
             runtime_defaults = _runtime_parameter_defaults(runtime_signature)
             if runtime_defaults:
-                callable_name = f"{name}.{function_name}"
                 assert runtime_defaults == MORPHOLOGY_CALLABLE_DEFAULTS[callable_name]
                 checked_default_callables.add(callable_name)
 
@@ -519,9 +866,16 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         if isinstance(declaration, ast.FunctionDef)
         and declaration.name.startswith("_morphology_")
     }
+    assert len(functions) == 58
+    assert set(functions) == set(MORPHOLOGY_FUNCTION_TYPES)
     for name, declaration in functions.items():
-        assert declaration.returns is not None, name
-        assert not _annotation_mentions_any(declaration.returns), name
+        assert _stub_function_type_shape(declaration) == MORPHOLOGY_FUNCTION_TYPES[
+            name
+        ], name
+        assert all(
+            not _annotation_mentions_any(annotation)
+            for annotation in _stub_function_annotations(declaration)
+        ), name
         runtime_signature = inspect.signature(getattr(native, name))
         assert _runtime_parameter_shape(runtime_signature) == _stub_parameter_shape(
             declaration, constructor=False
@@ -532,6 +886,38 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
             checked_default_callables.add(name)
 
     assert checked_default_callables == set(MORPHOLOGY_CALLABLE_DEFAULTS)
+    assert uninspectable_dunders == MORPHOLOGY_UNINSPECTABLE_DUNDERS
+
+
+def test_returned_only_morphology_classes_have_no_runtime_constructor() -> None:
+    for name in MORPHOLOGY_RETURNED_ONLY_CLASSES:
+        with pytest.raises(TypeError, match=r"^No constructor defined$"):
+            getattr(native, name)()
+
+
+def test_strict_typing_fixture_calls_every_native_morphology_function() -> None:
+    typecheck_path = PACKAGE_ROOT / "tests" / "typecheck.py"
+    tree = ast.parse(
+        typecheck_path.read_text(encoding="utf-8"), filename=str(typecheck_path)
+    )
+    witness = next(
+        declaration
+        for declaration in tree.body
+        if isinstance(declaration, ast.FunctionDef)
+        and declaration.name == "typed_every_morphology_free_function"
+    )
+    called_functions = {
+        call.func.attr
+        for call in ast.walk(witness)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Attribute)
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "morphology"
+    }
+    expected_functions = {
+        name.removeprefix("_morphology_") for name in MORPHOLOGY_FUNCTION_TYPES
+    } | {"segment", "segment_recovered", "segment_for_display"}
+    assert called_functions == expected_functions
 
 
 def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
