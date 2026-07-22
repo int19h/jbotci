@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_diagnostics::{
-    byte_offset_for_char_offset as rust_byte_offset_for_char_offset,
+    DiagnosticSpanError, byte_offset_for_char_offset as rust_byte_offset_for_char_offset,
     char_offset_for_byte_offset as rust_char_offset_for_byte_offset,
     line_column_for_byte_offset as rust_line_column_for_byte_offset,
     source_span_from_byte_offsets as rust_source_span_from_byte_offsets,
@@ -14,8 +14,9 @@ use jbotci_diagnostics::{
 use jbotci_source::{LineColumn, SourceId, SourceLocationError, SourceSpan};
 use pyo3::prelude::*;
 
-use crate::InvalidInputError;
-use crate::support::{register_private_object, register_type, string_repr};
+use crate::support::{
+    public_exception_with_value, register_private_object, register_type, string_repr,
+};
 
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_source_SourceId",
@@ -25,6 +26,10 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_source_ZeroColumn",
     "_source_ByteRangeInverted",
     "_source_CharRangeInverted",
+    "_source_CharOffsetOutOfBounds",
+    "_source_ByteOffsetOutOfBounds",
+    "_source_ByteOffsetNotCharBoundary",
+    "_source_SourceLocation",
     "_source_source_span_from_char_offsets",
     "_source_source_span_from_byte_offsets",
     "_source_byte_offset_for_char_offset",
@@ -69,6 +74,18 @@ impl PyZeroLine {
             value: SourceLocationError::ZeroLine,
         }
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == "jbotci.source.ZeroLine()")]
+    fn __repr__(&self) -> &'static str {
+        "jbotci.source.ZeroLine()"
+    }
 }
 
 /// Source-location failure indicating a one-based column number of zero.
@@ -106,6 +123,18 @@ impl PyZeroColumn {
         PyZeroColumn {
             value: SourceLocationError::ZeroColumn,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[requires(true)]
+    #[ensures(ret == "jbotci.source.ZeroColumn()")]
+    fn __repr__(&self) -> &'static str {
+        "jbotci.source.ZeroColumn()"
     }
 }
 
@@ -163,6 +192,22 @@ impl PyByteRangeInverted {
         };
         *end
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.source.ByteRangeInverted(start={}, end={})",
+            self.start(),
+            self.end()
+        )
+    }
 }
 
 /// Source-location failure carrying an inverted character range.
@@ -219,6 +264,22 @@ impl PyCharRangeInverted {
         };
         *end
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.source.CharRangeInverted(start={}, end={})",
+            self.start(),
+            self.end()
+        )
+    }
 }
 
 #[requires(true)]
@@ -271,6 +332,294 @@ pub(crate) fn source_location_error_from_python(
     Err(pyo3::exceptions::PyTypeError::new_err(
         "expected a jbotci.source SourceLocationError variant",
     ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_location_error_to_exception(py: Python<'_>, error: SourceLocationError) -> PyErr {
+    match source_location_error_to_python(py, error) {
+        Ok(value) => {
+            public_exception_with_value(py, "jbotci.source", "SourceLocationException", value)
+        }
+        Err(error) => error,
+    }
+}
+
+/// Diagnostic-span failure carrying an out-of-bounds character offset.
+#[invariant(true, "the Rust error preserves every supplied numeric payload")]
+#[pyclass(
+    name = "CharOffsetOutOfBounds",
+    frozen,
+    eq,
+    module = "jbotci.source",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCharOffsetOutOfBounds {
+    offset: usize,
+    source_len: usize,
+}
+
+#[pymethods]
+impl PyCharOffsetOutOfBounds {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("offset", "source_len");
+
+    /// Preserve an exact character-offset diagnostic payload.
+    #[requires(true)]
+    #[ensures(ret.offset == offset && ret.source_len == source_len)]
+    #[new]
+    fn new(offset: usize, source_len: usize) -> Self {
+        Self { offset, source_len }
+    }
+
+    /// Return the supplied character offset.
+    #[requires(true)]
+    #[ensures(ret == self.offset)]
+    #[getter]
+    fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Return the source length in Unicode scalar values.
+    #[requires(true)]
+    #[ensures(ret == self.source_len)]
+    #[getter]
+    fn source_len(&self) -> usize {
+        self.source_len
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        format!(
+            "character offset {} exceeds source character length {}",
+            self.offset, self.source_len
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.source.CharOffsetOutOfBounds(offset={}, source_len={})",
+            self.offset, self.source_len
+        )
+    }
+}
+
+/// Diagnostic-span failure carrying an out-of-bounds byte offset.
+#[invariant(true, "the Rust error preserves every supplied numeric payload")]
+#[pyclass(
+    name = "ByteOffsetOutOfBounds",
+    frozen,
+    eq,
+    module = "jbotci.source",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyByteOffsetOutOfBounds {
+    offset: usize,
+    source_len: usize,
+}
+
+#[pymethods]
+impl PyByteOffsetOutOfBounds {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("offset", "source_len");
+
+    /// Preserve an exact byte-offset diagnostic payload.
+    #[requires(true)]
+    #[ensures(ret.offset == offset && ret.source_len == source_len)]
+    #[new]
+    fn new(offset: usize, source_len: usize) -> Self {
+        Self { offset, source_len }
+    }
+
+    /// Return the supplied byte offset.
+    #[requires(true)]
+    #[ensures(ret == self.offset)]
+    #[getter]
+    fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Return the source length in UTF-8 bytes.
+    #[requires(true)]
+    #[ensures(ret == self.source_len)]
+    #[getter]
+    fn source_len(&self) -> usize {
+        self.source_len
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        format!(
+            "byte offset {} exceeds source byte length {}",
+            self.offset, self.source_len
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.source.ByteOffsetOutOfBounds(offset={}, source_len={})",
+            self.offset, self.source_len
+        )
+    }
+}
+
+/// Diagnostic-span failure carrying a byte offset inside a UTF-8 scalar.
+#[invariant(true, "the Rust error preserves every supplied numeric payload")]
+#[pyclass(
+    name = "ByteOffsetNotCharBoundary",
+    frozen,
+    eq,
+    module = "jbotci.source",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyByteOffsetNotCharBoundary {
+    offset: usize,
+}
+
+#[pymethods]
+impl PyByteOffsetNotCharBoundary {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("offset",);
+
+    /// Preserve an exact non-boundary byte offset.
+    #[requires(true)]
+    #[ensures(ret.offset == offset)]
+    #[new]
+    fn new(offset: usize) -> Self {
+        Self { offset }
+    }
+
+    /// Return the supplied byte offset.
+    #[requires(true)]
+    #[ensures(ret == self.offset)]
+    #[getter]
+    fn offset(&self) -> usize {
+        self.offset
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        format!(
+            "byte offset {} is not a UTF-8 character boundary",
+            self.offset
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.source.ByteOffsetNotCharBoundary(offset={})",
+            self.offset
+        )
+    }
+}
+
+/// Diagnostic-span failure wrapping a structured source-location error.
+#[invariant(
+    matches!(value, DiagnosticSpanError::SourceLocation(_)),
+    "the wrapper always stores the source-location variant"
+)]
+#[pyclass(
+    name = "SourceLocation",
+    frozen,
+    eq,
+    module = "jbotci.source",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyDiagnosticSourceLocation {
+    value: DiagnosticSpanError,
+}
+
+impl PyDiagnosticSourceLocation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_error(&self) -> &SourceLocationError {
+        let DiagnosticSpanError::SourceLocation(error) = &self.value else {
+            unreachable!("private construction fixes the diagnostic-span variant")
+        };
+        error
+    }
+}
+
+#[pymethods]
+impl PyDiagnosticSourceLocation {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("error",);
+
+    /// Wrap one exact source-location error as a diagnostic-span detail.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(error: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(new!(PyDiagnosticSourceLocation {
+            value: DiagnosticSpanError::SourceLocation(source_location_error_from_python(error)?),
+        }))
+    }
+
+    /// Return the nested source-location error.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn error(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        source_location_error_to_python(py, self.source_error().clone())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let error = source_location_error_to_python(py, self.source_error().clone())?;
+        Ok(format!(
+            "jbotci.source.SourceLocation(error={})",
+            error.bind(py).repr()?.to_str()?
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_span_error_to_exception(py: Python<'_>, error: DiagnosticSpanError) -> PyErr {
+    let value = match error {
+        DiagnosticSpanError::CharOffsetOutOfBounds { offset, source_len } => {
+            Py::new(py, PyCharOffsetOutOfBounds { offset, source_len }).map(Py::into_any)
+        }
+        DiagnosticSpanError::ByteOffsetOutOfBounds { offset, source_len } => {
+            Py::new(py, PyByteOffsetOutOfBounds { offset, source_len }).map(Py::into_any)
+        }
+        DiagnosticSpanError::ByteOffsetNotCharBoundary { offset } => {
+            Py::new(py, PyByteOffsetNotCharBoundary { offset }).map(Py::into_any)
+        }
+        error @ DiagnosticSpanError::SourceLocation(_) => {
+            Py::new(py, new!(PyDiagnosticSourceLocation { value: error })).map(Py::into_any)
+        }
+    };
+    match value {
+        Ok(value) => {
+            public_exception_with_value(py, "jbotci.source", "DiagnosticSpanException", value)
+        }
+        Err(error) => error,
+    }
 }
 
 /// Stable identifier for the source text associated with a span.
@@ -377,10 +726,10 @@ impl PyLineColumn {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|value| value.value.line == line && value.value.column == column) || ret.is_err())]
     #[new]
-    fn new(line: usize, column: usize) -> PyResult<Self> {
+    fn new(py: Python<'_>, line: usize, column: usize) -> PyResult<Self> {
         LineColumn::new(line, column)
             .map(Self::from_rust)
-            .map_err(invalid_input)
+            .map_err(|error| source_location_error_to_exception(py, error))
     }
 
     /// Return the one-based line number.
@@ -471,6 +820,7 @@ impl PySourceSpan {
     #[new]
     #[pyo3(signature = (byte_start, byte_end, char_start, char_end, *, source_id=None, start=None, end=None))]
     fn new(
+        py: Python<'_>,
         byte_start: usize,
         byte_end: usize,
         char_start: usize,
@@ -485,7 +835,7 @@ impl PySourceSpan {
         SourceSpan::new(source_id, byte_start, byte_end, char_start, char_end)
             .map(|span| span.with_line_columns(start, end))
             .map(Self::from_rust)
-            .map_err(invalid_input)
+            .map_err(|error| source_location_error_to_exception(py, error))
     }
 
     /// Return the optional source identifier.
@@ -636,17 +986,20 @@ fn optional_source_id(value: Option<PyRef<'_, PySourceId>>) -> Option<SourceId> 
 
 #[requires(true)]
 #[ensures(ret.is_ok() -> byte_offset <= source.len() && source.is_char_boundary(byte_offset))]
-fn validate_python_byte_offset(source: &str, byte_offset: usize) -> PyResult<()> {
+fn validate_python_byte_offset(
+    source: &str,
+    byte_offset: usize,
+) -> Result<(), DiagnosticSpanError> {
     if byte_offset > source.len() {
-        return Err(InvalidInputError::new_err(format!(
-            "byte offset {byte_offset} exceeds source byte length {}",
-            source.len()
-        )));
+        return Err(DiagnosticSpanError::ByteOffsetOutOfBounds {
+            offset: byte_offset,
+            source_len: source.len(),
+        });
     }
     if !source.is_char_boundary(byte_offset) {
-        return Err(InvalidInputError::new_err(format!(
-            "byte offset {byte_offset} is not a UTF-8 character boundary"
-        )));
+        return Err(DiagnosticSpanError::ByteOffsetNotCharBoundary {
+            offset: byte_offset,
+        });
     }
     Ok(())
 }
@@ -657,6 +1010,7 @@ fn validate_python_byte_offset(source: &str, byte_offset: usize) -> PyResult<()>
 #[pyfunction]
 #[pyo3(signature = (source, char_start, char_end, *, source_id=None))]
 fn source_span_from_char_offsets(
+    py: Python<'_>,
     source: &str,
     char_start: usize,
     char_end: usize,
@@ -664,7 +1018,7 @@ fn source_span_from_char_offsets(
 ) -> PyResult<PySourceSpan> {
     rust_source_span_from_char_offsets(optional_source_id(source_id), source, char_start, char_end)
         .map(PySourceSpan::from_rust)
-        .map_err(invalid_input)
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))
 }
 
 /// Build a source span from UTF-8 byte offsets into `source`.
@@ -673,6 +1027,7 @@ fn source_span_from_char_offsets(
 #[pyfunction]
 #[pyo3(signature = (source, byte_start, byte_end, *, source_id=None))]
 fn source_span_from_byte_offsets(
+    py: Python<'_>,
     source: &str,
     byte_start: usize,
     byte_end: usize,
@@ -680,48 +1035,62 @@ fn source_span_from_byte_offsets(
 ) -> PyResult<PySourceSpan> {
     rust_source_span_from_byte_offsets(optional_source_id(source_id), source, byte_start, byte_end)
         .map(PySourceSpan::from_rust)
-        .map_err(invalid_input)
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))
 }
 
 /// Convert a Unicode-scalar offset into a UTF-8 byte offset.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|offset| *offset <= source.len()) || ret.is_err())]
 #[pyfunction]
-fn byte_offset_for_char_offset(source: &str, char_offset: usize) -> PyResult<usize> {
-    rust_byte_offset_for_char_offset(source, char_offset).map_err(invalid_input)
+fn byte_offset_for_char_offset(
+    py: Python<'_>,
+    source: &str,
+    char_offset: usize,
+) -> PyResult<usize> {
+    rust_byte_offset_for_char_offset(source, char_offset)
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))
 }
 
 /// Convert a UTF-8 byte boundary into a Unicode-scalar offset.
 #[requires(true)]
 #[ensures(true)]
 #[pyfunction]
-fn char_offset_for_byte_offset(source: &str, byte_offset: usize) -> PyResult<usize> {
-    validate_python_byte_offset(source, byte_offset)?;
-    rust_char_offset_for_byte_offset(source, byte_offset).map_err(invalid_input)
+fn char_offset_for_byte_offset(
+    py: Python<'_>,
+    source: &str,
+    byte_offset: usize,
+) -> PyResult<usize> {
+    validate_python_byte_offset(source, byte_offset)
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))?;
+    rust_char_offset_for_byte_offset(source, byte_offset)
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))
 }
 
 /// Compute the one-based line and column at a UTF-8 byte boundary.
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| value.value.line > 0 && value.value.column > 0) || ret.is_err())]
 #[pyfunction]
-fn line_column_for_byte_offset(source: &str, byte_offset: usize) -> PyResult<PyLineColumn> {
+fn line_column_for_byte_offset(
+    py: Python<'_>,
+    source: &str,
+    byte_offset: usize,
+) -> PyResult<PyLineColumn> {
     rust_line_column_for_byte_offset(source, byte_offset)
         .map(PyLineColumn::from_rust)
-        .map_err(invalid_input)
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))
 }
 
 /// Extract the exact source substring covered by a validated span.
 #[requires(true)]
 #[ensures(true)]
 #[pyfunction]
-fn source_text_for_span(source: &str, span: PyRef<'_, PySourceSpan>) -> PyResult<String> {
-    rust_source_text_for_span(source, span.rust()).map_err(invalid_input)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn invalid_input(error: impl std::fmt::Display) -> PyErr {
-    InvalidInputError::new_err(error.to_string())
+fn source_text_for_span(
+    py: Python<'_>,
+    source: &str,
+    span: PyRef<'_, PySourceSpan>,
+) -> PyResult<String> {
+    rust_source_text_for_span(source, span.rust())
+        .map_err(|error| diagnostic_span_error_to_exception(py, error))
 }
 
 #[requires(true)]
@@ -734,6 +1103,10 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyZeroColumn>(module, "_source_ZeroColumn")?;
     register_type::<PyByteRangeInverted>(module, "_source_ByteRangeInverted")?;
     register_type::<PyCharRangeInverted>(module, "_source_CharRangeInverted")?;
+    register_type::<PyCharOffsetOutOfBounds>(module, "_source_CharOffsetOutOfBounds")?;
+    register_type::<PyByteOffsetOutOfBounds>(module, "_source_ByteOffsetOutOfBounds")?;
+    register_type::<PyByteOffsetNotCharBoundary>(module, "_source_ByteOffsetNotCharBoundary")?;
+    register_type::<PyDiagnosticSourceLocation>(module, "_source_SourceLocation")?;
     register_private_object(
         module,
         "_source_source_span_from_char_offsets",

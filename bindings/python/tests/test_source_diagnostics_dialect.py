@@ -35,14 +35,27 @@ def test_source_span_does_not_invent_endpoint_pairing_constraint() -> None:
 
 
 def test_source_constructors_validate_real_rust_invariants() -> None:
-    with pytest.raises(InvalidInputError):
+    with pytest.raises(source.SourceLocationException) as zero_line:
         source.LineColumn(0, 1)
-    with pytest.raises(InvalidInputError):
+    assert zero_line.value.value == source.ZeroLine()
+    assert zero_line.value.args == (str(zero_line.value.value),)
+    with pytest.raises(source.SourceLocationException) as zero_column:
+        source.LineColumn(1, 0)
+    assert zero_column.value.value == source.ZeroColumn()
+
+    with pytest.raises(source.SourceLocationException) as byte_range:
         source.SourceSpan(2, 1, 0, 0)
-    with pytest.raises(InvalidInputError):
+    assert byte_range.value.value == source.ByteRangeInverted(2, 1)
+    with pytest.raises(source.SourceLocationException) as char_range:
+        source.SourceSpan(0, 0, 2, 1)
+    assert char_range.value.value == source.CharRangeInverted(2, 1)
+
+    with pytest.raises(source.DiagnosticSpanException) as byte_boundary:
         source.source_span_from_byte_offsets("é", 1, 2)
-    with pytest.raises(InvalidInputError):
+    assert byte_boundary.value.value == source.ByteOffsetNotCharBoundary(1)
+    with pytest.raises(source.DiagnosticSpanException) as char_boundary:
         source.char_offset_for_byte_offset("é", 1)
+    assert char_boundary.value.value == source.ByteOffsetNotCharBoundary(1)
 
     error: source.SourceLocationError = source.ByteRangeInverted(2, 1)
     # The Rust error enum deliberately preserves arbitrary directly supplied
@@ -54,6 +67,104 @@ def test_source_constructors_validate_real_rust_invariants() -> None:
             assert (start, end) == (2, 1)
         case _:
             pytest.fail("byte-range error did not retain its exact payload")
+
+
+def test_every_diagnostic_span_variant_and_helper_retains_rust_payload() -> None:
+    char_failures = (
+        lambda: source.source_span_from_char_offsets("é", 2, 2),
+        lambda: source.byte_offset_for_char_offset("é", 2),
+    )
+    for operation in char_failures:
+        with pytest.raises(source.DiagnosticSpanException) as caught:
+            operation()
+        assert caught.value.value == source.CharOffsetOutOfBounds(2, 1)
+        assert caught.value.args == (str(caught.value.value),)
+        match caught.value:
+            case source.DiagnosticSpanException(
+                source.CharOffsetOutOfBounds(offset, source_len)
+            ):
+                assert (offset, source_len) == (2, 1)
+            case _:
+                pytest.fail("character-offset payload was not preserved")
+
+    byte_failures = (
+        lambda: source.source_span_from_byte_offsets("é", 3, 3),
+        lambda: source.char_offset_for_byte_offset("é", 3),
+        lambda: source.line_column_for_byte_offset("é", 3),
+        lambda: source.source_text_for_span("é", source.SourceSpan(0, 3, 0, 1)),
+    )
+    for operation in byte_failures:
+        with pytest.raises(source.DiagnosticSpanException) as caught:
+            operation()
+        assert caught.value.value == source.ByteOffsetOutOfBounds(3, 2)
+        assert caught.value.args == (str(caught.value.value),)
+
+    boundary_failures = (
+        lambda: source.source_span_from_byte_offsets("é", 1, 2),
+        lambda: source.char_offset_for_byte_offset("é", 1),
+        lambda: source.line_column_for_byte_offset("é", 1),
+        lambda: source.source_text_for_span("é", source.SourceSpan(1, 2, 0, 1)),
+    )
+    for operation in boundary_failures:
+        with pytest.raises(source.DiagnosticSpanException) as caught:
+            operation()
+        assert caught.value.value == source.ByteOffsetNotCharBoundary(1)
+        assert caught.value.args == (str(caught.value.value),)
+
+    with pytest.raises(source.DiagnosticSpanException) as char_range:
+        source.source_span_from_char_offsets("ab", 2, 1)
+    assert char_range.value.value == source.SourceLocation(
+        source.CharRangeInverted(2, 1)
+    )
+    assert char_range.value.value.error == source.CharRangeInverted(2, 1)
+    assert str(char_range.value.value) == (
+        "invalid source span: character range end 1 precedes start 2"
+    )
+    assert repr(char_range.value.value) == (
+        "jbotci.source.SourceLocation("
+        "error=jbotci.source.CharRangeInverted(start=2, end=1))"
+    )
+
+    with pytest.raises(source.DiagnosticSpanException) as byte_range:
+        source.source_span_from_byte_offsets("ab", 2, 1)
+    assert byte_range.value.value == source.SourceLocation(
+        source.ByteRangeInverted(2, 1)
+    )
+
+
+def test_source_error_values_and_exceptions_are_immutable_and_final() -> None:
+    details: tuple[source.DiagnosticSpanError, ...] = (
+        source.CharOffsetOutOfBounds(3, 2),
+        source.ByteOffsetOutOfBounds(3, 2),
+        source.ByteOffsetNotCharBoundary(1),
+        source.SourceLocation(source.ZeroLine()),
+    )
+    assert repr(details[0]) == (
+        "jbotci.source.CharOffsetOutOfBounds(offset=3, source_len=2)"
+    )
+    assert repr(details[1]) == (
+        "jbotci.source.ByteOffsetOutOfBounds(offset=3, source_len=2)"
+    )
+    assert repr(details[2]) == (
+        "jbotci.source.ByteOffsetNotCharBoundary(offset=1)"
+    )
+    for detail in details:
+        with pytest.raises(AttributeError):
+            detail.offset = 0  # type: ignore[union-attr]
+        with pytest.raises(TypeError):
+            type("DerivedDiagnosticSpanValue", (type(detail),), {})
+
+    source_error = source.SourceLocationException(source.ZeroLine())
+    diagnostic_error = source.DiagnosticSpanException(details[0])
+    for error in (source_error, diagnostic_error):
+        with pytest.raises(AttributeError):
+            error.args = ("changed",)
+        with pytest.raises(AttributeError):
+            error.value = source.ZeroColumn()  # type: ignore[assignment]
+    with pytest.raises(TypeError):
+        type("DerivedSourceLocationException", (source.SourceLocationException,), {})
+    with pytest.raises(TypeError):
+        type("DerivedDiagnosticSpanException", (source.DiagnosticSpanException,), {})
 
 
 def test_diagnostic_and_trace_products_are_immutable_typed_values() -> None:

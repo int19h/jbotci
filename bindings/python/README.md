@@ -59,6 +59,11 @@ install, rather than the source tree, resolves `jbotci`.
   `InvalidTraceLevel` payload. Integers outside that domain raise
   `InvalidInputError` (or Python `OverflowError` before binding conversion when
   they do not fit the signed native argument at all).
+  Source constructors retain `SourceLocationError` variants in
+  `SourceLocationException`; source-text offset helpers retain every
+  `DiagnosticSpanError` variant in `DiagnosticSpanException`, including nested
+  source-location payloads. Binding-side precondition guards construct those
+  same Rust error variants before calling contracted core helpers.
 - Fieldless Rust enums that represent finite choices become genuine
   `enum.Enum` classes, preferably with stable canonical string values. Payload
   enums and grammar ADTs instead become a closed set of frozen,

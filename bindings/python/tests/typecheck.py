@@ -52,6 +52,23 @@ def typed_source_and_diagnostics(text: str) -> diagnostics.Diagnostic:
         source.ByteRangeInverted(2, 1),
         source.CharRangeInverted(2, 1),
     )
+    location_exception = source.SourceLocationException(location_errors[0])
+    assert_type(location_exception.value, source.SourceLocationError)
+    span_errors: tuple[source.DiagnosticSpanError, ...] = (
+        source.CharOffsetOutOfBounds(2, 1),
+        source.ByteOffsetOutOfBounds(3, 2),
+        source.ByteOffsetNotCharBoundary(1),
+        source.SourceLocation(source.ZeroLine()),
+    )
+    assert_type(span_errors[0], source.DiagnosticSpanError)
+    span_exception = source.DiagnosticSpanException(span_errors[0])
+    assert_type(span_exception.value, source.DiagnosticSpanError)
+    assert_type(source.CharOffsetOutOfBounds(2, 1).offset, int)
+    assert_type(source.CharOffsetOutOfBounds(2, 1).source_len, int)
+    assert_type(source.ByteOffsetOutOfBounds(3, 2).offset, int)
+    assert_type(source.ByteOffsetOutOfBounds(3, 2).source_len, int)
+    assert_type(source.ByteOffsetNotCharBoundary(1).offset, int)
+    assert_type(source.SourceLocation(source.ZeroLine()).error, source.SourceLocationError)
     assert_type(diagnostics.DEFAULT_TRACE_LIMIT, int)
     trace_detail = diagnostics.InvalidTraceLevel(5)
     assert_type(trace_detail.value, int)

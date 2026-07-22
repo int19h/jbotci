@@ -9,17 +9,17 @@ use jbotci_diagnostics::source_span_from_char_offsets;
 use jbotci_morphology::{
     Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord,
     ConsonantPairClass, DialectCompilationError, ExpectedWordDetailKind, GlideMark,
-    LeadingPauseContext,
-    LeadingPauseVowelMode, LujvoBuildMode, LujvoBuildPart, LujvoCandidate, LujvoParseExpectation,
-    LujvoPart, MorphologyContext, MorphologyContextKind, MorphologyError as RustMorphologyError,
-    MorphologyErrorDetail, MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt,
-    MorphologyWarning, MorphologyWarningKind, PhonemeRenderOptions, Phonemes,
-    PhonotacticDetailKind, PlainWordClassification, RafsiShape, RecoveredMorphologySegmentAttempt,
-    RecoveredMorphologySegmentation, Selmaho, StressMark, StringEnumMetadata, ValsiAnalysis,
-    ValsiAnalysisResult, ValsiAnalysisStatus, ValsiClassification, ValsiClassificationKind,
-    ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word,
-    WordKey, WordKind, WordLike, ZoiDelimiterDetailKind, MORPHOLOGY_TRACE_FILTERS,
-    PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
+    LeadingPauseContext, LeadingPauseVowelMode, LujvoBuildMode, LujvoBuildPart, LujvoCandidate,
+    LujvoParseExpectation, LujvoPart, MORPHOLOGY_TRACE_FILTERS, MorphologyContext,
+    MorphologyContextKind, MorphologyError as RustMorphologyError, MorphologyErrorDetail,
+    MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning,
+    MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS, PhonemeRenderOptions,
+    Phonemes, PhonotacticDetailKind, PlainWordClassification, RafsiShape,
+    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, StressMark,
+    StringEnumMetadata, ValsiAnalysis, ValsiAnalysisResult, ValsiAnalysisStatus,
+    ValsiClassification, ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart,
+    ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word, WordKey, WordKind, WordLike,
+    ZoiDelimiterDetailKind,
 };
 use jbotci_syntax::{Token, WithIndicators};
 use pyo3::prelude::*;
@@ -616,10 +616,7 @@ impl PyInvalidDialectWord {
     #[requires(true)]
     #[ensures(true)]
     fn __str__(&self) -> String {
-        format!(
-            "dialect word is not morphologically valid: {}",
-            self.word
-        )
+        format!("dialect word is not morphologically valid: {}", self.word)
     }
 
     #[requires(true)]
@@ -634,15 +631,9 @@ impl PyInvalidDialectWord {
 
 #[requires(true)]
 #[ensures(true)]
-fn dialect_compilation_error_to_python(
-    py: Python<'_>,
-    error: DialectCompilationError,
-) -> PyErr {
+fn dialect_compilation_error_to_python(py: Python<'_>, error: DialectCompilationError) -> PyErr {
     let data!(DialectCompilationError::InvalidWord { word }) = error.as_data();
-    match Py::new(
-        py,
-        new!(PyInvalidDialectWord { word: word.clone() }),
-    ) {
+    match Py::new(py, new!(PyInvalidDialectWord { word: word.clone() })) {
         Ok(value) => public_exception_with_value(
             py,
             PUBLIC_MODULE,
@@ -742,10 +733,7 @@ impl PyCompiledDialectDefinition {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     #[pyo3(signature = (definition=None))]
-    fn new(
-        py: Python<'_>,
-        definition: Option<PyRef<'_, PyDialectDefinition>>,
-    ) -> PyResult<Self> {
+    fn new(py: Python<'_>, definition: Option<PyRef<'_, PyDialectDefinition>>) -> PyResult<Self> {
         let value = match definition {
             Some(definition) => CompiledDialectDefinition::compile(definition.rust())
                 .map_err(|error| dialect_compilation_error_to_python(py, error))?,

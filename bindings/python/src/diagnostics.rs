@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{contract_trait, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticNoteMode,
     DiagnosticPhase, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
@@ -104,33 +104,24 @@ impl PyInvalidTraceLevel {
     #[requires(true)]
     #[ensures(true)]
     fn __str__(&self) -> String {
-        format!(
-            "invalid trace level {}; expected 1, 2, 3, or 4",
-            self.value
-        )
+        format!("invalid trace level {}; expected 1, 2, 3, or 4", self.value)
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn __repr__(&self) -> String {
-        format!(
-            "jbotci.diagnostics.InvalidTraceLevel(value={})",
-            self.value
-        )
+        format!("jbotci.diagnostics.InvalidTraceLevel(value={})", self.value)
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn trace_option_error_to_python(py: Python<'_>, error: TraceOptionError) -> PyErr {
-    let data!(TraceOptionError::InvalidLevel { value }) = error.as_data();
-    match Py::new(py, new!(PyInvalidTraceLevel { value: *value })) {
-        Ok(value) => public_exception_with_value(
-            py,
-            PUBLIC_MODULE,
-            "TraceOptionError",
-            value.into_any(),
-        ),
+    let TraceOptionError::InvalidLevel { value } = error;
+    match Py::new(py, new!(PyInvalidTraceLevel { value })) {
+        Ok(value) => {
+            public_exception_with_value(py, PUBLIC_MODULE, "TraceOptionError", value.into_any())
+        }
         Err(error) => error,
     }
 }
@@ -2144,11 +2135,10 @@ fn trace_level_number(py: Python<'_>, level: &Bound<'_, PyAny>) -> PyResult<u8> 
 #[ensures(ret.is_ok() || ret.is_err())]
 #[pyfunction]
 fn trace_level_from_number(py: Python<'_>, value: i64) -> PyResult<Py<PyAny>> {
-    let value = u8::try_from(value).map_err(|_| {
-        InvalidInputError::new_err("trace level number must be between 0 and 255")
-    })?;
-    let level = TraceLevel::from_number(value)
-        .map_err(|error| trace_option_error_to_python(py, error))?;
+    let value = u8::try_from(value)
+        .map_err(|_| InvalidInputError::new_err("trace level number must be between 0 and 255"))?;
+    let level =
+        TraceLevel::from_number(value).map_err(|error| trace_option_error_to_python(py, error))?;
     enum_to_python(py, level)
 }
 

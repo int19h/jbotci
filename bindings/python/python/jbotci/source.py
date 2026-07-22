@@ -1,13 +1,18 @@
 """Source identifiers, half-open spans, and Unicode-aware offset helpers."""
 
-from typing import TypeAlias
+from typing import TypeAlias, final
 
+from ._errors import _StructuredError
 from ._native import (
+    _source_ByteOffsetNotCharBoundary as ByteOffsetNotCharBoundary,
+    _source_ByteOffsetOutOfBounds as ByteOffsetOutOfBounds,
     _source_LineColumn as LineColumn,
     _source_ByteRangeInverted as ByteRangeInverted,
     _source_CharRangeInverted as CharRangeInverted,
+    _source_CharOffsetOutOfBounds as CharOffsetOutOfBounds,
     _source_SourceId as SourceId,
     _source_SourceSpan as SourceSpan,
+    _source_SourceLocation as SourceLocation,
     _source_ZeroColumn as ZeroColumn,
     _source_ZeroLine as ZeroLine,
     _source_byte_offset_for_char_offset,
@@ -21,6 +26,52 @@ from ._native import (
 SourceLocationError: TypeAlias = (
     ZeroLine | ZeroColumn | ByteRangeInverted | CharRangeInverted
 )
+DiagnosticSpanError: TypeAlias = (
+    CharOffsetOutOfBounds
+    | ByteOffsetOutOfBounds
+    | ByteOffsetNotCharBoundary
+    | SourceLocation
+)
+
+
+@final
+class SourceLocationException(_StructuredError[SourceLocationError]):
+    """Invalid source location retaining its exact Rust error value."""
+
+    __slots__ = ()
+
+    def __init__(self, value: SourceLocationError) -> None:
+        if not isinstance(
+            value, (ZeroLine, ZeroColumn, ByteRangeInverted, CharRangeInverted)
+        ):
+            raise TypeError("value must be a SourceLocationError variant")
+        super().__init__(value)
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("SourceLocationException is final")
+
+
+@final
+class DiagnosticSpanException(_StructuredError[DiagnosticSpanError]):
+    """Invalid diagnostic span retaining its exact Rust error value."""
+
+    __slots__ = ()
+
+    def __init__(self, value: DiagnosticSpanError) -> None:
+        if not isinstance(
+            value,
+            (
+                CharOffsetOutOfBounds,
+                ByteOffsetOutOfBounds,
+                ByteOffsetNotCharBoundary,
+                SourceLocation,
+            ),
+        ):
+            raise TypeError("value must be a DiagnosticSpanError variant")
+        super().__init__(value)
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("DiagnosticSpanException is final")
 
 
 def source_span_from_char_offsets(
@@ -83,6 +134,13 @@ __all__: tuple[str, ...] = (
     "ByteRangeInverted",
     "CharRangeInverted",
     "SourceLocationError",
+    "SourceLocationException",
+    "CharOffsetOutOfBounds",
+    "ByteOffsetOutOfBounds",
+    "ByteOffsetNotCharBoundary",
+    "SourceLocation",
+    "DiagnosticSpanError",
+    "DiagnosticSpanException",
     "source_span_from_char_offsets",
     "source_span_from_byte_offsets",
     "byte_offset_for_char_offset",
