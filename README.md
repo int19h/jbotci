@@ -29,6 +29,11 @@ cargo xtask render-docker-build
 cargo xtask render-docker-run --engine podman
 ```
 
+The experimental Python package has its own environment and verification
+workflow. See [`bindings/python/README.md`](bindings/python/README.md) before
+working on the PyO3 bindings; ordinary workspace commands intentionally omit
+that non-default member.
+
 Use the web release wrappers instead of raw `dx` release commands while Dioxus
 0.7.x needs `--debug-symbols=false` to avoid the wasm-opt DWARF abort.
 

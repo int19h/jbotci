@@ -1,0 +1,27 @@
+[package]
+name = "jbotci-python"
+description = "Private PyO3 extension module for the pre-alpha jbotci Python package."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[features]
+expensive_contracts = []
+
+[dependencies]
+bityzba = { path = "../../crates/bityzba" }
+pyo3 = { version = "0.29.0", features = ["abi3-py311"] }
+
+[build-dependencies]
+bityzba = { path = "../../crates/bityzba", features = ["contract_scanner"] }
+
+[lints]
+workspace = true
