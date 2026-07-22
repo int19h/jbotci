@@ -22,7 +22,7 @@ use jbotci_source::SourceSpan;
 use jbotci_tree::{RecoveryItemState, TreeVisitor};
 use vec1::Vec1;
 
-use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData};
+use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, TokenIdentity};
 use crate::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
     SyntaxError, SyntaxExpectation, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParse,
@@ -509,12 +509,16 @@ pub(super) struct SyntaxMemoReplayEffects<'tokens> {
     side_effects: SyntaxMemoSideEffects<'tokens>,
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
+#[derive(Debug, Clone)]
 pub(super) struct ParserState<'tokens> {
-    anchor_byte_starts: Vec<Option<usize>>,
+    anchor_token_identities: Vec<TokenIdentity>,
     syntax_location_byte_offsets: Vec<usize>,
-    cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
+    // A source range is attribution, not token identity: dialect expansion
+    // siblings deliberately share a range. Token clones share one stable Arc
+    // allocation, while distinct expansion siblings do not, making this the
+    // exact identity needed by the parser-local classification cache.
+    cmavo_cache: HashMap<TokenIdentity, Option<Cmavo>>,
     syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess<'tokens>>,
     syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxParseError<'tokens>>,
     syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
@@ -550,7 +554,7 @@ pub(super) struct ParserState<'tokens> {
 
 #[invariant(
     self.syntax_location_byte_offsets.is_empty()
-        || self.syntax_location_byte_offsets.len() == self.anchor_byte_starts.len() + 1,
+        || self.syntax_location_byte_offsets.len() == self.anchor_token_identities.len() + 1,
     "syntax location offsets include one EOF offset after token anchors"
 )]
 #[invariant(self.effective_fail_token_indices.len() == self.consumed_recovery_directives)]
@@ -561,11 +565,11 @@ pub(super) struct ParserState<'tokens> {
 )]
 impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
-    #[ensures(ret.anchor_byte_starts.len() == words.len())]
+    #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
         Self {
-            anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
+            anchor_token_identities: words.iter().map(Token::identity).collect(),
             syntax_location_byte_offsets: syntax_location_byte_offsets(words),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
@@ -615,7 +619,7 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret.anchor_byte_starts.len() == words.len())]
+    #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     pub(super) fn new_with_recovery_branches(words: &[Token], options: &ParseOptions) -> Self {
         let mut state = Self::new(words, options);
@@ -624,7 +628,7 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(continuation_sentinel_index.is_none_or(|index| index < words.len()))]
-    #[ensures(ret.anchor_byte_starts.len() == words.len())]
+    #[ensures(ret.anchor_token_identities.len() == words.len())]
     #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     #[ensures(ret.continuation_sentinel_index == continuation_sentinel_index)]
     pub(super) fn new_with_recovery(
@@ -657,17 +661,13 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret == token.cmavo())]
     pub(super) fn token_cmavo(&mut self, token: &Token) -> Option<Cmavo> {
-        let range = token
-            .core_word()
-            .byte_range()
-            .expect("syntax tokens have source byte ranges");
-        let key = (range.start, range.end);
+        let key = token.identity();
         if let Some(cmavo) = self.cmavo_cache.get(&key) {
             *cmavo
         } else {
-            let cmavo = token.core_word().cmavo();
+            let cmavo = token.cmavo();
             self.cmavo_cache.insert(key, cmavo);
             cmavo
         }
@@ -2030,13 +2030,13 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
-    #[ensures(ret < self.anchor_byte_starts.len() || self.anchor_byte_starts.is_empty())]
+    #[ensures(ret < self.anchor_token_identities.len() || self.anchor_token_identities.is_empty())]
     fn anchor_index(&self, anchor: &Token) -> usize {
-        if let Some(anchor_start) = word_anchor_byte_start(anchor)
-            && let Some(index) = self
-                .anchor_byte_starts
-                .iter()
-                .position(|candidate| *candidate == Some(anchor_start))
+        let identity = anchor.identity();
+        if let Some(index) = self
+            .anchor_token_identities
+            .iter()
+            .position(|candidate| candidate == &identity)
         {
             return index;
         }
@@ -2201,16 +2201,6 @@ impl<'tokens> Inspector<'tokens> for ParserState<'tokens> {
 #[ensures(!ret.is_empty())]
 fn trace_word_label(token: &Token) -> String {
     token.core_word().to_string()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn word_anchor_byte_start(word: &Token) -> Option<usize> {
-    word.core_word()
-        .source_spans()
-        .into_iter()
-        .map(|span| span.byte_start)
-        .min()
 }
 
 #[requires(true)]
@@ -3744,10 +3734,9 @@ fn push_generated_construct_warning(
 #[requires(true)]
 #[ensures(ret <= tokens.len())]
 fn generated_warning_anchor_index(tokens: &[Token], anchor: &Token) -> usize {
-    let anchor_range = anchor.core_word().byte_range();
     tokens
         .iter()
-        .position(|token| token.core_word().byte_range() == anchor_range)
+        .position(|token| Token::ptr_eq(token, anchor))
         .unwrap_or(tokens.len())
 }
 
@@ -3925,7 +3914,10 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{data, ensures, new, requires};
     use jbotci_dialect::parse_dialect_definition;
-    use jbotci_morphology::{WordLikeData, segment_words_with_modifiers};
+    use jbotci_morphology::{
+        MorphologyOptions, WordLikeData, segment_words_with_modifiers,
+        segment_words_with_modifiers_with_options_and_source_id,
+    };
     use jbotci_tree::RecoveredFieldState;
     use std::{
         fmt::Write as _,
@@ -3943,6 +3935,37 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/recovery-anchor-metadata.snapshot.txt"
     );
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn co_spanned_dialect_tokens_retain_distinct_warning_anchor_indices() {
+        let dialect = parse_dialect_definition("(jboponei)").expect("built-in dialect parses");
+        let source = "mi cusku po do klama";
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default().with_dialect_definition(&dialect),
+            None,
+        )
+        .expect("valid dialect morphology");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let tokens = syntax_tokens(&words, &options);
+        let first_sibling_index = tokens
+            .windows(2)
+            .position(|pair| pair[0].source_spans() == pair[1].source_spans())
+            .expect("jboponei po expands to co-spanned lo and su'u");
+        let second_sibling_index = first_sibling_index + 1;
+
+        assert_eq!(
+            generated_warning_anchor_index(&tokens, &tokens[second_sibling_index]),
+            second_sibling_index,
+        );
+        let state = ParserState::new(&tokens, &options);
+        assert_eq!(
+            state.anchor_index(&tokens[second_sibling_index]),
+            second_sibling_index,
+        );
+    }
 
     #[test]
     #[ignore = "requires the owner document path in JBOTCI_ISSUE_463_REPRO"]
