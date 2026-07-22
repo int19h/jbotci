@@ -46,11 +46,12 @@ gismu" can therefore be defined directly as:
 > **the valid gismu whose own pronunciation is maximally similar, on a
 > weighted average, to the source pronunciations.**
 
-Formally, given sources as IPA segment strings s₁ … s_k with weights w₁ … w_k,
-and G the set of valid candidate gismu with IPA renderings ipa(g):
+Formally, given sources as concrete IPA segment strings s₁ … s_k with weights
+w₁ … w_k, and G the set of valid candidate gismu with Lojban pronunciation
+target sequences targets(g):
 
 ```
-gismu = argmax over g ∈ G of  Σᵢ wᵢ · sim(ipa(g), sᵢ)
+gismu = argmax over g ∈ G of  Σᵢ wᵢ · sim(targets(g), sᵢ)
 ```
 
 In the string-averaging literature this object is the **generalized median
@@ -82,11 +83,18 @@ phonetic similarity that restriction is unsound: a candidate `b` can earn real
 credit against a source /p/ or /β/ that coarsens to something else, so the
 enumeration must range over the whole alphabet.
 
-Each candidate is rendered to IPA by Lojban's fixed orthography-to-pronunciation
-mapping (`c` = [ʃ], `j` = [ʒ], `x` = [x], `i`/`u` adjacent to vowels are the
-glides [j]/[w], etc.). This rendering is deterministic; stress is positional
-(penultimate) and, in this version of the algorithm, ignored by the scorer (see
-Limitations).
+Each candidate is converted directly from parsed Lojban phonemes to a sequence
+of pronunciation targets. Most targets have one concrete realization (`c` =
+[ʃ], `j` = [ʒ], `x` = [x], and `i`/`u` glides = [j]/[w]). Lojban `r` is the
+one free-variation target in this model and admits any of
+`[r ɾ ɹ ʀ ɻ ʁ ɽ]` at zero cost, as required by CLL §3.2. Rhotic vowels
+`[ɚ ɝ]` are not realizations of bare `r`; they remain concrete vocalic nuclei
+that can participate in the ordinary one-to-two alignment operation.
+
+The canonical display IPA remains deterministic (and continues to render
+Lojban `r` as [r]), but it is not round-tripped to construct scoring targets.
+Stress is positional (penultimate) and, in this version of the algorithm,
+ignored by the scorer (see Limitations).
 
 ### Source representation
 
@@ -99,12 +107,14 @@ source language and out of scope here; this specification takes the IPA strings
 as given. Stress marks may be present but are ignored by this version of the
 scorer.
 
-Both sources and candidate renderings are tokenized into **IPA segments**: base
-symbols plus a defined set of multi-character segments (affricates with or
-without tie bars, long vowels), with suprasegmentals and unmodeled diacritics
-skipped. The segment inventory must cover the union of the source languages'
-phonologies; an unrecognized segment is an input error, not something to skip
-silently.
+Sources are tokenized into **concrete IPA segments**: base symbols plus a
+defined set of multi-character segments (affricates with or without tie bars,
+long vowels), with suprasegmentals and unmodeled diacritics skipped. Their
+actual ALINE features are preserved: for example, concrete [ʁ] is not globally
+rewritten to [r]. Candidates are target sequences whose realization sets
+contain concrete IPA segments. The concrete inventory must cover the union of
+the source languages' phonologies; an unrecognized segment is an input error,
+not something to skip silently.
 
 ### Similarity model: ALINE features
 
@@ -146,6 +156,16 @@ skip             = C_skip                                   (segment left unmatc
 where V(x) = C_vwl if x is a vowel, else 0 (vowels are less reliable evidence
 than consonants). Defaults, again Kondrak's: C_sub = 35, C_exp = 45,
 C_skip = −10, C_vwl = 10.
+
+When an operand is a pronunciation target, each complete operation is
+maximized jointly over its concrete realizations. Thus substitution maximizes
+`C_sub − δ − V − V`; a one-to-two operation maximizes its entire `C_exp − δ −
+δ − V − max(V,V)` expression. A single target aligned with two segments chooses
+one realization for both distance terms, while two distinct target occurrences
+choose independently. This operation-level rule also applies target-to-target,
+including target self-similarity. The maxima are resolved when request tables
+are prepared, so enumerating candidates still performs one constant-time table
+lookup per dynamic-programming transition.
 
 ### Alignment regime: semi-global
 
@@ -242,7 +262,8 @@ All five candidate segments are justified; the source pays for the interior
 
 Per-source scores must be commensurable — each in [0, 1] with 1 meaning
 "perfect" — or the language weights do not mean what they say. Define
-self-similarity `self(x) = raw(x, x)` (which, with the defaults, is the sum of
+self-similarity `self(x) = raw(x, x)` using the same concrete- or target-aware
+dynamic program as `x` (which, with the defaults, is the sum of
 identity substitution scores: C_sub − 2·C_vwl per vowel, C_sub per consonant —
 all positive, so the identity diagonal is optimal and flanks are unused).
 
@@ -300,6 +321,19 @@ learned-from-data (PMI-weighted alignment, sound-class models à la LexStat)
 rather than better hand constants. The single most suspect default for *this*
 purpose is C_vwl: with several-way averaging, vowels are often where sources
 disagree most, and how much they count materially changes which candidate wins.
+
+## Ferment regression
+
+The issue #587 reference run uses the Ilmen12 weights and default gismu shapes,
+requests 160 results, and supplies these concrete observations: Mandarin
+`[fat͡ɕjɑʊ]`, English `[fɚmɛnt]`, Spanish `[feɾment]`, Hindi `[kɪɳʋan]`,
+Arabic `[taxamːur]`, Bengali `[ɡãd͡ʒɔn]`, Russian `[fʲermʲent]`, Portuguese
+`[feʁmẽt]`, Malay `[pɘnapaian]`, Japanese `[hakːoː]`, German `[ɡɛːʁ]`, and
+French `[fɛʁmɑ̃t]`. With collision filtering enabled, the run examines 96,475
+valid candidates and retains 82,567 after filtering. Its top three are `ferme`,
+`farme`, and `ferma`. The winner `ferme` is also the first r-bearing result, at
+rank 1; this is the intended meaningful placement that accepting every
+consonantal Lojban-r realization restores.
 
 ## Properties
 

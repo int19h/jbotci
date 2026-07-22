@@ -9,8 +9,8 @@ use jbotci_morphology::{
     normalize_lojban_input_text, segment_words_with_modifiers,
 };
 use jbotci_phonetic::{
-    AlineSimilarityScratch, aline_phonetic_similarity_with_scratch, compare_similarity_then_index,
-    sound_query_to_token_sequence,
+    AlineSimilarityScratch, compare_similarity_then_index, prepare_sound_query,
+    sound_query_to_sequence,
 };
 use regex::Regex;
 
@@ -1066,13 +1066,13 @@ fn cards_for_sound(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    let query_sound = match sound_query_to_token_sequence(query) {
+    let query_sound = match sound_query_to_sequence(query) {
         Ok(sequence) => sequence,
         Err(error) => return invalid_output(error.to_string()),
     };
 
     let mut scratch = AlineSimilarityScratch::default();
-    let query_view = query_sound.view();
+    let prepared_query = prepare_sound_query(&query_sound);
     let entries = dictionary.entries();
     let sound_index = dictionary.sound_index();
     let mut scored = sound_index
@@ -1082,11 +1082,9 @@ fn cards_for_sound(
             if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
                 return None;
             }
-            let similarity = aline_phonetic_similarity_with_scratch(
-                query_view,
-                sound_entry.token_sequence,
-                &mut scratch,
-            ) as f32;
+            let similarity = prepared_query
+                .similarity_with_scratch(sound_entry.pronunciation_targets, &mut scratch)
+                as f32;
             dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true).then(
                 || {
                     new!(SoundScoreEntry {
@@ -2333,6 +2331,24 @@ mod tests {
             result.cards.first().map(|card| card.word.as_str()),
             Some("klama")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracketed_rhotic_sound_query_matches_dictionary_target_r_at_identity() {
+        for query in ["[pɾami]", "[pʁami]"] {
+            let result = run_vlacku_requests(
+                jbotci_dictionary_data::english(),
+                &[VlackuRequest::sound(query.to_owned())],
+                &VlackuSearchOptions::default().with_data(data! { count: 1 }),
+            );
+
+            assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+            let best = result.cards.first().expect("best sound match");
+            assert_eq!(best.word, "prami", "{query}");
+            assert_eq!(best.similarity, Some(1.0), "{query}");
+        }
     }
 
     #[test]

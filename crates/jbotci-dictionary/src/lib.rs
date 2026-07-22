@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use bityzba::{expensive_invariant, invariant, requires};
 use jbotci_morphology::fold_lojban_diacritic;
-use jbotci_phonetic::IpaTokenSequenceView;
+use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -305,7 +305,11 @@ pub struct DictionaryEntry<'a> {
 pub struct DictionarySoundEntry<'a> {
     pub entry_index: EntryIndex,
     pub ipa: &'a str,
+    /// Concrete tokens for the canonical display IPA, retained for API
+    /// compatibility and diagnostics rather than scoring.
     pub token_sequence: IpaTokenSequenceView<'a>,
+    /// Lojban pronunciation targets used by sound scoring.
+    pub pronunciation_targets: PronunciationTargetSequenceView<'a>,
 }
 
 /// Precomputed lujvo decomposition data for a dictionary entry.
@@ -914,6 +918,31 @@ fn validate_sound_index(
             return Err(DictionaryValidationError::InvalidSoundIndexEntry {
                 index,
                 reason: "token sequence self-similarity is not positive and finite",
+            });
+        }
+        if sound_entry.pronunciation_targets.targets.is_empty() {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "pronunciation target sequence is empty",
+            });
+        }
+        if !sound_entry
+            .pronunciation_targets
+            .self_similarity
+            .is_finite()
+            || sound_entry.pronunciation_targets.self_similarity <= 0.0
+        {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "pronunciation target self-similarity is not positive and finite",
+            });
+        }
+        if sound_entry.pronunciation_targets.target_count()
+            != sound_entry.token_sequence.segment_count()
+        {
+            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
+                index,
+                reason: "display tokens and pronunciation targets have different lengths",
             });
         }
         previous_index = Some(sound_entry.entry_index.0);
