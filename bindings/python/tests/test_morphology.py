@@ -258,12 +258,29 @@ def test_every_plain_word_kind(text: str, word_type: type[object]) -> None:
 
 def test_all_quote_and_modifier_word_like_variants() -> None:
     assert isinstance(morphology.segment("zo broda")[0], morphology.QuotedWord)
-    assert isinstance(morphology.segment("ma'oi ba")[0], morphology.SelmahoQuotedWord)
+    source_id = source.SourceId("literal-quote-fields")
+    mahoi = morphology.segment("ma'oi ba", source_id=source_id)[0]
+    assert isinstance(mahoi, morphology.SelmahoQuotedWord)
+    assert mahoi.mahoi.phonemes.text == "ma'oĭ"
+    assert mahoi.mahoi.span.byte_range == (0, 5)
+    assert mahoi.mahoi.span.char_range == (0, 5)
+    assert mahoi.word.phonemes.text == "ba"
+    assert mahoi.word.span.byte_range == (6, 8)
+    assert mahoi.word.span.char_range == (6, 8)
+    assert all(span.source_id == source_id for span in mahoi.source_spans)
     zoi = morphology.segment("zoi gy hello world gy")[0]
     assert isinstance(zoi, morphology.DelimitedNonLojbanQuote)
     assert zoi.quoted_text.text == "hello world"
     assert isinstance(morphology.segment("lo'u mi do le'u")[0], morphology.QuotedWords)
-    assert isinstance(morphology.segment("zo'oi hello")[0], morphology.DelimitedWordQuote)
+    zohoi = morphology.segment("zo'oi hello", source_id=source_id)[0]
+    assert isinstance(zohoi, morphology.DelimitedWordQuote)
+    assert zohoi.marker.phonemes.text == "zo'oĭ"
+    assert zohoi.marker.span.byte_range == (0, 5)
+    assert zohoi.marker.span.char_range == (0, 5)
+    assert zohoi.quoted_text.text == "hello"
+    assert zohoi.quoted_text.span.byte_range == (6, 11)
+    assert zohoi.quoted_text.span.char_range == (6, 11)
+    assert all(span.source_id == source_id for span in zohoi.source_spans)
     assert isinstance(morphology.segment("a bu")[0], morphology.LerfuWord)
     assert isinstance(morphology.segment("broda zei brode")[0], morphology.ZeiCompound)
 
