@@ -1147,43 +1147,88 @@ const fn static_str_eq(left: &str, right: &str) -> bool {
     true
 }
 
+const METADATA_HASH_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+const METADATA_HASH_PRIME: u64 = 0x0000_0100_0000_01b3;
+
 #[requires(true)]
-#[ensures(ret -> left.len() == right.len())]
-const fn static_str_eq_ignore_ascii_case(left: &str, right: &str) -> bool {
-    let left = left.as_bytes();
-    let right = right.as_bytes();
-    if left.len() != right.len() {
-        return false;
-    }
+#[ensures(ret != 0)]
+const fn exact_metadata_hash(value: &str) -> u64 {
+    metadata_hash(value, false)
+}
+
+#[requires(true)]
+#[ensures(ret != 0)]
+const fn ascii_case_folded_metadata_hash(value: &str) -> u64 {
+    metadata_hash(value, true)
+}
+
+#[requires(true)]
+#[ensures(ret != 0)]
+const fn metadata_hash(value: &str, fold_ascii_case: bool) -> u64 {
+    let bytes = value.as_bytes();
+    let mut hash = METADATA_HASH_OFFSET;
     let mut index = 0;
-    while index < left.len() {
-        if left[index].to_ascii_lowercase() != right[index].to_ascii_lowercase() {
-            return false;
-        }
+    while index < bytes.len() {
+        let byte = if fold_ascii_case {
+            bytes[index].to_ascii_lowercase()
+        } else {
+            bytes[index]
+        };
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(METADATA_HASH_PRIME);
         index += 1;
     }
-    true
+
+    // Zero is the open-addressing table's empty sentinel. Mapping a real zero
+    // hash to one can only create an additional collision; repeated hashes
+    // fail closed below, so this normalization cannot hide a duplicate.
+    if hash == 0 { 1 } else { hash }
+}
+
+#[requires(!hashes.is_empty() && hash != 0)]
+#[ensures(true)]
+const fn insert_unique_metadata_hash(hashes: &mut [u64], hash: u64) -> bool {
+    let mut slot = (hash % hashes.len() as u64) as usize;
+    let mut probes = 0;
+    while probes < hashes.len() {
+        if hashes[slot] == 0 {
+            hashes[slot] = hash;
+            return true;
+        }
+        if hashes[slot] == hash {
+            return false;
+        }
+        slot += 1;
+        if slot == hashes.len() {
+            slot = 0;
+        }
+        probes += 1;
+    }
+    // Exhausting every slot is also a closed failure, even though the
+    // generated tables deliberately keep the load factor below one half.
+    false
 }
 
 #[requires(true)]
 #[ensures(ret)]
 const fn cmavo_metadata_is_unique() -> bool {
-    let mut left_index = 0;
-    while left_index < CMAVO_VARIANT_NAMES.len() {
-        let mut right_index = left_index + 1;
-        while right_index < CMAVO_VARIANT_NAMES.len() {
-            if static_str_eq_ignore_ascii_case(
-                CMAVO_VARIANT_NAMES[left_index],
-                CMAVO_VARIANT_NAMES[right_index],
-            ) || static_str_eq(
-                CMAVO_CANONICAL_TEXTS[left_index],
-                CMAVO_CANONICAL_TEXTS[right_index],
-            ) {
-                return false;
-            }
-            right_index += 1;
+    let mut variant_hashes = [0; CMAVO_VARIANT_NAMES.len() * 2 + 1];
+    let mut canonical_text_hashes = [0; CMAVO_CANONICAL_TEXTS.len() * 2 + 1];
+    let mut index = 0;
+    while index < CMAVO_VARIANT_NAMES.len() {
+        if !insert_unique_metadata_hash(
+            &mut variant_hashes,
+            ascii_case_folded_metadata_hash(CMAVO_VARIANT_NAMES[index]),
+        ) || !insert_unique_metadata_hash(
+            &mut canonical_text_hashes,
+            exact_metadata_hash(CMAVO_CANONICAL_TEXTS[index]),
+        ) {
+            // A repeated hash may be either a true duplicate or an extremely
+            // rare collision. Rejecting both is conservative: a collision can
+            // reject valid metadata, but can never let a duplicate through.
+            return false;
         }
-        left_index += 1;
+        index += 1;
     }
     true
 }
