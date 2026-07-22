@@ -34,7 +34,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config zstd
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev pkg-config python3.11-dev zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
