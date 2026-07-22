@@ -9699,7 +9699,7 @@ mod tests {
             .expect("successful grammar expansion must be valid Rust syntax");
         let tree_model = expanded
             .items
-            .iter()
+            .into_iter()
             .find_map(|item| match item {
                 syn::Item::Macro(item)
                     if item
@@ -9709,7 +9709,7 @@ mod tests {
                         .last()
                         .is_some_and(|segment| segment.ident == "tree_model") =>
                 {
-                    Some(item.mac.tokens.clone())
+                    Some(item.mac.tokens)
                 }
                 _ => None,
             })
@@ -10105,7 +10105,8 @@ mod tests {
         .expect("grammar parses before expansion");
 
         let expanded = grammar.expand();
-        let item = generated_struct(expanded.clone(), "ItemSyntax");
+        let expanded_text = expanded.to_string();
+        let item = generated_struct(expanded, "ItemSyntax");
         let syn::Fields::Unnamed(fields) = &item.fields else {
             panic!("single-field generated structs must be tuple newtypes")
         };
@@ -10127,10 +10128,9 @@ mod tests {
             "The source-ordered `token` component retained by the `item` syntax node."
         );
 
-        let expanded = expanded.to_string();
         assert!(
-            expanded.contains("ItemSyntax (token)"),
-            "single-field generated struct parser should construct a newtype: {expanded}"
+            expanded_text.contains("ItemSyntax (token)"),
+            "single-field generated struct parser should construct a newtype: {expanded_text}"
         );
     }
 
@@ -10336,40 +10336,39 @@ mod tests {
         .expect("grammar parses before documentation validation");
 
         let item = generated_struct(grammar.expand(), "ItemSyntax");
-        let doc_metadata = item
-            .attrs
-            .iter()
-            .filter_map(|attr| {
-                let Meta::List(list) = &attr.meta else {
-                    return None;
-                };
-                list.path
-                    .is_ident("doc")
-                    .then(|| syn::parse2::<Meta>(list.tokens.clone()).expect("valid doc metadata"))
-            })
-            .collect::<Vec<_>>();
+        let mut has_hidden = false;
+        let mut has_schema_item_alias = false;
+        for attr in &item.attrs {
+            let Meta::List(list) = &attr.meta else {
+                continue;
+            };
+            if !list.path.is_ident("doc") {
+                continue;
+            }
+            match list
+                .parse_args::<Meta>()
+                .expect("generated model contains valid Rustdoc metadata")
+            {
+                Meta::Path(path) => has_hidden |= path.is_ident("hidden"),
+                Meta::NameValue(name_value) if name_value.path.is_ident("alias") => {
+                    has_schema_item_alias |= matches!(
+                        name_value.value,
+                        Expr::Lit(expr)
+                            if matches!(
+                                expr.lit,
+                                Lit::Str(value) if value.value() == "schema item"
+                            )
+                    );
+                }
+                _ => {}
+            }
+        }
         assert!(
-            doc_metadata
-                .iter()
-                .any(|meta| matches!(meta, Meta::Path(path) if path.is_ident("hidden"))),
+            has_hidden,
             "the hidden Rustdoc marker must survive model expansion"
         );
         assert!(
-            doc_metadata.iter().any(|meta| {
-                matches!(
-                    meta,
-                    Meta::NameValue(name_value)
-                        if name_value.path.is_ident("alias")
-                            && matches!(
-                                &name_value.value,
-                                Expr::Lit(expr)
-                                    if matches!(
-                                        &expr.lit,
-                                        Lit::Str(value) if value.value() == "schema item"
-                                    )
-                            )
-                )
-            }),
+            has_schema_item_alias,
             "the literal-preserving Rustdoc alias must survive model expansion"
         );
     }
