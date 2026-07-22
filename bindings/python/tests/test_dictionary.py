@@ -126,15 +126,15 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
     assert all(hasattr(dictionary, name) for name in EXPECTED_DICTIONARY_EXPORTS)
 
 
-def test_import_does_not_materialize_python_entry_objects() -> None:
+def test_import_keeps_entry_sequence_lazy_and_has_no_tracked_entry_wrappers() -> None:
     assert isinstance(dictionary.english.entries, dictionary.DictionaryEntries)
     assert not isinstance(dictionary.english.entries, tuple)
+    # `gc.get_objects()` only observes GC-tracked wrappers. Keep this as the
+    # narrow regression signal it is; the sequence-shape checks prove laziness.
     code = """
 import gc
 import jbotci.dictionary as dictionary
 assert not any(isinstance(value, dictionary.DictionaryEntry) for value in gc.get_objects())
-assert not any(isinstance(value, dictionary.PronunciationTargetId) for value in gc.get_objects())
-assert not any(isinstance(value, dictionary.PronunciationTargetSequenceView) for value in gc.get_objects())
 assert not isinstance(dictionary.english.entries, tuple)
 """
     subprocess.run([sys.executable, "-c", code], check=True)
@@ -420,6 +420,13 @@ def test_pronunciation_target_protocols_follow_existing_id_and_view_policy() -> 
     assert lower != higher
     assert len({lower, equal_lower, higher}) == 2
     assert hash(lower) == hash(equal_lower)
+    snapshot_targets = {
+        target.value: target
+        for sound in dictionary.english.sound_index
+        for target in sound.pronunciation_targets.targets
+    }
+    assert len(snapshot_targets) > 1
+    assert len({hash(target) for target in snapshot_targets.values()}) > 1
     assert int(lower) == lower.value
     assert operator.index(lower) == lower.value
     assert repr(lower) == (
@@ -630,6 +637,39 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.PronunciationTargetId(0)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         dictionary.PronunciationTargetSequenceView(first_sound)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(0, 1)  # type: ignore[call-arg, arg-type]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(value=0)  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(  # type: ignore[call-arg]
+            value=0,
+            realization_count=1,
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(  # type: ignore[call-arg]
+            value=0,
+            realizations=(),
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            first_sound,  # type: ignore[arg-type]
+            0,
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            sound=first_sound
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            owner=dictionary.english,
+            position=0,
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            targets=(),
+            self_similarity=0.0,
+        )
 
     target_sequence = first_sound.pronunciation_targets
     target = target_sequence.targets[0]
