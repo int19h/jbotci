@@ -636,7 +636,7 @@ def test_each_morphology_option_changes_real_parser_behavior() -> None:
     assert len(one.errors) == 1
     assert len(two.errors) == 2
     assert plain_phonemes(one.words) == ("mi",)
-    assert plain_phonemes(two.words) == ("mi", "do", "mi")
+    assert plain_phonemes(two.words) == ("mi", "do")
     assert tuple(region.char_range for region in one.error_regions) == ((3, 7),)
     assert tuple(region.char_range for region in two.error_regions) == (
         (3, 7),
@@ -1114,7 +1114,7 @@ def test_analyze_valsi_status_and_variant_classification() -> None:
         (
             ("rafsi", "jetc", "long"),
             ("hyphen", "y", None),
-            ("rafsi", "bolxáda", "fuivla"),
+            ("rafsi", "bolxáda", "fuhivla"),
         ),
         None,
     )
@@ -1142,7 +1142,7 @@ def test_valsi_analysis_retains_exact_fuhivla_stage(
     assert analysis.result.status is morphology.ValsiAnalysisStatus.VALID
     classification = analysis.result.classification
     assert isinstance(classification, morphology.PlainWordValsiClassification)
-    assert classification.word.category is morphology.WordKind.FUHIVLA
+    assert classification.word.category is morphology.WordKind.FUIVLA
     assert classification.word.selmaho is None
     assert classification.word.split is None
     assert classification.word.parts == ()

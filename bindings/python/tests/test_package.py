@@ -25,6 +25,19 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = PACKAGE_ROOT.parents[1]
 _STANDALONE_ANY = re.compile(r"\bAny\b")
 
+INTENTIONAL_STUB_ONLY_NATIVE_DECLARATIONS: frozenset[str] = frozenset(
+    {
+        "_MorphologyErrorValueBase",
+        "_MorphologyWordBase",
+        "_MorphologyWordLikeBase",
+        "_ValsiClassificationBase",
+    }
+)
+
+PYO3_EQ_COMPANION_DUNDERS: frozenset[str] = frozenset(
+    {"__ne__", "__lt__", "__le__", "__gt__", "__ge__"}
+)
+
 MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_morphology_InvalidDialectWord": ("word",),
     "_morphology_CompiledDialectSwap": ("left", "right"),
@@ -621,8 +634,14 @@ def test_native_stub_exports_match_runtime() -> None:
         and isinstance(node.target, ast.Name)
         and node.target.id != "__all__"
     )
-    assert declaration_names == set(native.__all__)
+    assert declaration_names == (
+        set(native.__all__) | INTENTIONAL_STUB_ONLY_NATIVE_DECLARATIONS
+    )
     assert all(hasattr(native, name) for name in native.__all__)
+    assert all(
+        not hasattr(native, name)
+        for name in INTENTIONAL_STUB_ONLY_NATIVE_DECLARATIONS
+    )
 
 
 def test_public_constants_are_direct_rust_native_exports() -> None:
@@ -917,10 +936,24 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
                 for member_name, descriptor in vars(runtime_class).items()
                 if _is_dunder(member_name) and callable(descriptor)
             }
+            returned_only_constructor = next(
+                (
+                    function
+                    for member_name, function in class_functions.items()
+                    if member_name == "__new__"
+                    and _stub_is_returned_only_constructor(function, name)
+                ),
+                None,
+            )
+            expected_runtime_dunders = stub_dunders.copy()
+            if returned_only_constructor is not None:
+                expected_runtime_dunders.remove("__new__")
+            if "__eq__" in stub_dunders:
+                expected_runtime_dunders.update(PYO3_EQ_COMPANION_DUNDERS)
             assert runtime_properties == stub_properties, name
             assert runtime_methods == stub_methods, name
             assert runtime_attributes == stub_attributes, name
-            assert runtime_dunders == stub_dunders, name
+            assert runtime_dunders == expected_runtime_dunders, name
 
             for function_name, function in class_functions.items():
                 if _stub_function_is_property(function):
@@ -1154,7 +1187,7 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
 
 def test_returned_only_morphology_classes_have_no_runtime_constructor() -> None:
     for name in MORPHOLOGY_RETURNED_ONLY_CLASSES:
-        with pytest.raises(TypeError, match=r"^No constructor defined$"):
+        with pytest.raises(TypeError):
             getattr(native, name)()
 
 

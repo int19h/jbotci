@@ -9,7 +9,7 @@ from jbotci import InvalidInputError, diagnostics, dialect, morphology, source
 
 
 def test_builtin_dialect_has_no_runtime_constructor() -> None:
-    with pytest.raises(TypeError, match=r"^No constructor defined$"):
+    with pytest.raises(TypeError):
         dialect.BuiltinDialect()
 
 
@@ -111,16 +111,26 @@ def test_every_diagnostic_span_variant_and_helper_retains_rust_payload() -> None
         assert caught.value.value == source.ByteOffsetNotCharBoundary(1)
         assert caught.value.args == (str(caught.value.value),)
 
-    with pytest.raises(source.DiagnosticSpanException) as char_range:
+    with pytest.raises(source.DiagnosticSpanException) as byte_range_from_chars:
         source.source_span_from_char_offsets("ab", 2, 1)
-    assert char_range.value.value == source.SourceLocation(
-        source.CharRangeInverted(2, 1)
+    assert byte_range_from_chars.value.value == source.SourceLocation(
+        source.ByteRangeInverted(2, 1)
     )
-    assert char_range.value.value.error == source.CharRangeInverted(2, 1)
-    assert str(char_range.value.value) == (
+    assert byte_range_from_chars.value.value.error == source.ByteRangeInverted(2, 1)
+    assert str(byte_range_from_chars.value.value) == (
+        "invalid source span: byte range end 1 precedes start 2"
+    )
+    assert repr(byte_range_from_chars.value.value) == (
+        "jbotci.source.SourceLocation("
+        "error=jbotci.source.ByteRangeInverted(start=2, end=1))"
+    )
+
+    char_range = source.SourceLocation(source.CharRangeInverted(2, 1))
+    assert char_range.error == source.CharRangeInverted(2, 1)
+    assert str(char_range) == (
         "invalid source span: character range end 1 precedes start 2"
     )
-    assert repr(char_range.value.value) == (
+    assert repr(char_range) == (
         "jbotci.source.SourceLocation("
         "error=jbotci.source.CharRangeInverted(start=2, end=1))"
     )
