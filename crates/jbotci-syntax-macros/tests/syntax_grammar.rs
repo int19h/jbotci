@@ -16,22 +16,41 @@ fn canonical_generated_grammar_has_no_placeholder_field_documentation() {
         );
     }
 
-    for (offset, _) in grammar.match_indices("/// A word from selmaho `") {
+    for (offset, _) in grammar.match_indices("/// ") {
         let following = &grammar[offset..];
+        let documentation = following
+            .lines()
+            .next()
+            .expect("documentation match must contain its source line");
+        let direct_selmaho_documentation = documentation.starts_with("/// A word from selmaho `");
+        let direct_cmavo_documentation =
+            documentation.starts_with("/// The ") && documentation.ends_with(" cmavo marker.");
+        if !direct_selmaho_documentation && !direct_cmavo_documentation {
+            continue;
+        }
+
         let field_start = following
             .find("field ")
-            .expect("selmaho documentation must precede a field");
+            .expect("token documentation must precede a field");
         let declaration = &following[field_start..];
         let declaration = &declaration[..declaration
             .find(';')
             .expect("documented field declaration must end with a semicolon")];
+        let parser = declaration
+            .split_once("<-")
+            .expect("documented field must have a parser expression")
+            .1
+            .trim_start();
+        let parser_inside_optional = parser.strip_prefix("opt(").unwrap_or(parser);
         assert!(
-            !declaration.contains("arc("),
+            !direct_selmaho_documentation || !parser.starts_with("arc("),
             "shared syntax field is misdocumented as a selmaho word: {declaration}"
         );
         assert!(
-            !declaration.contains("<- choice("),
-            "multi-family choice field is misdocumented as one selmaho family: {declaration}"
+            !parser_inside_optional.starts_with("choice(")
+                && !parser.starts_with("opt((")
+                && !parser.starts_with('('),
+            "composite field has single-token documentation: {declaration}"
         );
     }
 }

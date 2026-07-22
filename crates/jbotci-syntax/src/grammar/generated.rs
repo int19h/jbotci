@@ -3199,7 +3199,7 @@ pub mod generated_model {
         #[tree_child(primary)]
         /// The shared connective child syntax node.
         field connective <- arc(statement_connective);
-        /// The optional `Bo` cmavo marker.
+        /// The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.
         field tag_bo <- opt((opt(arc(tense_modal)), cmavo(Bo).wf()));
     }
 
@@ -3216,7 +3216,7 @@ pub mod generated_model {
         #[tree_child(primary)]
         /// The shared connective child syntax node.
         field connective <- arc(paragraph_standard_statement_connective);
-        /// The optional `Bo` cmavo marker.
+        /// The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.
         field tag_bo <- opt((opt(arc(tense_modal)), cmavo(Bo)));
     }
 
@@ -3812,7 +3812,7 @@ pub mod generated_model {
     rule "time interval" zeha_time_interval_tense -> struct {
         /// A word from selmaho `Zeha`.
         field zeha <- selmaho(Zeha).wf();
-        /// The optional `Nai` cmavo marker.
+        /// The optional pair containing a required PU-family direction word followed by an optional `Nai` cmavo marker.
         field direction <- opt((selmaho(Pu).wf(), opt(cmavo(Nai).wf())));
     }
 
