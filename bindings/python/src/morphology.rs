@@ -7872,7 +7872,17 @@ mod tests {
             assert_eq!(*kind, MorphologyErrorKind::VowelHiatus);
             assert_eq!((*char_start, *char_end), (0, 2));
             assert_eq!(text, "aa");
-            assert_eq!(context, &None);
+            let data!(MorphologyContext {
+                kind,
+                char_start,
+                char_end,
+            }) = context
+                .as_ref()
+                .expect("vowel-hiatus projection must retain its fu'ivla context")
+                .as_data();
+            assert_eq!(*kind, MorphologyContextKind::Fuhivla);
+            assert_eq!(*char_start, 0);
+            assert_eq!(*char_end, 2);
             let data!(MorphologyErrorDetail::Phonotactic { reason }) = detail
                 .as_ref()
                 .expect("vowel-hiatus projection must retain phonotactic detail")
