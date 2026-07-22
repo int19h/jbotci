@@ -556,7 +556,14 @@ impl PyWordKey {
     }
 }
 
-#[invariant(true, "both roots carry a validated compiled dialect definition")]
+#[invariant(
+    ::Owned { value } => Arc::strong_count(value) > 0,
+    "owned compiled dialect storage must retain its Arc root"
+)]
+#[invariant(
+    ::Options { value } => Arc::strong_count(value) > 0,
+    "options-backed compiled dialect storage must retain its Arc root"
+)]
 #[derive(Debug, Clone)]
 enum CompiledDialectStorage {
     Owned {
@@ -571,9 +578,9 @@ impl CompiledDialectStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &CompiledDialectDefinition {
-        match self {
-            Self::Owned { value } => value.as_ref(),
-            Self::Options { value } => &value.compiled_dialect,
+        match self.as_data() {
+            data!(CompiledDialectStorage::Owned { value }) => value.as_ref(),
+            data!(CompiledDialectStorage::Options { value }) => &value.compiled_dialect,
         }
     }
 }
@@ -607,9 +614,9 @@ impl PyCompiledDialectDefinition {
     #[expensive_ensures(ret.value.get() == &old(value.clone()))]
     fn from_rust(value: CompiledDialectDefinition) -> Self {
         Self {
-            value: CompiledDialectStorage::Owned {
+            value: new!(CompiledDialectStorage::Owned {
                 value: Arc::new(value),
-            },
+            }),
         }
     }
 
@@ -617,7 +624,7 @@ impl PyCompiledDialectDefinition {
     #[expensive_ensures(ret.value.get() == &old(value.clone()).compiled_dialect)]
     fn from_options(value: Arc<MorphologyOptions>) -> Self {
         Self {
-            value: CompiledDialectStorage::Options { value },
+            value: new!(CompiledDialectStorage::Options { value }),
         }
     }
 
@@ -7373,6 +7380,25 @@ mod tests {
     use super::*;
     use crate::{diagnostics, dialect, source};
     use pyo3::types::PyDict;
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn compiled_dialect_storage_variants_retain_their_arc_roots() {
+        let owned_root = Arc::new(CompiledDialectDefinition::default());
+        let owned = new!(CompiledDialectStorage::Owned {
+            value: Arc::clone(&owned_root),
+        });
+        drop(owned_root);
+        assert!(owned.get().entries.is_empty());
+
+        let options_root = Arc::new(MorphologyOptions::default());
+        let options = new!(CompiledDialectStorage::Options {
+            value: Arc::clone(&options_root),
+        });
+        drop(options_root);
+        assert!(options.get().entries.is_empty());
+    }
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
