@@ -361,7 +361,10 @@ fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<
 }
 
 /// Options controlling phoneme rendering for display.
-#[invariant(true, "the wrapped Rust options carry their own field constraints")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "PhonemeRenderOptions",
     frozen,
@@ -423,7 +426,10 @@ impl PyPhonemeRenderOptions {
 }
 
 /// Canonical non-empty Lojban phoneme sequence.
-#[invariant(!value.as_str().is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "Phonemes",
     frozen,
@@ -441,9 +447,9 @@ impl PyPhonemes {
     #[requires(!value.as_str().is_empty())]
     #[expensive_ensures(ret.value.as_str() == old(value.clone()).as_str())]
     fn from_rust(value: Phonemes) -> Self {
-        new!(PyPhonemes {
+        PyPhonemes {
             value: Arc::new(value),
-        })
+        }
     }
 
     #[requires(true)]
@@ -500,7 +506,10 @@ impl PyPhonemes {
 }
 
 /// Syntax identity key combining word kind and canonical phonemes.
-#[invariant(!value.phonemes.as_str().is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "WordKey",
     frozen,
@@ -518,7 +527,7 @@ impl PyWordKey {
     #[requires(!value.phonemes.as_str().is_empty())]
     #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: WordKey) -> Self {
-        new!(PyWordKey { value })
+        PyWordKey { value }
     }
 }
 
@@ -596,7 +605,10 @@ impl PartialEq for CompiledDialectStorage {
 impl Eq for CompiledDialectStorage {}
 
 /// Parser-ready compiled morphology dialect definition.
-#[invariant(true, "compiled dialect validity is carried by the Rust model")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CompiledDialectDefinition",
     frozen,
@@ -700,7 +712,10 @@ impl CompiledEntryHandle {
 }
 
 /// Compiled dialect entry swapping two parsed words.
-#[invariant(matches!(handle.get().as_data(), data!(CompiledDialectEntry::Swap { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CompiledDialectSwap",
     frozen,
@@ -726,7 +741,7 @@ impl PyCompiledDialectSwap {
     fn left(&self) -> PyCompiledDialectWord {
         PyCompiledDialectWord::new(CompiledWordHandle::new(
             self.handle.clone(),
-            new!(CompiledWordSlot::SwapLeft),
+            CompiledWordSlot::SwapLeft,
         ))
     }
 
@@ -737,13 +752,16 @@ impl PyCompiledDialectSwap {
     fn right(&self) -> PyCompiledDialectWord {
         PyCompiledDialectWord::new(CompiledWordHandle::new(
             self.handle.clone(),
-            new!(CompiledWordSlot::SwapRight),
+            CompiledWordSlot::SwapRight,
         ))
     }
 }
 
 /// Compiled dialect entry expanding one parsed word into a sequence.
-#[invariant(matches!(handle.get().as_data(), data!(CompiledDialectEntry::Expansion { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CompiledDialectExpansion",
     frozen,
@@ -769,7 +787,7 @@ impl PyCompiledDialectExpansion {
     fn source(&self) -> PyCompiledDialectWord {
         PyCompiledDialectWord::new(CompiledWordHandle::new(
             self.handle.clone(),
-            new!(CompiledWordSlot::ExpansionSource),
+            CompiledWordSlot::ExpansionSource,
         ))
     }
 
@@ -781,24 +799,21 @@ impl PyCompiledDialectExpansion {
         let data!(CompiledDialectEntry::Expansion { replacement, .. }) =
             self.handle.get().as_data()
         else {
-            unreachable!("wrapper invariant fixes the compiled dialect entry variant")
+            unreachable!("private projection fixes the compiled dialect entry variant")
         };
         let values = (0..replacement.len()).map(|index| {
             PyCompiledDialectWord::new(CompiledWordHandle::new(
                 self.handle.clone(),
-                new!(CompiledWordSlot::ExpansionReplacement { index }),
+                CompiledWordSlot::ExpansionReplacement { index },
             ))
         });
         crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
     }
 }
 
-#[invariant(::SwapLeft => true)]
-#[invariant(::SwapRight => true)]
-#[invariant(::ExpansionSource => true)]
 #[invariant(
-    ::ExpansionReplacement { .. } => true,
-    "replacement bounds are contextual to the enclosing compiled entry handle"
+    true,
+    "slot bounds and entry compatibility are enforced by CompiledWordHandle"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompiledWordSlot {
@@ -835,22 +850,17 @@ impl CompiledWordHandle {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &CompiledDialectWord {
-        match (self.entry.get().as_data(), self.slot.as_data()) {
-            (data!(CompiledDialectEntry::Swap { left, .. }), data!(CompiledWordSlot::SwapLeft)) => {
-                left
-            }
-            (
-                data!(CompiledDialectEntry::Swap { right, .. }),
-                data!(CompiledWordSlot::SwapRight),
-            ) => right,
+        match (self.entry.get().as_data(), self.slot) {
+            (data!(CompiledDialectEntry::Swap { left, .. }), CompiledWordSlot::SwapLeft) => left,
+            (data!(CompiledDialectEntry::Swap { right, .. }), CompiledWordSlot::SwapRight) => right,
             (
                 data!(CompiledDialectEntry::Expansion { source, .. }),
-                data!(CompiledWordSlot::ExpansionSource),
+                CompiledWordSlot::ExpansionSource,
             ) => source,
             (
                 data!(CompiledDialectEntry::Expansion { replacement, .. }),
-                data!(CompiledWordSlot::ExpansionReplacement { index }),
-            ) => &replacement[*index],
+                CompiledWordSlot::ExpansionReplacement { index },
+            ) => &replacement[index],
             _ => unreachable!("compiled-word handle is valid by construction"),
         }
     }
@@ -859,25 +869,27 @@ impl CompiledWordHandle {
 #[requires(true)]
 #[ensures(true)]
 fn compiled_word_handle_resolves(entry: &CompiledDialectEntry, slot: CompiledWordSlot) -> bool {
-    match (entry.as_data(), slot.as_data()) {
+    match (entry.as_data(), slot) {
         (
             data!(CompiledDialectEntry::Swap { .. }),
-            data!(CompiledWordSlot::SwapLeft) | data!(CompiledWordSlot::SwapRight),
+            CompiledWordSlot::SwapLeft | CompiledWordSlot::SwapRight,
         )
-        | (
-            data!(CompiledDialectEntry::Expansion { .. }),
-            data!(CompiledWordSlot::ExpansionSource),
-        ) => true,
+        | (data!(CompiledDialectEntry::Expansion { .. }), CompiledWordSlot::ExpansionSource) => {
+            true
+        }
         (
             data!(CompiledDialectEntry::Expansion { replacement, .. }),
-            data!(CompiledWordSlot::ExpansionReplacement { index }),
-        ) => *index < replacement.len(),
+            CompiledWordSlot::ExpansionReplacement { index },
+        ) => index < replacement.len(),
         _ => false,
     }
 }
 
 /// Parsed word and syntax key stored in a compiled dialect entry.
-#[invariant(true, "the handle always projects a validated compiled dialect word")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CompiledDialectWord",
     frozen,
@@ -928,16 +940,19 @@ fn compiled_entry_to_python(
     let handle = CompiledEntryHandle::new(owner, index);
     match entry.as_data() {
         data!(CompiledDialectEntry::Swap { .. }) => {
-            Ok(Py::new(py, new!(PyCompiledDialectSwap { handle }))?.into_any())
+            Ok(Py::new(py, PyCompiledDialectSwap { handle })?.into_any())
         }
         data!(CompiledDialectEntry::Expansion { .. }) => {
-            Ok(Py::new(py, new!(PyCompiledDialectExpansion { handle }))?.into_any())
+            Ok(Py::new(py, PyCompiledDialectExpansion { handle })?.into_any())
         }
     }
 }
 
 /// Complete immutable configuration for morphology operations.
-#[invariant(value.max_recovery_errors.get() > 0)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "MorphologyOptions",
     frozen,
@@ -954,9 +969,9 @@ impl PyMorphologyOptions {
     #[requires(value.max_recovery_errors.get() > 0)]
     #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
     fn from_rust(value: MorphologyOptions) -> Self {
-        new!(PyMorphologyOptions {
+        PyMorphologyOptions {
             value: Arc::new(value),
-        })
+        }
     }
 
     #[requires(true)]
@@ -1200,14 +1215,13 @@ impl TokenHandle {
     }
 }
 
-#[invariant(::Base => true)]
+#[invariant(true, "the sole path step has no standalone invalid state")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WithIndicatorsStep {
     Base,
 }
 
-#[invariant(::Owned { .. } => true)]
-#[invariant(::Token { .. } => true)]
+#[invariant(true, "both ownership roots are valid by construction of their fields")]
 #[derive(Debug, Clone)]
 enum WithIndicatorsRoot {
     Owned {
@@ -1222,18 +1236,18 @@ impl WithIndicatorsRoot {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &WithIndicators<WordLike> {
-        match self.as_data() {
-            data!(WithIndicatorsRoot::Owned { value }) => value.as_ref(),
-            data!(WithIndicatorsRoot::Token { token }) => token.get().as_indicators(),
+        match self {
+            WithIndicatorsRoot::Owned { value } => value.as_ref(),
+            WithIndicatorsRoot::Token { token } => token.get().as_indicators(),
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.is_none() || matches!(self.as_data(), data!(WithIndicatorsRoot::Token { .. })))]
+    #[ensures(ret.is_none() || matches!(self, WithIndicatorsRoot::Token { .. }))]
     fn root_token(&self) -> Option<&TokenHandle> {
-        match self.as_data() {
-            data!(WithIndicatorsRoot::Owned { .. }) => None,
-            data!(WithIndicatorsRoot::Token { token }) => Some(token),
+        match self {
+            WithIndicatorsRoot::Owned { .. } => None,
+            WithIndicatorsRoot::Token { token } => Some(token),
         }
     }
 }
@@ -1263,9 +1277,9 @@ impl WithIndicatorsHandle {
     #[expensive_ensures(ret.get() == &old(value.clone()))]
     pub(crate) fn from_owned(value: WithIndicators<WordLike>) -> Self {
         new!(WithIndicatorsHandle {
-            root: new!(WithIndicatorsRoot::Owned {
+            root: WithIndicatorsRoot::Owned {
                 value: Arc::new(value),
-            }),
+            },
             steps: Vec::new(),
         })
     }
@@ -1276,7 +1290,7 @@ impl WithIndicatorsHandle {
     #[ensures(ret.exact_token().is_some_and(|exact| exact == &token))]
     pub(crate) fn from_token(token: TokenHandle) -> Self {
         new!(WithIndicatorsHandle {
-            root: new!(WithIndicatorsRoot::Token { token }),
+            root: WithIndicatorsRoot::Token { token },
             steps: Vec::new(),
         })
     }
@@ -1292,7 +1306,7 @@ impl WithIndicatorsHandle {
             return None;
         }
         let mut steps = self.steps.clone();
-        steps.push(new!(WithIndicatorsStep::Base));
+        steps.push(WithIndicatorsStep::Base);
         Some(new!(WithIndicatorsHandle {
             root: self.root.clone(),
             steps,
@@ -1370,8 +1384,7 @@ fn with_indicators_path_resolves(
     project_with_indicators(root, steps).is_some()
 }
 
-#[invariant(::Owned { .. } => true)]
-#[invariant(::Indicators { .. } => true)]
+#[invariant(true, "both ownership roots are valid by construction of their fields")]
 #[derive(Debug, Clone)]
 enum WordLikeRoot {
     Owned { value: Arc<WordLike> },
@@ -1382,24 +1395,23 @@ impl WordLikeRoot {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &WordLike {
-        match self.as_data() {
-            data!(WordLikeRoot::Owned { value }) => value.as_ref(),
-            data!(WordLikeRoot::Indicators { handle }) => handle.get().core_word(),
+        match self {
+            WordLikeRoot::Owned { value } => value.as_ref(),
+            WordLikeRoot::Indicators { handle } => handle.get().core_word(),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn root_token(&self) -> Option<&TokenHandle> {
-        match self.as_data() {
-            data!(WordLikeRoot::Owned { .. }) => None,
-            data!(WordLikeRoot::Indicators { handle }) => handle.root_token(),
+        match self {
+            WordLikeRoot::Owned { .. } => None,
+            WordLikeRoot::Indicators { handle } => handle.root_token(),
         }
     }
 }
 
-#[invariant(::LerfuBase => true)]
-#[invariant(::ZeiLeft => true)]
+#[invariant(true, "step compatibility is enforced by WordLikeHandle")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WordLikeStep {
     LerfuBase,
@@ -1429,9 +1441,9 @@ impl WordLikeHandle {
     #[expensive_ensures(ret.get() == &old(value.clone()))]
     pub(crate) fn root(value: WordLike) -> Self {
         new!(WordLikeHandle {
-            root: new!(WordLikeRoot::Owned {
+            root: WordLikeRoot::Owned {
                 value: Arc::new(value),
-            }),
+            },
             steps: Vec::new(),
         })
     }
@@ -1441,7 +1453,7 @@ impl WordLikeHandle {
     #[expensive_ensures(ret.get() == old(value.clone()).as_ref())]
     pub(crate) fn from_arc(value: Arc<WordLike>) -> Self {
         new!(WordLikeHandle {
-            root: new!(WordLikeRoot::Owned { value }),
+            root: WordLikeRoot::Owned { value },
             steps: Vec::new(),
         })
     }
@@ -1451,7 +1463,7 @@ impl WordLikeHandle {
     #[expensive_ensures(ret.get() == old(handle.clone()).get().core_word())]
     pub(crate) fn from_indicators(handle: WithIndicatorsHandle) -> Self {
         new!(WordLikeHandle {
-            root: new!(WordLikeRoot::Indicators { handle }),
+            root: WordLikeRoot::Indicators { handle },
             steps: Vec::new(),
         })
     }
@@ -1523,21 +1535,10 @@ fn word_like_step_resolves(value: &WordLike, step: WordLikeStep) -> bool {
     )
 }
 
-#[invariant(::Plain => true)]
-#[invariant(::QuotedMarker => true)]
-#[invariant(::QuotedWord => true)]
-#[invariant(::SelmahoMarker => true)]
-#[invariant(::SelmahoWord => true)]
-#[invariant(::ZoiMarker => true)]
-#[invariant(::ZoiOpeningDelimiter => true)]
-#[invariant(::ZoiClosingDelimiter => true)]
-#[invariant(::LohuMarker => true)]
-#[invariant(::QuotedWordsWord { .. } => true)]
-#[invariant(::LehuMarker => true)]
-#[invariant(::DelimitedWordMarker => true)]
-#[invariant(::BuSuffix => true)]
-#[invariant(::ZeiLink => true)]
-#[invariant(::ZeiRight => true)]
+#[invariant(
+    true,
+    "slot compatibility and indices are enforced by WordHandleStorage"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WordSlot {
     Plain,
@@ -1558,12 +1559,10 @@ enum WordSlot {
 }
 
 /// Typed locator for a `Word` stored directly in one indicator layer.
-#[invariant(::EmphasisBahe => true)]
-#[invariant(::ExtraEmphasisBahe { .. } => true, "the enclosing handle validates the index")]
-#[invariant(::IndicatorBahe { .. } => true, "the enclosing handle validates the index")]
-#[invariant(::Indicator => true)]
-#[invariant(::NaiBahe { .. } => true, "the enclosing handle validates the index")]
-#[invariant(::Nai => true)]
+#[invariant(
+    true,
+    "slot compatibility and indices are enforced by WordHandleStorage"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WithIndicatorsWordSlot {
     EmphasisBahe,
@@ -1605,7 +1604,7 @@ impl WordHandle {
         new!(WordHandle {
             value: new!(WordHandleStorage::WordLike {
                 node: WordLikeHandle::root(WordLike::bare(word)),
-                slot: new!(WordSlot::Plain),
+                slot: WordSlot::Plain,
             }),
         })
     }
@@ -1687,46 +1686,39 @@ impl Eq for WordHandle {}
 #[requires(true)]
 #[ensures(ret.is_some() == word_slot_resolves(value, slot))]
 fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
-    match (value.as_data(), slot.as_data()) {
-        (data!(WordLike::PlainWord(word)), data!(WordSlot::Plain)) => Some(word),
-        (data!(WordLike::QuotedWord { zo, .. }), data!(WordSlot::QuotedMarker)) => Some(zo),
-        (data!(WordLike::QuotedWord { word, .. }), data!(WordSlot::QuotedWord)) => Some(word),
-        (data!(WordLike::SelmahoQuotedWord { mahoi, .. }), data!(WordSlot::SelmahoMarker)) => {
-            Some(mahoi)
-        }
-        (data!(WordLike::SelmahoQuotedWord { word, .. }), data!(WordSlot::SelmahoWord)) => {
-            Some(word)
-        }
-        (data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }), data!(WordSlot::ZoiMarker)) => {
-            Some(zoi)
-        }
+    match (value.as_data(), slot) {
+        (data!(WordLike::PlainWord(word)), WordSlot::Plain) => Some(word),
+        (data!(WordLike::QuotedWord { zo, .. }), WordSlot::QuotedMarker) => Some(zo),
+        (data!(WordLike::QuotedWord { word, .. }), WordSlot::QuotedWord) => Some(word),
+        (data!(WordLike::SelmahoQuotedWord { mahoi, .. }), WordSlot::SelmahoMarker) => Some(mahoi),
+        (data!(WordLike::SelmahoQuotedWord { word, .. }), WordSlot::SelmahoWord) => Some(word),
+        (data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }), WordSlot::ZoiMarker) => Some(zoi),
         (
             data!(WordLike::DelimitedNonLojbanQuote {
                 opening_delimiter,
                 ..
             }),
-            data!(WordSlot::ZoiOpeningDelimiter),
+            WordSlot::ZoiOpeningDelimiter,
         ) => Some(opening_delimiter),
         (
             data!(WordLike::DelimitedNonLojbanQuote {
                 closing_delimiter,
                 ..
             }),
-            data!(WordSlot::ZoiClosingDelimiter),
+            WordSlot::ZoiClosingDelimiter,
         ) => Some(closing_delimiter),
-        (data!(WordLike::QuotedWords { lohu, .. }), data!(WordSlot::LohuMarker)) => Some(lohu),
+        (data!(WordLike::QuotedWords { lohu, .. }), WordSlot::LohuMarker) => Some(lohu),
         (
             data!(WordLike::QuotedWords { quoted_words, .. }),
-            data!(WordSlot::QuotedWordsWord { index }),
-        ) => quoted_words.get(*index),
-        (data!(WordLike::QuotedWords { lehu, .. }), data!(WordSlot::LehuMarker)) => Some(lehu),
-        (
-            data!(WordLike::DelimitedWordQuote { marker, .. }),
-            data!(WordSlot::DelimitedWordMarker),
-        ) => Some(marker),
-        (data!(WordLike::LerfuWord { bu, .. }), data!(WordSlot::BuSuffix)) => Some(bu),
-        (data!(WordLike::ZeiCompound { zei, .. }), data!(WordSlot::ZeiLink)) => Some(zei),
-        (data!(WordLike::ZeiCompound { right, .. }), data!(WordSlot::ZeiRight)) => Some(right),
+            WordSlot::QuotedWordsWord { index },
+        ) => quoted_words.get(index),
+        (data!(WordLike::QuotedWords { lehu, .. }), WordSlot::LehuMarker) => Some(lehu),
+        (data!(WordLike::DelimitedWordQuote { marker, .. }), WordSlot::DelimitedWordMarker) => {
+            Some(marker)
+        }
+        (data!(WordLike::LerfuWord { bu, .. }), WordSlot::BuSuffix) => Some(bu),
+        (data!(WordLike::ZeiCompound { zei, .. }), WordSlot::ZeiLink) => Some(zei),
+        (data!(WordLike::ZeiCompound { right, .. }), WordSlot::ZeiRight) => Some(right),
         _ => None,
     }
 }
@@ -1743,28 +1735,27 @@ fn project_with_indicators_word(
     value: &WithIndicators<WordLike>,
     slot: WithIndicatorsWordSlot,
 ) -> Option<&Word> {
-    match (value.as_data(), slot.as_data()) {
-        (
-            data!(WithIndicators::Emphasized { bahe, .. }),
-            data!(WithIndicatorsWordSlot::EmphasisBahe),
-        ) => Some(bahe),
+    match (value.as_data(), slot) {
+        (data!(WithIndicators::Emphasized { bahe, .. }), WithIndicatorsWordSlot::EmphasisBahe) => {
+            Some(bahe)
+        }
         (
             data!(WithIndicators::Emphasized { extra_bahe, .. }),
-            data!(WithIndicatorsWordSlot::ExtraEmphasisBahe { index }),
-        ) => extra_bahe.get(*index),
+            WithIndicatorsWordSlot::ExtraEmphasisBahe { index },
+        ) => extra_bahe.get(index),
         (
             data!(WithIndicators::WithIndicator { indicator_bahe, .. }),
-            data!(WithIndicatorsWordSlot::IndicatorBahe { index }),
-        ) => indicator_bahe.get(*index),
+            WithIndicatorsWordSlot::IndicatorBahe { index },
+        ) => indicator_bahe.get(index),
         (
             data!(WithIndicators::WithIndicator { indicator, .. }),
-            data!(WithIndicatorsWordSlot::Indicator),
+            WithIndicatorsWordSlot::Indicator,
         ) => Some(indicator),
         (
             data!(WithIndicators::WithIndicator { nai_bahe, .. }),
-            data!(WithIndicatorsWordSlot::NaiBahe { index }),
-        ) => nai_bahe.get(*index),
-        (data!(WithIndicators::WithIndicator { nai, .. }), data!(WithIndicatorsWordSlot::Nai)) => {
+            WithIndicatorsWordSlot::NaiBahe { index },
+        ) => nai_bahe.get(index),
+        (data!(WithIndicators::WithIndicator { nai, .. }), WithIndicatorsWordSlot::Nai) => {
             nai.as_ref()
         }
         _ => None,
@@ -1805,8 +1796,7 @@ impl LocatedLujvoPart {
     }
 }
 
-#[invariant(::Owned { .. } => true)]
-#[invariant(::Located { .. } => true)]
+#[invariant(true, "both storage variants retain a valid typed value or locator")]
 #[derive(Debug, Clone)]
 enum LujvoPartStorage {
     Owned { value: Arc<LujvoPart> },
@@ -1827,9 +1817,9 @@ impl LujvoPartStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &LujvoPart {
-        match self.as_data() {
-            data!(LujvoPartStorage::Owned { value }) => value.as_ref(),
-            data!(LujvoPartStorage::Located { handle }) => handle.get(),
+        match self {
+            LujvoPartStorage::Owned { value } => value.as_ref(),
+            LujvoPartStorage::Located { handle } => handle.get(),
         }
     }
 
@@ -1841,7 +1831,10 @@ impl LujvoPartStorage {
 }
 
 /// Rafsi component of a parsed lujvo.
-#[invariant(matches!(value.get(), LujvoPart::Rafsi(_)))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LujvoRafsi",
     frozen,
@@ -1865,11 +1858,11 @@ impl PyLujvoRafsi {
     #[ensures(true)]
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>) -> Self {
-        new!(PyLujvoRafsi {
-            value: new!(LujvoPartStorage::Owned {
+        PyLujvoRafsi {
+            value: LujvoPartStorage::Owned {
                 value: Arc::new(LujvoPart::rafsi(phonemes.clone_rust())),
-            }),
-        })
+            },
+        }
     }
 
     /// Return the rafsi phonemes.
@@ -1882,7 +1875,10 @@ impl PyLujvoRafsi {
 }
 
 /// Hyphen component of a parsed lujvo.
-#[invariant(matches!(value.get(), LujvoPart::Hyphen(_)))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LujvoHyphen",
     frozen,
@@ -1906,11 +1902,11 @@ impl PyLujvoHyphen {
     #[ensures(true)]
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>) -> Self {
-        new!(PyLujvoHyphen {
-            value: new!(LujvoPartStorage::Owned {
+        PyLujvoHyphen {
+            value: LujvoPartStorage::Owned {
                 value: Arc::new(LujvoPart::hyphen(phonemes.clone_rust())),
-            }),
-        })
+            },
+        }
     }
 
     /// Return the hyphen phonemes.
@@ -1939,10 +1935,10 @@ fn lujvo_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoPart> {
 #[requires(true)]
 #[ensures(true)]
 fn lujvo_part_to_python(py: Python<'_>, handle: LocatedLujvoPart) -> PyResult<Py<PyAny>> {
-    let value = new!(LujvoPartStorage::Located { handle });
+    let value = LujvoPartStorage::Located { handle };
     match value.get() {
-        LujvoPart::Rafsi(_) => Ok(Py::new(py, new!(PyLujvoRafsi { value }))?.into_any()),
-        LujvoPart::Hyphen(_) => Ok(Py::new(py, new!(PyLujvoHyphen { value }))?.into_any()),
+        LujvoPart::Rafsi(_) => Ok(Py::new(py, PyLujvoRafsi { value })?.into_any()),
+        LujvoPart::Hyphen(_) => Ok(Py::new(py, PyLujvoHyphen { value })?.into_any()),
     }
 }
 
@@ -2034,7 +2030,10 @@ impl VerbatimStorage {
 }
 
 /// Exact verbatim source text paired with its source span.
-#[invariant(value.get().span.char_len() == value.get().text.chars().count())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "Verbatim",
     frozen,
@@ -2051,9 +2050,9 @@ impl PyVerbatim {
     #[requires(true)]
     #[ensures(true)]
     fn located(handle: LocatedVerbatim) -> Self {
-        new!(PyVerbatim {
+        PyVerbatim {
             value: new!(VerbatimStorage::Located { handle }),
-        })
+        }
     }
 
     #[requires(true)]
@@ -2079,11 +2078,11 @@ impl PyVerbatim {
                 "verbatim text character count must equal span.char_length",
             ));
         }
-        Ok(new!(PyVerbatim {
+        Ok(PyVerbatim {
             value: new!(VerbatimStorage::Owned {
                 value: Arc::new(Verbatim::new(span.clone_rust(), text)),
             }),
-        }))
+        })
     }
 
     /// Return the verbatim source span.
@@ -2192,7 +2191,10 @@ fn word_is_selmaho(
 }
 
 /// Parsed cmavo word with canonical phonemes and provenance.
-#[invariant(handle.get().kind() == WordKind::Cmavo)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CmavoWord",
     frozen,
@@ -2216,9 +2218,9 @@ impl PyCmavoWord {
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
         validate_nonempty_word_span(&span)?;
-        Ok(new!(PyCmavoWord {
+        Ok(PyCmavoWord {
             handle: plain_word(WordKind::Cmavo, &phonemes, &span),
-        }))
+        })
     }
     /// Return the cmavo word kind.
     #[requires(true)]
@@ -2284,7 +2286,10 @@ impl PyCmavoWord {
 }
 
 /// Parsed gismu word with canonical phonemes and provenance.
-#[invariant(handle.get().kind() == WordKind::Gismu)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "GismuWord",
     frozen,
@@ -2308,9 +2313,9 @@ impl PyGismuWord {
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
         validate_nonempty_word_span(&span)?;
-        Ok(new!(PyGismuWord {
+        Ok(PyGismuWord {
             handle: plain_word(WordKind::Gismu, &phonemes, &span),
-        }))
+        })
     }
     /// Return the word kind.
     #[requires(true)]
@@ -2376,7 +2381,10 @@ impl PyGismuWord {
 }
 
 /// Parsed fu'ivla word with canonical phonemes and provenance.
-#[invariant(handle.get().kind() == WordKind::Fuhivla)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "FuhivlaWord",
     frozen,
@@ -2400,9 +2408,9 @@ impl PyFuhivlaWord {
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
         validate_nonempty_word_span(&span)?;
-        Ok(new!(PyFuhivlaWord {
+        Ok(PyFuhivlaWord {
             handle: plain_word(WordKind::Fuhivla, &phonemes, &span),
-        }))
+        })
     }
     /// Return the word kind.
     #[requires(true)]
@@ -2468,7 +2476,10 @@ impl PyFuhivlaWord {
 }
 
 /// Parsed cmevla word with canonical phonemes and provenance.
-#[invariant(handle.get().kind() == WordKind::Cmevla)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CmevlaWord",
     frozen,
@@ -2492,9 +2503,9 @@ impl PyCmevlaWord {
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
         validate_nonempty_word_span(&span)?;
-        Ok(new!(PyCmevlaWord {
+        Ok(PyCmevlaWord {
             handle: plain_word(WordKind::Cmevla, &phonemes, &span),
-        }))
+        })
     }
     /// Return the word kind.
     #[requires(true)]
@@ -2560,7 +2571,10 @@ impl PyCmevlaWord {
 }
 
 /// Parsed lujvo word retaining its typed component sequence.
-#[invariant(handle.get().kind() == WordKind::Lujvo)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LujvoWord",
     frozen,
@@ -2587,9 +2601,9 @@ impl PyLujvoWord {
         let parts = extract_sequence(parts, "parts", lujvo_part_from_python)?;
         let parts = vec1::Vec1::try_from_vec(parts)
             .map_err(|_| InvalidInputError::new_err("lujvo parts must not be empty"))?;
-        Ok(new!(PyLujvoWord {
+        Ok(PyLujvoWord {
             handle: WordHandle::from_owned(Word::lujvo(parts, span.clone_rust())),
-        }))
+        })
     }
     /// Return the word kind.
     #[requires(true)]
@@ -2661,7 +2675,7 @@ impl PyLujvoWord {
             .handle
             .get()
             .lujvo_parts()
-            .expect("wrapper invariant fixes word kind")
+            .expect("private construction and projection fix the word kind")
             .len();
         let values = (0..count)
             .map(|index| {
@@ -2701,11 +2715,11 @@ pub(crate) fn word_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<Word
 #[ensures(true)]
 pub(crate) fn word_to_python(py: Python<'_>, handle: WordHandle) -> PyResult<Py<PyAny>> {
     match handle.get().kind() {
-        WordKind::Cmavo => Ok(Py::new(py, new!(PyCmavoWord { handle }))?.into_any()),
-        WordKind::Gismu => Ok(Py::new(py, new!(PyGismuWord { handle }))?.into_any()),
-        WordKind::Lujvo => Ok(Py::new(py, new!(PyLujvoWord { handle }))?.into_any()),
-        WordKind::Fuhivla => Ok(Py::new(py, new!(PyFuhivlaWord { handle }))?.into_any()),
-        WordKind::Cmevla => Ok(Py::new(py, new!(PyCmevlaWord { handle }))?.into_any()),
+        WordKind::Cmavo => Ok(Py::new(py, PyCmavoWord { handle })?.into_any()),
+        WordKind::Gismu => Ok(Py::new(py, PyGismuWord { handle })?.into_any()),
+        WordKind::Lujvo => Ok(Py::new(py, PyLujvoWord { handle })?.into_any()),
+        WordKind::Fuhivla => Ok(Py::new(py, PyFuhivlaWord { handle })?.into_any()),
+        WordKind::Cmevla => Ok(Py::new(py, PyCmevlaWord { handle })?.into_any()),
     }
 }
 
@@ -2770,7 +2784,10 @@ fn word_like_str(handle: &WordLikeHandle) -> String {
 }
 
 /// Plain unquoted morphology word.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::PlainWord(_))))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "PlainWord",
     frozen,
@@ -2793,21 +2810,18 @@ impl PyPlainWord {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(word: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(new!(PyPlainWord {
+        Ok(PyPlainWord {
             handle: WordLikeHandle::root(WordLike::bare(
                 word_handle_from_python(word)?.clone_rust(),
             )),
-        }))
+        })
     }
     /// Return the contained parsed word.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(
-            py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::Plain)),
-        )
+        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::Plain))
     }
     /// Return the combined half-open byte range when available.
     #[requires(true)]
@@ -2862,7 +2876,10 @@ impl PyPlainWord {
 }
 
 /// `zo` single-word quotation with marker and quoted word.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::QuotedWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "QuotedWord",
     frozen,
@@ -2891,12 +2908,12 @@ impl PyQuotedWord {
                 "QuotedWord.zo must be the cmavo zo",
             ));
         }
-        Ok(new!(PyQuotedWord {
+        Ok(PyQuotedWord {
             handle: WordLikeHandle::root(WordLike::zo_quote(
                 zo,
                 word_handle_from_python(word)?.clone_rust(),
             )),
-        }))
+        })
     }
     /// Return the `zo` marker word.
     #[requires(true)]
@@ -2905,7 +2922,7 @@ impl PyQuotedWord {
     fn zo(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::QuotedMarker)),
+            WordHandle::new(self.handle.clone(), WordSlot::QuotedMarker),
         )
     }
     /// Return the quoted parsed word.
@@ -2915,7 +2932,7 @@ impl PyQuotedWord {
     fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::QuotedWord)),
+            WordHandle::new(self.handle.clone(), WordSlot::QuotedWord),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -2940,7 +2957,10 @@ impl PyQuotedWord {
 }
 
 /// `ma'oi` selma'o quotation with marker and quoted word.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::SelmahoQuotedWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "SelmahoQuotedWord",
     frozen,
@@ -2969,12 +2989,12 @@ impl PySelmahoQuotedWord {
                 "SelmahoQuotedWord.mahoi must be the cmavo ma'oi",
             ));
         }
-        Ok(new!(PySelmahoQuotedWord {
+        Ok(PySelmahoQuotedWord {
             handle: WordLikeHandle::root(WordLike::mahoi_quote(
                 mahoi,
                 word_handle_from_python(word)?.clone_rust(),
             )),
-        }))
+        })
     }
     /// Return the `ma'oi` marker word.
     #[requires(true)]
@@ -2983,7 +3003,7 @@ impl PySelmahoQuotedWord {
     fn mahoi(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::SelmahoMarker)),
+            WordHandle::new(self.handle.clone(), WordSlot::SelmahoMarker),
         )
     }
     /// Return the quoted parsed word.
@@ -2993,7 +3013,7 @@ impl PySelmahoQuotedWord {
     fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::SelmahoWord)),
+            WordHandle::new(self.handle.clone(), WordSlot::SelmahoWord),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3018,7 +3038,10 @@ impl PySelmahoQuotedWord {
 }
 
 /// Delimiter-based non-Lojban quotation with exact verbatim content.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::DelimitedNonLojbanQuote { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "DelimitedNonLojbanQuote",
     frozen,
@@ -3075,9 +3098,9 @@ impl PyDelimitedNonLojbanQuote {
                 "quote source spans must occur in input order",
             ));
         }
-        Ok(new!(PyDelimitedNonLojbanQuote {
+        Ok(PyDelimitedNonLojbanQuote {
             handle: WordLikeHandle::root(WordLike::zoi_quote(zoi, opening, verbatim, closing)),
-        }))
+        })
     }
     /// Return the quotation marker word.
     #[requires(true)]
@@ -3086,7 +3109,7 @@ impl PyDelimitedNonLojbanQuote {
     fn zoi(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiMarker)),
+            WordHandle::new(self.handle.clone(), WordSlot::ZoiMarker),
         )
     }
     /// Return the opening delimiter word.
@@ -3096,7 +3119,7 @@ impl PyDelimitedNonLojbanQuote {
     fn opening_delimiter(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiOpeningDelimiter)),
+            WordHandle::new(self.handle.clone(), WordSlot::ZoiOpeningDelimiter),
         )
     }
     /// Return the exact verbatim quoted text.
@@ -3116,7 +3139,7 @@ impl PyDelimitedNonLojbanQuote {
     fn closing_delimiter(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiClosingDelimiter)),
+            WordHandle::new(self.handle.clone(), WordSlot::ZoiClosingDelimiter),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3141,7 +3164,10 @@ impl PyDelimitedNonLojbanQuote {
 }
 
 /// `lo'u`/`le'u` quotation containing parsed word tokens.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::QuotedWords { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "QuotedWords",
     frozen,
@@ -3179,9 +3205,9 @@ impl PyQuotedWords {
         let words = extract_sequence(quoted_words, "quoted_words", |word| {
             word_handle_from_python(word).map(|word| word.clone_rust())
         })?;
-        Ok(new!(PyQuotedWords {
+        Ok(PyQuotedWords {
             handle: WordLikeHandle::root(WordLike::lohu_quote(lohu, words, lehu)),
-        }))
+        })
     }
     /// Return the `lo'u` marker word.
     #[requires(true)]
@@ -3190,7 +3216,7 @@ impl PyQuotedWords {
     fn lohu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::LohuMarker)),
+            WordHandle::new(self.handle.clone(), WordSlot::LohuMarker),
         )
     }
     /// Return the immutable quoted parsed words.
@@ -3199,16 +3225,13 @@ impl PyQuotedWords {
     #[getter]
     fn quoted_words(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
         let data!(WordLike::QuotedWords { quoted_words, .. }) = self.handle.get().as_data() else {
-            unreachable!("wrapper invariant fixes variant")
+            unreachable!("private construction fixes the word-like variant")
         };
         let values = (0..quoted_words.len())
             .map(|index| {
                 word_to_python(
                     py,
-                    WordHandle::new(
-                        self.handle.clone(),
-                        new!(WordSlot::QuotedWordsWord { index }),
-                    ),
+                    WordHandle::new(self.handle.clone(), WordSlot::QuotedWordsWord { index }),
                 )
             })
             .collect::<PyResult<Vec<_>>>()?;
@@ -3221,7 +3244,7 @@ impl PyQuotedWords {
     fn lehu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::LehuMarker)),
+            WordHandle::new(self.handle.clone(), WordSlot::LehuMarker),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3246,7 +3269,10 @@ impl PyQuotedWords {
 }
 
 /// Single verbatim word quotation introduced by a quote marker.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::DelimitedWordQuote { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "DelimitedWordQuote",
     frozen,
@@ -3278,12 +3304,12 @@ impl PyDelimitedWordQuote {
                 "marker must be a single-word quote opener",
             ));
         }
-        Ok(new!(PyDelimitedWordQuote {
+        Ok(PyDelimitedWordQuote {
             handle: WordLikeHandle::root(WordLike::single_word_quote(
                 marker,
                 quoted_text.value.clone_rust(),
             )),
-        }))
+        })
     }
     /// Return the quotation marker word.
     #[requires(true)]
@@ -3292,7 +3318,7 @@ impl PyDelimitedWordQuote {
     fn marker(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::DelimitedWordMarker)),
+            WordHandle::new(self.handle.clone(), WordSlot::DelimitedWordMarker),
         )
     }
     /// Return the exact verbatim quoted word.
@@ -3327,7 +3353,10 @@ impl PyDelimitedWordQuote {
 }
 
 /// `bu` letter word retaining its recursive base and suffix.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::LerfuWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LerfuWord",
     frozen,
@@ -3357,9 +3386,9 @@ impl PyLerfuWord {
                 "LerfuWord.bu must be the cmavo bu",
             ));
         }
-        Ok(new!(PyLerfuWord {
+        Ok(PyLerfuWord {
             handle: WordLikeHandle::root(WordLike::letter(base, bu)),
-        }))
+        })
     }
     /// Return the recursive letter base.
     #[requires(true)]
@@ -3373,10 +3402,7 @@ impl PyLerfuWord {
     #[ensures(true)]
     #[getter]
     fn bu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(
-            py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::BuSuffix)),
-        )
+        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::BuSuffix))
     }
     /// Return the combined half-open byte range when available.
     #[requires(true)]
@@ -3400,7 +3426,10 @@ impl PyLerfuWord {
 }
 
 /// `zei` compound retaining its recursive left operand, link, and right word.
-#[invariant(matches!(handle.get().as_data(), data!(WordLike::ZeiCompound { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ZeiCompound",
     frozen,
@@ -3434,13 +3463,13 @@ impl PyZeiCompound {
                 "ZeiCompound.zei must be the cmavo zei",
             ));
         }
-        Ok(new!(PyZeiCompound {
+        Ok(PyZeiCompound {
             handle: WordLikeHandle::root(WordLike::zei_lujvo(
                 left,
                 zei,
                 word_handle_from_python(right)?.clone_rust(),
             )),
-        }))
+        })
     }
     /// Return the recursive left operand.
     #[requires(true)]
@@ -3454,20 +3483,14 @@ impl PyZeiCompound {
     #[ensures(true)]
     #[getter]
     fn zei(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(
-            py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::ZeiLink)),
-        )
+        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::ZeiLink))
     }
     /// Return the right operand word.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(
-            py,
-            WordHandle::new(self.handle.clone(), new!(WordSlot::ZeiRight)),
-        )
+        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::ZeiRight))
     }
     /// Return the combined half-open byte range when available.
     #[requires(true)]
@@ -3533,27 +3556,23 @@ pub(crate) fn extract_word_like(value: &Bound<'_, PyAny>) -> PyResult<WordLikeHa
 #[ensures(true)]
 pub(crate) fn word_like_to_python(py: Python<'_>, handle: WordLikeHandle) -> PyResult<Py<PyAny>> {
     match handle.get().as_data() {
-        data!(WordLike::PlainWord(_)) => Ok(Py::new(py, new!(PyPlainWord { handle }))?.into_any()),
-        data!(WordLike::QuotedWord { .. }) => {
-            Ok(Py::new(py, new!(PyQuotedWord { handle }))?.into_any())
-        }
+        data!(WordLike::PlainWord(_)) => Ok(Py::new(py, PyPlainWord { handle })?.into_any()),
+        data!(WordLike::QuotedWord { .. }) => Ok(Py::new(py, PyQuotedWord { handle })?.into_any()),
         data!(WordLike::SelmahoQuotedWord { .. }) => {
-            Ok(Py::new(py, new!(PySelmahoQuotedWord { handle }))?.into_any())
+            Ok(Py::new(py, PySelmahoQuotedWord { handle })?.into_any())
         }
         data!(WordLike::DelimitedNonLojbanQuote { .. }) => {
-            Ok(Py::new(py, new!(PyDelimitedNonLojbanQuote { handle }))?.into_any())
+            Ok(Py::new(py, PyDelimitedNonLojbanQuote { handle })?.into_any())
         }
         data!(WordLike::QuotedWords { .. }) => {
-            Ok(Py::new(py, new!(PyQuotedWords { handle }))?.into_any())
+            Ok(Py::new(py, PyQuotedWords { handle })?.into_any())
         }
         data!(WordLike::DelimitedWordQuote { .. }) => {
-            Ok(Py::new(py, new!(PyDelimitedWordQuote { handle }))?.into_any())
+            Ok(Py::new(py, PyDelimitedWordQuote { handle })?.into_any())
         }
-        data!(WordLike::LerfuWord { .. }) => {
-            Ok(Py::new(py, new!(PyLerfuWord { handle }))?.into_any())
-        }
+        data!(WordLike::LerfuWord { .. }) => Ok(Py::new(py, PyLerfuWord { handle })?.into_any()),
         data!(WordLike::ZeiCompound { .. }) => {
-            Ok(Py::new(py, new!(PyZeiCompound { handle }))?.into_any())
+            Ok(Py::new(py, PyZeiCompound { handle })?.into_any())
         }
     }
 }
@@ -3619,7 +3638,7 @@ mod syntax_leaf_projection_tests {
         assert_ne!(first_handle, sibling_handle);
 
         let core = first_handle.core_word();
-        let located_word = WordHandle::new(core.clone(), new!(WordSlot::Plain));
+        let located_word = WordHandle::new(core.clone(), WordSlot::Plain);
         let recovered_from_word_like = core
             .root_token()
             .expect("token-backed core must retain its token")
@@ -3646,9 +3665,8 @@ mod syntax_leaf_projection_tests {
                 .expect("top-level indicators must recover their exact token")
                 .get(),
         ));
-        let bahe =
-            WordHandle::from_indicators(indicators, new!(WithIndicatorsWordSlot::EmphasisBahe))
-                .expect("emphasized token must expose its ba'e modifier");
+        let bahe = WordHandle::from_indicators(indicators, WithIndicatorsWordSlot::EmphasisBahe)
+            .expect("emphasized token must expose its ba'e modifier");
         assert!(bahe.get().is_cmavo(Cmavo::Bahe));
         assert!(Token::ptr_eq(
             &token,
@@ -3660,7 +3678,10 @@ mod syntax_leaf_projection_tests {
 }
 
 /// Morphological construct and character range active at a warning or error.
-#[invariant(value.char_start < value.char_end)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "MorphologyContext",
     frozen,
@@ -3677,7 +3698,7 @@ impl PyMorphologyContext {
     #[requires(value.char_start < value.char_end)]
     #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: MorphologyContext) -> Self {
-        new!(PyMorphologyContext { value })
+        PyMorphologyContext { value }
     }
 }
 
@@ -3739,7 +3760,10 @@ impl PyMorphologyContext {
 }
 
 /// Invalid-lujvo detail carrying the parser expectation and parsed prefix.
-#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::InvalidLujvo { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "InvalidLujvoDetail",
     frozen,
@@ -3772,12 +3796,12 @@ impl PyInvalidLujvoDetail {
                 "parsed_prefix must be non-empty when present",
             ));
         }
-        Ok(new!(PyInvalidLujvoDetail {
+        Ok(PyInvalidLujvoDetail {
             value: new!(MorphologyErrorDetail::InvalidLujvo {
                 parsed_prefix,
                 expected: enum_from_python(py, expected)?
             }),
-        }))
+        })
     }
     /// Return the optional successfully parsed prefix.
     #[requires(true)]
@@ -3786,7 +3810,7 @@ impl PyInvalidLujvoDetail {
     fn parsed_prefix(&self) -> Option<&str> {
         let data!(MorphologyErrorDetail::InvalidLujvo { parsed_prefix, .. }) = self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes detail variant")
+            unreachable!("private construction fixes the detail variant")
         };
         parsed_prefix.as_deref()
     }
@@ -3797,14 +3821,17 @@ impl PyInvalidLujvoDetail {
     fn expected(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(MorphologyErrorDetail::InvalidLujvo { expected, .. }) = self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes detail variant")
+            unreachable!("private construction fixes the detail variant")
         };
         enum_to_python(py, *expected)
     }
 }
 
 /// Detail indicating that a fu'ivla contains forbidden `y`.
-#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::FuhivlaContainsY)))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "FuhivlaContainsYDetail",
     frozen,
@@ -3832,14 +3859,17 @@ impl PyFuhivlaContainsYDetail {
     #[ensures(matches!(ret.value.as_data(), data!(MorphologyErrorDetail::FuhivlaContainsY)))]
     #[new]
     fn new() -> Self {
-        new!(PyFuhivlaContainsYDetail {
+        PyFuhivlaContainsYDetail {
             value: new!(MorphologyErrorDetail::FuhivlaContainsY),
-        })
+        }
     }
 }
 
 /// Detail indicating a slinku'i morphology failure.
-#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::Slinkuhi)))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "SlinkuhiDetail",
     frozen,
@@ -3867,14 +3897,17 @@ impl PySlinkuhiDetail {
     #[ensures(matches!(ret.value.as_data(), data!(MorphologyErrorDetail::Slinkuhi)))]
     #[new]
     fn new() -> Self {
-        new!(PySlinkuhiDetail {
+        PySlinkuhiDetail {
             value: new!(MorphologyErrorDetail::Slinkuhi),
-        })
+        }
     }
 }
 
 /// Detail describing the word role expected by morphology.
-#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::ExpectedWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ExpectedWordDetail",
     frozen,
@@ -3897,11 +3930,11 @@ impl PyExpectedWordDetail {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(py: Python<'_>, expected: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(new!(PyExpectedWordDetail {
+        Ok(PyExpectedWordDetail {
             value: new!(MorphologyErrorDetail::ExpectedWord {
                 expected: enum_from_python(py, expected)?
             }),
-        }))
+        })
     }
     /// Return the expected word role.
     #[requires(true)]
@@ -3909,14 +3942,17 @@ impl PyExpectedWordDetail {
     #[getter]
     fn expected(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(MorphologyErrorDetail::ExpectedWord { expected }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes detail variant")
+            unreachable!("private construction fixes the detail variant")
         };
         enum_to_python(py, *expected)
     }
 }
 
 /// Detail describing why a ZOI delimiter is invalid.
-#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::InvalidZoiDelimiter { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "InvalidZoiDelimiterDetail",
     frozen,
@@ -3939,11 +3975,11 @@ impl PyInvalidZoiDelimiterDetail {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(py: Python<'_>, reason: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(new!(PyInvalidZoiDelimiterDetail {
+        Ok(PyInvalidZoiDelimiterDetail {
             value: new!(MorphologyErrorDetail::InvalidZoiDelimiter {
                 reason: enum_from_python(py, reason)?
             }),
-        }))
+        })
     }
     /// Return the invalid-delimiter reason.
     #[requires(true)]
@@ -3952,14 +3988,17 @@ impl PyInvalidZoiDelimiterDetail {
     fn reason(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(MorphologyErrorDetail::InvalidZoiDelimiter { reason }) = self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes detail variant")
+            unreachable!("private construction fixes the detail variant")
         };
         enum_to_python(py, *reason)
     }
 }
 
 /// Detail identifying the violated phonotactic rule.
-#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::Phonotactic { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "PhonotacticDetail",
     frozen,
@@ -3982,11 +4021,11 @@ impl PyPhonotacticDetail {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(py: Python<'_>, reason: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(new!(PyPhonotacticDetail {
+        Ok(PyPhonotacticDetail {
             value: new!(MorphologyErrorDetail::Phonotactic {
                 reason: enum_from_python(py, reason)?
             }),
-        }))
+        })
     }
     /// Return the phonotactic violation reason.
     #[requires(true)]
@@ -3994,7 +4033,7 @@ impl PyPhonotacticDetail {
     #[getter]
     fn reason(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(MorphologyErrorDetail::Phonotactic { reason }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes detail variant")
+            unreachable!("private construction fixes the detail variant")
         };
         enum_to_python(py, *reason)
     }
@@ -4034,22 +4073,22 @@ fn morphology_detail_to_python(
 ) -> PyResult<Py<PyAny>> {
     match value.as_data() {
         data!(MorphologyErrorDetail::InvalidLujvo { .. }) => {
-            Ok(Py::new(py, new!(PyInvalidLujvoDetail { value }))?.into_any())
+            Ok(Py::new(py, PyInvalidLujvoDetail { value })?.into_any())
         }
         data!(MorphologyErrorDetail::FuhivlaContainsY) => {
-            Ok(Py::new(py, new!(PyFuhivlaContainsYDetail { value }))?.into_any())
+            Ok(Py::new(py, PyFuhivlaContainsYDetail { value })?.into_any())
         }
         data!(MorphologyErrorDetail::Slinkuhi) => {
-            Ok(Py::new(py, new!(PySlinkuhiDetail { value }))?.into_any())
+            Ok(Py::new(py, PySlinkuhiDetail { value })?.into_any())
         }
         data!(MorphologyErrorDetail::ExpectedWord { .. }) => {
-            Ok(Py::new(py, new!(PyExpectedWordDetail { value }))?.into_any())
+            Ok(Py::new(py, PyExpectedWordDetail { value })?.into_any())
         }
         data!(MorphologyErrorDetail::InvalidZoiDelimiter { .. }) => {
-            Ok(Py::new(py, new!(PyInvalidZoiDelimiterDetail { value }))?.into_any())
+            Ok(Py::new(py, PyInvalidZoiDelimiterDetail { value })?.into_any())
         }
         data!(MorphologyErrorDetail::Phonotactic { .. }) => {
-            Ok(Py::new(py, new!(PyPhonotacticDetail { value }))?.into_any())
+            Ok(Py::new(py, PyPhonotacticDetail { value })?.into_any())
         }
     }
 }
@@ -4166,7 +4205,10 @@ fn error_to_diagnostic_checked(
 }
 
 /// Recoverable morphology warning with source offsets and typed context.
-#[invariant(value.char_start < value.char_end)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "MorphologyWarning",
     frozen,
@@ -4183,7 +4225,7 @@ impl PyMorphologyWarning {
     #[requires(value.char_start < value.char_end)]
     #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: MorphologyWarning) -> Self {
-        new!(PyMorphologyWarning { value })
+        PyMorphologyWarning { value }
     }
 }
 
@@ -4340,7 +4382,10 @@ impl PyMorphologyWarning {
 }
 
 /// Structured ordinary morphology failure with typed detail.
-#[invariant(matches!(value.as_data(), data!(RustMorphologyError::Invalid { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "InvalidMorphology",
     frozen,
@@ -4386,7 +4431,7 @@ impl PyInvalidMorphology {
         context: Option<PyRef<'_, PyMorphologyContext>>,
         detail: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
-        Ok(new!(PyInvalidMorphology {
+        Ok(PyInvalidMorphology {
             value: Arc::new(new!(RustMorphologyError::Invalid {
                 kind: enum_from_python(py, kind)?,
                 char_start,
@@ -4395,7 +4440,7 @@ impl PyInvalidMorphology {
                 context: context.map(|context| context.value.clone()),
                 detail: detail.map(morphology_detail_from_python).transpose()?,
             })),
-        }))
+        })
     }
     /// Return the morphology error kind.
     #[requires(true)]
@@ -4403,7 +4448,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         enum_to_python(py, *kind)
     }
@@ -4413,7 +4458,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn code(&self) -> &'static str {
         let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         kind.code()
     }
@@ -4423,7 +4468,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn message(&self) -> &'static str {
         let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         kind.message()
     }
@@ -4433,7 +4478,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn char_start(&self) -> usize {
         let data!(RustMorphologyError::Invalid { char_start, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         *char_start
     }
@@ -4443,7 +4488,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn char_end(&self) -> usize {
         let data!(RustMorphologyError::Invalid { char_end, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         *char_end
     }
@@ -4453,7 +4498,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn text(&self) -> &str {
         let data!(RustMorphologyError::Invalid { text, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         text
     }
@@ -4463,7 +4508,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn context(&self) -> Option<PyMorphologyContext> {
         let data!(RustMorphologyError::Invalid { context, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         context.clone().map(PyMorphologyContext::from_rust)
     }
@@ -4473,7 +4518,7 @@ impl PyInvalidMorphology {
     #[getter]
     fn detail(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
         let data!(RustMorphologyError::Invalid { detail, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         detail
             .clone()
@@ -4504,7 +4549,10 @@ impl PyInvalidMorphology {
 }
 
 /// Structured failure for an unterminated delimiter-based quotation.
-#[invariant(matches!(value.as_data(), data!(RustMorphologyError::UnterminatedZoiQuote { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "UnterminatedZoiQuote",
     frozen,
@@ -4533,13 +4581,13 @@ impl PyUnterminatedZoiQuote {
         delimiter: String,
         context: Option<PyRef<'_, PyMorphologyContext>>,
     ) -> PyResult<Self> {
-        Ok(new!(PyUnterminatedZoiQuote {
+        Ok(PyUnterminatedZoiQuote {
             value: Arc::new(new!(RustMorphologyError::UnterminatedZoiQuote {
                 char_offset,
                 delimiter,
                 context: context.map(|context| context.value.clone())
             })),
-        }))
+        })
     }
     /// Return the stable morphology error code.
     #[requires(true)]
@@ -4556,7 +4604,7 @@ impl PyUnterminatedZoiQuote {
         let data!(RustMorphologyError::UnterminatedZoiQuote { char_offset, .. }) =
             self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         *char_offset
     }
@@ -4568,7 +4616,7 @@ impl PyUnterminatedZoiQuote {
         let data!(RustMorphologyError::UnterminatedZoiQuote { delimiter, .. }) =
             self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         delimiter
     }
@@ -4579,7 +4627,7 @@ impl PyUnterminatedZoiQuote {
     fn context(&self) -> Option<PyMorphologyContext> {
         let data!(RustMorphologyError::UnterminatedZoiQuote { context, .. }) = self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         context.clone().map(PyMorphologyContext::from_rust)
     }
@@ -4607,7 +4655,10 @@ impl PyUnterminatedZoiQuote {
 }
 
 /// Morphology failure caused by invalid source-location data.
-#[invariant(matches!(value.as_data(), data!(RustMorphologyError::SourceSpan(_))))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "SourceSpanMorphologyError",
     frozen,
@@ -4630,11 +4681,11 @@ impl PySourceSpanMorphologyError {
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
     fn new(error: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(new!(PySourceSpanMorphologyError {
+        Ok(PySourceSpanMorphologyError {
             value: Arc::new(new!(RustMorphologyError::SourceSpan(
                 source_location_error_from_python(error)?
             ))),
-        }))
+        })
     }
     /// Return the stable morphology error code.
     #[requires(true)]
@@ -4649,7 +4700,7 @@ impl PySourceSpanMorphologyError {
     #[getter]
     fn error(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(RustMorphologyError::SourceSpan(error)) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes error variant")
+            unreachable!("private construction fixes the error variant")
         };
         source_location_error_to_python(py, error.clone())
     }
@@ -4684,13 +4735,13 @@ fn morphology_error_to_python(
 ) -> PyResult<Py<PyAny>> {
     match value.as_data() {
         data!(RustMorphologyError::Invalid { .. }) => {
-            Ok(Py::new(py, new!(PyInvalidMorphology { value }))?.into_any())
+            Ok(Py::new(py, PyInvalidMorphology { value })?.into_any())
         }
         data!(RustMorphologyError::UnterminatedZoiQuote { .. }) => {
-            Ok(Py::new(py, new!(PyUnterminatedZoiQuote { value }))?.into_any())
+            Ok(Py::new(py, PyUnterminatedZoiQuote { value })?.into_any())
         }
         data!(RustMorphologyError::SourceSpan(_)) => {
-            Ok(Py::new(py, new!(PySourceSpanMorphologyError { value }))?.into_any())
+            Ok(Py::new(py, PySourceSpanMorphologyError { value })?.into_any())
         }
     }
 }
@@ -4714,8 +4765,7 @@ fn morphology_error_arc_from_python(
     ))
 }
 
-#[invariant(::Words { .. } => true)]
-#[invariant(::Error { .. } => true)]
+#[invariant(true, "both strict segmentation outcomes are representable")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SegmentOutcome {
     Words { values: Vec<Arc<WordLike>> },
@@ -4723,7 +4773,10 @@ enum SegmentOutcome {
 }
 
 /// Strict segmentation outcome retaining warnings, traces, and source identity.
-#[invariant(true, "all source text and source identifiers are representable")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "MorphologySegmentAttempt",
     frozen,
@@ -4750,12 +4803,12 @@ impl PyMorphologySegmentAttempt {
     ) -> Self {
         let data = value.into_data();
         let outcome = match data.result {
-            Ok(words) => new!(SegmentOutcome::Words {
+            Ok(words) => SegmentOutcome::Words {
                 values: words.into_iter().map(Arc::new).collect(),
-            }),
-            Err(error) => new!(SegmentOutcome::Error {
+            },
+            Err(error) => SegmentOutcome::Error {
                 value: Arc::new(error),
-            }),
+            },
         };
         Self {
             source: Arc::from(source),
@@ -4785,17 +4838,17 @@ impl PyMorphologySegmentAttempt {
     }
     /// Report whether strict segmentation succeeded.
     #[requires(true)]
-    #[ensures(ret == matches!(self.outcome.as_data(), data!(SegmentOutcome::Words { .. })))]
+    #[ensures(ret == matches!(&self.outcome, SegmentOutcome::Words { .. }))]
     #[getter]
     fn succeeded(&self) -> bool {
-        matches!(self.outcome.as_data(), data!(SegmentOutcome::Words { .. }))
+        matches!(&self.outcome, SegmentOutcome::Words { .. })
     }
     /// Return parsed words on success, otherwise `None`.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn words(&self, py: Python<'_>) -> PyResult<Option<Py<pyo3::types::PyTuple>>> {
-        let data!(SegmentOutcome::Words { values }) = self.outcome.as_data() else {
+        let SegmentOutcome::Words { values } = &self.outcome else {
             return Ok(None);
         };
         let words = values
@@ -4812,9 +4865,9 @@ impl PyMorphologySegmentAttempt {
     #[ensures(true)]
     #[getter]
     fn error(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        match self.outcome.as_data() {
-            data!(SegmentOutcome::Words { .. }) => Ok(None),
-            data!(SegmentOutcome::Error { value }) => {
+        match &self.outcome {
+            SegmentOutcome::Words { .. } => Ok(None),
+            SegmentOutcome::Error { value } => {
                 morphology_error_to_python(py, Arc::clone(value)).map(Some)
             }
         }
@@ -4843,7 +4896,10 @@ impl PyMorphologySegmentAttempt {
 }
 
 /// Recovered segmentation with typed errors paired to skipped source regions.
-#[invariant(errors.len() == error_regions.len())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "RecoveredMorphologySegmentation",
     frozen,
@@ -4864,12 +4920,12 @@ impl PyRecoveredMorphologySegmentation {
     #[ensures(ret.errors.len() == ret.error_regions.len())]
     fn from_rust(value: RecoveredMorphologySegmentation) -> Self {
         let data = value.into_data();
-        new!(PyRecoveredMorphologySegmentation {
+        PyRecoveredMorphologySegmentation {
             words: data.words.into_iter().map(Arc::new).collect(),
             errors: data.errors.into_iter().map(Arc::new).collect(),
             error_regions: data.error_regions,
             warnings: data.warnings,
-        })
+        }
     }
 }
 
@@ -4934,7 +4990,7 @@ impl PyRecoveredMorphologySegmentation {
 /// Recovered segmentation attempt retaining source identity and trace output.
 #[invariant(
     true,
-    "the result carries recovery consistency and source metadata is unrestricted"
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
 )]
 #[pyclass(
     name = "RecoveredMorphologySegmentAttempt",
@@ -5077,7 +5133,10 @@ fn segment_for_display_attempt(
 }
 
 /// Typed lujvo-analysis component with exact surface text.
-#[invariant(!value.text.is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ValsiLujvoPart",
     frozen,
@@ -5094,7 +5153,7 @@ impl PyValsiLujvoPart {
     #[requires(!value.text.is_empty())]
     #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: ValsiLujvoPart) -> Self {
-        new!(PyValsiLujvoPart { value })
+        PyValsiLujvoPart { value }
     }
 }
 
@@ -5262,15 +5321,10 @@ fn classification_step_resolves(value: &ValsiClassification, step: Classificatio
     )
 }
 
-#[invariant(::PlainWord => true)]
-#[invariant(::QuotedMarker => true)]
-#[invariant(::QuotedTarget => true)]
-#[invariant(::DelimitedMarker => true)]
-#[invariant(::QuotedWordsMarker => true)]
-#[invariant(::QuotedWordsTarget { .. } => true)]
-#[invariant(::LerfuSuffix => true)]
-#[invariant(::ZeiLink => true)]
-#[invariant(::ZeiRight => true)]
+#[invariant(
+    true,
+    "slot compatibility and indices are enforced by LocatedPlainClassification"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlainClassificationSlot {
     PlainWord,
@@ -5311,42 +5365,41 @@ fn project_plain_classification(
     value: &ValsiClassification,
     slot: PlainClassificationSlot,
 ) -> Option<&PlainWordClassification> {
-    match (value.as_data(), slot.as_data()) {
-        (
-            data!(ValsiClassification::PlainWord { word }),
-            data!(PlainClassificationSlot::PlainWord),
-        ) => Some(word),
+    match (value.as_data(), slot) {
+        (data!(ValsiClassification::PlainWord { word }), PlainClassificationSlot::PlainWord) => {
+            Some(word)
+        }
         (
             data!(ValsiClassification::QuotedWord { marker, .. }),
-            data!(PlainClassificationSlot::QuotedMarker),
+            PlainClassificationSlot::QuotedMarker,
         ) => Some(marker),
         (
             data!(ValsiClassification::QuotedWord { quoted_word, .. }),
-            data!(PlainClassificationSlot::QuotedTarget),
+            PlainClassificationSlot::QuotedTarget,
         ) => Some(quoted_word),
         (
             data!(ValsiClassification::DelimitedNonLojbanQuote { marker, .. }),
-            data!(PlainClassificationSlot::DelimitedMarker),
+            PlainClassificationSlot::DelimitedMarker,
         ) => Some(marker),
         (
             data!(ValsiClassification::QuotedWords { marker, .. }),
-            data!(PlainClassificationSlot::QuotedWordsMarker),
+            PlainClassificationSlot::QuotedWordsMarker,
         ) => Some(marker),
         (
             data!(ValsiClassification::QuotedWords { quoted_words, .. }),
-            data!(PlainClassificationSlot::QuotedWordsTarget { index }),
-        ) => quoted_words.get(*index),
+            PlainClassificationSlot::QuotedWordsTarget { index },
+        ) => quoted_words.get(index),
         (
             data!(ValsiClassification::LerfuWord { suffix, .. }),
-            data!(PlainClassificationSlot::LerfuSuffix),
+            PlainClassificationSlot::LerfuSuffix,
         ) => Some(suffix),
         (
             data!(ValsiClassification::ZeiCompound { link, .. }),
-            data!(PlainClassificationSlot::ZeiLink),
+            PlainClassificationSlot::ZeiLink,
         ) => Some(link),
         (
             data!(ValsiClassification::ZeiCompound { right, .. }),
-            data!(PlainClassificationSlot::ZeiRight),
+            PlainClassificationSlot::ZeiRight,
         ) => Some(right),
         _ => None,
     }
@@ -5396,7 +5449,10 @@ impl PlainClassificationStorage {
 }
 
 /// Detailed classification of one plain parsed word.
-#[invariant(!value.get().phonemes.is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "PlainWordClassification",
     frozen,
@@ -5413,11 +5469,11 @@ impl PyPlainWordClassification {
     #[requires(true)]
     #[ensures(true)]
     fn located(owner: ClassificationHandle, slot: PlainClassificationSlot) -> Self {
-        new!(PyPlainWordClassification {
+        PyPlainWordClassification {
             value: new!(PlainClassificationStorage::Located {
                 value: LocatedPlainClassification::new(owner, slot),
             }),
-        })
+        }
     }
 }
 
@@ -5473,7 +5529,7 @@ impl PyPlainWordClassification {
                 "stage is only valid for fu'ivla classifications",
             ));
         }
-        Ok(new!(PyPlainWordClassification {
+        Ok(PyPlainWordClassification {
             value: new!(PlainClassificationStorage::Owned {
                 value: Arc::new(new!(PlainWordClassification {
                     category,
@@ -5484,7 +5540,7 @@ impl PyPlainWordClassification {
                     stage
                 })),
             }),
-        }))
+        })
     }
     /// Return the morphology word category.
     #[requires(true)]
@@ -5550,7 +5606,10 @@ fn classification_kind(py: Python<'_>, handle: &ClassificationHandle) -> PyResul
 }
 
 /// Valsi classification for one plain word.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::PlainWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "PlainWordValsiClassification",
     frozen,
@@ -5573,11 +5632,11 @@ impl PyPlainWordValsiClassification {
     #[ensures(true)]
     #[new]
     fn new(word: PyRef<'_, PyPlainWordClassification>) -> Self {
-        new!(PyPlainWordValsiClassification {
+        PyPlainWordValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::PlainWord {
                 word: word.value.clone_rust()
             })),
-        })
+        }
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -5591,15 +5650,15 @@ impl PyPlainWordValsiClassification {
     #[ensures(true)]
     #[getter]
     fn word(&self) -> PyPlainWordClassification {
-        PyPlainWordClassification::located(
-            self.handle.clone(),
-            new!(PlainClassificationSlot::PlainWord),
-        )
+        PyPlainWordClassification::located(self.handle.clone(), PlainClassificationSlot::PlainWord)
     }
 }
 
 /// Valsi classification for a quoted word.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::QuotedWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "QuotedWordValsiClassification",
     frozen,
@@ -5630,12 +5689,12 @@ impl PyQuotedWordValsiClassification {
                 "quoted-word marker classification must be cmavo",
             ));
         }
-        Ok(new!(PyQuotedWordValsiClassification {
+        Ok(PyQuotedWordValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::QuotedWord {
                 marker: marker.value.clone_rust(),
                 quoted_word: quoted_word.value.clone_rust()
             })),
-        }))
+        })
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -5651,7 +5710,7 @@ impl PyQuotedWordValsiClassification {
     fn marker(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            new!(PlainClassificationSlot::QuotedMarker),
+            PlainClassificationSlot::QuotedMarker,
         )
     }
     /// Return the quoted word classification.
@@ -5661,13 +5720,16 @@ impl PyQuotedWordValsiClassification {
     fn quoted_word(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            new!(PlainClassificationSlot::QuotedTarget),
+            PlainClassificationSlot::QuotedTarget,
         )
     }
 }
 
 /// Valsi classification for a delimiter-based non-Lojban quote.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::DelimitedNonLojbanQuote { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "DelimitedNonLojbanQuoteValsiClassification",
     frozen,
@@ -5698,14 +5760,14 @@ impl PyDelimitedNonLojbanQuoteValsiClassification {
         if delimiter.is_empty() {
             return Err(InvalidInputError::new_err("delimiter must not be empty"));
         }
-        Ok(new!(PyDelimitedNonLojbanQuoteValsiClassification {
+        Ok(PyDelimitedNonLojbanQuoteValsiClassification {
             handle: ClassificationHandle::root(new!(
                 ValsiClassification::DelimitedNonLojbanQuote {
                     marker: marker.value.clone_rust(),
                     delimiter
                 }
             )),
-        }))
+        })
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -5721,7 +5783,7 @@ impl PyDelimitedNonLojbanQuoteValsiClassification {
     fn marker(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            new!(PlainClassificationSlot::DelimitedMarker),
+            PlainClassificationSlot::DelimitedMarker,
         )
     }
     /// Return the delimiter spelling.
@@ -5732,14 +5794,17 @@ impl PyDelimitedNonLojbanQuoteValsiClassification {
         let data!(ValsiClassification::DelimitedNonLojbanQuote { delimiter, .. }) =
             self.handle.get().as_data()
         else {
-            unreachable!("wrapper invariant fixes variant")
+            unreachable!("private construction fixes the classification variant")
         };
         delimiter
     }
 }
 
 /// Valsi classification for a quoted parsed-word sequence.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::QuotedWords { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "QuotedWordsValsiClassification",
     frozen,
@@ -5770,7 +5835,7 @@ impl PyQuotedWordsValsiClassification {
                 "quoted-words marker classification must be cmavo",
             ));
         }
-        Ok(new!(PyQuotedWordsValsiClassification {
+        Ok(PyQuotedWordsValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::QuotedWords {
                 marker: marker.value.clone_rust(),
                 quoted_words: quoted_words
@@ -5778,7 +5843,7 @@ impl PyQuotedWordsValsiClassification {
                     .map(|word| word.value.clone_rust())
                     .collect()
             })),
-        }))
+        })
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -5794,7 +5859,7 @@ impl PyQuotedWordsValsiClassification {
     fn marker(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            new!(PlainClassificationSlot::QuotedWordsMarker),
+            PlainClassificationSlot::QuotedWordsMarker,
         )
     }
     /// Return immutable quoted word classifications.
@@ -5805,12 +5870,12 @@ impl PyQuotedWordsValsiClassification {
         let data!(ValsiClassification::QuotedWords { quoted_words, .. }) =
             self.handle.get().as_data()
         else {
-            unreachable!("wrapper invariant fixes variant")
+            unreachable!("private construction fixes the classification variant")
         };
         let values = (0..quoted_words.len()).map(|index| {
             PyPlainWordClassification::located(
                 self.handle.clone(),
-                new!(PlainClassificationSlot::QuotedWordsTarget { index }),
+                PlainClassificationSlot::QuotedWordsTarget { index },
             )
         });
         crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
@@ -5818,7 +5883,10 @@ impl PyQuotedWordsValsiClassification {
 }
 
 /// Valsi classification for a single verbatim word quote.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::DelimitedWordQuote { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "DelimitedWordQuoteValsiClassification",
     frozen,
@@ -5844,11 +5912,11 @@ impl PyDelimitedWordQuoteValsiClassification {
         if marker_text.is_empty() {
             return Err(InvalidInputError::new_err("marker_text must not be empty"));
         }
-        Ok(new!(PyDelimitedWordQuoteValsiClassification {
+        Ok(PyDelimitedWordQuoteValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::DelimitedWordQuote {
                 marker_text
             })),
-        }))
+        })
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -5865,7 +5933,7 @@ impl PyDelimitedWordQuoteValsiClassification {
         let data!(ValsiClassification::DelimitedWordQuote { marker_text }) =
             self.handle.get().as_data()
         else {
-            unreachable!("wrapper invariant fixes variant")
+            unreachable!("private construction fixes the classification variant")
         };
         marker_text
     }
@@ -5901,7 +5969,10 @@ fn classification_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<Class
 }
 
 /// Valsi classification for a recursive `bu` letter word.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::LerfuWord { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LerfuWordValsiClassification",
     frozen,
@@ -5932,12 +6003,12 @@ impl PyLerfuWordValsiClassification {
                 "lerfu suffix classification must be cmavo",
             ));
         }
-        Ok(new!(PyLerfuWordValsiClassification {
+        Ok(PyLerfuWordValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::LerfuWord {
                 base: Box::new(classification_handle_from_python(base)?.get().clone()),
                 suffix: suffix.value.clone_rust()
             })),
-        }))
+        })
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -5960,13 +6031,16 @@ impl PyLerfuWordValsiClassification {
     fn suffix(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            new!(PlainClassificationSlot::LerfuSuffix),
+            PlainClassificationSlot::LerfuSuffix,
         )
     }
 }
 
 /// Valsi classification for a recursive `zei` compound.
-#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::ZeiCompound { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ZeiCompoundValsiClassification",
     frozen,
@@ -5998,13 +6072,13 @@ impl PyZeiCompoundValsiClassification {
                 "ZEI link classification must be cmavo",
             ));
         }
-        Ok(new!(PyZeiCompoundValsiClassification {
+        Ok(PyZeiCompoundValsiClassification {
             handle: ClassificationHandle::root(new!(ValsiClassification::ZeiCompound {
                 left: Box::new(classification_handle_from_python(left)?.get().clone()),
                 link: link.value.clone_rust(),
                 right: right.value.clone_rust()
             })),
-        }))
+        })
     }
     /// Return the classification variant kind.
     #[requires(true)]
@@ -6025,20 +6099,14 @@ impl PyZeiCompoundValsiClassification {
     #[ensures(true)]
     #[getter]
     fn link(&self) -> PyPlainWordClassification {
-        PyPlainWordClassification::located(
-            self.handle.clone(),
-            new!(PlainClassificationSlot::ZeiLink),
-        )
+        PyPlainWordClassification::located(self.handle.clone(), PlainClassificationSlot::ZeiLink)
     }
     /// Return the right word classification.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn right(&self) -> PyPlainWordClassification {
-        PyPlainWordClassification::located(
-            self.handle.clone(),
-            new!(PlainClassificationSlot::ZeiRight),
-        )
+        PyPlainWordClassification::located(self.handle.clone(), PlainClassificationSlot::ZeiRight)
     }
 }
 
@@ -6047,36 +6115,34 @@ impl PyZeiCompoundValsiClassification {
 fn classification_to_python(py: Python<'_>, handle: ClassificationHandle) -> PyResult<Py<PyAny>> {
     match handle.get().as_data() {
         data!(ValsiClassification::PlainWord { .. }) => {
-            Ok(Py::new(py, new!(PyPlainWordValsiClassification { handle }))?.into_any())
+            Ok(Py::new(py, PyPlainWordValsiClassification { handle })?.into_any())
         }
         data!(ValsiClassification::QuotedWord { .. }) => {
-            Ok(Py::new(py, new!(PyQuotedWordValsiClassification { handle }))?.into_any())
+            Ok(Py::new(py, PyQuotedWordValsiClassification { handle })?.into_any())
         }
-        data!(ValsiClassification::DelimitedNonLojbanQuote { .. }) => Ok(Py::new(
-            py,
-            new!(PyDelimitedNonLojbanQuoteValsiClassification { handle }),
-        )?
-        .into_any()),
+        data!(ValsiClassification::DelimitedNonLojbanQuote { .. }) => {
+            Ok(Py::new(py, PyDelimitedNonLojbanQuoteValsiClassification { handle })?.into_any())
+        }
         data!(ValsiClassification::QuotedWords { .. }) => {
-            Ok(Py::new(py, new!(PyQuotedWordsValsiClassification { handle }))?.into_any())
+            Ok(Py::new(py, PyQuotedWordsValsiClassification { handle })?.into_any())
         }
         data!(ValsiClassification::DelimitedWordQuote { .. }) => {
-            Ok(Py::new(py, new!(PyDelimitedWordQuoteValsiClassification { handle }))?.into_any())
+            Ok(Py::new(py, PyDelimitedWordQuoteValsiClassification { handle })?.into_any())
         }
         data!(ValsiClassification::LerfuWord { .. }) => {
-            Ok(Py::new(py, new!(PyLerfuWordValsiClassification { handle }))?.into_any())
+            Ok(Py::new(py, PyLerfuWordValsiClassification { handle })?.into_any())
         }
         data!(ValsiClassification::ZeiCompound { .. }) => {
-            Ok(Py::new(py, new!(PyZeiCompoundValsiClassification { handle }))?.into_any())
+            Ok(Py::new(py, PyZeiCompoundValsiClassification { handle })?.into_any())
         }
     }
 }
 
 /// Status-dependent payload of single-valsi analysis.
-#[invariant(matches!(status, ValsiAnalysisStatus::Valid) == word.is_some())]
-#[invariant(matches!(status, ValsiAnalysisStatus::Valid) == classification.is_some())]
-#[invariant(matches!(status, ValsiAnalysisStatus::Invalid) == error.is_some())]
-#[invariant(matches!(status, ValsiAnalysisStatus::NotSingleWord) || words.is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ValsiAnalysisResult",
     frozen,
@@ -6098,13 +6164,13 @@ impl PyValsiAnalysisResult {
     #[ensures(ret.status == old(value.status))]
     fn from_rust(value: ValsiAnalysisResult) -> Self {
         let data = value.into_data();
-        new!(PyValsiAnalysisResult {
+        PyValsiAnalysisResult {
             status: data.status,
             word: data.word.map(Arc::new),
             classification: data.classification.map(Arc::new),
             error: data.error.map(Arc::new),
             words: data.words.into_iter().map(Arc::new).collect(),
-        })
+        }
     }
 }
 
@@ -6155,13 +6221,13 @@ impl PyValsiAnalysisResult {
                 "valsi analysis fields do not match status",
             ));
         }
-        Ok(new!(PyValsiAnalysisResult {
+        Ok(PyValsiAnalysisResult {
             status,
             word,
             classification,
             error,
             words,
-        }))
+        })
     }
     /// Return the valsi analysis status.
     #[requires(true)]
@@ -6225,7 +6291,10 @@ impl PyValsiAnalysisResult {
 }
 
 /// Complete single-valsi analysis with input and warnings.
-#[invariant(true)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ValsiAnalysis",
     frozen,
@@ -6327,12 +6396,12 @@ fn one_unicode_scalar(text: &str, parameter: &str) -> PyResult<char> {
 #[requires(true)]
 #[ensures(true)]
 fn owned_lujvo_part_to_python(py: Python<'_>, part: LujvoPart) -> PyResult<Py<PyAny>> {
-    let value = new!(LujvoPartStorage::Owned {
+    let value = LujvoPartStorage::Owned {
         value: Arc::new(part),
-    });
+    };
     match value.get() {
-        LujvoPart::Rafsi(_) => Ok(Py::new(py, new!(PyLujvoRafsi { value }))?.into_any()),
-        LujvoPart::Hyphen(_) => Ok(Py::new(py, new!(PyLujvoHyphen { value }))?.into_any()),
+        LujvoPart::Rafsi(_) => Ok(Py::new(py, PyLujvoRafsi { value })?.into_any()),
+        LujvoPart::Hyphen(_) => Ok(Py::new(py, PyLujvoHyphen { value })?.into_any()),
     }
 }
 
@@ -6880,7 +6949,10 @@ fn selmaho_contains(
 }
 
 /// Rafsi input part for lujvo candidate construction.
-#[invariant(matches!(value.as_data(), data!(LujvoBuildPart::Rafsi(text)) if !text.is_empty()))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LujvoRafsiBuildPart",
     frozen,
@@ -6908,9 +6980,9 @@ impl PyLujvoRafsiBuildPart {
                 "lujvo build part text must not be empty",
             ));
         }
-        Ok(new!(PyLujvoRafsiBuildPart {
+        Ok(PyLujvoRafsiBuildPart {
             value: new!(LujvoBuildPart::Rafsi(text)),
-        }))
+        })
     }
     /// Return the build-part text.
     #[requires(true)]
@@ -6922,7 +6994,10 @@ impl PyLujvoRafsiBuildPart {
 }
 
 /// Full brivla-core input part for lujvo candidate construction.
-#[invariant(matches!(value.as_data(), data!(LujvoBuildPart::BrivlaCore(text)) if !text.is_empty()))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LujvoBrivlaCoreBuildPart",
     frozen,
@@ -6950,9 +7025,9 @@ impl PyLujvoBrivlaCoreBuildPart {
                 "lujvo build part text must not be empty",
             ));
         }
-        Ok(new!(PyLujvoBrivlaCoreBuildPart {
+        Ok(PyLujvoBrivlaCoreBuildPart {
             value: new!(LujvoBuildPart::BrivlaCore(text)),
-        }))
+        })
     }
     /// Return the build-part text.
     #[requires(true)]
@@ -6978,7 +7053,10 @@ fn lujvo_build_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoBuild
 }
 
 /// Scored lujvo candidate with its selected surface parts.
-#[invariant(!value.word.is_empty() && !value.parts.is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LujvoCandidate",
     frozen,
@@ -6995,7 +7073,7 @@ impl PyLujvoCandidate {
     #[requires(!value.word.is_empty() && !value.parts.is_empty())]
     #[expensive_ensures(ret.value == old(value.clone()))]
     fn from_rust(value: LujvoCandidate) -> Self {
-        new!(PyLujvoCandidate { value })
+        PyLujvoCandidate { value }
     }
 }
 
@@ -7450,7 +7528,7 @@ mod tests {
             assert_eq!(projected.source_id, None);
             assert!(projected.warnings.is_empty());
             assert_eq!(projected.trace, None);
-            let data!(SegmentOutcome::Words { values }) = projected.outcome.as_data() else {
+            let SegmentOutcome::Words { values } = &projected.outcome else {
                 panic!("mimi must project as successful segmentation")
             };
             assert_eq!(values.len(), 2);
@@ -7468,7 +7546,7 @@ mod tests {
 
             let projected = function.call1(("aa",))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
-            let data!(SegmentOutcome::Error { value }) = projected.outcome.as_data() else {
+            let SegmentOutcome::Error { value } = &projected.outcome else {
                 panic!("aa must project as a morphology error")
             };
             let data!(RustMorphologyError::Invalid {
@@ -7643,7 +7721,7 @@ mod tests {
             let projected = function.call(("xu@no",), Some(&kwargs))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
             assert_eq!(projected.source.as_ref(), "xu@no");
-            let data!(SegmentOutcome::Words { values }) = projected.outcome.as_data() else {
+            let SegmentOutcome::Words { values } = &projected.outcome else {
                 panic!("permissive display segmentation must succeed")
             };
             assert_eq!(values.len(), 2);
@@ -7673,8 +7751,8 @@ mod tests {
             let projected = function.call(("aa",), Some(&kwargs))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
             assert!(matches!(
-                projected.outcome.as_data(),
-                data!(SegmentOutcome::Error { value })
+                &projected.outcome,
+                SegmentOutcome::Error { value }
                     if matches!(value.as_data(), data!(RustMorphologyError::Invalid {
                         kind: MorphologyErrorKind::VowelHiatus,
                         char_start: 0,

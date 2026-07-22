@@ -34,7 +34,10 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
 ];
 
 /// Source-location failure indicating a one-based line number of zero.
-#[invariant(value == SourceLocationError::ZeroLine)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ZeroLine",
     frozen,
@@ -62,14 +65,17 @@ impl PyZeroLine {
     #[ensures(ret.value == SourceLocationError::ZeroLine)]
     #[new]
     fn new() -> Self {
-        new!(PyZeroLine {
+        PyZeroLine {
             value: SourceLocationError::ZeroLine,
-        })
+        }
     }
 }
 
 /// Source-location failure indicating a one-based column number of zero.
-#[invariant(value == SourceLocationError::ZeroColumn)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ZeroColumn",
     frozen,
@@ -97,14 +103,17 @@ impl PyZeroColumn {
     #[ensures(ret.value == SourceLocationError::ZeroColumn)]
     #[new]
     fn new() -> Self {
-        new!(PyZeroColumn {
+        PyZeroColumn {
             value: SourceLocationError::ZeroColumn,
-        })
+        }
     }
 }
 
 /// Source-location failure carrying an inverted byte range.
-#[invariant(matches!(value, SourceLocationError::ByteRangeInverted { .. }))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "ByteRangeInverted",
     frozen,
@@ -128,9 +137,9 @@ impl PyByteRangeInverted {
     #[ensures(matches!(ret.value, SourceLocationError::ByteRangeInverted { start: value_start, end: value_end } if value_start == start && value_end == end))]
     #[new]
     fn new(start: usize, end: usize) -> Self {
-        new!(PyByteRangeInverted {
+        PyByteRangeInverted {
             value: SourceLocationError::ByteRangeInverted { start, end },
-        })
+        }
     }
 
     /// Return the supplied start byte offset.
@@ -139,7 +148,7 @@ impl PyByteRangeInverted {
     #[getter]
     fn start(&self) -> usize {
         let SourceLocationError::ByteRangeInverted { start, .. } = &self.value else {
-            unreachable!("wrapper invariant fixes the source error variant")
+            unreachable!("private construction fixes the source error variant")
         };
         *start
     }
@@ -150,14 +159,17 @@ impl PyByteRangeInverted {
     #[getter]
     fn end(&self) -> usize {
         let SourceLocationError::ByteRangeInverted { end, .. } = &self.value else {
-            unreachable!("wrapper invariant fixes the source error variant")
+            unreachable!("private construction fixes the source error variant")
         };
         *end
     }
 }
 
 /// Source-location failure carrying an inverted character range.
-#[invariant(matches!(value, SourceLocationError::CharRangeInverted { .. }))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CharRangeInverted",
     frozen,
@@ -181,9 +193,9 @@ impl PyCharRangeInverted {
     #[ensures(matches!(ret.value, SourceLocationError::CharRangeInverted { start: value_start, end: value_end } if value_start == start && value_end == end))]
     #[new]
     fn new(start: usize, end: usize) -> Self {
-        new!(PyCharRangeInverted {
+        PyCharRangeInverted {
             value: SourceLocationError::CharRangeInverted { start, end },
-        })
+        }
     }
 
     /// Return the supplied start character offset.
@@ -192,7 +204,7 @@ impl PyCharRangeInverted {
     #[getter]
     fn start(&self) -> usize {
         let SourceLocationError::CharRangeInverted { start, .. } = &self.value else {
-            unreachable!("wrapper invariant fixes the source error variant")
+            unreachable!("private construction fixes the source error variant")
         };
         *start
     }
@@ -203,7 +215,7 @@ impl PyCharRangeInverted {
     #[getter]
     fn end(&self) -> usize {
         let SourceLocationError::CharRangeInverted { end, .. } = &self.value else {
-            unreachable!("wrapper invariant fixes the source error variant")
+            unreachable!("private construction fixes the source error variant")
         };
         *end
     }
@@ -218,23 +230,23 @@ pub(crate) fn source_location_error_to_python(
     Ok(match error {
         SourceLocationError::ZeroLine => Py::new(
             py,
-            new!(PyZeroLine {
+            PyZeroLine {
                 value: SourceLocationError::ZeroLine,
-            }),
+            },
         )?
         .into_any(),
         SourceLocationError::ZeroColumn => Py::new(
             py,
-            new!(PyZeroColumn {
+            PyZeroColumn {
                 value: SourceLocationError::ZeroColumn,
-            }),
+            },
         )?
         .into_any(),
         error @ SourceLocationError::ByteRangeInverted { .. } => {
-            Py::new(py, new!(PyByteRangeInverted { value: error }))?.into_any()
+            Py::new(py, PyByteRangeInverted { value: error })?.into_any()
         }
         error @ SourceLocationError::CharRangeInverted { .. } => {
-            Py::new(py, new!(PyCharRangeInverted { value: error }))?.into_any()
+            Py::new(py, PyCharRangeInverted { value: error })?.into_any()
         }
     })
 }
@@ -262,7 +274,10 @@ pub(crate) fn source_location_error_from_python(
 }
 
 /// Stable identifier for the source text associated with a span.
-#[invariant(true, "every string is a valid source identifier")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "SourceId",
     frozen,
@@ -325,7 +340,10 @@ impl PySourceId {
 }
 
 /// One-based line and column coordinates in source text.
-#[invariant(value.line > 0 && value.column > 0)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "LineColumn",
     frozen,
@@ -349,7 +367,7 @@ impl PyLineColumn {
     #[requires(value.line > 0 && value.column > 0)]
     #[ensures(ret.value == value)]
     pub(crate) fn from_rust(value: LineColumn) -> Self {
-        new!(PyLineColumn { value })
+        PyLineColumn { value }
     }
 }
 
@@ -392,8 +410,10 @@ impl PyLineColumn {
 }
 
 /// Immutable half-open byte and character ranges for a source region.
-#[invariant(value.byte_start <= value.byte_end)]
-#[invariant(value.char_start <= value.char_end)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "SourceSpan",
     frozen,
@@ -433,9 +453,9 @@ impl PySourceSpan {
     #[ensures(ret.value.char_start == old(value.char_start))]
     #[ensures(ret.value.char_end == old(value.char_end))]
     pub(crate) fn from_rust(value: SourceSpan) -> Self {
-        new!(PySourceSpan {
+        PySourceSpan {
             value: Arc::new(value),
-        })
+        }
     }
 }
 

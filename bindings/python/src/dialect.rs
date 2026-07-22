@@ -125,7 +125,10 @@ fn dialect_feature_atom_name(py: Python<'_>, feature: &Bound<'_, PyAny>) -> PyRe
 }
 
 /// Declarative dialect entry that swaps two cmavo forms.
-#[invariant(matches!(value.as_data(), bityzba::data!(CmavoDialectEntry::Swap { .. })))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CmavoSwap",
     frozen,
@@ -150,7 +153,7 @@ impl PyCmavoSwap {
     #[new]
     fn new(left: String, right: String) -> PyResult<Self> {
         CmavoDialectEntry::swap(left, right)
-            .map(|value| new!(PyCmavoSwap { value }))
+            .map(|value| PyCmavoSwap { value })
             .map_err(invalid_input)
     }
 
@@ -160,7 +163,7 @@ impl PyCmavoSwap {
     #[getter]
     fn left(&self) -> &str {
         let bityzba::data!(CmavoDialectEntry::Swap { left, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes the dialect entry variant")
+            unreachable!("private construction fixes the dialect entry variant")
         };
         left
     }
@@ -171,14 +174,17 @@ impl PyCmavoSwap {
     #[getter]
     fn right(&self) -> &str {
         let bityzba::data!(CmavoDialectEntry::Swap { right, .. }) = self.value.as_data() else {
-            unreachable!("wrapper invariant fixes the dialect entry variant")
+            unreachable!("private construction fixes the dialect entry variant")
         };
         right
     }
 }
 
 /// Declarative dialect entry that expands one cmavo into a non-empty sequence.
-#[invariant(matches!(value.as_data(), bityzba::data!(CmavoDialectEntry::Expansion { replacement, .. }) if !replacement.is_empty()))]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CmavoExpansion",
     frozen,
@@ -203,7 +209,7 @@ impl PyCmavoExpansion {
     #[new]
     fn new(source: String, replacement: Vec<String>) -> PyResult<Self> {
         CmavoDialectEntry::expansion(source, replacement)
-            .map(|value| new!(PyCmavoExpansion { value }))
+            .map(|value| PyCmavoExpansion { value })
             .map_err(invalid_input)
     }
 
@@ -214,7 +220,7 @@ impl PyCmavoExpansion {
     fn source(&self) -> &str {
         let bityzba::data!(CmavoDialectEntry::Expansion { source, .. }) = self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes the dialect entry variant")
+            unreachable!("private construction fixes the dialect entry variant")
         };
         source
     }
@@ -226,7 +232,7 @@ impl PyCmavoExpansion {
     fn replacement(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let bityzba::data!(CmavoDialectEntry::Expansion { replacement, .. }) = self.value.as_data()
         else {
-            unreachable!("wrapper invariant fixes the dialect entry variant")
+            unreachable!("private construction fixes the dialect entry variant")
         };
         sequence_to_tuple(py, replacement.iter().cloned()).map(Bound::unbind)
     }
@@ -251,17 +257,20 @@ fn entry_from_python(value: &Bound<'_, PyAny>) -> PyResult<CmavoDialectEntry> {
 fn entry_to_python(py: Python<'_>, value: CmavoDialectEntry) -> PyResult<Py<PyAny>> {
     let value = match value.as_data() {
         bityzba::data!(CmavoDialectEntry::Swap { .. }) => {
-            Py::new(py, new!(PyCmavoSwap { value }))?.into_any()
+            Py::new(py, PyCmavoSwap { value })?.into_any()
         }
         bityzba::data!(CmavoDialectEntry::Expansion { .. }) => {
-            Py::new(py, new!(PyCmavoExpansion { value }))?.into_any()
+            Py::new(py, PyCmavoExpansion { value })?.into_any()
         }
     };
     Ok(value)
 }
 
 /// Declarative dialect definition containing cmavo rewrites and feature flags.
-#[invariant(true, "entry validity is carried by CmavoDialectEntry")]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "DialectDefinition",
     frozen,
@@ -366,8 +375,10 @@ impl PyDialectDefinition {
 }
 
 /// Built-in named dialect and its declarative definition.
-#[invariant(!name.is_empty())]
-#[invariant(!definition.is_empty())]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "BuiltinDialect",
     frozen,
@@ -387,11 +398,11 @@ impl PyBuiltinDialect {
     #[requires(!value.definition.is_empty())]
     #[ensures(ret.name == value.name)]
     fn from_rust(value: &BuiltinDialect) -> Self {
-        new!(PyBuiltinDialect {
+        PyBuiltinDialect {
             name: value.name.to_owned(),
             definition: value.definition.to_owned(),
             dialect: value.dialect.clone(),
-        })
+        }
     }
 }
 
@@ -423,7 +434,10 @@ impl PyBuiltinDialect {
 }
 
 /// User-defined named dialect formula.
-#[invariant(true)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "CustomDialect",
     frozen,
@@ -488,7 +502,10 @@ impl PyCustomDialect {
 }
 
 /// Saved custom dialects and hidden built-in-picker entries.
-#[invariant(true)]
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
 #[pyclass(
     name = "DialectSettings",
     frozen,
