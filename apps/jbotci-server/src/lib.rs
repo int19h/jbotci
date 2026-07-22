@@ -3766,6 +3766,38 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn spa_gimfihi_metadata_renders_original_ipa_in_shared_page_meta() {
+        let app = router(test_config(test_static_dir()));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri(concat!(
+                        "/jbotci/gimfihi?preset=1995&source=cmn%3A%3Auan",
+                        "&source=hin%3A%3Arakan&source=eng%3A%3A%5Bekspekt%5D",
+                        "&source=spa%3A%3Aesper&source=rus%3A%3Apredpologa",
+                        "&source=ara%3A%3Amulud&shape=ccvcv&shape=cvccv",
+                        "&letters=source&check-collisions=none",
+                        "&require-free-short-rafsi=false&count=5&highlight=nanpe",
+                    ))
+                    .header(HOST, "example.test")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_text(response).await;
+
+        assert_eq!(body.matches("eng:[ekspekt] ×160").count(), 3);
+        assert!(!body.contains("eng:ekspekt ×160"));
+        assert!(body.contains("name=\"description\" content=\""));
+        assert!(body.contains("property=\"og:description\" content=\""));
+        assert!(body.contains("&amp;source=eng%3A%3A%5Bekspekt%5D"));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn spa_unknown_route_uses_default_dictionary_metadata() {
         let app = router(test_config(test_static_dir()));
         let response = app
