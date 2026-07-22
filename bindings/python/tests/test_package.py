@@ -12,6 +12,7 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 from types import ModuleType
+from typing import NamedTuple
 
 import pytest
 
@@ -98,6 +99,18 @@ MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_morphology_LujvoRafsiBuildPart": ("text",),
     "_morphology_LujvoBrivlaCoreBuildPart": ("text",),
     "_morphology_LujvoCandidate": ("word", "parts", "score"),
+}
+
+NON_MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
+    "_source_ZeroLine": (),
+    "_source_ZeroColumn": (),
+    "_source_ByteRangeInverted": ("start", "end"),
+    "_source_CharRangeInverted": ("start", "end"),
+    "_diagnostics_VlackuWordLink": ("word",),
+    "_diagnostics_CllSectionLink": ("section_id", "anchor"),
+    "_diagnostics_EbnfRuleLink": ("rule_name",),
+    "_dialect_CmavoSwap": ("left", "right"),
+    "_dialect_CmavoExpansion": ("source", "replacement"),
 }
 
 MORPHOLOGY_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
@@ -643,25 +656,8 @@ def _stub_function_is_property(declaration: ast.FunctionDef) -> bool:
     )
 
 
-def _stub_function_annotations(declaration: ast.FunctionDef) -> tuple[ast.expr, ...]:
-    annotations: list[ast.expr] = []
-    arguments = [
-        *declaration.args.posonlyargs,
-        *declaration.args.args,
-        *declaration.args.kwonlyargs,
-    ]
-    if declaration.args.vararg is not None:
-        arguments.append(declaration.args.vararg)
-    if declaration.args.kwarg is not None:
-        arguments.append(declaration.args.kwarg)
-    for argument in arguments:
-        if argument.arg in {"self", "cls"}:
-            continue
-        assert argument.annotation is not None, f"{declaration.name}.{argument.arg}"
-        annotations.append(argument.annotation)
-    assert declaration.returns is not None, declaration.name
-    annotations.append(declaration.returns)
-    return tuple(annotations)
+def _is_dunder(name: str) -> bool:
+    return name.startswith("__") and name.endswith("__")
 
 
 def _stub_function_type_shape(
@@ -778,82 +774,392 @@ def _stub_match_args_arity(annotation: ast.expr) -> int:
     return len(elements)
 
 
-def _node_mentions_any(node: ast.AST, any_names: set[str]) -> bool:
-    for child in ast.walk(node):
-        if isinstance(child, ast.Name) and child.id in any_names:
-            return True
-        # ``Any`` can be re-exported through modules other than ``typing`` and
-        # ``typing_extensions``. An attribute with this terminal name is never
-        # an acceptable declaration on the manual no-Any surface.
-        if isinstance(child, ast.Attribute) and child.attr == "Any":
-            return True
-        if not isinstance(child, ast.Constant) or not isinstance(child.value, str):
-            continue
-        try:
-            forward_reference = ast.parse(child.value, mode="eval")
-        except SyntaxError:
-            continue
-        if any(
-            (isinstance(reference, ast.Name) and reference.id in any_names)
-            or (isinstance(reference, ast.Attribute) and reference.attr == "Any")
-            for reference in ast.walk(forward_reference)
-        ):
-            return True
-    return False
+class _StubSymbols(NamedTuple):
+    any_names: set[str]
+    literal_names: set[str]
+    annotated_names: set[str]
+    type_alias_names: set[str]
+    type_alias_type_names: set[str]
+    type_var_names: set[str]
+    new_type_names: set[str]
+    forward_ref_names: set[str]
+    typing_module_names: set[str]
+    assignments: dict[str, ast.expr]
 
 
-def _assigned_names(statement: ast.stmt) -> set[str]:
-    if isinstance(statement, ast.Assign):
-        return {
-            target.id for target in statement.targets if isinstance(target, ast.Name)
+def _attribute_root_name(expression: ast.Attribute) -> str | None:
+    value: ast.expr = expression
+    while isinstance(value, ast.Attribute):
+        value = value.value
+    return value.id if isinstance(value, ast.Name) else None
+
+
+def _symbol_kind(expression: ast.expr, symbols: _StubSymbols) -> str | None:
+    if isinstance(expression, ast.Name):
+        symbol_sets = {
+            "any": symbols.any_names,
+            "literal": symbols.literal_names,
+            "annotated": symbols.annotated_names,
+            "type-alias": symbols.type_alias_names,
+            "type-alias-type": symbols.type_alias_type_names,
+            "type-var": symbols.type_var_names,
+            "new-type": symbols.new_type_names,
+            "forward-ref": symbols.forward_ref_names,
         }
-    if isinstance(statement, ast.AnnAssign) and isinstance(
-        statement.target, ast.Name
-    ):
-        return {statement.target.id}
-    return set()
-
-
-def _assigned_value(statement: ast.stmt) -> ast.expr | None:
-    if isinstance(statement, (ast.Assign, ast.AnnAssign)):
-        return statement.value
+        for kind, names in symbol_sets.items():
+            if expression.id in names:
+                return kind
+        return None
+    if isinstance(expression, ast.Attribute):
+        if expression.attr == "Any":
+            return "any"
+        if _attribute_root_name(expression) in symbols.typing_module_names:
+            return {
+                "Literal": "literal",
+                "Annotated": "annotated",
+                "TypeAlias": "type-alias",
+                "TypeAliasType": "type-alias-type",
+                "TypeVar": "type-var",
+                "NewType": "new-type",
+                "ForwardRef": "forward-ref",
+            }.get(expression.attr)
     return None
 
 
-def _stub_tree_mentions_any(tree: ast.Module) -> bool:
-    any_names = {"Any"}
-    imported_any = False
-    for statement in tree.body:
-        if not isinstance(statement, ast.ImportFrom):
-            continue
-        for imported in statement.names:
-            if imported.name == "Any" or imported.name == "*":
-                imported_any = True
-                any_names.add(imported.asname or imported.name)
+def _special_call_type_arguments(
+    expression: ast.Call, symbols: _StubSymbols
+) -> tuple[ast.expr, ...] | None:
+    kind = _symbol_kind(expression.func, symbols)
+    if kind in {"type-alias-type", "new-type"}:
+        arguments = list(expression.args[1:2])
+        arguments.extend(
+            keyword.value
+            for keyword in expression.keywords
+            if keyword.arg in {"tp", "value", "type_params"}
+        )
+        return tuple(arguments)
+    if kind == "type-var":
+        arguments = list(expression.args[1:])
+        arguments.extend(
+            keyword.value
+            for keyword in expression.keywords
+            if keyword.arg in {"bound", "default"}
+        )
+        return tuple(arguments)
+    if kind == "forward-ref":
+        arguments = list(expression.args[:1])
+        arguments.extend(
+            keyword.value for keyword in expression.keywords if keyword.arg == "arg"
+        )
+        return tuple(arguments)
+    return None
 
-    # Resolve arbitrary chains of top-level aliases before scanning the whole
-    # tree. This covers both ``Alias = ...`` and ``Alias: TypeAlias = ...``.
+
+def _type_expression_mentions_any(
+    expression: ast.expr,
+    symbols: _StubSymbols,
+    dependencies: set[str],
+    visited_strings: set[str] | None = None,
+) -> bool:
+    if visited_strings is None:
+        visited_strings = set()
+
+    if isinstance(expression, ast.Name):
+        if _symbol_kind(expression, symbols) == "any":
+            return True
+        if expression.id in symbols.assignments:
+            dependencies.add(expression.id)
+        return False
+    if isinstance(expression, ast.Attribute):
+        return _symbol_kind(expression, symbols) == "any"
+    if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
+        if expression.value in visited_strings:
+            return False
+        visited_strings.add(expression.value)
+        try:
+            nested = ast.parse(expression.value, mode="eval").body
+        except SyntaxError:
+            return False
+        return _type_expression_mentions_any(
+            nested,
+            symbols,
+            dependencies,
+            visited_strings=visited_strings,
+        )
+    if isinstance(expression, ast.Subscript):
+        kind = _symbol_kind(expression.value, symbols)
+        if kind == "literal":
+            return False
+        if kind == "annotated":
+            annotated_elements = (
+                expression.slice.elts
+                if isinstance(expression.slice, ast.Tuple)
+                else [expression.slice]
+            )
+            return bool(annotated_elements) and _type_expression_mentions_any(
+                annotated_elements[0],
+                symbols,
+                dependencies,
+                visited_strings=visited_strings,
+            )
+    if isinstance(expression, ast.Call):
+        special_arguments = _special_call_type_arguments(expression, symbols)
+        if special_arguments is not None:
+            return any(
+                _type_expression_mentions_any(
+                    argument,
+                    symbols,
+                    dependencies,
+                    visited_strings=visited_strings,
+                )
+                for argument in special_arguments
+            )
+
+    return any(
+        _type_expression_mentions_any(
+            child,
+            symbols,
+            dependencies,
+            visited_strings=visited_strings,
+        )
+        for child in ast.iter_child_nodes(expression)
+        if isinstance(child, ast.expr)
+    )
+
+
+def _module_scope_statements(statements: list[ast.stmt]) -> tuple[ast.stmt, ...]:
+    flattened: list[ast.stmt] = []
+
+    def visit(node: ast.AST) -> None:
+        if isinstance(node, ast.stmt):
+            flattened.append(node)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                return
+        for child in ast.iter_child_nodes(node):
+            if not isinstance(child, ast.expr):
+                visit(child)
+
+    for statement in statements:
+        visit(statement)
+    return tuple(flattened)
+
+
+def _simple_assignment_targets(statement: ast.stmt) -> tuple[str, ...]:
+    if isinstance(statement, ast.Assign):
+        return tuple(
+            target.id for target in statement.targets if isinstance(target, ast.Name)
+        )
+    if isinstance(statement, ast.AnnAssign) and isinstance(
+        statement.target, ast.Name
+    ):
+        return (statement.target.id,)
+    return ()
+
+
+def _discover_stub_symbols(
+    tree: ast.Module,
+) -> tuple[_StubSymbols, tuple[ast.stmt, ...], tuple[str, ...]]:
+    any_names = {"Any"}
+    literal_names = {"Literal"}
+    annotated_names = {"Annotated"}
+    type_alias_names = {"TypeAlias"}
+    type_alias_type_names = {"TypeAliasType"}
+    type_var_names = {"TypeVar"}
+    new_type_names = {"NewType"}
+    forward_ref_names = {"ForwardRef"}
+    typing_module_names = {"typing", "typing_extensions"}
+    imported_any: list[str] = []
+    module_statements = _module_scope_statements(tree.body)
+
+    imported_symbol_sets = {
+        "Any": any_names,
+        "Literal": literal_names,
+        "Annotated": annotated_names,
+        "TypeAlias": type_alias_names,
+        "TypeAliasType": type_alias_type_names,
+        "TypeVar": type_var_names,
+        "NewType": new_type_names,
+        "ForwardRef": forward_ref_names,
+    }
+    for statement in module_statements:
+        if isinstance(statement, ast.Import):
+            for imported in statement.names:
+                if imported.name in {"typing", "typing_extensions"}:
+                    typing_module_names.add(
+                        imported.asname or imported.name.split(".", maxsplit=1)[0]
+                    )
+        elif isinstance(statement, ast.ImportFrom):
+            for imported in statement.names:
+                bound_name = imported.asname or imported.name
+                if imported.name == "*":
+                    imported_any.append(f"line {statement.lineno}: imports Any")
+                    continue
+                destination = imported_symbol_sets.get(imported.name)
+                if destination is not None:
+                    destination.add(bound_name)
+                if imported.name == "Any":
+                    imported_any.append(f"line {statement.lineno}: imports Any")
+
+    assignments: dict[str, ast.expr] = {}
+    for statement in module_statements:
+        value = (
+            statement.value
+            if isinstance(statement, (ast.Assign, ast.AnnAssign))
+            else None
+        )
+        if value is None:
+            continue
+        for target in _simple_assignment_targets(statement):
+            assignments[target] = value
+
+    symbols = _StubSymbols(
+        any_names,
+        literal_names,
+        annotated_names,
+        type_alias_names,
+        type_alias_type_names,
+        type_var_names,
+        new_type_names,
+        forward_ref_names,
+        typing_module_names,
+        assignments,
+    )
     changed = True
     while changed:
         changed = False
-        for statement in tree.body:
-            value = _assigned_value(statement)
-            if value is None or not _node_mentions_any(value, any_names):
+        for target, value in assignments.items():
+            kind = _symbol_kind(value, symbols)
+            if kind is None:
                 continue
-            for name in _assigned_names(statement) - any_names:
-                any_names.add(name)
+            destination = {
+                "any": any_names,
+                "literal": literal_names,
+                "annotated": annotated_names,
+                "type-alias": type_alias_names,
+                "type-alias-type": type_alias_type_names,
+                "type-var": type_var_names,
+                "new-type": new_type_names,
+                "forward-ref": forward_ref_names,
+            }[kind]
+            if target not in destination:
+                destination.add(target)
                 changed = True
+    return symbols, module_statements, tuple(imported_any)
 
-    return imported_any or _node_mentions_any(tree, any_names)
+
+def _pep695_type_roots(statement: ast.stmt) -> tuple[ast.expr, ...]:
+    if type(statement).__name__ != "TypeAlias":
+        return ()
+    roots: list[ast.expr] = []
+    value = getattr(statement, "value", None)
+    if isinstance(value, ast.expr):
+        roots.append(value)
+    for parameter in getattr(statement, "type_params", ()):
+        for field_name in ("bound", "default_value"):
+            parameter_value = getattr(parameter, field_name, None)
+            if isinstance(parameter_value, ast.expr):
+                roots.append(parameter_value)
+    return tuple(roots)
 
 
-def _annotation_mentions_any(annotation: ast.expr) -> bool:
-    return _node_mentions_any(annotation, {"Any"})
+def _stub_annotation_issues(tree: ast.Module) -> tuple[str, ...]:
+    symbols, module_statements, imported_any = _discover_stub_symbols(tree)
+    issues = list(imported_any)
+    roots: list[tuple[str, ast.expr]] = []
+
+    for statement in module_statements:
+        if isinstance(statement, ast.AnnAssign):
+            roots.append(("annotated assignment", statement.annotation))
+            if (
+                statement.value is not None
+                and _symbol_kind(statement.annotation, symbols) == "type-alias"
+            ):
+                roots.append(("explicit type alias", statement.value))
+        roots.extend(
+            ("PEP 695 type alias", root)
+            for root in _pep695_type_roots(statement)
+        )
+        value = (
+            statement.value
+            if isinstance(statement, (ast.Assign, ast.AnnAssign))
+            else None
+        )
+        if isinstance(value, ast.Call):
+            special_arguments = _special_call_type_arguments(value, symbols)
+            if special_arguments is not None:
+                roots.extend(
+                    ("runtime type constructor", argument)
+                    for argument in special_arguments
+                )
+
+    for declaration in ast.walk(tree):
+        if isinstance(declaration, ast.ClassDef):
+            for base in declaration.bases:
+                roots.append(("class base", base))
+            for statement in declaration.body:
+                if isinstance(statement, ast.AnnAssign):
+                    roots.append(("class attribute", statement.annotation))
+        if not isinstance(declaration, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        parameters = [
+            *declaration.args.posonlyargs,
+            *declaration.args.args,
+            *declaration.args.kwonlyargs,
+        ]
+        if declaration.args.vararg is not None:
+            parameters.append(declaration.args.vararg)
+        if declaration.args.kwarg is not None:
+            parameters.append(declaration.args.kwarg)
+        for parameter in parameters:
+            if parameter.arg in {"self", "cls"}:
+                continue
+            if parameter.annotation is None:
+                issues.append(
+                    f"line {parameter.lineno}: {declaration.name}.{parameter.arg} "
+                    "has no annotation"
+                )
+            else:
+                roots.append(
+                    (f"{declaration.name}.{parameter.arg} annotation", parameter.annotation)
+                )
+        if declaration.returns is None:
+            issues.append(f"line {declaration.lineno}: {declaration.name} has no return")
+        else:
+            roots.append((f"{declaration.name} return", declaration.returns))
+
+    followed_aliases: set[str] = set()
+    root_index = 0
+    while root_index < len(roots):
+        label, root = roots[root_index]
+        root_index += 1
+        dependencies: set[str] = set()
+        if _type_expression_mentions_any(root, symbols, dependencies):
+            issues.append(f"line {root.lineno}: {label} uses Any")
+        for dependency in dependencies - followed_aliases:
+            followed_aliases.add(dependency)
+            roots.append(
+                (f"implicit type alias {dependency}", symbols.assignments[dependency])
+            )
+
+    return tuple(issues)
+
+
+PEP_695_ANY_MUTATIONS: tuple[str, ...] = (
+    (
+        "type Alias = Any\n",
+        "type Alias[T: Any] = T\n",
+    )
+    if sys.version_info >= (3, 12)
+    else ()
+)
+if sys.version_info >= (3, 13):
+    PEP_695_ANY_MUTATIONS += ("type Alias[T = Any] = T\n",)
 
 
 @pytest.mark.parametrize(
     "stub_source",
     (
+        "from typing import Any\nvalue: Any\n",
         "from typing import Any as Hidden\nvalue: Hidden\n",
         "import typing as types\nvalue: types.Any\n",
         "import typing_extensions as extensions\nvalue: extensions.Any\n",
@@ -865,17 +1171,83 @@ def _annotation_mentions_any(annotation: ast.expr) -> bool:
             "value: Alias\n"
         ),
         "from typing import Any as Hidden\nvalue: 'Hidden'\n",
+        (
+            "from typing import TYPE_CHECKING\n"
+            "if TYPE_CHECKING:\n"
+            "    from typing import Any as Hidden\n"
+            "value: Hidden\n"
+        ),
+        'value: "\'Any\'"\n',
+        'value: "\'typing.Any\'"\n',
+        "value: \"\\\"'Any'\\\"\"\n",
+        (
+            "from typing import TypeAlias\n"
+            "Alias: TypeAlias = \"'Any'\"\n"
+        ),
+        "Alias = 'Any'\nvalue: Alias\n",
+        "value: First\nFirst = Second\nSecond = Any\n",
+        (
+            "value: First\n"
+            "First = list[Second]\n"
+            "Second = tuple[Third]\n"
+            "Third = \"'Any'\"\n"
+        ),
+        "from collections.abc import Callable\nvalue: Callable[['Any'], None]\n",
+        "def missing(value) -> None: ...\n",
+        "def missing_return(value: str): ...\n",
+        "class Missing:\n    @property\n    def value(self): ...\n",
+        "from typing import Annotated\nvalue: Annotated[Any, 'metadata']\n",
+        (
+            "from typing_extensions import TypeAliasType\n"
+            "Alias = TypeAliasType('Alias', Any)\n"
+        ),
+        "from typing import NewType\nAlias = NewType('Alias', Any)\n",
+        "from typing import TypeVar\nT = TypeVar('T', bound=Any)\n",
+        "from typing import ForwardRef\nAlias = ForwardRef(\"'Any'\")\n",
+        *PEP_695_ANY_MUTATIONS,
     ),
 )
-def test_manual_stub_any_gate_rejects_alias_mutations(stub_source: str) -> None:
-    assert _stub_tree_mentions_any(ast.parse(stub_source))
+def test_manual_stub_annotation_gate_rejects_type_holes(stub_source: str) -> None:
+    assert _stub_annotation_issues(ast.parse(stub_source))
+
+
+@pytest.mark.parametrize(
+    "stub_source",
+    (
+        "def default(value: str = 'Any') -> str: ...\n",
+        "LABEL: str = 'Any'\n",
+        "LABEL = 'Any'\n",
+        'class Documented:\n    """Any is ordinary prose here."""\n',
+        "from typing import Literal\nclass Value:\n    kind: Literal['Any']\n",
+        "from typing import Literal\nvalue: Literal['typing.Any']\n",
+        "from typing import Literal\nvalue: Literal[Marker.Any]\n",
+        (
+            "from typing import Annotated\n"
+            "class Value:\n"
+            "    text: Annotated[str, 'Any']\n"
+        ),
+        (
+            "import typing\n"
+            "class Value:\n"
+            "    text: typing.Annotated[str, {'label': 'Any'}]\n"
+        ),
+        "from typing import Annotated\nvalue: Annotated[str, Marker.Any]\n",
+        "value: \"Literal['Any']\"\n",
+        "value: \"Literal['typing.Any']\"\n",
+        "value: \"Annotated[str, {'label': 'Any'}]\"\n",
+        "value: \"Annotated[str, Marker.Any]\"\n",
+        "class Complete:\n    @property\n    def value(self) -> str: ...\n",
+    ),
+)
+def test_manual_stub_annotation_gate_accepts_value_contexts(stub_source: str) -> None:
+    assert not _stub_annotation_issues(ast.parse(stub_source))
 
 
 @pytest.mark.parametrize("filename", MANUAL_STUB_FRAGMENTS.values())
 def test_manual_domain_stub_fragments_do_not_use_any(filename: str) -> None:
     stub_path = PACKAGE_ROOT / "stubs" / "_native" / filename
     tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
-    assert not _stub_tree_mentions_any(tree), filename
+    assert not _stub_annotation_issues(tree), filename
 
 
 def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
@@ -945,7 +1317,7 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
             stub_dunders = {
                 member_name
                 for member_name in class_functions
-                if member_name.startswith("__") and member_name.endswith("__")
+                if _is_dunder(member_name)
             }
 
             runtime_properties: set[str] = set()
@@ -964,9 +1336,7 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
             runtime_dunders = {
                 member_name
                 for member_name, descriptor in vars(runtime_class).items()
-                if member_name.startswith("__")
-                and member_name.endswith("__")
-                and callable(descriptor)
+                if _is_dunder(member_name) and callable(descriptor)
             }
             assert runtime_properties == stub_properties, name
             assert runtime_methods == stub_methods, name
@@ -1008,6 +1378,51 @@ def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
 
     assert checked_default_callables == set(MANUAL_CALLABLE_DEFAULTS)
     assert returned_only_stubs == MANUAL_RETURNED_ONLY_CLASSES
+
+
+def test_non_morphology_match_args_match_exact_runtime_and_stub_shape() -> None:
+    classes: dict[str, ast.ClassDef] = {}
+    for prefix, filename in MANUAL_STUB_FRAGMENTS.items():
+        if prefix == "_morphology_":
+            continue
+        fragment_classes = _stub_classes(
+            PACKAGE_ROOT / "stubs" / "_native" / filename
+        )
+        classes.update(
+            (name, declaration)
+            for name, declaration in fragment_classes.items()
+            if name.startswith(prefix)
+        )
+
+    declared_match_args = {
+        name
+        for name, declaration in classes.items()
+        if any(
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "__match_args__"
+            for statement in declaration.body
+        )
+    }
+    runtime_match_args = {
+        name for name in classes if hasattr(getattr(native, name), "__match_args__")
+    }
+    assert (
+        runtime_match_args
+        == declared_match_args
+        == set(NON_MORPHOLOGY_MATCH_ARGS)
+    )
+    for name, expected in NON_MORPHOLOGY_MATCH_ARGS.items():
+        declaration = classes[name]
+        annotation = next(
+            statement.annotation
+            for statement in declaration.body
+            if isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "__match_args__"
+        )
+        assert _stub_match_args_arity(annotation) == len(expected), name
+        assert getattr(native, name).__match_args__ == expected, name
 
 
 def test_morphology_stub_class_members_signatures_and_match_args_match_runtime() -> None:
@@ -1091,11 +1506,6 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         assert runtime_methods == stub_methods, name
         assert runtime_attributes == stub_attributes, name
 
-        for attribute_name in stub_attributes:
-            assert not _annotation_mentions_any(
-                attributes[attribute_name].annotation
-            ), f"{name}.{attribute_name}"
-
         if name in MORPHOLOGY_MATCH_ARGS:
             match_args_declaration = next(
                 statement
@@ -1110,10 +1520,6 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
             assert runtime_class.__match_args__ == MORPHOLOGY_MATCH_ARGS[name], name
 
         for function_name, function in functions.items():
-            assert all(
-                not _annotation_mentions_any(annotation)
-                for annotation in _stub_function_annotations(function)
-            ), f"{name}.{function_name}"
             if _stub_function_is_property(function):
                 continue
             if _stub_is_returned_only_constructor(function, name):
@@ -1154,10 +1560,6 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         assert _stub_function_type_shape(declaration) == MORPHOLOGY_FUNCTION_TYPES[
             name
         ], name
-        assert all(
-            not _annotation_mentions_any(annotation)
-            for annotation in _stub_function_annotations(declaration)
-        ), name
         runtime_signature = inspect.signature(getattr(native, name))
         assert _runtime_parameter_shape(runtime_signature) == _stub_parameter_shape(
             declaration, constructor=False
