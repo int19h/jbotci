@@ -827,8 +827,12 @@ def _runtime_parameter_defaults(signature: inspect.Signature) -> dict[str, objec
 
 
 def _generated_enum_runtime_type_name(annotation: object) -> str:
-    if annotation in (bool, int, str):
-        return annotation.__name__
+    if annotation is bool:
+        return "bool"
+    if annotation is int:
+        return "int"
+    if annotation is str:
+        return "str"
     native_names = [
         name for name in native.__all__ if getattr(native, name) is annotation
     ]

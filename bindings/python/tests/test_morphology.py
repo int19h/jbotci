@@ -1044,6 +1044,8 @@ def test_morphology_error_preserves_base_exception_metadata_operations() -> None
     assert traceback is not None
     assert error.with_traceback(traceback) is error
     assert error.__traceback__ is traceback
+    with pytest.raises(TypeError):
+        error.__traceback__ = object()  # type: ignore[assignment]
 
     cause = ValueError("cause")
     context = LookupError("context")
@@ -1053,6 +1055,8 @@ def test_morphology_error_preserves_base_exception_metadata_operations() -> None
     assert error.__cause__ is cause
     assert error.__context__ is context
     assert error.__suppress_context__ is False
+    with pytest.raises(TypeError):
+        error.__cause__ = object()  # type: ignore[assignment]
 
     del error.__notes__
     assert not hasattr(error, "__notes__")
