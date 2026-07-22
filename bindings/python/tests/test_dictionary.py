@@ -6,6 +6,7 @@ import inspect
 import math
 import subprocess
 import sys
+import types
 from collections.abc import Sequence
 
 import pytest
@@ -152,8 +153,17 @@ def test_prefix_lookup_is_normalized_ordered_and_handles_empty_prefix() -> None:
     all_entries = dictionary.english.entries_by_word_prefix("")
     assert isinstance(all_entries, tuple)
     assert len(all_entries) == len(dictionary.english)
-    assert all_entries[0].word == dictionary.english[0].word
-    assert all_entries[-1].word == dictionary.english[-1].word
+    all_ordered_keys = tuple(
+        (
+            dictionary.normalize_lookup_query(entry.word),
+            required_index_for_entry(entry).value,
+        )
+        for entry in all_entries
+    )
+    assert all_ordered_keys == tuple(sorted(all_ordered_keys))
+    assert sorted(index for _, index in all_ordered_keys) == list(
+        range(len(dictionary.english))
+    )
 
 
 def test_rafsi_queries_preserve_provenance_and_helpers_are_typed() -> None:
@@ -432,7 +442,7 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         assert issubclass(enum_type, enum.Enum)
         assert enum_type.__module__ == "jbotci.dictionary"
         with pytest.raises(TypeError):
-            type("DerivedEnum", (enum_type,), {})
+            types.new_class("DerivedEnum", (enum_type,))
 
 
 def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
