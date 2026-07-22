@@ -436,6 +436,163 @@ impl AlineScorer {
                 .max(self.vowel_penalty(second_second))
     }
 
+    #[requires(true)]
+    #[ensures(ret.is_finite())]
+    fn maximized_substitution_score(
+        &self,
+        left: PronunciationUnit,
+        right: PronunciationUnit,
+    ) -> f64 {
+        let mut best = f64::NEG_INFINITY;
+        for left_index in 0..left.realization_count() {
+            let left = left.realization(left_index);
+            for right_index in 0..right.realization_count() {
+                best = best.max(self.substitution_score(left, right.realization(right_index)));
+            }
+        }
+        best
+    }
+
+    /// Maximize one complete one-to-two ALINE operation. `single` is chosen
+    /// once and used for both feature comparisons; the two target occurrences
+    /// on the other side choose realizations independently.
+    #[requires(true)]
+    #[ensures(ret.is_finite())]
+    fn maximized_expansion_score(
+        &self,
+        single: PronunciationUnit,
+        first_second: PronunciationUnit,
+        second_second: PronunciationUnit,
+    ) -> f64 {
+        let mut best = f64::NEG_INFINITY;
+        for single_index in 0..single.realization_count() {
+            let single = single.realization(single_index);
+            for first_index in 0..first_second.realization_count() {
+                let first = first_second.realization(first_index);
+                for second_index in 0..second_second.realization_count() {
+                    best = best.max(self.expansion_score(
+                        single,
+                        first,
+                        second_second.realization(second_index),
+                    ));
+                }
+            }
+        }
+        best
+    }
+
+    /// Precompute target-to-target operations for a dense target inventory.
+    #[requires(!targets.is_empty())]
+    #[requires(targets.iter().enumerate().all(|(index, target)| !targets[..index].contains(target)))]
+    #[requires(targets.len().checked_mul(targets.len()).and_then(|count| count.checked_mul(targets.len())).is_some())]
+    #[ensures(ret.target_count() == targets.len())]
+    pub fn prepare_target_inventory(
+        &self,
+        targets: &[PronunciationTargetId],
+    ) -> PreparedAlineTargetInventory {
+        let target_count = targets.len();
+        let pair_count = target_count
+            .checked_mul(target_count)
+            .expect("the precondition guarantees a representable target-pair count");
+        let triple_count = pair_count
+            .checked_mul(target_count)
+            .expect("the precondition guarantees a representable target-triple count");
+        let mut substitution = Vec::with_capacity(pair_count);
+        for &left in targets {
+            substitution.extend(targets.iter().map(|&right| {
+                self.maximized_substitution_score(
+                    PronunciationUnit::target(left),
+                    PronunciationUnit::target(right),
+                )
+            }));
+        }
+        let mut single_to_pair = Vec::with_capacity(triple_count);
+        for &single in targets {
+            for &first_second in targets {
+                single_to_pair.extend(targets.iter().map(|&second_second| {
+                    self.maximized_expansion_score(
+                        PronunciationUnit::target(single),
+                        PronunciationUnit::target(first_second),
+                        PronunciationUnit::target(second_second),
+                    )
+                }));
+            }
+        }
+        new!(PreparedAlineTargetInventory {
+            targets: targets.to_vec(),
+            substitution,
+            single_to_pair,
+            c_skip: self.parameters.c_skip,
+            c_flank: self.parameters.c_flank,
+        })
+    }
+
+    /// Precompute target-to-concrete operations for one fixed source.
+    #[requires(!source.is_empty())]
+    #[requires(targets.target_count().checked_mul(source.len()).is_some())]
+    #[requires(targets.target_count().checked_mul(source.len().saturating_sub(1)).is_some())]
+    #[requires(targets.target_count().checked_mul(targets.target_count()).and_then(|count| count.checked_mul(source.len())).is_some())]
+    #[ensures(ret.target_count() == targets.target_count())]
+    pub fn prepare_target_source(
+        &self,
+        targets: &PreparedAlineTargetInventory,
+        source: &[IpaSegmentId],
+    ) -> PreparedAlineSource {
+        let target_count = targets.target_count();
+        let substitution_count = target_count
+            .checked_mul(source.len())
+            .expect("the precondition guarantees a representable substitution table");
+        let target_to_source_pair_count = target_count
+            .checked_mul(source.len().saturating_sub(1))
+            .expect("the precondition guarantees a representable source-pair table");
+        let target_pair_count = target_count
+            .checked_mul(target_count)
+            .expect("the precondition guarantees a representable target-pair table");
+        let source_to_target_pair_count = target_pair_count
+            .checked_mul(source.len())
+            .expect("the precondition guarantees a representable target-pair table");
+        let mut substitution = Vec::with_capacity(substitution_count);
+        let mut target_to_source_pair = Vec::with_capacity(target_to_source_pair_count);
+        for &target in &targets.targets {
+            substitution.extend(source.iter().map(|&source_segment| {
+                self.maximized_substitution_score(
+                    PronunciationUnit::target(target),
+                    PronunciationUnit::concrete(source_segment),
+                )
+            }));
+            target_to_source_pair.extend(source.windows(2).map(|pair| {
+                self.maximized_expansion_score(
+                    PronunciationUnit::target(target),
+                    PronunciationUnit::concrete(pair[0]),
+                    PronunciationUnit::concrete(pair[1]),
+                )
+            }));
+        }
+
+        let mut source_to_target_pair = Vec::with_capacity(source_to_target_pair_count);
+        for &source_segment in source {
+            for &left_target in &targets.targets {
+                source_to_target_pair.extend(targets.targets.iter().map(|&right_target| {
+                    self.maximized_expansion_score(
+                        PronunciationUnit::concrete(source_segment),
+                        PronunciationUnit::target(left_target),
+                        PronunciationUnit::target(right_target),
+                    )
+                }));
+            }
+        }
+
+        new!(PreparedAlineSource {
+            target_count,
+            source_len: source.len(),
+            substitution,
+            target_to_source_pair,
+            source_to_target_pair,
+            c_skip: self.parameters.c_skip,
+            c_flank: self.parameters.c_flank,
+        })
+    }
+
     /// Precompute every alignment operation involving a fixed source and a
     /// caller-defined dense target inventory.
     #[requires(!target_segments.is_empty())]
@@ -572,6 +729,250 @@ impl PreparedAlineSource {
     }
 }
 
+impl PreparedAlineTargetInventory {
+    #[requires(true)]
+    #[ensures(ret == self.targets.len())]
+    pub fn target_count(&self) -> usize {
+        self.targets.len()
+    }
+
+    #[requires(index < self.target_count())]
+    #[ensures(ret == self.targets[index])]
+    pub fn target(&self, index: usize) -> PronunciationTargetId {
+        self.targets[index]
+    }
+
+    /// Align two sequences of dense indices into this target inventory.
+    /// Every transition is a fixed-size table lookup; target realization
+    /// counts do not affect this loop.
+    #[requires(!candidate.is_empty())]
+    #[requires(!source.is_empty())]
+    #[requires(candidate.iter().all(|index| *index < self.target_count()))]
+    #[requires(source.iter().all(|index| *index < self.target_count()))]
+    #[ensures(ret.is_finite())]
+    pub fn raw_similarity_with_scratch(
+        &self,
+        candidate: &[usize],
+        source: &[usize],
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        let target_count = self.target_count();
+        let target_pair_count = target_count
+            .checked_mul(target_count)
+            .expect("the target inventory invariant guarantees a representable pair count");
+        let row_width = source.len() + 1;
+        scratch.previous_previous.resize(row_width, 0.0);
+        scratch.previous.resize(row_width, 0.0);
+        scratch.current.resize(row_width, 0.0);
+        for (source_index, cell) in scratch.previous.iter_mut().enumerate() {
+            *cell = source_index as f64 * self.c_flank;
+        }
+
+        for candidate_index in 1..=candidate.len() {
+            let candidate_target = candidate[candidate_index - 1];
+            scratch.current[0] = candidate_index as f64 * self.c_skip;
+            for source_index in 1..=source.len() {
+                let source_target = source[source_index - 1];
+                let substitute = scratch.previous[source_index - 1]
+                    + self.substitution[candidate_target * target_count + source_target];
+                let skip_candidate = scratch.previous[source_index] + self.c_skip;
+                let skip_source = scratch.current[source_index - 1] + self.c_skip;
+                let expand_source = if source_index >= 2 {
+                    let first_source = source[source_index - 2];
+                    scratch.previous[source_index - 2]
+                        + self.single_to_pair[candidate_target * target_pair_count
+                            + first_source * target_count
+                            + source_target]
+                } else {
+                    f64::NEG_INFINITY
+                };
+                let expand_candidate = if candidate_index >= 2 {
+                    let first_candidate = candidate[candidate_index - 2];
+                    scratch.previous_previous[source_index - 1]
+                        + self.single_to_pair[source_target * target_pair_count
+                            + first_candidate * target_count
+                            + candidate_target]
+                } else {
+                    f64::NEG_INFINITY
+                };
+                scratch.current[source_index] = substitute
+                    .max(skip_candidate)
+                    .max(skip_source)
+                    .max(expand_source)
+                    .max(expand_candidate);
+            }
+            std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
+            std::mem::swap(&mut scratch.previous, &mut scratch.current);
+        }
+
+        scratch
+            .previous
+            .iter()
+            .enumerate()
+            .map(|(source_index, score)| {
+                score + (source.len() - source_index) as f64 * self.c_flank
+            })
+            .fold(f64::NEG_INFINITY, f64::max)
+    }
+
+    #[requires(!sequence.is_empty())]
+    #[requires(sequence.iter().all(|index| *index < self.target_count()))]
+    #[ensures(ret.is_finite() && ret > 0.0)]
+    pub fn self_similarity_with_scratch(
+        &self,
+        sequence: &[usize],
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        self.raw_similarity_with_scratch(sequence, sequence, scratch)
+    }
+}
+
+/// Prepare one local sound-search query for fixed-cost scoring of target
+/// candidates.
+#[requires(true)]
+#[ensures(ret.query_len > 0)]
+pub fn prepare_sound_query(query: &SoundQuerySequence) -> PreparedAlineQuery {
+    let query_units = match query.as_data() {
+        data!(SoundQuerySequence::Concrete(sequence)) => sequence
+            .segments()
+            .iter()
+            .copied()
+            .map(PronunciationUnit::concrete)
+            .collect::<Vec<_>>(),
+        data!(SoundQuerySequence::Targets(sequence)) => sequence
+            .targets()
+            .iter()
+            .copied()
+            .map(PronunciationUnit::target)
+            .collect::<Vec<_>>(),
+    };
+    let target_count = PRONUNCIATION_TARGET_COUNT;
+    let query_len = query_units.len();
+    let target_pair_count = target_count
+        .checked_mul(target_count)
+        .expect("the static target inventory has a representable pair count");
+    let mut substitution = Vec::with_capacity(target_count * query_len);
+    let mut target_to_query_pair = Vec::with_capacity(target_count * query_len.saturating_sub(1));
+    for target_index in 0..target_count {
+        let target = PronunciationUnit::target(PronunciationTargetId::from_static_index(
+            target_index as u16,
+        ));
+        substitution.extend(
+            query_units
+                .iter()
+                .copied()
+                .map(|query| maximized_substitution_score(target, query)),
+        );
+        target_to_query_pair.extend(
+            query_units
+                .windows(2)
+                .map(|pair| maximized_expansion_score(target, pair[0], pair[1])),
+        );
+    }
+
+    let mut query_to_target_pair = Vec::with_capacity(target_pair_count * query_len);
+    for query in query_units.iter().copied() {
+        for first_index in 0..target_count {
+            let first = PronunciationUnit::target(PronunciationTargetId::from_static_index(
+                first_index as u16,
+            ));
+            query_to_target_pair.extend((0..target_count).map(|second_index| {
+                maximized_expansion_score(
+                    query,
+                    first,
+                    PronunciationUnit::target(PronunciationTargetId::from_static_index(
+                        second_index as u16,
+                    )),
+                )
+            }));
+        }
+    }
+
+    new!(PreparedAlineQuery {
+        target_count,
+        query_len,
+        substitution,
+        target_to_query_pair,
+        query_to_target_pair,
+        query_self_similarity: query.self_similarity(),
+    })
+}
+
+impl PreparedAlineQuery {
+    /// Return normalized local ALINE similarity for one target candidate.
+    #[requires(true)]
+    #[ensures((0.0..=1.0).contains(&ret))]
+    pub fn similarity_with_scratch(
+        &self,
+        candidate: PronunciationTargetSequenceView<'_>,
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        let raw = self.raw_similarity_with_scratch(candidate.targets, scratch);
+        (2.0 * raw / (candidate.self_similarity + self.query_self_similarity)).clamp(0.0, 1.0)
+    }
+
+    /// Raw local ALINE similarity. Every transition is a fixed-size lookup.
+    #[requires(!candidate.is_empty())]
+    #[ensures(ret.is_finite())]
+    fn raw_similarity_with_scratch(
+        &self,
+        candidate: &[PronunciationTargetId],
+        scratch: &mut AlineSimilarityScratch,
+    ) -> f64 {
+        let target_count = self.target_count;
+        let target_pair_count = target_count
+            .checked_mul(target_count)
+            .expect("the prepared query invariant guarantees a representable pair count");
+        let query_pair_count = self.query_len.saturating_sub(1);
+        let row_width = self.query_len + 1;
+        scratch.previous_previous.resize(row_width, 0.0);
+        scratch.previous.resize(row_width, 0.0);
+        scratch.current.resize(row_width, 0.0);
+        scratch.previous.fill(0.0);
+
+        let mut has_previous_previous = false;
+        let mut best: f64 = 0.0;
+        for candidate_index in 0..candidate.len() {
+            let candidate_target = candidate[candidate_index].get() as usize;
+            scratch.current[0] = 0.0;
+            for query_index in 1..=self.query_len {
+                let delete_candidate = scratch.previous[query_index] + ALINE_SKIP_SCORE;
+                let insert_query = scratch.current[query_index - 1] + ALINE_SKIP_SCORE;
+                let substitute = scratch.previous[query_index - 1]
+                    + self.substitution[candidate_target * self.query_len + query_index - 1];
+                let compress_candidate = if has_previous_previous && candidate_index > 0 {
+                    let first_candidate = candidate[candidate_index - 1].get() as usize;
+                    scratch.previous_previous[query_index - 1]
+                        + self.query_to_target_pair[(query_index - 1) * target_pair_count
+                            + first_candidate * target_count
+                            + candidate_target]
+                } else {
+                    0.0
+                };
+                let expand_query = if query_index > 1 {
+                    scratch.previous[query_index - 2]
+                        + self.target_to_query_pair
+                            [candidate_target * query_pair_count + query_index - 2]
+                } else {
+                    0.0
+                };
+                let cell = delete_candidate
+                    .max(insert_query)
+                    .max(substitute)
+                    .max(compress_candidate)
+                    .max(expand_query)
+                    .max(0.0);
+                scratch.current[query_index] = cell;
+                best = best.max(cell);
+            }
+            std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
+            std::mem::swap(&mut scratch.previous, &mut scratch.current);
+            has_previous_previous = true;
+        }
+        best
+    }
+}
+
 #[invariant(::InvalidValue { parameter, reason } => !parameter.is_empty() && !reason.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AlineParameterError {
@@ -639,6 +1040,62 @@ impl IpaSegmentId {
     #[ensures((ret as usize) < IPA_SEGMENT_SYMBOLS.len())]
     pub fn get(self) -> u16 {
         self.as_data().0
+    }
+}
+
+/// Dense identifier for one Lojban pronunciation target.
+///
+/// Most targets admit exactly one concrete IPA realization. The additional
+/// target for Lojban `r` admits every consonantal rhotic that CLL 3.2 treats
+/// as equally acceptable. Keeping this distinct from [`IpaSegmentId`] ensures
+/// that concrete observations retain their actual ALINE features.
+#[invariant((self.as_data().0 as usize) < PRONUNCIATION_TARGET_COUNT)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PronunciationTargetId(u16);
+
+impl PronunciationTargetId {
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn from_static_index(index: u16) -> Self {
+        assert!(
+            (index as usize) < PRONUNCIATION_TARGET_COUNT,
+            "static pronunciation target id must index the target inventory"
+        );
+        Self(data!(PronunciationTargetId(index)))
+    }
+
+    /// Construct the singleton target for one concrete IPA segment.
+    #[requires(true)]
+    #[ensures(ret.realization_count() == 1)]
+    #[ensures(ret.realization(0) == Some(segment))]
+    pub fn concrete(segment: IpaSegmentId) -> Self {
+        Self::from_static_index(segment.get())
+    }
+
+    #[requires(true)]
+    #[ensures((ret as usize) < PRONUNCIATION_TARGET_COUNT)]
+    pub fn get(self) -> u16 {
+        self.as_data().0
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    pub fn realization_count(self) -> usize {
+        if self == lojban_r_pronunciation_target() {
+            LOJBAN_R_REALIZATIONS.len()
+        } else {
+            1
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == (index < self.realization_count()))]
+    pub fn realization(self, index: usize) -> Option<IpaSegmentId> {
+        if self == lojban_r_pronunciation_target() {
+            LOJBAN_R_REALIZATIONS.get(index).copied()
+        } else {
+            (index == 0).then(|| IpaSegmentId::from_static_index(self.get()))
+        }
     }
 }
 
@@ -727,6 +1184,108 @@ impl IpaTokenSequence {
     }
 }
 
+#[invariant(!targets.is_empty())]
+#[invariant(self_similarity.is_finite())]
+#[invariant(*self_similarity > 0.0)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PronunciationTargetSequenceView<'a> {
+    pub targets: &'a [PronunciationTargetId],
+    pub self_similarity: f64,
+}
+
+impl<'a> PronunciationTargetSequenceView<'a> {
+    #[requires(!targets.is_empty())]
+    #[requires(self_similarity.is_finite() && self_similarity > 0.0)]
+    #[ensures(ret.target_count() == targets.len())]
+    pub fn new(targets: &'a [PronunciationTargetId], self_similarity: f64) -> Self {
+        new!(PronunciationTargetSequenceView {
+            targets,
+            self_similarity,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn from_static_parts(
+        targets: &'a [PronunciationTargetId],
+        self_similarity: f64,
+    ) -> Self {
+        assert!(
+            !targets.is_empty(),
+            "static pronunciation target sequence must not be empty"
+        );
+        assert!(
+            self_similarity.is_finite() && self_similarity > 0.0,
+            "static pronunciation target self-similarity must be positive and finite"
+        );
+        Self(data!(PronunciationTargetSequenceView {
+            targets,
+            self_similarity,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.targets.len())]
+    pub fn target_count(self) -> usize {
+        self.targets.len()
+    }
+}
+
+#[invariant(!targets.is_empty())]
+#[invariant(self_similarity.is_finite())]
+#[invariant(*self_similarity > 0.0)]
+#[expensive_invariant(*self_similarity == target_raw_similarity(targets, targets))]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PronunciationTargetSequence {
+    targets: Vec<PronunciationTargetId>,
+    self_similarity: f64,
+}
+
+impl PronunciationTargetSequence {
+    #[requires(true)]
+    #[ensures(ret == self.targets.len())]
+    pub fn target_count(&self) -> usize {
+        self.targets.len()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == self.targets.len())]
+    pub fn targets(&self) -> &[PronunciationTargetId] {
+        &self.targets
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_finite() && ret > 0.0)]
+    pub fn self_similarity(&self) -> f64 {
+        self.self_similarity
+    }
+
+    #[requires(true)]
+    #[ensures(ret.target_count() == self.target_count())]
+    pub fn view(&self) -> PronunciationTargetSequenceView<'_> {
+        PronunciationTargetSequenceView::new(&self.targets, self.self_similarity)
+    }
+}
+
+#[invariant(::Concrete(sequence) => sequence.segment_count() > 0)]
+#[invariant(::Targets(sequence) => sequence.target_count() > 0)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum SoundQuerySequence {
+    Concrete(IpaTokenSequence),
+    Targets(PronunciationTargetSequence),
+}
+
+impl SoundQuerySequence {
+    #[requires(true)]
+    #[ensures(ret.is_finite() && ret > 0.0)]
+    pub fn self_similarity(&self) -> f64 {
+        match self.as_data() {
+            data!(SoundQuerySequence::Concrete(sequence)) => sequence.self_similarity(),
+            data!(SoundQuerySequence::Targets(sequence)) => sequence.self_similarity(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
 pub struct IpaTokenizedText {
@@ -746,10 +1305,8 @@ pub struct AlineSimilarityScratch {
 ///
 /// Preparing these tables moves feature-distance and vowel-penalty arithmetic
 /// out of callers that align many short candidates against the same source.
-/// The dense target boundary is also where #587's future target-`r`
-/// realization-set maxima must be resolved. Keeping that work in table
-/// preparation preserves one constant-time lookup per candidate-loop
-/// transition.
+/// Target realization-set maxima are resolved at this boundary, preserving one
+/// constant-time lookup per candidate-loop transition.
 #[invariant(*target_count > 0)]
 #[invariant(*source_len > 0)]
 #[invariant((*target_count).checked_mul(*source_len) == Some(substitution.len()))]
@@ -767,6 +1324,89 @@ pub struct PreparedAlineSource {
     source_to_target_pair: Vec<f64>,
     c_skip: f64,
     c_flank: f64,
+}
+
+/// Target-to-target ALINE operation tables for a caller-defined dense target
+/// inventory. Realization-set maxima are fully resolved while constructing
+/// this value, so dynamic-programming transitions remain fixed-size lookups.
+#[invariant(!targets.is_empty())]
+#[invariant(targets.len().checked_mul(targets.len()) == Some(substitution.len()))]
+#[invariant(targets.len().checked_mul(targets.len()).and_then(|count| count.checked_mul(targets.len())) == Some(single_to_pair.len()))]
+#[invariant(c_skip.is_finite() && *c_skip <= 0.0)]
+#[invariant(c_flank.is_finite() && *c_flank >= *c_skip && *c_flank <= 0.0)]
+#[expensive_invariant(targets.iter().enumerate().all(|(index, target)| !targets[..index].contains(target)))]
+#[expensive_invariant(substitution.iter().all(|score| score.is_finite()) && single_to_pair.iter().all(|score| score.is_finite()))]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PreparedAlineTargetInventory {
+    targets: Vec<PronunciationTargetId>,
+    substitution: Vec<f64>,
+    single_to_pair: Vec<f64>,
+    c_skip: f64,
+    c_flank: f64,
+}
+
+/// Request-specific local-ALINE tables for comparing many Lojban target
+/// sequences with one concrete or target query.
+#[invariant(*target_count == PRONUNCIATION_TARGET_COUNT)]
+#[invariant(*query_len > 0)]
+#[invariant((*target_count).checked_mul(*query_len) == Some(substitution.len()))]
+#[invariant((*target_count).checked_mul(query_len.saturating_sub(1)) == Some(target_to_query_pair.len()))]
+#[invariant((*target_count).checked_mul(*target_count).and_then(|count| count.checked_mul(*query_len)) == Some(query_to_target_pair.len()))]
+#[invariant(query_self_similarity.is_finite() && *query_self_similarity > 0.0)]
+#[expensive_invariant(substitution.iter().all(|score| score.is_finite()) && target_to_query_pair.iter().all(|score| score.is_finite()) && query_to_target_pair.iter().all(|score| score.is_finite()))]
+#[derive(Debug, Clone, PartialEq)]
+pub struct PreparedAlineQuery {
+    target_count: usize,
+    query_len: usize,
+    substitution: Vec<f64>,
+    target_to_query_pair: Vec<f64>,
+    query_to_target_pair: Vec<f64>,
+    query_self_similarity: f64,
+}
+
+#[invariant(::Concrete(segment) => ((*segment).get() as usize) < IPA_SEGMENT_SYMBOLS.len())]
+#[invariant(::Target(target) => ((*target).get() as usize) < PRONUNCIATION_TARGET_COUNT)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PronunciationUnit {
+    Concrete(IpaSegmentId),
+    Target(PronunciationTargetId),
+}
+
+impl PronunciationUnit {
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(PronunciationUnit::Concrete(value)) if *value == segment))]
+    fn concrete(segment: IpaSegmentId) -> Self {
+        new!(PronunciationUnit::Concrete(segment))
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(PronunciationUnit::Target(value)) if *value == target))]
+    fn target(target: PronunciationTargetId) -> Self {
+        new!(PronunciationUnit::Target(target))
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    fn realization_count(self) -> usize {
+        match self.as_data() {
+            data!(PronunciationUnit::Concrete(_)) => 1,
+            data!(PronunciationUnit::Target(target)) => target.realization_count(),
+        }
+    }
+
+    #[requires(index < self.realization_count())]
+    #[ensures(true)]
+    fn realization(self, index: usize) -> IpaSegmentId {
+        match self.as_data() {
+            data!(PronunciationUnit::Concrete(segment)) => {
+                debug_assert_eq!(index, 0);
+                *segment
+            }
+            data!(PronunciationUnit::Target(target)) => target
+                .realization(index)
+                .expect("the precondition bounds the realization index"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -888,6 +1528,9 @@ const IPA_SEGMENT_SYMBOLS: &[&str] = &[
     "ɪ", "ʊ", "ʏ", "ɚ", "ɝ",
 ];
 
+const PRONUNCIATION_TARGET_COUNT: usize = IPA_SEGMENT_SYMBOLS.len() + 1;
+const LOJBAN_R_TARGET_INDEX: u16 = IPA_SEGMENT_SYMBOLS.len() as u16;
+
 const CONSONANT_RELEVANT_FEATURES: &[AlineFeature] = &[
     AlineFeature::Syllabic,
     AlineFeature::Manner,
@@ -947,6 +1590,16 @@ static ALINE_VOWEL_PENALTIES: LazyLock<Vec<f64>> = LazyLock::new(|| {
         .collect()
 });
 
+static LOJBAN_R_REALIZATIONS: LazyLock<[IpaSegmentId; 7]> = LazyLock::new(|| {
+    ["r", "ɾ", "ɹ", "ʀ", "ɻ", "ʁ", "ɽ"].map(|symbol| {
+        let index = IPA_SEGMENT_SYMBOLS
+            .iter()
+            .position(|candidate| *candidate == symbol)
+            .expect("every accepted Lojban r realization is in the concrete IPA inventory");
+        IpaSegmentId::from_static_index(index as u16)
+    })
+});
+
 static LOJBAN_GISMU_LETTER_SEGMENTS: LazyLock<[Option<IpaSegmentId>; 128]> = LazyLock::new(|| {
     let mut segments = [None; 128];
     for letter in "bcdfgjklmnprstvxzaeiou".chars() {
@@ -963,11 +1616,47 @@ static LOJBAN_GISMU_LETTER_SEGMENTS: LazyLock<[Option<IpaSegmentId>; 128]> = Laz
     segments
 });
 
+static LOJBAN_GISMU_LETTER_TARGETS: LazyLock<[Option<PronunciationTargetId>; 128]> =
+    LazyLock::new(|| {
+        let mut targets = [None; 128];
+        for letter in "bcdfgjklmnprstvxzaeiou".chars() {
+            targets[letter as usize] = Some(if letter == 'r' {
+                lojban_r_pronunciation_target()
+            } else {
+                PronunciationTargetId::concrete(
+                    lojban_gismu_letter_to_ipa_segment(letter)
+                        .expect("every Lojban gismu letter has a concrete IPA segment"),
+                )
+            });
+        }
+        targets
+    });
+
+#[requires(true)]
+#[ensures(true)]
+pub const fn lojban_r_pronunciation_target() -> PronunciationTargetId {
+    PronunciationTargetId::from_static_index(LOJBAN_R_TARGET_INDEX)
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.segment_count() > 0) || ret.is_err())]
 pub fn sound_query_to_token_sequence(raw_query: &str) -> Result<IpaTokenSequence, PhoneticError> {
     let ipa = sound_query_to_ipa(raw_query)?;
     tokenize_ipa_text(&ipa)
+}
+
+/// Parse a sound-search query without erasing whether it is a concrete IPA
+/// observation or a Lojban pronunciation target sequence.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|sequence| sequence.self_similarity() > 0.0) || ret.is_err())]
+pub fn sound_query_to_sequence(raw_query: &str) -> Result<SoundQuerySequence, PhoneticError> {
+    match bracketed_ipa_query(raw_query)? {
+        Some(ipa) => {
+            tokenize_ipa_text(&ipa).map(|sequence| new!(SoundQuerySequence::Concrete(sequence)))
+        }
+        None => lojban_text_to_pronunciation_targets(raw_query)
+            .map(|sequence| new!(SoundQuerySequence::Targets(sequence))),
+    }
 }
 
 #[requires(true)]
@@ -998,6 +1687,35 @@ pub fn lojban_text_to_tokenized_ipa(raw_text: &str) -> Result<IpaTokenizedText, 
         ipa,
         token_sequence,
     })
+}
+
+/// Convert Lojban text directly to pronunciation targets. This deliberately
+/// follows parsed phonemes instead of tokenizing the canonical display IPA,
+/// so display rendering and scoring semantics remain separate.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|sequence| sequence.target_count() > 0) || ret.is_err())]
+pub fn lojban_text_to_pronunciation_targets(
+    raw_text: &str,
+) -> Result<PronunciationTargetSequence, PhoneticError> {
+    let words =
+        segment_words_with_modifiers(raw_text).map_err(|error| PhoneticError::Morphology {
+            message: error.to_string(),
+        })?;
+    let chunks = words
+        .iter()
+        .flat_map(flatten_word_like_ipa)
+        .collect::<Vec<_>>();
+    if chunks.is_empty() {
+        return Err(PhoneticError::NoPronounceableWords {
+            input: raw_text.to_owned(),
+        });
+    }
+    let targets = pronunciation_targets_for_surface_chunks(&chunks, raw_text)?;
+    if targets.is_empty() {
+        Err(PhoneticError::EmptyQuery)
+    } else {
+        Ok(make_target_sequence(targets))
+    }
 }
 
 #[requires(true)]
@@ -1180,6 +1898,17 @@ pub fn lojban_gismu_letter_to_ipa_segment(letter: char) -> Option<IpaSegmentId> 
         .flatten()
 }
 
+/// Map one gismu letter to its scoring target. Only `r` is non-singleton.
+#[requires(true)]
+#[ensures(ret.is_some() == matches!(letter, 'b' | 'c' | 'd' | 'f' | 'g' | 'j' | 'k' | 'l' | 'm' | 'n' | 'p' | 'r' | 's' | 't' | 'v' | 'x' | 'z' | 'a' | 'e' | 'i' | 'o' | 'u'))]
+pub fn lojban_gismu_letter_to_pronunciation_target(letter: char) -> Option<PronunciationTargetId> {
+    usize::try_from(u32::from(letter))
+        .ok()
+        .and_then(|index| LOJBAN_GISMU_LETTER_TARGETS.get(index))
+        .copied()
+        .flatten()
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn bracketed_ipa_query(raw_query: &str) -> Result<Option<String>, PhoneticError> {
@@ -1252,6 +1981,89 @@ fn make_token_sequence(segments: Vec<IpaSegmentId>) -> IpaTokenSequence {
         segments,
         self_similarity,
     })
+}
+
+#[requires(!targets.is_empty())]
+#[ensures(ret.target_count() > 0)]
+fn make_target_sequence(targets: Vec<PronunciationTargetId>) -> PronunciationTargetSequence {
+    let self_similarity = target_raw_similarity(&targets, &targets);
+    new!(PronunciationTargetSequence {
+        targets,
+        self_similarity,
+    })
+}
+
+#[requires(!source.is_empty())]
+#[requires(!target.is_empty())]
+#[ensures(ret.is_finite())]
+fn target_raw_similarity(
+    source: &[PronunciationTargetId],
+    target: &[PronunciationTargetId],
+) -> f64 {
+    let mut scratch = AlineSimilarityScratch::default();
+    target_raw_similarity_with_scratch(source, target, &mut scratch)
+}
+
+#[requires(!source.is_empty())]
+#[requires(!target.is_empty())]
+#[ensures(ret.is_finite())]
+fn target_raw_similarity_with_scratch(
+    source: &[PronunciationTargetId],
+    target: &[PronunciationTargetId],
+    scratch: &mut AlineSimilarityScratch,
+) -> f64 {
+    let row_width = target.len() + 1;
+    scratch.previous_previous.resize(row_width, 0.0);
+    scratch.previous.resize(row_width, 0.0);
+    scratch.current.resize(row_width, 0.0);
+    scratch.previous.fill(0.0);
+
+    let mut has_previous_previous = false;
+    let mut best: f64 = 0.0;
+    for source_index in 0..source.len() {
+        scratch.current[0] = 0.0;
+        for target_index in 1..=target.len() {
+            let delete_source = scratch.previous[target_index] + ALINE_SKIP_SCORE;
+            let insert_target = scratch.current[target_index - 1] + ALINE_SKIP_SCORE;
+            let substitute = scratch.previous[target_index - 1]
+                + maximized_substitution_score(
+                    PronunciationUnit::target(source[source_index]),
+                    PronunciationUnit::target(target[target_index - 1]),
+                );
+            let compress_source = if has_previous_previous && source_index > 0 {
+                scratch.previous_previous[target_index - 1]
+                    + maximized_expansion_score(
+                        PronunciationUnit::target(target[target_index - 1]),
+                        PronunciationUnit::target(source[source_index - 1]),
+                        PronunciationUnit::target(source[source_index]),
+                    )
+            } else {
+                0.0
+            };
+            let expand_target = if target_index > 1 {
+                scratch.previous[target_index - 2]
+                    + maximized_expansion_score(
+                        PronunciationUnit::target(source[source_index]),
+                        PronunciationUnit::target(target[target_index - 2]),
+                        PronunciationUnit::target(target[target_index - 1]),
+                    )
+            } else {
+                0.0
+            };
+            let cell = delete_source
+                .max(insert_target)
+                .max(substitute)
+                .max(compress_source)
+                .max(expand_target)
+                .max(0.0);
+            scratch.current[target_index] = cell;
+            best = best.max(cell);
+        }
+        std::mem::swap(&mut scratch.previous_previous, &mut scratch.previous);
+        std::mem::swap(&mut scratch.previous, &mut scratch.current);
+        has_previous_previous = true;
+    }
+    best
 }
 
 #[requires(!source.is_empty())]
@@ -1465,6 +2277,43 @@ fn expansion_score(
         - feature_difference(single, second_second)
         - vowel_penalty(single)
         - vowel_penalty(first_second).max(vowel_penalty(second_second))
+}
+
+#[requires(true)]
+#[ensures(ret.is_finite())]
+fn maximized_substitution_score(left: PronunciationUnit, right: PronunciationUnit) -> f64 {
+    let mut best = f64::NEG_INFINITY;
+    for left_index in 0..left.realization_count() {
+        let left = left.realization(left_index);
+        for right_index in 0..right.realization_count() {
+            best = best.max(substitution_score(left, right.realization(right_index)));
+        }
+    }
+    best
+}
+
+#[requires(true)]
+#[ensures(ret.is_finite())]
+fn maximized_expansion_score(
+    single: PronunciationUnit,
+    first_second: PronunciationUnit,
+    second_second: PronunciationUnit,
+) -> f64 {
+    let mut best = f64::NEG_INFINITY;
+    for single_index in 0..single.realization_count() {
+        let single = single.realization(single_index);
+        for first_index in 0..first_second.realization_count() {
+            let first = first_second.realization(first_index);
+            for second_index in 0..second_second.realization_count() {
+                best = best.max(expansion_score(
+                    single,
+                    first,
+                    second_second.realization(second_index),
+                ));
+            }
+        }
+    }
+    best
 }
 
 #[requires(true)]
@@ -1782,6 +2631,135 @@ fn drop_leading_zoi_separator_ref(text: &str) -> &str {
     text.strip_prefix(' ').unwrap_or(text)
 }
 
+#[requires(!chunks.is_empty())]
+#[ensures(true)]
+fn pronunciation_targets_for_surface_chunks(
+    chunks: &[IpaSurfaceChunk<'_>],
+    source: &str,
+) -> Result<Vec<PronunciationTargetId>, PhoneticError> {
+    let mut targets = Vec::new();
+    let mut previous_word_trailing_pause = None;
+    for chunk in chunks {
+        match chunk {
+            IpaSurfaceChunk::Word {
+                word,
+                leading_pause_context,
+            } => {
+                let leading_pause_required = explicit_leading_pause_count(source, word) > 0
+                    || required_leading_pause_count(word, *leading_pause_context) > 0;
+                if previous_word_trailing_pause.is_some_and(|required| required)
+                    || (previous_word_trailing_pause.is_some() && leading_pause_required)
+                {
+                    targets.push(concrete_pronunciation_target("ʔ"));
+                }
+                append_word_pronunciation_targets(word, &mut targets)?;
+                previous_word_trailing_pause = Some(
+                    explicit_trailing_pause_count(source, word) > 0
+                        || word.kind() == WordKind::Cmevla,
+                );
+            }
+            IpaSurfaceChunk::Text(text) => {
+                if !text.is_empty() {
+                    let concrete = tokenize_ipa_text(text)?;
+                    targets.extend(
+                        concrete
+                            .segments()
+                            .iter()
+                            .copied()
+                            .map(PronunciationTargetId::concrete),
+                    );
+                }
+                previous_word_trailing_pause = None;
+            }
+        }
+    }
+    Ok(targets)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() -> !output.is_empty())]
+fn append_word_pronunciation_targets(
+    word: &Word,
+    output: &mut Vec<PronunciationTargetId>,
+) -> Result<(), PhoneticError> {
+    let phonemes = word.phonemes();
+    if word.kind() == WordKind::Cmevla {
+        let text = phonemes.as_str();
+        if text.contains(',') {
+            for syllable in text.split(',').filter(|syllable| !syllable.is_empty()) {
+                append_phoneme_targets(syllable, output)?;
+            }
+        } else if text.chars().any(is_explicit_stress_char) {
+            append_phoneme_targets(text, output)?;
+        } else {
+            match pronunciation_syllables(&phonemes) {
+                Ok(syllables) => {
+                    for syllable in &syllables {
+                        append_phoneme_targets(syllable, output)?;
+                    }
+                }
+                Err(_) => append_phoneme_targets(text, output)?,
+            }
+        }
+        return Ok(());
+    }
+
+    let syllables =
+        pronunciation_syllables(&phonemes).map_err(|error| PhoneticError::Syllabification {
+            message: error.to_string(),
+        })?;
+    for syllable in &syllables {
+        append_phoneme_targets(syllable, output)?;
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn append_phoneme_targets(
+    text: &str,
+    output: &mut Vec<PronunciationTargetId>,
+) -> Result<(), PhoneticError> {
+    // Tokenize each parsed syllable independently so adjacent phonemes retain
+    // the concrete IPA inventory's affricate semantics without crossing a
+    // syllable boundary. This consumes morphology phonemes directly; it does
+    // not parse the separately rendered canonical display IPA.
+    let mut rendered = String::with_capacity(text.len());
+    for value in text.chars() {
+        if value != ',' {
+            push_ipa_phoneme(&mut rendered, value);
+        }
+    }
+
+    let mut remaining = rendered.as_str();
+    let concrete_r = lojban_gismu_letter_to_ipa_segment('r')
+        .expect("Lojban r has a concrete canonical IPA segment");
+    while !remaining.is_empty() {
+        let Some((segment, segment_length)) = match_longest_segment(remaining) else {
+            return Err(PhoneticError::UnsupportedSegment {
+                near: remaining.chars().take(12).collect::<String>(),
+            });
+        };
+        output.push(if segment == concrete_r {
+            lojban_r_pronunciation_target()
+        } else {
+            PronunciationTargetId::concrete(segment)
+        });
+        remaining = &remaining[segment_length..];
+    }
+    Ok(())
+}
+
+#[requires(!symbol.is_empty())]
+#[ensures(ret.realization_count() == 1)]
+fn concrete_pronunciation_target(symbol: &str) -> PronunciationTargetId {
+    let index = IPA_SEGMENT_SYMBOLS
+        .iter()
+        .position(|candidate| *candidate == symbol)
+        .expect("static Lojban pronunciation symbol is in the IPA inventory");
+    PronunciationTargetId::concrete(IpaSegmentId::from_static_index(index as u16))
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn render_ipa_surface_chunks(
@@ -2080,6 +3058,99 @@ mod tests {
             }
         }
         table[candidate.len()][source.len()]
+    }
+
+    #[requires(!targets.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn enumerate_realizations(targets: &[PronunciationTargetId]) -> Vec<Vec<IpaSegmentId>> {
+        let mut output = Vec::new();
+        let mut current = targets
+            .iter()
+            .map(|target| target.realization(0).expect("every target is realizable"))
+            .collect::<Vec<_>>();
+        enumerate_realizations_at(targets, 0, &mut current, &mut output);
+        output
+    }
+
+    #[requires(position <= targets.len())]
+    #[requires(current.len() == targets.len())]
+    #[ensures(true)]
+    fn enumerate_realizations_at(
+        targets: &[PronunciationTargetId],
+        position: usize,
+        current: &mut [IpaSegmentId],
+        output: &mut Vec<Vec<IpaSegmentId>>,
+    ) {
+        if position == targets.len() {
+            output.push(current.to_vec());
+            return;
+        }
+        for realization_index in 0..targets[position].realization_count() {
+            current[position] = targets[position]
+                .realization(realization_index)
+                .expect("the loop bounds the realization index");
+            enumerate_realizations_at(targets, position + 1, current, output);
+        }
+    }
+
+    #[requires(!candidate.is_empty())]
+    #[requires(!source.is_empty())]
+    #[ensures(ret.is_finite())]
+    fn brute_force_target_similarity(
+        scorer: &AlineScorer,
+        candidate: &[PronunciationTargetId],
+        source: &[PronunciationTargetId],
+    ) -> f64 {
+        let candidate_realizations = enumerate_realizations(candidate);
+        let source_realizations = enumerate_realizations(source);
+        let mut scratch = AlineSimilarityScratch::default();
+        let mut best = f64::NEG_INFINITY;
+        for candidate in &candidate_realizations {
+            for source in &source_realizations {
+                best =
+                    best.max(scorer.raw_similarity_with_scratch(candidate, source, &mut scratch));
+            }
+        }
+        best
+    }
+
+    #[requires(!candidate.is_empty())]
+    #[requires(!source.is_empty())]
+    #[ensures(ret.1.len() == candidate.len() && ret.2.len() == source.len())]
+    fn prepare_dense_target_alignment(
+        scorer: &AlineScorer,
+        candidate: &[PronunciationTargetId],
+        source: &[PronunciationTargetId],
+    ) -> (PreparedAlineTargetInventory, Vec<usize>, Vec<usize>) {
+        let mut inventory = Vec::new();
+        for target in candidate.iter().chain(source) {
+            if !inventory.contains(target) {
+                inventory.push(*target);
+            }
+        }
+        let candidate = candidate
+            .iter()
+            .map(|target| {
+                inventory
+                    .iter()
+                    .position(|candidate| candidate == target)
+                    .expect("candidate target was inserted")
+            })
+            .collect();
+        let source = source
+            .iter()
+            .map(|target| {
+                inventory
+                    .iter()
+                    .position(|candidate| candidate == target)
+                    .expect("source target was inserted")
+            })
+            .collect();
+        (
+            scorer.prepare_target_inventory(&inventory),
+            candidate,
+            source,
+        )
     }
 
     #[requires(true)]
@@ -2472,6 +3543,388 @@ mod tests {
             aline_phonetic_similarity_with_scratch(long.view(), long.view(), &mut scratch),
             1.0
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lojban_r_target_has_exactly_the_consensus_consonantal_realizations() {
+        let target = lojban_r_pronunciation_target();
+        let symbols = (0..target.realization_count())
+            .map(|index| {
+                ipa_segment_symbol(
+                    target
+                        .realization(index)
+                        .expect("realization index is in range"),
+                )
+                .expect("concrete realization has a symbol")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(symbols, ["r", "ɾ", "ɹ", "ʀ", "ɻ", "ʁ", "ɽ"]);
+        assert!(!symbols.contains(&"ɚ"));
+        assert!(!symbols.contains(&"ɝ"));
+        assert_eq!(
+            lojban_gismu_letter_to_pronunciation_target('r'),
+            Some(target)
+        );
+        for letter in "bcdfgjklmnpstvxzaeiou".chars() {
+            assert_eq!(
+                lojban_gismu_letter_to_pronunciation_target(letter)
+                    .expect("Lojban target")
+                    .realization_count(),
+                1,
+                "only r may have zero-cost alternatives: {letter}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_consonantal_rhotic_matches_target_r_at_identity() {
+        let candidate = make_target_sequence(vec![lojban_r_pronunciation_target()]);
+        for symbol in ["r", "ɾ", "ɹ", "ʀ", "ɻ", "ʁ", "ɽ"] {
+            let query = new!(SoundQuerySequence::Concrete(
+                tokenize_ipa_text(symbol).expect("supported rhotic")
+            ));
+            let prepared = prepare_sound_query(&query);
+            let mut scratch = AlineSimilarityScratch::default();
+            assert_eq!(
+                prepared.similarity_with_scratch(candidate.view(), &mut scratch),
+                1.0,
+                "target r should accept [{symbol}] without cost"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn concrete_rhotic_similarity_remains_feature_distinct_and_bit_exact() {
+        let trill = tokenize_ipa_text("r").expect("alveolar trill");
+        // These are the exact normalized outputs of the pre-target concrete
+        // feature arithmetic, including its IEEE-754 rounding. Pinning bits
+        // avoids replacing that compatibility oracle with idealized decimal
+        // scores that differ by one or two ULPs.
+        for (symbol, expected_bits) in [
+            ("r", 4_607_182_418_800_017_408),
+            ("ɾ", 4_606_539_047_424_678_766),
+            ("ɹ", 4_605_895_676_049_340_123),
+            ("ʀ", 4_603_579_539_098_121_011),
+            ("ɻ", 4_602_807_493_447_714_641),
+            ("ʁ", 4_601_906_773_522_240_539),
+            ("ɽ", 4_603_450_864_823_053_285),
+        ] {
+            let concrete = tokenize_ipa_text(symbol).expect("supported rhotic");
+            let actual = aline_phonetic_similarity(trill.view(), concrete.view());
+            assert_eq!(actual.to_bits(), expected_bits, "concrete r/{symbol}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepared_target_dp_equals_brute_force_realization_enumeration() {
+        let r = lojban_r_pronunciation_target();
+        let a = lojban_gismu_letter_to_pronunciation_target('a').expect("a target");
+        let cases = [
+            (vec![r], vec![r]),
+            (vec![r], vec![r, a]),
+            (vec![r, a], vec![r]),
+            (vec![r, r], vec![r, r]),
+            (vec![a, r], vec![r, a]),
+        ];
+        let scorer = AlineScorer::new(AlineParameters::default());
+        let mut scratch = AlineSimilarityScratch::default();
+        for (candidate, source) in cases {
+            let expected = brute_force_target_similarity(&scorer, &candidate, &source);
+            let (prepared, candidate, source) =
+                prepare_dense_target_alignment(&scorer, &candidate, &source);
+            let actual = prepared.raw_similarity_with_scratch(&candidate, &source, &mut scratch);
+            assert_eq!(actual.to_bits(), expected.to_bits());
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepared_target_to_concrete_dp_covers_both_expansions_and_adjacent_r() {
+        let r = lojban_r_pronunciation_target();
+        let a = lojban_gismu_letter_to_pronunciation_target('a').expect("a target");
+        let cases = [
+            (vec![r], "aɾ"),
+            (vec![a, r], "ɾ"),
+            (vec![r], "ʁ"),
+            (vec![r, r], "ʁɽ"),
+        ];
+        let scorer = AlineScorer::new(AlineParameters::default());
+        let mut prepared_scratch = AlineSimilarityScratch::default();
+        let mut oracle_scratch = AlineSimilarityScratch::default();
+        for (candidate, source_text) in cases {
+            let source = tokenize_ipa_text(source_text).expect("concrete source");
+            let mut inventory = Vec::new();
+            for target in &candidate {
+                if !inventory.contains(target) {
+                    inventory.push(*target);
+                }
+            }
+            let dense = candidate
+                .iter()
+                .map(|target| {
+                    inventory
+                        .iter()
+                        .position(|candidate| candidate == target)
+                        .expect("target is in inventory")
+                })
+                .collect::<Vec<_>>();
+            let targets = scorer.prepare_target_inventory(&inventory);
+            let prepared = scorer.prepare_target_source(&targets, source.segments());
+            let actual = prepared.raw_similarity_with_scratch(&dense, &mut prepared_scratch);
+            let expected = enumerate_realizations(&candidate)
+                .iter()
+                .map(|realization| {
+                    scorer.raw_similarity_with_scratch(
+                        realization,
+                        source.segments(),
+                        &mut oracle_scratch,
+                    )
+                })
+                .fold(f64::NEG_INFINITY, f64::max);
+            assert_eq!(actual.to_bits(), expected.to_bits(), "{source_text}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn expansion_selects_a_reused_target_realization_jointly() {
+        let scorer = AlineScorer::new(AlineParameters::default());
+        let r_target = PronunciationUnit::target(lojban_r_pronunciation_target());
+        let alveolar =
+            PronunciationUnit::concrete(tokenize_ipa_text("r").expect("r").segments()[0]);
+        let uvular =
+            PronunciationUnit::concrete(tokenize_ipa_text("ʁ").expect("uvular r").segments()[0]);
+        let joint = scorer.maximized_expansion_score(r_target, alveolar, uvular);
+        let independently_selected_incorrect_score = scorer.parameters.c_exp;
+        assert!(joint < independently_selected_incorrect_score);
+        let explicit_joint = (0..r_target.realization_count())
+            .map(|index| {
+                scorer.expansion_score(
+                    r_target.realization(index),
+                    alveolar.realization(0),
+                    uvular.realization(0),
+                )
+            })
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert_eq!(joint.to_bits(), explicit_joint.to_bits());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn target_normalizers_preserve_rhotic_identity_and_bounds() {
+        let target_id = lojban_r_pronunciation_target();
+        for normalizer in [
+            AlineNormalizer::SourceSide,
+            AlineNormalizer::CandidateSide,
+            AlineNormalizer::Symmetric,
+        ] {
+            let defaults = AlineParameters::default();
+            let parameters = AlineParameters::try_new(
+                defaults.saliences.clone(),
+                defaults.c_sub,
+                defaults.c_exp,
+                defaults.c_skip,
+                defaults.c_vwl,
+                defaults.c_flank,
+                normalizer,
+            )
+            .expect("normalizer parameters");
+            let scorer = AlineScorer::new(parameters);
+            let targets = scorer.prepare_target_inventory(&[target_id]);
+            let target_self =
+                targets.self_similarity_with_scratch(&[0], &mut AlineSimilarityScratch::default());
+            for symbol in ["r", "ɾ", "ɹ", "ʀ", "ɻ", "ʁ", "ɽ"] {
+                let source = tokenize_ipa_text(symbol).expect("supported rhotic");
+                let prepared = scorer.prepare_target_source(&targets, source.segments());
+                let mut scratch = AlineSimilarityScratch::default();
+                let raw = prepared.raw_similarity_with_scratch(&[0], &mut scratch);
+                let source_self =
+                    scorer.self_similarity_with_scratch(source.segments(), &mut scratch);
+                let normalized = scorer.normalize(raw, target_self, source_self);
+                assert_eq!(normalized, 1.0, "{normalizer:?} / {symbol}");
+                assert!((0.0..=1.0).contains(&normalized));
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn no_r_targets_are_bit_identical_to_concrete_scoring() {
+        for text in ["klama", "abata'adj"] {
+            let concrete = lojban_text_to_tokenized_ipa(text)
+                .expect("concrete no-r pronunciation")
+                .token_sequence;
+            let targets =
+                lojban_text_to_pronunciation_targets(text).expect("no-r pronunciation targets");
+            let realized = targets
+                .targets()
+                .iter()
+                .map(|target| {
+                    assert_eq!(target.realization_count(), 1, "{text}");
+                    target.realization(0).expect("singleton realization")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(realized, concrete.segments(), "{text}");
+            assert_eq!(
+                targets.self_similarity().to_bits(),
+                concrete.self_similarity().to_bits(),
+                "{text}",
+            );
+        }
+
+        let concrete_candidate = lojban_text_to_tokenized_ipa("klama")
+            .expect("concrete candidate")
+            .token_sequence;
+        let target_candidate =
+            lojban_text_to_pronunciation_targets("klama").expect("target candidate");
+        let source = tokenize_ipa_text("xklamah").expect("concrete source");
+        for normalizer in [
+            AlineNormalizer::SourceSide,
+            AlineNormalizer::CandidateSide,
+            AlineNormalizer::Symmetric,
+        ] {
+            let defaults = AlineParameters::default();
+            let parameters = AlineParameters::try_new(
+                defaults.saliences.clone(),
+                defaults.c_sub,
+                defaults.c_exp,
+                defaults.c_skip,
+                defaults.c_vwl,
+                defaults.c_flank,
+                normalizer,
+            )
+            .expect("normalizer parameters");
+            let scorer = AlineScorer::new(parameters);
+            let mut inventory = Vec::new();
+            for target in target_candidate.targets() {
+                if !inventory.contains(target) {
+                    inventory.push(*target);
+                }
+            }
+            let dense = target_candidate
+                .targets()
+                .iter()
+                .map(|target| {
+                    inventory
+                        .iter()
+                        .position(|candidate| candidate == target)
+                        .expect("target is in inventory")
+                })
+                .collect::<Vec<_>>();
+            let targets = scorer.prepare_target_inventory(&inventory);
+            let prepared = scorer.prepare_target_source(&targets, source.segments());
+            let mut target_scratch = AlineSimilarityScratch::default();
+            let target_raw = prepared.raw_similarity_with_scratch(&dense, &mut target_scratch);
+            let target_self = targets.self_similarity_with_scratch(&dense, &mut target_scratch);
+            let source_self =
+                scorer.self_similarity_with_scratch(source.segments(), &mut target_scratch);
+            let target_score = scorer.normalize(target_raw, target_self, source_self);
+
+            let mut concrete_scratch = AlineSimilarityScratch::default();
+            let concrete_raw = scorer.raw_similarity_with_scratch(
+                concrete_candidate.segments(),
+                source.segments(),
+                &mut concrete_scratch,
+            );
+            let concrete_self = scorer
+                .self_similarity_with_scratch(concrete_candidate.segments(), &mut concrete_scratch);
+            let concrete_source_self =
+                scorer.self_similarity_with_scratch(source.segments(), &mut concrete_scratch);
+            let concrete_score =
+                scorer.normalize(concrete_raw, concrete_self, concrete_source_self);
+            assert_eq!(target_raw.to_bits(), concrete_raw.to_bits());
+            assert_eq!(target_self.to_bits(), concrete_self.to_bits());
+            assert_eq!(target_score.to_bits(), concrete_score.to_bits());
+        }
+
+        let query = new!(SoundQuerySequence::Concrete(source.clone()));
+        let prepared = prepare_sound_query(&query);
+        let mut scratch = AlineSimilarityScratch::default();
+        let target_local = prepared.similarity_with_scratch(target_candidate.view(), &mut scratch);
+        let concrete_local = aline_phonetic_similarity(concrete_candidate.view(), source.view());
+        assert_eq!(target_local.to_bits(), concrete_local.to_bits());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syllabic_r_is_accepted_without_blessing_modifier_collapse() {
+        // Issue #592 owns preserving syllabicity in concrete IPA tokens. This
+        // score-level assertion only records that current [r̩] input remains an
+        // acceptable realization of Lojban r.
+        let candidate = make_target_sequence(vec![lojban_r_pronunciation_target()]);
+        let query = new!(SoundQuerySequence::Concrete(
+            tokenize_ipa_text("r̩").expect("syllabic r input")
+        ));
+        let prepared = prepare_sound_query(&query);
+        assert_eq!(
+            prepared
+                .similarity_with_scratch(candidate.view(), &mut AlineSimilarityScratch::default(),),
+            1.0
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rhotic_vowels_are_not_target_r_and_vowel_r_can_receive_expansion_credit() {
+        let candidate = make_target_sequence(vec![lojban_r_pronunciation_target()]);
+        let similarity = |symbol| {
+            let query = new!(SoundQuerySequence::Concrete(
+                tokenize_ipa_text(symbol).expect("supported IPA")
+            ));
+            prepare_sound_query(&query)
+                .similarity_with_scratch(candidate.view(), &mut AlineSimilarityScratch::default())
+        };
+        assert!(similarity("ɚ") < similarity("ɾ"));
+
+        let saliences = AlineSaliences::default()
+            .with_feature(AlineFeature::Syllabic, 0.0)
+            .expect("valid salience")
+            .with_feature(AlineFeature::Place, 0.0)
+            .expect("valid salience")
+            .with_feature(AlineFeature::Manner, 0.0)
+            .expect("valid salience")
+            .with_feature(AlineFeature::Retroflex, 0.0)
+            .expect("valid salience");
+        let defaults = AlineParameters::default();
+        let parameters = AlineParameters::try_new(
+            saliences,
+            defaults.c_sub,
+            defaults.c_exp,
+            defaults.c_skip,
+            defaults.c_vwl,
+            defaults.c_flank,
+            defaults.normalizer,
+        )
+        .expect("expansion-demonstration parameters");
+        let scorer = AlineScorer::new(parameters);
+        let e = lojban_gismu_letter_to_pronunciation_target('e').expect("e target");
+        let r = lojban_r_pronunciation_target();
+        let targets = scorer.prepare_target_inventory(&[e, r]);
+        let source = tokenize_ipa_text("ɚ").expect("rhotic vowel");
+        let prepared = scorer.prepare_target_source(&targets, source.segments());
+        let raw =
+            prepared.raw_similarity_with_scratch(&[0, 1], &mut AlineSimilarityScratch::default());
+        let expansion = scorer.maximized_expansion_score(
+            PronunciationUnit::concrete(source.segments()[0]),
+            PronunciationUnit::target(e),
+            PronunciationUnit::target(r),
+        );
+        assert!(expansion > 0.0);
+        assert_eq!(raw.to_bits(), expansion.to_bits());
     }
 
     #[test]

@@ -20,7 +20,10 @@ use jbotci_dictionary::{
 };
 use jbotci_jvozba::decompose_lujvo_like;
 use jbotci_morphology::LujvoPart;
-use jbotci_phonetic::{IpaSegmentId, IpaTokenSequenceView, lojban_text_to_tokenized_ipa};
+use jbotci_phonetic::{
+    IpaSegmentId, IpaTokenSequenceView, PronunciationTargetId, PronunciationTargetSequenceView,
+    lojban_text_to_pronunciation_targets, lojban_text_to_tokenized_ipa,
+};
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 use rayon::prelude::*;
@@ -51,6 +54,8 @@ struct GeneratedSoundEntry {
     ipa: String,
     segments: Vec<IpaSegmentId>,
     self_similarity: f64,
+    pronunciation_targets: Vec<PronunciationTargetId>,
+    pronunciation_self_similarity: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -310,11 +315,14 @@ fn build_sound_index(dictionary: &ImportedDictionary) -> Vec<GeneratedSoundEntry
         .enumerate()
         .map(|(index, entry)| {
             let tokenized = lojban_text_to_tokenized_ipa(&entry.word).ok()?;
+            let pronunciation = lojban_text_to_pronunciation_targets(&entry.word).ok()?;
             Some(GeneratedSoundEntry {
                 entry_index: EntryIndex(index),
                 ipa: tokenized.ipa,
                 segments: tokenized.token_sequence.segments().to_vec(),
                 self_similarity: tokenized.token_sequence.self_similarity(),
+                pronunciation_targets: pronunciation.targets().to_vec(),
+                pronunciation_self_similarity: pronunciation.self_similarity(),
             })
         })
         .collect::<Vec<_>>()
@@ -334,6 +342,10 @@ fn leak_sound_index(entries: &[GeneratedSoundEntry]) -> &'static [DictionarySoun
             token_sequence: IpaTokenSequenceView::new(
                 entry.segments.clone().leak(),
                 entry.self_similarity,
+            ),
+            pronunciation_targets: PronunciationTargetSequenceView::new(
+                entry.pronunciation_targets.clone().leak(),
+                entry.pronunciation_self_similarity,
             ),
         })
         .collect::<Vec<_>>()
@@ -687,6 +699,11 @@ fn render_sound_index_entry(entry: &GeneratedSoundEntry) -> TokenStream {
     let ipa = string_literal(&entry.ipa);
     let segments = entry.segments.iter().map(render_ipa_segment_id);
     let self_similarity = f64_literal(entry.self_similarity);
+    let pronunciation_targets = entry
+        .pronunciation_targets
+        .iter()
+        .map(render_pronunciation_target_id);
+    let pronunciation_self_similarity = f64_literal(entry.pronunciation_self_similarity);
     quote! {
         jbotci_dictionary::DictionarySoundEntry {
             entry_index: #entry_index,
@@ -695,6 +712,11 @@ fn render_sound_index_entry(entry: &GeneratedSoundEntry) -> TokenStream {
                 &[#(#segments,)*],
                 #self_similarity,
             ),
+            pronunciation_targets:
+                jbotci_phonetic::PronunciationTargetSequenceView::from_static_parts(
+                    &[#(#pronunciation_targets,)*],
+                    #pronunciation_self_similarity,
+                ),
         }
     }
 }
@@ -750,6 +772,13 @@ fn render_lujvo_segment_kind(kind: DictionaryLujvoSegmentKind) -> TokenStream {
 fn render_ipa_segment_id(segment: &IpaSegmentId) -> TokenStream {
     let value = u16_literal(segment.get());
     quote! { jbotci_phonetic::IpaSegmentId::from_static_index(#value) }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_pronunciation_target_id(target: &PronunciationTargetId) -> TokenStream {
+    let value = u16_literal(target.get());
+    quote! { jbotci_phonetic::PronunciationTargetId::from_static_index(#value) }
 }
 
 #[requires(true)]

@@ -98,6 +98,18 @@ mod tests {
             assert!(!sound_entry.token_sequence.segments.is_empty());
             assert!(sound_entry.token_sequence.self_similarity.is_finite());
             assert!(sound_entry.token_sequence.self_similarity > 0.0);
+            assert!(!sound_entry.pronunciation_targets.targets.is_empty());
+            assert!(
+                sound_entry
+                    .pronunciation_targets
+                    .self_similarity
+                    .is_finite()
+            );
+            assert!(sound_entry.pronunciation_targets.self_similarity > 0.0);
+            assert_eq!(
+                sound_entry.pronunciation_targets.target_count(),
+                sound_entry.token_sequence.segment_count()
+            );
             previous_index = Some(sound_entry.entry_index.get());
         }
     }
@@ -113,6 +125,25 @@ mod tests {
         let coi = sound_entry_for_word("coi").expect("sound entry for coi");
         assert_eq!(coi.ipa, "ʃoj");
         assert_eq!(coi.token_sequence.segment_count(), 3);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedded_sound_index_keeps_display_r_separate_from_scoring_target() {
+        let prami = sound_entry_for_word("prami").expect("sound entry for prami");
+        assert_eq!(
+            jbotci_phonetic::ipa_segment_symbol(prami.token_sequence.segments[1]),
+            Some("r")
+        );
+        assert_eq!(
+            prami.pronunciation_targets.targets[1],
+            jbotci_phonetic::lojban_r_pronunciation_target()
+        );
+        assert_eq!(
+            prami.pronunciation_targets.targets[1].realization_count(),
+            7
+        );
     }
 
     #[test]
