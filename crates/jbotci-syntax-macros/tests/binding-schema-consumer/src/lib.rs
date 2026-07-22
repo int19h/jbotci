@@ -1,43 +1,37 @@
 //! External compile-time consumer used to prove that the exported schema does
 //! not depend on proc-macro implementation details or Python bindings.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 
 use bityzba::{data, new};
 use proc_macro::{Delimiter, TokenStream, TokenTree};
 
 #[bityzba::invariant(true)]
 struct Cursor {
-    tokens: Vec<TokenTree>,
-    index: usize,
+    tokens: VecDeque<TokenTree>,
 }
 
 impl Cursor {
     #[bityzba::requires(true)]
-    #[bityzba::ensures(ret.index == 0)]
+    #[bityzba::ensures(true)]
     fn new(stream: TokenStream) -> Self {
         Self {
             tokens: stream.into_iter().collect(),
-            index: 0,
         }
     }
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
     fn is_done(&self) -> bool {
-        self.index == self.tokens.len()
+        self.tokens.is_empty()
     }
 
     #[bityzba::requires(!self.is_done())]
-    #[bityzba::ensures(self.index == old(self.index) + 1)]
+    #[bityzba::ensures(self.tokens.len() + 1 == old(self.tokens.len()))]
     fn take(&mut self) -> TokenTree {
-        let token = self
-            .tokens
-            .get(self.index)
-            .cloned()
-            .expect("schema cursor precondition guarantees a token");
-        self.index += 1;
-        token
+        self.tokens
+            .pop_front()
+            .expect("schema cursor precondition guarantees a token")
     }
 
     #[bityzba::requires(!self.is_done())]
@@ -101,7 +95,26 @@ enum ModelKind {
     Sum,
 }
 
-#[bityzba::invariant(true)]
+impl ModelKind {
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn matches_model_shape(&self, field_count: usize, variant_count: usize) -> bool {
+        match self.as_data() {
+            data!(ModelKind::Product { shape }) => {
+                variant_count == 0 && ((shape == "tuple") == (field_count == 1))
+            }
+            data!(ModelKind::Sum) => field_count == 0 && variant_count > 0,
+        }
+    }
+}
+
+#[bityzba::invariant(!name.is_empty(), "schema models are named")]
+#[bityzba::invariant(!rule.is_empty(), "schema models identify their source rule")]
+#[bityzba::invariant(*has_nonblank_docs, "schema models have canonical documentation")]
+#[bityzba::invariant(
+    kind.matches_model_shape(fields.len(), variants.len()),
+    "product and sum payloads match their declared model kind"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ModelSchema {
     name: String,
@@ -112,7 +125,13 @@ struct ModelSchema {
     variants: Vec<VariantSchema>,
 }
 
-#[bityzba::invariant(true)]
+#[bityzba::invariant(!name.is_empty(), "schema variants are named")]
+#[bityzba::invariant(!source_rule.is_empty(), "schema variants identify their source rule")]
+#[bityzba::invariant(*has_nonblank_docs, "schema variants have canonical documentation")]
+#[bityzba::invariant(
+    shape == "named" || shape == "tuple",
+    "variant shapes are normalized to named or tuple"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct VariantSchema {
     name: String,
@@ -122,7 +141,7 @@ struct VariantSchema {
     fields: Vec<FieldSchema>,
 }
 
-#[bityzba::invariant(true)]
+#[bityzba::invariant(!source_name.is_empty(), "schema fields retain a source name")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FieldSchema {
     source_name: String,
@@ -269,14 +288,14 @@ fn parse_product(stream: TokenStream) -> ModelSchema {
     cursor.expect_punct(',');
     let fields = parse_fields_property(&mut cursor);
     cursor.finish();
-    ModelSchema {
+    new!(ModelSchema {
         name,
         rule,
         has_nonblank_docs,
         kind: new!(ModelKind::Product { shape }),
         fields,
         variants: Vec::new(),
-    }
+    })
 }
 
 #[bityzba::requires(true)]
@@ -294,14 +313,14 @@ fn parse_sum(stream: TokenStream) -> ModelSchema {
     cursor.expect_ident("variants");
     let variants = parse_variants(cursor.take_group(Delimiter::Bracket));
     cursor.finish();
-    ModelSchema {
+    new!(ModelSchema {
         name,
         rule,
         has_nonblank_docs,
         kind: new!(ModelKind::Sum),
         fields: Vec::new(),
         variants,
-    }
+    })
 }
 
 #[bityzba::requires(true)]
@@ -350,13 +369,13 @@ fn parse_variant(stream: TokenStream) -> VariantSchema {
     cursor.expect_punct(',');
     let fields = parse_fields_property(&mut cursor);
     cursor.finish();
-    VariantSchema {
+    new!(VariantSchema {
         name,
         source_rule,
         has_nonblank_docs,
         shape,
         fields,
-    }
+    })
 }
 
 #[bityzba::requires(true)]
@@ -414,12 +433,12 @@ fn parse_field(stream: TokenStream) -> FieldSchema {
     cursor.expect_punct(',');
     let recovered = parse_type_property(&mut cursor, "recovered");
     cursor.finish();
-    FieldSchema {
+    new!(FieldSchema {
         source_name,
         index,
         strict,
         recovered,
-    }
+    })
 }
 
 #[bityzba::requires(!source_name.is_empty())]
@@ -743,6 +762,12 @@ fn validate_schema(summary: &SchemaSummary) {
         assert!(
             model.has_nonblank_docs,
             "model lacks canonical documentation"
+        );
+        assert!(
+            model
+                .kind
+                .matches_model_shape(model.fields.len(), model.variants.len()),
+            "model payload differs from its declared kind"
         );
         match model.kind.as_data() {
             data!(ModelKind::Product { shape }) => {

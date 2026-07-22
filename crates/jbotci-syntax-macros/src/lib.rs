@@ -1459,7 +1459,7 @@ enum BindingType {
 
 #[invariant(true)]
 #[invariant(::Model { name } => !name.is_empty())]
-#[invariant(::Leaf { path, .. } => !path.is_empty())]
+#[invariant(::Leaf { path, .. } => !path.is_empty() && path.iter().all(|component| !component.is_empty()))]
 enum BindingReference {
     Model {
         name: String,
