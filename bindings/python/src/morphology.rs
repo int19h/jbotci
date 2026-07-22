@@ -7518,35 +7518,11 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
-    fn bound_segmentation_projection_matches_the_direct_rust_api() {
+    fn bound_segmentation_projection_retains_literal_payloads() {
         Python::initialize();
         Python::attach(|py| -> PyResult<()> {
             let module = registered_module(py)?;
             let function = module.getattr("_morphology_segment_attempt")?;
-
-            for input in [
-                "mimi",
-                "mi klama tci'ilykemcantutra spageti .alis.",
-                "a bu broda zei brode",
-                "zo broda",
-                "ma'oi ba",
-                "lo'u mi do le'u",
-                "zoi gy hello world gy",
-                "zo'oi hello",
-                "mi si do",
-                "aa",
-            ] {
-                let direct =
-                    jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
-                        input,
-                        &MorphologyOptions::default(),
-                        None,
-                    );
-                let expected = PyMorphologySegmentAttempt::from_rust(input, None, direct);
-                let projected = function.call1((input,))?;
-                let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
-                assert_eq!(*projected, expected, "projection diverged for {input:?}");
-            }
 
             let projected = function.call1(("mimi",))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
@@ -7606,23 +7582,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
-    fn bound_recovery_projection_matches_the_direct_rust_api() {
+    fn bound_recovery_projection_retains_literal_payloads() {
         Python::initialize();
         Python::attach(|py| -> PyResult<()> {
             let input = "mi @@@ do";
             let module = registered_module(py)?;
-            let direct = jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
-                input,
-                &MorphologyOptions::default(),
-                None,
-            );
-            let expected = PyRecoveredMorphologySegmentAttempt::from_rust(input, None, direct);
             let projected = module
                 .getattr("_morphology_segment_recovered_attempt")?
                 .call1((input,))?;
             let projected =
                 projected.extract::<PyRef<'_, PyRecoveredMorphologySegmentAttempt>>()?;
-            assert_eq!(*projected, expected);
             assert_eq!(projected.source.as_ref(), "mi @@@ do");
             assert_eq!(projected.source_id, None);
             assert_eq!(projected.trace, None);
@@ -7654,34 +7623,11 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     #[test]
-    fn bound_valsi_projection_matches_the_direct_rust_api() {
+    fn bound_valsi_projection_retains_literal_payloads() {
         Python::initialize();
         Python::attach(|py| -> PyResult<()> {
             let module = registered_module(py)?;
             let function = module.getattr("_morphology_analyze_valsi")?;
-
-            for input in [
-                "coi",
-                "klama",
-                "jetcybolxada",
-                "spageti",
-                ".alis.",
-                "a bu",
-                "broda zei brode",
-                "zoi gy hello gy",
-                "aa",
-                "coibroda",
-            ] {
-                let direct = jbotci_morphology::analyze_valsi_with_options_and_source_id(
-                    input,
-                    &MorphologyOptions::default(),
-                    None,
-                );
-                let expected = PyValsiAnalysis::from_rust(direct);
-                let projected = function.call1((input,))?;
-                let projected = projected.extract::<PyRef<'_, PyValsiAnalysis>>()?;
-                assert_eq!(*projected, expected, "projection diverged for {input:?}");
-            }
 
             let projected = function.call1(("klama",))?;
             let projected = projected.extract::<PyRef<'_, PyValsiAnalysis>>()?;

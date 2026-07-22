@@ -154,6 +154,166 @@ def test_native_stub_exports_match_runtime() -> None:
     assert all(hasattr(native, name) for name in native.__all__)
 
 
+def _stub_classes(path: Path) -> dict[str, ast.ClassDef]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return {
+        declaration.name: declaration
+        for declaration in tree.body
+        if isinstance(declaration, ast.ClassDef)
+    }
+
+
+def _stub_class_functions(
+    classes: dict[str, ast.ClassDef], declaration: ast.ClassDef
+) -> dict[str, ast.FunctionDef]:
+    functions: dict[str, ast.FunctionDef] = {}
+    for base in declaration.bases:
+        if isinstance(base, ast.Name) and base.id in classes:
+            functions.update(_stub_class_functions(classes, classes[base.id]))
+    functions.update(
+        {
+            statement.name: statement
+            for statement in declaration.body
+            if isinstance(statement, ast.FunctionDef)
+        }
+    )
+    return functions
+
+
+def _stub_parameter_shape(
+    declaration: ast.FunctionDef, *, constructor: bool
+) -> tuple[tuple[str, bool, bool], ...]:
+    positional = [*declaration.args.posonlyargs, *declaration.args.args]
+    positional_defaults = [False] * (
+        len(positional) - len(declaration.args.defaults)
+    ) + [True] * len(declaration.args.defaults)
+    parameters = [
+        (argument.arg, False, has_default)
+        for argument, has_default in zip(positional, positional_defaults, strict=True)
+    ]
+    if constructor:
+        assert parameters and parameters[0][0] == "cls"
+        parameters = parameters[1:]
+    parameters.extend(
+        (argument.arg, True, default is not None)
+        for argument, default in zip(
+            declaration.args.kwonlyargs, declaration.args.kw_defaults, strict=True
+        )
+    )
+    if declaration.args.vararg is not None:
+        parameters.append((declaration.args.vararg.arg, False, False))
+    if declaration.args.kwarg is not None:
+        parameters.append((declaration.args.kwarg.arg, True, False))
+    return tuple(parameters)
+
+
+def _runtime_parameter_shape(
+    signature: inspect.Signature,
+) -> tuple[tuple[str, bool, bool], ...]:
+    return tuple(
+        (
+            parameter.name,
+            parameter.kind is inspect.Parameter.KEYWORD_ONLY,
+            parameter.default is not inspect.Parameter.empty,
+        )
+        for parameter in signature.parameters.values()
+    )
+
+
+def _annotation_mentions_any(annotation: ast.expr) -> bool:
+    return any(
+        isinstance(node, ast.Name) and node.id == "Any"
+        for node in ast.walk(annotation)
+    )
+
+
+def test_morphology_stub_class_members_signatures_and_match_args_match_runtime() -> None:
+    """Check the complete manual morphology stub surface, not only exports."""
+
+    stub_path = PACKAGE_ROOT / "stubs" / "_native" / "morphology.pyi"
+    classes = _stub_classes(stub_path)
+    declarations = {
+        name: declaration
+        for name, declaration in classes.items()
+        if name.startswith("_morphology_")
+    }
+    for name, declaration in declarations.items():
+        runtime_class = getattr(native, name)
+        functions = _stub_class_functions(classes, declaration)
+        public_stub_members = {
+            function_name
+            for function_name in functions
+            if not function_name.startswith("_")
+        }
+        public_runtime_members = {
+            member_name
+            for member_name in dir(runtime_class)
+            if not member_name.startswith("_")
+        }
+        assert public_runtime_members == public_stub_members, name
+
+        own_functions = {
+            statement.name: statement
+            for statement in declaration.body
+            if isinstance(statement, ast.FunctionDef)
+        }
+        match_args_declaration = next(
+            (
+                statement
+                for statement in declaration.body
+                if isinstance(statement, ast.AnnAssign)
+                and isinstance(statement.target, ast.Name)
+                and statement.target.id == "__match_args__"
+            ),
+            None,
+        )
+        if match_args_declaration is not None:
+            constructor = own_functions.get("__new__")
+            if constructor is not None:
+                expected_match_args = tuple(
+                    parameter[0]
+                    for parameter in _stub_parameter_shape(
+                        constructor, constructor=True
+                    )
+                )
+            else:
+                expected_match_args = tuple(
+                    statement.name
+                    for statement in declaration.body
+                    if isinstance(statement, ast.FunctionDef)
+                    and any(
+                        isinstance(decorator, ast.Name)
+                        and decorator.id == "property"
+                        for decorator in statement.decorator_list
+                    )
+                )
+            assert runtime_class.__match_args__ == expected_match_args, name
+
+        for function_name, function in functions.items():
+            assert function.returns is not None, f"{name}.{function_name}"
+            assert not _annotation_mentions_any(
+                function.returns
+            ), f"{name}.{function_name}"
+            if function_name.startswith("__") and function_name != "__new__":
+                continue
+            if any(
+                isinstance(decorator, ast.Name) and decorator.id == "property"
+                for decorator in function.decorator_list
+            ):
+                continue
+            if function_name == "__new__":
+                runtime_signature = inspect.signature(runtime_class)
+                constructor = True
+            else:
+                runtime_signature = inspect.signature(
+                    getattr(runtime_class, function_name)
+                )
+                constructor = False
+            assert _runtime_parameter_shape(runtime_signature) == (
+                _stub_parameter_shape(function, constructor=constructor)
+            ), f"{name}.{function_name}"
+
+
 def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
     """Catch per-variant omissions or value drift in generated enum stubs."""
 

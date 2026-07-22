@@ -431,3 +431,265 @@ def typed_constructed_morphology_products() -> morphology.ValsiAnalysisResult:
     analysis: morphology.ValsiAnalysis = morphology.analyze_valsi("mi", options=options)
     assert recovered.words and analysis.result.status.value
     return result
+
+
+def typed_every_morphology_result_property(
+    render_options: morphology.PhonemeRenderOptions,
+    phonemes: morphology.Phonemes,
+    key: morphology.WordKey,
+    options: morphology.MorphologyOptions,
+    compiled: morphology.CompiledDialectDefinition,
+    word: morphology.Word,
+    word_like: morphology.WordLike,
+    context: morphology.MorphologyContext,
+    detail: morphology.MorphologyErrorDetail,
+    warning: morphology.MorphologyWarning,
+    error: morphology.MorphologyErrorValue,
+    exception: morphology.MorphologyError,
+    attempt: morphology.MorphologySegmentAttempt,
+    recovered: morphology.RecoveredMorphologySegmentation,
+    recovered_attempt: morphology.RecoveredMorphologySegmentAttempt,
+    plain_classification: morphology.PlainWordClassification,
+    classification: morphology.ValsiClassification,
+    result: morphology.ValsiAnalysisResult,
+    analysis: morphology.ValsiAnalysis,
+    build_part: morphology.LujvoBuildPart,
+    candidate: morphology.LujvoCandidate,
+) -> None:
+    """Assert every property type on morphology's immutable result graph."""
+
+    assert_type(render_options.mark_stress, morphology.StressMark)
+    assert_type(render_options.mark_glides, morphology.GlideMark)
+    assert_type(phonemes.text, str)
+    assert_type(phonemes.render(render_options), str)
+    assert_type(key.kind, morphology.WordKind)
+    assert_type(key.phonemes, morphology.Phonemes)
+
+    assert_type(options.accept_latin, bool)
+    assert_type(options.accept_cyrillic, bool)
+    assert_type(options.accept_zbalermorna, bool)
+    assert_type(options.compiled_dialect, morphology.CompiledDialectDefinition)
+    assert_type(options.cmevla_as_relation_words, bool)
+    assert_type(options.permissive_lexer, bool)
+    assert_type(options.uppercase_marks_stress, bool)
+    assert_type(options.max_recovery_errors, int)
+    assert_type(options.trace, diagnostics.TraceOptions)
+    assert_type(
+        morphology.MorphologyOptions.default(), morphology.MorphologyOptions
+    )
+    assert_type(
+        options.with_compiled_dialect(compiled), morphology.MorphologyOptions
+    )
+    assert_type(options.with_dialect(typed_dialect()), morphology.MorphologyOptions)
+    assert_type(
+        options.with_trace(diagnostics.TraceOptions()), morphology.MorphologyOptions
+    )
+    assert_type(options.with_max_recovery_errors(1), morphology.MorphologyOptions)
+
+    assert_type(compiled.entries, tuple[morphology.CompiledDialectEntry, ...])
+    for entry in compiled.entries:
+        if isinstance(entry, morphology.CompiledDialectSwap):
+            assert_type(entry.left, morphology.CompiledDialectWord)
+            assert_type(entry.right, morphology.CompiledDialectWord)
+            compiled_word = entry.left
+        else:
+            assert_type(entry.source, morphology.CompiledDialectWord)
+            assert_type(
+                entry.replacement, tuple[morphology.CompiledDialectWord, ...]
+            )
+            compiled_word = entry.source
+        assert_type(compiled_word.word, morphology.Word)
+        assert_type(compiled_word.key, morphology.WordKey)
+
+    assert_type(word.kind, morphology.WordKind)
+    assert_type(word.phonemes, morphology.Phonemes)
+    assert_type(word.span, source.SourceSpan)
+    assert_type(word.key, morphology.WordKey)
+    assert_type(word.canonical_phonemes, str)
+    assert_type(word.cmavo, morphology.Cmavo | None)
+    assert_type(word.selmaho, morphology.Selmaho | None)
+    assert_type(word.is_cmavo(morphology.Cmavo.ZO), bool)
+    assert_type(word.is_selmaho(morphology.Selmaho.ZO), bool)
+    if isinstance(word, morphology.LujvoWord):
+        assert_type(word.parts, tuple[morphology.LujvoPart, ...])
+        for part in word.parts:
+            assert_type(part.phonemes, morphology.Phonemes)
+
+    assert_type(word_like.byte_range, tuple[int, int] | None)
+    assert_type(word_like.source_spans, tuple[source.SourceSpan, ...])
+    if isinstance(word_like, morphology.PlainWord):
+        assert_type(word_like.word, morphology.Word)
+        assert_type(word_like.cmavo, morphology.Cmavo | None)
+        assert_type(word_like.is_cmavo(morphology.Cmavo.ZO), bool)
+        assert_type(word_like.is_selmaho(morphology.Selmaho.ZO), bool)
+        assert_type(word_like.is_brivla(), bool)
+        assert_type(word_like.is_cmevla(), bool)
+    elif isinstance(word_like, morphology.QuotedWord):
+        assert_type(word_like.zo, morphology.Word)
+        assert_type(word_like.word, morphology.Word)
+    elif isinstance(word_like, morphology.SelmahoQuotedWord):
+        assert_type(word_like.mahoi, morphology.Word)
+        assert_type(word_like.word, morphology.Word)
+    elif isinstance(word_like, morphology.DelimitedNonLojbanQuote):
+        assert_type(word_like.zoi, morphology.Word)
+        assert_type(word_like.opening_delimiter, morphology.Word)
+        assert_type(word_like.quoted_text, morphology.Verbatim)
+        assert_type(word_like.closing_delimiter, morphology.Word)
+        assert_type(word_like.quoted_text.span, source.SourceSpan)
+        assert_type(word_like.quoted_text.text, str)
+    elif isinstance(word_like, morphology.QuotedWords):
+        assert_type(word_like.lohu, morphology.Word)
+        assert_type(word_like.quoted_words, tuple[morphology.Word, ...])
+        assert_type(word_like.lehu, morphology.Word)
+    elif isinstance(word_like, morphology.DelimitedWordQuote):
+        assert_type(word_like.marker, morphology.Word)
+        assert_type(word_like.quoted_text, morphology.Verbatim)
+    elif isinstance(word_like, morphology.LerfuWord):
+        assert_type(word_like.base, morphology.WordLike)
+        assert_type(word_like.bu, morphology.Word)
+    else:
+        assert_type(word_like, morphology.ZeiCompound)
+        assert_type(word_like.left, morphology.WordLike)
+        assert_type(word_like.zei, morphology.Word)
+        assert_type(word_like.right, morphology.Word)
+
+    assert_type(context.kind, morphology.MorphologyContextKind)
+    assert_type(context.char_start, int)
+    assert_type(context.char_end, int)
+    assert_type(context.label, str)
+    if isinstance(detail, morphology.InvalidLujvoDetail):
+        assert_type(detail.parsed_prefix, str | None)
+        assert_type(detail.expected, morphology.LujvoParseExpectation)
+    elif isinstance(detail, morphology.ExpectedWordDetail):
+        assert_type(detail.expected, morphology.ExpectedWordDetailKind)
+    elif isinstance(detail, morphology.InvalidZoiDelimiterDetail):
+        assert_type(detail.reason, morphology.ZoiDelimiterDetailKind)
+    elif isinstance(detail, morphology.PhonotacticDetail):
+        assert_type(detail.reason, morphology.PhonotacticDetailKind)
+    else:
+        assert_type(
+            detail,
+            morphology.FuhivlaContainsYDetail | morphology.SlinkuhiDetail,
+        )
+
+    assert_type(warning.kind, morphology.MorphologyWarningKind)
+    assert_type(warning.code, str)
+    assert_type(warning.message, str)
+    assert_type(warning.char_start, int)
+    assert_type(warning.char_end, int)
+    assert_type(warning.text, str)
+    assert_type(warning.context, morphology.MorphologyContext | None)
+    assert_type(warning.ignored_character_count, int | None)
+    assert_type(warning.to_diagnostic(""), diagnostics.Diagnostic)
+
+    assert_type(error.code, str)
+    assert_type(error.to_diagnostic(""), diagnostics.Diagnostic)
+    if isinstance(error, morphology.InvalidMorphology):
+        assert_type(error.kind, morphology.MorphologyErrorKind)
+        assert_type(error.message, str)
+        assert_type(error.char_start, int)
+        assert_type(error.char_end, int)
+        assert_type(error.text, str)
+        assert_type(error.context, morphology.MorphologyContext | None)
+        assert_type(error.detail, morphology.MorphologyErrorDetail | None)
+    elif isinstance(error, morphology.UnterminatedZoiQuote):
+        assert_type(error.char_offset, int)
+        assert_type(error.delimiter, str)
+        assert_type(error.context, morphology.MorphologyContext | None)
+    else:
+        assert_type(error, morphology.SourceSpanMorphologyError)
+        assert_type(error.error, source.SourceLocationError)
+
+    assert_type(exception.value, morphology.MorphologyErrorValue)
+    assert_type(exception.original_source, str)
+    assert_type(exception.source_id, source.SourceId | None)
+    assert_type(exception.code, str)
+    assert_type(exception.diagnostic, diagnostics.Diagnostic)
+    assert_type(exception.spans, tuple[source.SourceSpan, ...])
+    assert_type(exception.context, morphology.MorphologyContext | None)
+    assert_type(exception.detail, morphology.MorphologyErrorDetail | None)
+    assert_type(exception.warnings, tuple[morphology.MorphologyWarning, ...])
+    assert_type(exception.trace, diagnostics.TraceReport | None)
+
+    assert_type(attempt.source, str)
+    assert_type(attempt.source_id, source.SourceId | None)
+    assert_type(attempt.succeeded, bool)
+    assert_type(attempt.words, tuple[morphology.WordLike, ...] | None)
+    assert_type(attempt.error, morphology.MorphologyErrorValue | None)
+    assert_type(attempt.warnings, tuple[morphology.MorphologyWarning, ...])
+    assert_type(attempt.trace, diagnostics.TraceReport | None)
+
+    assert_type(recovered.words, tuple[morphology.WordLike, ...])
+    assert_type(recovered.errors, tuple[morphology.MorphologyErrorValue, ...])
+    assert_type(recovered.error_regions, tuple[source.SourceSpan, ...])
+    assert_type(recovered.warnings, tuple[morphology.MorphologyWarning, ...])
+    assert_type(recovered_attempt.source, str)
+    assert_type(recovered_attempt.source_id, source.SourceId | None)
+    assert_type(
+        recovered_attempt.result, morphology.RecoveredMorphologySegmentation
+    )
+    assert_type(recovered_attempt.trace, diagnostics.TraceReport | None)
+
+    assert_type(plain_classification.category, morphology.WordKind)
+    assert_type(plain_classification.phonemes, str)
+    assert_type(plain_classification.selmaho, str | None)
+    assert_type(plain_classification.split, str | None)
+    assert_type(
+        plain_classification.parts, tuple[morphology.ValsiLujvoPart, ...]
+    )
+    assert_type(plain_classification.stage, morphology.ValsiFuhivlaStage | None)
+    for part in plain_classification.parts:
+        assert_type(part.kind, morphology.ValsiLujvoPartKind)
+        assert_type(part.text, str)
+        assert_type(part.rafsi_kind, morphology.ValsiLujvoRafsiKind | None)
+
+    assert_type(classification.kind, morphology.ValsiClassificationKind)
+    if isinstance(classification, morphology.PlainWordValsiClassification):
+        assert_type(classification.word, morphology.PlainWordClassification)
+    elif isinstance(classification, morphology.QuotedWordValsiClassification):
+        assert_type(classification.marker, morphology.PlainWordClassification)
+        assert_type(
+            classification.quoted_word, morphology.PlainWordClassification
+        )
+    elif isinstance(
+        classification, morphology.DelimitedNonLojbanQuoteValsiClassification
+    ):
+        assert_type(classification.marker, morphology.PlainWordClassification)
+        assert_type(classification.delimiter, str)
+    elif isinstance(classification, morphology.QuotedWordsValsiClassification):
+        assert_type(classification.marker, morphology.PlainWordClassification)
+        assert_type(
+            classification.quoted_words,
+            tuple[morphology.PlainWordClassification, ...],
+        )
+    elif isinstance(
+        classification, morphology.DelimitedWordQuoteValsiClassification
+    ):
+        assert_type(classification.marker_text, str)
+    elif isinstance(classification, morphology.LerfuWordValsiClassification):
+        assert_type(classification.base, morphology.ValsiClassification)
+        assert_type(classification.suffix, morphology.PlainWordClassification)
+    else:
+        assert_type(classification, morphology.ZeiCompoundValsiClassification)
+        assert_type(classification.left, morphology.ValsiClassification)
+        assert_type(classification.link, morphology.PlainWordClassification)
+        assert_type(classification.right, morphology.PlainWordClassification)
+
+    assert_type(result.status, morphology.ValsiAnalysisStatus)
+    assert_type(result.is_valid, bool)
+    assert_type(result.word, morphology.WordLike | None)
+    assert_type(result.classification, morphology.ValsiClassification | None)
+    assert_type(result.error, morphology.MorphologyErrorValue | None)
+    assert_type(result.words, tuple[morphology.WordLike, ...])
+    assert_type(analysis.input, str)
+    assert_type(analysis.warnings, tuple[morphology.MorphologyWarning, ...])
+    assert_type(analysis.result, morphology.ValsiAnalysisResult)
+
+    if isinstance(build_part, morphology.LujvoRafsiBuildPart):
+        assert_type(build_part.text, str)
+    else:
+        assert_type(build_part, morphology.LujvoBrivlaCoreBuildPart)
+        assert_type(build_part.text, str)
+    assert_type(candidate.word, str)
+    assert_type(candidate.parts, tuple[str, ...])
+    assert_type(candidate.score, int)

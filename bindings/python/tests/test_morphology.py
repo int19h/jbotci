@@ -1,12 +1,181 @@
 from __future__ import annotations
 
 import gc
+import json
+import tomllib
 from collections.abc import Sequence
+from pathlib import Path
 from typing import cast
 
 import pytest
 
 from jbotci import InvalidInputError, diagnostics, dialect, morphology, source
+
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+
+
+def word_fixture_value(word: morphology.Word) -> dict[str, object]:
+    """Project public word fields into the independently authored fixture shape."""
+
+    span = list(word.span.byte_range)
+    if isinstance(word, morphology.LujvoWord):
+        parts = [
+            {
+                "Rafsi" if isinstance(part, morphology.LujvoRafsi) else "Hyphen": (
+                    part.phonemes.text
+                )
+            }
+            for part in word.parts
+        ]
+        payload: dict[str, object] = {"parts": parts, "span": span}
+    else:
+        payload = {"phonemes": word.phonemes.text, "span": span}
+    names: tuple[tuple[type[object], str], ...] = (
+        (morphology.CmavoWord, "Cmavo"),
+        (morphology.GismuWord, "Gismu"),
+        (morphology.LujvoWord, "Lujvo"),
+        (morphology.FuhivlaWord, "Fuhivla"),
+        (morphology.CmevlaWord, "Cmevla"),
+    )
+    for word_type, name in names:
+        if isinstance(word, word_type):
+            return {name: payload}
+    raise AssertionError(f"unhandled word type: {type(word)!r}")
+
+
+def word_like_fixture_value(value: morphology.WordLike) -> dict[str, object]:
+    """Project every public word-like payload recursively into fixture JSON."""
+
+    if isinstance(value, morphology.PlainWord):
+        payload: object = word_fixture_value(value.word)
+        name = "PlainWord"
+    elif isinstance(value, morphology.QuotedWord):
+        payload = {
+            "zo": word_fixture_value(value.zo),
+            "word": word_fixture_value(value.word),
+        }
+        name = "QuotedWord"
+    elif isinstance(value, morphology.SelmahoQuotedWord):
+        payload = {
+            "mahoi": word_fixture_value(value.mahoi),
+            "word": word_fixture_value(value.word),
+        }
+        name = "SelmahoQuotedWord"
+    elif isinstance(value, morphology.DelimitedNonLojbanQuote):
+        payload = {
+            "zoi": word_fixture_value(value.zoi),
+            "opening_delimiter": word_fixture_value(value.opening_delimiter),
+            "quoted_text": {
+                "span": list(value.quoted_text.span.byte_range),
+                "text": value.quoted_text.text,
+            },
+            "closing_delimiter": word_fixture_value(value.closing_delimiter),
+        }
+        name = "DelimitedNonLojbanQuote"
+    elif isinstance(value, morphology.QuotedWords):
+        payload = {
+            "lohu": word_fixture_value(value.lohu),
+            "quoted_words": [
+                word_fixture_value(word) for word in value.quoted_words
+            ],
+            "lehu": word_fixture_value(value.lehu),
+        }
+        name = "QuotedWords"
+    elif isinstance(value, morphology.DelimitedWordQuote):
+        payload = {
+            "marker": word_fixture_value(value.marker),
+            "quoted_text": {
+                "span": list(value.quoted_text.span.byte_range),
+                "text": value.quoted_text.text,
+            },
+        }
+        name = "DelimitedWordQuote"
+    elif isinstance(value, morphology.LerfuWord):
+        payload = {
+            "base": word_like_fixture_value(value.base),
+            "bu": word_fixture_value(value.bu),
+        }
+        name = "LerfuWord"
+    elif isinstance(value, morphology.ZeiCompound):
+        payload = {
+            "left": word_like_fixture_value(value.left),
+            "zei": word_fixture_value(value.zei),
+            "right": word_fixture_value(value.right),
+        }
+        name = "ZeiCompound"
+    else:
+        raise AssertionError(f"unhandled word-like type: {type(value)!r}")
+    return {name: payload}
+
+
+def plain_classification_value(
+    value: morphology.PlainWordClassification,
+) -> tuple[object, ...]:
+    """Read every field of a plain classification into a literal oracle shape."""
+
+    return (
+        value.category.value,
+        value.phonemes,
+        value.selmaho,
+        value.split,
+        tuple(
+            (
+                part.kind.value,
+                part.text,
+                None if part.rafsi_kind is None else part.rafsi_kind.value,
+            )
+            for part in value.parts
+        ),
+        None if value.stage is None else value.stage.value,
+    )
+
+
+def classification_value(
+    value: morphology.ValsiClassification,
+) -> tuple[object, ...]:
+    """Read every classification variant field recursively without converters."""
+
+    if isinstance(value, morphology.PlainWordValsiClassification):
+        payload: tuple[object, ...] = (plain_classification_value(value.word),)
+    elif isinstance(value, morphology.QuotedWordValsiClassification):
+        payload = (
+            plain_classification_value(value.marker),
+            plain_classification_value(value.quoted_word),
+        )
+    elif isinstance(
+        value, morphology.DelimitedNonLojbanQuoteValsiClassification
+    ):
+        payload = (plain_classification_value(value.marker), value.delimiter)
+    elif isinstance(value, morphology.QuotedWordsValsiClassification):
+        payload = (
+            plain_classification_value(value.marker),
+            tuple(plain_classification_value(word) for word in value.quoted_words),
+        )
+    elif isinstance(value, morphology.DelimitedWordQuoteValsiClassification):
+        payload = (value.marker_text,)
+    elif isinstance(value, morphology.LerfuWordValsiClassification):
+        payload = (
+            classification_value(value.base),
+            plain_classification_value(value.suffix),
+        )
+    elif isinstance(value, morphology.ZeiCompoundValsiClassification):
+        payload = (
+            classification_value(value.left),
+            plain_classification_value(value.link),
+            plain_classification_value(value.right),
+        )
+    else:
+        raise AssertionError(f"unhandled classification type: {type(value)!r}")
+    return (value.kind.value, *payload)
+
+
+def expected_plain_classification(
+    category: str, phonemes: str, selmaho: str | None = None
+) -> tuple[object, ...]:
+    """Build an independently authored expected plain-classification record."""
+
+    return (category, phonemes, selmaho, None, (), None)
 
 
 def plain_phonemes(words: tuple[morphology.WordLike, ...]) -> tuple[str, ...]:
@@ -15,6 +184,45 @@ def plain_phonemes(words: tuple[morphology.WordLike, ...]) -> tuple[str, ...]:
         assert isinstance(value, morphology.PlainWord)
         values.append(value.word.phonemes.text)
     return tuple(values)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "adhoc/v0/morphology/basic/simple-cmavo.toml",
+        "adhoc/v0/morphology/basic/simple-brivla.toml",
+        "adhoc/v0/morphology/basic/smart-apostrophe-lujvo.toml",
+        "adhoc/v0/morphology/streaming/unstressed-klamami-stays-one-word.toml",
+        "adhoc/v0/morphology/basic/simple-cmevla.toml",
+        "adhoc/v0/morphology/basic/zo-quotes-brivla.toml",
+        "adhoc/v0/morphology/success/adjacent-zoi-corpus-shape-parses.toml",
+        "adhoc/v0/morphology/basic/lohu-quotes-words.toml",
+        "adhoc/v0/morphology/basic/bu-creates-lerfu.toml",
+        "adhoc/v0/morphology/basic/zei-creates-brivla.toml",
+    ),
+)
+def test_binding_projection_matches_independent_morphology_fixtures(
+    relative_path: str,
+) -> None:
+    """Keep binding locators independent from the Rust-to-Python converters."""
+
+    fixture_path = WORKSPACE_ROOT / "tests" / "fixtures" / relative_path
+    fixture = tomllib.loads(fixture_path.read_text(encoding="utf-8"))
+    fixture_source = fixture["lojban"]
+    fixture_json = fixture["expectations"]["output"]["vlasei"]["json"]
+    assert isinstance(fixture_source, str)
+    assert isinstance(fixture_json, str)
+
+    source_id = source.SourceId("<fixture>")
+    projected = morphology.segment(fixture_source, source_id=source_id)
+    assert [word_like_fixture_value(value) for value in projected] == json.loads(
+        fixture_json
+    )
+    assert all(
+        span.source_id == source_id
+        for value in projected
+        for span in value.source_spans
+    )
 
 
 def test_solid_text_and_unicode_spans_preserve_source_ids() -> None:
@@ -156,6 +364,125 @@ def test_attempt_warning_trace_and_recovery_are_distinct() -> None:
     assert plain_phonemes(recovered.words) == ("mi", "do")
     assert len(recovered.errors) == len(recovered.error_regions) == 1
     assert recovered.error_regions[0].char_range == (3, 7)
+
+
+def test_every_morphology_option_round_trips_and_rejects_zero_caps() -> None:
+    trace = diagnostics.TraceOptions(enabled=True)
+    options = morphology.MorphologyOptions(
+        accept_latin=False,
+        accept_cyrillic=False,
+        accept_zbalermorna=False,
+        cmevla_as_relation_words=True,
+        permissive_lexer=True,
+        uppercase_marks_stress=False,
+        max_recovery_errors=7,
+        trace=trace,
+    )
+    assert not options.accept_latin
+    assert not options.accept_cyrillic
+    assert not options.accept_zbalermorna
+    assert options.cmevla_as_relation_words
+    assert options.permissive_lexer
+    assert not options.uppercase_marks_stress
+    assert options.max_recovery_errors == 7
+    assert options.trace == trace
+    assert options.compiled_dialect.entries == ()
+
+    definition = dialect.DialectDefinition(
+        [dialect.CmavoSwap("ce'u", "ce")]
+    )
+    compiled = morphology.CompiledDialectDefinition(definition)
+    assert options.with_compiled_dialect(compiled).compiled_dialect == compiled
+    assert options.with_dialect(definition).compiled_dialect == compiled
+    assert options.with_trace(diagnostics.TraceOptions()).trace.enabled is False
+    assert options.with_max_recovery_errors(3).max_recovery_errors == 3
+
+    with pytest.raises(InvalidInputError, match="greater than zero"):
+        morphology.MorphologyOptions(max_recovery_errors=0)
+    with pytest.raises(InvalidInputError, match="greater than zero"):
+        options.with_max_recovery_errors(0)
+
+
+def test_each_morphology_option_changes_real_parser_behavior() -> None:
+    latin_only = morphology.MorphologyOptions(
+        accept_latin=True,
+        accept_cyrillic=False,
+        accept_zbalermorna=False,
+    )
+    cyrillic_only = morphology.MorphologyOptions(
+        accept_latin=False,
+        accept_cyrillic=True,
+        accept_zbalermorna=False,
+    )
+    zbalermorna_only = morphology.MorphologyOptions(
+        accept_latin=False,
+        accept_cyrillic=False,
+        accept_zbalermorna=True,
+    )
+    none = morphology.MorphologyOptions(
+        accept_latin=False,
+        accept_cyrillic=False,
+        accept_zbalermorna=False,
+    )
+    for text, accepted, rejected_glyph in (
+        ("mi", latin_only, "m"),
+        ("ми", cyrillic_only, "м"),
+        ("\ued87\ueda2", zbalermorna_only, "\ued87"),
+    ):
+        accepted_attempt = morphology.segment_attempt(text, options=accepted)
+        assert accepted_attempt.succeeded
+        assert plain_phonemes(accepted_attempt.words or ()) == ("mi",)
+        rejected = morphology.segment_attempt(text, options=none)
+        assert not rejected.succeeded
+        assert isinstance(rejected.error, morphology.InvalidMorphology)
+        assert (
+            rejected.error.kind
+            is morphology.MorphologyErrorKind.INVALID_CHARACTER
+        )
+        assert (rejected.error.char_start, rejected.error.char_end) == (0, 1)
+        assert rejected.error.text == rejected_glyph
+
+    cbm_source = "mi .alis. do sa broda"
+    ordinary = morphology.segment(
+        cbm_source,
+        options=morphology.MorphologyOptions(cmevla_as_relation_words=False),
+    )
+    cbm = morphology.segment(
+        cbm_source,
+        options=morphology.MorphologyOptions(cmevla_as_relation_words=True),
+    )
+    assert plain_phonemes(ordinary) == ("bróda",)
+    assert plain_phonemes(cbm) == ("mi", "bróda")
+
+    stressed = morphology.segment(
+        "finYks",
+        options=morphology.MorphologyOptions(uppercase_marks_stress=True),
+    )
+    unstressed = morphology.segment(
+        "finYks",
+        options=morphology.MorphologyOptions(uppercase_marks_stress=False),
+    )
+    assert plain_phonemes(stressed) == ("finýks",)
+    assert plain_phonemes(unstressed) == ("finyks",)
+
+    recovery_source = "mi @@@ do ### mi"
+    one = morphology.segment_recovered(
+        recovery_source,
+        options=morphology.MorphologyOptions(max_recovery_errors=1),
+    )
+    two = morphology.segment_recovered(
+        recovery_source,
+        options=morphology.MorphologyOptions(max_recovery_errors=2),
+    )
+    assert len(one.errors) == 1
+    assert len(two.errors) == 2
+    assert plain_phonemes(one.words) == ("mi",)
+    assert plain_phonemes(two.words) == ("mi", "do", "mi")
+    assert tuple(region.char_range for region in one.error_regions) == ((3, 7),)
+    assert tuple(region.char_range for region in two.error_regions) == (
+        (3, 7),
+        (10, 14),
+    )
 
 
 def test_display_attempt_preserves_real_warnings_trace_and_failure() -> None:
@@ -450,6 +777,101 @@ def test_strict_exception_retains_typed_details_and_provenance() -> None:
     assert error.spans[0].source_id == source_id
 
 
+def test_unterminated_zoi_exception_retains_exact_payload_and_diagnostic() -> None:
+    source_id = source.SourceId("unterminated-zoi")
+    source_text = "zoi gy foo bar"
+    with pytest.raises(morphology.MorphologyError) as caught:
+        morphology.segment(source_text, source_id=source_id)
+
+    error = caught.value
+    assert isinstance(error.value, morphology.UnterminatedZoiQuote)
+    assert error.value.char_offset == 7
+    assert error.value.delimiter == "gy"
+    assert error.value.context is not None
+    assert (
+        error.value.context.kind
+        is morphology.MorphologyContextKind.DELIMITED_NON_LOJBAN_QUOTE
+    )
+    assert (error.value.context.char_start, error.value.context.char_end) == (3, 7)
+    assert error.code == "morphology.unterminated-zoi-quote"
+    assert error.original_source == source_text
+    assert error.source_id == source_id
+    assert error.diagnostic.code == error.code
+    assert error.diagnostic.labels[0].span.byte_range == (7, 14)
+    assert error.diagnostic.labels[0].span.char_range == (7, 14)
+    assert error.diagnostic.labels[1].span.byte_range == (3, 7)
+    assert error.diagnostic.labels[1].span.char_range == (3, 7)
+    assert all(span.source_id == source_id for span in error.spans)
+
+
+def test_unicode_recovery_retains_byte_char_regions_and_source_identity() -> None:
+    source_id = source.SourceId("unicode-recovery")
+    attempt = morphology.segment_recovered_attempt(
+        "ми @@@ do", source_id=source_id
+    )
+    assert attempt.source_id == source_id
+    assert len(attempt.result.errors) == len(attempt.result.error_regions) == 1
+    region = attempt.result.error_regions[0]
+    assert region.byte_range == (5, 9)
+    assert region.char_range == (3, 7)
+    assert region.source_id == source_id
+    first = attempt.result.words[0]
+    assert isinstance(first, morphology.PlainWord)
+    assert first.word.span.byte_range == (0, 4)
+    assert first.word.span.char_range == (0, 2)
+    second = attempt.result.words[1]
+    assert isinstance(second, morphology.PlainWord)
+    assert second.word.span.byte_range == (9, 11)
+    assert second.word.span.char_range == (7, 9)
+    assert all(
+        span.source_id == source_id
+        for value in attempt.result.words
+        for span in value.source_spans
+    )
+
+
+def test_nested_quotes_and_valsi_analysis_retain_all_source_ids() -> None:
+    source_id = source.SourceId("nested-provenance")
+    (quote,) = morphology.segment(
+        "zoi gy café gy", source_id=source_id
+    )
+    assert isinstance(quote, morphology.DelimitedNonLojbanQuote)
+    assert quote.quoted_text.text == "café"
+    assert quote.quoted_text.span.byte_range == (7, 12)
+    assert quote.quoted_text.span.char_range == (7, 11)
+    assert all(span.source_id == source_id for span in quote.source_spans)
+
+    analysis = morphology.analyze_valsi("broda zei brode", source_id=source_id)
+    assert analysis.result.word is not None
+    assert isinstance(analysis.result.word, morphology.ZeiCompound)
+    assert all(
+        span.source_id == source_id for span in analysis.result.word.source_spans
+    )
+    assert analysis.result.word.left.source_spans[0].byte_range == (0, 5)
+    assert analysis.result.word.zei.span.byte_range == (6, 9)
+    assert analysis.result.word.right.span.byte_range == (10, 15)
+
+
+def test_strict_failure_retains_trace_and_preceding_warnings() -> None:
+    options = morphology.MorphologyOptions(
+        trace=diagnostics.TraceOptions(enabled=True),
+    )
+    with pytest.raises(morphology.MorphologyError) as caught:
+        morphology.segment("namzi aa", options=options)
+    error = caught.value
+    assert isinstance(error.value, morphology.InvalidMorphology)
+    assert error.value.kind is morphology.MorphologyErrorKind.VOWEL_HIATUS
+    assert error.trace is not None
+    assert error.trace.phase is diagnostics.TracePhase.MORPHOLOGY
+    assert any(
+        event.kind is diagnostics.TraceEventKind.MORPHOLOGY_FAILURE
+        for event in error.trace.events
+    )
+    assert tuple(warning.kind for warning in error.warnings) == (
+        morphology.MorphologyWarningKind.EXPERIMENTAL_MZ,
+    )
+
+
 def test_analyze_valsi_status_and_variant_classification() -> None:
     valid = morphology.analyze_valsi("jetcybolxada")
     assert valid.result.status is morphology.ValsiAnalysisStatus.VALID
@@ -468,26 +890,86 @@ def test_analyze_valsi_status_and_variant_classification() -> None:
 
 
 @pytest.mark.parametrize(
-    ("text", "classification_type"),
+    ("text", "classification_type", "expected"),
     (
-        ("mi", morphology.PlainWordValsiClassification),
-        ("zo broda", morphology.QuotedWordValsiClassification),
+        (
+            "mi",
+            morphology.PlainWordValsiClassification,
+            (
+                "plain-word",
+                expected_plain_classification("cmavo", "mi", "KOhA"),
+            ),
+        ),
+        (
+            "zo broda",
+            morphology.QuotedWordValsiClassification,
+            (
+                "quoted-word",
+                expected_plain_classification("cmavo", "zo", "ZO"),
+                expected_plain_classification("gismu", "bróda"),
+            ),
+        ),
         (
             "zoi gy hello world gy",
             morphology.DelimitedNonLojbanQuoteValsiClassification,
+            (
+                "delimited-non-lojban-quote",
+                expected_plain_classification("cmavo", "zoĭ", "ZOI"),
+                "gy",
+            ),
         ),
-        ("lo'u mi do le'u", morphology.QuotedWordsValsiClassification),
-        ("zo'oi hello", morphology.DelimitedWordQuoteValsiClassification),
-        ("a bu", morphology.LerfuWordValsiClassification),
-        ("broda zei brode", morphology.ZeiCompoundValsiClassification),
+        (
+            "lo'u mi do le'u",
+            morphology.QuotedWordsValsiClassification,
+            (
+                "quoted-words",
+                expected_plain_classification("cmavo", "lo'u", "LOhU"),
+                (
+                    expected_plain_classification("cmavo", "mi", "KOhA"),
+                    expected_plain_classification("cmavo", "do", "KOhA"),
+                ),
+            ),
+        ),
+        (
+            "zo'oi hello",
+            morphology.DelimitedWordQuoteValsiClassification,
+            ("delimited-word-quote", "zo'oĭ"),
+        ),
+        (
+            "a bu",
+            morphology.LerfuWordValsiClassification,
+            (
+                "lerfu-word",
+                (
+                    "plain-word",
+                    expected_plain_classification("cmavo", "a", "A"),
+                ),
+                expected_plain_classification("cmavo", "bu", "BU"),
+            ),
+        ),
+        (
+            "broda zei brode",
+            morphology.ZeiCompoundValsiClassification,
+            (
+                "zei-compound",
+                (
+                    "plain-word",
+                    expected_plain_classification("gismu", "bróda"),
+                ),
+                expected_plain_classification("cmavo", "zeĭ", "ZEI"),
+                expected_plain_classification("gismu", "bróde"),
+            ),
+        ),
     ),
 )
 def test_every_valsi_classification_payload_variant(
-    text: str, classification_type: type[object]
+    text: str, classification_type: type[object], expected: tuple[object, ...]
 ) -> None:
     analysis = morphology.analyze_valsi(text)
     assert analysis.result.status is morphology.ValsiAnalysisStatus.VALID
     assert isinstance(analysis.result.classification, classification_type)
+    assert analysis.result.classification is not None
+    assert classification_value(analysis.result.classification) == expected
 
 
 def test_classification_children_keep_their_arc_root_alive() -> None:
