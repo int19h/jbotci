@@ -3,7 +3,6 @@
 
 use std::collections::BTreeSet;
 
-use bityzba::{data, new};
 use proc_macro::{Delimiter, TokenStream, TokenTree};
 
 #[bityzba::invariant(true)]
@@ -265,7 +264,7 @@ fn parse_product(stream: TokenStream) -> ModelSchema {
         name,
         rule,
         has_nonblank_docs,
-        kind: new!(ModelKind::Product { shape }),
+        kind: ModelKind::Product { shape },
         fields,
         variants: Vec::new(),
     }
@@ -290,7 +289,7 @@ fn parse_sum(stream: TokenStream) -> ModelSchema {
         name,
         rule,
         has_nonblank_docs,
-        kind: new!(ModelKind::Sum),
+        kind: ModelKind::Sum,
         fields: Vec::new(),
         variants,
     }
@@ -465,20 +464,18 @@ fn parse_binding_type(stream: TokenStream) -> BindingType {
     cursor.finish();
     match kind.as_str() {
         "reference" => parse_reference(args),
-        "optional" => unary_type(args, |value| new!(BindingType::Optional { value })),
-        "repeated" => unary_type(args, |value| new!(BindingType::Repeated { value })),
-        "non_empty_repeated" => {
-            unary_type(args, |value| new!(BindingType::NonEmptyRepeated { value }))
-        }
-        "boxed" => unary_type(args, |value| new!(BindingType::Boxed { value })),
-        "shared" => unary_type(args, |value| new!(BindingType::Shared { value })),
-        "recovered_field" => unary_type(args, |value| new!(BindingType::RecoveredField { value })),
-        "with_indicators" => unary_type(args, |value| new!(BindingType::WithIndicators { value })),
+        "optional" => unary_type(args, |value| BindingType::Optional { value }),
+        "repeated" => unary_type(args, |value| BindingType::Repeated { value }),
+        "non_empty_repeated" => unary_type(args, |value| BindingType::NonEmptyRepeated { value }),
+        "boxed" => unary_type(args, |value| BindingType::Boxed { value }),
+        "shared" => unary_type(args, |value| BindingType::Shared { value }),
+        "recovered_field" => unary_type(args, |value| BindingType::RecoveredField { value }),
+        "with_indicators" => unary_type(args, |value| BindingType::WithIndicators { value }),
         "with_free_modifiers" => parse_with_free_modifiers(args),
         "chain" => parse_chain(args),
-        "tuple" => new!(BindingType::Tuple {
+        "tuple" => BindingType::Tuple {
             elements: parse_type_list(args),
-        }),
+        },
         "fixed" => parse_fixed(args),
         _ => panic!("unknown normalized binding type `{kind}`"),
     }
@@ -505,7 +502,7 @@ fn parse_reference(stream: TokenStream) -> BindingType {
             let mut args = Cursor::new(args);
             let name = parse_string_literal(&mut args);
             args.finish();
-            new!(BindingType::ModelReference { name })
+            BindingType::ModelReference { name }
         }
         "leaf" => {
             let mut args = Cursor::new(args);
@@ -514,7 +511,7 @@ fn parse_reference(stream: TokenStream) -> BindingType {
             args.expect_ident("path");
             let path = parse_string_list(args.take_group(Delimiter::Parenthesis));
             args.finish();
-            new!(BindingType::LeafReference { kind, path })
+            BindingType::LeafReference { kind, path }
         }
         _ => panic!("unknown reference kind `{kind}`"),
     }
@@ -535,10 +532,10 @@ fn parse_with_free_modifiers(stream: TokenStream) -> BindingType {
         cursor.take_group(Delimiter::Parenthesis),
     ));
     cursor.finish();
-    new!(BindingType::WithFreeModifiers {
+    BindingType::WithFreeModifiers {
         value,
         free_modifiers,
-    })
+    }
 }
 
 #[bityzba::requires(true)]
@@ -549,7 +546,7 @@ fn parse_chain(stream: TokenStream) -> BindingType {
     cursor.expect_punct(',');
     let links = Box::new(parse_type_property(&mut cursor, "links"));
     cursor.finish();
-    new!(BindingType::Chain { first, links })
+    BindingType::Chain { first, links }
 }
 
 #[bityzba::requires(true)]
@@ -560,7 +557,7 @@ fn parse_fixed(stream: TokenStream) -> BindingType {
     cursor.expect_punct(',');
     let value = Box::new(parse_type_property(&mut cursor, "value"));
     cursor.finish();
-    new!(BindingType::Fixed { length, value })
+    BindingType::Fixed { length, value }
 }
 
 #[bityzba::requires(true)]
@@ -736,13 +733,13 @@ fn validate_schema(summary: &SchemaSummary) {
             model.has_nonblank_docs,
             "model lacks canonical documentation"
         );
-        match model.kind.as_data() {
-            data!(ModelKind::Product { shape }) => {
+        match &model.kind {
+            ModelKind::Product { shape } => {
                 assert!(model.variants.is_empty());
                 assert_eq!(shape == "tuple", model.fields.len() == 1);
                 validate_fields(&model.fields);
             }
-            data!(ModelKind::Sum) => {
+            ModelKind::Sum => {
                 assert!(model.fields.is_empty());
                 assert!(!model.variants.is_empty());
                 for variant in &model.variants {
@@ -760,17 +757,17 @@ fn validate_schema(summary: &SchemaSummary) {
     assert_eq!(leading.fields[0].strict, syntax_token());
     assert_eq!(
         leading.fields[1].strict,
-        new!(BindingType::Optional {
+        BindingType::Optional {
             value: Box::new(syntax_token()),
-        })
+        }
     );
     assert_eq!(
         leading.fields[1].recovered,
-        new!(BindingType::Optional {
-            value: Box::new(new!(BindingType::RecoveredField {
+        BindingType::Optional {
+            value: Box::new(BindingType::RecoveredField {
                 value: Box::new(syntax_token()),
-            })),
-        })
+            }),
+        }
     );
 
     let text = model_by_name(summary, "TextSyntax");
@@ -797,19 +794,19 @@ fn validate_schema(summary: &SchemaSummary) {
     );
     assert_eq!(
         regular.fields[0].strict,
-        new!(BindingType::Repeated {
+        BindingType::Repeated {
             value: Box::new(syntax_token()),
-        })
+        }
     );
     assert_eq!(
         regular.fields[6].strict,
-        new!(BindingType::Optional {
-            value: Box::new(new!(BindingType::Shared {
-                value: Box::new(new!(BindingType::ModelReference {
+        BindingType::Optional {
+            value: Box::new(BindingType::Shared {
+                value: Box::new(BindingType::ModelReference {
                     name: "TextParagraphsSyntax".to_owned(),
-                })),
-            })),
-        })
+                }),
+            }),
+        }
     );
 
     assert!(summary.transparent_constructors > 0);
@@ -850,10 +847,10 @@ fn field_names(fields: &[FieldSchema]) -> Vec<&str> {
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
 fn syntax_token() -> BindingType {
-    new!(BindingType::LeafReference {
+    BindingType::LeafReference {
         kind: "syntax_token".to_owned(),
         path: vec!["Token".to_owned()],
-    })
+    }
 }
 
 #[bityzba::requires(true)]
@@ -865,7 +862,7 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
     let products = summary
         .models
         .iter()
-        .filter(|model| matches!(model.kind.as_data(), data!(ModelKind::Product { .. })))
+        .filter(|model| matches!(&model.kind, ModelKind::Product { .. }))
         .count();
     let sums = summary.models.len() - products;
     let variants = summary
