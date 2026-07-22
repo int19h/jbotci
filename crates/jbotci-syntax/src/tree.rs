@@ -18,8 +18,8 @@ use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
 use vec1::Vec1;
 
-#[invariant(::SkippedTokens => syntax_recovery_tokens_have_ordered_source_attribution(tokens))]
 #[invariant(::MissingRequiredField => span.is_empty() && !expected.is_empty())]
+#[expensive_invariant(::SkippedTokens => syntax_recovery_tokens_have_ordered_source_attribution(tokens))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum SyntaxRecoveryItem {
