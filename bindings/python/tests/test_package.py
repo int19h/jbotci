@@ -4,6 +4,7 @@ import ast
 import enum
 import importlib
 import importlib.metadata
+import inspect
 import subprocess
 import sys
 import tomllib
@@ -14,6 +15,7 @@ import pytest
 
 import jbotci
 import jbotci._native as native
+from jbotci import diagnostics, dialect, morphology, source
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = PACKAGE_ROOT.parents[1]
@@ -86,8 +88,10 @@ def test_structured_error_conversion_uses_public_hierarchy() -> None:
 @pytest.mark.parametrize(
     ("module_name", "exports"),
     [
-        ("source", ()),
-        ("morphology", ()),
+        ("source", None),
+        ("diagnostics", None),
+        ("dialect", None),
+        ("morphology", None),
         ("syntax", ()),
         ("dictionary", None),
         ("jvozba", ()),
@@ -116,6 +120,20 @@ def test_stub_composition_is_current() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_domain_enum_stubs_are_current() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PACKAGE_ROOT / "tools" / "generate_domain_enum_stubs.py"),
+            "--check",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_native_stub_exports_match_runtime() -> None:
     stub_path = PACKAGE_ROOT / "python" / "jbotci" / "_native.pyi"
     tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
@@ -133,3 +151,23 @@ def test_native_stub_exports_match_runtime() -> None:
     )
     assert declaration_names == set(native.__all__)
     assert all(hasattr(native, name) for name in native.__all__)
+
+
+@pytest.mark.parametrize("module", (source, diagnostics, dialect, morphology))
+def test_domain_api_has_complete_runtime_docstrings(module: ModuleType) -> None:
+    """Keep native documentation attached to every public consumer surface."""
+
+    for export_name in module.__all__:
+        exported = getattr(module, export_name)
+        if not (inspect.isroutine(exported) or isinstance(exported, type)):
+            continue
+        assert inspect.getdoc(exported), f"{module.__name__}.{export_name}"
+        if not isinstance(exported, type):
+            continue
+        for member_name, member in vars(exported).items():
+            if member_name.startswith("_"):
+                continue
+            if inspect.isroutine(member) or inspect.isdatadescriptor(member):
+                assert inspect.getdoc(member), (
+                    f"{module.__name__}.{export_name}.{member_name}"
+                )
