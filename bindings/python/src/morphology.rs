@@ -741,7 +741,7 @@ impl PyCompiledDialectSwap {
     fn left(&self) -> PyCompiledDialectWord {
         PyCompiledDialectWord::new(CompiledWordHandle::new(
             self.handle.clone(),
-            CompiledWordSlot::SwapLeft,
+            new!(CompiledWordSlot::SwapLeft),
         ))
     }
 
@@ -752,7 +752,7 @@ impl PyCompiledDialectSwap {
     fn right(&self) -> PyCompiledDialectWord {
         PyCompiledDialectWord::new(CompiledWordHandle::new(
             self.handle.clone(),
-            CompiledWordSlot::SwapRight,
+            new!(CompiledWordSlot::SwapRight),
         ))
     }
 }
@@ -787,7 +787,7 @@ impl PyCompiledDialectExpansion {
     fn source(&self) -> PyCompiledDialectWord {
         PyCompiledDialectWord::new(CompiledWordHandle::new(
             self.handle.clone(),
-            CompiledWordSlot::ExpansionSource,
+            new!(CompiledWordSlot::ExpansionSource),
         ))
     }
 
@@ -804,16 +804,19 @@ impl PyCompiledDialectExpansion {
         let values = (0..replacement.len()).map(|index| {
             PyCompiledDialectWord::new(CompiledWordHandle::new(
                 self.handle.clone(),
-                CompiledWordSlot::ExpansionReplacement { index },
+                new!(CompiledWordSlot::ExpansionReplacement { index }),
             ))
         });
         crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
     }
 }
 
+#[invariant(::SwapLeft => true)]
+#[invariant(::SwapRight => true)]
+#[invariant(::ExpansionSource => true)]
 #[invariant(
-    true,
-    "slot bounds and entry compatibility are enforced by CompiledWordHandle"
+    ::ExpansionReplacement { .. } => true,
+    "replacement bounds are contextual to the enclosing compiled entry handle"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompiledWordSlot {
@@ -850,17 +853,22 @@ impl CompiledWordHandle {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &CompiledDialectWord {
-        match (self.entry.get().as_data(), self.slot) {
-            (data!(CompiledDialectEntry::Swap { left, .. }), CompiledWordSlot::SwapLeft) => left,
-            (data!(CompiledDialectEntry::Swap { right, .. }), CompiledWordSlot::SwapRight) => right,
+        match (self.entry.get().as_data(), self.slot.as_data()) {
+            (data!(CompiledDialectEntry::Swap { left, .. }), data!(CompiledWordSlot::SwapLeft)) => {
+                left
+            }
+            (
+                data!(CompiledDialectEntry::Swap { right, .. }),
+                data!(CompiledWordSlot::SwapRight),
+            ) => right,
             (
                 data!(CompiledDialectEntry::Expansion { source, .. }),
-                CompiledWordSlot::ExpansionSource,
+                data!(CompiledWordSlot::ExpansionSource),
             ) => source,
             (
                 data!(CompiledDialectEntry::Expansion { replacement, .. }),
-                CompiledWordSlot::ExpansionReplacement { index },
-            ) => &replacement[index],
+                data!(CompiledWordSlot::ExpansionReplacement { index }),
+            ) => &replacement[*index],
             _ => unreachable!("compiled-word handle is valid by construction"),
         }
     }
@@ -869,18 +877,19 @@ impl CompiledWordHandle {
 #[requires(true)]
 #[ensures(true)]
 fn compiled_word_handle_resolves(entry: &CompiledDialectEntry, slot: CompiledWordSlot) -> bool {
-    match (entry.as_data(), slot) {
+    match (entry.as_data(), slot.as_data()) {
         (
             data!(CompiledDialectEntry::Swap { .. }),
-            CompiledWordSlot::SwapLeft | CompiledWordSlot::SwapRight,
+            data!(CompiledWordSlot::SwapLeft) | data!(CompiledWordSlot::SwapRight),
         )
-        | (data!(CompiledDialectEntry::Expansion { .. }), CompiledWordSlot::ExpansionSource) => {
-            true
-        }
+        | (
+            data!(CompiledDialectEntry::Expansion { .. }),
+            data!(CompiledWordSlot::ExpansionSource),
+        ) => true,
         (
             data!(CompiledDialectEntry::Expansion { replacement, .. }),
-            CompiledWordSlot::ExpansionReplacement { index },
-        ) => index < replacement.len(),
+            data!(CompiledWordSlot::ExpansionReplacement { index }),
+        ) => *index < replacement.len(),
         _ => false,
     }
 }
@@ -1215,13 +1224,14 @@ impl TokenHandle {
     }
 }
 
-#[invariant(true, "the sole path step has no standalone invalid state")]
+#[invariant(::Base => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WithIndicatorsStep {
     Base,
 }
 
-#[invariant(true, "both ownership roots are valid by construction of their fields")]
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Token { .. } => true)]
 #[derive(Debug, Clone)]
 enum WithIndicatorsRoot {
     Owned {
@@ -1236,18 +1246,18 @@ impl WithIndicatorsRoot {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &WithIndicators<WordLike> {
-        match self {
-            WithIndicatorsRoot::Owned { value } => value.as_ref(),
-            WithIndicatorsRoot::Token { token } => token.get().as_indicators(),
+        match self.as_data() {
+            data!(WithIndicatorsRoot::Owned { value }) => value.as_ref(),
+            data!(WithIndicatorsRoot::Token { token }) => token.get().as_indicators(),
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.is_none() || matches!(self, WithIndicatorsRoot::Token { .. }))]
+    #[ensures(ret.is_none() || matches!(self.as_data(), data!(WithIndicatorsRoot::Token { .. })))]
     fn root_token(&self) -> Option<&TokenHandle> {
-        match self {
-            WithIndicatorsRoot::Owned { .. } => None,
-            WithIndicatorsRoot::Token { token } => Some(token),
+        match self.as_data() {
+            data!(WithIndicatorsRoot::Owned { .. }) => None,
+            data!(WithIndicatorsRoot::Token { token }) => Some(token),
         }
     }
 }
@@ -1277,9 +1287,9 @@ impl WithIndicatorsHandle {
     #[expensive_ensures(ret.get() == &old(value.clone()))]
     pub(crate) fn from_owned(value: WithIndicators<WordLike>) -> Self {
         new!(WithIndicatorsHandle {
-            root: WithIndicatorsRoot::Owned {
+            root: new!(WithIndicatorsRoot::Owned {
                 value: Arc::new(value),
-            },
+            }),
             steps: Vec::new(),
         })
     }
@@ -1290,7 +1300,7 @@ impl WithIndicatorsHandle {
     #[ensures(ret.exact_token().is_some_and(|exact| exact == &token))]
     pub(crate) fn from_token(token: TokenHandle) -> Self {
         new!(WithIndicatorsHandle {
-            root: WithIndicatorsRoot::Token { token },
+            root: new!(WithIndicatorsRoot::Token { token }),
             steps: Vec::new(),
         })
     }
@@ -1306,7 +1316,7 @@ impl WithIndicatorsHandle {
             return None;
         }
         let mut steps = self.steps.clone();
-        steps.push(WithIndicatorsStep::Base);
+        steps.push(new!(WithIndicatorsStep::Base));
         Some(new!(WithIndicatorsHandle {
             root: self.root.clone(),
             steps,
@@ -1384,7 +1394,8 @@ fn with_indicators_path_resolves(
     project_with_indicators(root, steps).is_some()
 }
 
-#[invariant(true, "both ownership roots are valid by construction of their fields")]
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Indicators { .. } => true)]
 #[derive(Debug, Clone)]
 enum WordLikeRoot {
     Owned { value: Arc<WordLike> },
@@ -1395,23 +1406,24 @@ impl WordLikeRoot {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &WordLike {
-        match self {
-            WordLikeRoot::Owned { value } => value.as_ref(),
-            WordLikeRoot::Indicators { handle } => handle.get().core_word(),
+        match self.as_data() {
+            data!(WordLikeRoot::Owned { value }) => value.as_ref(),
+            data!(WordLikeRoot::Indicators { handle }) => handle.get().core_word(),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn root_token(&self) -> Option<&TokenHandle> {
-        match self {
-            WordLikeRoot::Owned { .. } => None,
-            WordLikeRoot::Indicators { handle } => handle.root_token(),
+        match self.as_data() {
+            data!(WordLikeRoot::Owned { .. }) => None,
+            data!(WordLikeRoot::Indicators { handle }) => handle.root_token(),
         }
     }
 }
 
-#[invariant(true, "step compatibility is enforced by WordLikeHandle")]
+#[invariant(::LerfuBase => true)]
+#[invariant(::ZeiLeft => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WordLikeStep {
     LerfuBase,
@@ -1441,9 +1453,9 @@ impl WordLikeHandle {
     #[expensive_ensures(ret.get() == &old(value.clone()))]
     pub(crate) fn root(value: WordLike) -> Self {
         new!(WordLikeHandle {
-            root: WordLikeRoot::Owned {
+            root: new!(WordLikeRoot::Owned {
                 value: Arc::new(value),
-            },
+            }),
             steps: Vec::new(),
         })
     }
@@ -1453,7 +1465,7 @@ impl WordLikeHandle {
     #[expensive_ensures(ret.get() == old(value.clone()).as_ref())]
     pub(crate) fn from_arc(value: Arc<WordLike>) -> Self {
         new!(WordLikeHandle {
-            root: WordLikeRoot::Owned { value },
+            root: new!(WordLikeRoot::Owned { value }),
             steps: Vec::new(),
         })
     }
@@ -1463,7 +1475,7 @@ impl WordLikeHandle {
     #[expensive_ensures(ret.get() == old(handle.clone()).get().core_word())]
     pub(crate) fn from_indicators(handle: WithIndicatorsHandle) -> Self {
         new!(WordLikeHandle {
-            root: WordLikeRoot::Indicators { handle },
+            root: new!(WordLikeRoot::Indicators { handle }),
             steps: Vec::new(),
         })
     }
@@ -1535,10 +1547,21 @@ fn word_like_step_resolves(value: &WordLike, step: WordLikeStep) -> bool {
     )
 }
 
-#[invariant(
-    true,
-    "slot compatibility and indices are enforced by WordHandleStorage"
-)]
+#[invariant(::Plain => true)]
+#[invariant(::QuotedMarker => true)]
+#[invariant(::QuotedWord => true)]
+#[invariant(::SelmahoMarker => true)]
+#[invariant(::SelmahoWord => true)]
+#[invariant(::ZoiMarker => true)]
+#[invariant(::ZoiOpeningDelimiter => true)]
+#[invariant(::ZoiClosingDelimiter => true)]
+#[invariant(::LohuMarker => true)]
+#[invariant(::QuotedWordsWord { .. } => true)]
+#[invariant(::LehuMarker => true)]
+#[invariant(::DelimitedWordMarker => true)]
+#[invariant(::BuSuffix => true)]
+#[invariant(::ZeiLink => true)]
+#[invariant(::ZeiRight => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WordSlot {
     Plain,
@@ -1559,10 +1582,12 @@ enum WordSlot {
 }
 
 /// Typed locator for a `Word` stored directly in one indicator layer.
-#[invariant(
-    true,
-    "slot compatibility and indices are enforced by WordHandleStorage"
-)]
+#[invariant(::EmphasisBahe => true)]
+#[invariant(::ExtraEmphasisBahe { .. } => true, "the enclosing handle validates the index")]
+#[invariant(::IndicatorBahe { .. } => true, "the enclosing handle validates the index")]
+#[invariant(::Indicator => true)]
+#[invariant(::NaiBahe { .. } => true, "the enclosing handle validates the index")]
+#[invariant(::Nai => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WithIndicatorsWordSlot {
     EmphasisBahe,
@@ -1604,7 +1629,7 @@ impl WordHandle {
         new!(WordHandle {
             value: new!(WordHandleStorage::WordLike {
                 node: WordLikeHandle::root(WordLike::bare(word)),
-                slot: WordSlot::Plain,
+                slot: new!(WordSlot::Plain),
             }),
         })
     }
@@ -1686,39 +1711,46 @@ impl Eq for WordHandle {}
 #[requires(true)]
 #[ensures(ret.is_some() == word_slot_resolves(value, slot))]
 fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
-    match (value.as_data(), slot) {
-        (data!(WordLike::PlainWord(word)), WordSlot::Plain) => Some(word),
-        (data!(WordLike::QuotedWord { zo, .. }), WordSlot::QuotedMarker) => Some(zo),
-        (data!(WordLike::QuotedWord { word, .. }), WordSlot::QuotedWord) => Some(word),
-        (data!(WordLike::SelmahoQuotedWord { mahoi, .. }), WordSlot::SelmahoMarker) => Some(mahoi),
-        (data!(WordLike::SelmahoQuotedWord { word, .. }), WordSlot::SelmahoWord) => Some(word),
-        (data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }), WordSlot::ZoiMarker) => Some(zoi),
+    match (value.as_data(), slot.as_data()) {
+        (data!(WordLike::PlainWord(word)), data!(WordSlot::Plain)) => Some(word),
+        (data!(WordLike::QuotedWord { zo, .. }), data!(WordSlot::QuotedMarker)) => Some(zo),
+        (data!(WordLike::QuotedWord { word, .. }), data!(WordSlot::QuotedWord)) => Some(word),
+        (data!(WordLike::SelmahoQuotedWord { mahoi, .. }), data!(WordSlot::SelmahoMarker)) => {
+            Some(mahoi)
+        }
+        (data!(WordLike::SelmahoQuotedWord { word, .. }), data!(WordSlot::SelmahoWord)) => {
+            Some(word)
+        }
+        (data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }), data!(WordSlot::ZoiMarker)) => {
+            Some(zoi)
+        }
         (
             data!(WordLike::DelimitedNonLojbanQuote {
                 opening_delimiter,
                 ..
             }),
-            WordSlot::ZoiOpeningDelimiter,
+            data!(WordSlot::ZoiOpeningDelimiter),
         ) => Some(opening_delimiter),
         (
             data!(WordLike::DelimitedNonLojbanQuote {
                 closing_delimiter,
                 ..
             }),
-            WordSlot::ZoiClosingDelimiter,
+            data!(WordSlot::ZoiClosingDelimiter),
         ) => Some(closing_delimiter),
-        (data!(WordLike::QuotedWords { lohu, .. }), WordSlot::LohuMarker) => Some(lohu),
+        (data!(WordLike::QuotedWords { lohu, .. }), data!(WordSlot::LohuMarker)) => Some(lohu),
         (
             data!(WordLike::QuotedWords { quoted_words, .. }),
-            WordSlot::QuotedWordsWord { index },
-        ) => quoted_words.get(index),
-        (data!(WordLike::QuotedWords { lehu, .. }), WordSlot::LehuMarker) => Some(lehu),
-        (data!(WordLike::DelimitedWordQuote { marker, .. }), WordSlot::DelimitedWordMarker) => {
-            Some(marker)
-        }
-        (data!(WordLike::LerfuWord { bu, .. }), WordSlot::BuSuffix) => Some(bu),
-        (data!(WordLike::ZeiCompound { zei, .. }), WordSlot::ZeiLink) => Some(zei),
-        (data!(WordLike::ZeiCompound { right, .. }), WordSlot::ZeiRight) => Some(right),
+            data!(WordSlot::QuotedWordsWord { index }),
+        ) => quoted_words.get(*index),
+        (data!(WordLike::QuotedWords { lehu, .. }), data!(WordSlot::LehuMarker)) => Some(lehu),
+        (
+            data!(WordLike::DelimitedWordQuote { marker, .. }),
+            data!(WordSlot::DelimitedWordMarker),
+        ) => Some(marker),
+        (data!(WordLike::LerfuWord { bu, .. }), data!(WordSlot::BuSuffix)) => Some(bu),
+        (data!(WordLike::ZeiCompound { zei, .. }), data!(WordSlot::ZeiLink)) => Some(zei),
+        (data!(WordLike::ZeiCompound { right, .. }), data!(WordSlot::ZeiRight)) => Some(right),
         _ => None,
     }
 }
@@ -1735,27 +1767,28 @@ fn project_with_indicators_word(
     value: &WithIndicators<WordLike>,
     slot: WithIndicatorsWordSlot,
 ) -> Option<&Word> {
-    match (value.as_data(), slot) {
-        (data!(WithIndicators::Emphasized { bahe, .. }), WithIndicatorsWordSlot::EmphasisBahe) => {
-            Some(bahe)
-        }
+    match (value.as_data(), slot.as_data()) {
+        (
+            data!(WithIndicators::Emphasized { bahe, .. }),
+            data!(WithIndicatorsWordSlot::EmphasisBahe),
+        ) => Some(bahe),
         (
             data!(WithIndicators::Emphasized { extra_bahe, .. }),
-            WithIndicatorsWordSlot::ExtraEmphasisBahe { index },
-        ) => extra_bahe.get(index),
+            data!(WithIndicatorsWordSlot::ExtraEmphasisBahe { index }),
+        ) => extra_bahe.get(*index),
         (
             data!(WithIndicators::WithIndicator { indicator_bahe, .. }),
-            WithIndicatorsWordSlot::IndicatorBahe { index },
-        ) => indicator_bahe.get(index),
+            data!(WithIndicatorsWordSlot::IndicatorBahe { index }),
+        ) => indicator_bahe.get(*index),
         (
             data!(WithIndicators::WithIndicator { indicator, .. }),
-            WithIndicatorsWordSlot::Indicator,
+            data!(WithIndicatorsWordSlot::Indicator),
         ) => Some(indicator),
         (
             data!(WithIndicators::WithIndicator { nai_bahe, .. }),
-            WithIndicatorsWordSlot::NaiBahe { index },
-        ) => nai_bahe.get(index),
-        (data!(WithIndicators::WithIndicator { nai, .. }), WithIndicatorsWordSlot::Nai) => {
+            data!(WithIndicatorsWordSlot::NaiBahe { index }),
+        ) => nai_bahe.get(*index),
+        (data!(WithIndicators::WithIndicator { nai, .. }), data!(WithIndicatorsWordSlot::Nai)) => {
             nai.as_ref()
         }
         _ => None,
@@ -1796,7 +1829,8 @@ impl LocatedLujvoPart {
     }
 }
 
-#[invariant(true, "both storage variants retain a valid typed value or locator")]
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Located { .. } => true)]
 #[derive(Debug, Clone)]
 enum LujvoPartStorage {
     Owned { value: Arc<LujvoPart> },
@@ -1817,9 +1851,9 @@ impl LujvoPartStorage {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &LujvoPart {
-        match self {
-            LujvoPartStorage::Owned { value } => value.as_ref(),
-            LujvoPartStorage::Located { handle } => handle.get(),
+        match self.as_data() {
+            data!(LujvoPartStorage::Owned { value }) => value.as_ref(),
+            data!(LujvoPartStorage::Located { handle }) => handle.get(),
         }
     }
 
@@ -1859,9 +1893,9 @@ impl PyLujvoRafsi {
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>) -> Self {
         PyLujvoRafsi {
-            value: LujvoPartStorage::Owned {
+            value: new!(LujvoPartStorage::Owned {
                 value: Arc::new(LujvoPart::rafsi(phonemes.clone_rust())),
-            },
+            }),
         }
     }
 
@@ -1903,9 +1937,9 @@ impl PyLujvoHyphen {
     #[new]
     fn new(phonemes: PyRef<'_, PyPhonemes>) -> Self {
         PyLujvoHyphen {
-            value: LujvoPartStorage::Owned {
+            value: new!(LujvoPartStorage::Owned {
                 value: Arc::new(LujvoPart::hyphen(phonemes.clone_rust())),
-            },
+            }),
         }
     }
 
@@ -1935,7 +1969,7 @@ fn lujvo_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoPart> {
 #[requires(true)]
 #[ensures(true)]
 fn lujvo_part_to_python(py: Python<'_>, handle: LocatedLujvoPart) -> PyResult<Py<PyAny>> {
-    let value = LujvoPartStorage::Located { handle };
+    let value = new!(LujvoPartStorage::Located { handle });
     match value.get() {
         LujvoPart::Rafsi(_) => Ok(Py::new(py, PyLujvoRafsi { value })?.into_any()),
         LujvoPart::Hyphen(_) => Ok(Py::new(py, PyLujvoHyphen { value })?.into_any()),
@@ -2821,7 +2855,10 @@ impl PyPlainWord {
     #[ensures(true)]
     #[getter]
     fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::Plain))
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::Plain)),
+        )
     }
     /// Return the combined half-open byte range when available.
     #[requires(true)]
@@ -2922,7 +2959,7 @@ impl PyQuotedWord {
     fn zo(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::QuotedMarker),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::QuotedMarker)),
         )
     }
     /// Return the quoted parsed word.
@@ -2932,7 +2969,7 @@ impl PyQuotedWord {
     fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::QuotedWord),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::QuotedWord)),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3003,7 +3040,7 @@ impl PySelmahoQuotedWord {
     fn mahoi(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::SelmahoMarker),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::SelmahoMarker)),
         )
     }
     /// Return the quoted parsed word.
@@ -3013,7 +3050,7 @@ impl PySelmahoQuotedWord {
     fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::SelmahoWord),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::SelmahoWord)),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3109,7 +3146,7 @@ impl PyDelimitedNonLojbanQuote {
     fn zoi(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::ZoiMarker),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiMarker)),
         )
     }
     /// Return the opening delimiter word.
@@ -3119,7 +3156,7 @@ impl PyDelimitedNonLojbanQuote {
     fn opening_delimiter(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::ZoiOpeningDelimiter),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiOpeningDelimiter)),
         )
     }
     /// Return the exact verbatim quoted text.
@@ -3139,7 +3176,7 @@ impl PyDelimitedNonLojbanQuote {
     fn closing_delimiter(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::ZoiClosingDelimiter),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiClosingDelimiter)),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3216,7 +3253,7 @@ impl PyQuotedWords {
     fn lohu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::LohuMarker),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::LohuMarker)),
         )
     }
     /// Return the immutable quoted parsed words.
@@ -3231,7 +3268,10 @@ impl PyQuotedWords {
             .map(|index| {
                 word_to_python(
                     py,
-                    WordHandle::new(self.handle.clone(), WordSlot::QuotedWordsWord { index }),
+                    WordHandle::new(
+                        self.handle.clone(),
+                        new!(WordSlot::QuotedWordsWord { index }),
+                    ),
                 )
             })
             .collect::<PyResult<Vec<_>>>()?;
@@ -3244,7 +3284,7 @@ impl PyQuotedWords {
     fn lehu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::LehuMarker),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::LehuMarker)),
         )
     }
     /// Return the combined half-open byte range when available.
@@ -3318,7 +3358,7 @@ impl PyDelimitedWordQuote {
     fn marker(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         word_to_python(
             py,
-            WordHandle::new(self.handle.clone(), WordSlot::DelimitedWordMarker),
+            WordHandle::new(self.handle.clone(), new!(WordSlot::DelimitedWordMarker)),
         )
     }
     /// Return the exact verbatim quoted word.
@@ -3402,7 +3442,10 @@ impl PyLerfuWord {
     #[ensures(true)]
     #[getter]
     fn bu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::BuSuffix))
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::BuSuffix)),
+        )
     }
     /// Return the combined half-open byte range when available.
     #[requires(true)]
@@ -3483,14 +3526,20 @@ impl PyZeiCompound {
     #[ensures(true)]
     #[getter]
     fn zei(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::ZeiLink))
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZeiLink)),
+        )
     }
     /// Return the right operand word.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        word_to_python(py, WordHandle::new(self.handle.clone(), WordSlot::ZeiRight))
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZeiRight)),
+        )
     }
     /// Return the combined half-open byte range when available.
     #[requires(true)]
@@ -3638,7 +3687,7 @@ mod syntax_leaf_projection_tests {
         assert_ne!(first_handle, sibling_handle);
 
         let core = first_handle.core_word();
-        let located_word = WordHandle::new(core.clone(), WordSlot::Plain);
+        let located_word = WordHandle::new(core.clone(), new!(WordSlot::Plain));
         let recovered_from_word_like = core
             .root_token()
             .expect("token-backed core must retain its token")
@@ -3665,8 +3714,9 @@ mod syntax_leaf_projection_tests {
                 .expect("top-level indicators must recover their exact token")
                 .get(),
         ));
-        let bahe = WordHandle::from_indicators(indicators, WithIndicatorsWordSlot::EmphasisBahe)
-            .expect("emphasized token must expose its ba'e modifier");
+        let bahe =
+            WordHandle::from_indicators(indicators, new!(WithIndicatorsWordSlot::EmphasisBahe))
+                .expect("emphasized token must expose its ba'e modifier");
         assert!(bahe.get().is_cmavo(Cmavo::Bahe));
         assert!(Token::ptr_eq(
             &token,
@@ -4765,7 +4815,8 @@ fn morphology_error_arc_from_python(
     ))
 }
 
-#[invariant(true, "both strict segmentation outcomes are representable")]
+#[invariant(::Words { .. } => true)]
+#[invariant(::Error { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SegmentOutcome {
     Words { values: Vec<Arc<WordLike>> },
@@ -4803,12 +4854,12 @@ impl PyMorphologySegmentAttempt {
     ) -> Self {
         let data = value.into_data();
         let outcome = match data.result {
-            Ok(words) => SegmentOutcome::Words {
+            Ok(words) => new!(SegmentOutcome::Words {
                 values: words.into_iter().map(Arc::new).collect(),
-            },
-            Err(error) => SegmentOutcome::Error {
+            }),
+            Err(error) => new!(SegmentOutcome::Error {
                 value: Arc::new(error),
-            },
+            }),
         };
         Self {
             source: Arc::from(source),
@@ -4838,17 +4889,17 @@ impl PyMorphologySegmentAttempt {
     }
     /// Report whether strict segmentation succeeded.
     #[requires(true)]
-    #[ensures(ret == matches!(&self.outcome, SegmentOutcome::Words { .. }))]
+    #[ensures(ret == matches!(self.outcome.as_data(), data!(SegmentOutcome::Words { .. })))]
     #[getter]
     fn succeeded(&self) -> bool {
-        matches!(&self.outcome, SegmentOutcome::Words { .. })
+        matches!(self.outcome.as_data(), data!(SegmentOutcome::Words { .. }))
     }
     /// Return parsed words on success, otherwise `None`.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn words(&self, py: Python<'_>) -> PyResult<Option<Py<pyo3::types::PyTuple>>> {
-        let SegmentOutcome::Words { values } = &self.outcome else {
+        let data!(SegmentOutcome::Words { values }) = self.outcome.as_data() else {
             return Ok(None);
         };
         let words = values
@@ -4865,9 +4916,9 @@ impl PyMorphologySegmentAttempt {
     #[ensures(true)]
     #[getter]
     fn error(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        match &self.outcome {
-            SegmentOutcome::Words { .. } => Ok(None),
-            SegmentOutcome::Error { value } => {
+        match self.outcome.as_data() {
+            data!(SegmentOutcome::Words { .. }) => Ok(None),
+            data!(SegmentOutcome::Error { value }) => {
                 morphology_error_to_python(py, Arc::clone(value)).map(Some)
             }
         }
@@ -5321,10 +5372,15 @@ fn classification_step_resolves(value: &ValsiClassification, step: Classificatio
     )
 }
 
-#[invariant(
-    true,
-    "slot compatibility and indices are enforced by LocatedPlainClassification"
-)]
+#[invariant(::PlainWord => true)]
+#[invariant(::QuotedMarker => true)]
+#[invariant(::QuotedTarget => true)]
+#[invariant(::DelimitedMarker => true)]
+#[invariant(::QuotedWordsMarker => true)]
+#[invariant(::QuotedWordsTarget { .. } => true)]
+#[invariant(::LerfuSuffix => true)]
+#[invariant(::ZeiLink => true)]
+#[invariant(::ZeiRight => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlainClassificationSlot {
     PlainWord,
@@ -5365,41 +5421,42 @@ fn project_plain_classification(
     value: &ValsiClassification,
     slot: PlainClassificationSlot,
 ) -> Option<&PlainWordClassification> {
-    match (value.as_data(), slot) {
-        (data!(ValsiClassification::PlainWord { word }), PlainClassificationSlot::PlainWord) => {
-            Some(word)
-        }
+    match (value.as_data(), slot.as_data()) {
+        (
+            data!(ValsiClassification::PlainWord { word }),
+            data!(PlainClassificationSlot::PlainWord),
+        ) => Some(word),
         (
             data!(ValsiClassification::QuotedWord { marker, .. }),
-            PlainClassificationSlot::QuotedMarker,
+            data!(PlainClassificationSlot::QuotedMarker),
         ) => Some(marker),
         (
             data!(ValsiClassification::QuotedWord { quoted_word, .. }),
-            PlainClassificationSlot::QuotedTarget,
+            data!(PlainClassificationSlot::QuotedTarget),
         ) => Some(quoted_word),
         (
             data!(ValsiClassification::DelimitedNonLojbanQuote { marker, .. }),
-            PlainClassificationSlot::DelimitedMarker,
+            data!(PlainClassificationSlot::DelimitedMarker),
         ) => Some(marker),
         (
             data!(ValsiClassification::QuotedWords { marker, .. }),
-            PlainClassificationSlot::QuotedWordsMarker,
+            data!(PlainClassificationSlot::QuotedWordsMarker),
         ) => Some(marker),
         (
             data!(ValsiClassification::QuotedWords { quoted_words, .. }),
-            PlainClassificationSlot::QuotedWordsTarget { index },
-        ) => quoted_words.get(index),
+            data!(PlainClassificationSlot::QuotedWordsTarget { index }),
+        ) => quoted_words.get(*index),
         (
             data!(ValsiClassification::LerfuWord { suffix, .. }),
-            PlainClassificationSlot::LerfuSuffix,
+            data!(PlainClassificationSlot::LerfuSuffix),
         ) => Some(suffix),
         (
             data!(ValsiClassification::ZeiCompound { link, .. }),
-            PlainClassificationSlot::ZeiLink,
+            data!(PlainClassificationSlot::ZeiLink),
         ) => Some(link),
         (
             data!(ValsiClassification::ZeiCompound { right, .. }),
-            PlainClassificationSlot::ZeiRight,
+            data!(PlainClassificationSlot::ZeiRight),
         ) => Some(right),
         _ => None,
     }
@@ -5650,7 +5707,10 @@ impl PyPlainWordValsiClassification {
     #[ensures(true)]
     #[getter]
     fn word(&self) -> PyPlainWordClassification {
-        PyPlainWordClassification::located(self.handle.clone(), PlainClassificationSlot::PlainWord)
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::PlainWord),
+        )
     }
 }
 
@@ -5710,7 +5770,7 @@ impl PyQuotedWordValsiClassification {
     fn marker(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            PlainClassificationSlot::QuotedMarker,
+            new!(PlainClassificationSlot::QuotedMarker),
         )
     }
     /// Return the quoted word classification.
@@ -5720,7 +5780,7 @@ impl PyQuotedWordValsiClassification {
     fn quoted_word(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            PlainClassificationSlot::QuotedTarget,
+            new!(PlainClassificationSlot::QuotedTarget),
         )
     }
 }
@@ -5783,7 +5843,7 @@ impl PyDelimitedNonLojbanQuoteValsiClassification {
     fn marker(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            PlainClassificationSlot::DelimitedMarker,
+            new!(PlainClassificationSlot::DelimitedMarker),
         )
     }
     /// Return the delimiter spelling.
@@ -5859,7 +5919,7 @@ impl PyQuotedWordsValsiClassification {
     fn marker(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            PlainClassificationSlot::QuotedWordsMarker,
+            new!(PlainClassificationSlot::QuotedWordsMarker),
         )
     }
     /// Return immutable quoted word classifications.
@@ -5875,7 +5935,7 @@ impl PyQuotedWordsValsiClassification {
         let values = (0..quoted_words.len()).map(|index| {
             PyPlainWordClassification::located(
                 self.handle.clone(),
-                PlainClassificationSlot::QuotedWordsTarget { index },
+                new!(PlainClassificationSlot::QuotedWordsTarget { index }),
             )
         });
         crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
@@ -6031,7 +6091,7 @@ impl PyLerfuWordValsiClassification {
     fn suffix(&self) -> PyPlainWordClassification {
         PyPlainWordClassification::located(
             self.handle.clone(),
-            PlainClassificationSlot::LerfuSuffix,
+            new!(PlainClassificationSlot::LerfuSuffix),
         )
     }
 }
@@ -6099,14 +6159,20 @@ impl PyZeiCompoundValsiClassification {
     #[ensures(true)]
     #[getter]
     fn link(&self) -> PyPlainWordClassification {
-        PyPlainWordClassification::located(self.handle.clone(), PlainClassificationSlot::ZeiLink)
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::ZeiLink),
+        )
     }
     /// Return the right word classification.
     #[requires(true)]
     #[ensures(true)]
     #[getter]
     fn right(&self) -> PyPlainWordClassification {
-        PyPlainWordClassification::located(self.handle.clone(), PlainClassificationSlot::ZeiRight)
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::ZeiRight),
+        )
     }
 }
 
@@ -6396,9 +6462,9 @@ fn one_unicode_scalar(text: &str, parameter: &str) -> PyResult<char> {
 #[requires(true)]
 #[ensures(true)]
 fn owned_lujvo_part_to_python(py: Python<'_>, part: LujvoPart) -> PyResult<Py<PyAny>> {
-    let value = LujvoPartStorage::Owned {
+    let value = new!(LujvoPartStorage::Owned {
         value: Arc::new(part),
-    };
+    });
     match value.get() {
         LujvoPart::Rafsi(_) => Ok(Py::new(py, PyLujvoRafsi { value })?.into_any()),
         LujvoPart::Hyphen(_) => Ok(Py::new(py, PyLujvoHyphen { value })?.into_any()),
@@ -7528,7 +7594,7 @@ mod tests {
             assert_eq!(projected.source_id, None);
             assert!(projected.warnings.is_empty());
             assert_eq!(projected.trace, None);
-            let SegmentOutcome::Words { values } = &projected.outcome else {
+            let data!(SegmentOutcome::Words { values }) = projected.outcome.as_data() else {
                 panic!("mimi must project as successful segmentation")
             };
             assert_eq!(values.len(), 2);
@@ -7546,7 +7612,7 @@ mod tests {
 
             let projected = function.call1(("aa",))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
-            let SegmentOutcome::Error { value } = &projected.outcome else {
+            let data!(SegmentOutcome::Error { value }) = projected.outcome.as_data() else {
                 panic!("aa must project as a morphology error")
             };
             let data!(RustMorphologyError::Invalid {
@@ -7721,7 +7787,7 @@ mod tests {
             let projected = function.call(("xu@no",), Some(&kwargs))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
             assert_eq!(projected.source.as_ref(), "xu@no");
-            let SegmentOutcome::Words { values } = &projected.outcome else {
+            let data!(SegmentOutcome::Words { values }) = projected.outcome.as_data() else {
                 panic!("permissive display segmentation must succeed")
             };
             assert_eq!(values.len(), 2);
@@ -7751,8 +7817,8 @@ mod tests {
             let projected = function.call(("aa",), Some(&kwargs))?;
             let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
             assert!(matches!(
-                &projected.outcome,
-                SegmentOutcome::Error { value }
+                projected.outcome.as_data(),
+                data!(SegmentOutcome::Error { value })
                     if matches!(value.as_data(), data!(RustMorphologyError::Invalid {
                         kind: MorphologyErrorKind::VowelHiatus,
                         char_start: 0,
