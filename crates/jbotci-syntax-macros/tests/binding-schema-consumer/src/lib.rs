@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use bityzba::{data, new};
 use proc_macro::{Delimiter, TokenStream, TokenTree};
 
 #[bityzba::invariant(true)]
@@ -89,7 +90,10 @@ impl Cursor {
     }
 }
 
-#[bityzba::invariant(::Product => true)]
+#[bityzba::invariant(
+    ::Product => shape == "named" || shape == "tuple",
+    "product shapes are normalized to named or tuple"
+)]
 #[bityzba::invariant(::Sum => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ModelKind {
@@ -127,8 +131,13 @@ struct FieldSchema {
     recovered: BindingType,
 }
 
-#[bityzba::invariant(::ModelReference => true)]
-#[bityzba::invariant(::LeafReference => true)]
+#[bityzba::invariant(::ModelReference => !name.is_empty(), "model references are named")]
+#[bityzba::invariant(
+    ::LeafReference => !kind.is_empty()
+        && !path.is_empty()
+        && path.iter().all(|component| !component.is_empty()),
+    "leaf references have a kind and a nonempty path"
+)]
 #[bityzba::invariant(::Optional => true)]
 #[bityzba::invariant(::Repeated => true)]
 #[bityzba::invariant(::NonEmptyRepeated => true)]
@@ -264,7 +273,7 @@ fn parse_product(stream: TokenStream) -> ModelSchema {
         name,
         rule,
         has_nonblank_docs,
-        kind: ModelKind::Product { shape },
+        kind: new!(ModelKind::Product { shape }),
         fields,
         variants: Vec::new(),
     }
@@ -289,7 +298,7 @@ fn parse_sum(stream: TokenStream) -> ModelSchema {
         name,
         rule,
         has_nonblank_docs,
-        kind: ModelKind::Sum,
+        kind: new!(ModelKind::Sum),
         fields: Vec::new(),
         variants,
     }
@@ -464,18 +473,20 @@ fn parse_binding_type(stream: TokenStream) -> BindingType {
     cursor.finish();
     match kind.as_str() {
         "reference" => parse_reference(args),
-        "optional" => unary_type(args, |value| BindingType::Optional { value }),
-        "repeated" => unary_type(args, |value| BindingType::Repeated { value }),
-        "non_empty_repeated" => unary_type(args, |value| BindingType::NonEmptyRepeated { value }),
-        "boxed" => unary_type(args, |value| BindingType::Boxed { value }),
-        "shared" => unary_type(args, |value| BindingType::Shared { value }),
-        "recovered_field" => unary_type(args, |value| BindingType::RecoveredField { value }),
-        "with_indicators" => unary_type(args, |value| BindingType::WithIndicators { value }),
+        "optional" => unary_type(args, |value| new!(BindingType::Optional { value })),
+        "repeated" => unary_type(args, |value| new!(BindingType::Repeated { value })),
+        "non_empty_repeated" => {
+            unary_type(args, |value| new!(BindingType::NonEmptyRepeated { value }))
+        }
+        "boxed" => unary_type(args, |value| new!(BindingType::Boxed { value })),
+        "shared" => unary_type(args, |value| new!(BindingType::Shared { value })),
+        "recovered_field" => unary_type(args, |value| new!(BindingType::RecoveredField { value })),
+        "with_indicators" => unary_type(args, |value| new!(BindingType::WithIndicators { value })),
         "with_free_modifiers" => parse_with_free_modifiers(args),
         "chain" => parse_chain(args),
-        "tuple" => BindingType::Tuple {
+        "tuple" => new!(BindingType::Tuple {
             elements: parse_type_list(args),
-        },
+        }),
         "fixed" => parse_fixed(args),
         _ => panic!("unknown normalized binding type `{kind}`"),
     }
@@ -502,7 +513,7 @@ fn parse_reference(stream: TokenStream) -> BindingType {
             let mut args = Cursor::new(args);
             let name = parse_string_literal(&mut args);
             args.finish();
-            BindingType::ModelReference { name }
+            new!(BindingType::ModelReference { name })
         }
         "leaf" => {
             let mut args = Cursor::new(args);
@@ -511,7 +522,7 @@ fn parse_reference(stream: TokenStream) -> BindingType {
             args.expect_ident("path");
             let path = parse_string_list(args.take_group(Delimiter::Parenthesis));
             args.finish();
-            BindingType::LeafReference { kind, path }
+            new!(BindingType::LeafReference { kind, path })
         }
         _ => panic!("unknown reference kind `{kind}`"),
     }
@@ -532,10 +543,10 @@ fn parse_with_free_modifiers(stream: TokenStream) -> BindingType {
         cursor.take_group(Delimiter::Parenthesis),
     ));
     cursor.finish();
-    BindingType::WithFreeModifiers {
+    new!(BindingType::WithFreeModifiers {
         value,
         free_modifiers,
-    }
+    })
 }
 
 #[bityzba::requires(true)]
@@ -546,7 +557,7 @@ fn parse_chain(stream: TokenStream) -> BindingType {
     cursor.expect_punct(',');
     let links = Box::new(parse_type_property(&mut cursor, "links"));
     cursor.finish();
-    BindingType::Chain { first, links }
+    new!(BindingType::Chain { first, links })
 }
 
 #[bityzba::requires(true)]
@@ -557,7 +568,7 @@ fn parse_fixed(stream: TokenStream) -> BindingType {
     cursor.expect_punct(',');
     let value = Box::new(parse_type_property(&mut cursor, "value"));
     cursor.finish();
-    BindingType::Fixed { length, value }
+    new!(BindingType::Fixed { length, value })
 }
 
 #[bityzba::requires(true)]
@@ -733,13 +744,13 @@ fn validate_schema(summary: &SchemaSummary) {
             model.has_nonblank_docs,
             "model lacks canonical documentation"
         );
-        match &model.kind {
-            ModelKind::Product { shape } => {
+        match model.kind.as_data() {
+            data!(ModelKind::Product { shape }) => {
                 assert!(model.variants.is_empty());
                 assert_eq!(shape == "tuple", model.fields.len() == 1);
                 validate_fields(&model.fields);
             }
-            ModelKind::Sum => {
+            data!(ModelKind::Sum) => {
                 assert!(model.fields.is_empty());
                 assert!(!model.variants.is_empty());
                 for variant in &model.variants {
@@ -757,17 +768,17 @@ fn validate_schema(summary: &SchemaSummary) {
     assert_eq!(leading.fields[0].strict, syntax_token());
     assert_eq!(
         leading.fields[1].strict,
-        BindingType::Optional {
+        new!(BindingType::Optional {
             value: Box::new(syntax_token()),
-        }
+        })
     );
     assert_eq!(
         leading.fields[1].recovered,
-        BindingType::Optional {
-            value: Box::new(BindingType::RecoveredField {
+        new!(BindingType::Optional {
+            value: Box::new(new!(BindingType::RecoveredField {
                 value: Box::new(syntax_token()),
-            }),
-        }
+            })),
+        })
     );
 
     let text = model_by_name(summary, "TextSyntax");
@@ -794,19 +805,19 @@ fn validate_schema(summary: &SchemaSummary) {
     );
     assert_eq!(
         regular.fields[0].strict,
-        BindingType::Repeated {
+        new!(BindingType::Repeated {
             value: Box::new(syntax_token()),
-        }
+        })
     );
     assert_eq!(
         regular.fields[6].strict,
-        BindingType::Optional {
-            value: Box::new(BindingType::Shared {
-                value: Box::new(BindingType::ModelReference {
+        new!(BindingType::Optional {
+            value: Box::new(new!(BindingType::Shared {
+                value: Box::new(new!(BindingType::ModelReference {
                     name: "TextParagraphsSyntax".to_owned(),
-                }),
-            }),
-        }
+                })),
+            })),
+        })
     );
 
     assert!(summary.transparent_constructors > 0);
@@ -847,10 +858,10 @@ fn field_names(fields: &[FieldSchema]) -> Vec<&str> {
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
 fn syntax_token() -> BindingType {
-    BindingType::LeafReference {
+    new!(BindingType::LeafReference {
         kind: "syntax_token".to_owned(),
         path: vec!["Token".to_owned()],
-    }
+    })
 }
 
 #[bityzba::requires(true)]
@@ -862,7 +873,7 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
     let products = summary
         .models
         .iter()
-        .filter(|model| matches!(&model.kind, ModelKind::Product { .. }))
+        .filter(|model| matches!(model.kind.as_data(), data!(ModelKind::Product { .. })))
         .count();
     let sums = summary.models.len() - products;
     let variants = summary
