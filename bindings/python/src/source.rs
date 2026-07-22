@@ -577,9 +577,9 @@ impl PyDiagnosticSourceLocation {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.starts_with("invalid source span: "))]
     fn __str__(&self) -> String {
-        self.value.to_string()
+        DiagnosticSpanError::SourceLocation(self.value.clone()).to_string()
     }
 
     #[requires(true)]
