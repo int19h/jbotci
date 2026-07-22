@@ -626,6 +626,8 @@ mod binding_schema {
         }
 
         /// Canonical item documentation shared by Rust and bindings.
+        ///
+        /// Its blank paragraph separator must survive schema normalization.
         #[deny(missing_docs)]
         rule "item" item(item) -> struct {
             /// The item token.
@@ -686,6 +688,13 @@ mod binding_schema {
     fn callback_exports_documented_normalized_strict_and_recovered_shapes() {
         let schema = CAPTURED_BINDING_SCHEMA;
         assert!(schema.contains("Canonical item documentation shared by Rust and bindings."));
+        assert!(
+            schema.contains("Its blank paragraph separator must survive schema normalization.")
+        );
+        assert!(
+            schema.contains("\"\"") || schema.contains("\" \""),
+            "blank Rustdoc fragments remain present in the schema"
+        );
         assert!(schema.contains("The item token."));
         assert!(schema.contains("The item alternative."));
         assert!(schema.contains("The wrapper alternative added directly from the grammar."));

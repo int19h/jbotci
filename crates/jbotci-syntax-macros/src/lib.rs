@@ -1836,7 +1836,7 @@ fn unsupported_binding_field(field: &Ident, ty: &Type) -> syn::Error {
 }
 
 #[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|docs| docs.iter().all(|doc| !doc.value().trim().is_empty())))]
+#[ensures(ret.is_err() || !required || ret.as_ref().is_ok_and(|docs| docs.iter().any(|doc| !doc.value().trim().is_empty())))]
 fn canonical_documentation(
     attrs: &[Attribute],
     target: &Ident,
@@ -1850,11 +1850,8 @@ fn canonical_documentation(
                 if let Expr::Lit(expr) = &name_value.value
                     && let Lit::Str(doc) = &expr.lit =>
             {
-                if !doc.value().trim().is_empty() {
-                    docs.push(doc.clone());
-                }
+                docs.push(doc.clone());
             }
-            Meta::List(_) | Meta::Path(_) => {}
             _ => {
                 return Err(syn::Error::new_spanned(
                     attr,
@@ -1863,7 +1860,7 @@ fn canonical_documentation(
             }
         }
     }
-    if required && docs.is_empty() {
+    if required && !docs.iter().any(|doc| !doc.value().trim().is_empty()) {
         return Err(syn::Error::new_spanned(
             target,
             format!("generated {description} needs canonical `///` documentation"),
@@ -10021,6 +10018,32 @@ mod tests {
             expanded.contains("compile_error")
                 && expanded.contains("generated enum variant needs canonical"),
             "undocumented enum variants must be rejected: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn generated_models_reject_non_string_documentation_attributes() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            /// A documented item.
+            #[doc(hidden)]
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before documentation validation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains(
+                    "binding schema documentation must be a string-valued `doc` attribute"
+                ),
+            "non-string documentation attributes must be rejected: {expanded}"
         );
     }
 }

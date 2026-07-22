@@ -8,4 +8,10 @@ publish = false
 proc-macro = true
 
 [dependencies]
-bityzba = { path = "../../../bityzba" }
+bityzba.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true
