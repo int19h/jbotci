@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use jbotci_dialect::parse_dialect_definition;
@@ -13,12 +15,10 @@ use jbotci_syntax::{
 
 const JBOPONEI: &str = "(jboponei)";
 
-#[test]
 #[requires(true)]
 #[ensures(true)]
-fn jboponei_po_expansion_matches_explicit_strict_parse() {
+fn assert_jboponei_strict_equivalent(dialect_source: &str, explicit_source: &str) {
     let dialect = parse_dialect_definition(JBOPONEI).expect("built-in jboponei dialect");
-    let dialect_source = "mi cusku po do klama";
     let dialect_words = segment_words_with_modifiers_with_options_and_source_id(
         dialect_source,
         &MorphologyOptions::default().with_dialect_definition(&dialect),
@@ -32,7 +32,6 @@ fn jboponei_po_expansion_matches_explicit_strict_parse() {
     )
     .expect("the jboponei expansion is valid strict syntax");
 
-    let explicit_source = "mi cusku lo su'u do klama";
     let explicit_words =
         segment_words_with_modifiers(explicit_source).expect("valid explicit morphology");
     let explicit_parse = parse_syntax_tree_with_source_and_options(
@@ -46,6 +45,30 @@ fn jboponei_po_expansion_matches_explicit_strict_parse() {
         dialect_parse.parse_tree.as_ref(),
         explicit_parse.parse_tree.as_ref(),
     ));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn jboponei_po_expansion_matches_explicit_strict_parse() {
+    assert_jboponei_strict_equivalent("mi cusku po do klama", "mi cusku lo su'u do klama");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn jboponei_po_expansion_with_ui_matches_explicit_strict_parse() {
+    assert_jboponei_strict_equivalent("mi cusku po ui do klama", "mi cusku lo su'u ui do klama");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn jboponei_po_expansion_with_bahe_matches_explicit_strict_parse() {
+    assert_jboponei_strict_equivalent(
+        "mi cusku ba'e po do klama",
+        "mi cusku ba'e lo su'u do klama",
+    );
 }
 
 #[invariant(skipped_runs.borrow().iter().all(|run| !run.is_empty()))]
@@ -99,4 +122,67 @@ fn recovery_retains_both_co_spanned_po_expansion_tokens() {
     assert_eq!(lo_spans, suhu_spans);
     assert_eq!((lo_spans[0].byte_start, lo_spans[0].byte_end), (9, 11),);
 }
-use std::cell::RefCell;
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovery_retains_co_spanned_expansion_cores_with_bahe_and_ui() {
+    let dialect = parse_dialect_definition(JBOPONEI).expect("built-in jboponei dialect");
+    let cases = [
+        (
+            "mi cusku ba'e po li",
+            vec![(9, 13), (14, 16)],
+            vec![(14, 16)],
+        ),
+        ("mi cusku po ui li", vec![(9, 11)], vec![(9, 11), (12, 14)]),
+    ];
+
+    for (source, expected_lo_spans, expected_suhu_spans) in cases {
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default().with_dialect_definition(&dialect),
+            None,
+        )
+        .expect("valid jboponei morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default().with_dialect_definition(&dialect),
+        );
+
+        assert_eq!(
+            recovered.errors.len(),
+            1,
+            "unexpected recovery for {source}"
+        );
+        let mut collector = SkippedTokenCollector::default();
+        generated_model::recovered::TreeWalkable::walk_with(
+            recovered.parse_tree.as_ref(),
+            &mut collector,
+        );
+        let skipped_runs = collector.skipped_runs.borrow();
+        let siblings = skipped_runs
+            .iter()
+            .flat_map(|run| run.windows(2))
+            .find(|pair| pair[0].cmavo() == Some(Cmavo::Lo) && pair[1].cmavo() == Some(Cmavo::Suhu))
+            .unwrap_or_else(|| panic!("recovery must retain expansion siblings for {source}"));
+        let lo_spans = siblings[0]
+            .source_spans()
+            .into_iter()
+            .map(|span| (span.byte_start, span.byte_end))
+            .collect::<Vec<_>>();
+        let suhu_spans = siblings[1]
+            .source_spans()
+            .into_iter()
+            .map(|span| (span.byte_start, span.byte_end))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            lo_spans, expected_lo_spans,
+            "unexpected lo spans for {source}"
+        );
+        assert_eq!(
+            suhu_spans, expected_suhu_spans,
+            "unexpected su'u spans for {source}"
+        );
+    }
+}

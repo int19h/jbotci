@@ -26,10 +26,10 @@ use vec1::Vec1;
 pub enum SyntaxRecoveryItem {
     /// Tokens skipped while recovering, in parser-stream order.
     ///
-    /// Adjacent plain tokens may have exactly the same source span because a
-    /// dialect expansion maps every replacement back to its one source word.
-    /// This is ordered attribution to one source region, not an overlap: only
-    /// an identical single-span attribution is admitted by the invariant.
+    /// Adjacent tokens may attribute their plain core words to exactly the
+    /// same source span because a dialect expansion maps every replacement
+    /// back to its one source word. BAhE and indicator spans remain distinct
+    /// attribution around that shared core. No other overlap is admitted.
     SkippedTokens {
         error_index: usize,
         tokens: Vec1<Token>,
@@ -108,20 +108,20 @@ fn syntax_recovery_tokens_have_ordered_source_attribution(tokens: &Vec1<Token>) 
 /// Incremental checker for parser-stream source attribution.
 ///
 /// Spans within one token must never overlap. Across token boundaries, the
-/// only admitted overlap is an adjacent pair of single-span tokens with the
-/// exact same [`SourceSpan`], which is how dialect expansion siblings retain
-/// attribution to their shared source word.
+/// only admitted overlap is the exact [`SourceSpan`] of both tokens' plain
+/// core words, which is how dialect expansion siblings retain attribution to
+/// their shared source word. Modifier spans may surround that shared core but
+/// may not overlap anything in the adjacent token.
 #[invariant(::Empty => true)]
-#[invariant(::Ordered { previous_byte_end, previous_single_span } =>
-    previous_single_span.is_none_or(|span| span.byte_end == *previous_byte_end))]
+#[invariant(::Ordered { previous_token } => previous_token
+    .source_spans()
+    .windows(2)
+    .all(|pair| pair[0].byte_end <= pair[1].byte_start))]
 #[invariant(::Invalid => true)]
 #[derive(Debug)]
 pub(crate) enum TokenSourceAttributionOrder<'tokens> {
     Empty,
-    Ordered {
-        previous_byte_end: usize,
-        previous_single_span: Option<&'tokens SourceSpan>,
-    },
+    Ordered { previous_token: &'tokens Token },
     Invalid,
 }
 
@@ -135,47 +135,43 @@ impl<'tokens> TokenSourceAttributionOrder<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn observe_token(&mut self, token: &'tokens Token) {
-        let (previous_byte_end, previous_single_span) = match self.as_data() {
-            data!(TokenSourceAttributionOrder::Empty) => (None, None),
-            data!(TokenSourceAttributionOrder::Ordered {
-                previous_byte_end,
-                previous_single_span,
-            }) => (Some(*previous_byte_end), *previous_single_span),
+        let previous_token = match self.as_data() {
+            data!(TokenSourceAttributionOrder::Empty) => None,
+            data!(TokenSourceAttributionOrder::Ordered { previous_token }) => Some(*previous_token),
             data!(TokenSourceAttributionOrder::Invalid) => return,
         };
 
         let spans = token.source_spans();
-        let Some(first) = spans.first() else {
-            *self = new!(TokenSourceAttributionOrder::Invalid);
-            return;
-        };
-        let repeats_previous_source_word = match spans.as_slice() {
-            [span] => previous_single_span == Some(*span),
-            _ => false,
-        };
-
-        let mut token_previous_byte_end = None;
-        for span in &spans {
-            if token_previous_byte_end.is_some_and(|byte_end| span.byte_start < byte_end) {
-                *self = new!(TokenSourceAttributionOrder::Invalid);
-                return;
-            }
-            token_previous_byte_end = Some(span.byte_end);
-        }
-        if !repeats_previous_source_word
-            && previous_byte_end.is_some_and(|byte_end| first.byte_start < byte_end)
+        if spans
+            .windows(2)
+            .any(|pair| pair[1].byte_start < pair[0].byte_end)
         {
             *self = new!(TokenSourceAttributionOrder::Invalid);
             return;
         }
 
-        let previous_single_span = match spans.as_slice() {
-            [span] => Some(*span),
-            _ => None,
-        };
+        if let Some(previous_token) = previous_token {
+            let previous_core_span = previous_token.core_word().bare_word().map(Word::span);
+            let current_core_span = token.core_word().bare_word().map(Word::span);
+            let shared_core_span = previous_core_span
+                .filter(|previous_core_span| current_core_span == Some(*previous_core_span));
+
+            for previous_span in previous_token.source_spans() {
+                for current_span in &spans {
+                    if current_span.byte_start < previous_span.byte_end
+                        && shared_core_span.is_none_or(|shared_core_span| {
+                            previous_span != shared_core_span || *current_span != shared_core_span
+                        })
+                    {
+                        *self = new!(TokenSourceAttributionOrder::Invalid);
+                        return;
+                    }
+                }
+            }
+        }
+
         *self = new!(TokenSourceAttributionOrder::Ordered {
-            previous_byte_end: token_previous_byte_end.expect("non-empty token spans"),
-            previous_single_span,
+            previous_token: token,
         });
     }
 
@@ -198,13 +194,13 @@ mod source_attribution_tests {
 
     #[requires(!phonemes.is_empty())]
     #[requires(byte_start < byte_end)]
-    #[ensures(ret.source_spans().len() == 1)]
-    fn token_with_span(
+    #[ensures(ret.span().byte_start == byte_start && ret.span().byte_end == byte_end)]
+    fn word_with_span(
         phonemes: &str,
         source_id: Option<&str>,
         byte_start: usize,
         byte_end: usize,
-    ) -> Token {
+    ) -> Word {
         let span = SourceSpan::new(
             source_id.map(|source_id| SourceId(source_id.to_owned())),
             byte_start,
@@ -214,17 +210,27 @@ mod source_attribution_tests {
         )
         .expect("ordered test span");
         let phonemes = Phonemes::from_canonical(phonemes.to_owned()).expect("canonical phonemes");
-        Token::bare(WordLike::bare(Word::from_kind(
-            WordKind::Cmavo,
-            phonemes,
-            span,
+        Word::from_kind(WordKind::Cmavo, phonemes, span)
+    }
+
+    #[requires(!phonemes.is_empty())]
+    #[requires(byte_start < byte_end)]
+    #[ensures(ret.source_spans().len() == 1)]
+    fn token_with_span(
+        phonemes: &str,
+        source_id: Option<&str>,
+        byte_start: usize,
+        byte_end: usize,
+    ) -> Token {
+        Token::bare(WordLike::bare(word_with_span(
+            phonemes, source_id, byte_start, byte_end,
         )))
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn exact_adjacent_single_span_attribution_is_ordered() {
+    fn exact_adjacent_core_attribution_is_ordered() {
         let tokens = Vec1::try_from_vec(vec![
             token_with_span("lo", None, 2, 4),
             token_with_span("su'u", None, 2, 4),
@@ -233,6 +239,44 @@ mod source_attribution_tests {
         .expect("non-empty tokens");
 
         assert!(syntax_recovery_tokens_have_ordered_source_attribution(
+            &tokens
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_adjacent_core_attribution_with_bahe_and_ui_is_ordered() {
+        let lo = Token::emphasized(
+            word_with_span("ba'e", None, 0, 4),
+            WordLike::bare(word_with_span("lo", None, 5, 7)),
+        );
+        let suhu = Token::with_indicator(
+            token_with_span("su'u", None, 5, 7),
+            word_with_span("ui", None, 8, 10),
+            None,
+        );
+        let tokens = Vec1::try_from_vec(vec![lo, suhu, token_with_span("do", None, 11, 13)])
+            .expect("non-empty tokens");
+
+        assert!(syntax_recovery_tokens_have_ordered_source_attribution(
+            &tokens
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_core_does_not_mask_overlapping_modifier_attribution() {
+        let lo = Token::with_indicator(
+            token_with_span("lo", None, 2, 4),
+            word_with_span("ui", None, 5, 7),
+            None,
+        );
+        let tokens = Vec1::try_from_vec(vec![lo, token_with_span("su'u", None, 2, 4)])
+            .expect("non-empty tokens");
+
+        assert!(!syntax_recovery_tokens_have_ordered_source_attribution(
             &tokens
         ));
     }
