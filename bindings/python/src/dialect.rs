@@ -448,8 +448,10 @@ impl PyCustomDialect {
 impl PyCustomDialect {
     /// Construct a custom dialect descriptor.
     #[requires(true)]
-    #[ensures(ret.value.name == name)]
-    #[ensures(ret.value.definition == definition)]
+    #[ensures(ret.value.name.is_empty() == old(name.is_empty()))]
+    #[ensures(ret.value.definition.is_empty() == old(definition.is_empty()))]
+    #[ensures(ret.value.show_in_gentufa == show_in_gentufa)]
+    #[expensive_ensures((ret.value.name.clone(), ret.value.definition.clone()) == old((name.clone(), definition.clone())))]
     #[new]
     #[pyo3(signature = (name, definition, *, show_in_gentufa=true))]
     fn new(name: String, definition: String, show_in_gentufa: bool) -> Self {

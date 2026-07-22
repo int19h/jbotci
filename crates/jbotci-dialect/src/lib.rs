@@ -110,7 +110,10 @@ pub enum CmavoDialectEntry {
 impl CmavoDialectEntry {
     #[requires(true)]
     #[ensures(ret.is_ok() == old(is_basic_dialect_word(&left) && is_basic_dialect_word(&right)))]
-    #[expensive_ensures(ret.as_ref().is_ok_and(|entry| matches!(entry.as_data(), data!(CmavoDialectEntry::Swap { left: entry_left, right: entry_right }) if entry_left == &old(left.clone()) && entry_right == &old(right.clone()))) || ret.is_err())]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().ok().and_then(|entry| match entry.as_data() {
+        data!(CmavoDialectEntry::Swap { left, right }) => Some((left.clone(), right.clone())),
+        _ => None,
+    }) == Some(old((left.clone(), right.clone()))))]
     pub fn swap(left: String, right: String) -> Result<Self, DialectError> {
         if !is_basic_dialect_word(&left) {
             return Err(DialectError::new(format!(
@@ -127,7 +130,11 @@ impl CmavoDialectEntry {
 
     #[requires(true)]
     #[ensures(ret.is_ok() == old(is_basic_dialect_word(&source) && !replacement.is_empty() && replacement.iter().all(|word| is_basic_dialect_word(word))))]
-    #[expensive_ensures(ret.as_ref().is_ok_and(|entry| matches!(entry.as_data(), data!(CmavoDialectEntry::Expansion { source: entry_source, replacement: entry_replacement }) if entry_source == &old(source.clone()) && entry_replacement == &old(replacement.clone()))) || ret.is_err())]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().ok().and_then(|entry| match entry.as_data() {
+        data!(CmavoDialectEntry::Expansion { source, replacement }) =>
+            Some((source.clone(), replacement.clone())),
+        _ => None,
+    }) == Some(old((source.clone(), replacement.clone()))))]
     pub fn expansion(source: String, replacement: Vec<String>) -> Result<Self, DialectError> {
         if !is_basic_dialect_word(&source) {
             return Err(DialectError::new(format!(

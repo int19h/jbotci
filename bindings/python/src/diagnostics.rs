@@ -169,7 +169,8 @@ impl PyTraceFilter {
 impl PyTraceFilter {
     /// Construct a non-empty trace label filter.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|filter| filter.value.name == name) || ret.is_err())]
+    #[ensures(ret.is_ok() == old(!name.is_empty()))]
+    #[expensive_ensures(ret.is_err() || ret.as_ref().ok().map(|filter| filter.value.name.clone()) == Some(old(name.clone())))]
     #[new]
     fn new(name: String) -> PyResult<Self> {
         if name.is_empty() {
