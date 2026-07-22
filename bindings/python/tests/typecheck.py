@@ -1,6 +1,6 @@
 """Strict-type-check smoke coverage for packaged public declarations."""
 
-from typing import Never, assert_type
+from typing import assert_type
 
 from jbotci import (
     Sample,
@@ -84,12 +84,6 @@ def typed_dialect() -> dialect.DialectDefinition:
     return dialect.DialectDefinition(
         [entry], [dialect.DialectFeature.CASE_INSENSITIVE]
     )
-
-
-def returned_only_dialect_type() -> None:
-    """Builtin dialects cannot be constructed by typed consumers."""
-
-    assert_type(dialect.BuiltinDialect(), Never)
 
 
 def typed_morphology(text: str) -> tuple[morphology.WordLike, ...]:

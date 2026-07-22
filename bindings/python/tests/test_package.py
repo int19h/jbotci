@@ -9,6 +9,7 @@ import pickle
 import subprocess
 import sys
 import tomllib
+from collections import Counter
 from pathlib import Path
 from types import ModuleType
 
@@ -157,6 +158,64 @@ MORPHOLOGY_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
     "_morphology_is_word_forming_character": {"options": None},
 }
 
+# Stubs conventionally spell every default as ``...``. Keep concrete values in
+# this independent oracle so runtime and stub presence cannot drift together.
+MANUAL_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
+    "_source_SourceSpan.__new__": {
+        "source_id": None,
+        "start": None,
+        "end": None,
+    },
+    "_source_source_span_from_char_offsets": {"source_id": None},
+    "_source_source_span_from_byte_offsets": {"source_id": None},
+    "_diagnostics_TraceOptions.__new__": {
+        "enabled": False,
+        "level": None,
+        "filter": None,
+        "phase": None,
+        "limit": 10_000,
+    },
+    "_diagnostics_TraceEvent.__new__": {"detail": None},
+    "_diagnostics_TraceFailureBranch.__new__": {
+        "contexts": [],
+        "expected": [],
+    },
+    "_diagnostics_TraceFailureSummary.__new__": {
+        "branches": [],
+        "current_context": None,
+    },
+    "_diagnostics_TraceReport.__new__": {
+        "events": [],
+        "truncated": False,
+        "failure": None,
+    },
+    "_diagnostics_CllSectionLink.__new__": {"anchor": None},
+    "_diagnostics_DiagnosticTextSegment.__new__": {"link": None},
+    "_diagnostics_DiagnosticLabel.__new__": {"primary": False},
+    "_diagnostics_Diagnostic.__new__": {
+        "notes": [],
+        "styled_notes": [],
+        "word_index": None,
+    },
+    "_dialect_DialectDefinition.__new__": {
+        "cmavo_entries": None,
+        "features": None,
+    },
+    "_dialect_CustomDialect.__new__": {"show_in_gentufa": True},
+    "_dialect_DialectSettings.__new__": {
+        "custom_dialects": [],
+        "hidden_builtin_gentufa_dialects": [],
+    },
+    **MORPHOLOGY_CALLABLE_DEFAULTS,
+}
+
+MANUAL_STUB_FRAGMENTS: dict[str, str] = {
+    "_source_": "source.pyi",
+    "_diagnostics_": "diagnostics.pyi",
+    "_dialect_": "dialect.pyi",
+    "_morphology_": "morphology.pyi",
+}
+
 MORPHOLOGY_RETURNED_ONLY_CLASSES: frozenset[str] = frozenset(
     {
         "_morphology_CompiledDialectWord",
@@ -167,6 +226,10 @@ MORPHOLOGY_RETURNED_ONLY_CLASSES: frozenset[str] = frozenset(
         "_morphology_RecoveredMorphologySegmentAttempt",
         "_morphology_ValsiAnalysis",
     }
+)
+
+MANUAL_RETURNED_ONLY_CLASSES: frozenset[str] = (
+    MORPHOLOGY_RETURNED_ONLY_CLASSES | {"_dialect_BuiltinDialect"}
 )
 
 # PyO3 currently exposes signatures for every manual morphology dunder. Keep an
@@ -715,17 +778,236 @@ def _stub_match_args_arity(annotation: ast.expr) -> int:
     return len(elements)
 
 
+def _node_mentions_any(node: ast.AST, any_names: set[str]) -> bool:
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name) and child.id in any_names:
+            return True
+        # ``Any`` can be re-exported through modules other than ``typing`` and
+        # ``typing_extensions``. An attribute with this terminal name is never
+        # an acceptable declaration on the manual no-Any surface.
+        if isinstance(child, ast.Attribute) and child.attr == "Any":
+            return True
+        if not isinstance(child, ast.Constant) or not isinstance(child.value, str):
+            continue
+        try:
+            forward_reference = ast.parse(child.value, mode="eval")
+        except SyntaxError:
+            continue
+        if any(
+            (isinstance(reference, ast.Name) and reference.id in any_names)
+            or (isinstance(reference, ast.Attribute) and reference.attr == "Any")
+            for reference in ast.walk(forward_reference)
+        ):
+            return True
+    return False
+
+
+def _assigned_names(statement: ast.stmt) -> set[str]:
+    if isinstance(statement, ast.Assign):
+        return {
+            target.id for target in statement.targets if isinstance(target, ast.Name)
+        }
+    if isinstance(statement, ast.AnnAssign) and isinstance(
+        statement.target, ast.Name
+    ):
+        return {statement.target.id}
+    return set()
+
+
+def _assigned_value(statement: ast.stmt) -> ast.expr | None:
+    if isinstance(statement, (ast.Assign, ast.AnnAssign)):
+        return statement.value
+    return None
+
+
+def _stub_tree_mentions_any(tree: ast.Module) -> bool:
+    any_names = {"Any"}
+    imported_any = False
+    for statement in tree.body:
+        if not isinstance(statement, ast.ImportFrom):
+            continue
+        for imported in statement.names:
+            if imported.name == "Any" or imported.name == "*":
+                imported_any = True
+                any_names.add(imported.asname or imported.name)
+
+    # Resolve arbitrary chains of top-level aliases before scanning the whole
+    # tree. This covers both ``Alias = ...`` and ``Alias: TypeAlias = ...``.
+    changed = True
+    while changed:
+        changed = False
+        for statement in tree.body:
+            value = _assigned_value(statement)
+            if value is None or not _node_mentions_any(value, any_names):
+                continue
+            for name in _assigned_names(statement) - any_names:
+                any_names.add(name)
+                changed = True
+
+    return imported_any or _node_mentions_any(tree, any_names)
+
+
 def _annotation_mentions_any(annotation: ast.expr) -> bool:
-    return any(
-        (isinstance(node, ast.Name) and node.id == "Any")
-        or (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id == "typing"
-            and node.attr == "Any"
-        )
-        for node in ast.walk(annotation)
+    return _node_mentions_any(annotation, {"Any"})
+
+
+@pytest.mark.parametrize(
+    "stub_source",
+    (
+        "from typing import Any as Hidden\nvalue: Hidden\n",
+        "import typing as types\nvalue: types.Any\n",
+        "import typing_extensions as extensions\nvalue: extensions.Any\n",
+        "value: vendor.typing.Any\n",
+        "from typing import Any as Hidden\nAlias = Hidden\nvalue: Alias\n",
+        (
+            "from typing import Any as Hidden\n"
+            "Alias: TypeAlias = Hidden\n"
+            "value: Alias\n"
+        ),
+        "from typing import Any as Hidden\nvalue: 'Hidden'\n",
+    ),
+)
+def test_manual_stub_any_gate_rejects_alias_mutations(stub_source: str) -> None:
+    assert _stub_tree_mentions_any(ast.parse(stub_source))
+
+
+@pytest.mark.parametrize("filename", MANUAL_STUB_FRAGMENTS.values())
+def test_manual_domain_stub_fragments_do_not_use_any(filename: str) -> None:
+    stub_path = PACKAGE_ROOT / "stubs" / "_native" / filename
+    tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
+    assert not _stub_tree_mentions_any(tree), filename
+
+
+def test_manual_domain_stub_callable_surfaces_match_runtime() -> None:
+    """Check every callable in the four hand-authored domain fragments."""
+
+    generated_enum_names = set(
+        _stub_classes(PACKAGE_ROOT / "stubs" / "_native" / "domain_enums.pyi")
     )
+    checked_default_callables: set[str] = set()
+    returned_only_stubs: set[str] = set()
+    for prefix, filename in MANUAL_STUB_FRAGMENTS.items():
+        stub_path = PACKAGE_ROOT / "stubs" / "_native" / filename
+        stub_tree = ast.parse(
+            stub_path.read_text(encoding="utf-8"), filename=str(stub_path)
+        )
+        classes = _stub_classes(stub_path)
+        declarations = {
+            name: declaration
+            for name, declaration in classes.items()
+            if name.startswith(prefix)
+        }
+        runtime_class_names = {
+            name
+            for name in native.__all__
+            if name.startswith(prefix)
+            and name not in generated_enum_names
+            and isinstance(getattr(native, name), type)
+        }
+        assert set(declarations) == runtime_class_names, filename
+
+        functions = {
+            declaration.name: declaration
+            for declaration in stub_tree.body
+            if isinstance(declaration, ast.FunctionDef)
+            and declaration.name.startswith(prefix)
+        }
+        runtime_function_names = {
+            name
+            for name in native.__all__
+            if name.startswith(prefix)
+            and not isinstance(getattr(native, name), type)
+            and callable(getattr(native, name))
+        }
+        assert set(functions) == runtime_function_names, filename
+
+        for name, declaration in declarations.items():
+            runtime_class = getattr(native, name)
+            class_functions = _stub_class_functions(classes, declaration)
+            class_attributes = _stub_class_attributes(classes, declaration)
+            stub_properties = {
+                member_name
+                for member_name, function in class_functions.items()
+                if not member_name.startswith("_")
+                and _stub_function_is_property(function)
+            }
+            stub_methods = {
+                member_name
+                for member_name, function in class_functions.items()
+                if not member_name.startswith("_")
+                and not _stub_function_is_property(function)
+            }
+            stub_attributes = {
+                member_name
+                for member_name in class_attributes
+                if not member_name.startswith("_")
+            }
+            stub_dunders = {
+                member_name
+                for member_name in class_functions
+                if member_name.startswith("__") and member_name.endswith("__")
+            }
+
+            runtime_properties: set[str] = set()
+            runtime_methods: set[str] = set()
+            runtime_attributes: set[str] = set()
+            for member_name in dir(runtime_class):
+                if member_name.startswith("_"):
+                    continue
+                descriptor = inspect.getattr_static(runtime_class, member_name)
+                if inspect.isdatadescriptor(descriptor):
+                    runtime_properties.add(member_name)
+                elif callable(descriptor):
+                    runtime_methods.add(member_name)
+                else:
+                    runtime_attributes.add(member_name)
+            runtime_dunders = {
+                member_name
+                for member_name, descriptor in vars(runtime_class).items()
+                if member_name.startswith("__")
+                and member_name.endswith("__")
+                and callable(descriptor)
+            }
+            assert runtime_properties == stub_properties, name
+            assert runtime_methods == stub_methods, name
+            assert runtime_attributes == stub_attributes, name
+            assert runtime_dunders == stub_dunders, name
+
+            for function_name, function in class_functions.items():
+                if _stub_function_is_property(function):
+                    continue
+                if _stub_is_returned_only_constructor(function, name):
+                    assert name in MANUAL_RETURNED_ONLY_CLASSES
+                    returned_only_stubs.add(name)
+                    continue
+                if function_name == "__new__":
+                    constructor = True
+                    callable_value = runtime_class
+                else:
+                    constructor = False
+                    callable_value = getattr(runtime_class, function_name)
+                callable_name = f"{name}.{function_name}"
+                runtime_signature = inspect.signature(callable_value)
+                assert _runtime_parameter_shape(runtime_signature) == (
+                    _stub_parameter_shape(function, constructor=constructor)
+                ), callable_name
+                runtime_defaults = _runtime_parameter_defaults(runtime_signature)
+                if runtime_defaults:
+                    assert runtime_defaults == MANUAL_CALLABLE_DEFAULTS[callable_name]
+                    checked_default_callables.add(callable_name)
+
+        for name, declaration in functions.items():
+            runtime_signature = inspect.signature(getattr(native, name))
+            assert _runtime_parameter_shape(runtime_signature) == (
+                _stub_parameter_shape(declaration, constructor=False)
+            ), name
+            runtime_defaults = _runtime_parameter_defaults(runtime_signature)
+            if runtime_defaults:
+                assert runtime_defaults == MANUAL_CALLABLE_DEFAULTS[name]
+                checked_default_callables.add(name)
+
+    assert checked_default_callables == set(MANUAL_CALLABLE_DEFAULTS)
+    assert returned_only_stubs == MANUAL_RETURNED_ONLY_CLASSES
 
 
 def test_morphology_stub_class_members_signatures_and_match_args_match_runtime() -> None:
@@ -895,7 +1177,7 @@ def test_returned_only_morphology_classes_have_no_runtime_constructor() -> None:
             getattr(native, name)()
 
 
-def test_strict_typing_fixture_calls_every_native_morphology_function() -> None:
+def test_strict_typing_fixture_witnesses_every_public_morphology_function() -> None:
     typecheck_path = PACKAGE_ROOT / "tests" / "typecheck.py"
     tree = ast.parse(
         typecheck_path.read_text(encoding="utf-8"), filename=str(typecheck_path)
@@ -906,18 +1188,31 @@ def test_strict_typing_fixture_calls_every_native_morphology_function() -> None:
         if isinstance(declaration, ast.FunctionDef)
         and declaration.name == "typed_every_morphology_free_function"
     )
-    called_functions = {
-        call.func.attr
-        for call in ast.walk(witness)
-        if isinstance(call, ast.Call)
-        and isinstance(call.func, ast.Attribute)
-        and isinstance(call.func.value, ast.Name)
-        and call.func.value.id == "morphology"
+    witnessed_functions: Counter[str] = Counter()
+    for assertion in ast.walk(witness):
+        if (
+            not isinstance(assertion, ast.Call)
+            or not isinstance(assertion.func, ast.Name)
+            or assertion.func.id != "assert_type"
+            or not assertion.args
+        ):
+            continue
+        value = assertion.args[0]
+        if (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Attribute)
+            and isinstance(value.func.value, ast.Name)
+            and value.func.value.id == "morphology"
+        ):
+            witnessed_functions[value.func.attr] += 1
+
+    public_functions = {
+        name
+        for name in morphology.__all__
+        if callable(value := getattr(morphology, name)) and not isinstance(value, type)
     }
-    expected_functions = {
-        name.removeprefix("_morphology_") for name in MORPHOLOGY_FUNCTION_TYPES
-    } | {"segment", "segment_recovered", "segment_for_display"}
-    assert called_functions == expected_functions
+    assert set(witnessed_functions) == public_functions
+    assert set(witnessed_functions.values()) == {1}
 
 
 def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:

@@ -7,6 +7,11 @@ import pytest
 from jbotci import InvalidInputError, diagnostics, dialect, source
 
 
+def test_builtin_dialect_has_no_runtime_constructor() -> None:
+    with pytest.raises(TypeError, match=r"^No constructor defined$"):
+        dialect.BuiltinDialect()
+
+
 def test_source_spans_distinguish_unicode_byte_and_character_offsets() -> None:
     source_id = source.SourceId("unicode")
     span = source.source_span_from_char_offsets("éx\n", 0, 1, source_id=source_id)

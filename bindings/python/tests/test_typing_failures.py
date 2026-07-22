@@ -60,8 +60,8 @@ def test_unordered_collection_inputs_are_rejected_by_strict_mypy() -> None:
     assert all("[arg-type]" in line for line in diagnostics)
 
 
-def test_returned_only_morphology_classes_reject_construction_in_strict_mypy() -> None:
-    """Parser-owned morphology products require an impossible sentinel argument."""
+def test_returned_only_domain_classes_reject_construction_in_strict_mypy() -> None:
+    """Rust-owned domain products require an impossible sentinel argument."""
     fixture = (
         PACKAGE_ROOT
         / "tests"
@@ -86,5 +86,5 @@ def test_returned_only_morphology_classes_reject_construction_in_strict_mypy() -
         line for line in result.stdout.splitlines() if ": error:" in line
     )
     assert result.returncode == 1, result.stdout + result.stderr
-    assert len(diagnostics) == 7, result.stdout
+    assert len(diagnostics) == 8, result.stdout
     assert all("[call-arg]" in line for line in diagnostics)

@@ -1,6 +1,8 @@
 """Intentional construction attempts for parser-returned morphology classes."""
 
-from jbotci import morphology
+from jbotci import dialect, morphology
+
+dialect.BuiltinDialect()
 
 morphology.CompiledDialectWord()
 morphology.CompiledDialectSwap()
