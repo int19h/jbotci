@@ -10355,7 +10355,7 @@ mod tests {
                         name_value.value,
                         Expr::Lit(expr)
                             if matches!(
-                                expr.lit,
+                                &expr.lit,
                                 Lit::Str(value) if value.value() == "schema item"
                             )
                     );
