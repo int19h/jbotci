@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import gc
+import inspect
 import math
 import subprocess
 import sys
@@ -432,6 +433,54 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         assert enum_type.__module__ == "jbotci.dictionary"
         with pytest.raises(TypeError):
             type("DerivedEnum", (enum_type,), {})
+
+
+def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
+    documented_classes = (
+        dictionary.DefinitionId,
+        dictionary.Score,
+        dictionary.EntryIndex,
+        dictionary.Keyword,
+        dictionary.Rafsi,
+        dictionary.RawSelmaho,
+        dictionary.DictionaryUser,
+        dictionary.Dictionary,
+        dictionary.DictionaryEntries,
+        dictionary.DictionaryEntry,
+        dictionary.RafsiMatch,
+        dictionary.DictionarySoundEntry,
+        dictionary.IpaTokenSequenceView,
+        dictionary.IpaSegmentId,
+        dictionary.DictionaryLujvoEntry,
+        dictionary.DictionaryLujvoSegment,
+        dictionary.DictionaryPatternEntry,
+        dictionary.DictionarySnapshotMetadata,
+        dictionary.InvalidEntryValidationDetail,
+        dictionary.WordIndexMismatchValidationDetail,
+        dictionary.RafsiIndexMismatchValidationDetail,
+        dictionary.SelmahoIndexMismatchValidationDetail,
+        dictionary.PatternIndexMismatchValidationDetail,
+        dictionary.InvalidSoundIndexEntryValidationDetail,
+        dictionary.InvalidLujvoIndexEntryValidationDetail,
+        dictionary.WordType,
+        dictionary.RafsiSource,
+        dictionary.DictionaryLujvoSegmentKind,
+        dictionary.DictionaryValidationError,
+    )
+    for documented_class in documented_classes:
+        assert inspect.getdoc(documented_class), documented_class.__name__
+        for member_name, member in vars(documented_class).items():
+            if member_name.startswith("_"):
+                continue
+            if inspect.isroutine(member) or inspect.isdatadescriptor(member):
+                assert inspect.getdoc(member), (
+                    f"{documented_class.__name__}.{member_name}"
+                )
+
+    for export_name in dictionary.__all__:
+        exported = getattr(dictionary, export_name)
+        if inspect.isroutine(exported) or isinstance(exported, type):
+            assert inspect.getdoc(exported), export_name
 
 
 def test_embedded_dictionary_validates() -> None:
