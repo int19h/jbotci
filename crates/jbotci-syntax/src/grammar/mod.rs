@@ -509,8 +509,8 @@ pub(super) struct SyntaxMemoReplayEffects<'tokens> {
     side_effects: SyntaxMemoSideEffects<'tokens>,
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
+#[derive(Debug, Clone)]
 pub(super) struct ParserState<'tokens> {
     anchor_token_identities: Vec<TokenIdentity>,
     syntax_location_byte_offsets: Vec<usize>,
