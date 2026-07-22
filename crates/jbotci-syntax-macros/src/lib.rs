@@ -672,7 +672,7 @@ impl SyntaxGrammar {
                             variant_constructor.clone(),
                             snake_case(&variant_constructor),
                         ));
-                        let field = GeneratedFieldModel {
+                        let field = new!(GeneratedFieldModel {
                             attrs: branch
                                 .attrs
                                 .iter()
@@ -681,7 +681,7 @@ impl SyntaxGrammar {
                                 .collect(),
                             name: branch.name.clone(),
                             ty: branch_output.clone(),
-                        };
+                        });
                         push_generated_variant(
                             &mut enums,
                             output.to_string(),
@@ -1359,7 +1359,12 @@ impl ToTokens for GeneratedVariantModel {
     }
 }
 
-#[invariant(true)]
+#[invariant(
+    attrs
+        .iter()
+        .all(|attr| matches!(&attr.style, syn::AttrStyle::Outer)),
+    "generated field attributes must be outer"
+)]
 struct GeneratedFieldModel {
     attrs: Vec<Attribute>,
     name: Ident,
@@ -7965,11 +7970,11 @@ impl FieldItem {
                 unreachable!("parser-only fields are filtered before model field generation")
             }
         };
-        Ok(GeneratedFieldModel {
+        Ok(new!(GeneratedFieldModel {
             attrs: self.attrs.clone(),
             name,
             ty,
-        })
+        }))
     }
 
     #[requires(true)]
