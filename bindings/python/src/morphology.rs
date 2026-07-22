@@ -1,0 +1,6893 @@
+//! Strongly typed Python projection of morphology parsing and result models.
+
+use std::borrow::Cow;
+use std::num::NonZeroUsize;
+use std::sync::Arc;
+
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
+use jbotci_morphology::{
+    Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord,
+    ConsonantPairClass, ExpectedWordDetailKind, GlideMark, LeadingPauseContext,
+    LeadingPauseVowelMode, LujvoBuildMode, LujvoBuildPart, LujvoCandidate, LujvoParseExpectation,
+    LujvoPart, MorphologyContext, MorphologyContextKind, MorphologyError as RustMorphologyError,
+    MorphologyErrorDetail, MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt,
+    MorphologyWarning, MorphologyWarningKind, PhonemeRenderOptions, Phonemes,
+    PhonotacticDetailKind, PlainWordClassification, RafsiShape, RecoveredMorphologySegmentAttempt,
+    RecoveredMorphologySegmentation, Selmaho, StressMark, StringEnumMetadata, ValsiAnalysis,
+    ValsiAnalysisResult, ValsiAnalysisStatus, ValsiClassification, ValsiClassificationKind,
+    ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word,
+    WordKey, WordKind, WordLike, ZoiDelimiterDetailKind,
+};
+use pyo3::prelude::*;
+use pyo3::types::{PyAny, PyModule};
+
+use crate::InvalidInputError;
+use crate::diagnostics::PyTraceOptions;
+use crate::diagnostics::{PyDiagnostic, PyTraceReport};
+use crate::dialect::PyDialectDefinition;
+use crate::source::{
+    PySourceId, PySourceSpan, source_location_error_from_python, source_location_error_to_python,
+};
+use crate::support::{
+    PythonStringEnum, extract_string_enum, register_private_object, register_string_enum,
+    register_type, string_enum_member, string_repr,
+};
+
+const PUBLIC_MODULE: &str = "jbotci.morphology";
+
+pub(crate) const NATIVE_EXPORTS: &[&str] = &[
+    "_morphology_WordKind",
+    "_morphology_ValsiAnalysisStatus",
+    "_morphology_ValsiClassificationKind",
+    "_morphology_ValsiLujvoPartKind",
+    "_morphology_ValsiLujvoRafsiKind",
+    "_morphology_ValsiFuhivlaStage",
+    "_morphology_StressMark",
+    "_morphology_GlideMark",
+    "_morphology_MorphologyErrorKind",
+    "_morphology_MorphologyWarningKind",
+    "_morphology_MorphologyContextKind",
+    "_morphology_LujvoParseExpectation",
+    "_morphology_ExpectedWordDetailKind",
+    "_morphology_ZoiDelimiterDetailKind",
+    "_morphology_PhonotacticDetailKind",
+    "_morphology_LujvoBuildMode",
+    "_morphology_RafsiShape",
+    "_morphology_ConsonantPairClass",
+    "_morphology_LeadingPauseVowelMode",
+    "_morphology_LeadingPauseContext",
+    "_morphology_Cmavo",
+    "_morphology_Selmaho",
+    "_morphology_PhonemeRenderOptions",
+    "_morphology_Phonemes",
+    "_morphology_WordKey",
+    "_morphology_MorphologyOptions",
+    "_morphology_CompiledDialectDefinition",
+    "_morphology_CompiledDialectSwap",
+    "_morphology_CompiledDialectExpansion",
+    "_morphology_CompiledDialectWord",
+    "_morphology_LujvoRafsi",
+    "_morphology_LujvoHyphen",
+    "_morphology_Verbatim",
+    "_morphology_CmavoWord",
+    "_morphology_GismuWord",
+    "_morphology_LujvoWord",
+    "_morphology_FuhivlaWord",
+    "_morphology_CmevlaWord",
+    "_morphology_PlainWord",
+    "_morphology_QuotedWord",
+    "_morphology_SelmahoQuotedWord",
+    "_morphology_DelimitedNonLojbanQuote",
+    "_morphology_QuotedWords",
+    "_morphology_DelimitedWordQuote",
+    "_morphology_LerfuWord",
+    "_morphology_ZeiCompound",
+    "_morphology_MorphologyContext",
+    "_morphology_MorphologyWarning",
+    "_morphology_InvalidLujvoDetail",
+    "_morphology_FuhivlaContainsYDetail",
+    "_morphology_SlinkuhiDetail",
+    "_morphology_ExpectedWordDetail",
+    "_morphology_InvalidZoiDelimiterDetail",
+    "_morphology_PhonotacticDetail",
+    "_morphology_InvalidMorphology",
+    "_morphology_UnterminatedZoiQuote",
+    "_morphology_SourceSpanMorphologyError",
+    "_morphology_MorphologySegmentAttempt",
+    "_morphology_RecoveredMorphologySegmentation",
+    "_morphology_RecoveredMorphologySegmentAttempt",
+    "_morphology_segment_attempt",
+    "_morphology_segment_recovered_attempt",
+    "_morphology_segment_for_display_attempt",
+    "_morphology_ValsiLujvoPart",
+    "_morphology_PlainWordClassification",
+    "_morphology_PlainWordValsiClassification",
+    "_morphology_QuotedWordValsiClassification",
+    "_morphology_DelimitedNonLojbanQuoteValsiClassification",
+    "_morphology_QuotedWordsValsiClassification",
+    "_morphology_DelimitedWordQuoteValsiClassification",
+    "_morphology_LerfuWordValsiClassification",
+    "_morphology_ZeiCompoundValsiClassification",
+    "_morphology_ValsiAnalysisResult",
+    "_morphology_ValsiAnalysis",
+    "_morphology_analyze_valsi",
+    "_morphology_normalize_input",
+    "_morphology_canonicalize_text",
+    "_morphology_canonical_text_eq",
+    "_morphology_canonical_text_is_all",
+    "_morphology_normalize_cmavo_form",
+    "_morphology_cmavo_phonemes",
+    "_morphology_pronunciation_syllables",
+    "_morphology_strip_lojban_diacritic",
+    "_morphology_fold_lojban_diacritic",
+    "_morphology_strip_lojban_diacritics",
+    "_morphology_fold_lojban_diacritics",
+    "_morphology_stripped_lojban_diacritics_eq",
+    "_morphology_folded_lojban_diacritics_eq",
+    "_morphology_strip_diacritics",
+    "_morphology_strip_diacritics_eq",
+    "_morphology_is_valid_phoneme",
+    "_morphology_is_word_forming_character",
+    "_morphology_is_period_character",
+    "_morphology_is_permissive_ignorable_character",
+    "_morphology_parse_lujvo_parts",
+    "_morphology_parse_cmevla_lujvo_parts",
+    "_morphology_parse_cmevla_lujvo_part_candidates",
+    "_morphology_bond_rafsis",
+    "_morphology_is_valid_lujvo_candidate_word",
+    "_morphology_ensure_cmevla_word",
+    "_morphology_ends_with_consonant",
+    "_morphology_ends_with_vowel",
+    "_morphology_is_bonding_hyphen",
+    "_morphology_syllables_pattern",
+    "_morphology_rafsi_shape",
+    "_morphology_rafsi_shape_score",
+    "_morphology_is_vowel",
+    "_morphology_is_consonant",
+    "_morphology_is_cmevla",
+    "_morphology_consonant_pair_class",
+    "_morphology_permissible_consonant_pair",
+    "_morphology_consonant_pair_is_permissible",
+    "_morphology_consonant_pair_is_initial",
+    "_morphology_word_needs_leading_pause",
+    "_morphology_word_needs_leading_pause_in_context",
+    "_morphology_word_syntax_eq",
+    "_morphology_word_like_syntax_eq",
+    "_morphology_cmavo_from_text",
+    "_morphology_cmavo_text",
+    "_morphology_cmavo_is_selmaho",
+    "_morphology_cmavo_primary_selmaho",
+    "_morphology_cmavo_is_quote_opener",
+    "_morphology_cmavo_is_single_word_quote_opener",
+    "_morphology_cmavo_is_delimited_non_lojban_quote_opener",
+    "_morphology_selmaho_from_name",
+    "_morphology_selmaho_name",
+    "_morphology_selmaho_contains",
+    "_morphology_LujvoRafsiBuildPart",
+    "_morphology_LujvoBrivlaCoreBuildPart",
+    "_morphology_LujvoCandidate",
+    "_morphology_choose_best_lujvo_candidate",
+    "_morphology_choose_best_lujvo_candidate_from_parts",
+];
+
+macro_rules! impl_python_string_enum {
+    ($type:ty, $native_name:literal, $python_name:literal) => {
+        #[contract_trait]
+        impl PythonStringEnum for $type {
+            fn native_export_name() -> &'static str {
+                $native_name
+            }
+
+            fn python_type_name() -> &'static str {
+                $python_name
+            }
+
+            fn python_module_name() -> &'static str {
+                PUBLIC_MODULE
+            }
+
+            fn python_doc() -> &'static str {
+                concat!("jbotci morphology enum ", $python_name, ".")
+            }
+
+            fn variants() -> &'static [Self] {
+                <$type as StringEnumMetadata>::variants()
+            }
+
+            fn python_member_name(self) -> Cow<'static, str> {
+                Cow::Borrowed(StringEnumMetadata::variant_name(self))
+            }
+
+            fn python_value(self) -> &'static str {
+                StringEnumMetadata::canonical_name(self)
+            }
+        }
+    };
+}
+
+impl_python_string_enum!(WordKind, "_morphology_WordKind", "WordKind");
+impl_python_string_enum!(
+    ValsiAnalysisStatus,
+    "_morphology_ValsiAnalysisStatus",
+    "ValsiAnalysisStatus"
+);
+impl_python_string_enum!(
+    ValsiClassificationKind,
+    "_morphology_ValsiClassificationKind",
+    "ValsiClassificationKind"
+);
+impl_python_string_enum!(
+    ValsiLujvoPartKind,
+    "_morphology_ValsiLujvoPartKind",
+    "ValsiLujvoPartKind"
+);
+impl_python_string_enum!(
+    ValsiLujvoRafsiKind,
+    "_morphology_ValsiLujvoRafsiKind",
+    "ValsiLujvoRafsiKind"
+);
+impl_python_string_enum!(
+    ValsiFuhivlaStage,
+    "_morphology_ValsiFuhivlaStage",
+    "ValsiFuhivlaStage"
+);
+impl_python_string_enum!(StressMark, "_morphology_StressMark", "StressMark");
+impl_python_string_enum!(GlideMark, "_morphology_GlideMark", "GlideMark");
+impl_python_string_enum!(
+    MorphologyErrorKind,
+    "_morphology_MorphologyErrorKind",
+    "MorphologyErrorKind"
+);
+impl_python_string_enum!(
+    MorphologyWarningKind,
+    "_morphology_MorphologyWarningKind",
+    "MorphologyWarningKind"
+);
+impl_python_string_enum!(
+    MorphologyContextKind,
+    "_morphology_MorphologyContextKind",
+    "MorphologyContextKind"
+);
+impl_python_string_enum!(
+    LujvoParseExpectation,
+    "_morphology_LujvoParseExpectation",
+    "LujvoParseExpectation"
+);
+impl_python_string_enum!(
+    ExpectedWordDetailKind,
+    "_morphology_ExpectedWordDetailKind",
+    "ExpectedWordDetailKind"
+);
+impl_python_string_enum!(
+    ZoiDelimiterDetailKind,
+    "_morphology_ZoiDelimiterDetailKind",
+    "ZoiDelimiterDetailKind"
+);
+impl_python_string_enum!(
+    PhonotacticDetailKind,
+    "_morphology_PhonotacticDetailKind",
+    "PhonotacticDetailKind"
+);
+impl_python_string_enum!(
+    LujvoBuildMode,
+    "_morphology_LujvoBuildMode",
+    "LujvoBuildMode"
+);
+impl_python_string_enum!(RafsiShape, "_morphology_RafsiShape", "RafsiShape");
+impl_python_string_enum!(
+    ConsonantPairClass,
+    "_morphology_ConsonantPairClass",
+    "ConsonantPairClass"
+);
+impl_python_string_enum!(
+    LeadingPauseVowelMode,
+    "_morphology_LeadingPauseVowelMode",
+    "LeadingPauseVowelMode"
+);
+impl_python_string_enum!(
+    LeadingPauseContext,
+    "_morphology_LeadingPauseContext",
+    "LeadingPauseContext"
+);
+
+#[contract_trait]
+impl PythonStringEnum for Cmavo {
+    fn native_export_name() -> &'static str {
+        "_morphology_Cmavo"
+    }
+    fn python_type_name() -> &'static str {
+        "Cmavo"
+    }
+    fn python_module_name() -> &'static str {
+        PUBLIC_MODULE
+    }
+    fn python_doc() -> &'static str {
+        "Complete cmavo inventory generated from the Rust cmavo table."
+    }
+    fn variants() -> &'static [Self] {
+        Cmavo::ALL
+    }
+    fn python_member_name(self) -> Cow<'static, str> {
+        Cow::Owned(self.variant_name().to_ascii_uppercase())
+    }
+    fn python_value(self) -> &'static str {
+        self.canonical_text()
+    }
+}
+
+#[contract_trait]
+impl PythonStringEnum for Selmaho {
+    fn native_export_name() -> &'static str {
+        "_morphology_Selmaho"
+    }
+    fn python_type_name() -> &'static str {
+        "Selmaho"
+    }
+    fn python_module_name() -> &'static str {
+        PUBLIC_MODULE
+    }
+    fn python_doc() -> &'static str {
+        "Complete selmaho inventory generated from Rust metadata."
+    }
+    fn variants() -> &'static [Self] {
+        Selmaho::ALL
+    }
+    fn python_member_name(self) -> Cow<'static, str> {
+        Cow::Owned(self.name().to_ascii_uppercase())
+    }
+    fn python_value(self) -> &'static str {
+        self.name()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn native_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+    py.import("jbotci._native")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn enum_from_python<E: PythonStringEnum>(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<E> {
+    extract_string_enum(&native_module(py)?, value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<PyAny>> {
+    string_enum_member(&native_module(py)?, value).map(Bound::unbind)
+}
+
+/// Options controlling phoneme rendering for display.
+#[invariant(true, "the wrapped Rust options carry their own field constraints")]
+#[pyclass(
+    name = "PhonemeRenderOptions",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PyPhonemeRenderOptions {
+    value: PhonemeRenderOptions,
+}
+
+impl PyPhonemeRenderOptions {
+    #[requires(true)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: PhonemeRenderOptions) -> Self {
+        Self { value }
+    }
+}
+
+#[pymethods]
+impl PyPhonemeRenderOptions {
+    /// Construct phoneme rendering options with Rust defaults for omitted fields.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (*, mark_stress=None, mark_glides=None))]
+    fn new(
+        py: Python<'_>,
+        mark_stress: Option<&Bound<'_, PyAny>>,
+        mark_glides: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        let defaults = PhonemeRenderOptions::default();
+        Ok(Self::from_rust(PhonemeRenderOptions {
+            mark_stress: mark_stress.map_or(Ok(defaults.mark_stress), |value| {
+                enum_from_python(py, value)
+            })?,
+            mark_glides: mark_glides.map_or(Ok(defaults.mark_glides), |value| {
+                enum_from_python(py, value)
+            })?,
+        }))
+    }
+
+    /// Return the configured stress-marking style.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn mark_stress(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.mark_stress)
+    }
+
+    /// Return the configured glide-marking style.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn mark_glides(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.mark_glides)
+    }
+}
+
+/// Canonical non-empty Lojban phoneme sequence.
+#[invariant(!value.as_str().is_empty())]
+#[pyclass(
+    name = "Phonemes",
+    frozen,
+    eq,
+    hash,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PyPhonemes {
+    value: Arc<Phonemes>,
+}
+
+impl PyPhonemes {
+    #[requires(!value.as_str().is_empty())]
+    #[expensive_ensures(ret.value.as_str() == old(value.clone()).as_str())]
+    fn from_rust(value: Phonemes) -> Self {
+        new!(PyPhonemes {
+            value: Arc::new(value),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_str() == self.value.as_str())]
+    fn clone_rust(&self) -> Phonemes {
+        self.value.as_ref().clone()
+    }
+}
+
+#[pymethods]
+impl PyPhonemes {
+    /// Construct a validated non-empty canonical phoneme sequence.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(text: String) -> PyResult<Self> {
+        if text.is_empty() {
+            return Err(InvalidInputError::new_err("phoneme text must not be empty"));
+        }
+        Phonemes::from_canonical(text)
+            .map(Self::from_rust)
+            .map_err(InvalidInputError::new_err)
+    }
+
+    /// Return the canonical phoneme text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn text(&self) -> &str {
+        self.value.as_str()
+    }
+
+    /// Render phonemes with explicit stress and glide marking options.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render(&self, options: PyRef<'_, PyPhonemeRenderOptions>) -> String {
+        self.value.render(options.value)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> &str {
+        self.value.as_str()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "jbotci.morphology.Phonemes({})",
+            string_repr(py, self.value.as_str())?
+        ))
+    }
+}
+
+/// Syntax identity key combining word kind and canonical phonemes.
+#[invariant(!value.phonemes.as_str().is_empty())]
+#[pyclass(
+    name = "WordKey",
+    frozen,
+    eq,
+    hash,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PyWordKey {
+    value: WordKey,
+}
+
+impl PyWordKey {
+    #[requires(!value.phonemes.as_str().is_empty())]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: WordKey) -> Self {
+        new!(PyWordKey { value })
+    }
+}
+
+#[pymethods]
+impl PyWordKey {
+    /// Construct a syntax identity key from kind and canonical phonemes.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        py: Python<'_>,
+        kind: &Bound<'_, PyAny>,
+        phonemes: PyRef<'_, PyPhonemes>,
+    ) -> PyResult<Self> {
+        Ok(Self::from_rust(new!(WordKey {
+            kind: enum_from_python(py, kind)?,
+            phonemes: phonemes.clone_rust(),
+        })))
+    }
+
+    /// Return the word kind component.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.kind)
+    }
+
+    /// Return the canonical phoneme component.
+    #[requires(true)]
+    #[ensures(ret.value.as_str() == self.value.phonemes.as_str())]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        PyPhonemes::from_rust(self.value.phonemes.clone())
+    }
+}
+
+#[invariant(true, "both roots carry a validated compiled dialect definition")]
+#[derive(Debug, Clone)]
+enum CompiledDialectStorage {
+    Owned {
+        value: Arc<CompiledDialectDefinition>,
+    },
+    Options {
+        value: Arc<MorphologyOptions>,
+    },
+}
+
+impl CompiledDialectStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &CompiledDialectDefinition {
+        match self {
+            Self::Owned { value } => value.as_ref(),
+            Self::Options { value } => &value.compiled_dialect,
+        }
+    }
+}
+
+impl PartialEq for CompiledDialectStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for CompiledDialectStorage {}
+
+/// Parser-ready compiled morphology dialect definition.
+#[invariant(true, "compiled dialect validity is carried by the Rust model")]
+#[pyclass(
+    name = "CompiledDialectDefinition",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCompiledDialectDefinition {
+    value: CompiledDialectStorage,
+}
+
+impl PyCompiledDialectDefinition {
+    #[requires(true)]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()))]
+    fn from_rust(value: CompiledDialectDefinition) -> Self {
+        Self {
+            value: CompiledDialectStorage::Owned {
+                value: Arc::new(value),
+            },
+        }
+    }
+
+    #[requires(true)]
+    #[expensive_ensures(ret.value.get() == &old(value.clone()).compiled_dialect)]
+    fn from_options(value: Arc<MorphologyOptions>) -> Self {
+        Self {
+            value: CompiledDialectStorage::Options { value },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    fn rust(&self) -> &CompiledDialectDefinition {
+        self.value.get()
+    }
+}
+
+#[pymethods]
+impl PyCompiledDialectDefinition {
+    /// Compile a declarative morphology dialect, or the baseline when omitted.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (definition=None))]
+    fn new(definition: Option<PyRef<'_, PyDialectDefinition>>) -> PyResult<Self> {
+        let value = match definition {
+            Some(definition) => CompiledDialectDefinition::compile(definition.rust())
+                .map_err(|error| InvalidInputError::new_err(error.to_string()))?,
+            None => CompiledDialectDefinition::default(),
+        };
+        Ok(Self::from_rust(value))
+    }
+
+    /// Return the immutable compiled dialect entries.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn entries(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let values = self
+            .value
+            .get()
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| compiled_entry_to_python(py, self.value.clone(), index, entry))
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+}
+
+#[invariant(index < owner.get().entries.len())]
+#[derive(Debug, Clone)]
+struct CompiledEntryHandle {
+    owner: CompiledDialectStorage,
+    index: usize,
+}
+
+impl PartialEq for CompiledEntryHandle {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for CompiledEntryHandle {}
+
+impl CompiledEntryHandle {
+    #[requires(index < owner.get().entries.len())]
+    #[ensures(ret.index == index)]
+    fn new(owner: CompiledDialectStorage, index: usize) -> Self {
+        new!(CompiledEntryHandle { owner, index })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &CompiledDialectEntry {
+        &self.owner.get().entries[self.index]
+    }
+}
+
+/// Compiled dialect entry swapping two parsed words.
+#[invariant(matches!(handle.get().as_data(), data!(CompiledDialectEntry::Swap { .. })))]
+#[pyclass(
+    name = "CompiledDialectSwap",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCompiledDialectSwap {
+    handle: CompiledEntryHandle,
+}
+
+#[pymethods]
+impl PyCompiledDialectSwap {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("left", "right");
+
+    /// Return the first parsed word in the swap.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn left(&self) -> PyCompiledDialectWord {
+        PyCompiledDialectWord::new(CompiledWordHandle::new(
+            self.handle.clone(),
+            new!(CompiledWordSlot::SwapLeft),
+        ))
+    }
+
+    /// Return the second parsed word in the swap.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn right(&self) -> PyCompiledDialectWord {
+        PyCompiledDialectWord::new(CompiledWordHandle::new(
+            self.handle.clone(),
+            new!(CompiledWordSlot::SwapRight),
+        ))
+    }
+}
+
+/// Compiled dialect entry expanding one parsed word into a sequence.
+#[invariant(matches!(handle.get().as_data(), data!(CompiledDialectEntry::Expansion { .. })))]
+#[pyclass(
+    name = "CompiledDialectExpansion",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCompiledDialectExpansion {
+    handle: CompiledEntryHandle,
+}
+
+#[pymethods]
+impl PyCompiledDialectExpansion {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("source", "replacement");
+
+    /// Return the parsed source word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source(&self) -> PyCompiledDialectWord {
+        PyCompiledDialectWord::new(CompiledWordHandle::new(
+            self.handle.clone(),
+            new!(CompiledWordSlot::ExpansionSource),
+        ))
+    }
+
+    /// Return the immutable parsed replacement words.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn replacement(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let data!(CompiledDialectEntry::Expansion { replacement, .. }) =
+            self.handle.get().as_data()
+        else {
+            unreachable!("wrapper invariant fixes the compiled dialect entry variant")
+        };
+        let values = (0..replacement.len()).map(|index| {
+            PyCompiledDialectWord::new(CompiledWordHandle::new(
+                self.handle.clone(),
+                new!(CompiledWordSlot::ExpansionReplacement { index }),
+            ))
+        });
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+}
+
+#[invariant(::SwapLeft => true)]
+#[invariant(::SwapRight => true)]
+#[invariant(::ExpansionSource => true)]
+#[invariant(
+    ::ExpansionReplacement { .. } => true,
+    "replacement bounds are contextual to the enclosing compiled entry handle"
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompiledWordSlot {
+    SwapLeft,
+    SwapRight,
+    ExpansionSource,
+    ExpansionReplacement { index: usize },
+}
+
+#[invariant(compiled_word_handle_resolves(entry.get(), *slot))]
+#[derive(Debug, Clone)]
+struct CompiledWordHandle {
+    entry: CompiledEntryHandle,
+    slot: CompiledWordSlot,
+}
+
+impl PartialEq for CompiledWordHandle {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for CompiledWordHandle {}
+
+impl CompiledWordHandle {
+    #[requires(compiled_word_handle_resolves(entry.get(), slot))]
+    #[ensures(compiled_word_handle_resolves(ret.entry.get(), ret.slot))]
+    fn new(entry: CompiledEntryHandle, slot: CompiledWordSlot) -> Self {
+        new!(CompiledWordHandle { entry, slot })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &CompiledDialectWord {
+        match (self.entry.get().as_data(), self.slot.as_data()) {
+            (data!(CompiledDialectEntry::Swap { left, .. }), data!(CompiledWordSlot::SwapLeft)) => {
+                left
+            }
+            (
+                data!(CompiledDialectEntry::Swap { right, .. }),
+                data!(CompiledWordSlot::SwapRight),
+            ) => right,
+            (
+                data!(CompiledDialectEntry::Expansion { source, .. }),
+                data!(CompiledWordSlot::ExpansionSource),
+            ) => source,
+            (
+                data!(CompiledDialectEntry::Expansion { replacement, .. }),
+                data!(CompiledWordSlot::ExpansionReplacement { index }),
+            ) => &replacement[*index],
+            _ => unreachable!("compiled-word handle is valid by construction"),
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compiled_word_handle_resolves(entry: &CompiledDialectEntry, slot: CompiledWordSlot) -> bool {
+    match (entry.as_data(), slot.as_data()) {
+        (
+            data!(CompiledDialectEntry::Swap { .. }),
+            data!(CompiledWordSlot::SwapLeft) | data!(CompiledWordSlot::SwapRight),
+        )
+        | (
+            data!(CompiledDialectEntry::Expansion { .. }),
+            data!(CompiledWordSlot::ExpansionSource),
+        ) => true,
+        (
+            data!(CompiledDialectEntry::Expansion { replacement, .. }),
+            data!(CompiledWordSlot::ExpansionReplacement { index }),
+        ) => *index < replacement.len(),
+        _ => false,
+    }
+}
+
+/// Parsed word and syntax key stored in a compiled dialect entry.
+#[invariant(true, "the handle always projects a validated compiled dialect word")]
+#[pyclass(
+    name = "CompiledDialectWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCompiledDialectWord {
+    handle: CompiledWordHandle,
+}
+
+impl PyCompiledDialectWord {
+    #[requires(true)]
+    #[ensures(true)]
+    fn new(handle: CompiledWordHandle) -> Self {
+        Self { handle }
+    }
+}
+
+#[pymethods]
+impl PyCompiledDialectWord {
+    /// Return the parsed morphology word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(py, WordHandle::from_compiled(self.handle.clone()))
+    }
+
+    /// Return the word's syntax identity key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn key(&self) -> PyWordKey {
+        PyWordKey::from_rust(self.handle.get().key.clone())
+    }
+}
+
+#[requires(index < owner.entries.len())]
+#[ensures(true)]
+fn compiled_entry_to_python(
+    py: Python<'_>,
+    owner: CompiledDialectStorage,
+    index: usize,
+    entry: &CompiledDialectEntry,
+) -> PyResult<Py<PyAny>> {
+    let handle = CompiledEntryHandle::new(owner, index);
+    match entry.as_data() {
+        data!(CompiledDialectEntry::Swap { .. }) => {
+            Ok(Py::new(py, new!(PyCompiledDialectSwap { handle }))?.into_any())
+        }
+        data!(CompiledDialectEntry::Expansion { .. }) => {
+            Ok(Py::new(py, new!(PyCompiledDialectExpansion { handle }))?.into_any())
+        }
+    }
+}
+
+/// Complete immutable configuration for morphology operations.
+#[invariant(value.max_recovery_errors.get() > 0)]
+#[pyclass(
+    name = "MorphologyOptions",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyMorphologyOptions {
+    value: Arc<MorphologyOptions>,
+}
+
+impl PyMorphologyOptions {
+    #[requires(value.max_recovery_errors.get() > 0)]
+    #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
+    fn from_rust(value: MorphologyOptions) -> Self {
+        new!(PyMorphologyOptions {
+            value: Arc::new(value),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.as_ref())]
+    fn rust(&self) -> &MorphologyOptions {
+        self.value.as_ref()
+    }
+}
+
+#[pymethods]
+impl PyMorphologyOptions {
+    /// Construct morphology options and validate the non-zero recovery limit.
+    #[allow(clippy::too_many_arguments)]
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (*, accept_latin=true, accept_cyrillic=true, accept_zbalermorna=true, dialect=None, cmevla_as_relation_words=false, permissive_lexer=false, uppercase_marks_stress=true, max_recovery_errors=20, trace=None))]
+    fn new(
+        accept_latin: bool,
+        accept_cyrillic: bool,
+        accept_zbalermorna: bool,
+        dialect: Option<PyRef<'_, PyDialectDefinition>>,
+        cmevla_as_relation_words: bool,
+        permissive_lexer: bool,
+        uppercase_marks_stress: bool,
+        max_recovery_errors: usize,
+        trace: Option<PyRef<'_, PyTraceOptions>>,
+    ) -> PyResult<Self> {
+        let max_recovery_errors = NonZeroUsize::new(max_recovery_errors).ok_or_else(|| {
+            InvalidInputError::new_err("max_recovery_errors must be greater than zero")
+        })?;
+        let mut value = new!(MorphologyOptions {
+            accept_latin,
+            accept_cyrillic,
+            accept_zbalermorna,
+            compiled_dialect: CompiledDialectDefinition::default(),
+            cmevla_as_relation_words,
+            permissive_lexer,
+            uppercase_marks_stress,
+            max_recovery_errors,
+            trace: trace
+                .as_ref()
+                .map_or_else(jbotci_diagnostics::TraceOptions::disabled, |trace| trace
+                    .rust()
+                    .clone()),
+        });
+        if let Some(dialect) = dialect {
+            value = value
+                .try_with_dialect_definition(dialect.rust())
+                .map_err(|error| InvalidInputError::new_err(error.to_string()))?;
+        }
+        Ok(Self::from_rust(value))
+    }
+
+    /// Return the complete Rust default morphology options.
+    #[requires(true)]
+    #[ensures(true)]
+    #[staticmethod]
+    fn default() -> Self {
+        Self::from_rust(MorphologyOptions::default())
+    }
+
+    /// Return a copy using an already compiled morphology dialect.
+    #[requires(true)]
+    #[ensures(ret.value.compiled_dialect.entries.len() == dialect.value.get().entries.len())]
+    fn with_compiled_dialect(&self, dialect: PyRef<'_, PyCompiledDialectDefinition>) -> Self {
+        Self::from_rust(self.value.as_ref().clone().with_data(data! {
+            compiled_dialect: dialect.rust().clone(),
+        }))
+    }
+
+    /// Return a copy compiled from the supplied declarative dialect definition.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|options| options.value.compiled_dialect.entries.len() == dialect.value.cmavo_entries.len()) || ret.is_err())]
+    fn with_dialect(&self, dialect: PyRef<'_, PyDialectDefinition>) -> PyResult<Self> {
+        self.value
+            .as_ref()
+            .clone()
+            .try_with_dialect_definition(dialect.rust())
+            .map(Self::from_rust)
+            .map_err(|error| InvalidInputError::new_err(error.to_string()))
+    }
+
+    /// Return a copy using the supplied immutable trace options.
+    #[requires(true)]
+    #[ensures(ret.value.trace == trace.value)]
+    fn with_trace(&self, trace: PyRef<'_, PyTraceOptions>) -> Self {
+        Self::from_rust(
+            self.value
+                .as_ref()
+                .clone()
+                .with_trace_options(trace.rust().clone()),
+        )
+    }
+
+    /// Return a copy with a validated non-zero recovery error limit.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|options| options.value.max_recovery_errors.get() == max_recovery_errors) || ret.is_err())]
+    fn with_max_recovery_errors(&self, max_recovery_errors: usize) -> PyResult<Self> {
+        if max_recovery_errors == 0 {
+            return Err(InvalidInputError::new_err(
+                "max_recovery_errors must be greater than zero",
+            ));
+        }
+        Ok(Self::from_rust(
+            self.value
+                .as_ref()
+                .clone()
+                .with_max_recovery_errors(max_recovery_errors),
+        ))
+    }
+
+    /// Report whether Latin orthography is accepted.
+    #[requires(true)]
+    #[ensures(ret == self.value.accept_latin)]
+    #[getter]
+    fn accept_latin(&self) -> bool {
+        self.value.accept_latin
+    }
+
+    /// Report whether Cyrillic orthography is accepted.
+    #[requires(true)]
+    #[ensures(ret == self.value.accept_cyrillic)]
+    #[getter]
+    fn accept_cyrillic(&self) -> bool {
+        self.value.accept_cyrillic
+    }
+
+    /// Report whether zbalermorna orthography is accepted.
+    #[requires(true)]
+    #[ensures(ret == self.value.accept_zbalermorna)]
+    #[getter]
+    fn accept_zbalermorna(&self) -> bool {
+        self.value.accept_zbalermorna
+    }
+
+    /// Return the parser-ready compiled morphology dialect.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn compiled_dialect(&self) -> PyCompiledDialectDefinition {
+        PyCompiledDialectDefinition::from_options(Arc::clone(&self.value))
+    }
+
+    /// Report whether cmevla are accepted as relation words.
+    #[requires(true)]
+    #[ensures(ret == self.value.cmevla_as_relation_words)]
+    #[getter]
+    fn cmevla_as_relation_words(&self) -> bool {
+        self.value.cmevla_as_relation_words
+    }
+
+    /// Report whether permissive lexer recovery is enabled.
+    #[requires(true)]
+    #[ensures(ret == self.value.permissive_lexer)]
+    #[getter]
+    fn permissive_lexer(&self) -> bool {
+        self.value.permissive_lexer
+    }
+
+    /// Report whether uppercase letters mark stress.
+    #[requires(true)]
+    #[ensures(ret == self.value.uppercase_marks_stress)]
+    #[getter]
+    fn uppercase_marks_stress(&self) -> bool {
+        self.value.uppercase_marks_stress
+    }
+
+    /// Return the non-zero maximum recovered-error count.
+    #[requires(true)]
+    #[ensures(ret == self.value.max_recovery_errors.get())]
+    #[getter]
+    fn max_recovery_errors(&self) -> usize {
+        self.value.max_recovery_errors.get()
+    }
+
+    /// Return the immutable trace configuration.
+    #[requires(true)]
+    #[ensures(ret.value == self.value.trace)]
+    #[getter]
+    fn trace(&self) -> PyTraceOptions {
+        PyTraceOptions::from_rust(self.value.trace.clone())
+    }
+}
+
+#[invariant(::LerfuBase => true)]
+#[invariant(::ZeiLeft => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WordLikeStep {
+    LerfuBase,
+    ZeiLeft,
+}
+
+#[invariant(word_like_path_resolves(root.as_ref(), steps))]
+#[derive(Debug, Clone)]
+pub(crate) struct WordLikeHandle {
+    root: Arc<WordLike>,
+    steps: Vec<WordLikeStep>,
+}
+
+impl PartialEq for WordLikeHandle {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for WordLikeHandle {}
+
+impl WordLikeHandle {
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    fn root(value: WordLike) -> Self {
+        new!(WordLikeHandle {
+            root: Arc::new(value),
+            steps: Vec::new(),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    fn from_arc(root: Arc<WordLike>) -> Self {
+        new!(WordLikeHandle {
+            root,
+            steps: Vec::new(),
+        })
+    }
+
+    #[requires(word_like_step_resolves(self.get(), step))]
+    #[ensures(ret.steps.len() == self.steps.len() + 1)]
+    fn child(&self, step: WordLikeStep) -> Self {
+        let mut steps = self.steps.clone();
+        steps.push(step);
+        new!(WordLikeHandle {
+            root: Arc::clone(&self.root),
+            steps,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn get(&self) -> &WordLike {
+        project_word_like(self.root.as_ref(), &self.steps)
+            .expect("word-like handle is valid by construction")
+    }
+
+    /// Materialize the projected Rust subtree for an owned parser input.
+    ///
+    /// Python values and their children otherwise retain the shared root and typed path. The
+    /// future syntax binding should localize its unavoidable owned parser-input clone here instead
+    /// of reconstructing a `WordLike` through Python fields or serialized data.
+    #[requires(true)]
+    #[ensures(ret == self.get().clone())]
+    pub(crate) fn into_owned(self) -> WordLike {
+        self.get().clone()
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == word_like_path_resolves(root, steps))]
+fn project_word_like<'a>(root: &'a WordLike, steps: &[WordLikeStep]) -> Option<&'a WordLike> {
+    let mut current = root;
+    for step in steps {
+        current = match (current.as_data(), step) {
+            (data!(WordLike::LerfuWord { base, .. }), WordLikeStep::LerfuBase) => base,
+            (data!(WordLike::ZeiCompound { left, .. }), WordLikeStep::ZeiLeft) => left,
+            _ => return None,
+        };
+    }
+    Some(current)
+}
+
+#[requires(true)]
+#[ensures(ret == project_word_like(root, steps).is_some())]
+fn word_like_path_resolves(root: &WordLike, steps: &[WordLikeStep]) -> bool {
+    project_word_like(root, steps).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_step_resolves(value: &WordLike, step: WordLikeStep) -> bool {
+    matches!(
+        (value.as_data(), step),
+        (data!(WordLike::LerfuWord { .. }), WordLikeStep::LerfuBase)
+            | (data!(WordLike::ZeiCompound { .. }), WordLikeStep::ZeiLeft)
+    )
+}
+
+#[invariant(::Plain => true)]
+#[invariant(::QuotedMarker => true)]
+#[invariant(::QuotedWord => true)]
+#[invariant(::SelmahoMarker => true)]
+#[invariant(::SelmahoWord => true)]
+#[invariant(::ZoiMarker => true)]
+#[invariant(::ZoiOpeningDelimiter => true)]
+#[invariant(::ZoiClosingDelimiter => true)]
+#[invariant(::LohuMarker => true)]
+#[invariant(::QuotedWordsWord { .. } => true)]
+#[invariant(::LehuMarker => true)]
+#[invariant(::DelimitedWordMarker => true)]
+#[invariant(::BuSuffix => true)]
+#[invariant(::ZeiLink => true)]
+#[invariant(::ZeiRight => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WordSlot {
+    Plain,
+    QuotedMarker,
+    QuotedWord,
+    SelmahoMarker,
+    SelmahoWord,
+    ZoiMarker,
+    ZoiOpeningDelimiter,
+    ZoiClosingDelimiter,
+    LohuMarker,
+    QuotedWordsWord { index: usize },
+    LehuMarker,
+    DelimitedWordMarker,
+    BuSuffix,
+    ZeiLink,
+    ZeiRight,
+}
+
+#[invariant(::WordLike { node, slot } => word_slot_resolves(node.get(), *slot))]
+#[invariant(::Compiled { .. } => true, "compiled-word validity is carried by its typed handle")]
+#[derive(Debug, Clone)]
+enum WordHandle {
+    WordLike {
+        node: WordLikeHandle,
+        slot: WordSlot,
+    },
+    Compiled {
+        handle: CompiledWordHandle,
+    },
+}
+
+impl WordHandle {
+    #[requires(true)]
+    #[expensive_ensures(ret.get() == &old(word.clone()))]
+    fn from_owned(word: Word) -> Self {
+        new!(WordHandle::WordLike {
+            node: WordLikeHandle::root(WordLike::bare(word)),
+            slot: new!(WordSlot::Plain),
+        })
+    }
+
+    #[requires(word_slot_resolves(node.get(), slot))]
+    #[ensures(true)]
+    fn new(node: WordLikeHandle, slot: WordSlot) -> Self {
+        new!(WordHandle::WordLike { node, slot })
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(WordHandle::Compiled { .. })))]
+    fn from_compiled(handle: CompiledWordHandle) -> Self {
+        new!(WordHandle::Compiled { handle })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn get(&self) -> &Word {
+        match self.as_data() {
+            data!(WordHandle::WordLike { node, slot }) => {
+                project_word(node.get(), *slot).expect("word handle is valid by construction")
+            }
+            data!(WordHandle::Compiled { handle }) => &handle.get().word,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.get().clone())]
+    fn clone_rust(&self) -> Word {
+        self.get().clone()
+    }
+}
+
+impl PartialEq for WordHandle {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for WordHandle {}
+
+#[requires(true)]
+#[ensures(ret.is_some() == word_slot_resolves(value, slot))]
+fn project_word(value: &WordLike, slot: WordSlot) -> Option<&Word> {
+    match (value.as_data(), slot.as_data()) {
+        (data!(WordLike::PlainWord(word)), data!(WordSlot::Plain)) => Some(word),
+        (data!(WordLike::QuotedWord { zo, .. }), data!(WordSlot::QuotedMarker)) => Some(zo),
+        (data!(WordLike::QuotedWord { word, .. }), data!(WordSlot::QuotedWord)) => Some(word),
+        (data!(WordLike::SelmahoQuotedWord { mahoi, .. }), data!(WordSlot::SelmahoMarker)) => {
+            Some(mahoi)
+        }
+        (data!(WordLike::SelmahoQuotedWord { word, .. }), data!(WordSlot::SelmahoWord)) => {
+            Some(word)
+        }
+        (data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }), data!(WordSlot::ZoiMarker)) => {
+            Some(zoi)
+        }
+        (
+            data!(WordLike::DelimitedNonLojbanQuote {
+                opening_delimiter,
+                ..
+            }),
+            data!(WordSlot::ZoiOpeningDelimiter),
+        ) => Some(opening_delimiter),
+        (
+            data!(WordLike::DelimitedNonLojbanQuote {
+                closing_delimiter,
+                ..
+            }),
+            data!(WordSlot::ZoiClosingDelimiter),
+        ) => Some(closing_delimiter),
+        (data!(WordLike::QuotedWords { lohu, .. }), data!(WordSlot::LohuMarker)) => Some(lohu),
+        (
+            data!(WordLike::QuotedWords { quoted_words, .. }),
+            data!(WordSlot::QuotedWordsWord { index }),
+        ) => quoted_words.get(*index),
+        (data!(WordLike::QuotedWords { lehu, .. }), data!(WordSlot::LehuMarker)) => Some(lehu),
+        (
+            data!(WordLike::DelimitedWordQuote { marker, .. }),
+            data!(WordSlot::DelimitedWordMarker),
+        ) => Some(marker),
+        (data!(WordLike::LerfuWord { bu, .. }), data!(WordSlot::BuSuffix)) => Some(bu),
+        (data!(WordLike::ZeiCompound { zei, .. }), data!(WordSlot::ZeiLink)) => Some(zei),
+        (data!(WordLike::ZeiCompound { right, .. }), data!(WordSlot::ZeiRight)) => Some(right),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == project_word(value, slot).is_some())]
+fn word_slot_resolves(value: &WordLike, slot: WordSlot) -> bool {
+    project_word(value, slot).is_some()
+}
+
+#[invariant(index < word.get().lujvo_parts().map_or(0, |parts| parts.len()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LocatedLujvoPart {
+    word: WordHandle,
+    index: usize,
+}
+
+impl LocatedLujvoPart {
+    #[requires(index < word.get().lujvo_parts().map_or(0, |parts| parts.len()))]
+    #[ensures(ret.index == index)]
+    fn new(word: WordHandle, index: usize) -> Self {
+        new!(LocatedLujvoPart { word, index })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &LujvoPart {
+        &self
+            .word
+            .get()
+            .lujvo_parts()
+            .expect("located lujvo part belongs to a lujvo")[self.index]
+    }
+}
+
+#[invariant(::Owned { .. } => true)]
+#[invariant(::Located { .. } => true)]
+#[derive(Debug, Clone)]
+enum LujvoPartStorage {
+    Owned { value: Arc<LujvoPart> },
+    Located { handle: LocatedLujvoPart },
+}
+
+impl PartialEq for LujvoPartStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for LujvoPartStorage {}
+
+impl LujvoPartStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &LujvoPart {
+        match self.as_data() {
+            data!(LujvoPartStorage::Owned { value }) => value.as_ref(),
+            data!(LujvoPartStorage::Located { handle }) => handle.get(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.get().clone())]
+    fn clone_rust(&self) -> LujvoPart {
+        self.get().clone()
+    }
+}
+
+/// Rafsi component of a parsed lujvo.
+#[invariant(matches!(value.get(), LujvoPart::Rafsi(_)))]
+#[pyclass(
+    name = "LujvoRafsi",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLujvoRafsi {
+    value: LujvoPartStorage,
+}
+
+#[pymethods]
+impl PyLujvoRafsi {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("phonemes",);
+
+    /// Construct a rafsi lujvo part from canonical phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[new]
+    fn new(phonemes: PyRef<'_, PyPhonemes>) -> Self {
+        new!(PyLujvoRafsi {
+            value: new!(LujvoPartStorage::Owned {
+                value: Arc::new(LujvoPart::rafsi(phonemes.clone_rust())),
+            }),
+        })
+    }
+
+    /// Return the rafsi phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        PyPhonemes::from_rust(self.value.get().phonemes().clone())
+    }
+}
+
+/// Hyphen component of a parsed lujvo.
+#[invariant(matches!(value.get(), LujvoPart::Hyphen(_)))]
+#[pyclass(
+    name = "LujvoHyphen",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLujvoHyphen {
+    value: LujvoPartStorage,
+}
+
+#[pymethods]
+impl PyLujvoHyphen {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("phonemes",);
+
+    /// Construct a hyphen lujvo part from canonical phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[new]
+    fn new(phonemes: PyRef<'_, PyPhonemes>) -> Self {
+        new!(PyLujvoHyphen {
+            value: new!(LujvoPartStorage::Owned {
+                value: Arc::new(LujvoPart::hyphen(phonemes.clone_rust())),
+            }),
+        })
+    }
+
+    /// Return the hyphen phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        PyPhonemes::from_rust(self.value.get().phonemes().clone())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoPart> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyLujvoRafsi>>() {
+        return Ok(value.value.clone_rust());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyLujvoHyphen>>() {
+        return Ok(value.value.clone_rust());
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected jbotci.morphology.LujvoRafsi or LujvoHyphen",
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_part_to_python(py: Python<'_>, handle: LocatedLujvoPart) -> PyResult<Py<PyAny>> {
+    let value = new!(LujvoPartStorage::Located { handle });
+    match value.get() {
+        LujvoPart::Rafsi(_) => Ok(Py::new(py, new!(PyLujvoRafsi { value }))?.into_any()),
+        LujvoPart::Hyphen(_) => Ok(Py::new(py, new!(PyLujvoHyphen { value }))?.into_any()),
+    }
+}
+
+#[invariant(::ZoiQuotedText => true)]
+#[invariant(::DelimitedWordQuotedText => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VerbatimSlot {
+    ZoiQuotedText,
+    DelimitedWordQuotedText,
+}
+
+#[invariant(verbatim_slot_resolves(node.get(), *slot))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LocatedVerbatim {
+    node: WordLikeHandle,
+    slot: VerbatimSlot,
+}
+
+impl LocatedVerbatim {
+    #[requires(verbatim_slot_resolves(node.get(), slot))]
+    #[ensures(true)]
+    fn new(node: WordLikeHandle, slot: VerbatimSlot) -> Self {
+        new!(LocatedVerbatim { node, slot })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &Verbatim {
+        project_verbatim(self.node.get(), self.slot)
+            .expect("verbatim handle is valid by construction")
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == verbatim_slot_resolves(value, slot))]
+fn project_verbatim(value: &WordLike, slot: VerbatimSlot) -> Option<&Verbatim> {
+    match (value.as_data(), slot) {
+        (
+            data!(WordLike::DelimitedNonLojbanQuote { quoted_text, .. }),
+            VerbatimSlot::ZoiQuotedText,
+        )
+        | (
+            data!(WordLike::DelimitedWordQuote { quoted_text, .. }),
+            VerbatimSlot::DelimitedWordQuotedText,
+        ) => Some(quoted_text),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == project_verbatim(value, slot).is_some())]
+fn verbatim_slot_resolves(value: &WordLike, slot: VerbatimSlot) -> bool {
+    project_verbatim(value, slot).is_some()
+}
+
+#[invariant(::Owned { value } => value.span.char_len() == value.text.chars().count())]
+#[invariant(::Located { .. } => true)]
+#[derive(Debug, Clone)]
+enum VerbatimStorage {
+    Owned { value: Arc<Verbatim> },
+    Located { handle: LocatedVerbatim },
+}
+
+impl PartialEq for VerbatimStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for VerbatimStorage {}
+
+impl VerbatimStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &Verbatim {
+        match self.as_data() {
+            data!(VerbatimStorage::Owned { value }) => value.as_ref(),
+            data!(VerbatimStorage::Located { handle }) => handle.get(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.get().clone())]
+    fn clone_rust(&self) -> Verbatim {
+        self.get().clone()
+    }
+}
+
+/// Exact verbatim source text paired with its source span.
+#[invariant(value.get().span.char_len() == value.get().text.chars().count())]
+#[pyclass(
+    name = "Verbatim",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyVerbatim {
+    value: VerbatimStorage,
+}
+
+impl PyVerbatim {
+    #[requires(true)]
+    #[ensures(true)]
+    fn located(handle: LocatedVerbatim) -> Self {
+        new!(PyVerbatim {
+            value: new!(VerbatimStorage::Located { handle }),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.value.get())]
+    pub(crate) fn rust(&self) -> &Verbatim {
+        self.value.get()
+    }
+}
+
+#[pymethods]
+impl PyVerbatim {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("span", "text");
+
+    /// Construct exact verbatim text whose scalar length matches its span.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(span: PyRef<'_, PySourceSpan>, text: String) -> PyResult<Self> {
+        if span.rust().char_len() != text.chars().count() {
+            return Err(InvalidInputError::new_err(
+                "verbatim text character count must equal span.char_length",
+            ));
+        }
+        Ok(new!(PyVerbatim {
+            value: new!(VerbatimStorage::Owned {
+                value: Arc::new(Verbatim::new(span.clone_rust(), text)),
+            }),
+        }))
+    }
+
+    /// Return the verbatim source span.
+    #[requires(true)]
+    #[ensures(ret.value.char_start == self.value.get().span.char_start)]
+    #[getter]
+    fn span(&self) -> PySourceSpan {
+        PySourceSpan::from_rust(self.value.get().span.as_ref().clone())
+    }
+
+    /// Return the exact verbatim source text.
+    #[requires(true)]
+    #[ensures(ret == self.value.get().text.as_str())]
+    #[getter]
+    fn text(&self) -> &str {
+        &self.value.get().text
+    }
+}
+
+#[requires(span.char_len() > 0)]
+#[ensures(ret.kind() == kind)]
+fn plain_word(kind: WordKind, phonemes: &PyPhonemes, span: &PySourceSpan) -> WordHandle {
+    WordHandle::from_owned(Word::from_kind(
+        kind,
+        phonemes.clone_rust(),
+        span.clone_rust(),
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_nonempty_word_span(span: &PySourceSpan) -> PyResult<()> {
+    if span.rust().char_len() == 0 {
+        Err(InvalidInputError::new_err(
+            "word source span must contain at least one character",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_kind_to_python(py: Python<'_>, handle: &WordHandle) -> PyResult<Py<PyAny>> {
+    enum_to_python(py, handle.get().kind())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_phonemes(handle: &WordHandle) -> PyPhonemes {
+    PyPhonemes::from_rust(handle.get().phonemes())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_span(handle: &WordHandle) -> PySourceSpan {
+    PySourceSpan::from_rust(handle.get().span().clone())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_key(handle: &WordHandle) -> PyWordKey {
+    PyWordKey::from_rust(handle.get().key())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn word_canonical_phonemes(handle: &WordHandle) -> String {
+    handle.get().canonical_phonemes()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_cmavo(py: Python<'_>, handle: &WordHandle) -> PyResult<Option<Py<PyAny>>> {
+    handle
+        .get()
+        .cmavo()
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_selmaho(py: Python<'_>, handle: &WordHandle) -> PyResult<Option<Py<PyAny>>> {
+    handle
+        .get()
+        .selmaho_kind()
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_is_cmavo(py: Python<'_>, handle: &WordHandle, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(handle.get().is_cmavo(enum_from_python(py, cmavo)?))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_is_selmaho(
+    py: Python<'_>,
+    handle: &WordHandle,
+    selmaho: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(handle.get().is_selmaho(enum_from_python(py, selmaho)?))
+}
+
+/// Parsed cmavo word with canonical phonemes and provenance.
+#[invariant(handle.get().kind() == WordKind::Cmavo)]
+#[pyclass(
+    name = "CmavoWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCmavoWord {
+    handle: WordHandle,
+}
+
+#[pymethods]
+impl PyCmavoWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("phonemes", "span");
+    /// Construct a cmavo word with canonical phonemes and a non-empty span.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
+        validate_nonempty_word_span(&span)?;
+        Ok(new!(PyCmavoWord {
+            handle: plain_word(WordKind::Cmavo, &phonemes, &span),
+        }))
+    }
+    /// Return the cmavo word kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_kind_to_python(py, &self.handle)
+    }
+    /// Return the canonical word phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        word_phonemes(&self.handle)
+    }
+    /// Return the source span.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn span(&self) -> PySourceSpan {
+        word_span(&self.handle)
+    }
+    /// Return the syntax identity key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn key(&self) -> PyWordKey {
+        word_key(&self.handle)
+    }
+    /// Return canonical phoneme text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn canonical_phonemes(&self) -> String {
+        word_canonical_phonemes(&self.handle)
+    }
+    /// Return the exact cmavo identity when recognized.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn cmavo(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_cmavo(py, &self.handle)
+    }
+    /// Return the primary selma'o when defined.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn selmaho(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_selmaho(py, &self.handle)
+    }
+    /// Test exact cmavo identity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_cmavo(&self, py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_cmavo(py, &self.handle, cmavo)
+    }
+    /// Test selma'o membership.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_selmaho(&self, py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_selmaho(py, &self.handle, selmaho)
+    }
+}
+
+/// Parsed gismu word with canonical phonemes and provenance.
+#[invariant(handle.get().kind() == WordKind::Gismu)]
+#[pyclass(
+    name = "GismuWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyGismuWord {
+    handle: WordHandle,
+}
+
+#[pymethods]
+impl PyGismuWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("phonemes", "span");
+    /// Construct a gismu word with canonical phonemes and a non-empty span.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
+        validate_nonempty_word_span(&span)?;
+        Ok(new!(PyGismuWord {
+            handle: plain_word(WordKind::Gismu, &phonemes, &span),
+        }))
+    }
+    /// Return the word kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_kind_to_python(py, &self.handle)
+    }
+    /// Return the canonical word phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        word_phonemes(&self.handle)
+    }
+    /// Return the source span.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn span(&self) -> PySourceSpan {
+        word_span(&self.handle)
+    }
+    /// Return the syntax identity key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn key(&self) -> PyWordKey {
+        word_key(&self.handle)
+    }
+    /// Return canonical phoneme text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn canonical_phonemes(&self) -> String {
+        word_canonical_phonemes(&self.handle)
+    }
+    /// Return the exact cmavo identity when recognized.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn cmavo(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_cmavo(py, &self.handle)
+    }
+    /// Return the primary selma'o when defined.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn selmaho(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_selmaho(py, &self.handle)
+    }
+    /// Test exact cmavo identity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_cmavo(&self, py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_cmavo(py, &self.handle, cmavo)
+    }
+    /// Test selma'o membership.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_selmaho(&self, py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_selmaho(py, &self.handle, selmaho)
+    }
+}
+
+/// Parsed fu'ivla word with canonical phonemes and provenance.
+#[invariant(handle.get().kind() == WordKind::Fuhivla)]
+#[pyclass(
+    name = "FuhivlaWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyFuhivlaWord {
+    handle: WordHandle,
+}
+
+#[pymethods]
+impl PyFuhivlaWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("phonemes", "span");
+    /// Construct a fu'ivla word with canonical phonemes and a non-empty span.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
+        validate_nonempty_word_span(&span)?;
+        Ok(new!(PyFuhivlaWord {
+            handle: plain_word(WordKind::Fuhivla, &phonemes, &span),
+        }))
+    }
+    /// Return the word kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_kind_to_python(py, &self.handle)
+    }
+    /// Return the canonical word phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        word_phonemes(&self.handle)
+    }
+    /// Return the source span.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn span(&self) -> PySourceSpan {
+        word_span(&self.handle)
+    }
+    /// Return the syntax identity key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn key(&self) -> PyWordKey {
+        word_key(&self.handle)
+    }
+    /// Return canonical phoneme text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn canonical_phonemes(&self) -> String {
+        word_canonical_phonemes(&self.handle)
+    }
+    /// Return the exact cmavo identity when recognized.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn cmavo(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_cmavo(py, &self.handle)
+    }
+    /// Return the primary selma'o when defined.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn selmaho(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_selmaho(py, &self.handle)
+    }
+    /// Test exact cmavo identity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_cmavo(&self, py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_cmavo(py, &self.handle, cmavo)
+    }
+    /// Test selma'o membership.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_selmaho(&self, py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_selmaho(py, &self.handle, selmaho)
+    }
+}
+
+/// Parsed cmevla word with canonical phonemes and provenance.
+#[invariant(handle.get().kind() == WordKind::Cmevla)]
+#[pyclass(
+    name = "CmevlaWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyCmevlaWord {
+    handle: WordHandle,
+}
+
+#[pymethods]
+impl PyCmevlaWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("phonemes", "span");
+    /// Construct a cmevla word with canonical phonemes and a non-empty span.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(phonemes: PyRef<'_, PyPhonemes>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
+        validate_nonempty_word_span(&span)?;
+        Ok(new!(PyCmevlaWord {
+            handle: plain_word(WordKind::Cmevla, &phonemes, &span),
+        }))
+    }
+    /// Return the word kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_kind_to_python(py, &self.handle)
+    }
+    /// Return the canonical word phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        word_phonemes(&self.handle)
+    }
+    /// Return the source span.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn span(&self) -> PySourceSpan {
+        word_span(&self.handle)
+    }
+    /// Return the syntax identity key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn key(&self) -> PyWordKey {
+        word_key(&self.handle)
+    }
+    /// Return canonical phoneme text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn canonical_phonemes(&self) -> String {
+        word_canonical_phonemes(&self.handle)
+    }
+    /// Return the exact cmavo identity when recognized.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn cmavo(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_cmavo(py, &self.handle)
+    }
+    /// Return the primary selma'o when defined.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn selmaho(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_selmaho(py, &self.handle)
+    }
+    /// Test exact cmavo identity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_cmavo(&self, py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_cmavo(py, &self.handle, cmavo)
+    }
+    /// Test selma'o membership.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_selmaho(&self, py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_selmaho(py, &self.handle, selmaho)
+    }
+}
+
+/// Parsed lujvo word retaining its typed component sequence.
+#[invariant(handle.get().kind() == WordKind::Lujvo)]
+#[pyclass(
+    name = "LujvoWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLujvoWord {
+    handle: WordHandle,
+}
+
+#[pymethods]
+impl PyLujvoWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("parts", "span");
+    /// Construct a lujvo word from a non-empty typed part tuple and source span.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        parts: &Bound<'_, pyo3::types::PyTuple>,
+        span: PyRef<'_, PySourceSpan>,
+    ) -> PyResult<Self> {
+        validate_nonempty_word_span(&span)?;
+        let parts = parts
+            .iter()
+            .map(|part| lujvo_part_from_python(&part))
+            .collect::<PyResult<Vec<_>>>()?;
+        let parts = vec1::Vec1::try_from_vec(parts)
+            .map_err(|_| InvalidInputError::new_err("lujvo parts must not be empty"))?;
+        Ok(new!(PyLujvoWord {
+            handle: WordHandle::from_owned(Word::lujvo(parts, span.clone_rust())),
+        }))
+    }
+    /// Return the word kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_kind_to_python(py, &self.handle)
+    }
+    /// Return the canonical combined phonemes.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn phonemes(&self) -> PyPhonemes {
+        word_phonemes(&self.handle)
+    }
+    /// Return the source span.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn span(&self) -> PySourceSpan {
+        word_span(&self.handle)
+    }
+    /// Return the syntax identity key.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn key(&self) -> PyWordKey {
+        word_key(&self.handle)
+    }
+    /// Return canonical phoneme text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn canonical_phonemes(&self) -> String {
+        word_canonical_phonemes(&self.handle)
+    }
+    /// Return the exact cmavo identity when recognized.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn cmavo(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_cmavo(py, &self.handle)
+    }
+    /// Return the primary selma'o when defined.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn selmaho(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_selmaho(py, &self.handle)
+    }
+    /// Test exact cmavo identity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_cmavo(&self, py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_cmavo(py, &self.handle, cmavo)
+    }
+    /// Test selma'o membership.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_selmaho(&self, py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_is_selmaho(py, &self.handle, selmaho)
+    }
+    /// Return the immutable typed rafsi and hyphen part sequence.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn parts(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let count = self
+            .handle
+            .get()
+            .lujvo_parts()
+            .expect("wrapper invariant fixes word kind")
+            .len();
+        let values = (0..count)
+            .map(|index| {
+                lujvo_part_to_python(py, LocatedLujvoPart::new(self.handle.clone(), index))
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<WordHandle> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyCmavoWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyGismuWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyLujvoWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyFuhivlaWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyCmevlaWord>>() {
+        return Ok(value.handle.clone());
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected a jbotci.morphology Word variant",
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_to_python(py: Python<'_>, handle: WordHandle) -> PyResult<Py<PyAny>> {
+    match handle.get().kind() {
+        WordKind::Cmavo => Ok(Py::new(py, new!(PyCmavoWord { handle }))?.into_any()),
+        WordKind::Gismu => Ok(Py::new(py, new!(PyGismuWord { handle }))?.into_any()),
+        WordKind::Lujvo => Ok(Py::new(py, new!(PyLujvoWord { handle }))?.into_any()),
+        WordKind::Fuhivla => Ok(Py::new(py, new!(PyFuhivlaWord { handle }))?.into_any()),
+        WordKind::Cmevla => Ok(Py::new(py, new!(PyCmevlaWord { handle }))?.into_any()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_byte_range(handle: &WordLikeHandle) -> Option<(usize, usize)> {
+    handle
+        .get()
+        .byte_range()
+        .map(|range| (range.start, range.end))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_source_spans(
+    py: Python<'_>,
+    handle: &WordLikeHandle,
+) -> PyResult<Py<pyo3::types::PyTuple>> {
+    let values = handle
+        .get()
+        .source_spans()
+        .into_iter()
+        .cloned()
+        .map(PySourceSpan::from_rust);
+    crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_cmavo(py: Python<'_>, handle: &WordLikeHandle) -> PyResult<Option<Py<PyAny>>> {
+    handle
+        .get()
+        .cmavo()
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_is_cmavo(
+    py: Python<'_>,
+    handle: &WordLikeHandle,
+    cmavo: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(handle.get().is_cmavo(enum_from_python(py, cmavo)?))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_is_selmaho(
+    py: Python<'_>,
+    handle: &WordLikeHandle,
+    selmaho: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(handle.get().is_selmaho(enum_from_python(py, selmaho)?))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_str(handle: &WordLikeHandle) -> String {
+    handle.get().to_string()
+}
+
+/// Plain unquoted morphology word.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::PlainWord(_))))]
+#[pyclass(
+    name = "PlainWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyPlainWord {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyPlainWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("word",);
+    /// Construct a plain word-like variant from a parsed word.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(word: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(new!(PyPlainWord {
+            handle: WordLikeHandle::root(WordLike::bare(
+                word_handle_from_python(word)?.clone_rust(),
+            )),
+        }))
+    }
+    /// Return the contained parsed word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::Plain)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    /// Return the exact cmavo identity when this is a cmavo.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn cmavo(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        word_like_cmavo(py, &self.handle)
+    }
+    /// Test exact cmavo identity.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_cmavo(&self, py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_like_is_cmavo(py, &self.handle, cmavo)
+    }
+    /// Test selma'o membership.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_selmaho(&self, py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<bool> {
+        word_like_is_selmaho(py, &self.handle, selmaho)
+    }
+    /// Report whether the contained word is a brivla.
+    #[requires(true)]
+    #[ensures(ret == self.handle.get().is_brivla())]
+    fn is_brivla(&self) -> bool {
+        self.handle.get().is_brivla()
+    }
+    /// Report whether the contained word is a cmevla.
+    #[requires(true)]
+    #[ensures(ret == self.handle.get().is_cmevla())]
+    fn is_cmevla(&self) -> bool {
+        self.handle.get().is_cmevla()
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// `zo` single-word quotation with marker and quoted word.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::QuotedWord { .. })))]
+#[pyclass(
+    name = "QuotedWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyQuotedWord {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyQuotedWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("zo", "word");
+    /// Construct a validated `zo` quotation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(zo: &Bound<'_, PyAny>, word: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let zo = word_handle_from_python(zo)?.clone_rust();
+        if !zo.is_cmavo(Cmavo::Zo) {
+            return Err(InvalidInputError::new_err(
+                "QuotedWord.zo must be the cmavo zo",
+            ));
+        }
+        Ok(new!(PyQuotedWord {
+            handle: WordLikeHandle::root(WordLike::zo_quote(
+                zo,
+                word_handle_from_python(word)?.clone_rust(),
+            )),
+        }))
+    }
+    /// Return the `zo` marker word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn zo(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::QuotedMarker)),
+        )
+    }
+    /// Return the quoted parsed word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::QuotedWord)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// `ma'oi` selma'o quotation with marker and quoted word.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::SelmahoQuotedWord { .. })))]
+#[pyclass(
+    name = "SelmahoQuotedWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PySelmahoQuotedWord {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PySelmahoQuotedWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("mahoi", "word");
+    /// Construct a validated `ma'oi` selma'o quotation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(mahoi: &Bound<'_, PyAny>, word: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let mahoi = word_handle_from_python(mahoi)?.clone_rust();
+        if !mahoi.is_cmavo(Cmavo::Mahoi) {
+            return Err(InvalidInputError::new_err(
+                "SelmahoQuotedWord.mahoi must be the cmavo ma'oi",
+            ));
+        }
+        Ok(new!(PySelmahoQuotedWord {
+            handle: WordLikeHandle::root(WordLike::mahoi_quote(
+                mahoi,
+                word_handle_from_python(word)?.clone_rust(),
+            )),
+        }))
+    }
+    /// Return the `ma'oi` marker word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn mahoi(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::SelmahoMarker)),
+        )
+    }
+    /// Return the quoted parsed word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn word(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::SelmahoWord)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// Delimiter-based non-Lojban quotation with exact verbatim content.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::DelimitedNonLojbanQuote { .. })))]
+#[pyclass(
+    name = "DelimitedNonLojbanQuote",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyDelimitedNonLojbanQuote {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyDelimitedNonLojbanQuote {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str, &'static str) = (
+        "zoi",
+        "opening_delimiter",
+        "quoted_text",
+        "closing_delimiter",
+    );
+    /// Construct a validated delimiter-based non-Lojban quotation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        zoi: &Bound<'_, PyAny>,
+        opening_delimiter: &Bound<'_, PyAny>,
+        quoted_text: PyRef<'_, PyVerbatim>,
+        closing_delimiter: &Bound<'_, PyAny>,
+    ) -> PyResult<Self> {
+        let zoi = word_handle_from_python(zoi)?.clone_rust();
+        let opening = word_handle_from_python(opening_delimiter)?.clone_rust();
+        let closing = word_handle_from_python(closing_delimiter)?.clone_rust();
+        let verbatim = quoted_text.value.clone_rust();
+        if !zoi.is_selmaho(Selmaho::Zoi) {
+            return Err(InvalidInputError::new_err(
+                "zoi must be a delimiter-based non-Lojban quote opener",
+            ));
+        }
+        if !jbotci_morphology::canonical_text_eq(
+            opening.phonemes().as_str(),
+            closing.phonemes().as_str(),
+        ) {
+            return Err(InvalidInputError::new_err(
+                "opening and closing delimiters must be canonically equal",
+            ));
+        }
+        if opening.span().byte_end > verbatim.span.byte_start
+            || verbatim.span.byte_end > closing.span().byte_start
+        {
+            return Err(InvalidInputError::new_err(
+                "quote source spans must occur in input order",
+            ));
+        }
+        Ok(new!(PyDelimitedNonLojbanQuote {
+            handle: WordLikeHandle::root(WordLike::zoi_quote(zoi, opening, verbatim, closing)),
+        }))
+    }
+    /// Return the quotation marker word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn zoi(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiMarker)),
+        )
+    }
+    /// Return the opening delimiter word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn opening_delimiter(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiOpeningDelimiter)),
+        )
+    }
+    /// Return the exact verbatim quoted text.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn quoted_text(&self) -> PyVerbatim {
+        PyVerbatim::located(LocatedVerbatim::new(
+            self.handle.clone(),
+            VerbatimSlot::ZoiQuotedText,
+        ))
+    }
+    /// Return the closing delimiter word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn closing_delimiter(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZoiClosingDelimiter)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// `lo'u`/`le'u` quotation containing parsed word tokens.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::QuotedWords { .. })))]
+#[pyclass(
+    name = "QuotedWords",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyQuotedWords {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyQuotedWords {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("lohu", "quoted_words", "lehu");
+    /// Construct a validated `lo'u`/`le'u` parsed-word quotation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        lohu: &Bound<'_, PyAny>,
+        quoted_words: &Bound<'_, pyo3::types::PyTuple>,
+        lehu: &Bound<'_, PyAny>,
+    ) -> PyResult<Self> {
+        let lohu = word_handle_from_python(lohu)?.clone_rust();
+        let lehu = word_handle_from_python(lehu)?.clone_rust();
+        if !lohu.is_cmavo(Cmavo::Lohu) || !lehu.is_cmavo(Cmavo::Lehu) {
+            return Err(InvalidInputError::new_err(
+                "QuotedWords requires lo'u and le'u markers",
+            ));
+        }
+        let words = quoted_words
+            .iter()
+            .map(|word| word_handle_from_python(&word).map(|word| word.clone_rust()))
+            .collect::<PyResult<Vec<_>>>()?;
+        Ok(new!(PyQuotedWords {
+            handle: WordLikeHandle::root(WordLike::lohu_quote(lohu, words, lehu)),
+        }))
+    }
+    /// Return the `lo'u` marker word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn lohu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::LohuMarker)),
+        )
+    }
+    /// Return the immutable quoted parsed words.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn quoted_words(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let data!(WordLike::QuotedWords { quoted_words, .. }) = self.handle.get().as_data() else {
+            unreachable!("wrapper invariant fixes variant")
+        };
+        let values = (0..quoted_words.len())
+            .map(|index| {
+                word_to_python(
+                    py,
+                    WordHandle::new(
+                        self.handle.clone(),
+                        new!(WordSlot::QuotedWordsWord { index }),
+                    ),
+                )
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+    /// Return the `le'u` terminator word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn lehu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::LehuMarker)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// Single verbatim word quotation introduced by a quote marker.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::DelimitedWordQuote { .. })))]
+#[pyclass(
+    name = "DelimitedWordQuote",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyDelimitedWordQuote {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyDelimitedWordQuote {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("marker", "quoted_text");
+    /// Construct a validated single verbatim word quotation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(marker: &Bound<'_, PyAny>, quoted_text: PyRef<'_, PyVerbatim>) -> PyResult<Self> {
+        let marker = word_handle_from_python(marker)?.clone_rust();
+        if !marker
+            .cmavo()
+            .is_some_and(Cmavo::is_single_word_quote_opener)
+        {
+            return Err(InvalidInputError::new_err(
+                "marker must be a single-word quote opener",
+            ));
+        }
+        Ok(new!(PyDelimitedWordQuote {
+            handle: WordLikeHandle::root(WordLike::single_word_quote(
+                marker,
+                quoted_text.value.clone_rust(),
+            )),
+        }))
+    }
+    /// Return the quotation marker word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn marker(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::DelimitedWordMarker)),
+        )
+    }
+    /// Return the exact verbatim quoted word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn quoted_text(&self) -> PyVerbatim {
+        PyVerbatim::located(LocatedVerbatim::new(
+            self.handle.clone(),
+            VerbatimSlot::DelimitedWordQuotedText,
+        ))
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// `bu` letter word retaining its recursive base and suffix.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::LerfuWord { .. })))]
+#[pyclass(
+    name = "LerfuWord",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLerfuWord {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyLerfuWord {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("base", "bu");
+    /// Construct a validated recursive `bu` letter word.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(base: &Bound<'_, PyAny>, bu: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let base = extract_word_like(base)?.into_owned();
+        let bu = word_handle_from_python(bu)?.clone_rust();
+        if !bu.is_cmavo(Cmavo::Bu) {
+            return Err(InvalidInputError::new_err(
+                "LerfuWord.bu must be the cmavo bu",
+            ));
+        }
+        Ok(new!(PyLerfuWord {
+            handle: WordLikeHandle::root(WordLike::letter(base, bu)),
+        }))
+    }
+    /// Return the recursive letter base.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn base(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_like_to_python(py, self.handle.child(WordLikeStep::LerfuBase))
+    }
+    /// Return the `bu` suffix word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn bu(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::BuSuffix)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// `zei` compound retaining its recursive left operand, link, and right word.
+#[invariant(matches!(handle.get().as_data(), data!(WordLike::ZeiCompound { .. })))]
+#[pyclass(
+    name = "ZeiCompound",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyZeiCompound {
+    handle: WordLikeHandle,
+}
+
+#[pymethods]
+impl PyZeiCompound {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) = ("left", "zei", "right");
+    /// Construct a validated recursive `zei` compound.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        left: &Bound<'_, PyAny>,
+        zei: &Bound<'_, PyAny>,
+        right: &Bound<'_, PyAny>,
+    ) -> PyResult<Self> {
+        let left = extract_word_like(left)?.into_owned();
+        let zei = word_handle_from_python(zei)?.clone_rust();
+        if !zei.is_cmavo(Cmavo::Zei) {
+            return Err(InvalidInputError::new_err(
+                "ZeiCompound.zei must be the cmavo zei",
+            ));
+        }
+        Ok(new!(PyZeiCompound {
+            handle: WordLikeHandle::root(WordLike::zei_lujvo(
+                left,
+                zei,
+                word_handle_from_python(right)?.clone_rust(),
+            )),
+        }))
+    }
+    /// Return the recursive left operand.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_like_to_python(py, self.handle.child(WordLikeStep::ZeiLeft))
+    }
+    /// Return the `zei` link word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn zei(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZeiLink)),
+        )
+    }
+    /// Return the right operand word.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        word_to_python(
+            py,
+            WordHandle::new(self.handle.clone(), new!(WordSlot::ZeiRight)),
+        )
+    }
+    /// Return the combined half-open byte range when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn byte_range(&self) -> Option<(usize, usize)> {
+        word_like_byte_range(&self.handle)
+    }
+    /// Return every contributing source span in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_spans(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        word_like_source_spans(py, &self.handle)
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        word_like_str(&self.handle)
+    }
+}
+
+/// Extract a direct typed projection from any public Python `WordLike` variant.
+///
+/// The returned handle owns the immutable root through `Arc` and retains a typed path to a nested
+/// child, so it remains valid after the originating Python parent is deleted. This is the
+/// crate-private handoff for the future syntax binding and deliberately performs no serde round
+/// trip, field reconstruction, or recursive subtree clone.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn extract_word_like(value: &Bound<'_, PyAny>) -> PyResult<WordLikeHandle> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyPlainWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyQuotedWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PySelmahoQuotedWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyDelimitedNonLojbanQuote>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyQuotedWords>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyDelimitedWordQuote>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyLerfuWord>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyZeiCompound>>() {
+        return Ok(value.handle.clone());
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected a jbotci.morphology WordLike variant",
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_to_python(py: Python<'_>, handle: WordLikeHandle) -> PyResult<Py<PyAny>> {
+    match handle.get().as_data() {
+        data!(WordLike::PlainWord(_)) => Ok(Py::new(py, new!(PyPlainWord { handle }))?.into_any()),
+        data!(WordLike::QuotedWord { .. }) => {
+            Ok(Py::new(py, new!(PyQuotedWord { handle }))?.into_any())
+        }
+        data!(WordLike::SelmahoQuotedWord { .. }) => {
+            Ok(Py::new(py, new!(PySelmahoQuotedWord { handle }))?.into_any())
+        }
+        data!(WordLike::DelimitedNonLojbanQuote { .. }) => {
+            Ok(Py::new(py, new!(PyDelimitedNonLojbanQuote { handle }))?.into_any())
+        }
+        data!(WordLike::QuotedWords { .. }) => {
+            Ok(Py::new(py, new!(PyQuotedWords { handle }))?.into_any())
+        }
+        data!(WordLike::DelimitedWordQuote { .. }) => {
+            Ok(Py::new(py, new!(PyDelimitedWordQuote { handle }))?.into_any())
+        }
+        data!(WordLike::LerfuWord { .. }) => {
+            Ok(Py::new(py, new!(PyLerfuWord { handle }))?.into_any())
+        }
+        data!(WordLike::ZeiCompound { .. }) => {
+            Ok(Py::new(py, new!(PyZeiCompound { handle }))?.into_any())
+        }
+    }
+}
+
+/// Morphological construct and character range active at a warning or error.
+#[invariant(value.char_start < value.char_end)]
+#[pyclass(
+    name = "MorphologyContext",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyMorphologyContext {
+    value: MorphologyContext,
+}
+
+impl PyMorphologyContext {
+    #[requires(value.char_start < value.char_end)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: MorphologyContext) -> Self {
+        new!(PyMorphologyContext { value })
+    }
+}
+
+#[pymethods]
+impl PyMorphologyContext {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("kind", "char_start", "char_end");
+    /// Construct a typed morphology context over a non-empty character range.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        py: Python<'_>,
+        kind: &Bound<'_, PyAny>,
+        char_start: usize,
+        char_end: usize,
+    ) -> PyResult<Self> {
+        if char_start >= char_end {
+            return Err(InvalidInputError::new_err(
+                "morphology context must cover a non-empty character range",
+            ));
+        }
+        Ok(Self::from_rust(MorphologyContext::new(
+            enum_from_python(py, kind)?,
+            char_start,
+            char_end,
+        )))
+    }
+    /// Return the context kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.kind)
+    }
+    /// Return the inclusive character offset.
+    #[requires(true)]
+    #[ensures(ret == self.value.char_start)]
+    #[getter]
+    fn char_start(&self) -> usize {
+        self.value.char_start
+    }
+    /// Return the exclusive character offset.
+    #[requires(true)]
+    #[ensures(ret == self.value.char_end)]
+    #[getter]
+    fn char_end(&self) -> usize {
+        self.value.char_end
+    }
+    /// Return the human-readable context label.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn label(&self) -> &'static str {
+        self.value.label()
+    }
+}
+
+/// Invalid-lujvo detail carrying the parser expectation and parsed prefix.
+#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::InvalidLujvo { .. })))]
+#[pyclass(
+    name = "InvalidLujvoDetail",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyInvalidLujvoDetail {
+    value: MorphologyErrorDetail,
+}
+
+#[pymethods]
+impl PyInvalidLujvoDetail {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("parsed_prefix", "expected");
+    /// Construct invalid-lujvo detail with an optional parsed prefix.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (expected, parsed_prefix=None))]
+    fn new(
+        py: Python<'_>,
+        expected: &Bound<'_, PyAny>,
+        parsed_prefix: Option<String>,
+    ) -> PyResult<Self> {
+        if parsed_prefix.as_ref().is_some_and(String::is_empty) {
+            return Err(InvalidInputError::new_err(
+                "parsed_prefix must be non-empty when present",
+            ));
+        }
+        Ok(new!(PyInvalidLujvoDetail {
+            value: new!(MorphologyErrorDetail::InvalidLujvo {
+                parsed_prefix,
+                expected: enum_from_python(py, expected)?
+            }),
+        }))
+    }
+    /// Return the optional successfully parsed prefix.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn parsed_prefix(&self) -> Option<&str> {
+        let data!(MorphologyErrorDetail::InvalidLujvo { parsed_prefix, .. }) = self.value.as_data()
+        else {
+            unreachable!("wrapper invariant fixes detail variant")
+        };
+        parsed_prefix.as_deref()
+    }
+    /// Return the lujvo parser expectation.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn expected(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let data!(MorphologyErrorDetail::InvalidLujvo { expected, .. }) = self.value.as_data()
+        else {
+            unreachable!("wrapper invariant fixes detail variant")
+        };
+        enum_to_python(py, *expected)
+    }
+}
+
+/// Detail indicating that a fu'ivla contains forbidden `y`.
+#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::FuhivlaContainsY)))]
+#[pyclass(
+    name = "FuhivlaContainsYDetail",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyFuhivlaContainsYDetail {
+    value: MorphologyErrorDetail,
+}
+
+#[pymethods]
+impl PyFuhivlaContainsYDetail {
+    #[allow(non_upper_case_globals)]
+    #[requires(true)]
+    #[ensures(ret.bind(py).is_empty())]
+    #[classattr]
+    fn __match_args__(py: Python<'_>) -> Py<pyo3::types::PyTuple> {
+        pyo3::types::PyTuple::empty(py).unbind()
+    }
+
+    /// Construct the fieldless fu'ivla-contains-y detail variant.
+    #[requires(true)]
+    #[ensures(matches!(ret.value.as_data(), data!(MorphologyErrorDetail::FuhivlaContainsY)))]
+    #[new]
+    fn new() -> Self {
+        new!(PyFuhivlaContainsYDetail {
+            value: new!(MorphologyErrorDetail::FuhivlaContainsY),
+        })
+    }
+}
+
+/// Detail indicating a slinku'i morphology failure.
+#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::Slinkuhi)))]
+#[pyclass(
+    name = "SlinkuhiDetail",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PySlinkuhiDetail {
+    value: MorphologyErrorDetail,
+}
+
+#[pymethods]
+impl PySlinkuhiDetail {
+    #[allow(non_upper_case_globals)]
+    #[requires(true)]
+    #[ensures(ret.bind(py).is_empty())]
+    #[classattr]
+    fn __match_args__(py: Python<'_>) -> Py<pyo3::types::PyTuple> {
+        pyo3::types::PyTuple::empty(py).unbind()
+    }
+
+    /// Construct the fieldless slinku'i detail variant.
+    #[requires(true)]
+    #[ensures(matches!(ret.value.as_data(), data!(MorphologyErrorDetail::Slinkuhi)))]
+    #[new]
+    fn new() -> Self {
+        new!(PySlinkuhiDetail {
+            value: new!(MorphologyErrorDetail::Slinkuhi),
+        })
+    }
+}
+
+/// Detail describing the word role expected by morphology.
+#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::ExpectedWord { .. })))]
+#[pyclass(
+    name = "ExpectedWordDetail",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyExpectedWordDetail {
+    value: MorphologyErrorDetail,
+}
+
+#[pymethods]
+impl PyExpectedWordDetail {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("expected",);
+    /// Construct detail describing the expected word role.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(py: Python<'_>, expected: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(new!(PyExpectedWordDetail {
+            value: new!(MorphologyErrorDetail::ExpectedWord {
+                expected: enum_from_python(py, expected)?
+            }),
+        }))
+    }
+    /// Return the expected word role.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn expected(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let data!(MorphologyErrorDetail::ExpectedWord { expected }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes detail variant")
+        };
+        enum_to_python(py, *expected)
+    }
+}
+
+/// Detail describing why a ZOI delimiter is invalid.
+#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::InvalidZoiDelimiter { .. })))]
+#[pyclass(
+    name = "InvalidZoiDelimiterDetail",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyInvalidZoiDelimiterDetail {
+    value: MorphologyErrorDetail,
+}
+
+#[pymethods]
+impl PyInvalidZoiDelimiterDetail {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("reason",);
+    /// Construct detail describing an invalid ZOI delimiter.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(py: Python<'_>, reason: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(new!(PyInvalidZoiDelimiterDetail {
+            value: new!(MorphologyErrorDetail::InvalidZoiDelimiter {
+                reason: enum_from_python(py, reason)?
+            }),
+        }))
+    }
+    /// Return the invalid-delimiter reason.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn reason(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let data!(MorphologyErrorDetail::InvalidZoiDelimiter { reason }) = self.value.as_data()
+        else {
+            unreachable!("wrapper invariant fixes detail variant")
+        };
+        enum_to_python(py, *reason)
+    }
+}
+
+/// Detail identifying the violated phonotactic rule.
+#[invariant(matches!(value.as_data(), data!(MorphologyErrorDetail::Phonotactic { .. })))]
+#[pyclass(
+    name = "PhonotacticDetail",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyPhonotacticDetail {
+    value: MorphologyErrorDetail,
+}
+
+#[pymethods]
+impl PyPhonotacticDetail {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("reason",);
+    /// Construct detail describing a phonotactic violation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(py: Python<'_>, reason: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(new!(PyPhonotacticDetail {
+            value: new!(MorphologyErrorDetail::Phonotactic {
+                reason: enum_from_python(py, reason)?
+            }),
+        }))
+    }
+    /// Return the phonotactic violation reason.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn reason(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let data!(MorphologyErrorDetail::Phonotactic { reason }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes detail variant")
+        };
+        enum_to_python(py, *reason)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn morphology_detail_from_python(value: &Bound<'_, PyAny>) -> PyResult<MorphologyErrorDetail> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyInvalidLujvoDetail>>() {
+        return Ok(value.value.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyFuhivlaContainsYDetail>>() {
+        return Ok(value.value.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PySlinkuhiDetail>>() {
+        return Ok(value.value.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyExpectedWordDetail>>() {
+        return Ok(value.value.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyInvalidZoiDelimiterDetail>>() {
+        return Ok(value.value.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyPhonotacticDetail>>() {
+        return Ok(value.value.clone());
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected a jbotci.morphology MorphologyErrorDetail variant",
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn morphology_detail_to_python(
+    py: Python<'_>,
+    value: MorphologyErrorDetail,
+) -> PyResult<Py<PyAny>> {
+    match value.as_data() {
+        data!(MorphologyErrorDetail::InvalidLujvo { .. }) => {
+            Ok(Py::new(py, new!(PyInvalidLujvoDetail { value }))?.into_any())
+        }
+        data!(MorphologyErrorDetail::FuhivlaContainsY) => {
+            Ok(Py::new(py, new!(PyFuhivlaContainsYDetail { value }))?.into_any())
+        }
+        data!(MorphologyErrorDetail::Slinkuhi) => {
+            Ok(Py::new(py, new!(PySlinkuhiDetail { value }))?.into_any())
+        }
+        data!(MorphologyErrorDetail::ExpectedWord { .. }) => {
+            Ok(Py::new(py, new!(PyExpectedWordDetail { value }))?.into_any())
+        }
+        data!(MorphologyErrorDetail::InvalidZoiDelimiter { .. }) => {
+            Ok(Py::new(py, new!(PyInvalidZoiDelimiterDetail { value }))?.into_any())
+        }
+        data!(MorphologyErrorDetail::Phonotactic { .. }) => {
+            Ok(Py::new(py, new!(PyPhonotacticDetail { value }))?.into_any())
+        }
+    }
+}
+
+/// Recoverable morphology warning with source offsets and typed context.
+#[invariant(value.char_start < value.char_end)]
+#[pyclass(
+    name = "MorphologyWarning",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyMorphologyWarning {
+    value: MorphologyWarning,
+}
+
+impl PyMorphologyWarning {
+    #[requires(value.char_start < value.char_end)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: MorphologyWarning) -> Self {
+        new!(PyMorphologyWarning { value })
+    }
+}
+
+#[pymethods]
+impl PyMorphologyWarning {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ) = (
+        "kind",
+        "char_start",
+        "char_end",
+        "text",
+        "context",
+        "ignored_character_count",
+    );
+    /// Construct a validated typed morphology warning.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (kind, char_start, char_end, text, *, context=None, ignored_character_count=None))]
+    fn new(
+        py: Python<'_>,
+        kind: &Bound<'_, PyAny>,
+        char_start: usize,
+        char_end: usize,
+        text: String,
+        context: Option<PyRef<'_, PyMorphologyContext>>,
+        ignored_character_count: Option<usize>,
+    ) -> PyResult<Self> {
+        let kind = enum_from_python(py, kind)?;
+        if char_start >= char_end {
+            return Err(InvalidInputError::new_err(
+                "warning must cover a non-empty character range",
+            ));
+        }
+        if text.is_empty() {
+            return Err(InvalidInputError::new_err("warning text must not be empty"));
+        }
+        let value = if kind == MorphologyWarningKind::IgnoredCharacters {
+            let count = ignored_character_count.ok_or_else(|| {
+                InvalidInputError::new_err(
+                    "ignored-character warnings require ignored_character_count",
+                )
+            })?;
+            if context.is_some() {
+                return Err(InvalidInputError::new_err(
+                    "ignored-character warnings do not carry a morphology context",
+                ));
+            }
+            if count == 0 {
+                return Err(InvalidInputError::new_err(
+                    "ignored_character_count must be greater than zero",
+                ));
+            }
+            MorphologyWarning::ignored_characters(char_start, char_end, text, count)
+        } else {
+            if ignored_character_count.is_some() {
+                return Err(InvalidInputError::new_err(
+                    "ignored_character_count is only valid for ignored-character warnings",
+                ));
+            }
+            MorphologyWarning::new(
+                kind,
+                char_start,
+                char_end,
+                text,
+                context.map(|context| context.value.clone()),
+            )
+        };
+        Ok(Self::from_rust(value))
+    }
+    /// Return the warning kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.kind)
+    }
+    /// Return the stable warning code.
+    #[requires(true)]
+    #[ensures(ret == self.value.kind.code())]
+    #[getter]
+    fn code(&self) -> &'static str {
+        self.value.kind.code()
+    }
+    /// Return the human-readable warning message.
+    #[requires(true)]
+    #[ensures(ret == self.value.kind.message())]
+    #[getter]
+    fn message(&self) -> &'static str {
+        self.value.kind.message()
+    }
+    /// Return the inclusive warning character offset.
+    #[requires(true)]
+    #[ensures(ret == self.value.char_start)]
+    #[getter]
+    fn char_start(&self) -> usize {
+        self.value.char_start
+    }
+    /// Return the exclusive warning character offset.
+    #[requires(true)]
+    #[ensures(ret == self.value.char_end)]
+    #[getter]
+    fn char_end(&self) -> usize {
+        self.value.char_end
+    }
+    /// Return the affected source text.
+    #[requires(true)]
+    #[ensures(ret == self.value.text.as_str())]
+    #[getter]
+    fn text(&self) -> &str {
+        &self.value.text
+    }
+    /// Return the optional typed morphology context.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn context(&self) -> Option<PyMorphologyContext> {
+        self.value
+            .context
+            .clone()
+            .map(PyMorphologyContext::from_rust)
+    }
+    /// Return the ignored-character count when applicable.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn ignored_character_count(&self) -> Option<usize> {
+        self.value.ignored_character_count.map(NonZeroUsize::get)
+    }
+    /// Convert this warning into a source-aware diagnostic.
+    #[requires(true)]
+    #[ensures(true)]
+    #[pyo3(signature = (source, source_id=None))]
+    fn to_diagnostic(
+        &self,
+        source: &str,
+        source_id: Option<PyRef<'_, PySourceId>>,
+    ) -> PyDiagnostic {
+        PyDiagnostic::from_rust(
+            self.value
+                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+        )
+    }
+}
+
+/// Structured ordinary morphology failure with typed detail.
+#[invariant(matches!(value.as_data(), data!(RustMorphologyError::Invalid { .. })))]
+#[pyclass(
+    name = "InvalidMorphology",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyInvalidMorphology {
+    value: Arc<RustMorphologyError>,
+}
+
+#[pymethods]
+impl PyInvalidMorphology {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ) = (
+        "kind",
+        "char_start",
+        "char_end",
+        "text",
+        "context",
+        "detail",
+    );
+    /// Construct an ordinary structured morphology failure.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (kind, char_start, char_end, text, *, context=None, detail=None))]
+    fn new(
+        py: Python<'_>,
+        kind: &Bound<'_, PyAny>,
+        char_start: usize,
+        char_end: usize,
+        text: String,
+        context: Option<PyRef<'_, PyMorphologyContext>>,
+        detail: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        Ok(new!(PyInvalidMorphology {
+            value: Arc::new(new!(RustMorphologyError::Invalid {
+                kind: enum_from_python(py, kind)?,
+                char_start,
+                char_end,
+                text,
+                context: context.map(|context| context.value.clone()),
+                detail: detail.map(morphology_detail_from_python).transpose()?,
+            })),
+        }))
+    }
+    /// Return the morphology error kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        enum_to_python(py, *kind)
+    }
+    /// Return the stable morphology error code.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn code(&self) -> &'static str {
+        let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        kind.code()
+    }
+    /// Return the human-readable error message.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn message(&self) -> &'static str {
+        let data!(RustMorphologyError::Invalid { kind, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        kind.message()
+    }
+    /// Return the inclusive failure character offset.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn char_start(&self) -> usize {
+        let data!(RustMorphologyError::Invalid { char_start, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        *char_start
+    }
+    /// Return the exclusive failure character offset.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn char_end(&self) -> usize {
+        let data!(RustMorphologyError::Invalid { char_end, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        *char_end
+    }
+    /// Return the affected source text.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn text(&self) -> &str {
+        let data!(RustMorphologyError::Invalid { text, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        text
+    }
+    /// Return the optional typed morphology context.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn context(&self) -> Option<PyMorphologyContext> {
+        let data!(RustMorphologyError::Invalid { context, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        context.clone().map(PyMorphologyContext::from_rust)
+    }
+    /// Return the optional typed variant-specific detail.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn detail(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        let data!(RustMorphologyError::Invalid { detail, .. }) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        detail
+            .clone()
+            .map(|detail| morphology_detail_to_python(py, detail))
+            .transpose()
+    }
+    /// Convert this failure into a source-aware diagnostic.
+    #[requires(true)]
+    #[ensures(true)]
+    #[pyo3(signature = (source, source_id=None))]
+    fn to_diagnostic(
+        &self,
+        source: &str,
+        source_id: Option<PyRef<'_, PySourceId>>,
+    ) -> PyDiagnostic {
+        PyDiagnostic::from_rust(
+            self.value
+                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+        )
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+}
+
+/// Structured failure for an unterminated delimiter-based quotation.
+#[invariant(matches!(value.as_data(), data!(RustMorphologyError::UnterminatedZoiQuote { .. })))]
+#[pyclass(
+    name = "UnterminatedZoiQuote",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyUnterminatedZoiQuote {
+    value: Arc<RustMorphologyError>,
+}
+
+#[pymethods]
+impl PyUnterminatedZoiQuote {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("char_offset", "delimiter", "context");
+    /// Construct an unterminated-quotation failure.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (char_offset, delimiter, *, context=None))]
+    fn new(
+        char_offset: usize,
+        delimiter: String,
+        context: Option<PyRef<'_, PyMorphologyContext>>,
+    ) -> PyResult<Self> {
+        Ok(new!(PyUnterminatedZoiQuote {
+            value: Arc::new(new!(RustMorphologyError::UnterminatedZoiQuote {
+                char_offset,
+                delimiter,
+                context: context.map(|context| context.value.clone())
+            })),
+        }))
+    }
+    /// Return the stable morphology error code.
+    #[requires(true)]
+    #[ensures(ret == "morphology.unterminated-zoi-quote")]
+    #[getter]
+    fn code(&self) -> &'static str {
+        "morphology.unterminated-zoi-quote"
+    }
+    /// Return the character offset where the quotation remained open.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn char_offset(&self) -> usize {
+        let data!(RustMorphologyError::UnterminatedZoiQuote { char_offset, .. }) =
+            self.value.as_data()
+        else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        *char_offset
+    }
+    /// Return the opening delimiter spelling.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn delimiter(&self) -> &str {
+        let data!(RustMorphologyError::UnterminatedZoiQuote { delimiter, .. }) =
+            self.value.as_data()
+        else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        delimiter
+    }
+    /// Return the optional typed morphology context.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn context(&self) -> Option<PyMorphologyContext> {
+        let data!(RustMorphologyError::UnterminatedZoiQuote { context, .. }) = self.value.as_data()
+        else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        context.clone().map(PyMorphologyContext::from_rust)
+    }
+    /// Convert this failure into a source-aware diagnostic.
+    #[requires(true)]
+    #[ensures(true)]
+    #[pyo3(signature = (source, source_id=None))]
+    fn to_diagnostic(
+        &self,
+        source: &str,
+        source_id: Option<PyRef<'_, PySourceId>>,
+    ) -> PyDiagnostic {
+        PyDiagnostic::from_rust(
+            self.value
+                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+        )
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+}
+
+/// Morphology failure caused by invalid source-location data.
+#[invariant(matches!(value.as_data(), data!(RustMorphologyError::SourceSpan(_))))]
+#[pyclass(
+    name = "SourceSpanMorphologyError",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PySourceSpanMorphologyError {
+    value: Arc<RustMorphologyError>,
+}
+
+#[pymethods]
+impl PySourceSpanMorphologyError {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("error",);
+    /// Construct a morphology error from a typed source-location failure.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(error: &Bound<'_, PyAny>) -> PyResult<Self> {
+        Ok(new!(PySourceSpanMorphologyError {
+            value: Arc::new(new!(RustMorphologyError::SourceSpan(
+                source_location_error_from_python(error)?
+            ))),
+        }))
+    }
+    /// Return the stable morphology error code.
+    #[requires(true)]
+    #[ensures(ret == "morphology.source-span")]
+    #[getter]
+    fn code(&self) -> &'static str {
+        "morphology.source-span"
+    }
+    /// Return the typed source-location failure.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn error(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let data!(RustMorphologyError::SourceSpan(error)) = self.value.as_data() else {
+            unreachable!("wrapper invariant fixes error variant")
+        };
+        source_location_error_to_python(py, error.clone())
+    }
+    /// Convert this failure into a source-aware diagnostic.
+    #[requires(true)]
+    #[ensures(true)]
+    #[pyo3(signature = (source, source_id=None))]
+    fn to_diagnostic(
+        &self,
+        source: &str,
+        source_id: Option<PyRef<'_, PySourceId>>,
+    ) -> PyDiagnostic {
+        PyDiagnostic::from_rust(
+            self.value
+                .to_diagnostic(source_id.map(|value| value.clone_rust()), source),
+        )
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn morphology_error_to_python(
+    py: Python<'_>,
+    value: Arc<RustMorphologyError>,
+) -> PyResult<Py<PyAny>> {
+    match value.as_data() {
+        data!(RustMorphologyError::Invalid { .. }) => {
+            Ok(Py::new(py, new!(PyInvalidMorphology { value }))?.into_any())
+        }
+        data!(RustMorphologyError::UnterminatedZoiQuote { .. }) => {
+            Ok(Py::new(py, new!(PyUnterminatedZoiQuote { value }))?.into_any())
+        }
+        data!(RustMorphologyError::SourceSpan(_)) => {
+            Ok(Py::new(py, new!(PySourceSpanMorphologyError { value }))?.into_any())
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn morphology_error_arc_from_python(
+    value: &Bound<'_, PyAny>,
+) -> PyResult<Arc<RustMorphologyError>> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyInvalidMorphology>>() {
+        return Ok(Arc::clone(&value.value));
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyUnterminatedZoiQuote>>() {
+        return Ok(Arc::clone(&value.value));
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PySourceSpanMorphologyError>>() {
+        return Ok(Arc::clone(&value.value));
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected a jbotci.morphology MorphologyErrorValue variant",
+    ))
+}
+
+#[invariant(::Words { .. } => true)]
+#[invariant(::Error { .. } => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SegmentOutcome {
+    Words { values: Vec<Arc<WordLike>> },
+    Error { value: Arc<RustMorphologyError> },
+}
+
+/// Strict segmentation outcome retaining warnings, traces, and source identity.
+#[invariant(true, "all source text and source identifiers are representable")]
+#[pyclass(
+    name = "MorphologySegmentAttempt",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyMorphologySegmentAttempt {
+    source: Arc<str>,
+    source_id: Option<jbotci_source::SourceId>,
+    outcome: SegmentOutcome,
+    warnings: Arc<[MorphologyWarning]>,
+    trace: Option<jbotci_diagnostics::TraceReport>,
+}
+
+impl PyMorphologySegmentAttempt {
+    #[requires(true)]
+    #[ensures(ret.source.as_ref() == source)]
+    fn from_rust(
+        source: &str,
+        source_id: Option<jbotci_source::SourceId>,
+        value: MorphologySegmentAttempt,
+    ) -> Self {
+        let data = value.into_data();
+        let outcome = match data.result {
+            Ok(words) => new!(SegmentOutcome::Words {
+                values: words.into_iter().map(Arc::new).collect(),
+            }),
+            Err(error) => new!(SegmentOutcome::Error {
+                value: Arc::new(error),
+            }),
+        };
+        Self {
+            source: Arc::from(source),
+            source_id,
+            outcome,
+            warnings: Arc::from(data.warnings),
+            trace: data.trace,
+        }
+    }
+}
+
+#[pymethods]
+impl PyMorphologySegmentAttempt {
+    /// Return the original source text.
+    #[requires(true)]
+    #[ensures(ret == self.source.as_ref())]
+    #[getter]
+    fn source(&self) -> &str {
+        self.source.as_ref()
+    }
+    /// Return the optional source identifier.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_id(&self) -> Option<PySourceId> {
+        self.source_id.clone().map(PySourceId::from_rust)
+    }
+    /// Report whether strict segmentation succeeded.
+    #[requires(true)]
+    #[ensures(ret == matches!(self.outcome.as_data(), data!(SegmentOutcome::Words { .. })))]
+    #[getter]
+    fn succeeded(&self) -> bool {
+        matches!(self.outcome.as_data(), data!(SegmentOutcome::Words { .. }))
+    }
+    /// Return parsed words on success, otherwise `None`.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn words(&self, py: Python<'_>) -> PyResult<Option<Py<pyo3::types::PyTuple>>> {
+        let data!(SegmentOutcome::Words { values }) = self.outcome.as_data() else {
+            return Ok(None);
+        };
+        let words = values
+            .iter()
+            .cloned()
+            .map(|word| word_like_to_python(py, WordLikeHandle::from_arc(word)))
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, words)
+            .map(Bound::unbind)
+            .map(Some)
+    }
+    /// Return the typed failure on error, otherwise `None`.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn error(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        match self.outcome.as_data() {
+            data!(SegmentOutcome::Words { .. }) => Ok(None),
+            data!(SegmentOutcome::Error { value }) => {
+                morphology_error_to_python(py, Arc::clone(value)).map(Some)
+            }
+        }
+    }
+    /// Return immutable warnings from the attempt.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        crate::support::sequence_to_tuple(
+            py,
+            self.warnings
+                .iter()
+                .cloned()
+                .map(PyMorphologyWarning::from_rust),
+        )
+        .map(Bound::unbind)
+    }
+    /// Return the optional morphology trace report.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn trace(&self) -> Option<PyTraceReport> {
+        self.trace.clone().map(PyTraceReport::from_rust)
+    }
+}
+
+/// Recovered segmentation with typed errors paired to skipped source regions.
+#[invariant(errors.len() == error_regions.len())]
+#[pyclass(
+    name = "RecoveredMorphologySegmentation",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyRecoveredMorphologySegmentation {
+    words: Vec<Arc<WordLike>>,
+    errors: Vec<Arc<RustMorphologyError>>,
+    error_regions: Vec<jbotci_source::SourceSpan>,
+    warnings: Vec<MorphologyWarning>,
+}
+
+impl PyRecoveredMorphologySegmentation {
+    #[requires(true)]
+    #[ensures(ret.errors.len() == ret.error_regions.len())]
+    fn from_rust(value: RecoveredMorphologySegmentation) -> Self {
+        let data = value.into_data();
+        new!(PyRecoveredMorphologySegmentation {
+            words: data.words.into_iter().map(Arc::new).collect(),
+            errors: data.errors.into_iter().map(Arc::new).collect(),
+            error_regions: data.error_regions,
+            warnings: data.warnings,
+        })
+    }
+}
+
+#[pymethods]
+impl PyRecoveredMorphologySegmentation {
+    /// Return the immutable recovered word sequence.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn words(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let values = self
+            .words
+            .iter()
+            .cloned()
+            .map(|word| word_like_to_python(py, WordLikeHandle::from_arc(word)))
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+    /// Return immutable typed recovery errors.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn errors(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let values = self
+            .errors
+            .iter()
+            .cloned()
+            .map(|error| morphology_error_to_python(py, error))
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+    /// Return source regions skipped for each corresponding error.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn error_regions(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        crate::support::sequence_to_tuple(
+            py,
+            self.error_regions
+                .iter()
+                .cloned()
+                .map(PySourceSpan::from_rust),
+        )
+        .map(Bound::unbind)
+    }
+    /// Return immutable recovery warnings.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        crate::support::sequence_to_tuple(
+            py,
+            self.warnings
+                .iter()
+                .cloned()
+                .map(PyMorphologyWarning::from_rust),
+        )
+        .map(Bound::unbind)
+    }
+}
+
+/// Recovered segmentation attempt retaining source identity and trace output.
+#[invariant(
+    true,
+    "the result carries recovery consistency and source metadata is unrestricted"
+)]
+#[pyclass(
+    name = "RecoveredMorphologySegmentAttempt",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyRecoveredMorphologySegmentAttempt {
+    source: Arc<str>,
+    source_id: Option<jbotci_source::SourceId>,
+    result: PyRecoveredMorphologySegmentation,
+    trace: Option<jbotci_diagnostics::TraceReport>,
+}
+
+impl PyRecoveredMorphologySegmentAttempt {
+    #[requires(true)]
+    #[ensures(ret.source.as_ref() == source)]
+    fn from_rust(
+        source: &str,
+        source_id: Option<jbotci_source::SourceId>,
+        value: RecoveredMorphologySegmentAttempt,
+    ) -> Self {
+        let data = value.into_data();
+        Self {
+            source: Arc::from(source),
+            source_id,
+            result: PyRecoveredMorphologySegmentation::from_rust(data.result),
+            trace: data.trace,
+        }
+    }
+}
+
+#[pymethods]
+impl PyRecoveredMorphologySegmentAttempt {
+    /// Return the original source text.
+    #[requires(true)]
+    #[ensures(ret == self.source.as_ref())]
+    #[getter]
+    fn source(&self) -> &str {
+        self.source.as_ref()
+    }
+    /// Return the optional source identifier.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn source_id(&self) -> Option<PySourceId> {
+        self.source_id.clone().map(PySourceId::from_rust)
+    }
+    /// Return the recovered segmentation result.
+    #[requires(true)]
+    #[ensures(ret == self.result)]
+    #[getter]
+    fn result(&self) -> PyRecoveredMorphologySegmentation {
+        self.result.clone()
+    }
+    /// Return the optional morphology trace report.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn trace(&self) -> Option<PyTraceReport> {
+        self.trace.clone().map(PyTraceReport::from_rust)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn rust_options(options: Option<&PyMorphologyOptions>) -> MorphologyOptions {
+    options.map_or_else(MorphologyOptions::default, |options| options.rust().clone())
+}
+
+/// Run strict morphology segmentation while retaining warnings and trace output.
+#[requires(true)]
+#[ensures(ret.source.as_ref() == source)]
+#[pyfunction]
+#[pyo3(name = "_morphology_segment_attempt", signature = (source, *, options=None, source_id=None))]
+fn segment_attempt(
+    py: Python<'_>,
+    source: String,
+    options: Option<PyRef<'_, PyMorphologyOptions>>,
+    source_id: Option<PyRef<'_, PySourceId>>,
+) -> PyMorphologySegmentAttempt {
+    let options = rust_options(options.as_deref());
+    let source_id = source_id.map(|value| value.clone_rust());
+    let value = py.detach(|| {
+        jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+            &source,
+            &options,
+            source_id.clone(),
+        )
+    });
+    PyMorphologySegmentAttempt::from_rust(&source, source_id, value)
+}
+
+/// Run recovered segmentation while retaining source metadata and trace output.
+#[requires(true)]
+#[ensures(ret.source.as_ref() == source)]
+#[pyfunction]
+#[pyo3(name = "_morphology_segment_recovered_attempt", signature = (source, *, options=None, source_id=None))]
+fn segment_recovered_attempt(
+    py: Python<'_>,
+    source: String,
+    options: Option<PyRef<'_, PyMorphologyOptions>>,
+    source_id: Option<PyRef<'_, PySourceId>>,
+) -> PyRecoveredMorphologySegmentAttempt {
+    let options = rust_options(options.as_deref());
+    let source_id = source_id.map(|value| value.clone_rust());
+    let value = py.detach(|| {
+        jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+            &source,
+            &options,
+            source_id.clone(),
+        )
+    });
+    PyRecoveredMorphologySegmentAttempt::from_rust(&source, source_id, value)
+}
+
+/// Run the display-oriented segmentation entry point as a strict attempt.
+#[requires(true)]
+#[ensures(ret.source.as_ref() == source)]
+#[pyfunction]
+#[pyo3(name = "_morphology_segment_for_display_attempt", signature = (source, *, options=None, source_id=None))]
+fn segment_for_display_attempt(
+    py: Python<'_>,
+    source: String,
+    options: Option<PyRef<'_, PyMorphologyOptions>>,
+    source_id: Option<PyRef<'_, PySourceId>>,
+) -> PyMorphologySegmentAttempt {
+    let options = rust_options(options.as_deref());
+    let source_id = source_id.map(|value| value.clone_rust());
+    let result = py.detach(|| {
+        jbotci_morphology::segment_words_for_display_with_options_and_source_id(
+            &source,
+            &options,
+            source_id.clone(),
+        )
+    });
+    let value = new!(MorphologySegmentAttempt {
+        result,
+        warnings: Vec::new(),
+        trace: None
+    });
+    PyMorphologySegmentAttempt::from_rust(&source, source_id, value)
+}
+
+/// Typed lujvo-analysis component with exact surface text.
+#[invariant(!value.text.is_empty())]
+#[pyclass(
+    name = "ValsiLujvoPart",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyValsiLujvoPart {
+    value: ValsiLujvoPart,
+}
+
+impl PyValsiLujvoPart {
+    #[requires(!value.text.is_empty())]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: ValsiLujvoPart) -> Self {
+        new!(PyValsiLujvoPart { value })
+    }
+}
+
+#[pymethods]
+impl PyValsiLujvoPart {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("kind", "text", "rafsi_kind");
+    /// Construct a validated typed lujvo-analysis part.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (kind, text, *, rafsi_kind=None))]
+    fn new(
+        py: Python<'_>,
+        kind: &Bound<'_, PyAny>,
+        text: String,
+        rafsi_kind: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        if text.is_empty() {
+            return Err(InvalidInputError::new_err(
+                "lujvo analysis part text must not be empty",
+            ));
+        }
+        let kind = enum_from_python(py, kind)?;
+        let rafsi_kind = rafsi_kind
+            .map(|value| enum_from_python(py, value))
+            .transpose()?;
+        if (kind == ValsiLujvoPartKind::Rafsi) != rafsi_kind.is_some() {
+            return Err(InvalidInputError::new_err(
+                "rafsi parts require rafsi_kind and hyphen parts forbid it",
+            ));
+        }
+        Ok(Self::from_rust(new!(ValsiLujvoPart {
+            kind,
+            text,
+            rafsi_kind
+        })))
+    }
+    /// Return whether this part is a rafsi or hyphen.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.kind)
+    }
+    /// Return the exact part text.
+    #[requires(true)]
+    #[ensures(ret == self.value.text.as_str())]
+    #[getter]
+    fn text(&self) -> &str {
+        &self.value.text
+    }
+    /// Return the rafsi subtype for rafsi parts.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn rafsi_kind(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        self.value
+            .rafsi_kind
+            .map(|value| enum_to_python(py, value))
+            .transpose()
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClassificationStep {
+    LerfuBase,
+    ZeiLeft,
+}
+
+#[invariant(classification_path_resolves(root.as_ref(), steps))]
+#[derive(Debug, Clone)]
+struct ClassificationHandle {
+    root: Arc<ValsiClassification>,
+    steps: Vec<ClassificationStep>,
+}
+
+impl PartialEq for ClassificationHandle {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for ClassificationHandle {}
+
+impl ClassificationHandle {
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    fn root(value: ValsiClassification) -> Self {
+        new!(ClassificationHandle {
+            root: Arc::new(value),
+            steps: Vec::new(),
+        })
+    }
+    #[requires(true)]
+    #[ensures(ret.steps.is_empty())]
+    fn from_arc(root: Arc<ValsiClassification>) -> Self {
+        new!(ClassificationHandle {
+            root,
+            steps: Vec::new(),
+        })
+    }
+    #[requires(classification_step_resolves(self.get(), step))]
+    #[ensures(ret.steps.len() == self.steps.len() + 1)]
+    fn child(&self, step: ClassificationStep) -> Self {
+        let mut steps = self.steps.clone();
+        steps.push(step);
+        new!(ClassificationHandle {
+            root: Arc::clone(&self.root),
+            steps,
+        })
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &ValsiClassification {
+        project_classification(self.root.as_ref(), &self.steps)
+            .expect("classification handle is valid by construction")
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == classification_path_resolves(root, steps))]
+fn project_classification<'a>(
+    root: &'a ValsiClassification,
+    steps: &[ClassificationStep],
+) -> Option<&'a ValsiClassification> {
+    let mut current = root;
+    for step in steps {
+        current = match (current.as_data(), step) {
+            (data!(ValsiClassification::LerfuWord { base, .. }), ClassificationStep::LerfuBase) => {
+                base
+            }
+            (data!(ValsiClassification::ZeiCompound { left, .. }), ClassificationStep::ZeiLeft) => {
+                left
+            }
+            _ => return None,
+        };
+    }
+    Some(current)
+}
+
+#[requires(true)]
+#[ensures(ret == project_classification(root, steps).is_some())]
+fn classification_path_resolves(root: &ValsiClassification, steps: &[ClassificationStep]) -> bool {
+    project_classification(root, steps).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classification_step_resolves(value: &ValsiClassification, step: ClassificationStep) -> bool {
+    matches!(
+        (value.as_data(), step),
+        (
+            data!(ValsiClassification::LerfuWord { .. }),
+            ClassificationStep::LerfuBase
+        ) | (
+            data!(ValsiClassification::ZeiCompound { .. }),
+            ClassificationStep::ZeiLeft
+        )
+    )
+}
+
+#[invariant(::PlainWord => true)]
+#[invariant(::QuotedMarker => true)]
+#[invariant(::QuotedTarget => true)]
+#[invariant(::DelimitedMarker => true)]
+#[invariant(::QuotedWordsMarker => true)]
+#[invariant(::QuotedWordsTarget { .. } => true)]
+#[invariant(::LerfuSuffix => true)]
+#[invariant(::ZeiLink => true)]
+#[invariant(::ZeiRight => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlainClassificationSlot {
+    PlainWord,
+    QuotedMarker,
+    QuotedTarget,
+    DelimitedMarker,
+    QuotedWordsMarker,
+    QuotedWordsTarget { index: usize },
+    LerfuSuffix,
+    ZeiLink,
+    ZeiRight,
+}
+
+#[invariant(plain_classification_slot_resolves(owner.get(), *slot))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LocatedPlainClassification {
+    owner: ClassificationHandle,
+    slot: PlainClassificationSlot,
+}
+
+impl LocatedPlainClassification {
+    #[requires(plain_classification_slot_resolves(owner.get(), slot))]
+    #[ensures(true)]
+    fn new(owner: ClassificationHandle, slot: PlainClassificationSlot) -> Self {
+        new!(LocatedPlainClassification { owner, slot })
+    }
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &PlainWordClassification {
+        project_plain_classification(self.owner.get(), self.slot)
+            .expect("plain classification handle is valid by construction")
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() == plain_classification_slot_resolves(value, slot))]
+fn project_plain_classification(
+    value: &ValsiClassification,
+    slot: PlainClassificationSlot,
+) -> Option<&PlainWordClassification> {
+    match (value.as_data(), slot.as_data()) {
+        (
+            data!(ValsiClassification::PlainWord { word }),
+            data!(PlainClassificationSlot::PlainWord),
+        ) => Some(word),
+        (
+            data!(ValsiClassification::QuotedWord { marker, .. }),
+            data!(PlainClassificationSlot::QuotedMarker),
+        ) => Some(marker),
+        (
+            data!(ValsiClassification::QuotedWord { quoted_word, .. }),
+            data!(PlainClassificationSlot::QuotedTarget),
+        ) => Some(quoted_word),
+        (
+            data!(ValsiClassification::DelimitedNonLojbanQuote { marker, .. }),
+            data!(PlainClassificationSlot::DelimitedMarker),
+        ) => Some(marker),
+        (
+            data!(ValsiClassification::QuotedWords { marker, .. }),
+            data!(PlainClassificationSlot::QuotedWordsMarker),
+        ) => Some(marker),
+        (
+            data!(ValsiClassification::QuotedWords { quoted_words, .. }),
+            data!(PlainClassificationSlot::QuotedWordsTarget { index }),
+        ) => quoted_words.get(*index),
+        (
+            data!(ValsiClassification::LerfuWord { suffix, .. }),
+            data!(PlainClassificationSlot::LerfuSuffix),
+        ) => Some(suffix),
+        (
+            data!(ValsiClassification::ZeiCompound { link, .. }),
+            data!(PlainClassificationSlot::ZeiLink),
+        ) => Some(link),
+        (
+            data!(ValsiClassification::ZeiCompound { right, .. }),
+            data!(PlainClassificationSlot::ZeiRight),
+        ) => Some(right),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == project_plain_classification(value, slot).is_some())]
+fn plain_classification_slot_resolves(
+    value: &ValsiClassification,
+    slot: PlainClassificationSlot,
+) -> bool {
+    project_plain_classification(value, slot).is_some()
+}
+
+#[invariant(::Owned { value } => !value.phonemes.is_empty())]
+#[invariant(::Located { .. } => true)]
+#[derive(Debug, Clone)]
+enum PlainClassificationStorage {
+    Owned { value: Arc<PlainWordClassification> },
+    Located { value: LocatedPlainClassification },
+}
+
+impl PartialEq for PlainClassificationStorage {
+    #[requires(true)]
+    #[ensures(ret == (self.get() == other.get()))]
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl Eq for PlainClassificationStorage {}
+
+impl PlainClassificationStorage {
+    #[requires(true)]
+    #[ensures(true)]
+    fn get(&self) -> &PlainWordClassification {
+        match self.as_data() {
+            data!(PlainClassificationStorage::Owned { value }) => value.as_ref(),
+            data!(PlainClassificationStorage::Located { value }) => value.get(),
+        }
+    }
+    #[requires(true)]
+    #[ensures(ret == self.get().clone())]
+    fn clone_rust(&self) -> PlainWordClassification {
+        self.get().clone()
+    }
+}
+
+/// Detailed classification of one plain parsed word.
+#[invariant(!value.get().phonemes.is_empty())]
+#[pyclass(
+    name = "PlainWordClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyPlainWordClassification {
+    value: PlainClassificationStorage,
+}
+
+impl PyPlainWordClassification {
+    #[requires(true)]
+    #[ensures(true)]
+    fn located(owner: ClassificationHandle, slot: PlainClassificationSlot) -> Self {
+        new!(PyPlainWordClassification {
+            value: new!(PlainClassificationStorage::Located {
+                value: LocatedPlainClassification::new(owner, slot),
+            }),
+        })
+    }
+}
+
+#[pymethods]
+impl PyPlainWordClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ) = ("category", "phonemes", "selmaho", "split", "parts", "stage");
+    /// Construct a validated detailed plain-word classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (category, phonemes, *, selmaho=None, split=None, parts=Vec::new(), stage=None))]
+    fn new(
+        py: Python<'_>,
+        category: &Bound<'_, PyAny>,
+        phonemes: String,
+        selmaho: Option<String>,
+        split: Option<String>,
+        parts: Vec<PyRef<'_, PyValsiLujvoPart>>,
+        stage: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        if phonemes.is_empty() {
+            return Err(InvalidInputError::new_err(
+                "classification phonemes must not be empty",
+            ));
+        }
+        let category = enum_from_python(py, category)?;
+        let parts = parts
+            .into_iter()
+            .map(|part| part.value.clone())
+            .collect::<Vec<_>>();
+        let stage = stage.map(|value| enum_from_python(py, value)).transpose()?;
+        if category != WordKind::Cmavo && selmaho.is_some() {
+            return Err(InvalidInputError::new_err(
+                "selmaho is only valid for cmavo classifications",
+            ));
+        }
+        if category != WordKind::Lujvo && (split.is_some() || !parts.is_empty()) {
+            return Err(InvalidInputError::new_err(
+                "split and parts are only valid for lujvo classifications",
+            ));
+        }
+        if category != WordKind::Fuhivla && stage.is_some() {
+            return Err(InvalidInputError::new_err(
+                "stage is only valid for fu'ivla classifications",
+            ));
+        }
+        Ok(new!(PyPlainWordClassification {
+            value: new!(PlainClassificationStorage::Owned {
+                value: Arc::new(new!(PlainWordClassification {
+                    category,
+                    phonemes,
+                    selmaho,
+                    split,
+                    parts,
+                    stage
+                })),
+            }),
+        }))
+    }
+    /// Return the morphology word category.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn category(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.get().category)
+    }
+    /// Return the canonical phoneme text.
+    #[requires(true)]
+    #[ensures(ret == self.value.get().phonemes.as_str())]
+    #[getter]
+    fn phonemes(&self) -> &str {
+        &self.value.get().phonemes
+    }
+    /// Return the selma'o name for a cmavo classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn selmaho(&self) -> Option<&str> {
+        self.value.get().selmaho.as_deref()
+    }
+    /// Return the rendered lujvo split when available.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn split(&self) -> Option<&str> {
+        self.value.get().split.as_deref()
+    }
+    /// Return immutable lujvo analysis parts.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn parts(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        crate::support::sequence_to_tuple(
+            py,
+            self.value
+                .get()
+                .parts
+                .iter()
+                .cloned()
+                .map(PyValsiLujvoPart::from_rust),
+        )
+        .map(Bound::unbind)
+    }
+    /// Return the fu'ivla stage when applicable.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn stage(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        self.value
+            .get()
+            .stage
+            .map(|value| enum_to_python(py, value))
+            .transpose()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classification_kind(py: Python<'_>, handle: &ClassificationHandle) -> PyResult<Py<PyAny>> {
+    enum_to_python(py, handle.get().kind())
+}
+
+/// Valsi classification for one plain word.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::PlainWord { .. })))]
+#[pyclass(
+    name = "PlainWordValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyPlainWordValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyPlainWordValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("word",);
+    /// Construct a plain-word valsi classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[new]
+    fn new(word: PyRef<'_, PyPlainWordClassification>) -> Self {
+        new!(PyPlainWordValsiClassification {
+            handle: ClassificationHandle::root(new!(ValsiClassification::PlainWord {
+                word: word.value.clone_rust()
+            })),
+        })
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the detailed plain-word classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn word(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::PlainWord),
+        )
+    }
+}
+
+/// Valsi classification for a quoted word.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::QuotedWord { .. })))]
+#[pyclass(
+    name = "QuotedWordValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyQuotedWordValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyQuotedWordValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("marker", "quoted_word");
+    /// Construct a quoted-word valsi classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        marker: PyRef<'_, PyPlainWordClassification>,
+        quoted_word: PyRef<'_, PyPlainWordClassification>,
+    ) -> PyResult<Self> {
+        if marker.value.get().category != WordKind::Cmavo {
+            return Err(InvalidInputError::new_err(
+                "quoted-word marker classification must be cmavo",
+            ));
+        }
+        Ok(new!(PyQuotedWordValsiClassification {
+            handle: ClassificationHandle::root(new!(ValsiClassification::QuotedWord {
+                marker: marker.value.clone_rust(),
+                quoted_word: quoted_word.value.clone_rust()
+            })),
+        }))
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the quote marker classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn marker(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::QuotedMarker),
+        )
+    }
+    /// Return the quoted word classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn quoted_word(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::QuotedTarget),
+        )
+    }
+}
+
+/// Valsi classification for a delimiter-based non-Lojban quote.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::DelimitedNonLojbanQuote { .. })))]
+#[pyclass(
+    name = "DelimitedNonLojbanQuoteValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyDelimitedNonLojbanQuoteValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyDelimitedNonLojbanQuoteValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("marker", "delimiter");
+    /// Construct a delimiter-based quote classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(marker: PyRef<'_, PyPlainWordClassification>, delimiter: String) -> PyResult<Self> {
+        if marker.value.get().category != WordKind::Cmavo {
+            return Err(InvalidInputError::new_err(
+                "delimited quote marker classification must be cmavo",
+            ));
+        }
+        if delimiter.is_empty() {
+            return Err(InvalidInputError::new_err("delimiter must not be empty"));
+        }
+        Ok(new!(PyDelimitedNonLojbanQuoteValsiClassification {
+            handle: ClassificationHandle::root(new!(
+                ValsiClassification::DelimitedNonLojbanQuote {
+                    marker: marker.value.clone_rust(),
+                    delimiter
+                }
+            )),
+        }))
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the quotation marker classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn marker(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::DelimitedMarker),
+        )
+    }
+    /// Return the delimiter spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn delimiter(&self) -> &str {
+        let data!(ValsiClassification::DelimitedNonLojbanQuote { delimiter, .. }) =
+            self.handle.get().as_data()
+        else {
+            unreachable!("wrapper invariant fixes variant")
+        };
+        delimiter
+    }
+}
+
+/// Valsi classification for a quoted parsed-word sequence.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::QuotedWords { .. })))]
+#[pyclass(
+    name = "QuotedWordsValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyQuotedWordsValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyQuotedWordsValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("marker", "quoted_words");
+    /// Construct a quoted-words valsi classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        marker: PyRef<'_, PyPlainWordClassification>,
+        quoted_words: Vec<PyRef<'_, PyPlainWordClassification>>,
+    ) -> PyResult<Self> {
+        if marker.value.get().category != WordKind::Cmavo {
+            return Err(InvalidInputError::new_err(
+                "quoted-words marker classification must be cmavo",
+            ));
+        }
+        Ok(new!(PyQuotedWordsValsiClassification {
+            handle: ClassificationHandle::root(new!(ValsiClassification::QuotedWords {
+                marker: marker.value.clone_rust(),
+                quoted_words: quoted_words
+                    .into_iter()
+                    .map(|word| word.value.clone_rust())
+                    .collect()
+            })),
+        }))
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the quotation marker classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn marker(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::QuotedWordsMarker),
+        )
+    }
+    /// Return immutable quoted word classifications.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn quoted_words(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let data!(ValsiClassification::QuotedWords { quoted_words, .. }) =
+            self.handle.get().as_data()
+        else {
+            unreachable!("wrapper invariant fixes variant")
+        };
+        let values = (0..quoted_words.len()).map(|index| {
+            PyPlainWordClassification::located(
+                self.handle.clone(),
+                new!(PlainClassificationSlot::QuotedWordsTarget { index }),
+            )
+        });
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+}
+
+/// Valsi classification for a single verbatim word quote.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::DelimitedWordQuote { .. })))]
+#[pyclass(
+    name = "DelimitedWordQuoteValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyDelimitedWordQuoteValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyDelimitedWordQuoteValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("marker_text",);
+    /// Construct a single delimited-word quote classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(marker_text: String) -> PyResult<Self> {
+        if marker_text.is_empty() {
+            return Err(InvalidInputError::new_err("marker_text must not be empty"));
+        }
+        Ok(new!(PyDelimitedWordQuoteValsiClassification {
+            handle: ClassificationHandle::root(new!(ValsiClassification::DelimitedWordQuote {
+                marker_text
+            })),
+        }))
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the marker spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn marker_text(&self) -> &str {
+        let data!(ValsiClassification::DelimitedWordQuote { marker_text }) =
+            self.handle.get().as_data()
+        else {
+            unreachable!("wrapper invariant fixes variant")
+        };
+        marker_text
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classification_handle_from_python(value: &Bound<'_, PyAny>) -> PyResult<ClassificationHandle> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyPlainWordValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyQuotedWordValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyDelimitedNonLojbanQuoteValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyQuotedWordsValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyDelimitedWordQuoteValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyLerfuWordValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyZeiCompoundValsiClassification>>() {
+        return Ok(value.handle.clone());
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected a jbotci.morphology ValsiClassification variant",
+    ))
+}
+
+/// Valsi classification for a recursive `bu` letter word.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::LerfuWord { .. })))]
+#[pyclass(
+    name = "LerfuWordValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLerfuWordValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyLerfuWordValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("base", "suffix");
+    /// Construct a recursive `bu` letter-word classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        base: &Bound<'_, PyAny>,
+        suffix: PyRef<'_, PyPlainWordClassification>,
+    ) -> PyResult<Self> {
+        if suffix.value.get().category != WordKind::Cmavo {
+            return Err(InvalidInputError::new_err(
+                "lerfu suffix classification must be cmavo",
+            ));
+        }
+        Ok(new!(PyLerfuWordValsiClassification {
+            handle: ClassificationHandle::root(new!(ValsiClassification::LerfuWord {
+                base: Box::new(classification_handle_from_python(base)?.get().clone()),
+                suffix: suffix.value.clone_rust()
+            })),
+        }))
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the recursive base classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn base(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_to_python(py, self.handle.child(ClassificationStep::LerfuBase))
+    }
+    /// Return the `bu` suffix classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn suffix(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::LerfuSuffix),
+        )
+    }
+}
+
+/// Valsi classification for a recursive `zei` compound.
+#[invariant(matches!(handle.get().as_data(), data!(ValsiClassification::ZeiCompound { .. })))]
+#[pyclass(
+    name = "ZeiCompoundValsiClassification",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyZeiCompoundValsiClassification {
+    handle: ClassificationHandle,
+}
+
+#[pymethods]
+impl PyZeiCompoundValsiClassification {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) = ("left", "link", "right");
+    /// Construct a recursive `zei` compound classification.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(
+        left: &Bound<'_, PyAny>,
+        link: PyRef<'_, PyPlainWordClassification>,
+        right: PyRef<'_, PyPlainWordClassification>,
+    ) -> PyResult<Self> {
+        if link.value.get().category != WordKind::Cmavo {
+            return Err(InvalidInputError::new_err(
+                "ZEI link classification must be cmavo",
+            ));
+        }
+        Ok(new!(PyZeiCompoundValsiClassification {
+            handle: ClassificationHandle::root(new!(ValsiClassification::ZeiCompound {
+                left: Box::new(classification_handle_from_python(left)?.get().clone()),
+                link: link.value.clone_rust(),
+                right: right.value.clone_rust()
+            })),
+        }))
+    }
+    /// Return the classification variant kind.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_kind(py, &self.handle)
+    }
+    /// Return the recursive left classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        classification_to_python(py, self.handle.child(ClassificationStep::ZeiLeft))
+    }
+    /// Return the `zei` link classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn link(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::ZeiLink),
+        )
+    }
+    /// Return the right word classification.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn right(&self) -> PyPlainWordClassification {
+        PyPlainWordClassification::located(
+            self.handle.clone(),
+            new!(PlainClassificationSlot::ZeiRight),
+        )
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classification_to_python(py: Python<'_>, handle: ClassificationHandle) -> PyResult<Py<PyAny>> {
+    match handle.get().as_data() {
+        data!(ValsiClassification::PlainWord { .. }) => {
+            Ok(Py::new(py, new!(PyPlainWordValsiClassification { handle }))?.into_any())
+        }
+        data!(ValsiClassification::QuotedWord { .. }) => {
+            Ok(Py::new(py, new!(PyQuotedWordValsiClassification { handle }))?.into_any())
+        }
+        data!(ValsiClassification::DelimitedNonLojbanQuote { .. }) => Ok(Py::new(
+            py,
+            new!(PyDelimitedNonLojbanQuoteValsiClassification { handle }),
+        )?
+        .into_any()),
+        data!(ValsiClassification::QuotedWords { .. }) => {
+            Ok(Py::new(py, new!(PyQuotedWordsValsiClassification { handle }))?.into_any())
+        }
+        data!(ValsiClassification::DelimitedWordQuote { .. }) => {
+            Ok(Py::new(py, new!(PyDelimitedWordQuoteValsiClassification { handle }))?.into_any())
+        }
+        data!(ValsiClassification::LerfuWord { .. }) => {
+            Ok(Py::new(py, new!(PyLerfuWordValsiClassification { handle }))?.into_any())
+        }
+        data!(ValsiClassification::ZeiCompound { .. }) => {
+            Ok(Py::new(py, new!(PyZeiCompoundValsiClassification { handle }))?.into_any())
+        }
+    }
+}
+
+/// Status-dependent payload of single-valsi analysis.
+#[invariant(matches!(status, ValsiAnalysisStatus::Valid) == word.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::Valid) == classification.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::Invalid) == error.is_some())]
+#[invariant(matches!(status, ValsiAnalysisStatus::NotSingleWord) || words.is_empty())]
+#[pyclass(
+    name = "ValsiAnalysisResult",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyValsiAnalysisResult {
+    status: ValsiAnalysisStatus,
+    word: Option<Arc<WordLike>>,
+    classification: Option<Arc<ValsiClassification>>,
+    error: Option<Arc<RustMorphologyError>>,
+    words: Vec<Arc<WordLike>>,
+}
+
+impl PyValsiAnalysisResult {
+    #[requires(true)]
+    #[ensures(ret.status == old(value.status))]
+    fn from_rust(value: ValsiAnalysisResult) -> Self {
+        let data = value.into_data();
+        new!(PyValsiAnalysisResult {
+            status: data.status,
+            word: data.word.map(Arc::new),
+            classification: data.classification.map(Arc::new),
+            error: data.error.map(Arc::new),
+            words: data.words.into_iter().map(Arc::new).collect(),
+        })
+    }
+}
+
+#[pymethods]
+impl PyValsiAnalysisResult {
+    /// Construct a status-consistent valsi analysis payload.
+    #[allow(clippy::too_many_arguments)]
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (status, *, word=None, classification=None, error=None, words=Vec::new()))]
+    fn new(
+        py: Python<'_>,
+        status: &Bound<'_, PyAny>,
+        word: Option<&Bound<'_, PyAny>>,
+        classification: Option<&Bound<'_, PyAny>>,
+        error: Option<&Bound<'_, PyAny>>,
+        words: Vec<Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        let status = enum_from_python(py, status)?;
+        let word = word
+            .map(extract_word_like)
+            .transpose()?
+            .map(|value| Arc::new(value.into_owned()));
+        let classification = classification
+            .map(classification_handle_from_python)
+            .transpose()?
+            .map(|value| Arc::new(value.get().clone()));
+        let error = error.map(morphology_error_arc_from_python).transpose()?;
+        let words = words
+            .iter()
+            .map(extract_word_like)
+            .map(|value| value.map(|value| Arc::new(value.into_owned())))
+            .collect::<PyResult<Vec<_>>>()?;
+        let valid_shape = match status {
+            ValsiAnalysisStatus::Valid => {
+                word.is_some() && classification.is_some() && error.is_none() && words.is_empty()
+            }
+            ValsiAnalysisStatus::Invalid => {
+                word.is_none() && classification.is_none() && error.is_some() && words.is_empty()
+            }
+            ValsiAnalysisStatus::NotSingleWord => {
+                word.is_none() && classification.is_none() && error.is_none()
+            }
+        };
+        if !valid_shape {
+            return Err(InvalidInputError::new_err(
+                "valsi analysis fields do not match status",
+            ));
+        }
+        Ok(new!(PyValsiAnalysisResult {
+            status,
+            word,
+            classification,
+            error,
+            words,
+        }))
+    }
+    /// Return the valsi analysis status.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn status(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.status)
+    }
+    /// Report whether analysis produced one valid valsi.
+    #[requires(true)]
+    #[ensures(ret == (self.status == ValsiAnalysisStatus::Valid))]
+    #[getter]
+    fn is_valid(&self) -> bool {
+        self.status == ValsiAnalysisStatus::Valid
+    }
+    /// Return the parsed word-like value for a valid result.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn word(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        self.word
+            .as_ref()
+            .map(|word| word_like_to_python(py, WordLikeHandle::from_arc(Arc::clone(word))))
+            .transpose()
+    }
+    /// Return the typed classification for a valid result.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn classification(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        self.classification
+            .as_ref()
+            .map(|value| {
+                classification_to_python(py, ClassificationHandle::from_arc(Arc::clone(value)))
+            })
+            .transpose()
+    }
+    /// Return the typed error for an invalid result.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn error(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        self.error
+            .as_ref()
+            .map(|error| morphology_error_to_python(py, Arc::clone(error)))
+            .transpose()
+    }
+    /// Return parsed words for a not-single-word result.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn words(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        let values = self
+            .words
+            .iter()
+            .cloned()
+            .map(|word| word_like_to_python(py, WordLikeHandle::from_arc(word)))
+            .collect::<PyResult<Vec<_>>>()?;
+        crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+    }
+}
+
+/// Complete single-valsi analysis with input and warnings.
+#[invariant(true)]
+#[pyclass(
+    name = "ValsiAnalysis",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyValsiAnalysis {
+    input: Arc<str>,
+    warnings: Arc<[MorphologyWarning]>,
+    result: PyValsiAnalysisResult,
+}
+
+impl PyValsiAnalysis {
+    #[requires(true)]
+    #[expensive_ensures(ret.input.as_ref() == old(value.input.clone()))]
+    fn from_rust(value: ValsiAnalysis) -> Self {
+        let data = value.into_data();
+        Self {
+            input: Arc::from(data.input),
+            warnings: Arc::from(data.warnings),
+            result: PyValsiAnalysisResult::from_rust(data.result),
+        }
+    }
+}
+
+#[pymethods]
+impl PyValsiAnalysis {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("input", "warnings", "result");
+    /// Return the original analyzed input.
+    #[requires(true)]
+    #[ensures(ret == self.input.as_ref())]
+    #[getter]
+    fn input(&self) -> &str {
+        self.input.as_ref()
+    }
+    /// Return immutable morphology warnings.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        crate::support::sequence_to_tuple(
+            py,
+            self.warnings
+                .iter()
+                .cloned()
+                .map(PyMorphologyWarning::from_rust),
+        )
+        .map(Bound::unbind)
+    }
+    /// Return the status-dependent analysis result.
+    #[requires(true)]
+    #[ensures(ret == self.result)]
+    #[getter]
+    fn result(&self) -> PyValsiAnalysisResult {
+        self.result.clone()
+    }
+}
+
+/// Classify a single valsi using the real Rust morphology parser.
+#[requires(true)]
+#[ensures(ret.input.as_ref() == source)]
+#[pyfunction]
+#[pyo3(name = "_morphology_analyze_valsi", signature = (source, *, options=None, source_id=None))]
+fn analyze_valsi(
+    py: Python<'_>,
+    source: String,
+    options: Option<PyRef<'_, PyMorphologyOptions>>,
+    source_id: Option<PyRef<'_, PySourceId>>,
+) -> PyValsiAnalysis {
+    let options = rust_options(options.as_deref());
+    let source_id = source_id.map(|value| value.clone_rust());
+    PyValsiAnalysis::from_rust(py.detach(|| {
+        jbotci_morphology::analyze_valsi_with_options_and_source_id(&source, &options, source_id)
+    }))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| value.len_utf8() == text.len()) || ret.is_err())]
+fn one_unicode_scalar(text: &str, parameter: &str) -> PyResult<char> {
+    let mut values = text.chars();
+    let Some(value) = values.next() else {
+        return Err(InvalidInputError::new_err(format!(
+            "{parameter} must be exactly one Unicode scalar"
+        )));
+    };
+    if values.next().is_some() {
+        return Err(InvalidInputError::new_err(format!(
+            "{parameter} must be exactly one Unicode scalar"
+        )));
+    }
+    Ok(value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn owned_lujvo_part_to_python(py: Python<'_>, part: LujvoPart) -> PyResult<Py<PyAny>> {
+    let value = new!(LujvoPartStorage::Owned {
+        value: Arc::new(part),
+    });
+    match value.get() {
+        LujvoPart::Rafsi(_) => Ok(Py::new(py, new!(PyLujvoRafsi { value }))?.into_any()),
+        LujvoPart::Hyphen(_) => Ok(Py::new(py, new!(PyLujvoHyphen { value }))?.into_any()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_parts_to_tuple(
+    py: Python<'_>,
+    parts: Vec<LujvoPart>,
+) -> PyResult<Py<pyo3::types::PyTuple>> {
+    let values = parts
+        .into_iter()
+        .map(|part| owned_lujvo_part_to_python(py, part))
+        .collect::<PyResult<Vec<_>>>()?;
+    crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+}
+
+/// Normalize input text according to morphology options when all characters are accepted.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_normalize_input", signature = (text, *, options=None))]
+fn normalize_input(text: &str, options: Option<PyRef<'_, PyMorphologyOptions>>) -> Option<String> {
+    let options = rust_options(options.as_deref());
+    jbotci_morphology::normalize_lojban_input_text_with_options(text, &options)
+}
+
+/// Canonicalize Lojban surface text for morphology identity comparisons.
+#[requires(true)]
+#[ensures(!ret.is_empty() || text.is_empty())]
+#[pyfunction]
+#[pyo3(name = "_morphology_canonicalize_text")]
+fn canonicalize_text(text: &str) -> String {
+    jbotci_morphology::canonicalize_text(text)
+}
+
+/// Compare two strings by canonical Lojban text identity.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_canonical_text_eq")]
+fn canonical_text_eq(left: &str, right: &str) -> bool {
+    jbotci_morphology::canonical_text_eq(left, right)
+}
+
+/// Test whether every canonical character equals one supplied Unicode scalar.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_canonical_text_is_all")]
+fn canonical_text_is_all(text: &str, expected: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::canonical_text_is_all(
+        text,
+        one_unicode_scalar(expected, "expected")?,
+    ))
+}
+
+/// Normalize a valid cmavo spelling into its canonical form.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_normalize_cmavo_form")]
+fn normalize_cmavo_form(text: &str) -> Option<String> {
+    jbotci_morphology::normalize_cmavo_form(text)
+}
+
+/// Parse a valid cmavo spelling into canonical phonemes.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_phonemes")]
+fn cmavo_phonemes(text: &str) -> Option<PyPhonemes> {
+    jbotci_morphology::cmavo_phonemes(text).map(PyPhonemes::from_rust)
+}
+
+/// Split canonical phonemes into pronunciation syllables.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_pronunciation_syllables")]
+fn pronunciation_syllables(
+    py: Python<'_>,
+    phonemes: PyRef<'_, PyPhonemes>,
+) -> PyResult<Py<pyo3::types::PyTuple>> {
+    let values = jbotci_morphology::pronunciation_syllables(&phonemes.value)
+        .map_err(InvalidInputError::new_err)?;
+    crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+}
+
+/// Strip a Lojban diacritic from one Unicode scalar when defined.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_strip_lojban_diacritic")]
+fn strip_lojban_diacritic(value: &str) -> PyResult<Option<String>> {
+    Ok(
+        jbotci_morphology::strip_lojban_diacritic(one_unicode_scalar(value, "value")?)
+            .map(|value| value.to_string()),
+    )
+}
+
+/// Fold a Lojban diacritic on one Unicode scalar when defined.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_fold_lojban_diacritic")]
+fn fold_lojban_diacritic(value: &str) -> PyResult<Option<String>> {
+    Ok(
+        jbotci_morphology::fold_lojban_diacritic(one_unicode_scalar(value, "value")?)
+            .map(|value| value.to_string()),
+    )
+}
+
+/// Strip Lojban-specific diacritics from every character in text.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_strip_lojban_diacritics")]
+fn strip_lojban_diacritics(text: &str) -> String {
+    jbotci_morphology::strip_lojban_diacritics(text)
+}
+/// Fold Lojban-specific diacritics throughout text.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_fold_lojban_diacritics")]
+fn fold_lojban_diacritics(text: &str) -> String {
+    jbotci_morphology::fold_lojban_diacritics(text)
+}
+/// Compare strings after stripping Lojban-specific diacritics.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_stripped_lojban_diacritics_eq")]
+fn stripped_lojban_diacritics_eq(left: &str, right: &str) -> bool {
+    jbotci_morphology::stripped_lojban_diacritics_eq(left, right)
+}
+/// Compare strings after folding Lojban-specific diacritics.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_folded_lojban_diacritics_eq")]
+fn folded_lojban_diacritics_eq(left: &str, right: &str) -> bool {
+    jbotci_morphology::folded_lojban_diacritics_eq(left, right)
+}
+/// Strip all supported diacritics from text.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_strip_diacritics")]
+fn strip_diacritics(text: &str) -> String {
+    jbotci_morphology::strip_diacritics(text)
+}
+/// Compare strings after stripping all supported diacritics.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_strip_diacritics_eq")]
+fn strip_diacritics_eq(left: &str, right: &str) -> bool {
+    jbotci_morphology::strip_diacritics_eq(left, right)
+}
+
+/// Test whether one Unicode scalar is a valid canonical phoneme.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_valid_phoneme")]
+fn is_valid_phoneme(value: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::is_valid_phoneme(one_unicode_scalar(
+        value, "value",
+    )?))
+}
+/// Test whether one Unicode scalar forms morphology words under the options.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_word_forming_character", signature = (value, *, options=None))]
+fn is_word_forming_character(
+    value: &str,
+    options: Option<PyRef<'_, PyMorphologyOptions>>,
+) -> PyResult<bool> {
+    let value = one_unicode_scalar(value, "value")?;
+    let options = rust_options(options.as_deref());
+    Ok(jbotci_morphology::is_word_forming_character_with_options(
+        value, &options,
+    ))
+}
+/// Test whether one Unicode scalar is a recognized period character.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_period_character")]
+fn is_period_character(value: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::is_period_character(one_unicode_scalar(
+        value, "value",
+    )?))
+}
+/// Test whether one Unicode scalar may be ignored by the permissive lexer.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_permissive_ignorable_character")]
+fn is_permissive_ignorable_character(value: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::is_permissive_ignorable_character(
+        one_unicode_scalar(value, "value")?,
+    ))
+}
+
+/// Parse a lujvo spelling into its typed rafsi and hyphen components.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_parse_lujvo_parts")]
+fn parse_lujvo_parts(py: Python<'_>, word: String) -> PyResult<Option<Py<pyo3::types::PyTuple>>> {
+    py.detach(|| jbotci_morphology::parse_lujvo_word_parts(&word))
+        .map(|parts| lujvo_parts_to_tuple(py, parts))
+        .transpose()
+}
+/// Parse a cmevla lujvo spelling into typed components.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_parse_cmevla_lujvo_parts")]
+fn parse_cmevla_lujvo_parts(
+    py: Python<'_>,
+    word: String,
+) -> PyResult<Option<Py<pyo3::types::PyTuple>>> {
+    py.detach(|| jbotci_morphology::parse_cmevla_lujvo_word_parts(&word))
+        .map(|parts| lujvo_parts_to_tuple(py, parts))
+        .transpose()
+}
+/// Return every typed component parse candidate for a cmevla lujvo.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_parse_cmevla_lujvo_part_candidates")]
+fn parse_cmevla_lujvo_part_candidates(
+    py: Python<'_>,
+    word: String,
+) -> PyResult<Py<pyo3::types::PyTuple>> {
+    let values = py
+        .detach(|| jbotci_morphology::parse_cmevla_lujvo_word_part_candidates(&word))
+        .into_iter()
+        .map(|parts| lujvo_parts_to_tuple(py, parts))
+        .collect::<PyResult<Vec<_>>>()?;
+    crate::support::sequence_to_tuple(py, values).map(Bound::unbind)
+}
+
+/// Bond a rafsi sequence using the Rust lujvo morphology rules.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_bond_rafsis")]
+fn bond_rafsis(py: Python<'_>, rafsis: Vec<String>) -> PyResult<Option<Py<pyo3::types::PyTuple>>> {
+    py.detach(|| jbotci_morphology::bond_rafsis(&rafsis))
+        .map(|values| crate::support::sequence_to_tuple(py, values).map(Bound::unbind))
+        .transpose()
+}
+/// Test whether text is a valid constructed-lujvo candidate spelling.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_valid_lujvo_candidate_word")]
+fn is_valid_lujvo_candidate_word(word: &str) -> bool {
+    jbotci_morphology::is_valid_lujvo_candidate_word(word)
+}
+/// Add the leading pause required to make text a cmevla when needed.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_ensure_cmevla_word")]
+fn ensure_cmevla_word(word: &str) -> String {
+    jbotci_morphology::ensure_cmevla_word(word)
+}
+/// Test whether text ends with a Lojban consonant.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_ends_with_consonant")]
+fn ends_with_consonant(word: &str) -> bool {
+    jbotci_morphology::ends_with_consonant(word)
+}
+/// Test whether text ends with a Lojban vowel.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_ends_with_vowel")]
+fn ends_with_vowel(word: &str) -> bool {
+    jbotci_morphology::ends_with_vowel(word)
+}
+/// Test whether a lujvo component is a bonding hyphen.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_bonding_hyphen")]
+fn is_bonding_hyphen(part: &str) -> bool {
+    jbotci_morphology::is_bonding_hyphen(part)
+}
+/// Return the consonant/vowel syllable pattern for valid text.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_syllables_pattern")]
+fn syllables_pattern(text: &str) -> Option<String> {
+    jbotci_morphology::syllables_pattern(text)
+}
+/// Classify the structural shape of a rafsi spelling.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_rafsi_shape")]
+fn rafsi_shape(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
+    enum_to_python(py, jbotci_morphology::rafsi_shape(text))
+}
+/// Return the standard lujvo score contribution for a rafsi shape.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_rafsi_shape_score")]
+fn rafsi_shape_score(py: Python<'_>, shape: &Bound<'_, PyAny>) -> PyResult<i32> {
+    Ok(enum_from_python::<RafsiShape>(py, shape)?.score())
+}
+/// Test whether one Unicode scalar is a Lojban vowel.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_vowel")]
+fn is_vowel(value: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::is_vowel(one_unicode_scalar(
+        value, "value",
+    )?))
+}
+/// Test whether one Unicode scalar is a Lojban consonant.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_consonant")]
+fn is_consonant(value: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::is_consonant(one_unicode_scalar(
+        value, "value",
+    )?))
+}
+/// Test whether text has cmevla surface morphology.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_is_cmevla")]
+fn is_cmevla(text: &str) -> bool {
+    jbotci_morphology::is_cmevla(text)
+}
+/// Classify a pair of Unicode scalars by Lojban consonant-pair rules.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_consonant_pair_class")]
+fn consonant_pair_class(py: Python<'_>, first: &str, second: &str) -> PyResult<Option<Py<PyAny>>> {
+    let first = one_unicode_scalar(first, "first")?;
+    let second = one_unicode_scalar(second, "second")?;
+    jbotci_morphology::consonant_pair_class(first, second)
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+/// Test two Unicode scalars with the exact Rust permissible-pair predicate.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_permissible_consonant_pair")]
+fn permissible_consonant_pair(first: &str, second: &str) -> PyResult<bool> {
+    Ok(jbotci_morphology::permissible_consonant_pair(
+        one_unicode_scalar(first, "first")?,
+        one_unicode_scalar(second, "second")?,
+    ))
+}
+/// Report whether a consonant-pair class is permissible.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_consonant_pair_is_permissible")]
+fn consonant_pair_is_permissible(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(enum_from_python::<ConsonantPairClass>(py, value)?.is_permissible())
+}
+/// Report whether a consonant-pair class is valid word-initially.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_consonant_pair_is_initial")]
+fn consonant_pair_is_initial(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(enum_from_python::<ConsonantPairClass>(py, value)?.is_initial())
+}
+
+/// Test whether a parsed word requires a rendered leading pause.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_word_needs_leading_pause")]
+fn word_needs_leading_pause(
+    py: Python<'_>,
+    word: &Bound<'_, PyAny>,
+    mode: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(jbotci_morphology::word_needs_leading_pause(
+        word_handle_from_python(word)?.get(),
+        enum_from_python::<LeadingPauseVowelMode>(py, mode)?,
+    ))
+}
+/// Test leading-pause requirements in an explicit rendering context.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_word_needs_leading_pause_in_context")]
+fn word_needs_leading_pause_in_context(
+    py: Python<'_>,
+    word: &Bound<'_, PyAny>,
+    mode: &Bound<'_, PyAny>,
+    context: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(jbotci_morphology::word_needs_leading_pause_in_context(
+        word_handle_from_python(word)?.get(),
+        enum_from_python::<LeadingPauseVowelMode>(py, mode)?,
+        enum_from_python::<LeadingPauseContext>(py, context)?,
+    ))
+}
+/// Compare two parsed words by syntax identity rather than source location.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_word_syntax_eq")]
+fn word_syntax_eq(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(jbotci_morphology::word_syntax_eq(
+        word_handle_from_python(left)?.get(),
+        word_handle_from_python(right)?.get(),
+    ))
+}
+/// Compare two recursive word-like values by syntax identity.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_word_like_syntax_eq")]
+fn word_like_syntax_eq(left: &Bound<'_, PyAny>, right: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(jbotci_morphology::word_like_syntax_eq(
+        extract_word_like(left)?.get(),
+        extract_word_like(right)?.get(),
+    ))
+}
+
+/// Look up the exact typed cmavo variant for canonical-equivalent text.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_from_text")]
+fn cmavo_from_text(py: Python<'_>, text: &str) -> PyResult<Option<Py<PyAny>>> {
+    Cmavo::from_text(text)
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+/// Return the canonical spelling of a typed cmavo variant.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_text")]
+fn cmavo_text(py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<&'static str> {
+    Ok(enum_from_python::<Cmavo>(py, cmavo)?.canonical_text())
+}
+/// Test whether a cmavo belongs to a selma'o.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_is_selmaho")]
+fn cmavo_is_selmaho(
+    py: Python<'_>,
+    cmavo: &Bound<'_, PyAny>,
+    selmaho: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(enum_from_python::<Cmavo>(py, cmavo)?.is_selmaho(enum_from_python::<Selmaho>(py, selmaho)?))
+}
+/// Return the primary selma'o of a cmavo when it has one.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_primary_selmaho")]
+fn cmavo_primary_selmaho(py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<Option<Py<PyAny>>> {
+    enum_from_python::<Cmavo>(py, cmavo)?
+        .primary_selmaho()
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+/// Report whether a cmavo opens any morphology quotation form.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_is_quote_opener")]
+fn cmavo_is_quote_opener(py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(enum_from_python::<Cmavo>(py, cmavo)?.is_quote_opener())
+}
+/// Report whether a cmavo opens a single-word quotation form.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_is_single_word_quote_opener")]
+fn cmavo_is_single_word_quote_opener(py: Python<'_>, cmavo: &Bound<'_, PyAny>) -> PyResult<bool> {
+    Ok(enum_from_python::<Cmavo>(py, cmavo)?.is_single_word_quote_opener())
+}
+/// Report whether a cmavo opens a delimiter-based non-Lojban quote.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_cmavo_is_delimited_non_lojban_quote_opener")]
+fn cmavo_is_delimited_non_lojban_quote_opener(
+    py: Python<'_>,
+    cmavo: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(enum_from_python::<Cmavo>(py, cmavo)?.is_delimited_non_lojban_quote_opener())
+}
+/// Look up a typed selma'o by its exact Rust name.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_selmaho_from_name")]
+fn selmaho_from_name(py: Python<'_>, name: &str) -> PyResult<Option<Py<PyAny>>> {
+    Selmaho::from_name(name)
+        .map(|value| enum_to_python(py, value))
+        .transpose()
+}
+/// Return the exact Rust name of a typed selma'o.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_selmaho_name")]
+fn selmaho_name(py: Python<'_>, selmaho: &Bound<'_, PyAny>) -> PyResult<&'static str> {
+    Ok(enum_from_python::<Selmaho>(py, selmaho)?.name())
+}
+/// Test whether a selma'o contains a cmavo.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_selmaho_contains")]
+fn selmaho_contains(
+    py: Python<'_>,
+    selmaho: &Bound<'_, PyAny>,
+    cmavo: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    Ok(enum_from_python::<Selmaho>(py, selmaho)?.contains(enum_from_python::<Cmavo>(py, cmavo)?))
+}
+
+/// Rafsi input part for lujvo candidate construction.
+#[invariant(matches!(value.as_data(), data!(LujvoBuildPart::Rafsi(text)) if !text.is_empty()))]
+#[pyclass(
+    name = "LujvoRafsiBuildPart",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLujvoRafsiBuildPart {
+    value: LujvoBuildPart,
+}
+
+#[pymethods]
+impl PyLujvoRafsiBuildPart {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("text",);
+    /// Construct a non-empty rafsi build part.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(text: String) -> PyResult<Self> {
+        if text.is_empty() {
+            return Err(InvalidInputError::new_err(
+                "lujvo build part text must not be empty",
+            ));
+        }
+        Ok(new!(PyLujvoRafsiBuildPart {
+            value: new!(LujvoBuildPart::Rafsi(text)),
+        }))
+    }
+    /// Return the build-part text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn text(&self) -> &str {
+        self.value.as_text()
+    }
+}
+
+/// Full brivla-core input part for lujvo candidate construction.
+#[invariant(matches!(value.as_data(), data!(LujvoBuildPart::BrivlaCore(text)) if !text.is_empty()))]
+#[pyclass(
+    name = "LujvoBrivlaCoreBuildPart",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLujvoBrivlaCoreBuildPart {
+    value: LujvoBuildPart,
+}
+
+#[pymethods]
+impl PyLujvoBrivlaCoreBuildPart {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str,) = ("text",);
+    /// Construct a non-empty brivla-core build part.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(text: String) -> PyResult<Self> {
+        if text.is_empty() {
+            return Err(InvalidInputError::new_err(
+                "lujvo build part text must not be empty",
+            ));
+        }
+        Ok(new!(PyLujvoBrivlaCoreBuildPart {
+            value: new!(LujvoBuildPart::BrivlaCore(text)),
+        }))
+    }
+    /// Return the build-part text.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    #[getter]
+    fn text(&self) -> &str {
+        self.value.as_text()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lujvo_build_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoBuildPart> {
+    if let Ok(value) = value.extract::<PyRef<'_, PyLujvoRafsiBuildPart>>() {
+        return Ok(value.value.clone());
+    }
+    if let Ok(value) = value.extract::<PyRef<'_, PyLujvoBrivlaCoreBuildPart>>() {
+        return Ok(value.value.clone());
+    }
+    Err(pyo3::exceptions::PyTypeError::new_err(
+        "expected LujvoRafsiBuildPart or LujvoBrivlaCoreBuildPart",
+    ))
+}
+
+/// Scored lujvo candidate with its selected surface parts.
+#[invariant(!value.word.is_empty() && !value.parts.is_empty())]
+#[pyclass(
+    name = "LujvoCandidate",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyLujvoCandidate {
+    value: LujvoCandidate,
+}
+
+impl PyLujvoCandidate {
+    #[requires(!value.word.is_empty() && !value.parts.is_empty())]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: LujvoCandidate) -> Self {
+        new!(PyLujvoCandidate { value })
+    }
+}
+
+#[pymethods]
+impl PyLujvoCandidate {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) = ("word", "parts", "score");
+    /// Construct a scored non-empty lujvo candidate.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(word: String, parts: Vec<String>, score: i32) -> PyResult<Self> {
+        if word.is_empty() || parts.is_empty() {
+            return Err(InvalidInputError::new_err(
+                "lujvo candidate word and parts collection must be non-empty",
+            ));
+        }
+        Ok(Self::from_rust(new!(LujvoCandidate { word, parts, score })))
+    }
+    /// Return the candidate word spelling.
+    #[requires(true)]
+    #[ensures(ret == self.value.word.as_str())]
+    #[getter]
+    fn word(&self) -> &str {
+        &self.value.word
+    }
+    /// Return the immutable selected part spellings.
+    #[requires(true)]
+    #[ensures(true)]
+    #[getter]
+    fn parts(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyTuple>> {
+        crate::support::sequence_to_tuple(py, self.value.parts.iter().cloned()).map(Bound::unbind)
+    }
+    /// Return the standard lujvo score.
+    #[requires(true)]
+    #[ensures(ret == self.value.score)]
+    #[getter]
+    fn score(&self) -> i32 {
+        self.value.score
+    }
+}
+
+/// Choose the best scored lujvo candidate from textual rafsi choices.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_choose_best_lujvo_candidate")]
+fn choose_best_lujvo_candidate(
+    py: Python<'_>,
+    mode: &Bound<'_, PyAny>,
+    choices: Vec<Vec<String>>,
+) -> PyResult<Option<PyLujvoCandidate>> {
+    let mode = enum_from_python(py, mode)?;
+    Ok(py
+        .detach(|| jbotci_morphology::choose_best_lujvo_candidate(mode, &choices))
+        .map(PyLujvoCandidate::from_rust))
+}
+
+/// Choose the best scored lujvo candidate from typed build-part choices.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_choose_best_lujvo_candidate_from_parts")]
+fn choose_best_lujvo_candidate_from_parts(
+    py: Python<'_>,
+    mode: &Bound<'_, PyAny>,
+    choices: &Bound<'_, pyo3::types::PyTuple>,
+) -> PyResult<Option<PyLujvoCandidate>> {
+    let mode = enum_from_python(py, mode)?;
+    let choices = choices
+        .iter()
+        .map(|choice| {
+            let choice = choice.cast::<pyo3::types::PyTuple>().map_err(|_| {
+                pyo3::exceptions::PyTypeError::new_err("each lujvo choice must be a tuple")
+            })?;
+            choice
+                .iter()
+                .map(|part| lujvo_build_part_from_python(&part))
+                .collect::<PyResult<Vec<_>>>()
+        })
+        .collect::<PyResult<Vec<_>>>()?;
+    Ok(py
+        .detach(|| jbotci_morphology::choose_best_lujvo_candidate_from_parts(mode, &choices))
+        .map(PyLujvoCandidate::from_rust))
+}
+
+macro_rules! register_function {
+    ($module:expr, $name:literal, $function:ident) => {
+        register_private_object($module, $name, wrap_pyfunction!($function, $module)?)?;
+    };
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_string_enum::<WordKind>(module)?;
+    register_string_enum::<ValsiAnalysisStatus>(module)?;
+    register_string_enum::<ValsiClassificationKind>(module)?;
+    register_string_enum::<ValsiLujvoPartKind>(module)?;
+    register_string_enum::<ValsiLujvoRafsiKind>(module)?;
+    register_string_enum::<ValsiFuhivlaStage>(module)?;
+    register_string_enum::<StressMark>(module)?;
+    register_string_enum::<GlideMark>(module)?;
+    register_string_enum::<MorphologyErrorKind>(module)?;
+    register_string_enum::<MorphologyWarningKind>(module)?;
+    register_string_enum::<MorphologyContextKind>(module)?;
+    register_string_enum::<LujvoParseExpectation>(module)?;
+    register_string_enum::<ExpectedWordDetailKind>(module)?;
+    register_string_enum::<ZoiDelimiterDetailKind>(module)?;
+    register_string_enum::<PhonotacticDetailKind>(module)?;
+    register_string_enum::<LujvoBuildMode>(module)?;
+    register_string_enum::<RafsiShape>(module)?;
+    register_string_enum::<ConsonantPairClass>(module)?;
+    register_string_enum::<LeadingPauseVowelMode>(module)?;
+    register_string_enum::<LeadingPauseContext>(module)?;
+    register_string_enum::<Cmavo>(module)?;
+    register_string_enum::<Selmaho>(module)?;
+
+    register_type::<PyPhonemeRenderOptions>(module, "_morphology_PhonemeRenderOptions")?;
+    register_type::<PyPhonemes>(module, "_morphology_Phonemes")?;
+    register_type::<PyWordKey>(module, "_morphology_WordKey")?;
+    register_type::<PyMorphologyOptions>(module, "_morphology_MorphologyOptions")?;
+    register_type::<PyCompiledDialectDefinition>(module, "_morphology_CompiledDialectDefinition")?;
+    register_type::<PyCompiledDialectSwap>(module, "_morphology_CompiledDialectSwap")?;
+    register_type::<PyCompiledDialectExpansion>(module, "_morphology_CompiledDialectExpansion")?;
+    register_type::<PyCompiledDialectWord>(module, "_morphology_CompiledDialectWord")?;
+    register_type::<PyLujvoRafsi>(module, "_morphology_LujvoRafsi")?;
+    register_type::<PyLujvoHyphen>(module, "_morphology_LujvoHyphen")?;
+    register_type::<PyVerbatim>(module, "_morphology_Verbatim")?;
+    register_type::<PyCmavoWord>(module, "_morphology_CmavoWord")?;
+    register_type::<PyGismuWord>(module, "_morphology_GismuWord")?;
+    register_type::<PyLujvoWord>(module, "_morphology_LujvoWord")?;
+    register_type::<PyFuhivlaWord>(module, "_morphology_FuhivlaWord")?;
+    register_type::<PyCmevlaWord>(module, "_morphology_CmevlaWord")?;
+    register_type::<PyPlainWord>(module, "_morphology_PlainWord")?;
+    register_type::<PyQuotedWord>(module, "_morphology_QuotedWord")?;
+    register_type::<PySelmahoQuotedWord>(module, "_morphology_SelmahoQuotedWord")?;
+    register_type::<PyDelimitedNonLojbanQuote>(module, "_morphology_DelimitedNonLojbanQuote")?;
+    register_type::<PyQuotedWords>(module, "_morphology_QuotedWords")?;
+    register_type::<PyDelimitedWordQuote>(module, "_morphology_DelimitedWordQuote")?;
+    register_type::<PyLerfuWord>(module, "_morphology_LerfuWord")?;
+    register_type::<PyZeiCompound>(module, "_morphology_ZeiCompound")?;
+    register_type::<PyMorphologyContext>(module, "_morphology_MorphologyContext")?;
+    register_type::<PyMorphologyWarning>(module, "_morphology_MorphologyWarning")?;
+    register_type::<PyInvalidLujvoDetail>(module, "_morphology_InvalidLujvoDetail")?;
+    register_type::<PyFuhivlaContainsYDetail>(module, "_morphology_FuhivlaContainsYDetail")?;
+    register_type::<PySlinkuhiDetail>(module, "_morphology_SlinkuhiDetail")?;
+    register_type::<PyExpectedWordDetail>(module, "_morphology_ExpectedWordDetail")?;
+    register_type::<PyInvalidZoiDelimiterDetail>(module, "_morphology_InvalidZoiDelimiterDetail")?;
+    register_type::<PyPhonotacticDetail>(module, "_morphology_PhonotacticDetail")?;
+    register_type::<PyInvalidMorphology>(module, "_morphology_InvalidMorphology")?;
+    register_type::<PyUnterminatedZoiQuote>(module, "_morphology_UnterminatedZoiQuote")?;
+    register_type::<PySourceSpanMorphologyError>(module, "_morphology_SourceSpanMorphologyError")?;
+    register_type::<PyMorphologySegmentAttempt>(module, "_morphology_MorphologySegmentAttempt")?;
+    register_type::<PyRecoveredMorphologySegmentation>(
+        module,
+        "_morphology_RecoveredMorphologySegmentation",
+    )?;
+    register_type::<PyRecoveredMorphologySegmentAttempt>(
+        module,
+        "_morphology_RecoveredMorphologySegmentAttempt",
+    )?;
+    register_type::<PyValsiLujvoPart>(module, "_morphology_ValsiLujvoPart")?;
+    register_type::<PyPlainWordClassification>(module, "_morphology_PlainWordClassification")?;
+    register_type::<PyPlainWordValsiClassification>(
+        module,
+        "_morphology_PlainWordValsiClassification",
+    )?;
+    register_type::<PyQuotedWordValsiClassification>(
+        module,
+        "_morphology_QuotedWordValsiClassification",
+    )?;
+    register_type::<PyDelimitedNonLojbanQuoteValsiClassification>(
+        module,
+        "_morphology_DelimitedNonLojbanQuoteValsiClassification",
+    )?;
+    register_type::<PyQuotedWordsValsiClassification>(
+        module,
+        "_morphology_QuotedWordsValsiClassification",
+    )?;
+    register_type::<PyDelimitedWordQuoteValsiClassification>(
+        module,
+        "_morphology_DelimitedWordQuoteValsiClassification",
+    )?;
+    register_type::<PyLerfuWordValsiClassification>(
+        module,
+        "_morphology_LerfuWordValsiClassification",
+    )?;
+    register_type::<PyZeiCompoundValsiClassification>(
+        module,
+        "_morphology_ZeiCompoundValsiClassification",
+    )?;
+    register_type::<PyValsiAnalysisResult>(module, "_morphology_ValsiAnalysisResult")?;
+    register_type::<PyValsiAnalysis>(module, "_morphology_ValsiAnalysis")?;
+    register_type::<PyLujvoRafsiBuildPart>(module, "_morphology_LujvoRafsiBuildPart")?;
+    register_type::<PyLujvoBrivlaCoreBuildPart>(module, "_morphology_LujvoBrivlaCoreBuildPart")?;
+    register_type::<PyLujvoCandidate>(module, "_morphology_LujvoCandidate")?;
+
+    register_function!(module, "_morphology_segment_attempt", segment_attempt);
+    register_function!(
+        module,
+        "_morphology_segment_recovered_attempt",
+        segment_recovered_attempt
+    );
+    register_function!(
+        module,
+        "_morphology_segment_for_display_attempt",
+        segment_for_display_attempt
+    );
+    register_function!(module, "_morphology_analyze_valsi", analyze_valsi);
+    register_function!(module, "_morphology_normalize_input", normalize_input);
+    register_function!(module, "_morphology_canonicalize_text", canonicalize_text);
+    register_function!(module, "_morphology_canonical_text_eq", canonical_text_eq);
+    register_function!(
+        module,
+        "_morphology_canonical_text_is_all",
+        canonical_text_is_all
+    );
+    register_function!(
+        module,
+        "_morphology_normalize_cmavo_form",
+        normalize_cmavo_form
+    );
+    register_function!(module, "_morphology_cmavo_phonemes", cmavo_phonemes);
+    register_function!(
+        module,
+        "_morphology_pronunciation_syllables",
+        pronunciation_syllables
+    );
+    register_function!(
+        module,
+        "_morphology_strip_lojban_diacritic",
+        strip_lojban_diacritic
+    );
+    register_function!(
+        module,
+        "_morphology_fold_lojban_diacritic",
+        fold_lojban_diacritic
+    );
+    register_function!(
+        module,
+        "_morphology_strip_lojban_diacritics",
+        strip_lojban_diacritics
+    );
+    register_function!(
+        module,
+        "_morphology_fold_lojban_diacritics",
+        fold_lojban_diacritics
+    );
+    register_function!(
+        module,
+        "_morphology_stripped_lojban_diacritics_eq",
+        stripped_lojban_diacritics_eq
+    );
+    register_function!(
+        module,
+        "_morphology_folded_lojban_diacritics_eq",
+        folded_lojban_diacritics_eq
+    );
+    register_function!(module, "_morphology_strip_diacritics", strip_diacritics);
+    register_function!(
+        module,
+        "_morphology_strip_diacritics_eq",
+        strip_diacritics_eq
+    );
+    register_function!(module, "_morphology_is_valid_phoneme", is_valid_phoneme);
+    register_function!(
+        module,
+        "_morphology_is_word_forming_character",
+        is_word_forming_character
+    );
+    register_function!(
+        module,
+        "_morphology_is_period_character",
+        is_period_character
+    );
+    register_function!(
+        module,
+        "_morphology_is_permissive_ignorable_character",
+        is_permissive_ignorable_character
+    );
+    register_function!(module, "_morphology_parse_lujvo_parts", parse_lujvo_parts);
+    register_function!(
+        module,
+        "_morphology_parse_cmevla_lujvo_parts",
+        parse_cmevla_lujvo_parts
+    );
+    register_function!(
+        module,
+        "_morphology_parse_cmevla_lujvo_part_candidates",
+        parse_cmevla_lujvo_part_candidates
+    );
+    register_function!(module, "_morphology_bond_rafsis", bond_rafsis);
+    register_function!(
+        module,
+        "_morphology_is_valid_lujvo_candidate_word",
+        is_valid_lujvo_candidate_word
+    );
+    register_function!(module, "_morphology_ensure_cmevla_word", ensure_cmevla_word);
+    register_function!(
+        module,
+        "_morphology_ends_with_consonant",
+        ends_with_consonant
+    );
+    register_function!(module, "_morphology_ends_with_vowel", ends_with_vowel);
+    register_function!(module, "_morphology_is_bonding_hyphen", is_bonding_hyphen);
+    register_function!(module, "_morphology_syllables_pattern", syllables_pattern);
+    register_function!(module, "_morphology_rafsi_shape", rafsi_shape);
+    register_function!(module, "_morphology_rafsi_shape_score", rafsi_shape_score);
+    register_function!(module, "_morphology_is_vowel", is_vowel);
+    register_function!(module, "_morphology_is_consonant", is_consonant);
+    register_function!(module, "_morphology_is_cmevla", is_cmevla);
+    register_function!(
+        module,
+        "_morphology_consonant_pair_class",
+        consonant_pair_class
+    );
+    register_function!(
+        module,
+        "_morphology_permissible_consonant_pair",
+        permissible_consonant_pair
+    );
+    register_function!(
+        module,
+        "_morphology_consonant_pair_is_permissible",
+        consonant_pair_is_permissible
+    );
+    register_function!(
+        module,
+        "_morphology_consonant_pair_is_initial",
+        consonant_pair_is_initial
+    );
+    register_function!(
+        module,
+        "_morphology_word_needs_leading_pause",
+        word_needs_leading_pause
+    );
+    register_function!(
+        module,
+        "_morphology_word_needs_leading_pause_in_context",
+        word_needs_leading_pause_in_context
+    );
+    register_function!(module, "_morphology_word_syntax_eq", word_syntax_eq);
+    register_function!(
+        module,
+        "_morphology_word_like_syntax_eq",
+        word_like_syntax_eq
+    );
+    register_function!(module, "_morphology_cmavo_from_text", cmavo_from_text);
+    register_function!(module, "_morphology_cmavo_text", cmavo_text);
+    register_function!(module, "_morphology_cmavo_is_selmaho", cmavo_is_selmaho);
+    register_function!(
+        module,
+        "_morphology_cmavo_primary_selmaho",
+        cmavo_primary_selmaho
+    );
+    register_function!(
+        module,
+        "_morphology_cmavo_is_quote_opener",
+        cmavo_is_quote_opener
+    );
+    register_function!(
+        module,
+        "_morphology_cmavo_is_single_word_quote_opener",
+        cmavo_is_single_word_quote_opener
+    );
+    register_function!(
+        module,
+        "_morphology_cmavo_is_delimited_non_lojban_quote_opener",
+        cmavo_is_delimited_non_lojban_quote_opener
+    );
+    register_function!(module, "_morphology_selmaho_from_name", selmaho_from_name);
+    register_function!(module, "_morphology_selmaho_name", selmaho_name);
+    register_function!(module, "_morphology_selmaho_contains", selmaho_contains);
+    register_function!(
+        module,
+        "_morphology_choose_best_lujvo_candidate",
+        choose_best_lujvo_candidate
+    );
+    register_function!(
+        module,
+        "_morphology_choose_best_lujvo_candidate_from_parts",
+        choose_best_lujvo_candidate_from_parts
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{diagnostics, dialect, source};
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn registered_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
+        let module = PyModule::new(py, "jbotci._native")?;
+        source::register(&module)?;
+        diagnostics::register(&module)?;
+        dialect::register(&module)?;
+        register(&module)?;
+        Ok(module)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn bound_segmentation_projection_matches_the_direct_rust_api() {
+        Python::initialize();
+        Python::attach(|py| -> PyResult<()> {
+            let module = registered_module(py)?;
+            let function = module.getattr("_morphology_segment_attempt")?;
+
+            for input in [
+                "mimi",
+                "mi klama tci'ilykemcantutra spageti .alis.",
+                "a bu broda zei brode",
+                "zo broda",
+                "ma'oi ba",
+                "lo'u mi do le'u",
+                "zoi gy hello world gy",
+                "zo'oi hello",
+                "mi si do",
+                "aa",
+            ] {
+                let direct =
+                    jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                        input,
+                        &MorphologyOptions::default(),
+                        None,
+                    );
+                let expected = PyMorphologySegmentAttempt::from_rust(input, None, direct);
+                let projected = function.call1((input,))?;
+                let projected = projected.extract::<PyRef<'_, PyMorphologySegmentAttempt>>()?;
+                assert_eq!(*projected, expected, "projection diverged for {input:?}");
+            }
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn bound_recovery_projection_matches_the_direct_rust_api() {
+        Python::initialize();
+        Python::attach(|py| -> PyResult<()> {
+            let input = "mi @@@ do";
+            let module = registered_module(py)?;
+            let direct = jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+                input,
+                &MorphologyOptions::default(),
+                None,
+            );
+            let expected = PyRecoveredMorphologySegmentAttempt::from_rust(input, None, direct);
+            let projected = module
+                .getattr("_morphology_segment_recovered_attempt")?
+                .call1((input,))?;
+            let projected =
+                projected.extract::<PyRef<'_, PyRecoveredMorphologySegmentAttempt>>()?;
+            assert_eq!(*projected, expected);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn bound_valsi_projection_matches_the_direct_rust_api() {
+        Python::initialize();
+        Python::attach(|py| -> PyResult<()> {
+            let module = registered_module(py)?;
+            let function = module.getattr("_morphology_analyze_valsi")?;
+
+            for input in [
+                "coi",
+                "klama",
+                "jetcybolxada",
+                "spageti",
+                ".alis.",
+                "a bu",
+                "broda zei brode",
+                "zoi gy hello gy",
+                "aa",
+                "coibroda",
+            ] {
+                let direct = jbotci_morphology::analyze_valsi_with_options_and_source_id(
+                    input,
+                    &MorphologyOptions::default(),
+                    None,
+                );
+                let expected = PyValsiAnalysis::from_rust(direct);
+                let projected = function.call1((input,))?;
+                let projected = projected.extract::<PyRef<'_, PyValsiAnalysis>>()?;
+                assert_eq!(*projected, expected, "projection diverged for {input:?}");
+            }
+            Ok(())
+        })
+        .unwrap();
+    }
+}
