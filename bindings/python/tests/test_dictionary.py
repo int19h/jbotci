@@ -1,18 +1,63 @@
 from __future__ import annotations
 
+import ast
 import enum
 import gc
 import inspect
 import math
+import operator
 import subprocess
 import sys
 import types
 from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
 
 import jbotci._native as native
 import jbotci.dictionary as dictionary
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_DICTIONARY_EXPORTS = (
+    "DefinitionId",
+    "Dictionary",
+    "DictionaryEntries",
+    "DictionaryEntry",
+    "DictionaryLujvoEntry",
+    "DictionaryLujvoSegment",
+    "DictionaryLujvoSegmentKind",
+    "DictionaryPatternEntry",
+    "DictionarySnapshotMetadata",
+    "DictionarySoundEntry",
+    "DictionaryUser",
+    "DictionaryValidationDetail",
+    "DictionaryValidationError",
+    "EntryIndex",
+    "InvalidEntryValidationDetail",
+    "InvalidLujvoIndexEntryValidationDetail",
+    "InvalidSoundIndexEntryValidationDetail",
+    "IpaSegmentId",
+    "IpaTokenSequenceView",
+    "Keyword",
+    "PatternIndexMismatchValidationDetail",
+    "PronunciationTargetId",
+    "PronunciationTargetSequenceView",
+    "Rafsi",
+    "RafsiIndexMismatchValidationDetail",
+    "RafsiMatch",
+    "RafsiSource",
+    "RawSelmaho",
+    "Score",
+    "SelmahoIndexMismatchValidationDetail",
+    "WordIndexMismatchValidationDetail",
+    "WordType",
+    "english",
+    "english_metadata",
+    "first_gloss_keywords_for_words",
+    "normalize_lookup_query",
+    "normalize_pattern_lookup_key",
+    "universal_gismu_rafsi_forms",
+)
 
 
 def required_entry(word: str) -> dictionary.DictionaryEntry:
@@ -38,9 +83,29 @@ def required_index_for_entry(
     return index
 
 
+def required_sound(word: str) -> dictionary.DictionarySoundEntry:
+    """Return the generated sound record for a required public word witness."""
+    owner = dictionary.english
+    entry = owner.lookup_word(word)
+    assert entry is not None
+    index = owner.entry_index_for_entry(entry)
+    assert index is not None
+    sound = next((value for value in owner.sound_index if value.entry_index == index), None)
+    assert sound is not None
+    return sound
+
+
 def test_english_objects_have_stable_identity_and_metadata() -> None:
     assert dictionary.english is native._dictionary_english
     assert dictionary.english_metadata is native._dictionary_english_metadata
+    assert (
+        dictionary.PronunciationTargetId
+        is native._dictionary_PronunciationTargetId
+    )
+    assert (
+        dictionary.PronunciationTargetSequenceView
+        is native._dictionary_PronunciationTargetSequenceView
+    )
     assert len(dictionary.english) == 17_415
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
@@ -57,12 +122,15 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
     assert dictionary.Dictionary.__name__ == "Dictionary"
     assert dictionary.WordType.__name__ == "WordType"
     assert not hasattr(native, "Dictionary")
-    assert all(hasattr(dictionary, name) for name in dictionary.__all__)
+    assert dictionary.__all__ == EXPECTED_DICTIONARY_EXPORTS
+    assert all(hasattr(dictionary, name) for name in EXPECTED_DICTIONARY_EXPORTS)
 
 
-def test_import_does_not_materialize_python_entry_objects() -> None:
+def test_import_keeps_entry_sequence_lazy_and_has_no_tracked_entry_wrappers() -> None:
     assert isinstance(dictionary.english.entries, dictionary.DictionaryEntries)
     assert not isinstance(dictionary.english.entries, tuple)
+    # `gc.get_objects()` only observes GC-tracked wrappers. Keep this as the
+    # narrow regression signal it is; the sequence-shape checks prove laziness.
     code = """
 import gc
 import jbotci.dictionary as dictionary
@@ -282,6 +350,108 @@ def test_sound_records_expose_exact_ipa_and_typed_segments_without_search() -> N
     assert not hasattr(dictionary.english, "lookup_sound")
 
 
+def test_sound_records_preserve_pronunciation_targets_and_rhotic_realizations() -> None:
+    sounds = {sound.entry_index: sound for sound in dictionary.english.sound_index}
+    klama = sounds[entry_index("klama")]
+    targets = klama.pronunciation_targets
+    assert targets.target_count() == len(targets) == len(targets.targets)
+    assert targets.target_count() == klama.token_sequence.segment_count()
+    singleton = next(target for target in targets.targets if target.realization_count == 1)
+    realization = singleton.realization(0)
+    assert isinstance(realization, dictionary.IpaSegmentId)
+    assert singleton.realizations == (realization,)
+
+    # Keep this public lookup witness literal. The embedded Rust parity test
+    # independently derives all expected target and realization IDs from the
+    # Rust `prami` sound record, so this test never copies inventory numbers.
+    prami_entry = required_entry("prami")
+    prami = sounds[required_index_for_entry(prami_entry)]
+    rhotics = tuple(
+        target
+        for target in prami.pronunciation_targets.targets
+        if target.realization_count > 1
+    )
+    assert len(rhotics) == 1
+    rhotic = rhotics[0]
+    assert rhotic.realizations == tuple(
+        rhotic.realization(index) for index in range(rhotic.realization_count)
+    )
+    assert all(isinstance(value, dictionary.IpaSegmentId) for value in rhotic.realizations)
+    assert len(set(rhotic.realizations)) == rhotic.realization_count
+
+    assert rhotic.realization(rhotic.realization_count) is None
+    assert rhotic.realization(rhotic.realization_count + 100) is None
+    assert rhotic.realization(10**100) is None
+    assert rhotic.realization(-1) is None
+    assert rhotic.realization(-(10**100)) is None
+    assert rhotic.realizations[-1] == rhotic.realizations[rhotic.realization_count - 1]
+    with pytest.raises(TypeError):
+        rhotic.realization(0.0)  # type: ignore[arg-type]
+
+
+def test_pronunciation_target_protocols_follow_existing_id_and_view_policy() -> None:
+    sounds = {sound.entry_index: sound for sound in dictionary.english.sound_index}
+    prami = sounds[entry_index("prami")]
+    first_view = prami.pronunciation_targets
+    second_view = prami.pronunciation_targets
+    other_view = sounds[entry_index("klama")].pronunciation_targets
+    assert first_view == second_view
+    assert first_view != other_view
+    assert repr(first_view) == (
+        "jbotci.dictionary.PronunciationTargetSequenceView("
+        f"target_count={first_view.target_count()}, "
+        f"self_similarity={first_view.self_similarity!r})"
+    )
+    with pytest.raises(TypeError):
+        hash(first_view)
+    with pytest.raises(TypeError):
+        _ = first_view < second_view  # type: ignore[operator]
+
+    first_targets = {target.value: target for target in first_view.targets}
+    assert len(first_targets) >= 2
+    lower_value, higher_value = sorted(first_targets)[:2]
+    lower = first_targets[lower_value]
+    higher = first_targets[higher_value]
+    equal_lower = next(
+        target for target in second_view.targets if target.value == lower_value
+    )
+
+    assert lower == equal_lower
+    assert lower != higher
+    assert len({lower, equal_lower, higher}) == 2
+    assert hash(lower) == hash(equal_lower)
+    snapshot_targets = {
+        target.value: target
+        for sound in dictionary.english.sound_index
+        for target in sound.pronunciation_targets.targets
+    }
+    assert len(snapshot_targets) > 1
+    assert len({hash(target) for target in snapshot_targets.values()}) > 1
+    assert int(lower) == lower.value
+    assert operator.index(lower) == lower.value
+    assert repr(lower) == (
+        "jbotci.dictionary.PronunciationTargetId("
+        f"value={lower.value}, "
+        f"realization_count={lower.realization_count})"
+    )
+
+    assert lower < higher
+    assert lower <= higher
+    assert higher > lower
+    assert higher >= lower
+    assert not higher < lower
+    assert not higher <= lower
+    assert not lower > higher
+    assert not lower >= higher
+    assert not lower < equal_lower
+    assert lower <= equal_lower
+    assert not lower > equal_lower
+    assert lower >= equal_lower
+    assert tuple(sorted(first_view.targets)) == tuple(
+        sorted(first_view.targets, key=lambda target: target.value)
+    )
+
+
 def test_lujvo_decomposition_records_preserve_segments_and_source_words() -> None:
     decompositions = dictionary.english.lujvo_index
     assert isinstance(decompositions, tuple)
@@ -362,6 +532,46 @@ def test_child_records_retain_owner_after_parent_and_results_are_dropped() -> No
     assert segment.source_word == "lojbo"
 
 
+def test_pronunciation_target_sequence_survives_gc_independently() -> None:
+    expected_count = required_sound("klama").token_sequence.segment_count()
+
+    def retain_sequence() -> dictionary.PronunciationTargetSequenceView:
+        sound = required_sound("klama")
+        return sound.pronunciation_targets
+
+    sequence = retain_sequence()
+    gc.collect()
+    assert sequence.target_count() == expected_count
+    assert len(sequence.targets) == expected_count
+
+
+def test_pronunciation_target_id_survives_gc_independently() -> None:
+    def retain_target() -> dictionary.PronunciationTargetId:
+        sound = required_sound("prami")
+        sequence = sound.pronunciation_targets
+        return next(target for target in sequence.targets if target.realization_count > 1)
+
+    target = retain_target()
+    gc.collect()
+    assert target.value == int(target)
+    assert len(target.realizations) == target.realization_count
+
+
+def test_pronunciation_realization_survives_gc_independently() -> None:
+    def retain_realization() -> dictionary.IpaSegmentId:
+        sound = required_sound("prami")
+        sequence = sound.pronunciation_targets
+        target = next(
+            value for value in sequence.targets if value.realization_count > 1
+        )
+        return target.realizations[0]
+
+    realization = retain_realization()
+    gc.collect()
+    assert realization.value == int(realization)
+    assert realization.symbol
+
+
 def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
     public_data_classes = (
         dictionary.DefinitionId,
@@ -378,6 +588,8 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.DictionarySoundEntry,
         dictionary.IpaTokenSequenceView,
         dictionary.IpaSegmentId,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
         dictionary.DictionaryLujvoEntry,
         dictionary.DictionaryLujvoSegment,
         dictionary.DictionaryPatternEntry,
@@ -395,6 +607,7 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         with pytest.raises(TypeError):
             type("Derived", (data_class,), {})
 
+    first_sound = dictionary.english.sound_index[0]
     returned_only_classes = (
         dictionary.Dictionary,
         dictionary.DictionaryEntries,
@@ -403,6 +616,8 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         dictionary.DictionarySoundEntry,
         dictionary.IpaTokenSequenceView,
         dictionary.IpaSegmentId,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
         dictionary.DictionaryLujvoEntry,
         dictionary.DictionaryLujvoSegment,
         dictionary.DictionaryPatternEntry,
@@ -418,8 +633,54 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
     for returned_only_class in returned_only_classes:
         with pytest.raises(TypeError):
             returned_only_class()  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(0)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(first_sound)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(0, 1)  # type: ignore[call-arg, arg-type]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(value=0)  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(  # type: ignore[call-arg]
+            value=0,
+            realization_count=1,
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetId(  # type: ignore[call-arg]
+            value=0,
+            realizations=(),
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            first_sound,  # type: ignore[arg-type]
+            0,
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            sound=first_sound
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            owner=dictionary.english,
+            position=0,
+        )
+    with pytest.raises(TypeError):
+        dictionary.PronunciationTargetSequenceView(  # type: ignore[call-arg]
+            targets=(),
+            self_similarity=0.0,
+        )
 
-    first_sound = dictionary.english.sound_index[0]
+    target_sequence = first_sound.pronunciation_targets
+    target = target_sequence.targets[0]
+    for property_owner, property_names in (
+        (target, ("value", "realization_count", "realizations")),
+        (target_sequence, ("targets", "self_similarity")),
+    ):
+        for property_name in property_names:
+            with pytest.raises(AttributeError):
+                setattr(property_owner, property_name, None)
+
     first_pattern = dictionary.english.pattern_index[0]
     values: tuple[object, ...] = (
         dictionary.DefinitionId(0),
@@ -437,6 +698,9 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
         first_sound,
         first_sound.token_sequence,
         first_sound.token_sequence.segments[0],
+        first_sound.pronunciation_targets,
+        first_sound.pronunciation_targets.targets[0],
+        first_sound.pronunciation_targets.targets[0].realizations[0],
         first_pattern,
     )
     for value in values:
@@ -457,6 +721,141 @@ def test_public_data_classes_are_frozen_final_and_in_public_module() -> None:
             types.new_class("DerivedEnum", (enum_type,))
 
 
+def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
+    target_members = {
+        name for name in vars(dictionary.PronunciationTargetId) if not name.startswith("_")
+    }
+    assert target_members == {
+        "realization",
+        "realization_count",
+        "realizations",
+        "value",
+    }
+    sequence_members = {
+        name
+        for name in vars(dictionary.PronunciationTargetSequenceView)
+        if not name.startswith("_")
+    }
+    assert sequence_members == {"self_similarity", "target_count", "targets"}
+    assert str(inspect.signature(dictionary.PronunciationTargetId.realization)) == (
+        "(self, /, index)"
+    )
+    assert str(
+        inspect.signature(dictionary.PronunciationTargetSequenceView.target_count)
+    ) == "(self, /)"
+    assert not hasattr(dictionary.PronunciationTargetId, "__match_args__")
+    assert not hasattr(dictionary.PronunciationTargetSequenceView, "__match_args__")
+
+    stub_path = PACKAGE_ROOT / "stubs" / "_native" / "dictionary.pyi"
+    tree = ast.parse(stub_path.read_text(encoding="utf-8"), filename=str(stub_path))
+    classes = {
+        declaration.name: declaration
+        for declaration in tree.body
+        if isinstance(declaration, ast.ClassDef)
+    }
+    expected_functions = {
+        "_dictionary_PronunciationTargetId": {
+            "__eq__",
+            "__ge__",
+            "__gt__",
+            "__hash__",
+            "__index__",
+            "__int__",
+            "__le__",
+            "__lt__",
+            "__new__",
+            "__repr__",
+            "realization",
+            "realization_count",
+            "realizations",
+            "value",
+        },
+        "_dictionary_PronunciationTargetSequenceView": {
+            "__eq__",
+            "__len__",
+            "__new__",
+            "__repr__",
+            "self_similarity",
+            "target_count",
+            "targets",
+        },
+    }
+    for class_name, function_names in expected_functions.items():
+        declaration = classes[class_name]
+        assert len(declaration.decorator_list) == 1
+        final_decorator = declaration.decorator_list[0]
+        assert isinstance(final_decorator, ast.Name)
+        assert final_decorator.id == "final"
+        functions = {
+            statement.name: statement
+            for statement in declaration.body
+            if isinstance(statement, ast.FunctionDef)
+        }
+        assert set(functions) == function_names
+        constructor = functions["__new__"]
+        assert len(constructor.args.args) == 2
+        sentinel = constructor.args.args[1]
+        assert sentinel.arg == "_nonconstructible"
+        assert isinstance(sentinel.annotation, ast.Name)
+        assert sentinel.annotation.id == "Never"
+        assert not any(
+            isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "__match_args__"
+            for statement in declaration.body
+        )
+
+    target_realization = next(
+        statement
+        for statement in classes["_dictionary_PronunciationTargetId"].body
+        if isinstance(statement, ast.FunctionDef) and statement.name == "realization"
+    )
+    assert [argument.arg for argument in target_realization.args.posonlyargs] == [
+        "self"
+    ]
+    assert [argument.arg for argument in target_realization.args.args] == ["index"]
+    index_annotation = target_realization.args.args[0].annotation
+    assert isinstance(index_annotation, ast.Name)
+    assert index_annotation.id == "int"
+    return_annotation = target_realization.returns
+    assert isinstance(return_annotation, ast.BinOp)
+    assert isinstance(return_annotation.op, ast.BitOr)
+    assert isinstance(return_annotation.left, ast.Name)
+    assert return_annotation.left.id == "_dictionary_IpaSegmentId"
+    assert isinstance(return_annotation.right, ast.Constant)
+    assert return_annotation.right.value is None
+    sequence_count = next(
+        statement
+        for statement in classes["_dictionary_PronunciationTargetSequenceView"].body
+        if isinstance(statement, ast.FunctionDef) and statement.name == "target_count"
+    )
+    assert [argument.arg for argument in sequence_count.args.posonlyargs] == ["self"]
+    assert sequence_count.args.args == []
+
+    sound_class = classes["_dictionary_DictionarySoundEntry"]
+    sound_properties = {
+        statement.name
+        for statement in sound_class.body
+        if isinstance(statement, ast.FunctionDef)
+        and any(
+            isinstance(decorator, ast.Name) and decorator.id == "property"
+            for decorator in statement.decorator_list
+        )
+    }
+    assert sound_properties == {
+        "entry_index",
+        "ipa",
+        "pronunciation_targets",
+        "token_sequence",
+    }
+
+    composed = (PACKAGE_ROOT / "python" / "jbotci" / "_native.pyi").read_text(
+        encoding="utf-8"
+    )
+    for class_name in expected_functions:
+        assert composed.count(f"class {class_name}:") == 1
+
+
 def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
     documented_classes = (
         dictionary.DefinitionId,
@@ -473,6 +872,8 @@ def test_public_dictionary_api_has_complete_runtime_docstrings() -> None:
         dictionary.DictionarySoundEntry,
         dictionary.IpaTokenSequenceView,
         dictionary.IpaSegmentId,
+        dictionary.PronunciationTargetSequenceView,
+        dictionary.PronunciationTargetId,
         dictionary.DictionaryLujvoEntry,
         dictionary.DictionaryLujvoSegment,
         dictionary.DictionaryPatternEntry,

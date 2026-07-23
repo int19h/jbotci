@@ -103,6 +103,14 @@ such as `count` or `index` that the native objects do not implement. The public
 surface intentionally does not expose static-slice construction, importer-owned
 index builders, serde bridges, or a sound-search operation.
 
+Each `DictionarySoundEntry` exposes both its canonical display
+`token_sequence` and the distinct `pronunciation_targets` used by sound
+scoring. A `PronunciationTargetId` can admit several concrete `IpaSegmentId`
+realizations (notably for Lojban `r`); `realizations` returns all of them in
+Rust inventory order. The Rust-parity `realization(index)` method returns
+`None` for every out-of-range index, including negative Python integers. The
+convenience tuple itself retains normal Python negative-index behavior.
+
 The checked-in `python/jbotci/_native.pyi` is composed from the ordered manual,
 generated, and domain fragments under `stubs/_native/`. After changing a
 fragment, run:
