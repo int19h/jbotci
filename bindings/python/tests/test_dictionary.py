@@ -738,7 +738,7 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
     }
     assert sequence_members == {"self_similarity", "target_count", "targets"}
     assert str(inspect.signature(dictionary.PronunciationTargetId.realization)) == (
-        "(self, index)"
+        "(self, /, index)"
     )
     assert str(
         inspect.signature(dictionary.PronunciationTargetSequenceView.target_count)
@@ -810,8 +810,11 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
         for statement in classes["_dictionary_PronunciationTargetId"].body
         if isinstance(statement, ast.FunctionDef) and statement.name == "realization"
     )
-    assert [argument.arg for argument in target_realization.args.args] == ["self", "index"]
-    index_annotation = target_realization.args.args[1].annotation
+    assert [argument.arg for argument in target_realization.args.posonlyargs] == [
+        "self"
+    ]
+    assert [argument.arg for argument in target_realization.args.args] == ["index"]
+    index_annotation = target_realization.args.args[0].annotation
     assert isinstance(index_annotation, ast.Name)
     assert index_annotation.id == "int"
     return_annotation = target_realization.returns
