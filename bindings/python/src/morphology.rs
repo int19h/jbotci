@@ -1341,6 +1341,9 @@ enum WithIndicatorsStep {
 #[invariant(::Token { .. } => true)]
 #[invariant(::Projected { owner, path, lens } =>
     !lens.is_empty() && owner.with_indicators_at(path, lens).is_some())]
+// `new!` constructs the generated data variant, which rustc's dead-code lint
+// cannot attribute back to this wrapper declaration.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum WithIndicatorsRoot {
     Owned {
