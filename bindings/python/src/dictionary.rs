@@ -1976,9 +1976,9 @@ impl PyDictionarySoundEntry {
     ) -> PyResult<Py<PyPronunciationTargetSequenceView>> {
         Py::new(
             py,
-            new!(PyPronunciationTargetSequenceView {
+            PyPronunciationTargetSequenceView {
                 reference: self.reference.clone(),
-            }),
+            },
         )
     }
 
@@ -2175,7 +2175,7 @@ impl PyPronunciationTargetSequenceView {
             .targets
             .iter()
             .copied()
-            .map(|value| new!(PyPronunciationTargetId { value }));
+            .map(|value| PyPronunciationTargetId { value });
         Ok(sequence_to_tuple(py, values)?.unbind())
     }
 
@@ -3269,13 +3269,13 @@ mod tests {
             .position(|sound| sound.entry_index == entry_index)
             .expect("prami has a generated sound record");
         assert_eq!(Arc::strong_count(&owner), 1);
-        let sequence = new!(PyPronunciationTargetSequenceView {
+        let sequence = PyPronunciationTargetSequenceView {
             reference: SoundReference::new(Arc::clone(&owner), SoundPosition(position)),
-        });
+        };
         assert_eq!(Arc::strong_count(&owner), 2);
         drop(owner);
 
-        let rhotic = new!(PyPronunciationTargetId {
+        let rhotic = PyPronunciationTargetId {
             value: sequence
                 .sequence()
                 .targets
@@ -3283,7 +3283,7 @@ mod tests {
                 .copied()
                 .find(|target| target.realization_count() > 1)
                 .expect("prami contains the multi-realization rhotic target"),
-        });
+        };
         assert!(rhotic.realization_count() > 1);
         assert!(rhotic.value.realization(0).is_some());
     }
