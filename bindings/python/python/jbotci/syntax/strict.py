@@ -1,3 +1,15435 @@
-"""Bootstrap placeholder replaced by the canonical schema generator."""
+# Generated from the canonical syntax binding schema; do not edit.
+'Generated strict syntax model. Exhaustive variant checking relies on the packaged type hints and a type checker.'
+from __future__ import annotations
 
-__all__: tuple[str, ...] = ()
+from collections.abc import Sequence
+from typing import TypeAlias, cast, final
+
+from jbotci.morphology import Cmavo, Selmaho, Word, WordLike
+from jbotci.source import SourceId, SourceSpan
+from jbotci.syntax import Chain, RecoveredField, Token, WithFreeModifiers, WithIndicators
+from jbotci.syntax._runtime import _SyntaxNode
+
+@final
+class LeadingIndicatorSyntax(_SyntaxNode):
+    'A UI/CAI indicator together with its optional attached NAI word.'
+    __slots__ = ()
+    _schema_id = 0
+    __match_args__ = ('indicator', 'nai')
+    def __new__(cls, indicator: Token, nai: Token | None) -> LeadingIndicatorSyntax:
+        return cls._from_fields((indicator, nai))
+    def __init__(self, indicator: Token, nai: Token | None) -> None:
+        pass
+    @property
+    def indicator(self) -> Token:
+        'The UI or CAI indicator word.'
+        return cast(Token, self._field(0))
+    @property
+    def nai(self) -> Token | None:
+        'The optional NAI word attached to the indicator.'
+        return cast(Token | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingIndicatorSyntax is final')
+
+@final
+class TextSyntaxExplicitXauhaLohoiText(_SyntaxNode):
+    'Text introduced by XAUhA and closed by KUhAU; the payload retains the framed paragraphs.'
+    __slots__ = ()
+    _schema_id = 1
+    __match_args__ = ('explicit_xauha_lohoi_text',)
+    def __new__(cls, explicit_xauha_lohoi_text: ExplicitXauhaLohoiTextSyntax) -> TextSyntaxExplicitXauhaLohoiText:
+        return cls._from_fields((explicit_xauha_lohoi_text,))
+    def __init__(self, explicit_xauha_lohoi_text: ExplicitXauhaLohoiTextSyntax) -> None:
+        pass
+    @property
+    def explicit_xauha_lohoi_text(self) -> ExplicitXauhaLohoiTextSyntax:
+        'Text introduced by XAUhA and closed by KUhAU; the payload retains the framed paragraphs.'
+        return cast(ExplicitXauhaLohoiTextSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextSyntaxExplicitXauhaLohoiText is final')
+
+@final
+class TextSyntaxRegularText(_SyntaxNode):
+    'Ordinary text, retaining its leading material and optional paragraph tree.'
+    __slots__ = ()
+    _schema_id = 2
+    __match_args__ = ('regular_text',)
+    def __new__(cls, regular_text: RegularTextSyntax) -> TextSyntaxRegularText:
+        return cls._from_fields((regular_text,))
+    def __init__(self, regular_text: RegularTextSyntax) -> None:
+        pass
+    @property
+    def regular_text(self) -> RegularTextSyntax:
+        'Ordinary text, retaining its leading material and optional paragraph tree.'
+        return cast(RegularTextSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextSyntaxRegularText is final')
+
+TextSyntax: TypeAlias = TextSyntaxExplicitXauhaLohoiText | TextSyntaxRegularText
+
+@final
+class ExplicitXauhaLohoiTextSyntax(_SyntaxNode):
+    'XAUhA…KUhAU-framed text; framing words are consumed while paragraphs remain public.'
+    __slots__ = ()
+    _schema_id = 3
+    __match_args__ = ('paragraphs',)
+    def __new__(cls, paragraphs: TextParagraphWithAdditionalNihoSyntax) -> ExplicitXauhaLohoiTextSyntax:
+        return cls._from_fields((paragraphs,))
+    def __init__(self, paragraphs: TextParagraphWithAdditionalNihoSyntax) -> None:
+        pass
+    @property
+    def paragraphs(self) -> TextParagraphWithAdditionalNihoSyntax:
+        'The paragraphs enclosed by the ignored XAUhA…KUhAU framing sequence.'
+        return cast(TextParagraphWithAdditionalNihoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExplicitXauhaLohoiTextSyntax is final')
+
+@final
+class RegularTextSyntax(_SyntaxNode):
+    'Ordinary text with source-ordered leading material and an optional paragraph tree.'
+    __slots__ = ()
+    _schema_id = 4
+    __match_args__ = ('leading_nai', 'leading_cmevla', 'leading_indicators', 'leading_free_modifiers', 'leading_connective', 'leading_i_statements', 'paragraphs')
+    def __new__(cls, leading_nai: Sequence[Token], leading_cmevla: Sequence[Token], leading_indicators: Sequence[LeadingIndicatorSyntax], leading_free_modifiers: Sequence[FreeModifierSyntax], leading_connective: TextLeadingConnectiveSyntax | None, leading_i_statements: Sequence[LeadingIStatementSyntax], paragraphs: TextParagraphsSyntax | None) -> RegularTextSyntax:
+        return cls._from_fields((leading_nai, leading_cmevla, leading_indicators, leading_free_modifiers, leading_connective, leading_i_statements, paragraphs))
+    def __init__(self, leading_nai: Sequence[Token], leading_cmevla: Sequence[Token], leading_indicators: Sequence[LeadingIndicatorSyntax], leading_free_modifiers: Sequence[FreeModifierSyntax], leading_connective: TextLeadingConnectiveSyntax | None, leading_i_statements: Sequence[LeadingIStatementSyntax], paragraphs: TextParagraphsSyntax | None) -> None:
+        pass
+    @property
+    def leading_nai(self) -> tuple[Token, ...]:
+        'NAI words that precede the first formal text construct.'
+        return cast(tuple[Token, ...], self._field(0))
+    @property
+    def leading_cmevla(self) -> tuple[Token, ...]:
+        'CMEVLA words accepted before the first formal text construct.'
+        return cast(tuple[Token, ...], self._field(1))
+    @property
+    def leading_indicators(self) -> tuple[LeadingIndicatorSyntax, ...]:
+        'UI/CAI indicators accepted before the first formal text construct.'
+        return cast(tuple[LeadingIndicatorSyntax, ...], self._field(2))
+    @property
+    def leading_free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Free modifiers accepted before the first formal text construct.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(3))
+    @property
+    def leading_connective(self) -> TextLeadingConnectiveSyntax | None:
+        'A text-leading connective when it is not the start of a modal forethought connective.'
+        return cast(TextLeadingConnectiveSyntax | None, self._field(4))
+    @property
+    def leading_i_statements(self) -> tuple[LeadingIStatementSyntax, ...]:
+        'I-led statement prefixes that occur before the paragraph tree.'
+        return cast(tuple[LeadingIStatementSyntax, ...], self._field(5))
+    @property
+    def paragraphs(self) -> TextParagraphsSyntax | None:
+        'The primary paragraph subtree, absent when the text contains only leading material.'
+        return cast(TextParagraphsSyntax | None, self._field(6))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RegularTextSyntax is final')
+
+@final
+class TextParagraphsSyntaxTextParagraphWithAdditionalNiho(_SyntaxNode):
+    'Uses the `text_paragraph_with_additional_niho` product form, whose payload preserves `first` and `additional_niho`.'
+    __slots__ = ()
+    _schema_id = 5
+    __match_args__ = ('text_paragraph_with_additional_niho',)
+    def __new__(cls, text_paragraph_with_additional_niho: TextParagraphWithAdditionalNihoSyntax) -> TextParagraphsSyntaxTextParagraphWithAdditionalNiho:
+        return cls._from_fields((text_paragraph_with_additional_niho,))
+    def __init__(self, text_paragraph_with_additional_niho: TextParagraphWithAdditionalNihoSyntax) -> None:
+        pass
+    @property
+    def text_paragraph_with_additional_niho(self) -> TextParagraphWithAdditionalNihoSyntax:
+        'Uses the `text_paragraph_with_additional_niho` product form, whose payload preserves `first` and `additional_niho`.'
+        return cast(TextParagraphWithAdditionalNihoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextParagraphsSyntaxTextParagraphWithAdditionalNiho is final')
+
+@final
+class TextParagraphsSyntaxTextNihoParagraphs(_SyntaxNode):
+    'Uses the `text_niho_paragraphs` product form, whose payload preserves `paragraphs`.'
+    __slots__ = ()
+    _schema_id = 6
+    __match_args__ = ('text_niho_paragraphs',)
+    def __new__(cls, text_niho_paragraphs: TextNihoParagraphsSyntax) -> TextParagraphsSyntaxTextNihoParagraphs:
+        return cls._from_fields((text_niho_paragraphs,))
+    def __init__(self, text_niho_paragraphs: TextNihoParagraphsSyntax) -> None:
+        pass
+    @property
+    def text_niho_paragraphs(self) -> TextNihoParagraphsSyntax:
+        'Uses the `text_niho_paragraphs` product form, whose payload preserves `paragraphs`.'
+        return cast(TextNihoParagraphsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextParagraphsSyntaxTextNihoParagraphs is final')
+
+TextParagraphsSyntax: TypeAlias = TextParagraphsSyntaxTextParagraphWithAdditionalNiho | TextParagraphsSyntaxTextNihoParagraphs
+
+@final
+class TextParagraphWithAdditionalNihoSyntax(_SyntaxNode):
+    'Product node for paragraphs; preserves `first` and `additional_niho` in source order.'
+    __slots__ = ()
+    _schema_id = 7
+    __match_args__ = ('first', 'additional_niho')
+    def __new__(cls, first: ParagraphSyntax, additional_niho: Sequence[NihoParagraphSyntax]) -> TextParagraphWithAdditionalNihoSyntax:
+        return cls._from_fields((first, additional_niho))
+    def __init__(self, first: ParagraphSyntax, additional_niho: Sequence[NihoParagraphSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> ParagraphSyntax:
+        'The initial paragraph before zero or more NIhO-led paragraph continuations.'
+        return cast(ParagraphSyntax, self._field(0))
+    @property
+    def additional_niho(self) -> tuple[NihoParagraphSyntax, ...]:
+        'Ordered sequence of zero or more additional niho components.'
+        return cast(tuple[NihoParagraphSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextParagraphWithAdditionalNihoSyntax is final')
+
+@final
+class TextNihoParagraphsSyntax(_SyntaxNode):
+    'Transparent product node for paragraphs; preserves the `paragraphs` component.'
+    __slots__ = ()
+    _schema_id = 8
+    __match_args__ = ('paragraphs',)
+    def __new__(cls, paragraphs: Sequence[NihoParagraphSyntax]) -> TextNihoParagraphsSyntax:
+        return cls._from_fields((paragraphs,))
+    def __init__(self, paragraphs: Sequence[NihoParagraphSyntax]) -> None:
+        pass
+    @property
+    def paragraphs(self) -> tuple[NihoParagraphSyntax, ...]:
+        'Non-empty ordered sequence of paragraphs components.'
+        return cast(tuple[NihoParagraphSyntax, ...], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextNihoParagraphsSyntax is final')
+
+@final
+class LeadingIStatementSyntax(_SyntaxNode):
+    'Product node for paragraph statement; preserves `i`, `connective`, and `free_modifiers` in source order.'
+    __slots__ = ()
+    _schema_id = 9
+    __match_args__ = ('i', 'connective', 'free_modifiers')
+    def __new__(cls, i: Token, connective: IParagraphStatementConnectiveSyntax | None, free_modifiers: Sequence[FreeModifierSyntax]) -> LeadingIStatementSyntax:
+        return cls._from_fields((i, connective, free_modifiers))
+    def __init__(self, i: Token, connective: IParagraphStatementConnectiveSyntax | None, free_modifiers: Sequence[FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def connective(self) -> IParagraphStatementConnectiveSyntax | None:
+        'The optional connective component.'
+        return cast(IParagraphStatementConnectiveSyntax | None, self._field(1))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingIStatementSyntax is final')
+
+@final
+class ParagraphSyntaxINihoParagraph(_SyntaxNode):
+    'Uses the `i_niho_paragraph` product form, whose payload preserves `i`, `niho`, `free_modifiers`, and `statements`.'
+    __slots__ = ()
+    _schema_id = 10
+    __match_args__ = ('i_niho_paragraph',)
+    def __new__(cls, i_niho_paragraph: INihoParagraphSyntax) -> ParagraphSyntaxINihoParagraph:
+        return cls._from_fields((i_niho_paragraph,))
+    def __init__(self, i_niho_paragraph: INihoParagraphSyntax) -> None:
+        pass
+    @property
+    def i_niho_paragraph(self) -> INihoParagraphSyntax:
+        'Uses the `i_niho_paragraph` product form, whose payload preserves `i`, `niho`, `free_modifiers`, and `statements`.'
+        return cast(INihoParagraphSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphSyntaxINihoParagraph is final')
+
+@final
+class ParagraphSyntaxSimpleParagraph(_SyntaxNode):
+    'Uses the `simple_paragraph` product form, whose payload preserves `statements`.'
+    __slots__ = ()
+    _schema_id = 11
+    __match_args__ = ('simple_paragraph',)
+    def __new__(cls, simple_paragraph: SimpleParagraphSyntax) -> ParagraphSyntaxSimpleParagraph:
+        return cls._from_fields((simple_paragraph,))
+    def __init__(self, simple_paragraph: SimpleParagraphSyntax) -> None:
+        pass
+    @property
+    def simple_paragraph(self) -> SimpleParagraphSyntax:
+        'Uses the `simple_paragraph` product form, whose payload preserves `statements`.'
+        return cast(SimpleParagraphSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphSyntaxSimpleParagraph is final')
+
+ParagraphSyntax: TypeAlias = ParagraphSyntaxINihoParagraph | ParagraphSyntaxSimpleParagraph
+
+@final
+class SimpleParagraphSyntax(_SyntaxNode):
+    'Transparent product node for paragraph; preserves the `statements` component.'
+    __slots__ = ()
+    _schema_id = 12
+    __match_args__ = ('statements',)
+    def __new__(cls, statements: ParagraphStatementSequenceSyntax) -> SimpleParagraphSyntax:
+        return cls._from_fields((statements,))
+    def __init__(self, statements: ParagraphStatementSequenceSyntax) -> None:
+        pass
+    @property
+    def statements(self) -> ParagraphStatementSequenceSyntax:
+        'The paragraph primary statement sequence.'
+        return cast(ParagraphStatementSequenceSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleParagraphSyntax is final')
+
+@final
+class ParagraphStatementSequenceSyntax(_SyntaxNode):
+    'Product node for paragraph statement sequence; preserves `initial`, `following`, and `trailing` in source order.'
+    __slots__ = ()
+    _schema_id = 13
+    __match_args__ = ('initial', 'following', 'trailing')
+    def __new__(cls, initial: InitialParagraphStatementSyntax, following: Sequence[FollowingParagraphStatementSyntax], trailing: Sequence[TrailingIjekParagraphStatementSyntax]) -> ParagraphStatementSequenceSyntax:
+        return cls._from_fields((initial, following, trailing))
+    def __init__(self, initial: InitialParagraphStatementSyntax, following: Sequence[FollowingParagraphStatementSyntax], trailing: Sequence[TrailingIjekParagraphStatementSyntax]) -> None:
+        pass
+    @property
+    def initial(self) -> InitialParagraphStatementSyntax:
+        'The initial paragraph statement before following I-led or trailing-connective entries.'
+        return cast(InitialParagraphStatementSyntax, self._field(0))
+    @property
+    def following(self) -> tuple[FollowingParagraphStatementSyntax, ...]:
+        'Ordered sequence of zero or more following components.'
+        return cast(tuple[FollowingParagraphStatementSyntax, ...], self._field(1))
+    @property
+    def trailing(self) -> tuple[TrailingIjekParagraphStatementSyntax, ...]:
+        'Ordered sequence of zero or more trailing components.'
+        return cast(tuple[TrailingIjekParagraphStatementSyntax, ...], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphStatementSequenceSyntax is final')
+
+@final
+class INihoParagraphSyntax(_SyntaxNode):
+    'Product node for paragraph; preserves `i`, `niho`, `free_modifiers`, and `statements` in source order.'
+    __slots__ = ()
+    _schema_id = 14
+    __match_args__ = ('i', 'niho', 'free_modifiers', 'statements')
+    def __new__(cls, i: Token, niho: Sequence[Token], free_modifiers: Sequence[FreeModifierSyntax], statements: ParagraphStatementSequenceSyntax | None) -> INihoParagraphSyntax:
+        return cls._from_fields((i, niho, free_modifiers, statements))
+    def __init__(self, i: Token, niho: Sequence[Token], free_modifiers: Sequence[FreeModifierSyntax], statements: ParagraphStatementSequenceSyntax | None) -> None:
+        pass
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def niho(self) -> tuple[Token, ...]:
+        'Non-empty ordered sequence of niho components.'
+        return cast(tuple[Token, ...], self._field(1))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(2))
+    @property
+    def statements(self) -> ParagraphStatementSequenceSyntax | None:
+        'The optional statements component.'
+        return cast(ParagraphStatementSequenceSyntax | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('INihoParagraphSyntax is final')
+
+@final
+class NihoParagraphSyntax(_SyntaxNode):
+    'Product node for paragraph; preserves `niho`, `free_modifiers`, and `statements` in source order.'
+    __slots__ = ()
+    _schema_id = 15
+    __match_args__ = ('niho', 'free_modifiers', 'statements')
+    def __new__(cls, niho: Sequence[Token], free_modifiers: Sequence[FreeModifierSyntax], statements: ParagraphStatementSequenceSyntax | None) -> NihoParagraphSyntax:
+        return cls._from_fields((niho, free_modifiers, statements))
+    def __init__(self, niho: Sequence[Token], free_modifiers: Sequence[FreeModifierSyntax], statements: ParagraphStatementSequenceSyntax | None) -> None:
+        pass
+    @property
+    def niho(self) -> tuple[Token, ...]:
+        'Non-empty ordered sequence of niho components.'
+        return cast(tuple[Token, ...], self._field(0))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(1))
+    @property
+    def statements(self) -> ParagraphStatementSequenceSyntax | None:
+        'The optional statements component.'
+        return cast(ParagraphStatementSequenceSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NihoParagraphSyntax is final')
+
+@final
+class InitialParagraphStatementSyntax(_SyntaxNode):
+    'Transparent product node for paragraph statement; preserves the `statement` component.'
+    __slots__ = ()
+    _schema_id = 16
+    __match_args__ = ('statement',)
+    def __new__(cls, statement: StatementOrFragmentSyntax) -> InitialParagraphStatementSyntax:
+        return cls._from_fields((statement,))
+    def __init__(self, statement: StatementOrFragmentSyntax) -> None:
+        pass
+    @property
+    def statement(self) -> StatementOrFragmentSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementOrFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('InitialParagraphStatementSyntax is final')
+
+@final
+class FollowingParagraphStatementSyntax(_SyntaxNode):
+    'Product node for paragraph statement; preserves `i`, `free_modifiers`, and `statement` in source order.'
+    __slots__ = ()
+    _schema_id = 17
+    __match_args__ = ('i', 'free_modifiers', 'statement')
+    def __new__(cls, i: Token, free_modifiers: Sequence[FreeModifierSyntax], statement: StatementOrFragmentSyntax | None) -> FollowingParagraphStatementSyntax:
+        return cls._from_fields((i, free_modifiers, statement))
+    def __init__(self, i: Token, free_modifiers: Sequence[FreeModifierSyntax], statement: StatementOrFragmentSyntax | None) -> None:
+        pass
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(1))
+    @property
+    def statement(self) -> StatementOrFragmentSyntax | None:
+        'The optional statement component.'
+        return cast(StatementOrFragmentSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FollowingParagraphStatementSyntax is final')
+
+@final
+class TrailingIjekParagraphStatementSyntax(_SyntaxNode):
+    'Product node for paragraph statement; preserves `i` and `connective` in source order.'
+    __slots__ = ()
+    _schema_id = 18
+    __match_args__ = ('i', 'connective')
+    def __new__(cls, i: Token, connective: StatementConnectiveSyntax) -> TrailingIjekParagraphStatementSyntax:
+        return cls._from_fields((i, connective))
+    def __init__(self, i: Token, connective: StatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def connective(self) -> StatementConnectiveSyntax:
+        'The statement connective after I, retained for the following paragraph statement.'
+        return cast(StatementConnectiveSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TrailingIjekParagraphStatementSyntax is final')
+
+@final
+class StatementSyntaxIStatementConnection(_SyntaxNode):
+    'Uses the `i_statement_connection` product form, whose payload preserves `leading_statement` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 19
+    __match_args__ = ('i_statement_connection',)
+    def __new__(cls, i_statement_connection: IStatementConnectionSyntax) -> StatementSyntaxIStatementConnection:
+        return cls._from_fields((i_statement_connection,))
+    def __init__(self, i_statement_connection: IStatementConnectionSyntax) -> None:
+        pass
+    @property
+    def i_statement_connection(self) -> IStatementConnectionSyntax:
+        'Uses the `i_statement_connection` product form, whose payload preserves `leading_statement` and `continuations`.'
+        return cast(IStatementConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementSyntaxIStatementConnection is final')
+
+@final
+class StatementSyntaxPreposedIStatementConnection(_SyntaxNode):
+    'Uses the `preposed_i_statement_connection` product form, whose payload preserves `leading_statement`, `connective`, `i`, and `trailing_statement`.'
+    __slots__ = ()
+    _schema_id = 20
+    __match_args__ = ('preposed_i_statement_connection',)
+    def __new__(cls, preposed_i_statement_connection: PreposedIStatementConnectionSyntax) -> StatementSyntaxPreposedIStatementConnection:
+        return cls._from_fields((preposed_i_statement_connection,))
+    def __init__(self, preposed_i_statement_connection: PreposedIStatementConnectionSyntax) -> None:
+        pass
+    @property
+    def preposed_i_statement_connection(self) -> PreposedIStatementConnectionSyntax:
+        'Uses the `preposed_i_statement_connection` product form, whose payload preserves `leading_statement`, `connective`, `i`, and `trailing_statement`.'
+        return cast(PreposedIStatementConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementSyntaxPreposedIStatementConnection is final')
+
+@final
+class StatementSyntaxStatementBase(_SyntaxNode):
+    'Uses the nested `statement_base` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 21
+    __match_args__ = ('statement_base',)
+    def __new__(cls, statement_base: StatementBaseSyntax) -> StatementSyntaxStatementBase:
+        return cls._from_fields((statement_base,))
+    def __init__(self, statement_base: StatementBaseSyntax) -> None:
+        pass
+    @property
+    def statement_base(self) -> StatementBaseSyntax:
+        'Uses the nested `statement_base` sum form and preserves its selected alternative.'
+        return cast(StatementBaseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementSyntaxStatementBase is final')
+
+StatementSyntax: TypeAlias = StatementSyntaxIStatementConnection | StatementSyntaxPreposedIStatementConnection | StatementSyntaxStatementBase
+
+@final
+class StatementBaseSyntaxPrenexStatement(_SyntaxNode):
+    'Uses the `prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.'
+    __slots__ = ()
+    _schema_id = 22
+    __match_args__ = ('prenex_statement',)
+    def __new__(cls, prenex_statement: PrenexStatementSyntax) -> StatementBaseSyntaxPrenexStatement:
+        return cls._from_fields((prenex_statement,))
+    def __init__(self, prenex_statement: PrenexStatementSyntax) -> None:
+        pass
+    @property
+    def prenex_statement(self) -> PrenexStatementSyntax:
+        'Uses the `prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.'
+        return cast(PrenexStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementBaseSyntaxPrenexStatement is final')
+
+@final
+class StatementBaseSyntaxForethoughtStatement(_SyntaxNode):
+    'Uses the `forethought_statement` product form, whose payload preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi`.'
+    __slots__ = ()
+    _schema_id = 23
+    __match_args__ = ('forethought_statement',)
+    def __new__(cls, forethought_statement: ForethoughtStatementSyntax) -> StatementBaseSyntaxForethoughtStatement:
+        return cls._from_fields((forethought_statement,))
+    def __init__(self, forethought_statement: ForethoughtStatementSyntax) -> None:
+        pass
+    @property
+    def forethought_statement(self) -> ForethoughtStatementSyntax:
+        'Uses the `forethought_statement` product form, whose payload preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi`.'
+        return cast(ForethoughtStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementBaseSyntaxForethoughtStatement is final')
+
+@final
+class StatementBaseSyntaxBridiStatement(_SyntaxNode):
+    'Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 24
+    __match_args__ = ('bridi_statement',)
+    def __new__(cls, bridi_statement: BridiStatementSyntax) -> StatementBaseSyntaxBridiStatement:
+        return cls._from_fields((bridi_statement,))
+    def __init__(self, bridi_statement: BridiStatementSyntax) -> None:
+        pass
+    @property
+    def bridi_statement(self) -> BridiStatementSyntax:
+        'Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.'
+        return cast(BridiStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementBaseSyntaxBridiStatement is final')
+
+@final
+class StatementBaseSyntaxTextGroupStatement(_SyntaxNode):
+    'Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.'
+    __slots__ = ()
+    _schema_id = 25
+    __match_args__ = ('text_group_statement',)
+    def __new__(cls, text_group_statement: TextGroupStatementSyntax) -> StatementBaseSyntaxTextGroupStatement:
+        return cls._from_fields((text_group_statement,))
+    def __init__(self, text_group_statement: TextGroupStatementSyntax) -> None:
+        pass
+    @property
+    def text_group_statement(self) -> TextGroupStatementSyntax:
+        'Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.'
+        return cast(TextGroupStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementBaseSyntaxTextGroupStatement is final')
+
+StatementBaseSyntax: TypeAlias = StatementBaseSyntaxPrenexStatement | StatementBaseSyntaxForethoughtStatement | StatementBaseSyntaxBridiStatement | StatementBaseSyntaxTextGroupStatement
+
+@final
+class StatementOrFragmentSyntaxZantufaStatementTermsStatement(_SyntaxNode):
+    'Uses the `zantufa_statement_terms_statement` product form, whose payload preserves `statement` and `tail`.'
+    __slots__ = ()
+    _schema_id = 26
+    __match_args__ = ('zantufa_statement_terms_statement',)
+    def __new__(cls, zantufa_statement_terms_statement: ZantufaStatementTermsStatementSyntax) -> StatementOrFragmentSyntaxZantufaStatementTermsStatement:
+        return cls._from_fields((zantufa_statement_terms_statement,))
+    def __init__(self, zantufa_statement_terms_statement: ZantufaStatementTermsStatementSyntax) -> None:
+        pass
+    @property
+    def zantufa_statement_terms_statement(self) -> ZantufaStatementTermsStatementSyntax:
+        'Uses the `zantufa_statement_terms_statement` product form, whose payload preserves `statement` and `tail`.'
+        return cast(ZantufaStatementTermsStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementOrFragmentSyntaxZantufaStatementTermsStatement is final')
+
+@final
+class StatementOrFragmentSyntaxStatementOrFragmentStatement(_SyntaxNode):
+    'Uses the `statement_or_fragment_statement` product form, whose payload preserves `statement`.'
+    __slots__ = ()
+    _schema_id = 27
+    __match_args__ = ('statement_or_fragment_statement',)
+    def __new__(cls, statement_or_fragment_statement: StatementOrFragmentStatementSyntax) -> StatementOrFragmentSyntaxStatementOrFragmentStatement:
+        return cls._from_fields((statement_or_fragment_statement,))
+    def __init__(self, statement_or_fragment_statement: StatementOrFragmentStatementSyntax) -> None:
+        pass
+    @property
+    def statement_or_fragment_statement(self) -> StatementOrFragmentStatementSyntax:
+        'Uses the `statement_or_fragment_statement` product form, whose payload preserves `statement`.'
+        return cast(StatementOrFragmentStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementOrFragmentSyntaxStatementOrFragmentStatement is final')
+
+@final
+class StatementOrFragmentSyntaxFragmentStatement(_SyntaxNode):
+    'Uses the nested `fragment_statement` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 28
+    __match_args__ = ('fragment_statement',)
+    def __new__(cls, fragment_statement: FragmentStatementSyntax) -> StatementOrFragmentSyntaxFragmentStatement:
+        return cls._from_fields((fragment_statement,))
+    def __init__(self, fragment_statement: FragmentStatementSyntax) -> None:
+        pass
+    @property
+    def fragment_statement(self) -> FragmentStatementSyntax:
+        'Uses the nested `fragment_statement` sum form and preserves its selected alternative.'
+        return cast(FragmentStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementOrFragmentSyntaxFragmentStatement is final')
+
+StatementOrFragmentSyntax: TypeAlias = StatementOrFragmentSyntaxZantufaStatementTermsStatement | StatementOrFragmentSyntaxStatementOrFragmentStatement | StatementOrFragmentSyntaxFragmentStatement
+
+@final
+class ZantufaStatementTermsStatementSyntax(_SyntaxNode):
+    'Product node for paragraph statement; preserves `statement` and `tail` in source order.'
+    __slots__ = ()
+    _schema_id = 29
+    __match_args__ = ('statement', 'tail')
+    def __new__(cls, statement: StatementSyntax, tail: ZantufaStatementTermsTailSyntax) -> ZantufaStatementTermsStatementSyntax:
+        return cls._from_fields((statement, tail))
+    def __init__(self, statement: StatementSyntax, tail: ZantufaStatementTermsTailSyntax) -> None:
+        pass
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(0))
+    @property
+    def tail(self) -> ZantufaStatementTermsTailSyntax:
+        'The `zantufa_statement_terms_tail` grammar result in the `tail` structural role of the `zantufa_statement_terms_statement` production.'
+        return cast(ZantufaStatementTermsTailSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaStatementTermsStatementSyntax is final')
+
+@final
+class ZantufaStatementTermsTailSyntaxZantufaIauStatementTermsTail(_SyntaxNode):
+    'Uses the `zantufa_iau_statement_terms_tail` product form, whose payload preserves `iau` and `terms`.'
+    __slots__ = ()
+    _schema_id = 30
+    __match_args__ = ('zantufa_iau_statement_terms_tail',)
+    def __new__(cls, zantufa_iau_statement_terms_tail: ZantufaIauStatementTermsTailSyntax) -> ZantufaStatementTermsTailSyntaxZantufaIauStatementTermsTail:
+        return cls._from_fields((zantufa_iau_statement_terms_tail,))
+    def __init__(self, zantufa_iau_statement_terms_tail: ZantufaIauStatementTermsTailSyntax) -> None:
+        pass
+    @property
+    def zantufa_iau_statement_terms_tail(self) -> ZantufaIauStatementTermsTailSyntax:
+        'Uses the `zantufa_iau_statement_terms_tail` product form, whose payload preserves `iau` and `terms`.'
+        return cast(ZantufaIauStatementTermsTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaStatementTermsTailSyntaxZantufaIauStatementTermsTail is final')
+
+@final
+class ZantufaStatementTermsTailSyntaxZantufaBareStatementTermsTail(_SyntaxNode):
+    'Uses the `zantufa_bare_statement_terms_tail` product form, whose payload preserves `terms`.'
+    __slots__ = ()
+    _schema_id = 31
+    __match_args__ = ('zantufa_bare_statement_terms_tail',)
+    def __new__(cls, zantufa_bare_statement_terms_tail: ZantufaBareStatementTermsTailSyntax) -> ZantufaStatementTermsTailSyntaxZantufaBareStatementTermsTail:
+        return cls._from_fields((zantufa_bare_statement_terms_tail,))
+    def __init__(self, zantufa_bare_statement_terms_tail: ZantufaBareStatementTermsTailSyntax) -> None:
+        pass
+    @property
+    def zantufa_bare_statement_terms_tail(self) -> ZantufaBareStatementTermsTailSyntax:
+        'Uses the `zantufa_bare_statement_terms_tail` product form, whose payload preserves `terms`.'
+        return cast(ZantufaBareStatementTermsTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaStatementTermsTailSyntaxZantufaBareStatementTermsTail is final')
+
+ZantufaStatementTermsTailSyntax: TypeAlias = ZantufaStatementTermsTailSyntaxZantufaIauStatementTermsTail | ZantufaStatementTermsTailSyntaxZantufaBareStatementTermsTail
+
+@final
+class ZantufaIauStatementTermsTailSyntax(_SyntaxNode):
+    'Product node for paragraph statement; preserves `iau` and `terms` in source order.'
+    __slots__ = ()
+    _schema_id = 32
+    __match_args__ = ('iau', 'terms')
+    def __new__(cls, iau: WithFreeModifiers[Token, FreeModifierSyntax], terms: Sequence[TermSyntax]) -> ZantufaIauStatementTermsTailSyntax:
+        return cls._from_fields((iau, terms))
+    def __init__(self, iau: WithFreeModifiers[Token, FreeModifierSyntax], terms: Sequence[TermSyntax]) -> None:
+        pass
+    @property
+    def iau(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ihau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaIauStatementTermsTailSyntax is final')
+
+@final
+class ZantufaBareStatementTermsTailSyntax(_SyntaxNode):
+    'Transparent product node for paragraph statement; preserves the `terms` component.'
+    __slots__ = ()
+    _schema_id = 33
+    __match_args__ = ('terms',)
+    def __new__(cls, terms: Sequence[TermSyntax]) -> ZantufaBareStatementTermsTailSyntax:
+        return cls._from_fields((terms,))
+    def __init__(self, terms: Sequence[TermSyntax]) -> None:
+        pass
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaBareStatementTermsTailSyntax is final')
+
+@final
+class StatementOrFragmentStatementSyntax(_SyntaxNode):
+    'Transparent product node for paragraph statement; preserves the `statement` component.'
+    __slots__ = ()
+    _schema_id = 34
+    __match_args__ = ('statement',)
+    def __new__(cls, statement: StatementSyntax) -> StatementOrFragmentStatementSyntax:
+        return cls._from_fields((statement,))
+    def __init__(self, statement: StatementSyntax) -> None:
+        pass
+    @property
+    def statement(self) -> StatementSyntax:
+        'The `statement` grammar result in the `statement` structural role of the `statement_or_fragment_statement` production.'
+        return cast(StatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementOrFragmentStatementSyntax is final')
+
+@final
+class FragmentStatementSyntaxPrenexFragment(_SyntaxNode):
+    'Uses the `prenex_fragment` product form, whose payload preserves `terms` and `zohu`.'
+    __slots__ = ()
+    _schema_id = 35
+    __match_args__ = ('prenex_fragment',)
+    def __new__(cls, prenex_fragment: PrenexFragmentSyntax) -> FragmentStatementSyntaxPrenexFragment:
+        return cls._from_fields((prenex_fragment,))
+    def __init__(self, prenex_fragment: PrenexFragmentSyntax) -> None:
+        pass
+    @property
+    def prenex_fragment(self) -> PrenexFragmentSyntax:
+        'Uses the `prenex_fragment` product form, whose payload preserves `terms` and `zohu`.'
+        return cast(PrenexFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxPrenexFragment is final')
+
+@final
+class FragmentStatementSyntaxSelbriFragment(_SyntaxNode):
+    'Uses the `selbri_fragment` product form, whose payload preserves `selbri`.'
+    __slots__ = ()
+    _schema_id = 36
+    __match_args__ = ('selbri_fragment',)
+    def __new__(cls, selbri_fragment: SelbriFragmentSyntax) -> FragmentStatementSyntaxSelbriFragment:
+        return cls._from_fields((selbri_fragment,))
+    def __init__(self, selbri_fragment: SelbriFragmentSyntax) -> None:
+        pass
+    @property
+    def selbri_fragment(self) -> SelbriFragmentSyntax:
+        'Uses the `selbri_fragment` product form, whose payload preserves `selbri`.'
+        return cast(SelbriFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxSelbriFragment is final')
+
+@final
+class FragmentStatementSyntaxEkFragment(_SyntaxNode):
+    'Uses the `ek_fragment` product form, whose payload preserves `connective`.'
+    __slots__ = ()
+    _schema_id = 37
+    __match_args__ = ('ek_fragment',)
+    def __new__(cls, ek_fragment: EkFragmentSyntax) -> FragmentStatementSyntaxEkFragment:
+        return cls._from_fields((ek_fragment,))
+    def __init__(self, ek_fragment: EkFragmentSyntax) -> None:
+        pass
+    @property
+    def ek_fragment(self) -> EkFragmentSyntax:
+        'Uses the `ek_fragment` product form, whose payload preserves `connective`.'
+        return cast(EkFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxEkFragment is final')
+
+@final
+class FragmentStatementSyntaxGihekFragment(_SyntaxNode):
+    'Uses the `gihek_fragment` product form, whose payload preserves `connective`.'
+    __slots__ = ()
+    _schema_id = 38
+    __match_args__ = ('gihek_fragment',)
+    def __new__(cls, gihek_fragment: GihekFragmentSyntax) -> FragmentStatementSyntaxGihekFragment:
+        return cls._from_fields((gihek_fragment,))
+    def __init__(self, gihek_fragment: GihekFragmentSyntax) -> None:
+        pass
+    @property
+    def gihek_fragment(self) -> GihekFragmentSyntax:
+        'Uses the `gihek_fragment` product form, whose payload preserves `connective`.'
+        return cast(GihekFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxGihekFragment is final')
+
+@final
+class FragmentStatementSyntaxMultipleNaFragment(_SyntaxNode):
+    'Uses the `multiple_na_fragment` product form, whose payload preserves `first_na`, `second_na`, and `additional_na`.'
+    __slots__ = ()
+    _schema_id = 39
+    __match_args__ = ('multiple_na_fragment',)
+    def __new__(cls, multiple_na_fragment: MultipleNaFragmentSyntax) -> FragmentStatementSyntaxMultipleNaFragment:
+        return cls._from_fields((multiple_na_fragment,))
+    def __init__(self, multiple_na_fragment: MultipleNaFragmentSyntax) -> None:
+        pass
+    @property
+    def multiple_na_fragment(self) -> MultipleNaFragmentSyntax:
+        'Uses the `multiple_na_fragment` product form, whose payload preserves `first_na`, `second_na`, and `additional_na`.'
+        return cast(MultipleNaFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxMultipleNaFragment is final')
+
+@final
+class FragmentStatementSyntaxSingleNaFragment(_SyntaxNode):
+    'Uses the `single_na_fragment` product form, whose payload preserves `na`.'
+    __slots__ = ()
+    _schema_id = 40
+    __match_args__ = ('single_na_fragment',)
+    def __new__(cls, single_na_fragment: SingleNaFragmentSyntax) -> FragmentStatementSyntaxSingleNaFragment:
+        return cls._from_fields((single_na_fragment,))
+    def __init__(self, single_na_fragment: SingleNaFragmentSyntax) -> None:
+        pass
+    @property
+    def single_na_fragment(self) -> SingleNaFragmentSyntax:
+        'Uses the `single_na_fragment` product form, whose payload preserves `na`.'
+        return cast(SingleNaFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxSingleNaFragment is final')
+
+@final
+class FragmentStatementSyntaxTermsFragment(_SyntaxNode):
+    'Uses the `terms_fragment` product form, whose payload preserves `terms` and `vau`.'
+    __slots__ = ()
+    _schema_id = 41
+    __match_args__ = ('terms_fragment',)
+    def __new__(cls, terms_fragment: TermsFragmentSyntax) -> FragmentStatementSyntaxTermsFragment:
+        return cls._from_fields((terms_fragment,))
+    def __init__(self, terms_fragment: TermsFragmentSyntax) -> None:
+        pass
+    @property
+    def terms_fragment(self) -> TermsFragmentSyntax:
+        'Uses the `terms_fragment` product form, whose payload preserves `terms` and `vau`.'
+        return cast(TermsFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxTermsFragment is final')
+
+@final
+class FragmentStatementSyntaxMeksoFragment(_SyntaxNode):
+    'Uses the `mekso_fragment` product form, whose payload preserves `quantifier`.'
+    __slots__ = ()
+    _schema_id = 42
+    __match_args__ = ('mekso_fragment',)
+    def __new__(cls, mekso_fragment: MeksoFragmentSyntax) -> FragmentStatementSyntaxMeksoFragment:
+        return cls._from_fields((mekso_fragment,))
+    def __init__(self, mekso_fragment: MeksoFragmentSyntax) -> None:
+        pass
+    @property
+    def mekso_fragment(self) -> MeksoFragmentSyntax:
+        'Uses the `mekso_fragment` product form, whose payload preserves `quantifier`.'
+        return cast(MeksoFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxMeksoFragment is final')
+
+@final
+class FragmentStatementSyntaxRelativeClauseFragment(_SyntaxNode):
+    'Uses the `relative_clause_fragment` product form, whose payload preserves `relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 43
+    __match_args__ = ('relative_clause_fragment',)
+    def __new__(cls, relative_clause_fragment: RelativeClauseFragmentSyntax) -> FragmentStatementSyntaxRelativeClauseFragment:
+        return cls._from_fields((relative_clause_fragment,))
+    def __init__(self, relative_clause_fragment: RelativeClauseFragmentSyntax) -> None:
+        pass
+    @property
+    def relative_clause_fragment(self) -> RelativeClauseFragmentSyntax:
+        'Uses the `relative_clause_fragment` product form, whose payload preserves `relative_clauses`.'
+        return cast(RelativeClauseFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxRelativeClauseFragment is final')
+
+@final
+class FragmentStatementSyntaxLinkedSumtiContinuationFragment(_SyntaxNode):
+    'Uses the `linked_sumti_continuation_fragment` product form, whose payload preserves `bei_links`.'
+    __slots__ = ()
+    _schema_id = 44
+    __match_args__ = ('linked_sumti_continuation_fragment',)
+    def __new__(cls, linked_sumti_continuation_fragment: LinkedSumtiContinuationFragmentSyntax) -> FragmentStatementSyntaxLinkedSumtiContinuationFragment:
+        return cls._from_fields((linked_sumti_continuation_fragment,))
+    def __init__(self, linked_sumti_continuation_fragment: LinkedSumtiContinuationFragmentSyntax) -> None:
+        pass
+    @property
+    def linked_sumti_continuation_fragment(self) -> LinkedSumtiContinuationFragmentSyntax:
+        'Uses the `linked_sumti_continuation_fragment` product form, whose payload preserves `bei_links`.'
+        return cast(LinkedSumtiContinuationFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxLinkedSumtiContinuationFragment is final')
+
+@final
+class FragmentStatementSyntaxLinkedSumtiFragment(_SyntaxNode):
+    'Uses the `linked_sumti_fragment` product form, whose payload preserves `linkargs`.'
+    __slots__ = ()
+    _schema_id = 45
+    __match_args__ = ('linked_sumti_fragment',)
+    def __new__(cls, linked_sumti_fragment: LinkedSumtiFragmentSyntax) -> FragmentStatementSyntaxLinkedSumtiFragment:
+        return cls._from_fields((linked_sumti_fragment,))
+    def __init__(self, linked_sumti_fragment: LinkedSumtiFragmentSyntax) -> None:
+        pass
+    @property
+    def linked_sumti_fragment(self) -> LinkedSumtiFragmentSyntax:
+        'Uses the `linked_sumti_fragment` product form, whose payload preserves `linkargs`.'
+        return cast(LinkedSumtiFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxLinkedSumtiFragment is final')
+
+@final
+class FragmentStatementSyntaxZantufaMeksoFragment(_SyntaxNode):
+    'Uses the `zantufa_mekso_fragment` product form, whose payload preserves `expression`.'
+    __slots__ = ()
+    _schema_id = 46
+    __match_args__ = ('zantufa_mekso_fragment',)
+    def __new__(cls, zantufa_mekso_fragment: ZantufaMeksoFragmentSyntax) -> FragmentStatementSyntaxZantufaMeksoFragment:
+        return cls._from_fields((zantufa_mekso_fragment,))
+    def __init__(self, zantufa_mekso_fragment: ZantufaMeksoFragmentSyntax) -> None:
+        pass
+    @property
+    def zantufa_mekso_fragment(self) -> ZantufaMeksoFragmentSyntax:
+        'Uses the `zantufa_mekso_fragment` product form, whose payload preserves `expression`.'
+        return cast(ZantufaMeksoFragmentSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FragmentStatementSyntaxZantufaMeksoFragment is final')
+
+FragmentStatementSyntax: TypeAlias = FragmentStatementSyntaxPrenexFragment | FragmentStatementSyntaxSelbriFragment | FragmentStatementSyntaxEkFragment | FragmentStatementSyntaxGihekFragment | FragmentStatementSyntaxMultipleNaFragment | FragmentStatementSyntaxSingleNaFragment | FragmentStatementSyntaxTermsFragment | FragmentStatementSyntaxMeksoFragment | FragmentStatementSyntaxRelativeClauseFragment | FragmentStatementSyntaxLinkedSumtiContinuationFragment | FragmentStatementSyntaxLinkedSumtiFragment | FragmentStatementSyntaxZantufaMeksoFragment
+
+@final
+class StatementAfterIConnectiveSyntaxForethoughtStatement(_SyntaxNode):
+    'Uses the `forethought_statement` product form, whose payload preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi`.'
+    __slots__ = ()
+    _schema_id = 47
+    __match_args__ = ('forethought_statement',)
+    def __new__(cls, forethought_statement: ForethoughtStatementSyntax) -> StatementAfterIConnectiveSyntaxForethoughtStatement:
+        return cls._from_fields((forethought_statement,))
+    def __init__(self, forethought_statement: ForethoughtStatementSyntax) -> None:
+        pass
+    @property
+    def forethought_statement(self) -> ForethoughtStatementSyntax:
+        'Uses the `forethought_statement` product form, whose payload preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi`.'
+        return cast(ForethoughtStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementAfterIConnectiveSyntaxForethoughtStatement is final')
+
+@final
+class StatementAfterIConnectiveSyntaxBridiStatement(_SyntaxNode):
+    'Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 48
+    __match_args__ = ('bridi_statement',)
+    def __new__(cls, bridi_statement: BridiStatementSyntax) -> StatementAfterIConnectiveSyntaxBridiStatement:
+        return cls._from_fields((bridi_statement,))
+    def __init__(self, bridi_statement: BridiStatementSyntax) -> None:
+        pass
+    @property
+    def bridi_statement(self) -> BridiStatementSyntax:
+        'Uses the `bridi_statement` product form, whose payload preserves `bridi` and `continuations`.'
+        return cast(BridiStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementAfterIConnectiveSyntaxBridiStatement is final')
+
+@final
+class StatementAfterIConnectiveSyntaxTextGroupStatement(_SyntaxNode):
+    'Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.'
+    __slots__ = ()
+    _schema_id = 49
+    __match_args__ = ('text_group_statement',)
+    def __new__(cls, text_group_statement: TextGroupStatementSyntax) -> StatementAfterIConnectiveSyntaxTextGroupStatement:
+        return cls._from_fields((text_group_statement,))
+    def __init__(self, text_group_statement: TextGroupStatementSyntax) -> None:
+        pass
+    @property
+    def text_group_statement(self) -> TextGroupStatementSyntax:
+        'Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.'
+        return cast(TextGroupStatementSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementAfterIConnectiveSyntaxTextGroupStatement is final')
+
+StatementAfterIConnectiveSyntax: TypeAlias = StatementAfterIConnectiveSyntaxForethoughtStatement | StatementAfterIConnectiveSyntaxBridiStatement | StatementAfterIConnectiveSyntaxTextGroupStatement
+
+@final
+class MultipleNaFragmentSyntax(_SyntaxNode):
+    'Product node for fragment; preserves `first_na`, `second_na`, and `additional_na` in source order.'
+    __slots__ = ()
+    _schema_id = 50
+    __match_args__ = ('first_na', 'second_na', 'additional_na')
+    def __new__(cls, first_na: Token, second_na: Token, additional_na: Sequence[Token]) -> MultipleNaFragmentSyntax:
+        return cls._from_fields((first_na, second_na, additional_na))
+    def __init__(self, first_na: Token, second_na: Token, additional_na: Sequence[Token]) -> None:
+        pass
+    @property
+    def first_na(self) -> Token:
+        'A word from selmaho `Na`.'
+        return cast(Token, self._field(0))
+    @property
+    def second_na(self) -> Token:
+        'A word from selmaho `Na`.'
+        return cast(Token, self._field(1))
+    @property
+    def additional_na(self) -> tuple[Token, ...]:
+        'Ordered sequence of zero or more additional na components.'
+        return cast(tuple[Token, ...], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MultipleNaFragmentSyntax is final')
+
+@final
+class SingleNaFragmentSyntax(_SyntaxNode):
+    'Transparent product node for fragment; preserves the `na` component.'
+    __slots__ = ()
+    _schema_id = 51
+    __match_args__ = ('na',)
+    def __new__(cls, na: WithFreeModifiers[Token, FreeModifierSyntax]) -> SingleNaFragmentSyntax:
+        return cls._from_fields((na,))
+    def __init__(self, na: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def na(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Na`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SingleNaFragmentSyntax is final')
+
+@final
+class EkFragmentSyntax(_SyntaxNode):
+    'Transparent product node for fragment; preserves the `connective` component.'
+    __slots__ = ()
+    _schema_id = 52
+    __match_args__ = ('connective',)
+    def __new__(cls, connective: EkConnectiveSyntax) -> EkFragmentSyntax:
+        return cls._from_fields((connective,))
+    def __init__(self, connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> EkConnectiveSyntax:
+        'The standalone `ek_connective` connective represented by the `ek_fragment` fragment.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('EkFragmentSyntax is final')
+
+@final
+class GihekFragmentSyntax(_SyntaxNode):
+    'Transparent product node for fragment; preserves the `connective` component.'
+    __slots__ = ()
+    _schema_id = 53
+    __match_args__ = ('connective',)
+    def __new__(cls, connective: GihekConnectiveSyntax) -> GihekFragmentSyntax:
+        return cls._from_fields((connective,))
+    def __init__(self, connective: GihekConnectiveSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> GihekConnectiveSyntax:
+        'The standalone `gihek_connective` connective represented by the `gihek_fragment` fragment.'
+        return cast(GihekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GihekFragmentSyntax is final')
+
+@final
+class IStatementConnectionSyntax(_SyntaxNode):
+    'Product node for statement connection; preserves `leading_statement` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 54
+    __match_args__ = ('leading_statement', 'continuations')
+    def __new__(cls, leading_statement: StatementBaseSyntax, continuations: Sequence[IStatementConnectionTailSyntax]) -> IStatementConnectionSyntax:
+        return cls._from_fields((leading_statement, continuations))
+    def __init__(self, leading_statement: StatementBaseSyntax, continuations: Sequence[IStatementConnectionTailSyntax]) -> None:
+        pass
+    @property
+    def leading_statement(self) -> StatementBaseSyntax:
+        'The shared leading statement child syntax node.'
+        return cast(StatementBaseSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[IStatementConnectionTailSyntax, ...]:
+        'Non-empty ordered sequence of continuations components.'
+        return cast(tuple[IStatementConnectionTailSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStatementConnectionSyntax is final')
+
+@final
+class PendingIConnectiveSyntax(_SyntaxNode):
+    'Product node for statement connective; preserves `i` and `connective` in source order.'
+    __slots__ = ()
+    _schema_id = 55
+    __match_args__ = ('i', 'connective')
+    def __new__(cls, i: Token, connective: StatementConnectiveSyntax) -> PendingIConnectiveSyntax:
+        return cls._from_fields((i, connective))
+    def __init__(self, i: Token, connective: StatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def connective(self) -> StatementConnectiveSyntax:
+        'The `statement_connective` connective retained while its following statement remains pending.'
+        return cast(StatementConnectiveSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PendingIConnectiveSyntax is final')
+
+@final
+class IStatementConnectionTailSyntaxChainedIConnectiveStatementTail(_SyntaxNode):
+    'Uses the `chained_i_connective_statement_tail` product form, whose payload preserves `pending`, `i`, `connective`, and `trailing_statement`.'
+    __slots__ = ()
+    _schema_id = 56
+    __match_args__ = ('chained_i_connective_statement_tail',)
+    def __new__(cls, chained_i_connective_statement_tail: ChainedIConnectiveStatementTailSyntax) -> IStatementConnectionTailSyntaxChainedIConnectiveStatementTail:
+        return cls._from_fields((chained_i_connective_statement_tail,))
+    def __init__(self, chained_i_connective_statement_tail: ChainedIConnectiveStatementTailSyntax) -> None:
+        pass
+    @property
+    def chained_i_connective_statement_tail(self) -> ChainedIConnectiveStatementTailSyntax:
+        'Uses the `chained_i_connective_statement_tail` product form, whose payload preserves `pending`, `i`, `connective`, and `trailing_statement`.'
+        return cast(ChainedIConnectiveStatementTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStatementConnectionTailSyntaxChainedIConnectiveStatementTail is final')
+
+@final
+class IStatementConnectionTailSyntaxSimpleIConnectiveStatementTail(_SyntaxNode):
+    'Uses the `simple_i_connective_statement_tail` product form, whose payload preserves `i`, `connective`, and `trailing_statement`.'
+    __slots__ = ()
+    _schema_id = 57
+    __match_args__ = ('simple_i_connective_statement_tail',)
+    def __new__(cls, simple_i_connective_statement_tail: SimpleIConnectiveStatementTailSyntax) -> IStatementConnectionTailSyntaxSimpleIConnectiveStatementTail:
+        return cls._from_fields((simple_i_connective_statement_tail,))
+    def __init__(self, simple_i_connective_statement_tail: SimpleIConnectiveStatementTailSyntax) -> None:
+        pass
+    @property
+    def simple_i_connective_statement_tail(self) -> SimpleIConnectiveStatementTailSyntax:
+        'Uses the `simple_i_connective_statement_tail` product form, whose payload preserves `i`, `connective`, and `trailing_statement`.'
+        return cast(SimpleIConnectiveStatementTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStatementConnectionTailSyntaxSimpleIConnectiveStatementTail is final')
+
+IStatementConnectionTailSyntax: TypeAlias = IStatementConnectionTailSyntaxChainedIConnectiveStatementTail | IStatementConnectionTailSyntaxSimpleIConnectiveStatementTail
+
+@final
+class ChainedIConnectiveStatementTailSyntax(_SyntaxNode):
+    'Product node for statement connection; preserves `pending`, `i`, `connective`, and `trailing_statement` in source order.'
+    __slots__ = ()
+    _schema_id = 58
+    __match_args__ = ('pending', 'i', 'connective', 'trailing_statement')
+    def __new__(cls, pending: Sequence[PendingIConnectiveSyntax], i: Token, connective: IStatementConnectiveSyntax, trailing_statement: StatementAfterIConnectiveSyntax) -> ChainedIConnectiveStatementTailSyntax:
+        return cls._from_fields((pending, i, connective, trailing_statement))
+    def __init__(self, pending: Sequence[PendingIConnectiveSyntax], i: Token, connective: IStatementConnectiveSyntax, trailing_statement: StatementAfterIConnectiveSyntax) -> None:
+        pass
+    @property
+    def pending(self) -> tuple[PendingIConnectiveSyntax, ...]:
+        'Non-empty ordered sequence of pending components.'
+        return cast(tuple[PendingIConnectiveSyntax, ...], self._field(0))
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(1))
+    @property
+    def connective(self) -> IStatementConnectiveSyntax:
+        'The `i_statement_connective` connective joining the adjacent constituents of the `chained_i_connective_statement_tail` production.'
+        return cast(IStatementConnectiveSyntax, self._field(2))
+    @property
+    def trailing_statement(self) -> StatementAfterIConnectiveSyntax:
+        'The shared trailing statement child syntax node.'
+        return cast(StatementAfterIConnectiveSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ChainedIConnectiveStatementTailSyntax is final')
+
+@final
+class SimpleIConnectiveStatementTailSyntax(_SyntaxNode):
+    'Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.'
+    __slots__ = ()
+    _schema_id = 59
+    __match_args__ = ('i', 'connective', 'trailing_statement')
+    def __new__(cls, i: Token, connective: IStatementConnectiveSyntax, trailing_statement: StatementAfterIConnectiveSyntax) -> SimpleIConnectiveStatementTailSyntax:
+        return cls._from_fields((i, connective, trailing_statement))
+    def __init__(self, i: Token, connective: IStatementConnectiveSyntax, trailing_statement: StatementAfterIConnectiveSyntax) -> None:
+        pass
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def connective(self) -> IStatementConnectiveSyntax:
+        'The `i_statement_connective` connective joining the adjacent constituents of the `simple_i_connective_statement_tail` production.'
+        return cast(IStatementConnectiveSyntax, self._field(1))
+    @property
+    def trailing_statement(self) -> StatementAfterIConnectiveSyntax:
+        'The shared trailing statement child syntax node.'
+        return cast(StatementAfterIConnectiveSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleIConnectiveStatementTailSyntax is final')
+
+@final
+class PreposedIStatementConnectionSyntax(_SyntaxNode):
+    'Product node for statement connection; preserves `leading_statement`, `connective`, `i`, and `trailing_statement` in source order.'
+    __slots__ = ()
+    _schema_id = 60
+    __match_args__ = ('leading_statement', 'connective', 'i', 'trailing_statement')
+    def __new__(cls, leading_statement: StatementBaseSyntax, connective: StatementConnectiveSyntax, i: Token, trailing_statement: StatementAfterIConnectiveSyntax) -> PreposedIStatementConnectionSyntax:
+        return cls._from_fields((leading_statement, connective, i, trailing_statement))
+    def __init__(self, leading_statement: StatementBaseSyntax, connective: StatementConnectiveSyntax, i: Token, trailing_statement: StatementAfterIConnectiveSyntax) -> None:
+        pass
+    @property
+    def leading_statement(self) -> StatementBaseSyntax:
+        'The shared leading statement child syntax node.'
+        return cast(StatementBaseSyntax, self._field(0))
+    @property
+    def connective(self) -> StatementConnectiveSyntax:
+        'The `statement_connective` connective joining the adjacent constituents of the `preposed_i_statement_connection` production.'
+        return cast(StatementConnectiveSyntax, self._field(1))
+    @property
+    def i(self) -> Token:
+        'The `I` cmavo marker.'
+        return cast(Token, self._field(2))
+    @property
+    def trailing_statement(self) -> StatementAfterIConnectiveSyntax:
+        'The shared trailing statement child syntax node.'
+        return cast(StatementAfterIConnectiveSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PreposedIStatementConnectionSyntax is final')
+
+@final
+class TextGroupStatementSyntax(_SyntaxNode):
+    'Product node for text group; preserves `tense_modal`, `tuhe`, `text`, and `tuhu` in source order.'
+    __slots__ = ()
+    _schema_id = 61
+    __match_args__ = ('tense_modal', 'tuhe', 'text', 'tuhu')
+    def __new__(cls, tense_modal: TenseModalSyntax | None, tuhe: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, tuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TextGroupStatementSyntax:
+        return cls._from_fields((tense_modal, tuhe, text, tuhu))
+    def __init__(self, tense_modal: TenseModalSyntax | None, tuhe: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, tuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(0))
+    @property
+    def tuhe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Tuhe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def text(self) -> TextSyntax:
+        'The shared text child syntax node.'
+        return cast(TextSyntax, self._field(2))
+    @property
+    def tuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tuhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextGroupStatementSyntax is final')
+
+@final
+class PrenexFragmentSyntax(_SyntaxNode):
+    'Product node for prenex; preserves `terms` and `zohu` in source order.'
+    __slots__ = ()
+    _schema_id = 62
+    __match_args__ = ('terms', 'zohu')
+    def __new__(cls, terms: Sequence[TermSyntax], zohu: WithFreeModifiers[Token, FreeModifierSyntax]) -> PrenexFragmentSyntax:
+        return cls._from_fields((terms, zohu))
+    def __init__(self, terms: Sequence[TermSyntax], zohu: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def zohu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Zohu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PrenexFragmentSyntax is final')
+
+@final
+class PrenexStatementSyntax(_SyntaxNode):
+    'Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_statement` in source order.'
+    __slots__ = ()
+    _schema_id = 63
+    __match_args__ = ('prenex_terms', 'zohu', 'inner_statement')
+    def __new__(cls, prenex_terms: Sequence[TermSyntax], zohu: WithFreeModifiers[Token, FreeModifierSyntax], inner_statement: StatementSyntax) -> PrenexStatementSyntax:
+        return cls._from_fields((prenex_terms, zohu, inner_statement))
+    def __init__(self, prenex_terms: Sequence[TermSyntax], zohu: WithFreeModifiers[Token, FreeModifierSyntax], inner_statement: StatementSyntax) -> None:
+        pass
+    @property
+    def prenex_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more prenex terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def zohu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Zohu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def inner_statement(self) -> StatementSyntax:
+        'The shared inner statement child syntax node.'
+        return cast(StatementSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PrenexStatementSyntax is final')
+
+@final
+class ForethoughtStatementSyntax(_SyntaxNode):
+    'Product node for statement; preserves `gek`, `first`, `first_branch`, `additional_branches`, and `gihi` in source order.'
+    __slots__ = ()
+    _schema_id = 64
+    __match_args__ = ('gek', 'first', 'first_branch', 'additional_branches', 'gihi')
+    def __new__(cls, gek: ModalForethoughtConnectiveSyntax, first: StatementSyntax, first_branch: ForethoughtStatementBranchSyntax, additional_branches: Sequence[ZantufaForethoughtStatementBranchSyntax], gihi: Token | None) -> ForethoughtStatementSyntax:
+        return cls._from_fields((gek, first, first_branch, additional_branches, gihi))
+    def __init__(self, gek: ModalForethoughtConnectiveSyntax, first: StatementSyntax, first_branch: ForethoughtStatementBranchSyntax, additional_branches: Sequence[ZantufaForethoughtStatementBranchSyntax], gihi: Token | None) -> None:
+        pass
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The forethought connective that opens the statement and determines how its branches combine.'
+        return cast(ModalForethoughtConnectiveSyntax, self._field(0))
+    @property
+    def first(self) -> StatementSyntax:
+        'The first statement branch, which appears immediately after the opening forethought connective.'
+        return cast(StatementSyntax, self._field(1))
+    @property
+    def first_branch(self) -> ForethoughtStatementBranchSyntax:
+        'The first GIK connective together with the statement branch that follows it.'
+        return cast(ForethoughtStatementBranchSyntax, self._field(2))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtStatementBranchSyntax, ...]:
+        'Additional Zantufa GIK-led statement branches in their source order.'
+        return cast(tuple[ZantufaForethoughtStatementBranchSyntax, ...], self._field(3))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional experimental GIhI terminator following all statement branches.'
+        return cast(Token | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtStatementSyntax is final')
+
+@final
+class ForethoughtStatementBranchSyntax(_SyntaxNode):
+    'Product node for statement branch; preserves `gik` and `statement` in source order.'
+    __slots__ = ()
+    _schema_id = 65
+    __match_args__ = ('gik', 'statement')
+    def __new__(cls, gik: GikConnectiveSyntax, statement: StatementSyntax) -> ForethoughtStatementBranchSyntax:
+        return cls._from_fields((gik, statement))
+    def __init__(self, gik: GikConnectiveSyntax, statement: StatementSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_statement_branch` production.'
+        return cast(GikConnectiveSyntax, self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtStatementBranchSyntax is final')
+
+@final
+class ZantufaForethoughtStatementBranchSyntax(_SyntaxNode):
+    'Product node for statement branch; preserves `gik` and `statement` in source order.'
+    __slots__ = ()
+    _schema_id = 66
+    __match_args__ = ('gik', 'statement')
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, statement: StatementSyntax) -> ZantufaForethoughtStatementBranchSyntax:
+        return cls._from_fields((gik, statement))
+    def __init__(self, gik: ZantufaExtraGikConnectiveSyntax, statement: StatementSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> ZantufaExtraGikConnectiveSyntax:
+        'The GI-family `zantufa_extra_gik_connective` connective separating the forethought branches of the `zantufa_forethought_statement_branch` production.'
+        return cast(ZantufaExtraGikConnectiveSyntax, self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaForethoughtStatementBranchSyntax is final')
+
+@final
+class BridiStatementSyntax(_SyntaxNode):
+    'Product node for statement; preserves `bridi` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 67
+    __match_args__ = ('bridi', 'continuations')
+    def __new__(cls, bridi: BridiSyntax, continuations: Sequence[BridiStatementContinuationSyntax]) -> BridiStatementSyntax:
+        return cls._from_fields((bridi, continuations))
+    def __init__(self, bridi: BridiSyntax, continuations: Sequence[BridiStatementContinuationSyntax]) -> None:
+        pass
+    @property
+    def bridi(self) -> BridiSyntax:
+        'The shared bridi child syntax node.'
+        return cast(BridiSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[BridiStatementContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[BridiStatementContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiStatementSyntax is final')
+
+@final
+class BridiStatementContinuationSyntaxBoBridiStatementContinuation(_SyntaxNode):
+    'Uses the `bo_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi`.'
+    __slots__ = ()
+    _schema_id = 68
+    __match_args__ = ('bo_bridi_statement_continuation',)
+    def __new__(cls, bo_bridi_statement_continuation: BoBridiStatementContinuationSyntax) -> BridiStatementContinuationSyntaxBoBridiStatementContinuation:
+        return cls._from_fields((bo_bridi_statement_continuation,))
+    def __init__(self, bo_bridi_statement_continuation: BoBridiStatementContinuationSyntax) -> None:
+        pass
+    @property
+    def bo_bridi_statement_continuation(self) -> BoBridiStatementContinuationSyntax:
+        'Uses the `bo_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi`.'
+        return cast(BoBridiStatementContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiStatementContinuationSyntaxBoBridiStatementContinuation is final')
+
+@final
+class BridiStatementContinuationSyntaxKeBridiStatementContinuation(_SyntaxNode):
+    'Uses the `ke_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 69
+    __match_args__ = ('ke_bridi_statement_continuation',)
+    def __new__(cls, ke_bridi_statement_continuation: KeBridiStatementContinuationSyntax) -> BridiStatementContinuationSyntaxKeBridiStatementContinuation:
+        return cls._from_fields((ke_bridi_statement_continuation,))
+    def __init__(self, ke_bridi_statement_continuation: KeBridiStatementContinuationSyntax) -> None:
+        pass
+    @property
+    def ke_bridi_statement_continuation(self) -> KeBridiStatementContinuationSyntax:
+        'Uses the `ke_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe`.'
+        return cast(KeBridiStatementContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiStatementContinuationSyntaxKeBridiStatementContinuation is final')
+
+BridiStatementContinuationSyntax: TypeAlias = BridiStatementContinuationSyntaxBoBridiStatementContinuation | BridiStatementContinuationSyntaxKeBridiStatementContinuation
+
+@final
+class BoBridiStatementContinuationSyntax(_SyntaxNode):
+    'Product node for bridi continuation; preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi` in source order.'
+    __slots__ = ()
+    _schema_id = 70
+    __match_args__ = ('connective', 'tense_modal', 'bo', 'trailing_subbridi')
+    def __new__(cls, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_subbridi: SubbridiSyntax) -> BoBridiStatementContinuationSyntax:
+        return cls._from_fields((connective, tense_modal, bo, trailing_subbridi))
+    def __init__(self, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_subbridi: SubbridiSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> BridiTailConnectiveSyntax:
+        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bo_bridi_statement_continuation` production.'
+        return cast(BridiTailConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def trailing_subbridi(self) -> SubbridiSyntax:
+        'The shared trailing subbridi child syntax node.'
+        return cast(SubbridiSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoBridiStatementContinuationSyntax is final')
+
+@final
+class KeBridiStatementContinuationSyntax(_SyntaxNode):
+    'Product node for bridi continuation; preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 71
+    __match_args__ = ('connective', 'tense_modal', 'ke', 'trailing_subbridi', 'kehe')
+    def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], trailing_subbridi: SubbridiSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> KeBridiStatementContinuationSyntax:
+        return cls._from_fields((connective, tense_modal, ke, trailing_subbridi, kehe))
+    def __init__(self, connective: RelationAfterthoughtConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], trailing_subbridi: SubbridiSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> RelationAfterthoughtConnectiveSyntax:
+        'The `relation_afterthought_connective` connective joining the adjacent constituents of the `ke_bridi_statement_continuation` production.'
+        return cast(RelationAfterthoughtConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def trailing_subbridi(self) -> SubbridiSyntax:
+        'The shared trailing subbridi child syntax node.'
+        return cast(SubbridiSyntax, self._field(3))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('KeBridiStatementContinuationSyntax is final')
+
+@final
+class SelbriFragmentSyntax(_SyntaxNode):
+    'Transparent product node for selbri; preserves the `selbri` component.'
+    __slots__ = ()
+    _schema_id = 72
+    __match_args__ = ('selbri',)
+    def __new__(cls, selbri: SelbriSyntax) -> SelbriFragmentSyntax:
+        return cls._from_fields((selbri,))
+    def __init__(self, selbri: SelbriSyntax) -> None:
+        pass
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriFragmentSyntax is final')
+
+@final
+class TermsFragmentSyntax(_SyntaxNode):
+    'Product node for terms; preserves `terms` and `vau` in source order.'
+    __slots__ = ()
+    _schema_id = 73
+    __match_args__ = ('terms', 'vau')
+    def __new__(cls, terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TermsFragmentSyntax:
+        return cls._from_fields((terms, vau))
+    def __init__(self, terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermsFragmentSyntax is final')
+
+@final
+class MeksoFragmentSyntax(_SyntaxNode):
+    'Transparent product node for mex; preserves the `quantifier` component.'
+    __slots__ = ()
+    _schema_id = 74
+    __match_args__ = ('quantifier',)
+    def __new__(cls, quantifier: QuantifierSyntax) -> MeksoFragmentSyntax:
+        return cls._from_fields((quantifier,))
+    def __init__(self, quantifier: QuantifierSyntax) -> None:
+        pass
+    @property
+    def quantifier(self) -> QuantifierSyntax:
+        'The shared quantifier child syntax node.'
+        return cast(QuantifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoFragmentSyntax is final')
+
+@final
+class ZantufaMeksoFragmentSyntax(_SyntaxNode):
+    'Transparent product node for mex; preserves the `expression` component.'
+    __slots__ = ()
+    _schema_id = 75
+    __match_args__ = ('expression',)
+    def __new__(cls, expression: MeksoSyntax) -> ZantufaMeksoFragmentSyntax:
+        return cls._from_fields((expression,))
+    def __init__(self, expression: MeksoSyntax) -> None:
+        pass
+    @property
+    def expression(self) -> MeksoSyntax:
+        'The shared expression child syntax node.'
+        return cast(MeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeksoFragmentSyntax is final')
+
+@final
+class RelativeClauseListSyntax(_SyntaxNode):
+    'Product node for relative clauses; preserves `first` and `additional` in source order.'
+    __slots__ = ()
+    _schema_id = 76
+    __match_args__ = ('first', 'additional')
+    def __new__(cls, first: RelativeClauseAtomSyntax, additional: Sequence[RelativeClauseTailSyntax]) -> RelativeClauseListSyntax:
+        return cls._from_fields((first, additional))
+    def __init__(self, first: RelativeClauseAtomSyntax, additional: Sequence[RelativeClauseTailSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> RelativeClauseAtomSyntax:
+        'The initial `relative_clause_atom` constituent before the continuations of the `relative_clause_list` production.'
+        return cast(RelativeClauseAtomSyntax, self._field(0))
+    @property
+    def additional(self) -> tuple[RelativeClauseTailSyntax, ...]:
+        'Ordered sequence of zero or more additional components.'
+        return cast(tuple[RelativeClauseTailSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseListSyntax is final')
+
+@final
+class RelativeClauseFragmentSyntax(_SyntaxNode):
+    'Transparent product node for relative clauses; preserves the `relative_clauses` component.'
+    __slots__ = ()
+    _schema_id = 77
+    __match_args__ = ('relative_clauses',)
+    def __new__(cls, relative_clauses: RelativeClauseListSyntax) -> RelativeClauseFragmentSyntax:
+        return cls._from_fields((relative_clauses,))
+    def __init__(self, relative_clauses: RelativeClauseListSyntax) -> None:
+        pass
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax:
+        'The `relative_clause_list` grammar result in the `relative_clauses` structural role of the `relative_clause_fragment` production.'
+        return cast(RelativeClauseListSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseFragmentSyntax is final')
+
+@final
+class LinkedSumtiContinuationFragmentSyntax(_SyntaxNode):
+    'Transparent product node for linked arguments; preserves the `bei_links` component.'
+    __slots__ = ()
+    _schema_id = 78
+    __match_args__ = ('bei_links',)
+    def __new__(cls, bei_links: Sequence[BeiLinkSyntax]) -> LinkedSumtiContinuationFragmentSyntax:
+        return cls._from_fields((bei_links,))
+    def __init__(self, bei_links: Sequence[BeiLinkSyntax]) -> None:
+        pass
+    @property
+    def bei_links(self) -> tuple[BeiLinkSyntax, ...]:
+        'Non-empty ordered sequence of bei links components.'
+        return cast(tuple[BeiLinkSyntax, ...], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedSumtiContinuationFragmentSyntax is final')
+
+@final
+class LinkedSumtiFragmentSyntax(_SyntaxNode):
+    'Transparent product node for linked arguments; preserves the `linkargs` component.'
+    __slots__ = ()
+    _schema_id = 79
+    __match_args__ = ('linkargs',)
+    def __new__(cls, linkargs: LinkargsSyntax) -> LinkedSumtiFragmentSyntax:
+        return cls._from_fields((linkargs,))
+    def __init__(self, linkargs: LinkargsSyntax) -> None:
+        pass
+    @property
+    def linkargs(self) -> LinkargsSyntax:
+        'The `linkargs` grammar result in the `linkargs` structural role of the `linked_sumti_fragment` production.'
+        return cast(LinkargsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedSumtiFragmentSyntax is final')
+
+@final
+class BridiSyntaxBridiWithLeadingTerms(_SyntaxNode):
+    'Uses the `bridi_with_leading_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.'
+    __slots__ = ()
+    _schema_id = 80
+    __match_args__ = ('bridi_with_leading_terms',)
+    def __new__(cls, bridi_with_leading_terms: BridiWithLeadingTermsSyntax) -> BridiSyntaxBridiWithLeadingTerms:
+        return cls._from_fields((bridi_with_leading_terms,))
+    def __init__(self, bridi_with_leading_terms: BridiWithLeadingTermsSyntax) -> None:
+        pass
+    @property
+    def bridi_with_leading_terms(self) -> BridiWithLeadingTermsSyntax:
+        'Uses the `bridi_with_leading_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.'
+        return cast(BridiWithLeadingTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiSyntaxBridiWithLeadingTerms is final')
+
+@final
+class BridiSyntaxBridiWithPostCuTerms(_SyntaxNode):
+    'Uses the `bridi_with_post_cu_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.'
+    __slots__ = ()
+    _schema_id = 81
+    __match_args__ = ('bridi_with_post_cu_terms',)
+    def __new__(cls, bridi_with_post_cu_terms: BridiWithPostCuTermsSyntax) -> BridiSyntaxBridiWithPostCuTerms:
+        return cls._from_fields((bridi_with_post_cu_terms,))
+    def __init__(self, bridi_with_post_cu_terms: BridiWithPostCuTermsSyntax) -> None:
+        pass
+    @property
+    def bridi_with_post_cu_terms(self) -> BridiWithPostCuTermsSyntax:
+        'Uses the `bridi_with_post_cu_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.'
+        return cast(BridiWithPostCuTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiSyntaxBridiWithPostCuTerms is final')
+
+@final
+class BridiSyntaxBareCuBridi(_SyntaxNode):
+    'Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
+    __slots__ = ()
+    _schema_id = 82
+    __match_args__ = ('bare_cu_bridi',)
+    def __new__(cls, bare_cu_bridi: BareCuBridiSyntax) -> BridiSyntaxBareCuBridi:
+        return cls._from_fields((bare_cu_bridi,))
+    def __init__(self, bare_cu_bridi: BareCuBridiSyntax) -> None:
+        pass
+    @property
+    def bare_cu_bridi(self) -> BareCuBridiSyntax:
+        'Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
+        return cast(BareCuBridiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiSyntaxBareCuBridi is final')
+
+@final
+class BridiSyntaxBareCuTermsBridi(_SyntaxNode):
+    'Uses the `bare_cu_terms_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
+    __slots__ = ()
+    _schema_id = 83
+    __match_args__ = ('bare_cu_terms_bridi',)
+    def __new__(cls, bare_cu_terms_bridi: BareCuTermsBridiSyntax) -> BridiSyntaxBareCuTermsBridi:
+        return cls._from_fields((bare_cu_terms_bridi,))
+    def __init__(self, bare_cu_terms_bridi: BareCuTermsBridiSyntax) -> None:
+        pass
+    @property
+    def bare_cu_terms_bridi(self) -> BareCuTermsBridiSyntax:
+        'Uses the `bare_cu_terms_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
+        return cast(BareCuTermsBridiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiSyntaxBareCuTermsBridi is final')
+
+@final
+class BridiSyntaxRelationOnlyBridi(_SyntaxNode):
+    'Uses the `relation_only_bridi` product form, whose payload preserves `bridi_tail`.'
+    __slots__ = ()
+    _schema_id = 84
+    __match_args__ = ('relation_only_bridi',)
+    def __new__(cls, relation_only_bridi: RelationOnlyBridiSyntax) -> BridiSyntaxRelationOnlyBridi:
+        return cls._from_fields((relation_only_bridi,))
+    def __init__(self, relation_only_bridi: RelationOnlyBridiSyntax) -> None:
+        pass
+    @property
+    def relation_only_bridi(self) -> RelationOnlyBridiSyntax:
+        'Uses the `relation_only_bridi` product form, whose payload preserves `bridi_tail`.'
+        return cast(RelationOnlyBridiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiSyntaxRelationOnlyBridi is final')
+
+BridiSyntax: TypeAlias = BridiSyntaxBridiWithLeadingTerms | BridiSyntaxBridiWithPostCuTerms | BridiSyntaxBareCuBridi | BridiSyntaxBareCuTermsBridi | BridiSyntaxRelationOnlyBridi
+
+@final
+class BridiWithLeadingTermsSyntax(_SyntaxNode):
+    'Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 85
+    __match_args__ = ('leading_terms', 'cu', 'bridi_tail')
+    def __new__(cls, leading_terms: Sequence[TermSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BridiTailSyntax) -> BridiWithLeadingTermsSyntax:
+        return cls._from_fields((leading_terms, cu, bridi_tail))
+    def __init__(self, leading_terms: Sequence[TermSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BridiTailSyntax) -> None:
+        pass
+    @property
+    def leading_terms(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of leading terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiWithLeadingTermsSyntax is final')
+
+@final
+class BridiWithPostCuTermsSyntax(_SyntaxNode):
+    'Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 86
+    __match_args__ = ('leading_terms', 'cu', 'bridi_tail')
+    def __new__(cls, leading_terms: Sequence[TermSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: CuTermsBridiTailSyntax) -> BridiWithPostCuTermsSyntax:
+        return cls._from_fields((leading_terms, cu, bridi_tail))
+    def __init__(self, leading_terms: Sequence[TermSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: CuTermsBridiTailSyntax) -> None:
+        pass
+    @property
+    def leading_terms(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of leading terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def bridi_tail(self) -> CuTermsBridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(CuTermsBridiTailSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiWithPostCuTermsSyntax is final')
+
+@final
+class BareCuBridiSyntax(_SyntaxNode):
+    'Product node for bridi; preserves `cu` and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 87
+    __match_args__ = ('cu', 'bridi_tail')
+    def __new__(cls, cu: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax) -> BareCuBridiSyntax:
+        return cls._from_fields((cu, bridi_tail))
+    def __init__(self, cu: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax) -> None:
+        pass
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BareCuBridiSyntax is final')
+
+@final
+class BareCuTermsBridiSyntax(_SyntaxNode):
+    'Product node for bridi; preserves `cu` and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 88
+    __match_args__ = ('cu', 'bridi_tail')
+    def __new__(cls, cu: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: CuTermsBridiTailSyntax) -> BareCuTermsBridiSyntax:
+        return cls._from_fields((cu, bridi_tail))
+    def __init__(self, cu: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: CuTermsBridiTailSyntax) -> None:
+        pass
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def bridi_tail(self) -> CuTermsBridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(CuTermsBridiTailSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BareCuTermsBridiSyntax is final')
+
+@final
+class RelationOnlyBridiSyntax(_SyntaxNode):
+    'Transparent product node for bridi; preserves the `bridi_tail` component.'
+    __slots__ = ()
+    _schema_id = 89
+    __match_args__ = ('bridi_tail',)
+    def __new__(cls, bridi_tail: BridiTailSyntax) -> RelationOnlyBridiSyntax:
+        return cls._from_fields((bridi_tail,))
+    def __init__(self, bridi_tail: BridiTailSyntax) -> None:
+        pass
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationOnlyBridiSyntax is final')
+
+@final
+class CuTermsBridiTailSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `terms` and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 90
+    __match_args__ = ('terms', 'bridi_tail')
+    def __new__(cls, terms: Sequence[TermSyntax], bridi_tail: BridiTailSyntax) -> CuTermsBridiTailSyntax:
+        return cls._from_fields((terms, bridi_tail))
+    def __init__(self, terms: Sequence[TermSyntax], bridi_tail: BridiTailSyntax) -> None:
+        pass
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CuTermsBridiTailSyntax is final')
+
+@final
+class BridiTailSyntaxZantufaGroupedBridiTail(_SyntaxNode):
+    'Uses the `zantufa_grouped_bridi_tail` product form, whose payload preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau`.'
+    __slots__ = ()
+    _schema_id = 91
+    __match_args__ = ('zantufa_grouped_bridi_tail',)
+    def __new__(cls, zantufa_grouped_bridi_tail: ZantufaGroupedBridiTailSyntax) -> BridiTailSyntaxZantufaGroupedBridiTail:
+        return cls._from_fields((zantufa_grouped_bridi_tail,))
+    def __init__(self, zantufa_grouped_bridi_tail: ZantufaGroupedBridiTailSyntax) -> None:
+        pass
+    @property
+    def zantufa_grouped_bridi_tail(self) -> ZantufaGroupedBridiTailSyntax:
+        'Uses the `zantufa_grouped_bridi_tail` product form, whose payload preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau`.'
+        return cast(ZantufaGroupedBridiTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailSyntaxZantufaGroupedBridiTail is final')
+
+@final
+class BridiTailSyntaxBridiTailWithPossibleTailTerms(_SyntaxNode):
+    'Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.'
+    __slots__ = ()
+    _schema_id = 92
+    __match_args__ = ('bridi_tail_with_possible_tail_terms',)
+    def __new__(cls, bridi_tail_with_possible_tail_terms: BridiTailWithPossibleTailTermsSyntax) -> BridiTailSyntaxBridiTailWithPossibleTailTerms:
+        return cls._from_fields((bridi_tail_with_possible_tail_terms,))
+    def __init__(self, bridi_tail_with_possible_tail_terms: BridiTailWithPossibleTailTermsSyntax) -> None:
+        pass
+    @property
+    def bridi_tail_with_possible_tail_terms(self) -> BridiTailWithPossibleTailTermsSyntax:
+        'Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.'
+        return cast(BridiTailWithPossibleTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailSyntaxBridiTailWithPossibleTailTerms is final')
+
+@final
+class BridiTailSyntaxBridiTailWithoutTailTerms(_SyntaxNode):
+    'Uses the `bridi_tail_without_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.'
+    __slots__ = ()
+    _schema_id = 93
+    __match_args__ = ('bridi_tail_without_tail_terms',)
+    def __new__(cls, bridi_tail_without_tail_terms: BridiTailWithoutTailTermsSyntax) -> BridiTailSyntaxBridiTailWithoutTailTerms:
+        return cls._from_fields((bridi_tail_without_tail_terms,))
+    def __init__(self, bridi_tail_without_tail_terms: BridiTailWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def bridi_tail_without_tail_terms(self) -> BridiTailWithoutTailTermsSyntax:
+        'Uses the `bridi_tail_without_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.'
+        return cast(BridiTailWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailSyntaxBridiTailWithoutTailTerms is final')
+
+BridiTailSyntax: TypeAlias = BridiTailSyntaxZantufaGroupedBridiTail | BridiTailSyntaxBridiTailWithPossibleTailTerms | BridiTailSyntaxBridiTailWithoutTailTerms
+
+@final
+class ZantufaGroupedBridiTailSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau` in source order.'
+    __slots__ = ()
+    _schema_id = 94
+    __match_args__ = ('ke', 'bridi_tail', 'kehe', 'tail_terms', 'vau')
+    def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaGroupedBridiTailSyntax:
+        return cls._from_fields((ke, bridi_tail, kehe, tail_terms, vau))
+    def __init__(self, ke: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(1))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    @property
+    def tail_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more tail terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(3))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaGroupedBridiTailSyntax is final')
+
+@final
+class BridiTailWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `first` and `ke_continuation` in source order.'
+    __slots__ = ()
+    _schema_id = 95
+    __match_args__ = ('first', 'ke_continuation')
+    def __new__(cls, first: AfterthoughtBridiTailWithoutTailTermsSyntax, ke_continuation: BridiTailKeContinuationSyntax | None) -> BridiTailWithoutTailTermsSyntax:
+        return cls._from_fields((first, ke_continuation))
+    def __init__(self, first: AfterthoughtBridiTailWithoutTailTermsSyntax, ke_continuation: BridiTailKeContinuationSyntax | None) -> None:
+        pass
+    @property
+    def first(self) -> AfterthoughtBridiTailWithoutTailTermsSyntax:
+        'The shared first child syntax node.'
+        return cast(AfterthoughtBridiTailWithoutTailTermsSyntax, self._field(0))
+    @property
+    def ke_continuation(self) -> BridiTailKeContinuationSyntax | None:
+        'The optional ke continuation component.'
+        return cast(BridiTailKeContinuationSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailWithoutTailTermsSyntax is final')
+
+@final
+class BridiTailWithPossibleTailTermsSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `first` and `ke_continuation` in source order.'
+    __slots__ = ()
+    _schema_id = 96
+    __match_args__ = ('first', 'ke_continuation')
+    def __new__(cls, first: AfterthoughtBridiTailSyntax, ke_continuation: GihekBridiTailKeContinuationSyntax | None) -> BridiTailWithPossibleTailTermsSyntax:
+        return cls._from_fields((first, ke_continuation))
+    def __init__(self, first: AfterthoughtBridiTailSyntax, ke_continuation: GihekBridiTailKeContinuationSyntax | None) -> None:
+        pass
+    @property
+    def first(self) -> AfterthoughtBridiTailSyntax:
+        'The shared first child syntax node.'
+        return cast(AfterthoughtBridiTailSyntax, self._field(0))
+    @property
+    def ke_continuation(self) -> GihekBridiTailKeContinuationSyntax | None:
+        'The optional ke continuation component.'
+        return cast(GihekBridiTailKeContinuationSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailWithPossibleTailTermsSyntax is final')
+
+@final
+class AfterthoughtBridiTailWithoutTailTermsSyntax(_SyntaxNode):
+    'Transparent product node for bridi tail; preserves the `bridi_tails` component.'
+    __slots__ = ()
+    _schema_id = 97
+    __match_args__ = ('bridi_tails',)
+    def __new__(cls, bridi_tails: Chain[BoGroupedBridiTailWithoutTailTermsSyntax, BridiTailContinuationWithoutTailTermsSyntax]) -> AfterthoughtBridiTailWithoutTailTermsSyntax:
+        return cls._from_fields((bridi_tails,))
+    def __init__(self, bridi_tails: Chain[BoGroupedBridiTailWithoutTailTermsSyntax, BridiTailContinuationWithoutTailTermsSyntax]) -> None:
+        pass
+    @property
+    def bridi_tails(self) -> Chain[BoGroupedBridiTailWithoutTailTermsSyntax, BridiTailContinuationWithoutTailTermsSyntax]:
+        'The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail_without_tail_terms` production.'
+        return cast(Chain[BoGroupedBridiTailWithoutTailTermsSyntax, BridiTailContinuationWithoutTailTermsSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AfterthoughtBridiTailWithoutTailTermsSyntax is final')
+
+@final
+class AfterthoughtBridiTailSyntax(_SyntaxNode):
+    'Transparent product node for bridi tail; preserves the `bridi_tails` component.'
+    __slots__ = ()
+    _schema_id = 98
+    __match_args__ = ('bridi_tails',)
+    def __new__(cls, bridi_tails: Chain[BoGroupedBridiTailSyntax, BridiTailContinuationSyntax]) -> AfterthoughtBridiTailSyntax:
+        return cls._from_fields((bridi_tails,))
+    def __init__(self, bridi_tails: Chain[BoGroupedBridiTailSyntax, BridiTailContinuationSyntax]) -> None:
+        pass
+    @property
+    def bridi_tails(self) -> Chain[BoGroupedBridiTailSyntax, BridiTailContinuationSyntax]:
+        'The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail` production.'
+        return cast(Chain[BoGroupedBridiTailSyntax, BridiTailContinuationSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AfterthoughtBridiTailSyntax is final')
+
+@final
+class BoGroupedBridiTailWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `first` and `bo_continuation` in source order.'
+    __slots__ = ()
+    _schema_id = 99
+    __match_args__ = ('first', 'bo_continuation')
+    def __new__(cls, first: SimpleBridiTailWithoutTailTermsSyntax, bo_continuation: BridiTailBoContinuationWithoutTailTermsSyntax | None) -> BoGroupedBridiTailWithoutTailTermsSyntax:
+        return cls._from_fields((first, bo_continuation))
+    def __init__(self, first: SimpleBridiTailWithoutTailTermsSyntax, bo_continuation: BridiTailBoContinuationWithoutTailTermsSyntax | None) -> None:
+        pass
+    @property
+    def first(self) -> SimpleBridiTailWithoutTailTermsSyntax:
+        'The shared first child syntax node.'
+        return cast(SimpleBridiTailWithoutTailTermsSyntax, self._field(0))
+    @property
+    def bo_continuation(self) -> BridiTailBoContinuationWithoutTailTermsSyntax | None:
+        'The optional bo continuation component.'
+        return cast(BridiTailBoContinuationWithoutTailTermsSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoGroupedBridiTailWithoutTailTermsSyntax is final')
+
+@final
+class BoGroupedBridiTailSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `first` and `bo_continuation` in source order.'
+    __slots__ = ()
+    _schema_id = 100
+    __match_args__ = ('first', 'bo_continuation')
+    def __new__(cls, first: SimpleBridiTailSyntax, bo_continuation: BridiTailBoContinuationSyntax | None) -> BoGroupedBridiTailSyntax:
+        return cls._from_fields((first, bo_continuation))
+    def __init__(self, first: SimpleBridiTailSyntax, bo_continuation: BridiTailBoContinuationSyntax | None) -> None:
+        pass
+    @property
+    def first(self) -> SimpleBridiTailSyntax:
+        'The shared first child syntax node.'
+        return cast(SimpleBridiTailSyntax, self._field(0))
+    @property
+    def bo_continuation(self) -> BridiTailBoContinuationSyntax | None:
+        'The optional bo continuation component.'
+        return cast(BridiTailBoContinuationSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoGroupedBridiTailSyntax is final')
+
+@final
+class SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_SyntaxNode):
+    'Uses the `forethought_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `connection`.'
+    __slots__ = ()
+    _schema_id = 101
+    __match_args__ = ('forethought_simple_bridi_tail_without_tail_terms',)
+    def __new__(cls, forethought_simple_bridi_tail_without_tail_terms: ForethoughtSimpleBridiTailWithoutTailTermsSyntax) -> SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms:
+        return cls._from_fields((forethought_simple_bridi_tail_without_tail_terms,))
+    def __init__(self, forethought_simple_bridi_tail_without_tail_terms: ForethoughtSimpleBridiTailWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def forethought_simple_bridi_tail_without_tail_terms(self) -> ForethoughtSimpleBridiTailWithoutTailTermsSyntax:
+        'Uses the `forethought_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `connection`.'
+        return cast(ForethoughtSimpleBridiTailWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms is final')
+
+@final
+class SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms(_SyntaxNode):
+    'Uses the `selbri_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `selbri` and `vau`.'
+    __slots__ = ()
+    _schema_id = 102
+    __match_args__ = ('selbri_simple_bridi_tail_without_tail_terms',)
+    def __new__(cls, selbri_simple_bridi_tail_without_tail_terms: SelbriSimpleBridiTailWithoutTailTermsSyntax) -> SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms:
+        return cls._from_fields((selbri_simple_bridi_tail_without_tail_terms,))
+    def __init__(self, selbri_simple_bridi_tail_without_tail_terms: SelbriSimpleBridiTailWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def selbri_simple_bridi_tail_without_tail_terms(self) -> SelbriSimpleBridiTailWithoutTailTermsSyntax:
+        'Uses the `selbri_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `selbri` and `vau`.'
+        return cast(SelbriSimpleBridiTailWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms is final')
+
+SimpleBridiTailWithoutTailTermsSyntax: TypeAlias = SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms | SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms
+
+@final
+class SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_SyntaxNode):
+    'Uses the `forethought_simple_bridi_tail` product form, whose payload preserves `connection`.'
+    __slots__ = ()
+    _schema_id = 103
+    __match_args__ = ('forethought_simple_bridi_tail',)
+    def __new__(cls, forethought_simple_bridi_tail: ForethoughtSimpleBridiTailSyntax) -> SimpleBridiTailSyntaxForethoughtSimpleBridiTail:
+        return cls._from_fields((forethought_simple_bridi_tail,))
+    def __init__(self, forethought_simple_bridi_tail: ForethoughtSimpleBridiTailSyntax) -> None:
+        pass
+    @property
+    def forethought_simple_bridi_tail(self) -> ForethoughtSimpleBridiTailSyntax:
+        'Uses the `forethought_simple_bridi_tail` product form, whose payload preserves `connection`.'
+        return cast(ForethoughtSimpleBridiTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleBridiTailSyntaxForethoughtSimpleBridiTail is final')
+
+@final
+class SimpleBridiTailSyntaxSelbriSimpleBridiTail(_SyntaxNode):
+    'Uses the `selbri_simple_bridi_tail` product form, whose payload preserves `selbri`, `terms`, and `vau`.'
+    __slots__ = ()
+    _schema_id = 104
+    __match_args__ = ('selbri_simple_bridi_tail',)
+    def __new__(cls, selbri_simple_bridi_tail: SelbriSimpleBridiTailSyntax) -> SimpleBridiTailSyntaxSelbriSimpleBridiTail:
+        return cls._from_fields((selbri_simple_bridi_tail,))
+    def __init__(self, selbri_simple_bridi_tail: SelbriSimpleBridiTailSyntax) -> None:
+        pass
+    @property
+    def selbri_simple_bridi_tail(self) -> SelbriSimpleBridiTailSyntax:
+        'Uses the `selbri_simple_bridi_tail` product form, whose payload preserves `selbri`, `terms`, and `vau`.'
+        return cast(SelbriSimpleBridiTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleBridiTailSyntaxSelbriSimpleBridiTail is final')
+
+SimpleBridiTailSyntax: TypeAlias = SimpleBridiTailSyntaxForethoughtSimpleBridiTail | SimpleBridiTailSyntaxSelbriSimpleBridiTail
+
+@final
+class ForethoughtSimpleBridiTailWithoutTailTermsSyntax(_SyntaxNode):
+    'Transparent product node for forethought bridi connection; preserves the `connection` component.'
+    __slots__ = ()
+    _schema_id = 105
+    __match_args__ = ('connection',)
+    def __new__(cls, connection: ForethoughtBridiConnectionWithoutTailTermsSyntax) -> ForethoughtSimpleBridiTailWithoutTailTermsSyntax:
+        return cls._from_fields((connection,))
+    def __init__(self, connection: ForethoughtBridiConnectionWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def connection(self) -> ForethoughtBridiConnectionWithoutTailTermsSyntax:
+        'The shared connection child syntax node.'
+        return cast(ForethoughtBridiConnectionWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSimpleBridiTailWithoutTailTermsSyntax is final')
+
+@final
+class ForethoughtSimpleBridiTailSyntax(_SyntaxNode):
+    'Transparent product node for forethought bridi connection; preserves the `connection` component.'
+    __slots__ = ()
+    _schema_id = 106
+    __match_args__ = ('connection',)
+    def __new__(cls, connection: ForethoughtBridiConnectionSyntax) -> ForethoughtSimpleBridiTailSyntax:
+        return cls._from_fields((connection,))
+    def __init__(self, connection: ForethoughtBridiConnectionSyntax) -> None:
+        pass
+    @property
+    def connection(self) -> ForethoughtBridiConnectionSyntax:
+        'The shared connection child syntax node.'
+        return cast(ForethoughtBridiConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSimpleBridiTailSyntax is final')
+
+@final
+class SelbriSimpleBridiTailWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `selbri` and `vau` in source order.'
+    __slots__ = ()
+    _schema_id = 107
+    __match_args__ = ('selbri', 'vau')
+    def __new__(cls, selbri: SelbriSyntax, vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SelbriSimpleBridiTailWithoutTailTermsSyntax:
+        return cls._from_fields((selbri, vau))
+    def __init__(self, selbri: SelbriSyntax, vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(0))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriSimpleBridiTailWithoutTailTermsSyntax is final')
+
+@final
+class SelbriSimpleBridiTailSyntax(_SyntaxNode):
+    'Product node for bridi tail; preserves `selbri`, `terms`, and `vau` in source order.'
+    __slots__ = ()
+    _schema_id = 108
+    __match_args__ = ('selbri', 'terms', 'vau')
+    def __new__(cls, selbri: SelbriSyntax, terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SelbriSimpleBridiTailSyntax:
+        return cls._from_fields((selbri, terms, vau))
+    def __init__(self, selbri: SelbriSyntax, terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(0))
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriSimpleBridiTailSyntax is final')
+
+@final
+class ForethoughtBridiConnectionSyntaxDirectForethoughtBridiConnection(_SyntaxNode):
+    'Uses the `direct_forethought_bridi_connection` product form, whose payload preserves `gek`, `first`, `first_branch`, and 4 other fields.'
+    __slots__ = ()
+    _schema_id = 109
+    __match_args__ = ('direct_forethought_bridi_connection',)
+    def __new__(cls, direct_forethought_bridi_connection: DirectForethoughtBridiConnectionSyntax) -> ForethoughtBridiConnectionSyntaxDirectForethoughtBridiConnection:
+        return cls._from_fields((direct_forethought_bridi_connection,))
+    def __init__(self, direct_forethought_bridi_connection: DirectForethoughtBridiConnectionSyntax) -> None:
+        pass
+    @property
+    def direct_forethought_bridi_connection(self) -> DirectForethoughtBridiConnectionSyntax:
+        'Uses the `direct_forethought_bridi_connection` product form, whose payload preserves `gek`, `first`, `first_branch`, and 4 other fields.'
+        return cast(DirectForethoughtBridiConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiConnectionSyntaxDirectForethoughtBridiConnection is final')
+
+@final
+class ForethoughtBridiConnectionSyntaxGroupedForethoughtBridiConnection(_SyntaxNode):
+    'Uses the `grouped_forethought_bridi_connection` product form, whose payload preserves `tense_modal`, `ke`, `inner`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 110
+    __match_args__ = ('grouped_forethought_bridi_connection',)
+    def __new__(cls, grouped_forethought_bridi_connection: GroupedForethoughtBridiConnectionSyntax) -> ForethoughtBridiConnectionSyntaxGroupedForethoughtBridiConnection:
+        return cls._from_fields((grouped_forethought_bridi_connection,))
+    def __init__(self, grouped_forethought_bridi_connection: GroupedForethoughtBridiConnectionSyntax) -> None:
+        pass
+    @property
+    def grouped_forethought_bridi_connection(self) -> GroupedForethoughtBridiConnectionSyntax:
+        'Uses the `grouped_forethought_bridi_connection` product form, whose payload preserves `tense_modal`, `ke`, `inner`, and `kehe`.'
+        return cast(GroupedForethoughtBridiConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiConnectionSyntaxGroupedForethoughtBridiConnection is final')
+
+@final
+class ForethoughtBridiConnectionSyntaxNegatedForethoughtBridiConnection(_SyntaxNode):
+    'Uses the `negated_forethought_bridi_connection` product form, whose payload preserves `na` and `inner`.'
+    __slots__ = ()
+    _schema_id = 111
+    __match_args__ = ('negated_forethought_bridi_connection',)
+    def __new__(cls, negated_forethought_bridi_connection: NegatedForethoughtBridiConnectionSyntax) -> ForethoughtBridiConnectionSyntaxNegatedForethoughtBridiConnection:
+        return cls._from_fields((negated_forethought_bridi_connection,))
+    def __init__(self, negated_forethought_bridi_connection: NegatedForethoughtBridiConnectionSyntax) -> None:
+        pass
+    @property
+    def negated_forethought_bridi_connection(self) -> NegatedForethoughtBridiConnectionSyntax:
+        'Uses the `negated_forethought_bridi_connection` product form, whose payload preserves `na` and `inner`.'
+        return cast(NegatedForethoughtBridiConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiConnectionSyntaxNegatedForethoughtBridiConnection is final')
+
+ForethoughtBridiConnectionSyntax: TypeAlias = ForethoughtBridiConnectionSyntaxDirectForethoughtBridiConnection | ForethoughtBridiConnectionSyntaxGroupedForethoughtBridiConnection | ForethoughtBridiConnectionSyntaxNegatedForethoughtBridiConnection
+
+@final
+class ForethoughtBridiConnectionWithoutTailTermsSyntaxDirectForethoughtBridiConnectionWithoutTailTerms(_SyntaxNode):
+    'Uses the `direct_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `gek`, `first`, `first_branch`, and 3 other fields.'
+    __slots__ = ()
+    _schema_id = 112
+    __match_args__ = ('direct_forethought_bridi_connection_without_tail_terms',)
+    def __new__(cls, direct_forethought_bridi_connection_without_tail_terms: DirectForethoughtBridiConnectionWithoutTailTermsSyntax) -> ForethoughtBridiConnectionWithoutTailTermsSyntaxDirectForethoughtBridiConnectionWithoutTailTerms:
+        return cls._from_fields((direct_forethought_bridi_connection_without_tail_terms,))
+    def __init__(self, direct_forethought_bridi_connection_without_tail_terms: DirectForethoughtBridiConnectionWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def direct_forethought_bridi_connection_without_tail_terms(self) -> DirectForethoughtBridiConnectionWithoutTailTermsSyntax:
+        'Uses the `direct_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `gek`, `first`, `first_branch`, and 3 other fields.'
+        return cast(DirectForethoughtBridiConnectionWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiConnectionWithoutTailTermsSyntaxDirectForethoughtBridiConnectionWithoutTailTerms is final')
+
+@final
+class ForethoughtBridiConnectionWithoutTailTermsSyntaxGroupedForethoughtBridiConnectionWithoutTailTerms(_SyntaxNode):
+    'Uses the `grouped_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `tense_modal`, `ke`, `inner`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 113
+    __match_args__ = ('grouped_forethought_bridi_connection_without_tail_terms',)
+    def __new__(cls, grouped_forethought_bridi_connection_without_tail_terms: GroupedForethoughtBridiConnectionWithoutTailTermsSyntax) -> ForethoughtBridiConnectionWithoutTailTermsSyntaxGroupedForethoughtBridiConnectionWithoutTailTerms:
+        return cls._from_fields((grouped_forethought_bridi_connection_without_tail_terms,))
+    def __init__(self, grouped_forethought_bridi_connection_without_tail_terms: GroupedForethoughtBridiConnectionWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def grouped_forethought_bridi_connection_without_tail_terms(self) -> GroupedForethoughtBridiConnectionWithoutTailTermsSyntax:
+        'Uses the `grouped_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `tense_modal`, `ke`, `inner`, and `kehe`.'
+        return cast(GroupedForethoughtBridiConnectionWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiConnectionWithoutTailTermsSyntaxGroupedForethoughtBridiConnectionWithoutTailTerms is final')
+
+@final
+class ForethoughtBridiConnectionWithoutTailTermsSyntaxNegatedForethoughtBridiConnectionWithoutTailTerms(_SyntaxNode):
+    'Uses the `negated_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `na` and `inner`.'
+    __slots__ = ()
+    _schema_id = 114
+    __match_args__ = ('negated_forethought_bridi_connection_without_tail_terms',)
+    def __new__(cls, negated_forethought_bridi_connection_without_tail_terms: NegatedForethoughtBridiConnectionWithoutTailTermsSyntax) -> ForethoughtBridiConnectionWithoutTailTermsSyntaxNegatedForethoughtBridiConnectionWithoutTailTerms:
+        return cls._from_fields((negated_forethought_bridi_connection_without_tail_terms,))
+    def __init__(self, negated_forethought_bridi_connection_without_tail_terms: NegatedForethoughtBridiConnectionWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def negated_forethought_bridi_connection_without_tail_terms(self) -> NegatedForethoughtBridiConnectionWithoutTailTermsSyntax:
+        'Uses the `negated_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `na` and `inner`.'
+        return cast(NegatedForethoughtBridiConnectionWithoutTailTermsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiConnectionWithoutTailTermsSyntaxNegatedForethoughtBridiConnectionWithoutTailTerms is final')
+
+ForethoughtBridiConnectionWithoutTailTermsSyntax: TypeAlias = ForethoughtBridiConnectionWithoutTailTermsSyntaxDirectForethoughtBridiConnectionWithoutTailTerms | ForethoughtBridiConnectionWithoutTailTermsSyntaxGroupedForethoughtBridiConnectionWithoutTailTerms | ForethoughtBridiConnectionWithoutTailTermsSyntaxNegatedForethoughtBridiConnectionWithoutTailTerms
+
+@final
+class DirectForethoughtBridiConnectionSyntax(_SyntaxNode):
+    'Product node for forethought bridi connection; preserves `gek`, `first`, `first_branch`, and 4 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 115
+    __match_args__ = ('gek', 'first', 'first_branch', 'additional_branches', 'gihi', 'tail_terms', 'vau')
+    def __new__(cls, gek: ModalForethoughtConnectiveSyntax, first: SubbridiSyntax, first_branch: ForethoughtBridiBranchSyntax, additional_branches: Sequence[ZantufaForethoughtBridiBranchSyntax], gihi: Token | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> DirectForethoughtBridiConnectionSyntax:
+        return cls._from_fields((gek, first, first_branch, additional_branches, gihi, tail_terms, vau))
+    def __init__(self, gek: ModalForethoughtConnectiveSyntax, first: SubbridiSyntax, first_branch: ForethoughtBridiBranchSyntax, additional_branches: Sequence[ZantufaForethoughtBridiBranchSyntax], gihi: Token | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The opening forethought connective that determines how the subbridi branches are combined.'
+        return cast(ModalForethoughtConnectiveSyntax, self._field(0))
+    @property
+    def first(self) -> SubbridiSyntax:
+        'The first subbridi branch, which follows the opening connective without an intervening GIK.'
+        return cast(SubbridiSyntax, self._field(1))
+    @property
+    def first_branch(self) -> ForethoughtBridiBranchSyntax:
+        'The first GIK-led subbridi branch paired with the opening connective.'
+        return cast(ForethoughtBridiBranchSyntax, self._field(2))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtBridiBranchSyntax, ...]:
+        'Additional Zantufa GIK-led subbridi branches, retained in source order.'
+        return cast(tuple[ZantufaForethoughtBridiBranchSyntax, ...], self._field(3))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional experimental GIhI terminator following the complete branch sequence.'
+        return cast(Token | None, self._field(4))
+    @property
+    def tail_terms(self) -> tuple[TermSyntax, ...]:
+        'Terms attached to the completed forethought bridi after its connected subbridi branches.'
+        return cast(tuple[TermSyntax, ...], self._field(5))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable VAU terminator for the bridi tail.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(6))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DirectForethoughtBridiConnectionSyntax is final')
+
+@final
+class DirectForethoughtBridiConnectionWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for forethought bridi connection; preserves `gek`, `first`, `first_branch`, and 3 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 116
+    __match_args__ = ('gek', 'first', 'first_branch', 'additional_branches', 'gihi', 'vau')
+    def __new__(cls, gek: ModalForethoughtConnectiveSyntax, first: SubbridiSyntax, first_branch: ForethoughtBridiBranchSyntax, additional_branches: Sequence[ZantufaForethoughtBridiBranchSyntax], gihi: Token | None, vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> DirectForethoughtBridiConnectionWithoutTailTermsSyntax:
+        return cls._from_fields((gek, first, first_branch, additional_branches, gihi, vau))
+    def __init__(self, gek: ModalForethoughtConnectiveSyntax, first: SubbridiSyntax, first_branch: ForethoughtBridiBranchSyntax, additional_branches: Sequence[ZantufaForethoughtBridiBranchSyntax], gihi: Token | None, vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The opening forethought connective that determines how the subbridi branches are combined.'
+        return cast(ModalForethoughtConnectiveSyntax, self._field(0))
+    @property
+    def first(self) -> SubbridiSyntax:
+        'The first subbridi branch, which follows the opening connective without an intervening GIK.'
+        return cast(SubbridiSyntax, self._field(1))
+    @property
+    def first_branch(self) -> ForethoughtBridiBranchSyntax:
+        'The first GIK-led subbridi branch paired with the opening connective.'
+        return cast(ForethoughtBridiBranchSyntax, self._field(2))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtBridiBranchSyntax, ...]:
+        'Additional Zantufa GIK-led subbridi branches, retained in source order.'
+        return cast(tuple[ZantufaForethoughtBridiBranchSyntax, ...], self._field(3))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional experimental GIhI terminator following the complete branch sequence.'
+        return cast(Token | None, self._field(4))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable VAU terminator for the bridi tail.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(5))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DirectForethoughtBridiConnectionWithoutTailTermsSyntax is final')
+
+@final
+class ForethoughtBridiBranchSyntax(_SyntaxNode):
+    'Product node for forethought bridi branch; preserves `gik` and `branch` in source order.'
+    __slots__ = ()
+    _schema_id = 117
+    __match_args__ = ('gik', 'branch')
+    def __new__(cls, gik: GikConnectiveSyntax, branch: SubbridiSyntax) -> ForethoughtBridiBranchSyntax:
+        return cls._from_fields((gik, branch))
+    def __init__(self, gik: GikConnectiveSyntax, branch: SubbridiSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GIK connective that introduces this branch and pairs with the opening forethought connective.'
+        return cast(GikConnectiveSyntax, self._field(0))
+    @property
+    def branch(self) -> SubbridiSyntax:
+        'The subbridi governed by this branch\'s GIK connective.'
+        return cast(SubbridiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtBridiBranchSyntax is final')
+
+@final
+class ZantufaForethoughtBridiBranchSyntax(_SyntaxNode):
+    'Product node for forethought bridi branch; preserves `gik` and `branch` in source order.'
+    __slots__ = ()
+    _schema_id = 118
+    __match_args__ = ('gik', 'branch')
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, branch: SubbridiSyntax) -> ZantufaForethoughtBridiBranchSyntax:
+        return cls._from_fields((gik, branch))
+    def __init__(self, gik: ZantufaExtraGikConnectiveSyntax, branch: SubbridiSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> ZantufaExtraGikConnectiveSyntax:
+        'The additional Zantufa GIK connective that introduces this branch.'
+        return cast(ZantufaExtraGikConnectiveSyntax, self._field(0))
+    @property
+    def branch(self) -> SubbridiSyntax:
+        'The subbridi governed by this additional branch\'s GIK connective.'
+        return cast(SubbridiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaForethoughtBridiBranchSyntax is final')
+
+@final
+class GroupedForethoughtBridiConnectionSyntax(_SyntaxNode):
+    'Product node for forethought bridi connection; preserves `tense_modal`, `ke`, `inner`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 119
+    __match_args__ = ('tense_modal', 'ke', 'inner', 'kehe')
+    def __new__(cls, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedForethoughtBridiConnectionSyntax:
+        return cls._from_fields((tense_modal, ke, inner, kehe))
+    def __init__(self, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(0))
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def inner(self) -> ForethoughtBridiConnectionSyntax:
+        'The shared inner child syntax node.'
+        return cast(ForethoughtBridiConnectionSyntax, self._field(2))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GroupedForethoughtBridiConnectionSyntax is final')
+
+@final
+class GroupedForethoughtBridiConnectionWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for forethought bridi connection; preserves `tense_modal`, `ke`, `inner`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 120
+    __match_args__ = ('tense_modal', 'ke', 'inner', 'kehe')
+    def __new__(cls, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionWithoutTailTermsSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedForethoughtBridiConnectionWithoutTailTermsSyntax:
+        return cls._from_fields((tense_modal, ke, inner, kehe))
+    def __init__(self, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionWithoutTailTermsSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(0))
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def inner(self) -> ForethoughtBridiConnectionWithoutTailTermsSyntax:
+        'The shared inner child syntax node.'
+        return cast(ForethoughtBridiConnectionWithoutTailTermsSyntax, self._field(2))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GroupedForethoughtBridiConnectionWithoutTailTermsSyntax is final')
+
+@final
+class NegatedForethoughtBridiConnectionSyntax(_SyntaxNode):
+    'Product node for forethought bridi connection; preserves `na` and `inner` in source order.'
+    __slots__ = ()
+    _schema_id = 121
+    __match_args__ = ('na', 'inner')
+    def __new__(cls, na: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionSyntax) -> NegatedForethoughtBridiConnectionSyntax:
+        return cls._from_fields((na, inner))
+    def __init__(self, na: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionSyntax) -> None:
+        pass
+    @property
+    def na(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Na`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner(self) -> ForethoughtBridiConnectionSyntax:
+        'The shared inner child syntax node.'
+        return cast(ForethoughtBridiConnectionSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NegatedForethoughtBridiConnectionSyntax is final')
+
+@final
+class NegatedForethoughtBridiConnectionWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for forethought bridi connection; preserves `na` and `inner` in source order.'
+    __slots__ = ()
+    _schema_id = 122
+    __match_args__ = ('na', 'inner')
+    def __new__(cls, na: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionWithoutTailTermsSyntax) -> NegatedForethoughtBridiConnectionWithoutTailTermsSyntax:
+        return cls._from_fields((na, inner))
+    def __init__(self, na: WithFreeModifiers[Token, FreeModifierSyntax], inner: ForethoughtBridiConnectionWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def na(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Na`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner(self) -> ForethoughtBridiConnectionWithoutTailTermsSyntax:
+        'The shared inner child syntax node.'
+        return cast(ForethoughtBridiConnectionWithoutTailTermsSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NegatedForethoughtBridiConnectionWithoutTailTermsSyntax is final')
+
+@final
+class BridiTailKeContinuationSyntax(_SyntaxNode):
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 123
+    __match_args__ = ('connective', 'tense_modal', 'ke', 'bridi_tail', 'kehe', 'tail_terms', 'vau')
+    def __new__(cls, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> BridiTailKeContinuationSyntax:
+        return cls._from_fields((connective, tense_modal, ke, bridi_tail, kehe, tail_terms, vau))
+    def __init__(self, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> BridiTailConnectiveSyntax:
+        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_ke_continuation` production.'
+        return cast(BridiTailConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(3))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    @property
+    def tail_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more tail terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(5))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(6))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailKeContinuationSyntax is final')
+
+@final
+class GihekBridiTailKeContinuationSyntax(_SyntaxNode):
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 124
+    __match_args__ = ('connective', 'tense_modal', 'ke', 'bridi_tail', 'kehe', 'tail_terms', 'vau')
+    def __new__(cls, connective: GihekConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GihekBridiTailKeContinuationSyntax:
+        return cls._from_fields((connective, tense_modal, ke, bridi_tail, kehe, tail_terms, vau))
+    def __init__(self, connective: GihekConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], bridi_tail: BridiTailSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> GihekConnectiveSyntax:
+        'The `gihek_connective` connective joining the adjacent constituents of the `gihek_bridi_tail_ke_continuation` production.'
+        return cast(GihekConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def bridi_tail(self) -> BridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BridiTailSyntax, self._field(3))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    @property
+    def tail_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more tail terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(5))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(6))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GihekBridiTailKeContinuationSyntax is final')
+
+@final
+class BridiTailBoContinuationWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, `cu`, and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 125
+    __match_args__ = ('connective', 'tense_modal', 'bo', 'cu', 'bridi_tail')
+    def __new__(cls, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailWithoutTailTermsSyntax) -> BridiTailBoContinuationWithoutTailTermsSyntax:
+        return cls._from_fields((connective, tense_modal, bo, cu, bridi_tail))
+    def __init__(self, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> BridiTailConnectiveSyntax:
+        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_bo_continuation_without_tail_terms` production.'
+        return cast(BridiTailConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    @property
+    def bridi_tail(self) -> BoGroupedBridiTailWithoutTailTermsSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BoGroupedBridiTailWithoutTailTermsSyntax, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailBoContinuationWithoutTailTermsSyntax is final')
+
+@final
+class BridiTailBoContinuationSyntax(_SyntaxNode):
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and 4 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 126
+    __match_args__ = ('connective', 'tense_modal', 'bo', 'cu', 'bridi_tail', 'tail_terms', 'vau')
+    def __new__(cls, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailSyntax, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> BridiTailBoContinuationSyntax:
+        return cls._from_fields((connective, tense_modal, bo, cu, bridi_tail, tail_terms, vau))
+    def __init__(self, connective: BridiTailConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailSyntax, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> BridiTailConnectiveSyntax:
+        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_bo_continuation` production.'
+        return cast(BridiTailConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    @property
+    def bridi_tail(self) -> BoGroupedBridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BoGroupedBridiTailSyntax, self._field(4))
+    @property
+    def tail_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more tail terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(5))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(6))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailBoContinuationSyntax is final')
+
+@final
+class BridiTailContinuationWithoutTailTermsSyntax(_SyntaxNode):
+    'Product node for bridi tail connective; preserves `connective`, `cu`, and `bridi_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 127
+    __match_args__ = ('connective', 'cu', 'bridi_tail')
+    def __new__(cls, connective: BridiTailConnectiveSyntax, cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailWithoutTailTermsSyntax) -> BridiTailContinuationWithoutTailTermsSyntax:
+        return cls._from_fields((connective, cu, bridi_tail))
+    def __init__(self, connective: BridiTailConnectiveSyntax, cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailWithoutTailTermsSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> BridiTailConnectiveSyntax:
+        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_continuation_without_tail_terms` production.'
+        return cast(BridiTailConnectiveSyntax, self._field(0))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def bridi_tail(self) -> BoGroupedBridiTailWithoutTailTermsSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BoGroupedBridiTailWithoutTailTermsSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailContinuationWithoutTailTermsSyntax is final')
+
+@final
+class BridiTailContinuationSyntax(_SyntaxNode):
+    'Product node for bridi tail connective; preserves `connective`, `cu`, `bridi_tail`, `tail_terms`, and `vau` in source order.'
+    __slots__ = ()
+    _schema_id = 128
+    __match_args__ = ('connective', 'cu', 'bridi_tail', 'tail_terms', 'vau')
+    def __new__(cls, connective: BridiTailConnectiveSyntax, cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailSyntax, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> BridiTailContinuationSyntax:
+        return cls._from_fields((connective, cu, bridi_tail, tail_terms, vau))
+    def __init__(self, connective: BridiTailConnectiveSyntax, cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, bridi_tail: BoGroupedBridiTailSyntax, tail_terms: Sequence[TermSyntax], vau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> BridiTailConnectiveSyntax:
+        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_continuation` production.'
+        return cast(BridiTailConnectiveSyntax, self._field(0))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def bridi_tail(self) -> BoGroupedBridiTailSyntax:
+        'The shared bridi tail child syntax node.'
+        return cast(BoGroupedBridiTailSyntax, self._field(2))
+    @property
+    def tail_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more tail terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(3))
+    @property
+    def vau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Vau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailContinuationSyntax is final')
+
+@final
+class SubbridiSyntaxPrenexSubbridi(_SyntaxNode):
+    'Uses the `prenex_subbridi` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_subbridi`.'
+    __slots__ = ()
+    _schema_id = 129
+    __match_args__ = ('prenex_subbridi',)
+    def __new__(cls, prenex_subbridi: PrenexSubbridiSyntax) -> SubbridiSyntaxPrenexSubbridi:
+        return cls._from_fields((prenex_subbridi,))
+    def __init__(self, prenex_subbridi: PrenexSubbridiSyntax) -> None:
+        pass
+    @property
+    def prenex_subbridi(self) -> PrenexSubbridiSyntax:
+        'Uses the `prenex_subbridi` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_subbridi`.'
+        return cast(PrenexSubbridiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SubbridiSyntaxPrenexSubbridi is final')
+
+@final
+class SubbridiSyntaxBridiSubbridi(_SyntaxNode):
+    'Uses the `bridi_subbridi` product form, whose payload preserves `bridi`.'
+    __slots__ = ()
+    _schema_id = 130
+    __match_args__ = ('bridi_subbridi',)
+    def __new__(cls, bridi_subbridi: BridiSubbridiSyntax) -> SubbridiSyntaxBridiSubbridi:
+        return cls._from_fields((bridi_subbridi,))
+    def __init__(self, bridi_subbridi: BridiSubbridiSyntax) -> None:
+        pass
+    @property
+    def bridi_subbridi(self) -> BridiSubbridiSyntax:
+        'Uses the `bridi_subbridi` product form, whose payload preserves `bridi`.'
+        return cast(BridiSubbridiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SubbridiSyntaxBridiSubbridi is final')
+
+SubbridiSyntax: TypeAlias = SubbridiSyntaxPrenexSubbridi | SubbridiSyntaxBridiSubbridi
+
+@final
+class BridiSubbridiSyntax(_SyntaxNode):
+    'Transparent product node for subbridi; preserves the `bridi` component.'
+    __slots__ = ()
+    _schema_id = 131
+    __match_args__ = ('bridi',)
+    def __new__(cls, bridi: BridiSyntax) -> BridiSubbridiSyntax:
+        return cls._from_fields((bridi,))
+    def __init__(self, bridi: BridiSyntax) -> None:
+        pass
+    @property
+    def bridi(self) -> BridiSyntax:
+        'The shared bridi child syntax node.'
+        return cast(BridiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiSubbridiSyntax is final')
+
+@final
+class PrenexSubbridiSyntax(_SyntaxNode):
+    'Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_subbridi` in source order.'
+    __slots__ = ()
+    _schema_id = 132
+    __match_args__ = ('prenex_terms', 'zohu', 'inner_subbridi')
+    def __new__(cls, prenex_terms: Sequence[TermSyntax], zohu: WithFreeModifiers[Token, FreeModifierSyntax], inner_subbridi: SubbridiSyntax) -> PrenexSubbridiSyntax:
+        return cls._from_fields((prenex_terms, zohu, inner_subbridi))
+    def __init__(self, prenex_terms: Sequence[TermSyntax], zohu: WithFreeModifiers[Token, FreeModifierSyntax], inner_subbridi: SubbridiSyntax) -> None:
+        pass
+    @property
+    def prenex_terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more prenex terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(0))
+    @property
+    def zohu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Zohu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def inner_subbridi(self) -> SubbridiSyntax:
+        'The shared inner subbridi child syntax node.'
+        return cast(SubbridiSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PrenexSubbridiSyntax is final')
+
+@final
+class TermSyntaxPeheTermsetConnection(_SyntaxNode):
+    'Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 133
+    __match_args__ = ('pehe_termset_connection',)
+    def __new__(cls, pehe_termset_connection: PeheTermsetConnectionSyntax) -> TermSyntaxPeheTermsetConnection:
+        return cls._from_fields((pehe_termset_connection,))
+    def __init__(self, pehe_termset_connection: PeheTermsetConnectionSyntax) -> None:
+        pass
+    @property
+    def pehe_termset_connection(self) -> PeheTermsetConnectionSyntax:
+        'Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.'
+        return cast(PeheTermsetConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermSyntaxPeheTermsetConnection is final')
+
+@final
+class TermSyntaxBoundTermConnection(_SyntaxNode):
+    'Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.'
+    __slots__ = ()
+    _schema_id = 134
+    __match_args__ = ('bound_term_connection',)
+    def __new__(cls, bound_term_connection: BoundTermConnectionSyntax) -> TermSyntaxBoundTermConnection:
+        return cls._from_fields((bound_term_connection,))
+    def __init__(self, bound_term_connection: BoundTermConnectionSyntax) -> None:
+        pass
+    @property
+    def bound_term_connection(self) -> BoundTermConnectionSyntax:
+        'Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.'
+        return cast(BoundTermConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermSyntaxBoundTermConnection is final')
+
+@final
+class TermSyntaxTermsetGroup(_SyntaxNode):
+    'Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 135
+    __match_args__ = ('termset_group',)
+    def __new__(cls, termset_group: TermsetGroupSyntax) -> TermSyntaxTermsetGroup:
+        return cls._from_fields((termset_group,))
+    def __init__(self, termset_group: TermsetGroupSyntax) -> None:
+        pass
+    @property
+    def termset_group(self) -> TermsetGroupSyntax:
+        'Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.'
+        return cast(TermsetGroupSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermSyntaxTermsetGroup is final')
+
+@final
+class TermSyntaxConnectedTerm(_SyntaxNode):
+    'Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 136
+    __match_args__ = ('connected_term',)
+    def __new__(cls, connected_term: ConnectedTermSyntax) -> TermSyntaxConnectedTerm:
+        return cls._from_fields((connected_term,))
+    def __init__(self, connected_term: ConnectedTermSyntax) -> None:
+        pass
+    @property
+    def connected_term(self) -> ConnectedTermSyntax:
+        'Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.'
+        return cast(ConnectedTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermSyntaxConnectedTerm is final')
+
+@final
+class TermSyntaxSimpleTerm(_SyntaxNode):
+    'Uses the nested `simple_term` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 137
+    __match_args__ = ('simple_term',)
+    def __new__(cls, simple_term: SimpleTermSyntax) -> TermSyntaxSimpleTerm:
+        return cls._from_fields((simple_term,))
+    def __init__(self, simple_term: SimpleTermSyntax) -> None:
+        pass
+    @property
+    def simple_term(self) -> SimpleTermSyntax:
+        'Uses the nested `simple_term` sum form and preserves its selected alternative.'
+        return cast(SimpleTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermSyntaxSimpleTerm is final')
+
+TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxBoundTermConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxSimpleTerm
+
+@final
+class PeheTermsetConnectionSyntax(_SyntaxNode):
+    'Product node for termset connection; preserves `leading_term` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 138
+    __match_args__ = ('leading_term', 'continuations')
+    def __new__(cls, leading_term: PeheTermsetOperandSyntax, continuations: Sequence[PeheTermsetConnectionContinuationSyntax]) -> PeheTermsetConnectionSyntax:
+        return cls._from_fields((leading_term, continuations))
+    def __init__(self, leading_term: PeheTermsetOperandSyntax, continuations: Sequence[PeheTermsetConnectionContinuationSyntax]) -> None:
+        pass
+    @property
+    def leading_term(self) -> PeheTermsetOperandSyntax:
+        'The shared leading term child syntax node.'
+        return cast(PeheTermsetOperandSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[PeheTermsetConnectionContinuationSyntax, ...]:
+        'Non-empty ordered sequence of continuations components.'
+        return cast(tuple[PeheTermsetConnectionContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PeheTermsetConnectionSyntax is final')
+
+@final
+class PeheTermsetConnectionContinuationSyntax(_SyntaxNode):
+    'Product node for termset connection continuation; preserves `pehe`, `connective`, and `trailing_term` in source order.'
+    __slots__ = ()
+    _schema_id = 139
+    __match_args__ = ('pehe', 'connective', 'trailing_term')
+    def __new__(cls, pehe: WithFreeModifiers[Token, FreeModifierSyntax], connective: StatementConnectiveSyntax, trailing_term: PeheTermsetOperandSyntax) -> PeheTermsetConnectionContinuationSyntax:
+        return cls._from_fields((pehe, connective, trailing_term))
+    def __init__(self, pehe: WithFreeModifiers[Token, FreeModifierSyntax], connective: StatementConnectiveSyntax, trailing_term: PeheTermsetOperandSyntax) -> None:
+        pass
+    @property
+    def pehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Pehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def connective(self) -> StatementConnectiveSyntax:
+        'The `statement_connective` connective joining the adjacent constituents of the `pehe_termset_connection_continuation` production.'
+        return cast(StatementConnectiveSyntax, self._field(1))
+    @property
+    def trailing_term(self) -> PeheTermsetOperandSyntax:
+        'The shared trailing term child syntax node.'
+        return cast(PeheTermsetOperandSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PeheTermsetConnectionContinuationSyntax is final')
+
+@final
+class PeheTermsetOperandSyntaxBoundTermConnection(_SyntaxNode):
+    'Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.'
+    __slots__ = ()
+    _schema_id = 140
+    __match_args__ = ('bound_term_connection',)
+    def __new__(cls, bound_term_connection: BoundTermConnectionSyntax) -> PeheTermsetOperandSyntaxBoundTermConnection:
+        return cls._from_fields((bound_term_connection,))
+    def __init__(self, bound_term_connection: BoundTermConnectionSyntax) -> None:
+        pass
+    @property
+    def bound_term_connection(self) -> BoundTermConnectionSyntax:
+        'Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.'
+        return cast(BoundTermConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PeheTermsetOperandSyntaxBoundTermConnection is final')
+
+@final
+class PeheTermsetOperandSyntaxTermsetGroup(_SyntaxNode):
+    'Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 141
+    __match_args__ = ('termset_group',)
+    def __new__(cls, termset_group: TermsetGroupSyntax) -> PeheTermsetOperandSyntaxTermsetGroup:
+        return cls._from_fields((termset_group,))
+    def __init__(self, termset_group: TermsetGroupSyntax) -> None:
+        pass
+    @property
+    def termset_group(self) -> TermsetGroupSyntax:
+        'Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.'
+        return cast(TermsetGroupSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PeheTermsetOperandSyntaxTermsetGroup is final')
+
+@final
+class PeheTermsetOperandSyntaxSimpleTerm(_SyntaxNode):
+    'Uses the nested `simple_term` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 142
+    __match_args__ = ('simple_term',)
+    def __new__(cls, simple_term: SimpleTermSyntax) -> PeheTermsetOperandSyntaxSimpleTerm:
+        return cls._from_fields((simple_term,))
+    def __init__(self, simple_term: SimpleTermSyntax) -> None:
+        pass
+    @property
+    def simple_term(self) -> SimpleTermSyntax:
+        'Uses the nested `simple_term` sum form and preserves its selected alternative.'
+        return cast(SimpleTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PeheTermsetOperandSyntaxSimpleTerm is final')
+
+PeheTermsetOperandSyntax: TypeAlias = PeheTermsetOperandSyntaxBoundTermConnection | PeheTermsetOperandSyntaxTermsetGroup | PeheTermsetOperandSyntaxSimpleTerm
+
+@final
+class SimpleTermSyntaxPlaceTaggedSumtiTerm(_SyntaxNode):
+    'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+    __slots__ = ()
+    _schema_id = 143
+    __match_args__ = ('place_tagged_sumti_term',)
+    def __new__(cls, place_tagged_sumti_term: PlaceTaggedSumtiTermSyntax) -> SimpleTermSyntaxPlaceTaggedSumtiTerm:
+        return cls._from_fields((place_tagged_sumti_term,))
+    def __init__(self, place_tagged_sumti_term: PlaceTaggedSumtiTermSyntax) -> None:
+        pass
+    @property
+    def place_tagged_sumti_term(self) -> PlaceTaggedSumtiTermSyntax:
+        'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        return cast(PlaceTaggedSumtiTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxPlaceTaggedSumtiTerm is final')
+
+@final
+class SimpleTermSyntaxJaiTaggedSumtiTerm(_SyntaxNode):
+    'Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.'
+    __slots__ = ()
+    _schema_id = 144
+    __match_args__ = ('jai_tagged_sumti_term',)
+    def __new__(cls, jai_tagged_sumti_term: JaiTaggedSumtiTermSyntax) -> SimpleTermSyntaxJaiTaggedSumtiTerm:
+        return cls._from_fields((jai_tagged_sumti_term,))
+    def __init__(self, jai_tagged_sumti_term: JaiTaggedSumtiTermSyntax) -> None:
+        pass
+    @property
+    def jai_tagged_sumti_term(self) -> JaiTaggedSumtiTermSyntax:
+        'Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.'
+        return cast(JaiTaggedSumtiTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxJaiTaggedSumtiTerm is final')
+
+@final
+class SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_SyntaxNode):
+    'Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.'
+    __slots__ = ()
+    _schema_id = 145
+    __match_args__ = ('tagged_sumti_before_tag_term',)
+    def __new__(cls, tagged_sumti_before_tag_term: TaggedSumtiBeforeTagTermSyntax) -> SimpleTermSyntaxTaggedSumtiBeforeTagTerm:
+        return cls._from_fields((tagged_sumti_before_tag_term,))
+    def __init__(self, tagged_sumti_before_tag_term: TaggedSumtiBeforeTagTermSyntax) -> None:
+        pass
+    @property
+    def tagged_sumti_before_tag_term(self) -> TaggedSumtiBeforeTagTermSyntax:
+        'Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.'
+        return cast(TaggedSumtiBeforeTagTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxTaggedSumtiBeforeTagTerm is final')
+
+@final
+class SimpleTermSyntaxTaggedSumtiTerm(_SyntaxNode):
+    'Uses the `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.'
+    __slots__ = ()
+    _schema_id = 146
+    __match_args__ = ('tagged_sumti_term',)
+    def __new__(cls, tagged_sumti_term: TaggedSumtiTermSyntax) -> SimpleTermSyntaxTaggedSumtiTerm:
+        return cls._from_fields((tagged_sumti_term,))
+    def __init__(self, tagged_sumti_term: TaggedSumtiTermSyntax) -> None:
+        pass
+    @property
+    def tagged_sumti_term(self) -> TaggedSumtiTermSyntax:
+        'Uses the `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.'
+        return cast(TaggedSumtiTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxTaggedSumtiTerm is final')
+
+@final
+class SimpleTermSyntaxNoihaAdverbialTerm(_SyntaxNode):
+    'Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 147
+    __match_args__ = ('noiha_adverbial_term',)
+    def __new__(cls, noiha_adverbial_term: NoihaAdverbialTermSyntax) -> SimpleTermSyntaxNoihaAdverbialTerm:
+        return cls._from_fields((noiha_adverbial_term,))
+    def __init__(self, noiha_adverbial_term: NoihaAdverbialTermSyntax) -> None:
+        pass
+    @property
+    def noiha_adverbial_term(self) -> NoihaAdverbialTermSyntax:
+        'Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.'
+        return cast(NoihaAdverbialTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxNoihaAdverbialTerm is final')
+
+@final
+class SimpleTermSyntaxFihoiAdverbialTerm(_SyntaxNode):
+    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    __slots__ = ()
+    _schema_id = 148
+    __match_args__ = ('fihoi_adverbial_term',)
+    def __new__(cls, fihoi_adverbial_term: FihoiAdverbialTermSyntax) -> SimpleTermSyntaxFihoiAdverbialTerm:
+        return cls._from_fields((fihoi_adverbial_term,))
+    def __init__(self, fihoi_adverbial_term: FihoiAdverbialTermSyntax) -> None:
+        pass
+    @property
+    def fihoi_adverbial_term(self) -> FihoiAdverbialTermSyntax:
+        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+        return cast(FihoiAdverbialTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxFihoiAdverbialTerm is final')
+
+@final
+class SimpleTermSyntaxSoiAdverbialTerm(_SyntaxNode):
+    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    __slots__ = ()
+    _schema_id = 149
+    __match_args__ = ('soi_adverbial_term',)
+    def __new__(cls, soi_adverbial_term: SoiAdverbialTermSyntax) -> SimpleTermSyntaxSoiAdverbialTerm:
+        return cls._from_fields((soi_adverbial_term,))
+    def __init__(self, soi_adverbial_term: SoiAdverbialTermSyntax) -> None:
+        pass
+    @property
+    def soi_adverbial_term(self) -> SoiAdverbialTermSyntax:
+        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+        return cast(SoiAdverbialTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxSoiAdverbialTerm is final')
+
+@final
+class SimpleTermSyntaxNaKuTerm(_SyntaxNode):
+    'Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.'
+    __slots__ = ()
+    _schema_id = 150
+    __match_args__ = ('na_ku_term',)
+    def __new__(cls, na_ku_term: NaKuTermSyntax) -> SimpleTermSyntaxNaKuTerm:
+        return cls._from_fields((na_ku_term,))
+    def __init__(self, na_ku_term: NaKuTermSyntax) -> None:
+        pass
+    @property
+    def na_ku_term(self) -> NaKuTermSyntax:
+        'Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.'
+        return cast(NaKuTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxNaKuTerm is final')
+
+@final
+class SimpleTermSyntaxSumtiTerm(_SyntaxNode):
+    'Uses the `sumti_term` product form, whose payload preserves `sumti`.'
+    __slots__ = ()
+    _schema_id = 151
+    __match_args__ = ('sumti_term',)
+    def __new__(cls, sumti_term: SumtiTermSyntax) -> SimpleTermSyntaxSumtiTerm:
+        return cls._from_fields((sumti_term,))
+    def __init__(self, sumti_term: SumtiTermSyntax) -> None:
+        pass
+    @property
+    def sumti_term(self) -> SumtiTermSyntax:
+        'Uses the `sumti_term` product form, whose payload preserves `sumti`.'
+        return cast(SumtiTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxSumtiTerm is final')
+
+@final
+class SimpleTermSyntaxBareNaTerm(_SyntaxNode):
+    'Uses the `bare_na_term` product form, whose payload preserves `na`.'
+    __slots__ = ()
+    _schema_id = 152
+    __match_args__ = ('bare_na_term',)
+    def __new__(cls, bare_na_term: BareNaTermSyntax) -> SimpleTermSyntaxBareNaTerm:
+        return cls._from_fields((bare_na_term,))
+    def __init__(self, bare_na_term: BareNaTermSyntax) -> None:
+        pass
+    @property
+    def bare_na_term(self) -> BareNaTermSyntax:
+        'Uses the `bare_na_term` product form, whose payload preserves `na`.'
+        return cast(BareNaTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxBareNaTerm is final')
+
+@final
+class SimpleTermSyntaxForethoughtTermset(_SyntaxNode):
+    'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+    __slots__ = ()
+    _schema_id = 153
+    __match_args__ = ('forethought_termset',)
+    def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> SimpleTermSyntaxForethoughtTermset:
+        return cls._from_fields((forethought_termset,))
+    def __init__(self, forethought_termset: ForethoughtTermsetSyntax) -> None:
+        pass
+    @property
+    def forethought_termset(self) -> ForethoughtTermsetSyntax:
+        'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+        return cast(ForethoughtTermsetSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxForethoughtTermset is final')
+
+@final
+class SimpleTermSyntaxNuhiTermset(_SyntaxNode):
+    'Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.'
+    __slots__ = ()
+    _schema_id = 154
+    __match_args__ = ('nuhi_termset',)
+    def __new__(cls, nuhi_termset: NuhiTermsetSyntax) -> SimpleTermSyntaxNuhiTermset:
+        return cls._from_fields((nuhi_termset,))
+    def __init__(self, nuhi_termset: NuhiTermsetSyntax) -> None:
+        pass
+    @property
+    def nuhi_termset(self) -> NuhiTermsetSyntax:
+        'Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.'
+        return cast(NuhiTermsetSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxNuhiTermset is final')
+
+@final
+class SimpleTermSyntaxKeTermset(_SyntaxNode):
+    'Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 155
+    __match_args__ = ('ke_termset',)
+    def __new__(cls, ke_termset: KeTermsetSyntax) -> SimpleTermSyntaxKeTermset:
+        return cls._from_fields((ke_termset,))
+    def __init__(self, ke_termset: KeTermsetSyntax) -> None:
+        pass
+    @property
+    def ke_termset(self) -> KeTermsetSyntax:
+        'Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.'
+        return cast(KeTermsetSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleTermSyntaxKeTermset is final')
+
+SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiAdverbialTerm | SimpleTermSyntaxSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
+
+@final
+class BoundTermConnectionSyntax(_SyntaxNode):
+    'Product node for term connection; preserves `leading_term`, `connective`, `bo`, and `trailing_term` in source order.'
+    __slots__ = ()
+    _schema_id = 156
+    __match_args__ = ('leading_term', 'connective', 'bo', 'trailing_term')
+    def __new__(cls, leading_term: SimpleTermSyntax, connective: BoundTermConnectiveSyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_term: SimpleTermSyntax) -> BoundTermConnectionSyntax:
+        return cls._from_fields((leading_term, connective, bo, trailing_term))
+    def __init__(self, leading_term: SimpleTermSyntax, connective: BoundTermConnectiveSyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_term: SimpleTermSyntax) -> None:
+        pass
+    @property
+    def leading_term(self) -> SimpleTermSyntax:
+        'The shared leading term child syntax node.'
+        return cast(SimpleTermSyntax, self._field(0))
+    @property
+    def connective(self) -> BoundTermConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(BoundTermConnectiveSyntax, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def trailing_term(self) -> SimpleTermSyntax:
+        'The shared trailing term child syntax node.'
+        return cast(SimpleTermSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundTermConnectionSyntax is final')
+
+@final
+class BoundTermConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 157
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> BoundTermConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundTermConnectiveSyntaxJoikConnective is final')
+
+@final
+class BoundTermConnectiveSyntaxEkConnective(_SyntaxNode):
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 158
+    __match_args__ = ('ek_connective',)
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> BoundTermConnectiveSyntaxEkConnective:
+        return cls._from_fields((ek_connective,))
+    def __init__(self, ek_connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundTermConnectiveSyntaxEkConnective is final')
+
+BoundTermConnectiveSyntax: TypeAlias = BoundTermConnectiveSyntaxJoikConnective | BoundTermConnectiveSyntaxEkConnective
+
+@final
+class ConnectedTermSyntax(_SyntaxNode):
+    'Product node for term connection; preserves `leading_term` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 159
+    __match_args__ = ('leading_term', 'continuations')
+    def __new__(cls, leading_term: SimpleTermSyntax, continuations: Sequence[ConnectedTermContinuationSyntax]) -> ConnectedTermSyntax:
+        return cls._from_fields((leading_term, continuations))
+    def __init__(self, leading_term: SimpleTermSyntax, continuations: Sequence[ConnectedTermContinuationSyntax]) -> None:
+        pass
+    @property
+    def leading_term(self) -> SimpleTermSyntax:
+        'The shared leading term child syntax node.'
+        return cast(SimpleTermSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[ConnectedTermContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[ConnectedTermContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTermSyntax is final')
+
+@final
+class ConnectedTermContinuationSyntax(_SyntaxNode):
+    'Product node for term connection continuation; preserves `connective` and `trailing_term` in source order.'
+    __slots__ = ()
+    _schema_id = 160
+    __match_args__ = ('connective', 'trailing_term')
+    def __new__(cls, connective: ConnectedTermConnectiveSyntax, trailing_term: SimpleTermSyntax) -> ConnectedTermContinuationSyntax:
+        return cls._from_fields((connective, trailing_term))
+    def __init__(self, connective: ConnectedTermConnectiveSyntax, trailing_term: SimpleTermSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> ConnectedTermConnectiveSyntax:
+        'The `connected_term_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.'
+        return cast(ConnectedTermConnectiveSyntax, self._field(0))
+    @property
+    def trailing_term(self) -> SimpleTermSyntax:
+        'The shared trailing term child syntax node.'
+        return cast(SimpleTermSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTermContinuationSyntax is final')
+
+@final
+class ConnectedTermConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 161
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> ConnectedTermConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTermConnectiveSyntaxJoikConnective is final')
+
+@final
+class ConnectedTermConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 162
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> ConnectedTermConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTermConnectiveSyntaxJekConnective is final')
+
+@final
+class ConnectedTermConnectiveSyntaxEkConnective(_SyntaxNode):
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 163
+    __match_args__ = ('ek_connective',)
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> ConnectedTermConnectiveSyntaxEkConnective:
+        return cls._from_fields((ek_connective,))
+    def __init__(self, ek_connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTermConnectiveSyntaxEkConnective is final')
+
+@final
+class ConnectedTermConnectiveSyntaxVuhuNonlogicalConnective(_SyntaxNode):
+    'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+    __slots__ = ()
+    _schema_id = 164
+    __match_args__ = ('vuhu_nonlogical_connective',)
+    def __new__(cls, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> ConnectedTermConnectiveSyntaxVuhuNonlogicalConnective:
+        return cls._from_fields((vuhu_nonlogical_connective,))
+    def __init__(self, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> None:
+        pass
+    @property
+    def vuhu_nonlogical_connective(self) -> VuhuNonlogicalConnectiveSyntax:
+        'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+        return cast(VuhuNonlogicalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTermConnectiveSyntaxVuhuNonlogicalConnective is final')
+
+ConnectedTermConnectiveSyntax: TypeAlias = ConnectedTermConnectiveSyntaxJoikConnective | ConnectedTermConnectiveSyntaxJekConnective | ConnectedTermConnectiveSyntaxEkConnective | ConnectedTermConnectiveSyntaxVuhuNonlogicalConnective
+
+@final
+class TermsetGroupSyntax(_SyntaxNode):
+    'Product node for termset; preserves `leading_term` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 165
+    __match_args__ = ('leading_term', 'continuations')
+    def __new__(cls, leading_term: SimpleTermSyntax, continuations: Sequence[TermsetGroupContinuationSyntax]) -> TermsetGroupSyntax:
+        return cls._from_fields((leading_term, continuations))
+    def __init__(self, leading_term: SimpleTermSyntax, continuations: Sequence[TermsetGroupContinuationSyntax]) -> None:
+        pass
+    @property
+    def leading_term(self) -> SimpleTermSyntax:
+        'The shared leading term child syntax node.'
+        return cast(SimpleTermSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[TermsetGroupContinuationSyntax, ...]:
+        'Non-empty ordered sequence of continuations components.'
+        return cast(tuple[TermsetGroupContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermsetGroupSyntax is final')
+
+@final
+class TermsetGroupContinuationSyntax(_SyntaxNode):
+    'Product node for termset continuation; preserves `cehe` and `trailing_term` in source order.'
+    __slots__ = ()
+    _schema_id = 166
+    __match_args__ = ('cehe', 'trailing_term')
+    def __new__(cls, cehe: WithFreeModifiers[Token, FreeModifierSyntax], trailing_term: SimpleTermSyntax) -> TermsetGroupContinuationSyntax:
+        return cls._from_fields((cehe, trailing_term))
+    def __init__(self, cehe: WithFreeModifiers[Token, FreeModifierSyntax], trailing_term: SimpleTermSyntax) -> None:
+        pass
+    @property
+    def cehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Cehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def trailing_term(self) -> SimpleTermSyntax:
+        'The shared trailing term child syntax node.'
+        return cast(SimpleTermSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TermsetGroupContinuationSyntax is final')
+
+@final
+class ForethoughtTermsetSyntax(_SyntaxNode):
+    'Product node for termset; preserves `m_nuhi`, `gek`, `terms`, and 4 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 167
+    __match_args__ = ('m_nuhi', 'gek', 'terms', 'nuhu', 'first_branch', 'additional_branches', 'gihi')
+    def __new__(cls, m_nuhi: WithFreeModifiers[Token, FreeModifierSyntax] | None, gek: ModalForethoughtConnectiveSyntax, terms: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None, first_branch: ForethoughtTermsetBranchSyntax, additional_branches: Sequence[ZantufaForethoughtTermsetBranchSyntax], gihi: Token | None) -> ForethoughtTermsetSyntax:
+        return cls._from_fields((m_nuhi, gek, terms, nuhu, first_branch, additional_branches, gihi))
+    def __init__(self, m_nuhi: WithFreeModifiers[Token, FreeModifierSyntax] | None, gek: ModalForethoughtConnectiveSyntax, terms: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None, first_branch: ForethoughtTermsetBranchSyntax, additional_branches: Sequence[ZantufaForethoughtTermsetBranchSyntax], gihi: Token | None) -> None:
+        pass
+    @property
+    def m_nuhi(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'An optional NUhI marker introducing the forethought termset before its connective.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(0))
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The opening forethought connective that determines how the term sequences are combined.'
+        return cast(ModalForethoughtConnectiveSyntax, self._field(1))
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'The initial nonempty term sequence following the opening connective.'
+        return cast(tuple[TermSyntax, ...], self._field(2))
+    @property
+    def nuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable NUhU terminator closing the initial term sequence.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    @property
+    def first_branch(self) -> ForethoughtTermsetBranchSyntax:
+        'The first GIK-led term-sequence branch paired with the opening connective.'
+        return cast(ForethoughtTermsetBranchSyntax, self._field(4))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtTermsetBranchSyntax, ...]:
+        'Additional Zantufa GIK-led term-sequence branches, retained in source order.'
+        return cast(tuple[ZantufaForethoughtTermsetBranchSyntax, ...], self._field(5))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional experimental GIhI terminator following the complete branch sequence.'
+        return cast(Token | None, self._field(6))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtTermsetSyntax is final')
+
+@final
+class ForethoughtTermsetBranchSyntax(_SyntaxNode):
+    'Product node for termset; preserves `gik`, `terms`, and `nuhu` in source order.'
+    __slots__ = ()
+    _schema_id = 168
+    __match_args__ = ('gik', 'terms', 'nuhu')
+    def __new__(cls, gik: GikConnectiveSyntax, terms: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ForethoughtTermsetBranchSyntax:
+        return cls._from_fields((gik, terms, nuhu))
+    def __init__(self, gik: GikConnectiveSyntax, terms: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GIK connective that introduces this branch and pairs with the opening forethought connective.'
+        return cast(GikConnectiveSyntax, self._field(0))
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'The nonempty term sequence governed by this branch\'s GIK connective.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    @property
+    def nuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable NUhU terminator closing this branch\'s term sequence.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtTermsetBranchSyntax is final')
+
+@final
+class ZantufaForethoughtTermsetBranchSyntax(_SyntaxNode):
+    'Product node for termset; preserves `gik`, `terms`, and `nuhu` in source order.'
+    __slots__ = ()
+    _schema_id = 169
+    __match_args__ = ('gik', 'terms', 'nuhu')
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, terms: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaForethoughtTermsetBranchSyntax:
+        return cls._from_fields((gik, terms, nuhu))
+    def __init__(self, gik: ZantufaExtraGikConnectiveSyntax, terms: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def gik(self) -> ZantufaExtraGikConnectiveSyntax:
+        'The additional Zantufa GIK connective that introduces this branch.'
+        return cast(ZantufaExtraGikConnectiveSyntax, self._field(0))
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'The nonempty term sequence governed by this additional branch\'s GIK connective.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    @property
+    def nuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable NUhU terminator closing this branch\'s term sequence.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaForethoughtTermsetBranchSyntax is final')
+
+@final
+class NuhiTermsetSyntax(_SyntaxNode):
+    'Product node for termset; preserves `nuhi`, `termset`, and `nuhu` in source order.'
+    __slots__ = ()
+    _schema_id = 170
+    __match_args__ = ('nuhi', 'termset', 'nuhu')
+    def __new__(cls, nuhi: WithFreeModifiers[Token, FreeModifierSyntax], termset: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> NuhiTermsetSyntax:
+        return cls._from_fields((nuhi, termset, nuhu))
+    def __init__(self, nuhi: WithFreeModifiers[Token, FreeModifierSyntax], termset: Sequence[TermSyntax], nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nuhi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Nuhi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def termset(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of termset components.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    @property
+    def nuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nuhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NuhiTermsetSyntax is final')
+
+@final
+class KeTermsetSyntax(_SyntaxNode):
+    'Product node for termset; preserves `ke`, `termset`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 171
+    __match_args__ = ('ke', 'termset', 'kehe')
+    def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], termset: Sequence[TermSyntax], kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> KeTermsetSyntax:
+        return cls._from_fields((ke, termset, kehe))
+    def __init__(self, ke: WithFreeModifiers[Token, FreeModifierSyntax], termset: Sequence[TermSyntax], kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def termset(self) -> tuple[TermSyntax, ...]:
+        'Non-empty ordered sequence of termset components.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('KeTermsetSyntax is final')
+
+@final
+class NoihaAdverbialTermSyntaxNoihaVariableAdverbialTerm(_SyntaxNode):
+    'Uses the `noiha_variable_adverbial_term` product form, whose payload preserves `poiha`, `free_modifiers`, `selbri`, and `brigahi_ku`.'
+    __slots__ = ()
+    _schema_id = 172
+    __match_args__ = ('noiha_variable_adverbial_term',)
+    def __new__(cls, noiha_variable_adverbial_term: NoihaVariableAdverbialTermSyntax) -> NoihaAdverbialTermSyntaxNoihaVariableAdverbialTerm:
+        return cls._from_fields((noiha_variable_adverbial_term,))
+    def __init__(self, noiha_variable_adverbial_term: NoihaVariableAdverbialTermSyntax) -> None:
+        pass
+    @property
+    def noiha_variable_adverbial_term(self) -> NoihaVariableAdverbialTermSyntax:
+        'Uses the `noiha_variable_adverbial_term` product form, whose payload preserves `poiha`, `free_modifiers`, `selbri`, and `brigahi_ku`.'
+        return cast(NoihaVariableAdverbialTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NoihaAdverbialTermSyntaxNoihaVariableAdverbialTerm is final')
+
+@final
+class NoihaAdverbialTermSyntaxNoihaRelativeAdverbialTerm(_SyntaxNode):
+    'Uses the `noiha_relative_adverbial_term` product form, whose payload preserves `noiha`, `selbri`, and `fehu`.'
+    __slots__ = ()
+    _schema_id = 173
+    __match_args__ = ('noiha_relative_adverbial_term',)
+    def __new__(cls, noiha_relative_adverbial_term: NoihaRelativeAdverbialTermSyntax) -> NoihaAdverbialTermSyntaxNoihaRelativeAdverbialTerm:
+        return cls._from_fields((noiha_relative_adverbial_term,))
+    def __init__(self, noiha_relative_adverbial_term: NoihaRelativeAdverbialTermSyntax) -> None:
+        pass
+    @property
+    def noiha_relative_adverbial_term(self) -> NoihaRelativeAdverbialTermSyntax:
+        'Uses the `noiha_relative_adverbial_term` product form, whose payload preserves `noiha`, `selbri`, and `fehu`.'
+        return cast(NoihaRelativeAdverbialTermSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NoihaAdverbialTermSyntaxNoihaRelativeAdverbialTerm is final')
+
+NoihaAdverbialTermSyntax: TypeAlias = NoihaAdverbialTermSyntaxNoihaVariableAdverbialTerm | NoihaAdverbialTermSyntaxNoihaRelativeAdverbialTerm
+
+@final
+class NoihaVariableAdverbialTermSyntax(_SyntaxNode):
+    'Product node for NOIhA adverbial; preserves `poiha`, `free_modifiers`, `selbri`, and `brigahi_ku` in source order.'
+    __slots__ = ()
+    _schema_id = 174
+    __match_args__ = ('poiha', 'free_modifiers', 'selbri', 'brigahi_ku')
+    def __new__(cls, poiha: WithFreeModifiers[Token, FreeModifierSyntax], free_modifiers: Sequence[FreeModifierSyntax], selbri: SelbriSyntax, brigahi_ku: WithFreeModifiers[Token, FreeModifierSyntax]) -> NoihaVariableAdverbialTermSyntax:
+        return cls._from_fields((poiha, free_modifiers, selbri, brigahi_ku))
+    def __init__(self, poiha: WithFreeModifiers[Token, FreeModifierSyntax], free_modifiers: Sequence[FreeModifierSyntax], selbri: SelbriSyntax, brigahi_ku: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def poiha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Noiha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(1))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(2))
+    @property
+    def brigahi_ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NoihaVariableAdverbialTermSyntax is final')
+
+@final
+class NoihaRelativeAdverbialTermSyntax(_SyntaxNode):
+    'Product node for NOIhA adverbial; preserves `noiha`, `selbri`, and `fehu` in source order.'
+    __slots__ = ()
+    _schema_id = 175
+    __match_args__ = ('noiha', 'selbri', 'fehu')
+    def __new__(cls, noiha: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> NoihaRelativeAdverbialTermSyntax:
+        return cls._from_fields((noiha, selbri, fehu))
+    def __init__(self, noiha: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def noiha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Noiha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def fehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Fehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NoihaRelativeAdverbialTermSyntax is final')
+
+@final
+class FihoiAdverbialTermSyntax(_SyntaxNode):
+    'Product node for FIhOI adverbial; preserves `fihoi`, `statement`, and `fihau` in source order.'
+    __slots__ = ()
+    _schema_id = 176
+    __match_args__ = ('fihoi', 'statement', 'fihau')
+    def __new__(cls, fihoi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, fihau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FihoiAdverbialTermSyntax:
+        return cls._from_fields((fihoi, statement, fihau))
+    def __init__(self, fihoi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, fihau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def fihoi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Fihoi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    @property
+    def fihau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Fihau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FihoiAdverbialTermSyntax is final')
+
+@final
+class SoiAdverbialTermSyntax(_SyntaxNode):
+    'Product node for SOI adverbial; preserves `soi`, `statement`, and `sehu` in source order.'
+    __slots__ = ()
+    _schema_id = 177
+    __match_args__ = ('soi', 'statement', 'sehu')
+    def __new__(cls, soi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SoiAdverbialTermSyntax:
+        return cls._from_fields((soi, statement, sehu))
+    def __init__(self, soi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def soi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Soi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    @property
+    def sehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Sehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SoiAdverbialTermSyntax is final')
+
+@final
+class SumtiTermSyntax(_SyntaxNode):
+    'Transparent product node for term; preserves the `sumti` component.'
+    __slots__ = ()
+    _schema_id = 178
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiSyntax) -> SumtiTermSyntax:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiTermSyntax is final')
+
+@final
+class PlaceTaggedSumtiTermSyntax(_SyntaxNode):
+    'Product node for place tag; preserves `fa` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 179
+    __match_args__ = ('fa', 'sumti')
+    def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax], sumti: TaggedOrElidedSumtiSyntax) -> PlaceTaggedSumtiTermSyntax:
+        return cls._from_fields((fa, sumti))
+    def __init__(self, fa: WithFreeModifiers[Token, FreeModifierSyntax], sumti: TaggedOrElidedSumtiSyntax) -> None:
+        pass
+    @property
+    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Fa`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> TaggedOrElidedSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(TaggedOrElidedSumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PlaceTaggedSumtiTermSyntax is final')
+
+@final
+class NaKuTermSyntax(_SyntaxNode):
+    'Product node for NA KU term; preserves `na` and `na_ku` in source order.'
+    __slots__ = ()
+    _schema_id = 180
+    __match_args__ = ('na', 'na_ku')
+    def __new__(cls, na: Token, na_ku: WithFreeModifiers[Token, FreeModifierSyntax]) -> NaKuTermSyntax:
+        return cls._from_fields((na, na_ku))
+    def __init__(self, na: Token, na_ku: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def na(self) -> Token:
+        'A word from selmaho `Na`.'
+        return cast(Token, self._field(0))
+    @property
+    def na_ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NaKuTermSyntax is final')
+
+@final
+class BareNaTermSyntax(_SyntaxNode):
+    'Transparent product node for NA term; preserves the `na` component.'
+    __slots__ = ()
+    _schema_id = 181
+    __match_args__ = ('na',)
+    def __new__(cls, na: WithFreeModifiers[Token, FreeModifierSyntax]) -> BareNaTermSyntax:
+        return cls._from_fields((na,))
+    def __init__(self, na: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def na(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Na`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BareNaTermSyntax is final')
+
+@final
+class TaggedSumtiBeforeTagTermSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `tense_modal` component.'
+    __slots__ = ()
+    _schema_id = 182
+    __match_args__ = ('tense_modal',)
+    def __new__(cls, tense_modal: LeadingTermTagTenseModalSyntax) -> TaggedSumtiBeforeTagTermSyntax:
+        return cls._from_fields((tense_modal,))
+    def __init__(self, tense_modal: LeadingTermTagTenseModalSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> LeadingTermTagTenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(LeadingTermTagTenseModalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedSumtiBeforeTagTermSyntax is final')
+
+@final
+class TaggedSumtiTermSyntax(_SyntaxNode):
+    'Product node for tag; preserves `tense_modal` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 183
+    __match_args__ = ('tense_modal', 'sumti')
+    def __new__(cls, tense_modal: LeadingTermTagTenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> TaggedSumtiTermSyntax:
+        return cls._from_fields((tense_modal, sumti))
+    def __init__(self, tense_modal: LeadingTermTagTenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> LeadingTermTagTenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(LeadingTermTagTenseModalSyntax, self._field(0))
+    @property
+    def sumti(self) -> TaggedOrElidedSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(TaggedOrElidedSumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedSumtiTermSyntax is final')
+
+@final
+class JaiTaggedSumtiTermSyntax(_SyntaxNode):
+    'Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 184
+    __match_args__ = ('jai', 'tag', 'sumti')
+    def __new__(cls, jai: WithFreeModifiers[Token, FreeModifierSyntax], tag: TenseModalSyntax | None, sumti: SumtiSyntax) -> JaiTaggedSumtiTermSyntax:
+        return cls._from_fields((jai, tag, sumti))
+    def __init__(self, jai: WithFreeModifiers[Token, FreeModifierSyntax], tag: TenseModalSyntax | None, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def jai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Jai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def tag(self) -> TenseModalSyntax | None:
+        'The optional tag component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiTaggedSumtiTermSyntax is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxPuBeforeNaheLeadingTermTagTense(_SyntaxNode):
+    'Uses the `pu_before_nahe_leading_term_tag_tense` product form, whose payload preserves `pu` and `nai`.'
+    __slots__ = ()
+    _schema_id = 185
+    __match_args__ = ('pu_before_nahe_leading_term_tag_tense',)
+    def __new__(cls, pu_before_nahe_leading_term_tag_tense: PuBeforeNaheLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxPuBeforeNaheLeadingTermTagTense:
+        return cls._from_fields((pu_before_nahe_leading_term_tag_tense,))
+    def __init__(self, pu_before_nahe_leading_term_tag_tense: PuBeforeNaheLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def pu_before_nahe_leading_term_tag_tense(self) -> PuBeforeNaheLeadingTermTagTenseSyntax:
+        'Uses the `pu_before_nahe_leading_term_tag_tense` product form, whose payload preserves `pu` and `nai`.'
+        return cast(PuBeforeNaheLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxPuBeforeNaheLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxPuDistanceBeforeTagLeadingTermTagTense(_SyntaxNode):
+    'Uses the `pu_distance_before_tag_leading_term_tag_tense` product form, whose payload preserves `pu`, `nai`, and `distance`.'
+    __slots__ = ()
+    _schema_id = 186
+    __match_args__ = ('pu_distance_before_tag_leading_term_tag_tense',)
+    def __new__(cls, pu_distance_before_tag_leading_term_tag_tense: PuDistanceBeforeTagLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxPuDistanceBeforeTagLeadingTermTagTense:
+        return cls._from_fields((pu_distance_before_tag_leading_term_tag_tense,))
+    def __init__(self, pu_distance_before_tag_leading_term_tag_tense: PuDistanceBeforeTagLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def pu_distance_before_tag_leading_term_tag_tense(self) -> PuDistanceBeforeTagLeadingTermTagTenseSyntax:
+        'Uses the `pu_distance_before_tag_leading_term_tag_tense` product form, whose payload preserves `pu`, `nai`, and `distance`.'
+        return cast(PuDistanceBeforeTagLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxPuDistanceBeforeTagLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxZiBeforeZiLeadingTermTagTense(_SyntaxNode):
+    'Uses the `zi_before_zi_leading_term_tag_tense` product form, whose payload preserves `zi`.'
+    __slots__ = ()
+    _schema_id = 187
+    __match_args__ = ('zi_before_zi_leading_term_tag_tense',)
+    def __new__(cls, zi_before_zi_leading_term_tag_tense: ZiBeforeZiLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxZiBeforeZiLeadingTermTagTense:
+        return cls._from_fields((zi_before_zi_leading_term_tag_tense,))
+    def __init__(self, zi_before_zi_leading_term_tag_tense: ZiBeforeZiLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def zi_before_zi_leading_term_tag_tense(self) -> ZiBeforeZiLeadingTermTagTenseSyntax:
+        'Uses the `zi_before_zi_leading_term_tag_tense` product form, whose payload preserves `zi`.'
+        return cast(ZiBeforeZiLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxZiBeforeZiLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxVaBeforeVaLeadingTermTagTense(_SyntaxNode):
+    'Uses the `va_before_va_leading_term_tag_tense` product form, whose payload preserves `va`.'
+    __slots__ = ()
+    _schema_id = 188
+    __match_args__ = ('va_before_va_leading_term_tag_tense',)
+    def __new__(cls, va_before_va_leading_term_tag_tense: VaBeforeVaLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxVaBeforeVaLeadingTermTagTense:
+        return cls._from_fields((va_before_va_leading_term_tag_tense,))
+    def __init__(self, va_before_va_leading_term_tag_tense: VaBeforeVaLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def va_before_va_leading_term_tag_tense(self) -> VaBeforeVaLeadingTermTagTenseSyntax:
+        'Uses the `va_before_va_leading_term_tag_tense` product form, whose payload preserves `va`.'
+        return cast(VaBeforeVaLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxVaBeforeVaLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxMohiBeforeMohiLeadingTermTagTense(_SyntaxNode):
+    'Uses the `mohi_before_mohi_leading_term_tag_tense` product form, whose payload preserves `mohi`, `direction`, `nai`, and `distance`.'
+    __slots__ = ()
+    _schema_id = 189
+    __match_args__ = ('mohi_before_mohi_leading_term_tag_tense',)
+    def __new__(cls, mohi_before_mohi_leading_term_tag_tense: MohiBeforeMohiLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxMohiBeforeMohiLeadingTermTagTense:
+        return cls._from_fields((mohi_before_mohi_leading_term_tag_tense,))
+    def __init__(self, mohi_before_mohi_leading_term_tag_tense: MohiBeforeMohiLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def mohi_before_mohi_leading_term_tag_tense(self) -> MohiBeforeMohiLeadingTermTagTenseSyntax:
+        'Uses the `mohi_before_mohi_leading_term_tag_tense` product form, whose payload preserves `mohi`, `direction`, `nai`, and `distance`.'
+        return cast(MohiBeforeMohiLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxMohiBeforeMohiLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxCahaBeforeTagLeadingTermTagTense(_SyntaxNode):
+    'Uses the `caha_before_tag_leading_term_tag_tense` product form, whose payload preserves `caha`.'
+    __slots__ = ()
+    _schema_id = 190
+    __match_args__ = ('caha_before_tag_leading_term_tag_tense',)
+    def __new__(cls, caha_before_tag_leading_term_tag_tense: CahaBeforeTagLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxCahaBeforeTagLeadingTermTagTense:
+        return cls._from_fields((caha_before_tag_leading_term_tag_tense,))
+    def __init__(self, caha_before_tag_leading_term_tag_tense: CahaBeforeTagLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def caha_before_tag_leading_term_tag_tense(self) -> CahaBeforeTagLeadingTermTagTenseSyntax:
+        'Uses the `caha_before_tag_leading_term_tag_tense` product form, whose payload preserves `caha`.'
+        return cast(CahaBeforeTagLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxCahaBeforeTagLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxIntervalPropertyLeadingTermTagTense(_SyntaxNode):
+    'Uses the `interval_property_leading_term_tag_tense` product form, whose payload preserves `property`.'
+    __slots__ = ()
+    _schema_id = 191
+    __match_args__ = ('interval_property_leading_term_tag_tense',)
+    def __new__(cls, interval_property_leading_term_tag_tense: IntervalPropertyLeadingTermTagTenseSyntax) -> LeadingTermTagTenseModalSyntaxIntervalPropertyLeadingTermTagTense:
+        return cls._from_fields((interval_property_leading_term_tag_tense,))
+    def __init__(self, interval_property_leading_term_tag_tense: IntervalPropertyLeadingTermTagTenseSyntax) -> None:
+        pass
+    @property
+    def interval_property_leading_term_tag_tense(self) -> IntervalPropertyLeadingTermTagTenseSyntax:
+        'Uses the `interval_property_leading_term_tag_tense` product form, whose payload preserves `property`.'
+        return cast(IntervalPropertyLeadingTermTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxIntervalPropertyLeadingTermTagTense is final')
+
+@final
+class LeadingTermTagTenseModalSyntaxTenseModal(_SyntaxNode):
+    'Uses the `tense_modal` product form, whose payload preserves `body`.'
+    __slots__ = ()
+    _schema_id = 192
+    __match_args__ = ('tense_modal',)
+    def __new__(cls, tense_modal: TenseModalSyntax) -> LeadingTermTagTenseModalSyntaxTenseModal:
+        return cls._from_fields((tense_modal,))
+    def __init__(self, tense_modal: TenseModalSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax:
+        'Uses the `tense_modal` product form, whose payload preserves `body`.'
+        return cast(TenseModalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingTermTagTenseModalSyntaxTenseModal is final')
+
+LeadingTermTagTenseModalSyntax: TypeAlias = LeadingTermTagTenseModalSyntaxPuBeforeNaheLeadingTermTagTense | LeadingTermTagTenseModalSyntaxPuDistanceBeforeTagLeadingTermTagTense | LeadingTermTagTenseModalSyntaxZiBeforeZiLeadingTermTagTense | LeadingTermTagTenseModalSyntaxVaBeforeVaLeadingTermTagTense | LeadingTermTagTenseModalSyntaxMohiBeforeMohiLeadingTermTagTense | LeadingTermTagTenseModalSyntaxCahaBeforeTagLeadingTermTagTense | LeadingTermTagTenseModalSyntaxIntervalPropertyLeadingTermTagTense | LeadingTermTagTenseModalSyntaxTenseModal
+
+@final
+class PuBeforeNaheLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `pu` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 193
+    __match_args__ = ('pu', 'nai')
+    def __new__(cls, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> PuBeforeNaheLeadingTermTagTenseSyntax:
+        return cls._from_fields((pu, nai))
+    def __init__(self, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def pu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Pu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PuBeforeNaheLeadingTermTagTenseSyntax is final')
+
+@final
+class PuDistanceBeforeTagLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `pu`, `nai`, and `distance` in source order.'
+    __slots__ = ()
+    _schema_id = 194
+    __match_args__ = ('pu', 'nai', 'distance')
+    def __new__(cls, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax]) -> PuDistanceBeforeTagLeadingTermTagTenseSyntax:
+        return cls._from_fields((pu, nai, distance))
+    def __init__(self, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def pu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Pu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def distance(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Zi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PuDistanceBeforeTagLeadingTermTagTenseSyntax is final')
+
+@final
+class ZiBeforeZiLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `zi` component.'
+    __slots__ = ()
+    _schema_id = 195
+    __match_args__ = ('zi',)
+    def __new__(cls, zi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZiBeforeZiLeadingTermTagTenseSyntax:
+        return cls._from_fields((zi,))
+    def __init__(self, zi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def zi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Zi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZiBeforeZiLeadingTermTagTenseSyntax is final')
+
+@final
+class VaBeforeVaLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `va` component.'
+    __slots__ = ()
+    _schema_id = 196
+    __match_args__ = ('va',)
+    def __new__(cls, va: WithFreeModifiers[Token, FreeModifierSyntax]) -> VaBeforeVaLeadingTermTagTenseSyntax:
+        return cls._from_fields((va,))
+    def __init__(self, va: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def va(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Va`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VaBeforeVaLeadingTermTagTenseSyntax is final')
+
+@final
+class MohiBeforeMohiLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `mohi`, `direction`, `nai`, and `distance` in source order.'
+    __slots__ = ()
+    _schema_id = 197
+    __match_args__ = ('mohi', 'direction', 'nai', 'distance')
+    def __new__(cls, mohi: WithFreeModifiers[Token, FreeModifierSyntax], direction: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> MohiBeforeMohiLeadingTermTagTenseSyntax:
+        return cls._from_fields((mohi, direction, nai, distance))
+    def __init__(self, mohi: WithFreeModifiers[Token, FreeModifierSyntax], direction: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def mohi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Mohi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def direction(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Faha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    @property
+    def distance(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional distance component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MohiBeforeMohiLeadingTermTagTenseSyntax is final')
+
+@final
+class CahaBeforeTagLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `caha` component.'
+    __slots__ = ()
+    _schema_id = 198
+    __match_args__ = ('caha',)
+    def __new__(cls, caha: WithFreeModifiers[Token, FreeModifierSyntax]) -> CahaBeforeTagLeadingTermTagTenseSyntax:
+        return cls._from_fields((caha,))
+    def __init__(self, caha: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def caha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Caha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CahaBeforeTagLeadingTermTagTenseSyntax is final')
+
+@final
+class IntervalPropertyLeadingTermTagTenseSyntax(_SyntaxNode):
+    'Transparent product node for interval property; preserves the `property` component.'
+    __slots__ = ()
+    _schema_id = 199
+    __match_args__ = ('property',)
+    def __new__(cls, property: IntervalPropertyTenseSyntax) -> IntervalPropertyLeadingTermTagTenseSyntax:
+        return cls._from_fields((property,))
+    def __init__(self, property: IntervalPropertyTenseSyntax) -> None:
+        pass
+    @property
+    def property(self) -> IntervalPropertyTenseSyntax:
+        'The shared property child syntax node.'
+        return cast(IntervalPropertyTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyLeadingTermTagTenseSyntax is final')
+
+@final
+class TaggedOrElidedSumtiSyntaxSumti(_SyntaxNode):
+    'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
+    __slots__ = ()
+    _schema_id = 200
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiSyntax) -> TaggedOrElidedSumtiSyntaxSumti:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
+        return cast(SumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedOrElidedSumtiSyntaxSumti is final')
+
+@final
+class TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_SyntaxNode):
+    'Uses the `tagged_elided_sumti` product form, whose payload preserves `maybe_ku`.'
+    __slots__ = ()
+    _schema_id = 201
+    __match_args__ = ('tagged_elided_sumti',)
+    def __new__(cls, tagged_elided_sumti: TaggedElidedSumtiSyntax) -> TaggedOrElidedSumtiSyntaxTaggedElidedSumti:
+        return cls._from_fields((tagged_elided_sumti,))
+    def __init__(self, tagged_elided_sumti: TaggedElidedSumtiSyntax) -> None:
+        pass
+    @property
+    def tagged_elided_sumti(self) -> TaggedElidedSumtiSyntax:
+        'Uses the `tagged_elided_sumti` product form, whose payload preserves `maybe_ku`.'
+        return cast(TaggedElidedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedOrElidedSumtiSyntaxTaggedElidedSumti is final')
+
+TaggedOrElidedSumtiSyntax: TypeAlias = TaggedOrElidedSumtiSyntaxSumti | TaggedOrElidedSumtiSyntaxTaggedElidedSumti
+
+@final
+class TaggedElidedSumtiSyntax(_SyntaxNode):
+    'Transparent product node for elided sumti; preserves the `maybe_ku` component.'
+    __slots__ = ()
+    _schema_id = 202
+    __match_args__ = ('maybe_ku',)
+    def __new__(cls, maybe_ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TaggedElidedSumtiSyntax:
+        return cls._from_fields((maybe_ku,))
+    def __init__(self, maybe_ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def maybe_ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedElidedSumtiSyntax is final')
+
+@final
+class SumtiSyntax(_SyntaxNode):
+    'Product node for sumti; preserves `base_sumti` and `vuho_attachment` in source order.'
+    __slots__ = ()
+    _schema_id = 203
+    __match_args__ = ('base_sumti', 'vuho_attachment')
+    def __new__(cls, base_sumti: SumtiGroupedSyntax, vuho_attachment: VuhoSumtiAttachmentTailSyntax | None) -> SumtiSyntax:
+        return cls._from_fields((base_sumti, vuho_attachment))
+    def __init__(self, base_sumti: SumtiGroupedSyntax, vuho_attachment: VuhoSumtiAttachmentTailSyntax | None) -> None:
+        pass
+    @property
+    def base_sumti(self) -> SumtiGroupedSyntax:
+        'The shared base sumti child syntax node.'
+        return cast(SumtiGroupedSyntax, self._field(0))
+    @property
+    def vuho_attachment(self) -> VuhoSumtiAttachmentTailSyntax | None:
+        'The optional vuho attachment component.'
+        return cast(VuhoSumtiAttachmentTailSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiSyntax is final')
+
+@final
+class SumtiGroupedSyntax(_SyntaxNode):
+    'Product node for sumti connection; preserves `leading_sumti` and `grouped_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 204
+    __match_args__ = ('leading_sumti', 'grouped_tail')
+    def __new__(cls, leading_sumti: SumtiAfterthoughtSyntax, grouped_tail: GroupedSumtiTailSyntax | None) -> SumtiGroupedSyntax:
+        return cls._from_fields((leading_sumti, grouped_tail))
+    def __init__(self, leading_sumti: SumtiAfterthoughtSyntax, grouped_tail: GroupedSumtiTailSyntax | None) -> None:
+        pass
+    @property
+    def leading_sumti(self) -> SumtiAfterthoughtSyntax:
+        'The shared leading sumti child syntax node.'
+        return cast(SumtiAfterthoughtSyntax, self._field(0))
+    @property
+    def grouped_tail(self) -> GroupedSumtiTailSyntax | None:
+        'The optional grouped tail component.'
+        return cast(GroupedSumtiTailSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiGroupedSyntax is final')
+
+@final
+class SumtiAfterthoughtSyntax(_SyntaxNode):
+    'Product node for sumti connection; preserves `leading_sumti` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 205
+    __match_args__ = ('leading_sumti', 'continuations')
+    def __new__(cls, leading_sumti: SumtiBoundSyntax, continuations: Sequence[SumtiAfterthoughtTailSyntax]) -> SumtiAfterthoughtSyntax:
+        return cls._from_fields((leading_sumti, continuations))
+    def __init__(self, leading_sumti: SumtiBoundSyntax, continuations: Sequence[SumtiAfterthoughtTailSyntax]) -> None:
+        pass
+    @property
+    def leading_sumti(self) -> SumtiBoundSyntax:
+        'The shared leading sumti child syntax node.'
+        return cast(SumtiBoundSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[SumtiAfterthoughtTailSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[SumtiAfterthoughtTailSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiAfterthoughtSyntax is final')
+
+@final
+class SumtiBoundSyntax(_SyntaxNode):
+    'Product node for sumti connection; preserves `leading_sumti` and `bound_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 206
+    __match_args__ = ('leading_sumti', 'bound_tail')
+    def __new__(cls, leading_sumti: SumtiForethoughtSyntax, bound_tail: BoundSumtiTailSyntax | None) -> SumtiBoundSyntax:
+        return cls._from_fields((leading_sumti, bound_tail))
+    def __init__(self, leading_sumti: SumtiForethoughtSyntax, bound_tail: BoundSumtiTailSyntax | None) -> None:
+        pass
+    @property
+    def leading_sumti(self) -> SumtiForethoughtSyntax:
+        'The shared leading sumti child syntax node.'
+        return cast(SumtiForethoughtSyntax, self._field(0))
+    @property
+    def bound_tail(self) -> BoundSumtiTailSyntax | None:
+        'The optional bound tail component.'
+        return cast(BoundSumtiTailSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBoundSyntax is final')
+
+@final
+class SumtiForethoughtSyntaxForethoughtSumti(_SyntaxNode):
+    'Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi`.'
+    __slots__ = ()
+    _schema_id = 207
+    __match_args__ = ('forethought_sumti',)
+    def __new__(cls, forethought_sumti: ForethoughtSumtiSyntax) -> SumtiForethoughtSyntaxForethoughtSumti:
+        return cls._from_fields((forethought_sumti,))
+    def __init__(self, forethought_sumti: ForethoughtSumtiSyntax) -> None:
+        pass
+    @property
+    def forethought_sumti(self) -> ForethoughtSumtiSyntax:
+        'Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi`.'
+        return cast(ForethoughtSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiForethoughtSyntaxForethoughtSumti is final')
+
+@final
+class SumtiForethoughtSyntaxSimpleSumti(_SyntaxNode):
+    'Uses the `simple_sumti` product form, whose payload preserves `base_sumti` and `relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 208
+    __match_args__ = ('simple_sumti',)
+    def __new__(cls, simple_sumti: SimpleSumtiSyntax) -> SumtiForethoughtSyntaxSimpleSumti:
+        return cls._from_fields((simple_sumti,))
+    def __init__(self, simple_sumti: SimpleSumtiSyntax) -> None:
+        pass
+    @property
+    def simple_sumti(self) -> SimpleSumtiSyntax:
+        'Uses the `simple_sumti` product form, whose payload preserves `base_sumti` and `relative_clauses`.'
+        return cast(SimpleSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiForethoughtSyntaxSimpleSumti is final')
+
+SumtiForethoughtSyntax: TypeAlias = SumtiForethoughtSyntaxForethoughtSumti | SumtiForethoughtSyntaxSimpleSumti
+
+@final
+class ForethoughtSumtiSyntax(_SyntaxNode):
+    'Product node for forethought sumti connection; preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi` in source order.'
+    __slots__ = ()
+    _schema_id = 209
+    __match_args__ = ('gek', 'leading_sumti', 'first_branch', 'additional_branches', 'gihi')
+    def __new__(cls, gek: ModalForethoughtConnectiveSyntax, leading_sumti: SumtiSyntax, first_branch: ForethoughtSumtiBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSumtiBranchSyntax], gihi: Token | None) -> ForethoughtSumtiSyntax:
+        return cls._from_fields((gek, leading_sumti, first_branch, additional_branches, gihi))
+    def __init__(self, gek: ModalForethoughtConnectiveSyntax, leading_sumti: SumtiSyntax, first_branch: ForethoughtSumtiBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSumtiBranchSyntax], gihi: Token | None) -> None:
+        pass
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The opening forethought connective that determines how the sumti branches are combined.'
+        return cast(ModalForethoughtConnectiveSyntax, self._field(0))
+    @property
+    def leading_sumti(self) -> SumtiSyntax:
+        'The first sumti branch, which follows the opening connective without an intervening GIK.'
+        return cast(SumtiSyntax, self._field(1))
+    @property
+    def first_branch(self) -> ForethoughtSumtiBranchSyntax:
+        'The first GIK-led sumti branch paired with the opening connective.'
+        return cast(ForethoughtSumtiBranchSyntax, self._field(2))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtSumtiBranchSyntax, ...]:
+        'Additional Zantufa GIK-led sumti branches, retained in source order.'
+        return cast(tuple[ZantufaForethoughtSumtiBranchSyntax, ...], self._field(3))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional experimental GIhI terminator following the complete branch sequence.'
+        return cast(Token | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSumtiSyntax is final')
+
+@final
+class ForethoughtSumtiBranchSyntax(_SyntaxNode):
+    'Product node for forethought sumti connection; preserves `gik` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 210
+    __match_args__ = ('gik', 'sumti')
+    def __new__(cls, gik: GikConnectiveSyntax, sumti: SumtiForethoughtSyntax) -> ForethoughtSumtiBranchSyntax:
+        return cls._from_fields((gik, sumti))
+    def __init__(self, gik: GikConnectiveSyntax, sumti: SumtiForethoughtSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GIK connective that introduces this branch and pairs with the opening forethought connective.'
+        return cast(GikConnectiveSyntax, self._field(0))
+    @property
+    def sumti(self) -> SumtiForethoughtSyntax:
+        'The sumti governed by this branch\'s GIK connective.'
+        return cast(SumtiForethoughtSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSumtiBranchSyntax is final')
+
+@final
+class ZantufaForethoughtSumtiBranchSyntax(_SyntaxNode):
+    'Product node for forethought sumti connection; preserves `gik` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 211
+    __match_args__ = ('gik', 'sumti')
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, sumti: SumtiForethoughtSyntax) -> ZantufaForethoughtSumtiBranchSyntax:
+        return cls._from_fields((gik, sumti))
+    def __init__(self, gik: ZantufaExtraGikConnectiveSyntax, sumti: SumtiForethoughtSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> ZantufaExtraGikConnectiveSyntax:
+        'The additional Zantufa GIK connective that introduces this branch.'
+        return cast(ZantufaExtraGikConnectiveSyntax, self._field(0))
+    @property
+    def sumti(self) -> SumtiForethoughtSyntax:
+        'The sumti governed by this additional branch\'s GIK connective.'
+        return cast(SumtiForethoughtSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaForethoughtSumtiBranchSyntax is final')
+
+@final
+class BoundSumtiTailSyntax(_SyntaxNode):
+    'Product node for sumti connection; preserves `connective`, `tense_modal`, `bo`, and `trailing_sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 212
+    __match_args__ = ('connective', 'tense_modal', 'bo', 'trailing_sumti')
+    def __new__(cls, connective: ArgumentConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_sumti: SumtiBoundSyntax) -> BoundSumtiTailSyntax:
+        return cls._from_fields((connective, tense_modal, bo, trailing_sumti))
+    def __init__(self, connective: ArgumentConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_sumti: SumtiBoundSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> ArgumentConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(ArgumentConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def trailing_sumti(self) -> SumtiBoundSyntax:
+        'The shared trailing sumti child syntax node.'
+        return cast(SumtiBoundSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundSumtiTailSyntax is final')
+
+@final
+class SumtiAfterthoughtTailSyntax(_SyntaxNode):
+    'Product node for sumti connective; preserves `connective` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 213
+    __match_args__ = ('connective', 'sumti')
+    def __new__(cls, connective: ArgumentConnectiveSyntax, sumti: SumtiBoundSyntax) -> SumtiAfterthoughtTailSyntax:
+        return cls._from_fields((connective, sumti))
+    def __init__(self, connective: ArgumentConnectiveSyntax, sumti: SumtiBoundSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> ArgumentConnectiveSyntax:
+        'The `argument_connective` connective joining the adjacent constituents of the `sumti_afterthought_tail` production.'
+        return cast(ArgumentConnectiveSyntax, self._field(0))
+    @property
+    def sumti(self) -> SumtiBoundSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiBoundSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiAfterthoughtTailSyntax is final')
+
+@final
+class GroupedSumtiTailSyntax(_SyntaxNode):
+    'Product node for sumti connection; preserves `connective`, `tense_modal`, `ke`, `inner_sumti`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 214
+    __match_args__ = ('connective', 'tense_modal', 'ke', 'inner_sumti', 'kehe')
+    def __new__(cls, connective: ArgumentConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner_sumti: SumtiSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedSumtiTailSyntax:
+        return cls._from_fields((connective, tense_modal, ke, inner_sumti, kehe))
+    def __init__(self, connective: ArgumentConnectiveSyntax, tense_modal: TenseModalSyntax | None, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner_sumti: SumtiSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> ArgumentConnectiveSyntax:
+        'The `argument_connective` connective joining the adjacent constituents of the `grouped_sumti_tail` production.'
+        return cast(ArgumentConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def inner_sumti(self) -> SumtiSyntax:
+        'The shared inner sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(3))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GroupedSumtiTailSyntax is final')
+
+@final
+class VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail(_SyntaxNode):
+    'Uses the `vuho_relative_sumti_attachment_tail` product form, whose payload preserves `vuho`, `relative_clauses`, and `sumti_connection`.'
+    __slots__ = ()
+    _schema_id = 215
+    __match_args__ = ('vuho_relative_sumti_attachment_tail',)
+    def __new__(cls, vuho_relative_sumti_attachment_tail: VuhoRelativeSumtiAttachmentTailSyntax) -> VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail:
+        return cls._from_fields((vuho_relative_sumti_attachment_tail,))
+    def __init__(self, vuho_relative_sumti_attachment_tail: VuhoRelativeSumtiAttachmentTailSyntax) -> None:
+        pass
+    @property
+    def vuho_relative_sumti_attachment_tail(self) -> VuhoRelativeSumtiAttachmentTailSyntax:
+        'Uses the `vuho_relative_sumti_attachment_tail` product form, whose payload preserves `vuho`, `relative_clauses`, and `sumti_connection`.'
+        return cast(VuhoRelativeSumtiAttachmentTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail is final')
+
+@final
+class VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail(_SyntaxNode):
+    'Uses the `vuho_connected_sumti_attachment_tail` product form, whose payload preserves `vuho` and `sumti_connection`.'
+    __slots__ = ()
+    _schema_id = 216
+    __match_args__ = ('vuho_connected_sumti_attachment_tail',)
+    def __new__(cls, vuho_connected_sumti_attachment_tail: VuhoConnectedSumtiAttachmentTailSyntax) -> VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail:
+        return cls._from_fields((vuho_connected_sumti_attachment_tail,))
+    def __init__(self, vuho_connected_sumti_attachment_tail: VuhoConnectedSumtiAttachmentTailSyntax) -> None:
+        pass
+    @property
+    def vuho_connected_sumti_attachment_tail(self) -> VuhoConnectedSumtiAttachmentTailSyntax:
+        'Uses the `vuho_connected_sumti_attachment_tail` product form, whose payload preserves `vuho` and `sumti_connection`.'
+        return cast(VuhoConnectedSumtiAttachmentTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail is final')
+
+VuhoSumtiAttachmentTailSyntax: TypeAlias = VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail | VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail
+
+@final
+class VuhoRelativeSumtiAttachmentTailSyntax(_SyntaxNode):
+    'Product node for sumti relative phrase; preserves `vuho`, `relative_clauses`, and `sumti_connection` in source order.'
+    __slots__ = ()
+    _schema_id = 217
+    __match_args__ = ('vuho', 'relative_clauses', 'sumti_connection')
+    def __new__(cls, vuho: WithFreeModifiers[Token, FreeModifierSyntax], relative_clauses: RelativeClauseListSyntax, sumti_connection: SumtiConnectionTailSyntax | None) -> VuhoRelativeSumtiAttachmentTailSyntax:
+        return cls._from_fields((vuho, relative_clauses, sumti_connection))
+    def __init__(self, vuho: WithFreeModifiers[Token, FreeModifierSyntax], relative_clauses: RelativeClauseListSyntax, sumti_connection: SumtiConnectionTailSyntax | None) -> None:
+        pass
+    @property
+    def vuho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Vuho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax:
+        'The `relative_clause_list` grammar result in the `relative_clauses` structural role of the `vuho_relative_sumti_attachment_tail` production.'
+        return cast(RelativeClauseListSyntax, self._field(1))
+    @property
+    def sumti_connection(self) -> SumtiConnectionTailSyntax | None:
+        'The optional sumti connection component.'
+        return cast(SumtiConnectionTailSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VuhoRelativeSumtiAttachmentTailSyntax is final')
+
+@final
+class VuhoConnectedSumtiAttachmentTailSyntax(_SyntaxNode):
+    'Product node for sumti relative phrase; preserves `vuho` and `sumti_connection` in source order.'
+    __slots__ = ()
+    _schema_id = 218
+    __match_args__ = ('vuho', 'sumti_connection')
+    def __new__(cls, vuho: WithFreeModifiers[Token, FreeModifierSyntax], sumti_connection: SumtiConnectionTailSyntax) -> VuhoConnectedSumtiAttachmentTailSyntax:
+        return cls._from_fields((vuho, sumti_connection))
+    def __init__(self, vuho: WithFreeModifiers[Token, FreeModifierSyntax], sumti_connection: SumtiConnectionTailSyntax) -> None:
+        pass
+    @property
+    def vuho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Vuho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti_connection(self) -> SumtiConnectionTailSyntax:
+        'The shared sumti connection child syntax node.'
+        return cast(SumtiConnectionTailSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VuhoConnectedSumtiAttachmentTailSyntax is final')
+
+@final
+class SimpleSumtiSyntax(_SyntaxNode):
+    'Product node for sumti; preserves `base_sumti` and `relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 219
+    __match_args__ = ('base_sumti', 'relative_clauses')
+    def __new__(cls, base_sumti: SumtiAtomSyntax, relative_clauses: RelativeClauseListSyntax | None) -> SimpleSumtiSyntax:
+        return cls._from_fields((base_sumti, relative_clauses))
+    def __init__(self, base_sumti: SumtiAtomSyntax, relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def base_sumti(self) -> SumtiAtomSyntax:
+        'The shared base sumti child syntax node.'
+        return cast(SumtiAtomSyntax, self._field(0))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleSumtiSyntax is final')
+
+@final
+class SumtiAtomSyntaxSumtiBase(_SyntaxNode):
+    'Uses the nested `sumti_base` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 220
+    __match_args__ = ('sumti_base',)
+    def __new__(cls, sumti_base: SumtiBaseSyntax) -> SumtiAtomSyntaxSumtiBase:
+        return cls._from_fields((sumti_base,))
+    def __init__(self, sumti_base: SumtiBaseSyntax) -> None:
+        pass
+    @property
+    def sumti_base(self) -> SumtiBaseSyntax:
+        'Uses the nested `sumti_base` sum form and preserves its selected alternative.'
+        return cast(SumtiBaseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiAtomSyntaxSumtiBase is final')
+
+@final
+class SumtiAtomSyntaxQuantifiedSumti(_SyntaxNode):
+    'Uses the `quantified_sumti` product form, whose payload preserves `quantifier` and `inner_sumti`.'
+    __slots__ = ()
+    _schema_id = 221
+    __match_args__ = ('quantified_sumti',)
+    def __new__(cls, quantified_sumti: QuantifiedSumtiSyntax) -> SumtiAtomSyntaxQuantifiedSumti:
+        return cls._from_fields((quantified_sumti,))
+    def __init__(self, quantified_sumti: QuantifiedSumtiSyntax) -> None:
+        pass
+    @property
+    def quantified_sumti(self) -> QuantifiedSumtiSyntax:
+        'Uses the `quantified_sumti` product form, whose payload preserves `quantifier` and `inner_sumti`.'
+        return cast(QuantifiedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiAtomSyntaxQuantifiedSumti is final')
+
+SumtiAtomSyntax: TypeAlias = SumtiAtomSyntaxSumtiBase | SumtiAtomSyntaxQuantifiedSumti
+
+@final
+class SumtiBaseSyntaxScalarNegatedSumtiWithBo(_SyntaxNode):
+    'Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 222
+    __match_args__ = ('scalar_negated_sumti_with_bo',)
+    def __new__(cls, scalar_negated_sumti_with_bo: ScalarNegatedSumtiWithBoSyntax) -> SumtiBaseSyntaxScalarNegatedSumtiWithBo:
+        return cls._from_fields((scalar_negated_sumti_with_bo,))
+    def __init__(self, scalar_negated_sumti_with_bo: ScalarNegatedSumtiWithBoSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_sumti_with_bo(self) -> ScalarNegatedSumtiWithBoSyntax:
+        'Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.'
+        return cast(ScalarNegatedSumtiWithBoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxScalarNegatedSumtiWithBo is final')
+
+@final
+class SumtiBaseSyntaxScalarNegatedSumti(_SyntaxNode):
+    'Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 223
+    __match_args__ = ('scalar_negated_sumti',)
+    def __new__(cls, scalar_negated_sumti: ScalarNegatedSumtiSyntax) -> SumtiBaseSyntaxScalarNegatedSumti:
+        return cls._from_fields((scalar_negated_sumti,))
+    def __init__(self, scalar_negated_sumti: ScalarNegatedSumtiSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_sumti(self) -> ScalarNegatedSumtiSyntax:
+        'Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.'
+        return cast(ScalarNegatedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxScalarNegatedSumti is final')
+
+@final
+class SumtiBaseSyntaxLaheSumti(_SyntaxNode):
+    'Uses the `lahe_sumti` product form, whose payload preserves `lahe`, `relative_clauses`, `inner_sumti`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 224
+    __match_args__ = ('lahe_sumti',)
+    def __new__(cls, lahe_sumti: LaheSumtiSyntax) -> SumtiBaseSyntaxLaheSumti:
+        return cls._from_fields((lahe_sumti,))
+    def __init__(self, lahe_sumti: LaheSumtiSyntax) -> None:
+        pass
+    @property
+    def lahe_sumti(self) -> LaheSumtiSyntax:
+        'Uses the `lahe_sumti` product form, whose payload preserves `lahe`, `relative_clauses`, `inner_sumti`, and `luhu`.'
+        return cast(LaheSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxLaheSumti is final')
+
+@final
+class SumtiBaseSyntaxLaheTermWrapper(_SyntaxNode):
+    'Uses the `lahe_term_wrapper` product form, whose payload preserves `lahe`, `inner_term`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 225
+    __match_args__ = ('lahe_term_wrapper',)
+    def __new__(cls, lahe_term_wrapper: LaheTermWrapperSyntax) -> SumtiBaseSyntaxLaheTermWrapper:
+        return cls._from_fields((lahe_term_wrapper,))
+    def __init__(self, lahe_term_wrapper: LaheTermWrapperSyntax) -> None:
+        pass
+    @property
+    def lahe_term_wrapper(self) -> LaheTermWrapperSyntax:
+        'Uses the `lahe_term_wrapper` product form, whose payload preserves `lahe`, `inner_term`, and `luhu`.'
+        return cast(LaheTermWrapperSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxLaheTermWrapper is final')
+
+@final
+class SumtiBaseSyntaxScalarNegatedTermWrapperWithBo(_SyntaxNode):
+    'Uses the `scalar_negated_term_wrapper_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_term`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 226
+    __match_args__ = ('scalar_negated_term_wrapper_with_bo',)
+    def __new__(cls, scalar_negated_term_wrapper_with_bo: ScalarNegatedTermWrapperWithBoSyntax) -> SumtiBaseSyntaxScalarNegatedTermWrapperWithBo:
+        return cls._from_fields((scalar_negated_term_wrapper_with_bo,))
+    def __init__(self, scalar_negated_term_wrapper_with_bo: ScalarNegatedTermWrapperWithBoSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_term_wrapper_with_bo(self) -> ScalarNegatedTermWrapperWithBoSyntax:
+        'Uses the `scalar_negated_term_wrapper_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_term`, and `luhu`.'
+        return cast(ScalarNegatedTermWrapperWithBoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxScalarNegatedTermWrapperWithBo is final')
+
+@final
+class SumtiBaseSyntaxScalarNegatedTermWrapper(_SyntaxNode):
+    'Uses the `scalar_negated_term_wrapper` product form, whose payload preserves `nahe`, `inner_term`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 227
+    __match_args__ = ('scalar_negated_term_wrapper',)
+    def __new__(cls, scalar_negated_term_wrapper: ScalarNegatedTermWrapperSyntax) -> SumtiBaseSyntaxScalarNegatedTermWrapper:
+        return cls._from_fields((scalar_negated_term_wrapper,))
+    def __init__(self, scalar_negated_term_wrapper: ScalarNegatedTermWrapperSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_term_wrapper(self) -> ScalarNegatedTermWrapperSyntax:
+        'Uses the `scalar_negated_term_wrapper` product form, whose payload preserves `nahe`, `inner_term`, and `luhu`.'
+        return cast(ScalarNegatedTermWrapperSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxScalarNegatedTermWrapper is final')
+
+@final
+class SumtiBaseSyntaxBridiDescriptionSumti(_SyntaxNode):
+    'Uses the `bridi_description_sumti` product form, whose payload preserves `lohoi`, `additional_heads`, `statement`, and `kuhau`.'
+    __slots__ = ()
+    _schema_id = 228
+    __match_args__ = ('bridi_description_sumti',)
+    def __new__(cls, bridi_description_sumti: BridiDescriptionSumtiSyntax) -> SumtiBaseSyntaxBridiDescriptionSumti:
+        return cls._from_fields((bridi_description_sumti,))
+    def __init__(self, bridi_description_sumti: BridiDescriptionSumtiSyntax) -> None:
+        pass
+    @property
+    def bridi_description_sumti(self) -> BridiDescriptionSumtiSyntax:
+        'Uses the `bridi_description_sumti` product form, whose payload preserves `lohoi`, `additional_heads`, `statement`, and `kuhau`.'
+        return cast(BridiDescriptionSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxBridiDescriptionSumti is final')
+
+@final
+class SumtiBaseSyntaxNameSumti(_SyntaxNode):
+    'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+    __slots__ = ()
+    _schema_id = 229
+    __match_args__ = ('name_sumti',)
+    def __new__(cls, name_sumti: NameSumtiSyntax) -> SumtiBaseSyntaxNameSumti:
+        return cls._from_fields((name_sumti,))
+    def __init__(self, name_sumti: NameSumtiSyntax) -> None:
+        pass
+    @property
+    def name_sumti(self) -> NameSumtiSyntax:
+        'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+        return cast(NameSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxNameSumti is final')
+
+@final
+class SumtiBaseSyntaxDescriptionConnectionSumti(_SyntaxNode):
+    'Uses the `description_connection_sumti` product form, whose payload preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku`.'
+    __slots__ = ()
+    _schema_id = 230
+    __match_args__ = ('description_connection_sumti',)
+    def __new__(cls, description_connection_sumti: DescriptionConnectionSumtiSyntax) -> SumtiBaseSyntaxDescriptionConnectionSumti:
+        return cls._from_fields((description_connection_sumti,))
+    def __init__(self, description_connection_sumti: DescriptionConnectionSumtiSyntax) -> None:
+        pass
+    @property
+    def description_connection_sumti(self) -> DescriptionConnectionSumtiSyntax:
+        'Uses the `description_connection_sumti` product form, whose payload preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku`.'
+        return cast(DescriptionConnectionSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxDescriptionConnectionSumti is final')
+
+@final
+class SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti(_SyntaxNode):
+    'Uses the `descriptor_with_outer_quantifier_sumti` product form, whose payload preserves `outer_quantifier`, `description`, `tail`, and `ku`.'
+    __slots__ = ()
+    _schema_id = 231
+    __match_args__ = ('descriptor_with_outer_quantifier_sumti',)
+    def __new__(cls, descriptor_with_outer_quantifier_sumti: DescriptorWithOuterQuantifierSumtiSyntax) -> SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti:
+        return cls._from_fields((descriptor_with_outer_quantifier_sumti,))
+    def __init__(self, descriptor_with_outer_quantifier_sumti: DescriptorWithOuterQuantifierSumtiSyntax) -> None:
+        pass
+    @property
+    def descriptor_with_outer_quantifier_sumti(self) -> DescriptorWithOuterQuantifierSumtiSyntax:
+        'Uses the `descriptor_with_outer_quantifier_sumti` product form, whose payload preserves `outer_quantifier`, `description`, `tail`, and `ku`.'
+        return cast(DescriptorWithOuterQuantifierSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti is final')
+
+@final
+class SumtiBaseSyntaxDescriptorWithGadriSumti(_SyntaxNode):
+    'Uses the `descriptor_with_gadri_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
+    __slots__ = ()
+    _schema_id = 232
+    __match_args__ = ('descriptor_with_gadri_sumti',)
+    def __new__(cls, descriptor_with_gadri_sumti: DescriptorWithGadriSumtiSyntax) -> SumtiBaseSyntaxDescriptorWithGadriSumti:
+        return cls._from_fields((descriptor_with_gadri_sumti,))
+    def __init__(self, descriptor_with_gadri_sumti: DescriptorWithGadriSumtiSyntax) -> None:
+        pass
+    @property
+    def descriptor_with_gadri_sumti(self) -> DescriptorWithGadriSumtiSyntax:
+        'Uses the `descriptor_with_gadri_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
+        return cast(DescriptorWithGadriSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxDescriptorWithGadriSumti is final')
+
+@final
+class SumtiBaseSyntaxDescriptorWithoutGadriSumti(_SyntaxNode):
+    'Uses the `descriptor_without_gadri_sumti` product form, whose payload preserves `quantifier`, `selbri`, `ku`, and `relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 233
+    __match_args__ = ('descriptor_without_gadri_sumti',)
+    def __new__(cls, descriptor_without_gadri_sumti: DescriptorWithoutGadriSumtiSyntax) -> SumtiBaseSyntaxDescriptorWithoutGadriSumti:
+        return cls._from_fields((descriptor_without_gadri_sumti,))
+    def __init__(self, descriptor_without_gadri_sumti: DescriptorWithoutGadriSumtiSyntax) -> None:
+        pass
+    @property
+    def descriptor_without_gadri_sumti(self) -> DescriptorWithoutGadriSumtiSyntax:
+        'Uses the `descriptor_without_gadri_sumti` product form, whose payload preserves `quantifier`, `selbri`, `ku`, and `relative_clauses`.'
+        return cast(DescriptorWithoutGadriSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxDescriptorWithoutGadriSumti is final')
+
+@final
+class SumtiBaseSyntaxNumberSumti(_SyntaxNode):
+    'Uses the `number_sumti` product form, whose payload preserves `li`, `expression`, and `loho`.'
+    __slots__ = ()
+    _schema_id = 234
+    __match_args__ = ('number_sumti',)
+    def __new__(cls, number_sumti: NumberSumtiSyntax) -> SumtiBaseSyntaxNumberSumti:
+        return cls._from_fields((number_sumti,))
+    def __init__(self, number_sumti: NumberSumtiSyntax) -> None:
+        pass
+    @property
+    def number_sumti(self) -> NumberSumtiSyntax:
+        'Uses the `number_sumti` product form, whose payload preserves `li`, `expression`, and `loho`.'
+        return cast(NumberSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxNumberSumti is final')
+
+@final
+class SumtiBaseSyntaxLerfuStringSumti(_SyntaxNode):
+    'Uses the `lerfu_string_sumti` product form, whose payload preserves `words`, `boi`, and `free_modifiers`.'
+    __slots__ = ()
+    _schema_id = 235
+    __match_args__ = ('lerfu_string_sumti',)
+    def __new__(cls, lerfu_string_sumti: LerfuStringSumtiSyntax) -> SumtiBaseSyntaxLerfuStringSumti:
+        return cls._from_fields((lerfu_string_sumti,))
+    def __init__(self, lerfu_string_sumti: LerfuStringSumtiSyntax) -> None:
+        pass
+    @property
+    def lerfu_string_sumti(self) -> LerfuStringSumtiSyntax:
+        'Uses the `lerfu_string_sumti` product form, whose payload preserves `words`, `boi`, and `free_modifiers`.'
+        return cast(LerfuStringSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxLerfuStringSumti is final')
+
+@final
+class SumtiBaseSyntaxQuotedSumti(_SyntaxNode):
+    'Uses the `quoted_sumti` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 236
+    __match_args__ = ('quoted_sumti',)
+    def __new__(cls, quoted_sumti: QuotedSumtiSyntax) -> SumtiBaseSyntaxQuotedSumti:
+        return cls._from_fields((quoted_sumti,))
+    def __init__(self, quoted_sumti: QuotedSumtiSyntax) -> None:
+        pass
+    @property
+    def quoted_sumti(self) -> QuotedSumtiSyntax:
+        'Uses the `quoted_sumti` product form, whose payload preserves `quote`.'
+        return cast(QuotedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxQuotedSumti is final')
+
+@final
+class SumtiBaseSyntaxProSumti(_SyntaxNode):
+    'Uses the `pro_sumti` product form, whose payload preserves `koha`.'
+    __slots__ = ()
+    _schema_id = 237
+    __match_args__ = ('pro_sumti',)
+    def __new__(cls, pro_sumti: ProSumtiSyntax) -> SumtiBaseSyntaxProSumti:
+        return cls._from_fields((pro_sumti,))
+    def __init__(self, pro_sumti: ProSumtiSyntax) -> None:
+        pass
+    @property
+    def pro_sumti(self) -> ProSumtiSyntax:
+        'Uses the `pro_sumti` product form, whose payload preserves `koha`.'
+        return cast(ProSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiBaseSyntaxProSumti is final')
+
+SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptionConnectionSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti
+
+@final
+class QuantifiedSumtiSyntax(_SyntaxNode):
+    'Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 238
+    __match_args__ = ('quantifier', 'inner_sumti')
+    def __new__(cls, quantifier: QuantifierSyntax, inner_sumti: SumtiBaseSyntax) -> QuantifiedSumtiSyntax:
+        return cls._from_fields((quantifier, inner_sumti))
+    def __init__(self, quantifier: QuantifierSyntax, inner_sumti: SumtiBaseSyntax) -> None:
+        pass
+    @property
+    def quantifier(self) -> QuantifierSyntax:
+        'The `quantifier` grammar result in the `quantifier` structural role of the `quantified_sumti` production.'
+        return cast(QuantifierSyntax, self._field(0))
+    @property
+    def inner_sumti(self) -> SumtiBaseSyntax:
+        'The shared inner sumti child syntax node.'
+        return cast(SumtiBaseSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifiedSumtiSyntax is final')
+
+@final
+class SumtiConnectionTailSyntax(_SyntaxNode):
+    'Product node for sumti connective; preserves `connective` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 239
+    __match_args__ = ('connective', 'sumti')
+    def __new__(cls, connective: ArgumentConnectiveSyntax, sumti: SumtiSyntax) -> SumtiConnectionTailSyntax:
+        return cls._from_fields((connective, sumti))
+    def __init__(self, connective: ArgumentConnectiveSyntax, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> ArgumentConnectiveSyntax:
+        'The `argument_connective` connective joining the adjacent constituents of the `sumti_connection_tail` production.'
+        return cast(ArgumentConnectiveSyntax, self._field(0))
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiConnectionTailSyntax is final')
+
+@final
+class PaRunQuantifierSyntax(_SyntaxNode):
+    'Product node for quantifier; preserves `number` and `boi` in source order.'
+    __slots__ = ()
+    _schema_id = 240
+    __match_args__ = ('number', 'boi')
+    def __new__(cls, number: WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax], boi: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> PaRunQuantifierSyntax:
+        return cls._from_fields((number, boi))
+    def __init__(self, number: WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax], boi: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def number(self) -> WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax]:
+        'The `number_words` grammar result in the `number` structural role of the `pa_run_quantifier` production.'
+        return cast(WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax], self._field(0))
+    @property
+    def boi(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Boi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PaRunQuantifierSyntax is final')
+
+@final
+class MeksoQuantifierSyntax(_SyntaxNode):
+    'Product node for quantifier; preserves `vei`, `mekso`, and `veho` in source order.'
+    __slots__ = ()
+    _schema_id = 241
+    __match_args__ = ('vei', 'mekso', 'veho')
+    def __new__(cls, vei: WithFreeModifiers[Token, FreeModifierSyntax], mekso: MeksoSyntax, veho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> MeksoQuantifierSyntax:
+        return cls._from_fields((vei, mekso, veho))
+    def __init__(self, vei: WithFreeModifiers[Token, FreeModifierSyntax], mekso: MeksoSyntax, veho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def vei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Vei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def mekso(self) -> MeksoSyntax:
+        'The shared mekso child syntax node.'
+        return cast(MeksoSyntax, self._field(1))
+    @property
+    def veho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Veho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoQuantifierSyntax is final')
+
+@final
+class ZantufaRawMeksoQuantifierSyntax(_SyntaxNode):
+    'Transparent product node for quantifier; preserves the `mekso` component.'
+    __slots__ = ()
+    _schema_id = 242
+    __match_args__ = ('mekso',)
+    def __new__(cls, mekso: MeksoSyntax) -> ZantufaRawMeksoQuantifierSyntax:
+        return cls._from_fields((mekso,))
+    def __init__(self, mekso: MeksoSyntax) -> None:
+        pass
+    @property
+    def mekso(self) -> MeksoSyntax:
+        'The shared mekso child syntax node.'
+        return cast(MeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaRawMeksoQuantifierSyntax is final')
+
+@final
+class ZantufaPriorityRawMeksoQuantifierSyntax(_SyntaxNode):
+    'Transparent product node for quantifier; preserves the `mekso` component.'
+    __slots__ = ()
+    _schema_id = 243
+    __match_args__ = ('mekso',)
+    def __new__(cls, mekso: MeksoSyntax) -> ZantufaPriorityRawMeksoQuantifierSyntax:
+        return cls._from_fields((mekso,))
+    def __init__(self, mekso: MeksoSyntax) -> None:
+        pass
+    @property
+    def mekso(self) -> MeksoSyntax:
+        'The shared mekso child syntax node.'
+        return cast(MeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaPriorityRawMeksoQuantifierSyntax is final')
+
+@final
+class QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(_SyntaxNode):
+    'Uses the `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+    __slots__ = ()
+    _schema_id = 244
+    __match_args__ = ('zantufa_priority_raw_mekso_quantifier',)
+    def __new__(cls, zantufa_priority_raw_mekso_quantifier: ZantufaPriorityRawMeksoQuantifierSyntax) -> QuantifierSyntaxZantufaPriorityRawMeksoQuantifier:
+        return cls._from_fields((zantufa_priority_raw_mekso_quantifier,))
+    def __init__(self, zantufa_priority_raw_mekso_quantifier: ZantufaPriorityRawMeksoQuantifierSyntax) -> None:
+        pass
+    @property
+    def zantufa_priority_raw_mekso_quantifier(self) -> ZantufaPriorityRawMeksoQuantifierSyntax:
+        'Uses the `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+        return cast(ZantufaPriorityRawMeksoQuantifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifierSyntaxZantufaPriorityRawMeksoQuantifier is final')
+
+@final
+class QuantifierSyntaxMeksoQuantifier(_SyntaxNode):
+    'Uses the `mekso_quantifier` product form, whose payload preserves `vei`, `mekso`, and `veho`.'
+    __slots__ = ()
+    _schema_id = 245
+    __match_args__ = ('mekso_quantifier',)
+    def __new__(cls, mekso_quantifier: MeksoQuantifierSyntax) -> QuantifierSyntaxMeksoQuantifier:
+        return cls._from_fields((mekso_quantifier,))
+    def __init__(self, mekso_quantifier: MeksoQuantifierSyntax) -> None:
+        pass
+    @property
+    def mekso_quantifier(self) -> MeksoQuantifierSyntax:
+        'Uses the `mekso_quantifier` product form, whose payload preserves `vei`, `mekso`, and `veho`.'
+        return cast(MeksoQuantifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifierSyntaxMeksoQuantifier is final')
+
+@final
+class QuantifierSyntaxPaRunQuantifier(_SyntaxNode):
+    'Uses the `pa_run_quantifier` product form, whose payload preserves `number` and `boi`.'
+    __slots__ = ()
+    _schema_id = 246
+    __match_args__ = ('pa_run_quantifier',)
+    def __new__(cls, pa_run_quantifier: PaRunQuantifierSyntax) -> QuantifierSyntaxPaRunQuantifier:
+        return cls._from_fields((pa_run_quantifier,))
+    def __init__(self, pa_run_quantifier: PaRunQuantifierSyntax) -> None:
+        pass
+    @property
+    def pa_run_quantifier(self) -> PaRunQuantifierSyntax:
+        'Uses the `pa_run_quantifier` product form, whose payload preserves `number` and `boi`.'
+        return cast(PaRunQuantifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifierSyntaxPaRunQuantifier is final')
+
+@final
+class QuantifierSyntaxZantufaRawMeksoQuantifier(_SyntaxNode):
+    'Uses the `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+    __slots__ = ()
+    _schema_id = 247
+    __match_args__ = ('zantufa_raw_mekso_quantifier',)
+    def __new__(cls, zantufa_raw_mekso_quantifier: ZantufaRawMeksoQuantifierSyntax) -> QuantifierSyntaxZantufaRawMeksoQuantifier:
+        return cls._from_fields((zantufa_raw_mekso_quantifier,))
+    def __init__(self, zantufa_raw_mekso_quantifier: ZantufaRawMeksoQuantifierSyntax) -> None:
+        pass
+    @property
+    def zantufa_raw_mekso_quantifier(self) -> ZantufaRawMeksoQuantifierSyntax:
+        'Uses the `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+        return cast(ZantufaRawMeksoQuantifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifierSyntaxZantufaRawMeksoQuantifier is final')
+
+QuantifierSyntax: TypeAlias = QuantifierSyntaxZantufaPriorityRawMeksoQuantifier | QuantifierSyntaxMeksoQuantifier | QuantifierSyntaxPaRunQuantifier | QuantifierSyntaxZantufaRawMeksoQuantifier
+
+@final
+class NumberMeksoSyntax(_SyntaxNode):
+    'Transparent product node for number mex; preserves the `quantifier` component.'
+    __slots__ = ()
+    _schema_id = 248
+    __match_args__ = ('quantifier',)
+    def __new__(cls, quantifier: PaRunQuantifierSyntax) -> NumberMeksoSyntax:
+        return cls._from_fields((quantifier,))
+    def __init__(self, quantifier: PaRunQuantifierSyntax) -> None:
+        pass
+    @property
+    def quantifier(self) -> PaRunQuantifierSyntax:
+        'The shared quantifier child syntax node.'
+        return cast(PaRunQuantifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberMeksoSyntax is final')
+
+@final
+class PrimitiveMeksoOperatorSyntax(_SyntaxNode):
+    'Transparent product node for VUhU operator; preserves the `vuhu` component.'
+    __slots__ = ()
+    _schema_id = 249
+    __match_args__ = ('vuhu',)
+    def __new__(cls, vuhu: WithFreeModifiers[Token, FreeModifierSyntax]) -> PrimitiveMeksoOperatorSyntax:
+        return cls._from_fields((vuhu,))
+    def __init__(self, vuhu: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def vuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Vuhu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PrimitiveMeksoOperatorSyntax is final')
+
+@final
+class MeksoOperatorSyntaxAfterthoughtMeksoOperator(_SyntaxNode):
+    'Uses the `afterthought_mekso_operator` product form, whose payload preserves `operators`.'
+    __slots__ = ()
+    _schema_id = 250
+    __match_args__ = ('afterthought_mekso_operator',)
+    def __new__(cls, afterthought_mekso_operator: AfterthoughtMeksoOperatorSyntax) -> MeksoOperatorSyntaxAfterthoughtMeksoOperator:
+        return cls._from_fields((afterthought_mekso_operator,))
+    def __init__(self, afterthought_mekso_operator: AfterthoughtMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def afterthought_mekso_operator(self) -> AfterthoughtMeksoOperatorSyntax:
+        'Uses the `afterthought_mekso_operator` product form, whose payload preserves `operators`.'
+        return cast(AfterthoughtMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoOperatorSyntaxAfterthoughtMeksoOperator is final')
+
+@final
+class MeksoOperatorSyntaxBoundMeksoOperator(_SyntaxNode):
+    'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+    __slots__ = ()
+    _schema_id = 251
+    __match_args__ = ('bound_mekso_operator',)
+    def __new__(cls, bound_mekso_operator: BoundMeksoOperatorSyntax) -> MeksoOperatorSyntaxBoundMeksoOperator:
+        return cls._from_fields((bound_mekso_operator,))
+    def __init__(self, bound_mekso_operator: BoundMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def bound_mekso_operator(self) -> BoundMeksoOperatorSyntax:
+        'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+        return cast(BoundMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoOperatorSyntaxBoundMeksoOperator is final')
+
+@final
+class MeksoOperatorSyntaxSimpleMeksoOperator(_SyntaxNode):
+    'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 252
+    __match_args__ = ('simple_mekso_operator',)
+    def __new__(cls, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> MeksoOperatorSyntaxSimpleMeksoOperator:
+        return cls._from_fields((simple_mekso_operator,))
+    def __init__(self, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def simple_mekso_operator(self) -> SimpleMeksoOperatorSyntax:
+        'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+        return cast(SimpleMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoOperatorSyntaxSimpleMeksoOperator is final')
+
+MeksoOperatorSyntax: TypeAlias = MeksoOperatorSyntaxAfterthoughtMeksoOperator | MeksoOperatorSyntaxBoundMeksoOperator | MeksoOperatorSyntaxSimpleMeksoOperator
+
+@final
+class AfterthoughtMeksoOperatorSyntax(_SyntaxNode):
+    'Transparent product node for operator; preserves the `operators` component.'
+    __slots__ = ()
+    _schema_id = 253
+    __match_args__ = ('operators',)
+    def __new__(cls, operators: Chain[BoundOrAtomMeksoOperatorSyntax, AfterthoughtMeksoOperatorContinuationSyntax]) -> AfterthoughtMeksoOperatorSyntax:
+        return cls._from_fields((operators,))
+    def __init__(self, operators: Chain[BoundOrAtomMeksoOperatorSyntax, AfterthoughtMeksoOperatorContinuationSyntax]) -> None:
+        pass
+    @property
+    def operators(self) -> Chain[BoundOrAtomMeksoOperatorSyntax, AfterthoughtMeksoOperatorContinuationSyntax]:
+        'The source-ordered `operators` chain assembled by the `afterthought_mekso_operator` production.'
+        return cast(Chain[BoundOrAtomMeksoOperatorSyntax, AfterthoughtMeksoOperatorContinuationSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AfterthoughtMeksoOperatorSyntax is final')
+
+@final
+class AfterthoughtMeksoOperatorContinuationSyntax(_SyntaxNode):
+    'Product node for operator continuation; preserves `connective` and `trailing_operator` in source order.'
+    __slots__ = ()
+    _schema_id = 254
+    __match_args__ = ('connective', 'trailing_operator')
+    def __new__(cls, connective: StandardStatementConnectiveSyntax, trailing_operator: BoundOrAtomMeksoOperatorSyntax) -> AfterthoughtMeksoOperatorContinuationSyntax:
+        return cls._from_fields((connective, trailing_operator))
+    def __init__(self, connective: StandardStatementConnectiveSyntax, trailing_operator: BoundOrAtomMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> StandardStatementConnectiveSyntax:
+        'The `standard_statement_connective` connective joining the adjacent constituents of the `afterthought_mekso_operator_continuation` production.'
+        return cast(StandardStatementConnectiveSyntax, self._field(0))
+    @property
+    def trailing_operator(self) -> BoundOrAtomMeksoOperatorSyntax:
+        'The shared trailing operator child syntax node.'
+        return cast(BoundOrAtomMeksoOperatorSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AfterthoughtMeksoOperatorContinuationSyntax is final')
+
+@final
+class BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator(_SyntaxNode):
+    'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+    __slots__ = ()
+    _schema_id = 255
+    __match_args__ = ('bound_mekso_operator',)
+    def __new__(cls, bound_mekso_operator: BoundMeksoOperatorSyntax) -> BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator:
+        return cls._from_fields((bound_mekso_operator,))
+    def __init__(self, bound_mekso_operator: BoundMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def bound_mekso_operator(self) -> BoundMeksoOperatorSyntax:
+        'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+        return cast(BoundMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator is final')
+
+@final
+class BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator(_SyntaxNode):
+    'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 256
+    __match_args__ = ('simple_mekso_operator',)
+    def __new__(cls, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator:
+        return cls._from_fields((simple_mekso_operator,))
+    def __init__(self, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def simple_mekso_operator(self) -> SimpleMeksoOperatorSyntax:
+        'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+        return cast(SimpleMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator is final')
+
+BoundOrAtomMeksoOperatorSyntax: TypeAlias = BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator | BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator
+
+@final
+class BoundMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for operator; preserves `left_operator`, `connective`, `bo`, and `right_operator` in source order.'
+    __slots__ = ()
+    _schema_id = 257
+    __match_args__ = ('left_operator', 'connective', 'bo', 'right_operator')
+    def __new__(cls, left_operator: SimpleMeksoOperatorSyntax, connective: StandardStatementConnectiveSyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax], right_operator: MeksoOperatorSyntax) -> BoundMeksoOperatorSyntax:
+        return cls._from_fields((left_operator, connective, bo, right_operator))
+    def __init__(self, left_operator: SimpleMeksoOperatorSyntax, connective: StandardStatementConnectiveSyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax], right_operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def left_operator(self) -> SimpleMeksoOperatorSyntax:
+        'The shared left operator child syntax node.'
+        return cast(SimpleMeksoOperatorSyntax, self._field(0))
+    @property
+    def connective(self) -> StandardStatementConnectiveSyntax:
+        'The `standard_statement_connective` connective joining the adjacent constituents of the `bound_mekso_operator` production.'
+        return cast(StandardStatementConnectiveSyntax, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def right_operator(self) -> MeksoOperatorSyntax:
+        'The shared right operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundMeksoOperatorSyntax is final')
+
+@final
+class SimpleMeksoOperatorSyntaxConvertedMeksoOperator(_SyntaxNode):
+    'Uses the `converted_mekso_operator` product form, whose payload preserves `se` and `inner_operator`.'
+    __slots__ = ()
+    _schema_id = 258
+    __match_args__ = ('converted_mekso_operator',)
+    def __new__(cls, converted_mekso_operator: ConvertedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxConvertedMeksoOperator:
+        return cls._from_fields((converted_mekso_operator,))
+    def __init__(self, converted_mekso_operator: ConvertedMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def converted_mekso_operator(self) -> ConvertedMeksoOperatorSyntax:
+        'Uses the `converted_mekso_operator` product form, whose payload preserves `se` and `inner_operator`.'
+        return cast(ConvertedMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxConvertedMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator(_SyntaxNode):
+    'Uses the `scalar_negated_mekso_operator` product form, whose payload preserves `nahe` and `inner_operator`.'
+    __slots__ = ()
+    _schema_id = 259
+    __match_args__ = ('scalar_negated_mekso_operator',)
+    def __new__(cls, scalar_negated_mekso_operator: ScalarNegatedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator:
+        return cls._from_fields((scalar_negated_mekso_operator,))
+    def __init__(self, scalar_negated_mekso_operator: ScalarNegatedMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_mekso_operator(self) -> ScalarNegatedMeksoOperatorSyntax:
+        'Uses the `scalar_negated_mekso_operator` product form, whose payload preserves `nahe` and `inner_operator`.'
+        return cast(ScalarNegatedMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxForethoughtMeksoOperator(_SyntaxNode):
+    'Uses the `forethought_mekso_operator` product form, whose payload preserves `guhek`, `left_operator`, `gik`, and `right_operator`.'
+    __slots__ = ()
+    _schema_id = 260
+    __match_args__ = ('forethought_mekso_operator',)
+    def __new__(cls, forethought_mekso_operator: ForethoughtMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxForethoughtMeksoOperator:
+        return cls._from_fields((forethought_mekso_operator,))
+    def __init__(self, forethought_mekso_operator: ForethoughtMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def forethought_mekso_operator(self) -> ForethoughtMeksoOperatorSyntax:
+        'Uses the `forethought_mekso_operator` product form, whose payload preserves `guhek`, `left_operator`, `gik`, and `right_operator`.'
+        return cast(ForethoughtMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxForethoughtMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxGroupedMeksoOperator(_SyntaxNode):
+    'Uses the `grouped_mekso_operator` product form, whose payload preserves `ke`, `inner_operator`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 261
+    __match_args__ = ('grouped_mekso_operator',)
+    def __new__(cls, grouped_mekso_operator: GroupedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxGroupedMeksoOperator:
+        return cls._from_fields((grouped_mekso_operator,))
+    def __init__(self, grouped_mekso_operator: GroupedMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def grouped_mekso_operator(self) -> GroupedMeksoOperatorSyntax:
+        'Uses the `grouped_mekso_operator` product form, whose payload preserves `ke`, `inner_operator`, and `kehe`.'
+        return cast(GroupedMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxGroupedMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxSelbriMeksoOperator(_SyntaxNode):
+    'Uses the `selbri_mekso_operator` product form, whose payload preserves `nahu`, `selbri`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 262
+    __match_args__ = ('selbri_mekso_operator',)
+    def __new__(cls, selbri_mekso_operator: SelbriMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxSelbriMeksoOperator:
+        return cls._from_fields((selbri_mekso_operator,))
+    def __init__(self, selbri_mekso_operator: SelbriMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def selbri_mekso_operator(self) -> SelbriMeksoOperatorSyntax:
+        'Uses the `selbri_mekso_operator` product form, whose payload preserves `nahu`, `selbri`, and `tehu`.'
+        return cast(SelbriMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxSelbriMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxOperandMeksoOperator(_SyntaxNode):
+    'Uses the `operand_mekso_operator` product form, whose payload preserves `maho`, `mekso`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 263
+    __match_args__ = ('operand_mekso_operator',)
+    def __new__(cls, operand_mekso_operator: OperandMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxOperandMeksoOperator:
+        return cls._from_fields((operand_mekso_operator,))
+    def __init__(self, operand_mekso_operator: OperandMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def operand_mekso_operator(self) -> OperandMeksoOperatorSyntax:
+        'Uses the `operand_mekso_operator` product form, whose payload preserves `maho`, `mekso`, and `tehu`.'
+        return cast(OperandMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxOperandMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator(_SyntaxNode):
+    'Uses the `zantufa_maho_selbri_mekso_operator` product form, whose payload preserves `maho`, `selbri`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 264
+    __match_args__ = ('zantufa_maho_selbri_mekso_operator',)
+    def __new__(cls, zantufa_maho_selbri_mekso_operator: ZantufaMahoSelbriMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator:
+        return cls._from_fields((zantufa_maho_selbri_mekso_operator,))
+    def __init__(self, zantufa_maho_selbri_mekso_operator: ZantufaMahoSelbriMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def zantufa_maho_selbri_mekso_operator(self) -> ZantufaMahoSelbriMeksoOperatorSyntax:
+        'Uses the `zantufa_maho_selbri_mekso_operator` product form, whose payload preserves `maho`, `selbri`, and `tehu`.'
+        return cast(ZantufaMahoSelbriMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator(_SyntaxNode):
+    'Uses the `zantufa_maho_sumti_mekso_operator` product form, whose payload preserves `maho`, `sumti`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 265
+    __match_args__ = ('zantufa_maho_sumti_mekso_operator',)
+    def __new__(cls, zantufa_maho_sumti_mekso_operator: ZantufaMahoSumtiMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator:
+        return cls._from_fields((zantufa_maho_sumti_mekso_operator,))
+    def __init__(self, zantufa_maho_sumti_mekso_operator: ZantufaMahoSumtiMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def zantufa_maho_sumti_mekso_operator(self) -> ZantufaMahoSumtiMeksoOperatorSyntax:
+        'Uses the `zantufa_maho_sumti_mekso_operator` product form, whose payload preserves `maho`, `sumti`, and `tehu`.'
+        return cast(ZantufaMahoSumtiMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator(_SyntaxNode):
+    'Uses the `zantufa_connective_mekso_operator` product form, whose payload preserves `connective`.'
+    __slots__ = ()
+    _schema_id = 266
+    __match_args__ = ('zantufa_connective_mekso_operator',)
+    def __new__(cls, zantufa_connective_mekso_operator: ZantufaConnectiveMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator:
+        return cls._from_fields((zantufa_connective_mekso_operator,))
+    def __init__(self, zantufa_connective_mekso_operator: ZantufaConnectiveMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def zantufa_connective_mekso_operator(self) -> ZantufaConnectiveMeksoOperatorSyntax:
+        'Uses the `zantufa_connective_mekso_operator` product form, whose payload preserves `connective`.'
+        return cast(ZantufaConnectiveMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator is final')
+
+@final
+class SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator(_SyntaxNode):
+    'Uses the `primitive_mekso_operator` product form, whose payload preserves `vuhu`.'
+    __slots__ = ()
+    _schema_id = 267
+    __match_args__ = ('primitive_mekso_operator',)
+    def __new__(cls, primitive_mekso_operator: PrimitiveMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator:
+        return cls._from_fields((primitive_mekso_operator,))
+    def __init__(self, primitive_mekso_operator: PrimitiveMeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def primitive_mekso_operator(self) -> PrimitiveMeksoOperatorSyntax:
+        'Uses the `primitive_mekso_operator` product form, whose payload preserves `vuhu`.'
+        return cast(PrimitiveMeksoOperatorSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator is final')
+
+SimpleMeksoOperatorSyntax: TypeAlias = SimpleMeksoOperatorSyntaxConvertedMeksoOperator | SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator | SimpleMeksoOperatorSyntaxForethoughtMeksoOperator | SimpleMeksoOperatorSyntaxGroupedMeksoOperator | SimpleMeksoOperatorSyntaxSelbriMeksoOperator | SimpleMeksoOperatorSyntaxOperandMeksoOperator | SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator | SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator | SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator | SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator
+
+@final
+class ConvertedMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for converted operator; preserves `se` and `inner_operator` in source order.'
+    __slots__ = ()
+    _schema_id = 268
+    __match_args__ = ('se', 'inner_operator')
+    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax) -> ConvertedMeksoOperatorSyntax:
+        return cls._from_fields((se, inner_operator))
+    def __init__(self, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Se`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_operator(self) -> MeksoOperatorSyntax:
+        'The shared inner operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConvertedMeksoOperatorSyntax is final')
+
+@final
+class ScalarNegatedMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for converted operator; preserves `nahe` and `inner_operator` in source order.'
+    __slots__ = ()
+    _schema_id = 269
+    __match_args__ = ('nahe', 'inner_operator')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax) -> ScalarNegatedMeksoOperatorSyntax:
+        return cls._from_fields((nahe, inner_operator))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_operator(self) -> MeksoOperatorSyntax:
+        'The shared inner operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedMeksoOperatorSyntax is final')
+
+@final
+class ForethoughtMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for operator; preserves `guhek`, `left_operator`, `gik`, and `right_operator` in source order.'
+    __slots__ = ()
+    _schema_id = 270
+    __match_args__ = ('guhek', 'left_operator', 'gik', 'right_operator')
+    def __new__(cls, guhek: GuhekConnectiveSyntax, left_operator: MeksoOperatorSyntax, gik: GikConnectiveSyntax, right_operator: MeksoOperatorSyntax) -> ForethoughtMeksoOperatorSyntax:
+        return cls._from_fields((guhek, left_operator, gik, right_operator))
+    def __init__(self, guhek: GuhekConnectiveSyntax, left_operator: MeksoOperatorSyntax, gik: GikConnectiveSyntax, right_operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def guhek(self) -> GuhekConnectiveSyntax:
+        'The `guhek_connective` forethought connective opening the paired branches of the `forethought_mekso_operator` production.'
+        return cast(GuhekConnectiveSyntax, self._field(0))
+    @property
+    def left_operator(self) -> MeksoOperatorSyntax:
+        'The shared left operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operator` production.'
+        return cast(GikConnectiveSyntax, self._field(2))
+    @property
+    def right_operator(self) -> MeksoOperatorSyntax:
+        'The shared right operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtMeksoOperatorSyntax is final')
+
+@final
+class GroupedMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for grouped operator; preserves `ke`, `inner_operator`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 271
+    __match_args__ = ('ke', 'inner_operator', 'kehe')
+    def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedMeksoOperatorSyntax:
+        return cls._from_fields((ke, inner_operator, kehe))
+    def __init__(self, ke: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_operator(self) -> MeksoOperatorSyntax:
+        'The shared inner operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GroupedMeksoOperatorSyntax is final')
+
+@final
+class SelbriMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for selbri-to-operator; preserves `nahu`, `selbri`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 272
+    __match_args__ = ('nahu', 'selbri', 'tehu')
+    def __new__(cls, nahu: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SelbriMeksoOperatorSyntax:
+        return cls._from_fields((nahu, selbri, tehu))
+    def __init__(self, nahu: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Nahu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriMeksoOperatorSyntax is final')
+
+@final
+class OperandMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for operand-to-operator; preserves `maho`, `mekso`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 273
+    __match_args__ = ('maho', 'mekso', 'tehu')
+    def __new__(cls, maho: WithFreeModifiers[Token, FreeModifierSyntax], mekso: MeksoSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> OperandMeksoOperatorSyntax:
+        return cls._from_fields((maho, mekso, tehu))
+    def __init__(self, maho: WithFreeModifiers[Token, FreeModifierSyntax], mekso: MeksoSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def maho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Maho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def mekso(self) -> MeksoSyntax:
+        'The shared mekso child syntax node.'
+        return cast(MeksoSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('OperandMeksoOperatorSyntax is final')
+
+@final
+class ZantufaMahoSelbriMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for selbri-to-operator; preserves `maho`, `selbri`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 274
+    __match_args__ = ('maho', 'selbri', 'tehu')
+    def __new__(cls, maho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaMahoSelbriMeksoOperatorSyntax:
+        return cls._from_fields((maho, selbri, tehu))
+    def __init__(self, maho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def maho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Maho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMahoSelbriMeksoOperatorSyntax is final')
+
+@final
+class ZantufaMahoSumtiMeksoOperatorSyntax(_SyntaxNode):
+    'Product node for sumti-to-operator; preserves `maho`, `sumti`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 275
+    __match_args__ = ('maho', 'sumti', 'tehu')
+    def __new__(cls, maho: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaMahoSumtiMeksoOperatorSyntax:
+        return cls._from_fields((maho, sumti, tehu))
+    def __init__(self, maho: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def maho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Maho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMahoSumtiMeksoOperatorSyntax is final')
+
+@final
+class ZantufaConnectiveMeksoOperatorSyntax(_SyntaxNode):
+    'Transparent product node for connective operator; preserves the `connective` component.'
+    __slots__ = ()
+    _schema_id = 276
+    __match_args__ = ('connective',)
+    def __new__(cls, connective: OperandConnectiveSyntax) -> ZantufaConnectiveMeksoOperatorSyntax:
+        return cls._from_fields((connective,))
+    def __init__(self, connective: OperandConnectiveSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> OperandConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(OperandConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaConnectiveMeksoOperatorSyntax is final')
+
+@final
+class MeksoOperandSyntaxAfterthoughtMeksoOperand(_SyntaxNode):
+    'Uses the `afterthought_mekso_operand` product form, whose payload preserves `operands`.'
+    __slots__ = ()
+    _schema_id = 277
+    __match_args__ = ('afterthought_mekso_operand',)
+    def __new__(cls, afterthought_mekso_operand: AfterthoughtMeksoOperandSyntax) -> MeksoOperandSyntaxAfterthoughtMeksoOperand:
+        return cls._from_fields((afterthought_mekso_operand,))
+    def __init__(self, afterthought_mekso_operand: AfterthoughtMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def afterthought_mekso_operand(self) -> AfterthoughtMeksoOperandSyntax:
+        'Uses the `afterthought_mekso_operand` product form, whose payload preserves `operands`.'
+        return cast(AfterthoughtMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoOperandSyntaxAfterthoughtMeksoOperand is final')
+
+@final
+class MeksoOperandSyntaxBoundMeksoOperand(_SyntaxNode):
+    'Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.'
+    __slots__ = ()
+    _schema_id = 278
+    __match_args__ = ('bound_mekso_operand',)
+    def __new__(cls, bound_mekso_operand: BoundMeksoOperandSyntax) -> MeksoOperandSyntaxBoundMeksoOperand:
+        return cls._from_fields((bound_mekso_operand,))
+    def __init__(self, bound_mekso_operand: BoundMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def bound_mekso_operand(self) -> BoundMeksoOperandSyntax:
+        'Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.'
+        return cast(BoundMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoOperandSyntaxBoundMeksoOperand is final')
+
+@final
+class MeksoOperandSyntaxSimpleMeksoOperand(_SyntaxNode):
+    'Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 279
+    __match_args__ = ('simple_mekso_operand',)
+    def __new__(cls, simple_mekso_operand: SimpleMeksoOperandSyntax) -> MeksoOperandSyntaxSimpleMeksoOperand:
+        return cls._from_fields((simple_mekso_operand,))
+    def __init__(self, simple_mekso_operand: SimpleMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def simple_mekso_operand(self) -> SimpleMeksoOperandSyntax:
+        'Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.'
+        return cast(SimpleMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoOperandSyntaxSimpleMeksoOperand is final')
+
+MeksoOperandSyntax: TypeAlias = MeksoOperandSyntaxAfterthoughtMeksoOperand | MeksoOperandSyntaxBoundMeksoOperand | MeksoOperandSyntaxSimpleMeksoOperand
+
+@final
+class AfterthoughtMeksoOperandSyntax(_SyntaxNode):
+    'Transparent product node for operand connective; preserves the `operands` component.'
+    __slots__ = ()
+    _schema_id = 280
+    __match_args__ = ('operands',)
+    def __new__(cls, operands: Chain[BoundOrSimpleMeksoOperandSyntax, AfterthoughtMeksoOperandContinuationSyntax]) -> AfterthoughtMeksoOperandSyntax:
+        return cls._from_fields((operands,))
+    def __init__(self, operands: Chain[BoundOrSimpleMeksoOperandSyntax, AfterthoughtMeksoOperandContinuationSyntax]) -> None:
+        pass
+    @property
+    def operands(self) -> Chain[BoundOrSimpleMeksoOperandSyntax, AfterthoughtMeksoOperandContinuationSyntax]:
+        'The source-ordered `operands` chain assembled by the `afterthought_mekso_operand` production.'
+        return cast(Chain[BoundOrSimpleMeksoOperandSyntax, AfterthoughtMeksoOperandContinuationSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AfterthoughtMeksoOperandSyntax is final')
+
+@final
+class AfterthoughtMeksoOperandContinuationSyntax(_SyntaxNode):
+    'Product node for operand continuation; preserves `operand_connective` and `trailing_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 281
+    __match_args__ = ('operand_connective', 'trailing_expression')
+    def __new__(cls, operand_connective: OperandConnectiveSyntax, trailing_expression: BoundOrSimpleMeksoOperandSyntax) -> AfterthoughtMeksoOperandContinuationSyntax:
+        return cls._from_fields((operand_connective, trailing_expression))
+    def __init__(self, operand_connective: OperandConnectiveSyntax, trailing_expression: BoundOrSimpleMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def operand_connective(self) -> OperandConnectiveSyntax:
+        'The `operand_connective` connective joining the adjacent constituents of the `afterthought_mekso_operand_continuation` production.'
+        return cast(OperandConnectiveSyntax, self._field(0))
+    @property
+    def trailing_expression(self) -> BoundOrSimpleMeksoOperandSyntax:
+        'The shared trailing expression child syntax node.'
+        return cast(BoundOrSimpleMeksoOperandSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AfterthoughtMeksoOperandContinuationSyntax is final')
+
+@final
+class BoundOrSimpleMeksoOperandSyntaxBoundMeksoOperand(_SyntaxNode):
+    'Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.'
+    __slots__ = ()
+    _schema_id = 282
+    __match_args__ = ('bound_mekso_operand',)
+    def __new__(cls, bound_mekso_operand: BoundMeksoOperandSyntax) -> BoundOrSimpleMeksoOperandSyntaxBoundMeksoOperand:
+        return cls._from_fields((bound_mekso_operand,))
+    def __init__(self, bound_mekso_operand: BoundMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def bound_mekso_operand(self) -> BoundMeksoOperandSyntax:
+        'Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.'
+        return cast(BoundMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundOrSimpleMeksoOperandSyntaxBoundMeksoOperand is final')
+
+@final
+class BoundOrSimpleMeksoOperandSyntaxSimpleMeksoOperand(_SyntaxNode):
+    'Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 283
+    __match_args__ = ('simple_mekso_operand',)
+    def __new__(cls, simple_mekso_operand: SimpleMeksoOperandSyntax) -> BoundOrSimpleMeksoOperandSyntaxSimpleMeksoOperand:
+        return cls._from_fields((simple_mekso_operand,))
+    def __init__(self, simple_mekso_operand: SimpleMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def simple_mekso_operand(self) -> SimpleMeksoOperandSyntax:
+        'Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.'
+        return cast(SimpleMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundOrSimpleMeksoOperandSyntaxSimpleMeksoOperand is final')
+
+BoundOrSimpleMeksoOperandSyntax: TypeAlias = BoundOrSimpleMeksoOperandSyntaxBoundMeksoOperand | BoundOrSimpleMeksoOperandSyntaxSimpleMeksoOperand
+
+@final
+class BoundMeksoOperandSyntax(_SyntaxNode):
+    'Product node for operand connective; preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 284
+    __match_args__ = ('left_expression', 'operand_connective', 'tense_modal', 'bo', 'right_expression')
+    def __new__(cls, left_expression: SimpleMeksoOperandSyntax, operand_connective: OperandConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], right_expression: MeksoOperandSyntax) -> BoundMeksoOperandSyntax:
+        return cls._from_fields((left_expression, operand_connective, tense_modal, bo, right_expression))
+    def __init__(self, left_expression: SimpleMeksoOperandSyntax, operand_connective: OperandConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], right_expression: MeksoOperandSyntax) -> None:
+        pass
+    @property
+    def left_expression(self) -> SimpleMeksoOperandSyntax:
+        'The shared left expression child syntax node.'
+        return cast(SimpleMeksoOperandSyntax, self._field(0))
+    @property
+    def operand_connective(self) -> OperandConnectiveSyntax:
+        'The `operand_connective` connective joining the adjacent constituents of the `bound_mekso_operand` production.'
+        return cast(OperandConnectiveSyntax, self._field(1))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(2))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(3))
+    @property
+    def right_expression(self) -> MeksoOperandSyntax:
+        'The shared right expression child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundMeksoOperandSyntax is final')
+
+@final
+class SimpleMeksoOperandSyntaxForethoughtMeksoOperand(_SyntaxNode):
+    'Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.'
+    __slots__ = ()
+    _schema_id = 285
+    __match_args__ = ('forethought_mekso_operand',)
+    def __new__(cls, forethought_mekso_operand: ForethoughtMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxForethoughtMeksoOperand:
+        return cls._from_fields((forethought_mekso_operand,))
+    def __init__(self, forethought_mekso_operand: ForethoughtMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def forethought_mekso_operand(self) -> ForethoughtMeksoOperandSyntax:
+        'Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.'
+        return cast(ForethoughtMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxForethoughtMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxQualifiedMeksoOperand(_SyntaxNode):
+    'Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.'
+    __slots__ = ()
+    _schema_id = 286
+    __match_args__ = ('qualified_mekso_operand',)
+    def __new__(cls, qualified_mekso_operand: QualifiedMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxQualifiedMeksoOperand:
+        return cls._from_fields((qualified_mekso_operand,))
+    def __init__(self, qualified_mekso_operand: QualifiedMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def qualified_mekso_operand(self) -> QualifiedMeksoOperandSyntax:
+        'Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.'
+        return cast(QualifiedMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxQualifiedMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxParenthesizedMeksoOperand(_SyntaxNode):
+    'Uses the `parenthesized_mekso_operand` product form, whose payload preserves `vei`, `inner_expression`, and `veho`.'
+    __slots__ = ()
+    _schema_id = 287
+    __match_args__ = ('parenthesized_mekso_operand',)
+    def __new__(cls, parenthesized_mekso_operand: ParenthesizedMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxParenthesizedMeksoOperand:
+        return cls._from_fields((parenthesized_mekso_operand,))
+    def __init__(self, parenthesized_mekso_operand: ParenthesizedMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def parenthesized_mekso_operand(self) -> ParenthesizedMeksoOperandSyntax:
+        'Uses the `parenthesized_mekso_operand` product form, whose payload preserves `vei`, `inner_expression`, and `veho`.'
+        return cast(ParenthesizedMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxParenthesizedMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxSumtiMeksoOperand(_SyntaxNode):
+    'Uses the `sumti_mekso_operand` product form, whose payload preserves `mohe`, `sumti`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 288
+    __match_args__ = ('sumti_mekso_operand',)
+    def __new__(cls, sumti_mekso_operand: SumtiMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxSumtiMeksoOperand:
+        return cls._from_fields((sumti_mekso_operand,))
+    def __init__(self, sumti_mekso_operand: SumtiMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def sumti_mekso_operand(self) -> SumtiMeksoOperandSyntax:
+        'Uses the `sumti_mekso_operand` product form, whose payload preserves `mohe`, `sumti`, and `tehu`.'
+        return cast(SumtiMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxSumtiMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxSelbriMeksoOperand(_SyntaxNode):
+    'Uses the `selbri_mekso_operand` product form, whose payload preserves `nihe`, `selbri`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 289
+    __match_args__ = ('selbri_mekso_operand',)
+    def __new__(cls, selbri_mekso_operand: SelbriMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxSelbriMeksoOperand:
+        return cls._from_fields((selbri_mekso_operand,))
+    def __init__(self, selbri_mekso_operand: SelbriMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def selbri_mekso_operand(self) -> SelbriMeksoOperandSyntax:
+        'Uses the `selbri_mekso_operand` product form, whose payload preserves `nihe`, `selbri`, and `tehu`.'
+        return cast(SelbriMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxSelbriMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxArrayMeksoOperand(_SyntaxNode):
+    'Uses the `array_mekso_operand` product form, whose payload preserves `johi`, `expressions`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 290
+    __match_args__ = ('array_mekso_operand',)
+    def __new__(cls, array_mekso_operand: ArrayMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxArrayMeksoOperand:
+        return cls._from_fields((array_mekso_operand,))
+    def __init__(self, array_mekso_operand: ArrayMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def array_mekso_operand(self) -> ArrayMeksoOperandSyntax:
+        'Uses the `array_mekso_operand` product form, whose payload preserves `johi`, `expressions`, and `tehu`.'
+        return cast(ArrayMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxArrayMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxNumberMekso(_SyntaxNode):
+    'Uses the `number_mekso` product form, whose payload preserves `quantifier`.'
+    __slots__ = ()
+    _schema_id = 291
+    __match_args__ = ('number_mekso',)
+    def __new__(cls, number_mekso: NumberMeksoSyntax) -> SimpleMeksoOperandSyntaxNumberMekso:
+        return cls._from_fields((number_mekso,))
+    def __init__(self, number_mekso: NumberMeksoSyntax) -> None:
+        pass
+    @property
+    def number_mekso(self) -> NumberMeksoSyntax:
+        'Uses the `number_mekso` product form, whose payload preserves `quantifier`.'
+        return cast(NumberMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxNumberMekso is final')
+
+@final
+class SimpleMeksoOperandSyntaxLerfuStringMekso(_SyntaxNode):
+    'Uses the `lerfu_string_mekso` product form, whose payload preserves `letters`, `boi`, and `free_modifiers`.'
+    __slots__ = ()
+    _schema_id = 292
+    __match_args__ = ('lerfu_string_mekso',)
+    def __new__(cls, lerfu_string_mekso: LerfuStringMeksoSyntax) -> SimpleMeksoOperandSyntaxLerfuStringMekso:
+        return cls._from_fields((lerfu_string_mekso,))
+    def __init__(self, lerfu_string_mekso: LerfuStringMeksoSyntax) -> None:
+        pass
+    @property
+    def lerfu_string_mekso(self) -> LerfuStringMeksoSyntax:
+        'Uses the `lerfu_string_mekso` product form, whose payload preserves `letters`, `boi`, and `free_modifiers`.'
+        return cast(LerfuStringMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxLerfuStringMekso is final')
+
+@final
+class SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand(_SyntaxNode):
+    'Uses the `zantufa_scalar_negated_mekso_operand` product form, whose payload preserves `nahe` and `inner_expression`.'
+    __slots__ = ()
+    _schema_id = 293
+    __match_args__ = ('zantufa_scalar_negated_mekso_operand',)
+    def __new__(cls, zantufa_scalar_negated_mekso_operand: ZantufaScalarNegatedMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand:
+        return cls._from_fields((zantufa_scalar_negated_mekso_operand,))
+    def __init__(self, zantufa_scalar_negated_mekso_operand: ZantufaScalarNegatedMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def zantufa_scalar_negated_mekso_operand(self) -> ZantufaScalarNegatedMeksoOperandSyntax:
+        'Uses the `zantufa_scalar_negated_mekso_operand` product form, whose payload preserves `nahe` and `inner_expression`.'
+        return cast(ZantufaScalarNegatedMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand is final')
+
+@final
+class SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand(_SyntaxNode):
+    'Uses the `zantufa_selbri_mohe_mekso_operand` product form, whose payload preserves `mohe`, `selbri`, and `tehu`.'
+    __slots__ = ()
+    _schema_id = 294
+    __match_args__ = ('zantufa_selbri_mohe_mekso_operand',)
+    def __new__(cls, zantufa_selbri_mohe_mekso_operand: ZantufaSelbriMoheMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand:
+        return cls._from_fields((zantufa_selbri_mohe_mekso_operand,))
+    def __init__(self, zantufa_selbri_mohe_mekso_operand: ZantufaSelbriMoheMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def zantufa_selbri_mohe_mekso_operand(self) -> ZantufaSelbriMoheMeksoOperandSyntax:
+        'Uses the `zantufa_selbri_mohe_mekso_operand` product form, whose payload preserves `mohe`, `selbri`, and `tehu`.'
+        return cast(ZantufaSelbriMoheMeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand is final')
+
+SimpleMeksoOperandSyntax: TypeAlias = SimpleMeksoOperandSyntaxForethoughtMeksoOperand | SimpleMeksoOperandSyntaxQualifiedMeksoOperand | SimpleMeksoOperandSyntaxParenthesizedMeksoOperand | SimpleMeksoOperandSyntaxSumtiMeksoOperand | SimpleMeksoOperandSyntaxSelbriMeksoOperand | SimpleMeksoOperandSyntaxArrayMeksoOperand | SimpleMeksoOperandSyntaxNumberMekso | SimpleMeksoOperandSyntaxLerfuStringMekso | SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand | SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand
+
+@final
+class ZantufaScalarNegatedMeksoOperandSyntax(_SyntaxNode):
+    'Product node for scalar-negated operand; preserves `nahe` and `inner_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 295
+    __match_args__ = ('nahe', 'inner_expression')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_expression: MeksoOperandSyntax) -> ZantufaScalarNegatedMeksoOperandSyntax:
+        return cls._from_fields((nahe, inner_expression))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_expression: MeksoOperandSyntax) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_expression(self) -> MeksoOperandSyntax:
+        'The shared inner expression child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaScalarNegatedMeksoOperandSyntax is final')
+
+@final
+class QualifiedMeksoOperandSyntax(_SyntaxNode):
+    'Product node for qualified operand; preserves `nahe`, `bo`, `inner_expression`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 296
+    __match_args__ = ('nahe', 'bo', 'inner_expression', 'luhu')
+    def __new__(cls, nahe: Token, bo: Token, inner_expression: MeksoOperandSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> QualifiedMeksoOperandSyntax:
+        return cls._from_fields((nahe, bo, inner_expression, luhu))
+    def __init__(self, nahe: Token, bo: Token, inner_expression: MeksoOperandSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> Token:
+        'A word from selmaho `Nahe`.'
+        return cast(Token, self._field(0))
+    @property
+    def bo(self) -> Token:
+        'The `Bo` cmavo marker.'
+        return cast(Token, self._field(1))
+    @property
+    def inner_expression(self) -> MeksoOperandSyntax:
+        'The shared inner expression child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(2))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QualifiedMeksoOperandSyntax is final')
+
+@final
+class ForethoughtMeksoOperandSyntax(_SyntaxNode):
+    'Product node for forethought mex; preserves `gek`, `left_expression`, `gik`, and `right_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 297
+    __match_args__ = ('gek', 'left_expression', 'gik', 'right_expression')
+    def __new__(cls, gek: ModalForethoughtConnectiveSyntax, left_expression: MeksoOperandSyntax, gik: GikConnectiveSyntax, right_expression: MeksoOperandSyntax) -> ForethoughtMeksoOperandSyntax:
+        return cls._from_fields((gek, left_expression, gik, right_expression))
+    def __init__(self, gek: ModalForethoughtConnectiveSyntax, left_expression: MeksoOperandSyntax, gik: GikConnectiveSyntax, right_expression: MeksoOperandSyntax) -> None:
+        pass
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The `modal_forethought_connective` forethought connective opening the paired branches of the `forethought_mekso_operand` production.'
+        return cast(ModalForethoughtConnectiveSyntax, self._field(0))
+    @property
+    def left_expression(self) -> MeksoOperandSyntax:
+        'The shared left expression child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(1))
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operand` production.'
+        return cast(GikConnectiveSyntax, self._field(2))
+    @property
+    def right_expression(self) -> MeksoOperandSyntax:
+        'The shared right expression child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtMeksoOperandSyntax is final')
+
+@final
+class SumtiMeksoOperandSyntax(_SyntaxNode):
+    'Product node for sumti operand; preserves `mohe`, `sumti`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 298
+    __match_args__ = ('mohe', 'sumti', 'tehu')
+    def __new__(cls, mohe: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SumtiMeksoOperandSyntax:
+        return cls._from_fields((mohe, sumti, tehu))
+    def __init__(self, mohe: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def mohe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Mohe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiMeksoOperandSyntax is final')
+
+@final
+class ZantufaSelbriMoheMeksoOperandSyntax(_SyntaxNode):
+    'Product node for selbri operand; preserves `mohe`, `selbri`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 299
+    __match_args__ = ('mohe', 'selbri', 'tehu')
+    def __new__(cls, mohe: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaSelbriMoheMeksoOperandSyntax:
+        return cls._from_fields((mohe, selbri, tehu))
+    def __init__(self, mohe: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def mohe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Mohe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaSelbriMoheMeksoOperandSyntax is final')
+
+@final
+class SelbriMeksoOperandSyntax(_SyntaxNode):
+    'Product node for selbri operand; preserves `nihe`, `selbri`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 300
+    __match_args__ = ('nihe', 'selbri', 'tehu')
+    def __new__(cls, nihe: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SelbriMeksoOperandSyntax:
+        return cls._from_fields((nihe, selbri, tehu))
+    def __init__(self, nihe: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nihe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Nihe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriMeksoOperandSyntax is final')
+
+@final
+class ParenthesizedMeksoOperandSyntax(_SyntaxNode):
+    'Product node for parenthesized mex; preserves `vei`, `inner_expression`, and `veho` in source order.'
+    __slots__ = ()
+    _schema_id = 301
+    __match_args__ = ('vei', 'inner_expression', 'veho')
+    def __new__(cls, vei: WithFreeModifiers[Token, FreeModifierSyntax], inner_expression: MeksoSyntax, veho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ParenthesizedMeksoOperandSyntax:
+        return cls._from_fields((vei, inner_expression, veho))
+    def __init__(self, vei: WithFreeModifiers[Token, FreeModifierSyntax], inner_expression: MeksoSyntax, veho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def vei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Vei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_expression(self) -> MeksoSyntax:
+        'The shared inner expression child syntax node.'
+        return cast(MeksoSyntax, self._field(1))
+    @property
+    def veho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Veho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParenthesizedMeksoOperandSyntax is final')
+
+@final
+class ArrayMeksoOperandSyntax(_SyntaxNode):
+    'Product node for mekso array; preserves `johi`, `expressions`, and `tehu` in source order.'
+    __slots__ = ()
+    _schema_id = 302
+    __match_args__ = ('johi', 'expressions', 'tehu')
+    def __new__(cls, johi: WithFreeModifiers[Token, FreeModifierSyntax], expressions: Sequence[MeksoSyntax], tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ArrayMeksoOperandSyntax:
+        return cls._from_fields((johi, expressions, tehu))
+    def __init__(self, johi: WithFreeModifiers[Token, FreeModifierSyntax], expressions: Sequence[MeksoSyntax], tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def johi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Johi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def expressions(self) -> tuple[MeksoSyntax, ...]:
+        'Non-empty ordered sequence of expressions components.'
+        return cast(tuple[MeksoSyntax, ...], self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Tehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ArrayMeksoOperandSyntax is final')
+
+@final
+class LetterStringSyntax(_SyntaxNode):
+    'Product node for lerfu string; preserves `first_letter` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 303
+    __match_args__ = ('first_letter', 'continuations')
+    def __new__(cls, first_letter: LetterTokensSyntax, continuations: Sequence[LetterStringContinuationSyntax]) -> LetterStringSyntax:
+        return cls._from_fields((first_letter, continuations))
+    def __init__(self, first_letter: LetterTokensSyntax, continuations: Sequence[LetterStringContinuationSyntax]) -> None:
+        pass
+    @property
+    def first_letter(self) -> LetterTokensSyntax:
+        'The shared first letter child syntax node.'
+        return cast(LetterTokensSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[LetterStringContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[LetterStringContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterStringSyntax is final')
+
+@final
+class LetterStringContinuationSyntaxLetterStringPaContinuation(_SyntaxNode):
+    'Uses the `letter_string_pa_continuation` product form, whose payload preserves `pa`.'
+    __slots__ = ()
+    _schema_id = 304
+    __match_args__ = ('letter_string_pa_continuation',)
+    def __new__(cls, letter_string_pa_continuation: LetterStringPaContinuationSyntax) -> LetterStringContinuationSyntaxLetterStringPaContinuation:
+        return cls._from_fields((letter_string_pa_continuation,))
+    def __init__(self, letter_string_pa_continuation: LetterStringPaContinuationSyntax) -> None:
+        pass
+    @property
+    def letter_string_pa_continuation(self) -> LetterStringPaContinuationSyntax:
+        'Uses the `letter_string_pa_continuation` product form, whose payload preserves `pa`.'
+        return cast(LetterStringPaContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterStringContinuationSyntaxLetterStringPaContinuation is final')
+
+@final
+class LetterStringContinuationSyntaxLetterStringLerfuContinuation(_SyntaxNode):
+    'Uses the `letter_string_lerfu_continuation` product form, whose payload preserves `letter`.'
+    __slots__ = ()
+    _schema_id = 305
+    __match_args__ = ('letter_string_lerfu_continuation',)
+    def __new__(cls, letter_string_lerfu_continuation: LetterStringLerfuContinuationSyntax) -> LetterStringContinuationSyntaxLetterStringLerfuContinuation:
+        return cls._from_fields((letter_string_lerfu_continuation,))
+    def __init__(self, letter_string_lerfu_continuation: LetterStringLerfuContinuationSyntax) -> None:
+        pass
+    @property
+    def letter_string_lerfu_continuation(self) -> LetterStringLerfuContinuationSyntax:
+        'Uses the `letter_string_lerfu_continuation` product form, whose payload preserves `letter`.'
+        return cast(LetterStringLerfuContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterStringContinuationSyntaxLetterStringLerfuContinuation is final')
+
+LetterStringContinuationSyntax: TypeAlias = LetterStringContinuationSyntaxLetterStringPaContinuation | LetterStringContinuationSyntaxLetterStringLerfuContinuation
+
+@final
+class LetterStringPaContinuationSyntax(_SyntaxNode):
+    'Transparent product node for lerfu string continuation; preserves the `pa` component.'
+    __slots__ = ()
+    _schema_id = 306
+    __match_args__ = ('pa',)
+    def __new__(cls, pa: Token) -> LetterStringPaContinuationSyntax:
+        return cls._from_fields((pa,))
+    def __init__(self, pa: Token) -> None:
+        pass
+    @property
+    def pa(self) -> Token:
+        'The `pa_word` grammar result in the `pa` structural role of the `letter_string_pa_continuation` production.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterStringPaContinuationSyntax is final')
+
+@final
+class LetterStringLerfuContinuationSyntax(_SyntaxNode):
+    'Transparent product node for lerfu string continuation; preserves the `letter` component.'
+    __slots__ = ()
+    _schema_id = 307
+    __match_args__ = ('letter',)
+    def __new__(cls, letter: LetterTokensSyntax) -> LetterStringLerfuContinuationSyntax:
+        return cls._from_fields((letter,))
+    def __init__(self, letter: LetterTokensSyntax) -> None:
+        pass
+    @property
+    def letter(self) -> LetterTokensSyntax:
+        'The shared letter child syntax node.'
+        return cast(LetterTokensSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterStringLerfuContinuationSyntax is final')
+
+@final
+class NumberWordsSyntax(_SyntaxNode):
+    'Product node for number; preserves `first_number` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 308
+    __match_args__ = ('first_number', 'continuations')
+    def __new__(cls, first_number: Token, continuations: Sequence[NumberWordContinuationSyntax]) -> NumberWordsSyntax:
+        return cls._from_fields((first_number, continuations))
+    def __init__(self, first_number: Token, continuations: Sequence[NumberWordContinuationSyntax]) -> None:
+        pass
+    @property
+    def first_number(self) -> Token:
+        'The initial `pa_word` constituent before the continuations of the `number_words` production.'
+        return cast(Token, self._field(0))
+    @property
+    def continuations(self) -> tuple[NumberWordContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[NumberWordContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberWordsSyntax is final')
+
+@final
+class NumberWordContinuationSyntaxNumberWordPaContinuation(_SyntaxNode):
+    'Uses the `number_word_pa_continuation` product form, whose payload preserves `pa`.'
+    __slots__ = ()
+    _schema_id = 309
+    __match_args__ = ('number_word_pa_continuation',)
+    def __new__(cls, number_word_pa_continuation: NumberWordPaContinuationSyntax) -> NumberWordContinuationSyntaxNumberWordPaContinuation:
+        return cls._from_fields((number_word_pa_continuation,))
+    def __init__(self, number_word_pa_continuation: NumberWordPaContinuationSyntax) -> None:
+        pass
+    @property
+    def number_word_pa_continuation(self) -> NumberWordPaContinuationSyntax:
+        'Uses the `number_word_pa_continuation` product form, whose payload preserves `pa`.'
+        return cast(NumberWordPaContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberWordContinuationSyntaxNumberWordPaContinuation is final')
+
+@final
+class NumberWordContinuationSyntaxNumberWordLerfuContinuation(_SyntaxNode):
+    'Uses the `number_word_lerfu_continuation` product form, whose payload preserves `letter`.'
+    __slots__ = ()
+    _schema_id = 310
+    __match_args__ = ('number_word_lerfu_continuation',)
+    def __new__(cls, number_word_lerfu_continuation: NumberWordLerfuContinuationSyntax) -> NumberWordContinuationSyntaxNumberWordLerfuContinuation:
+        return cls._from_fields((number_word_lerfu_continuation,))
+    def __init__(self, number_word_lerfu_continuation: NumberWordLerfuContinuationSyntax) -> None:
+        pass
+    @property
+    def number_word_lerfu_continuation(self) -> NumberWordLerfuContinuationSyntax:
+        'Uses the `number_word_lerfu_continuation` product form, whose payload preserves `letter`.'
+        return cast(NumberWordLerfuContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberWordContinuationSyntaxNumberWordLerfuContinuation is final')
+
+NumberWordContinuationSyntax: TypeAlias = NumberWordContinuationSyntaxNumberWordPaContinuation | NumberWordContinuationSyntaxNumberWordLerfuContinuation
+
+@final
+class NumberWordPaContinuationSyntax(_SyntaxNode):
+    'Transparent product node for number continuation; preserves the `pa` component.'
+    __slots__ = ()
+    _schema_id = 311
+    __match_args__ = ('pa',)
+    def __new__(cls, pa: Token) -> NumberWordPaContinuationSyntax:
+        return cls._from_fields((pa,))
+    def __init__(self, pa: Token) -> None:
+        pass
+    @property
+    def pa(self) -> Token:
+        'The `pa_word` grammar result in the `pa` structural role of the `number_word_pa_continuation` production.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberWordPaContinuationSyntax is final')
+
+@final
+class NumberWordLerfuContinuationSyntax(_SyntaxNode):
+    'Transparent product node for number continuation; preserves the `letter` component.'
+    __slots__ = ()
+    _schema_id = 312
+    __match_args__ = ('letter',)
+    def __new__(cls, letter: LetterTokensSyntax) -> NumberWordLerfuContinuationSyntax:
+        return cls._from_fields((letter,))
+    def __init__(self, letter: LetterTokensSyntax) -> None:
+        pass
+    @property
+    def letter(self) -> LetterTokensSyntax:
+        'The shared letter child syntax node.'
+        return cast(LetterTokensSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberWordLerfuContinuationSyntax is final')
+
+@final
+class NumberOrLetterWordsSyntaxNumberWords(_SyntaxNode):
+    'Uses the `number_words` product form, whose payload preserves `first_number` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 313
+    __match_args__ = ('number_words',)
+    def __new__(cls, number_words: NumberWordsSyntax) -> NumberOrLetterWordsSyntaxNumberWords:
+        return cls._from_fields((number_words,))
+    def __init__(self, number_words: NumberWordsSyntax) -> None:
+        pass
+    @property
+    def number_words(self) -> NumberWordsSyntax:
+        'Uses the `number_words` product form, whose payload preserves `first_number` and `continuations`.'
+        return cast(NumberWordsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberOrLetterWordsSyntaxNumberWords is final')
+
+@final
+class NumberOrLetterWordsSyntaxLetterString(_SyntaxNode):
+    'Uses the `letter_string` product form, whose payload preserves `first_letter` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 314
+    __match_args__ = ('letter_string',)
+    def __new__(cls, letter_string: LetterStringSyntax) -> NumberOrLetterWordsSyntaxLetterString:
+        return cls._from_fields((letter_string,))
+    def __init__(self, letter_string: LetterStringSyntax) -> None:
+        pass
+    @property
+    def letter_string(self) -> LetterStringSyntax:
+        'Uses the `letter_string` product form, whose payload preserves `first_letter` and `continuations`.'
+        return cast(LetterStringSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberOrLetterWordsSyntaxLetterString is final')
+
+NumberOrLetterWordsSyntax: TypeAlias = NumberOrLetterWordsSyntaxNumberWords | NumberOrLetterWordsSyntaxLetterString
+
+@final
+class LetterTokensSyntaxSimpleLerfuWord(_SyntaxNode):
+    'Uses the `simple_lerfu_word` product form, whose payload preserves `word`.'
+    __slots__ = ()
+    _schema_id = 315
+    __match_args__ = ('simple_lerfu_word',)
+    def __new__(cls, simple_lerfu_word: SimpleLerfuWordSyntax) -> LetterTokensSyntaxSimpleLerfuWord:
+        return cls._from_fields((simple_lerfu_word,))
+    def __init__(self, simple_lerfu_word: SimpleLerfuWordSyntax) -> None:
+        pass
+    @property
+    def simple_lerfu_word(self) -> SimpleLerfuWordSyntax:
+        'Uses the `simple_lerfu_word` product form, whose payload preserves `word`.'
+        return cast(SimpleLerfuWordSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterTokensSyntaxSimpleLerfuWord is final')
+
+@final
+class LetterTokensSyntaxLauLerfuWord(_SyntaxNode):
+    'Uses the `lau_lerfu_word` product form, whose payload preserves `lau` and `letter`.'
+    __slots__ = ()
+    _schema_id = 316
+    __match_args__ = ('lau_lerfu_word',)
+    def __new__(cls, lau_lerfu_word: LauLerfuWordSyntax) -> LetterTokensSyntaxLauLerfuWord:
+        return cls._from_fields((lau_lerfu_word,))
+    def __init__(self, lau_lerfu_word: LauLerfuWordSyntax) -> None:
+        pass
+    @property
+    def lau_lerfu_word(self) -> LauLerfuWordSyntax:
+        'Uses the `lau_lerfu_word` product form, whose payload preserves `lau` and `letter`.'
+        return cast(LauLerfuWordSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterTokensSyntaxLauLerfuWord is final')
+
+@final
+class LetterTokensSyntaxTeiLerfuWord(_SyntaxNode):
+    'Uses the `tei_lerfu_word` product form, whose payload preserves `tei`, `letters`, and `foi`.'
+    __slots__ = ()
+    _schema_id = 317
+    __match_args__ = ('tei_lerfu_word',)
+    def __new__(cls, tei_lerfu_word: TeiLerfuWordSyntax) -> LetterTokensSyntaxTeiLerfuWord:
+        return cls._from_fields((tei_lerfu_word,))
+    def __init__(self, tei_lerfu_word: TeiLerfuWordSyntax) -> None:
+        pass
+    @property
+    def tei_lerfu_word(self) -> TeiLerfuWordSyntax:
+        'Uses the `tei_lerfu_word` product form, whose payload preserves `tei`, `letters`, and `foi`.'
+        return cast(TeiLerfuWordSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LetterTokensSyntaxTeiLerfuWord is final')
+
+LetterTokensSyntax: TypeAlias = LetterTokensSyntaxSimpleLerfuWord | LetterTokensSyntaxLauLerfuWord | LetterTokensSyntaxTeiLerfuWord
+
+@final
+class SimpleLerfuWordSyntax(_SyntaxNode):
+    'Transparent product node for lerfu word; preserves the `word` component.'
+    __slots__ = ()
+    _schema_id = 318
+    __match_args__ = ('word',)
+    def __new__(cls, word: Token) -> SimpleLerfuWordSyntax:
+        return cls._from_fields((word,))
+    def __init__(self, word: Token) -> None:
+        pass
+    @property
+    def word(self) -> Token:
+        'The `word_category` grammar result in the `word` structural role of the `simple_lerfu_word` production.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleLerfuWordSyntax is final')
+
+@final
+class LauLerfuWordSyntax(_SyntaxNode):
+    'Product node for lerfu word; preserves `lau` and `letter` in source order.'
+    __slots__ = ()
+    _schema_id = 319
+    __match_args__ = ('lau', 'letter')
+    def __new__(cls, lau: Token, letter: LetterTokensSyntax) -> LauLerfuWordSyntax:
+        return cls._from_fields((lau, letter))
+    def __init__(self, lau: Token, letter: LetterTokensSyntax) -> None:
+        pass
+    @property
+    def lau(self) -> Token:
+        'A word from selmaho `Lau`.'
+        return cast(Token, self._field(0))
+    @property
+    def letter(self) -> LetterTokensSyntax:
+        'The shared letter child syntax node.'
+        return cast(LetterTokensSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LauLerfuWordSyntax is final')
+
+@final
+class TeiLerfuWordSyntax(_SyntaxNode):
+    'Product node for lerfu word; preserves `tei`, `letters`, and `foi` in source order.'
+    __slots__ = ()
+    _schema_id = 320
+    __match_args__ = ('tei', 'letters', 'foi')
+    def __new__(cls, tei: Token, letters: LetterStringSyntax, foi: Token) -> TeiLerfuWordSyntax:
+        return cls._from_fields((tei, letters, foi))
+    def __init__(self, tei: Token, letters: LetterStringSyntax, foi: Token) -> None:
+        pass
+    @property
+    def tei(self) -> Token:
+        'The `Tei` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def letters(self) -> LetterStringSyntax:
+        'The shared letters child syntax node.'
+        return cast(LetterStringSyntax, self._field(1))
+    @property
+    def foi(self) -> Token:
+        'The `Foi` cmavo marker.'
+        return cast(Token, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TeiLerfuWordSyntax is final')
+
+@final
+class LerfuStringMeksoSyntax(_SyntaxNode):
+    'Product node for lerfu string; preserves `letters`, `boi`, and `free_modifiers` in source order.'
+    __slots__ = ()
+    _schema_id = 321
+    __match_args__ = ('letters', 'boi', 'free_modifiers')
+    def __new__(cls, letters: LetterStringSyntax, boi: Token | None, free_modifiers: Sequence[FreeModifierSyntax]) -> LerfuStringMeksoSyntax:
+        return cls._from_fields((letters, boi, free_modifiers))
+    def __init__(self, letters: LetterStringSyntax, boi: Token | None, free_modifiers: Sequence[FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def letters(self) -> LetterStringSyntax:
+        'The `letter_string` grammar result in the `letters` structural role of the `lerfu_string_mekso` production.'
+        return cast(LetterStringSyntax, self._field(0))
+    @property
+    def boi(self) -> Token | None:
+        'The optional `Boi` cmavo marker.'
+        return cast(Token | None, self._field(1))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LerfuStringMeksoSyntax is final')
+
+@final
+class MeksoBaseSyntaxZantufaBoGroupedMeksoBase(_SyntaxNode):
+    'Uses the `zantufa_bo_grouped_mekso_base` product form, whose payload preserves `first` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 322
+    __match_args__ = ('zantufa_bo_grouped_mekso_base',)
+    def __new__(cls, zantufa_bo_grouped_mekso_base: ZantufaBoGroupedMeksoBaseSyntax) -> MeksoBaseSyntaxZantufaBoGroupedMeksoBase:
+        return cls._from_fields((zantufa_bo_grouped_mekso_base,))
+    def __init__(self, zantufa_bo_grouped_mekso_base: ZantufaBoGroupedMeksoBaseSyntax) -> None:
+        pass
+    @property
+    def zantufa_bo_grouped_mekso_base(self) -> ZantufaBoGroupedMeksoBaseSyntax:
+        'Uses the `zantufa_bo_grouped_mekso_base` product form, whose payload preserves `first` and `continuations`.'
+        return cast(ZantufaBoGroupedMeksoBaseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoBaseSyntaxZantufaBoGroupedMeksoBase is final')
+
+@final
+class MeksoBaseSyntaxMeksoOperand(_SyntaxNode):
+    'Uses the nested `mekso_operand` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 323
+    __match_args__ = ('mekso_operand',)
+    def __new__(cls, mekso_operand: MeksoOperandSyntax) -> MeksoBaseSyntaxMeksoOperand:
+        return cls._from_fields((mekso_operand,))
+    def __init__(self, mekso_operand: MeksoOperandSyntax) -> None:
+        pass
+    @property
+    def mekso_operand(self) -> MeksoOperandSyntax:
+        'Uses the nested `mekso_operand` sum form and preserves its selected alternative.'
+        return cast(MeksoOperandSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoBaseSyntaxMeksoOperand is final')
+
+@final
+class MeksoBaseSyntaxForethoughtCallMekso(_SyntaxNode):
+    'Uses the `forethought_call_mekso` product form, whose payload preserves `peho`, `operator`, `operands`, and `kuhe`.'
+    __slots__ = ()
+    _schema_id = 324
+    __match_args__ = ('forethought_call_mekso',)
+    def __new__(cls, forethought_call_mekso: ForethoughtCallMeksoSyntax) -> MeksoBaseSyntaxForethoughtCallMekso:
+        return cls._from_fields((forethought_call_mekso,))
+    def __init__(self, forethought_call_mekso: ForethoughtCallMeksoSyntax) -> None:
+        pass
+    @property
+    def forethought_call_mekso(self) -> ForethoughtCallMeksoSyntax:
+        'Uses the `forethought_call_mekso` product form, whose payload preserves `peho`, `operator`, `operands`, and `kuhe`.'
+        return cast(ForethoughtCallMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoBaseSyntaxForethoughtCallMekso is final')
+
+@final
+class MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence(_SyntaxNode):
+    'Uses the `zantufa_grouped_mekso_operand_sequence` product form, whose payload preserves `ke`, `operands`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 325
+    __match_args__ = ('zantufa_grouped_mekso_operand_sequence',)
+    def __new__(cls, zantufa_grouped_mekso_operand_sequence: ZantufaGroupedMeksoOperandSequenceSyntax) -> MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence:
+        return cls._from_fields((zantufa_grouped_mekso_operand_sequence,))
+    def __init__(self, zantufa_grouped_mekso_operand_sequence: ZantufaGroupedMeksoOperandSequenceSyntax) -> None:
+        pass
+    @property
+    def zantufa_grouped_mekso_operand_sequence(self) -> ZantufaGroupedMeksoOperandSequenceSyntax:
+        'Uses the `zantufa_grouped_mekso_operand_sequence` product form, whose payload preserves `ke`, `operands`, and `kehe`.'
+        return cast(ZantufaGroupedMeksoOperandSequenceSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence is final')
+
+MeksoBaseSyntax: TypeAlias = MeksoBaseSyntaxZantufaBoGroupedMeksoBase | MeksoBaseSyntaxMeksoOperand | MeksoBaseSyntaxForethoughtCallMekso | MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence
+
+@final
+class ZantufaBoGroupedMeksoBaseSyntax(_SyntaxNode):
+    'Product node for grouped mex; preserves `first` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 326
+    __match_args__ = ('first', 'continuations')
+    def __new__(cls, first: MeksoOperandSyntax, continuations: Sequence[ZantufaBoGroupedMeksoContinuationSyntax]) -> ZantufaBoGroupedMeksoBaseSyntax:
+        return cls._from_fields((first, continuations))
+    def __init__(self, first: MeksoOperandSyntax, continuations: Sequence[ZantufaBoGroupedMeksoContinuationSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> MeksoOperandSyntax:
+        'The shared first child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[ZantufaBoGroupedMeksoContinuationSyntax, ...]:
+        'Non-empty ordered sequence of continuations components.'
+        return cast(tuple[ZantufaBoGroupedMeksoContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaBoGroupedMeksoBaseSyntax is final')
+
+@final
+class ZantufaBoGroupedMeksoContinuationSyntax(_SyntaxNode):
+    'Product node for grouped mex; preserves `bo` and `expression` in source order.'
+    __slots__ = ()
+    _schema_id = 327
+    __match_args__ = ('bo', 'expression')
+    def __new__(cls, bo: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoOperandSyntax) -> ZantufaBoGroupedMeksoContinuationSyntax:
+        return cls._from_fields((bo, expression))
+    def __init__(self, bo: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoOperandSyntax) -> None:
+        pass
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def expression(self) -> MeksoOperandSyntax:
+        'The shared expression child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaBoGroupedMeksoContinuationSyntax is final')
+
+@final
+class ZantufaGroupedMeksoOperandSequenceSyntax(_SyntaxNode):
+    'Product node for grouped mex; preserves `ke`, `operands`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 328
+    __match_args__ = ('ke', 'operands', 'kehe')
+    def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], operands: Sequence[MeksoOperandSyntax], kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaGroupedMeksoOperandSequenceSyntax:
+        return cls._from_fields((ke, operands, kehe))
+    def __init__(self, ke: WithFreeModifiers[Token, FreeModifierSyntax], operands: Sequence[MeksoOperandSyntax], kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def operands(self) -> tuple[MeksoOperandSyntax, ...]:
+        'Non-empty ordered sequence of operands components.'
+        return cast(tuple[MeksoOperandSyntax, ...], self._field(1))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaGroupedMeksoOperandSequenceSyntax is final')
+
+@final
+class MeksoPrecedenceSyntax(_SyntaxNode):
+    'Product node for mex; preserves `left_expression` and `tail` in source order.'
+    __slots__ = ()
+    _schema_id = 329
+    __match_args__ = ('left_expression', 'tail')
+    def __new__(cls, left_expression: MeksoBaseSyntax, tail: MeksoPrecedenceTailSyntax | None) -> MeksoPrecedenceSyntax:
+        return cls._from_fields((left_expression, tail))
+    def __init__(self, left_expression: MeksoBaseSyntax, tail: MeksoPrecedenceTailSyntax | None) -> None:
+        pass
+    @property
+    def left_expression(self) -> MeksoBaseSyntax:
+        'The shared left expression child syntax node.'
+        return cast(MeksoBaseSyntax, self._field(0))
+    @property
+    def tail(self) -> MeksoPrecedenceTailSyntax | None:
+        'The optional tail component.'
+        return cast(MeksoPrecedenceTailSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoPrecedenceSyntax is final')
+
+@final
+class MeksoPrecedenceTailSyntax(_SyntaxNode):
+    'Product node for mex precedence tail; preserves `bihe`, `operator`, and `right_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 330
+    __match_args__ = ('bihe', 'operator', 'right_expression')
+    def __new__(cls, bihe: WithFreeModifiers[Token, FreeModifierSyntax], operator: MeksoOperatorSyntax, right_expression: MeksoPrecedenceSyntax) -> MeksoPrecedenceTailSyntax:
+        return cls._from_fields((bihe, operator, right_expression))
+    def __init__(self, bihe: WithFreeModifiers[Token, FreeModifierSyntax], operator: MeksoOperatorSyntax, right_expression: MeksoPrecedenceSyntax) -> None:
+        pass
+    @property
+    def bihe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bihe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def operator(self) -> MeksoOperatorSyntax:
+        'The shared operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    @property
+    def right_expression(self) -> MeksoPrecedenceSyntax:
+        'The shared right expression child syntax node.'
+        return cast(MeksoPrecedenceSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoPrecedenceTailSyntax is final')
+
+@final
+class InfixMeksoSyntax(_SyntaxNode):
+    'Product node for mex; preserves `first_expression` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 331
+    __match_args__ = ('first_expression', 'continuations')
+    def __new__(cls, first_expression: MeksoPrecedenceSyntax, continuations: Sequence[InfixMeksoContinuationSyntax]) -> InfixMeksoSyntax:
+        return cls._from_fields((first_expression, continuations))
+    def __init__(self, first_expression: MeksoPrecedenceSyntax, continuations: Sequence[InfixMeksoContinuationSyntax]) -> None:
+        pass
+    @property
+    def first_expression(self) -> MeksoPrecedenceSyntax:
+        'The shared first expression child syntax node.'
+        return cast(MeksoPrecedenceSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[InfixMeksoContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[InfixMeksoContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('InfixMeksoSyntax is final')
+
+@final
+class InfixMeksoContinuationSyntax(_SyntaxNode):
+    'Product node for mex continuation; preserves `operator` and `right_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 332
+    __match_args__ = ('operator', 'right_expression')
+    def __new__(cls, operator: MeksoOperatorSyntax, right_expression: MeksoPrecedenceSyntax) -> InfixMeksoContinuationSyntax:
+        return cls._from_fields((operator, right_expression))
+    def __init__(self, operator: MeksoOperatorSyntax, right_expression: MeksoPrecedenceSyntax) -> None:
+        pass
+    @property
+    def operator(self) -> MeksoOperatorSyntax:
+        'The shared operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(0))
+    @property
+    def right_expression(self) -> MeksoPrecedenceSyntax:
+        'The shared right expression child syntax node.'
+        return cast(MeksoPrecedenceSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('InfixMeksoContinuationSyntax is final')
+
+@final
+class ZantufaInfixMeksoSyntax(_SyntaxNode):
+    'Product node for mex; preserves `first_expression` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 333
+    __match_args__ = ('first_expression', 'continuations')
+    def __new__(cls, first_expression: MeksoPrecedenceSyntax, continuations: Sequence[ZantufaInfixMeksoContinuationSyntax]) -> ZantufaInfixMeksoSyntax:
+        return cls._from_fields((first_expression, continuations))
+    def __init__(self, first_expression: MeksoPrecedenceSyntax, continuations: Sequence[ZantufaInfixMeksoContinuationSyntax]) -> None:
+        pass
+    @property
+    def first_expression(self) -> MeksoPrecedenceSyntax:
+        'The shared first expression child syntax node.'
+        return cast(MeksoPrecedenceSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[ZantufaInfixMeksoContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[ZantufaInfixMeksoContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaInfixMeksoSyntax is final')
+
+@final
+class ZantufaInfixMeksoContinuationSyntax(_SyntaxNode):
+    'Product node for mex continuation; preserves `operators` and `right_expression` in source order.'
+    __slots__ = ()
+    _schema_id = 334
+    __match_args__ = ('operators', 'right_expression')
+    def __new__(cls, operators: Sequence[MeksoOperatorSyntax], right_expression: MeksoPrecedenceSyntax | None) -> ZantufaInfixMeksoContinuationSyntax:
+        return cls._from_fields((operators, right_expression))
+    def __init__(self, operators: Sequence[MeksoOperatorSyntax], right_expression: MeksoPrecedenceSyntax | None) -> None:
+        pass
+    @property
+    def operators(self) -> tuple[MeksoOperatorSyntax, ...]:
+        'Non-empty ordered sequence of operators components.'
+        return cast(tuple[MeksoOperatorSyntax, ...], self._field(0))
+    @property
+    def right_expression(self) -> MeksoPrecedenceSyntax | None:
+        'The optional right expression component.'
+        return cast(MeksoPrecedenceSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaInfixMeksoContinuationSyntax is final')
+
+@final
+class ForethoughtCallMeksoSyntax(_SyntaxNode):
+    'Product node for forethought mex; preserves `peho`, `operator`, `operands`, and `kuhe` in source order.'
+    __slots__ = ()
+    _schema_id = 335
+    __match_args__ = ('peho', 'operator', 'operands', 'kuhe')
+    def __new__(cls, peho: WithFreeModifiers[Token, FreeModifierSyntax] | None, operator: MeksoOperatorSyntax, operands: Sequence[MeksoBaseSyntax], kuhe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ForethoughtCallMeksoSyntax:
+        return cls._from_fields((peho, operator, operands, kuhe))
+    def __init__(self, peho: WithFreeModifiers[Token, FreeModifierSyntax] | None, operator: MeksoOperatorSyntax, operands: Sequence[MeksoBaseSyntax], kuhe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def peho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Peho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(0))
+    @property
+    def operator(self) -> MeksoOperatorSyntax:
+        'The shared operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    @property
+    def operands(self) -> tuple[MeksoBaseSyntax, ...]:
+        'Non-empty ordered sequence of operands components.'
+        return cast(tuple[MeksoBaseSyntax, ...], self._field(2))
+    @property
+    def kuhe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuhe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtCallMeksoSyntax is final')
+
+@final
+class MeksoSyntaxZantufaReversePolishMekso(_SyntaxNode):
+    'Uses the `zantufa_reverse_polish_mekso` product form, whose payload preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe`.'
+    __slots__ = ()
+    _schema_id = 336
+    __match_args__ = ('zantufa_reverse_polish_mekso',)
+    def __new__(cls, zantufa_reverse_polish_mekso: ZantufaReversePolishMeksoSyntax) -> MeksoSyntaxZantufaReversePolishMekso:
+        return cls._from_fields((zantufa_reverse_polish_mekso,))
+    def __init__(self, zantufa_reverse_polish_mekso: ZantufaReversePolishMeksoSyntax) -> None:
+        pass
+    @property
+    def zantufa_reverse_polish_mekso(self) -> ZantufaReversePolishMeksoSyntax:
+        'Uses the `zantufa_reverse_polish_mekso` product form, whose payload preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe`.'
+        return cast(ZantufaReversePolishMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoSyntaxZantufaReversePolishMekso is final')
+
+@final
+class MeksoSyntaxZantufaInfixMekso(_SyntaxNode):
+    'Uses the `zantufa_infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 337
+    __match_args__ = ('zantufa_infix_mekso',)
+    def __new__(cls, zantufa_infix_mekso: ZantufaInfixMeksoSyntax) -> MeksoSyntaxZantufaInfixMekso:
+        return cls._from_fields((zantufa_infix_mekso,))
+    def __init__(self, zantufa_infix_mekso: ZantufaInfixMeksoSyntax) -> None:
+        pass
+    @property
+    def zantufa_infix_mekso(self) -> ZantufaInfixMeksoSyntax:
+        'Uses the `zantufa_infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
+        return cast(ZantufaInfixMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoSyntaxZantufaInfixMekso is final')
+
+@final
+class MeksoSyntaxInfixMekso(_SyntaxNode):
+    'Uses the `infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 338
+    __match_args__ = ('infix_mekso',)
+    def __new__(cls, infix_mekso: InfixMeksoSyntax) -> MeksoSyntaxInfixMekso:
+        return cls._from_fields((infix_mekso,))
+    def __init__(self, infix_mekso: InfixMeksoSyntax) -> None:
+        pass
+    @property
+    def infix_mekso(self) -> InfixMeksoSyntax:
+        'Uses the `infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
+        return cast(InfixMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoSyntaxInfixMekso is final')
+
+@final
+class MeksoSyntaxReversePolishMekso(_SyntaxNode):
+    'Uses the `reverse_polish_mekso` product form, whose payload preserves `fuha` and `parts`.'
+    __slots__ = ()
+    _schema_id = 339
+    __match_args__ = ('reverse_polish_mekso',)
+    def __new__(cls, reverse_polish_mekso: ReversePolishMeksoSyntax) -> MeksoSyntaxReversePolishMekso:
+        return cls._from_fields((reverse_polish_mekso,))
+    def __init__(self, reverse_polish_mekso: ReversePolishMeksoSyntax) -> None:
+        pass
+    @property
+    def reverse_polish_mekso(self) -> ReversePolishMeksoSyntax:
+        'Uses the `reverse_polish_mekso` product form, whose payload preserves `fuha` and `parts`.'
+        return cast(ReversePolishMeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeksoSyntaxReversePolishMekso is final')
+
+MeksoSyntax: TypeAlias = MeksoSyntaxZantufaReversePolishMekso | MeksoSyntaxZantufaInfixMekso | MeksoSyntaxInfixMekso | MeksoSyntaxReversePolishMekso
+
+@final
+class ZantufaReversePolishMeksoSyntax(_SyntaxNode):
+    'Product node for reverse Polish mex; preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe` in source order.'
+    __slots__ = ()
+    _schema_id = 340
+    __match_args__ = ('fuha', 'operands', 'operator', 'tails', 'kuhe')
+    def __new__(cls, fuha: WithFreeModifiers[Token, FreeModifierSyntax], operands: Sequence[MeksoBaseSyntax], operator: MeksoOperatorSyntax, tails: Sequence[ZantufaReversePolishTailSyntax], kuhe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaReversePolishMeksoSyntax:
+        return cls._from_fields((fuha, operands, operator, tails, kuhe))
+    def __init__(self, fuha: WithFreeModifiers[Token, FreeModifierSyntax], operands: Sequence[MeksoBaseSyntax], operator: MeksoOperatorSyntax, tails: Sequence[ZantufaReversePolishTailSyntax], kuhe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def fuha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Fuha` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def operands(self) -> tuple[MeksoBaseSyntax, ...]:
+        'Non-empty ordered sequence of operands components.'
+        return cast(tuple[MeksoBaseSyntax, ...], self._field(1))
+    @property
+    def operator(self) -> MeksoOperatorSyntax:
+        'The shared operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(2))
+    @property
+    def tails(self) -> tuple[ZantufaReversePolishTailSyntax, ...]:
+        'Ordered sequence of zero or more tails components.'
+        return cast(tuple[ZantufaReversePolishTailSyntax, ...], self._field(3))
+    @property
+    def kuhe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuhe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaReversePolishMeksoSyntax is final')
+
+@final
+class ZantufaReversePolishTailSyntax(_SyntaxNode):
+    'Product node for reverse Polish mex tail; preserves `operands` and `operator` in source order.'
+    __slots__ = ()
+    _schema_id = 341
+    __match_args__ = ('operands', 'operator')
+    def __new__(cls, operands: Sequence[MeksoBaseSyntax], operator: MeksoOperatorSyntax) -> ZantufaReversePolishTailSyntax:
+        return cls._from_fields((operands, operator))
+    def __init__(self, operands: Sequence[MeksoBaseSyntax], operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def operands(self) -> tuple[MeksoBaseSyntax, ...]:
+        'Ordered sequence of zero or more operands components.'
+        return cast(tuple[MeksoBaseSyntax, ...], self._field(0))
+    @property
+    def operator(self) -> MeksoOperatorSyntax:
+        'The shared operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaReversePolishTailSyntax is final')
+
+@final
+class ReversePolishPartsSyntax(_SyntaxNode):
+    'Product node for reverse Polish mex; preserves `first_operand` and `tails` in source order.'
+    __slots__ = ()
+    _schema_id = 342
+    __match_args__ = ('first_operand', 'tails')
+    def __new__(cls, first_operand: MeksoOperandSyntax, tails: Sequence[ReversePolishPartsTailSyntax]) -> ReversePolishPartsSyntax:
+        return cls._from_fields((first_operand, tails))
+    def __init__(self, first_operand: MeksoOperandSyntax, tails: Sequence[ReversePolishPartsTailSyntax]) -> None:
+        pass
+    @property
+    def first_operand(self) -> MeksoOperandSyntax:
+        'The shared first operand child syntax node.'
+        return cast(MeksoOperandSyntax, self._field(0))
+    @property
+    def tails(self) -> tuple[ReversePolishPartsTailSyntax, ...]:
+        'Ordered sequence of zero or more tails components.'
+        return cast(tuple[ReversePolishPartsTailSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ReversePolishPartsSyntax is final')
+
+@final
+class ReversePolishPartsTailSyntax(_SyntaxNode):
+    'Product node for reverse Polish mex tail; preserves `right_parts` and `operator` in source order.'
+    __slots__ = ()
+    _schema_id = 343
+    __match_args__ = ('right_parts', 'operator')
+    def __new__(cls, right_parts: ReversePolishPartsSyntax, operator: MeksoOperatorSyntax) -> ReversePolishPartsTailSyntax:
+        return cls._from_fields((right_parts, operator))
+    def __init__(self, right_parts: ReversePolishPartsSyntax, operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def right_parts(self) -> ReversePolishPartsSyntax:
+        'The shared right parts child syntax node.'
+        return cast(ReversePolishPartsSyntax, self._field(0))
+    @property
+    def operator(self) -> MeksoOperatorSyntax:
+        'The `mekso_operator` grammar result in the `operator` structural role of the `reverse_polish_parts_tail` production.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ReversePolishPartsTailSyntax is final')
+
+@final
+class ReversePolishMeksoSyntax(_SyntaxNode):
+    'Product node for reverse Polish mex; preserves `fuha` and `parts` in source order.'
+    __slots__ = ()
+    _schema_id = 344
+    __match_args__ = ('fuha', 'parts')
+    def __new__(cls, fuha: WithFreeModifiers[Token, FreeModifierSyntax], parts: ReversePolishPartsSyntax) -> ReversePolishMeksoSyntax:
+        return cls._from_fields((fuha, parts))
+    def __init__(self, fuha: WithFreeModifiers[Token, FreeModifierSyntax], parts: ReversePolishPartsSyntax) -> None:
+        pass
+    @property
+    def fuha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Fuha` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def parts(self) -> ReversePolishPartsSyntax:
+        'The shared parts child syntax node.'
+        return cast(ReversePolishPartsSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ReversePolishMeksoSyntax is final')
+
+@final
+class NumberSumtiSyntax(_SyntaxNode):
+    'Product node for number sumti; preserves `li`, `expression`, and `loho` in source order.'
+    __slots__ = ()
+    _schema_id = 345
+    __match_args__ = ('li', 'expression', 'loho')
+    def __new__(cls, li: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoSyntax, loho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> NumberSumtiSyntax:
+        return cls._from_fields((li, expression, loho))
+    def __init__(self, li: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoSyntax, loho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def li(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Li`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def expression(self) -> MeksoSyntax:
+        'The shared expression child syntax node.'
+        return cast(MeksoSyntax, self._field(1))
+    @property
+    def loho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Loho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberSumtiSyntax is final')
+
+@final
+class LerfuStringSumtiSyntax(_SyntaxNode):
+    'Product node for lerfu string; preserves `words`, `boi`, and `free_modifiers` in source order.'
+    __slots__ = ()
+    _schema_id = 346
+    __match_args__ = ('words', 'boi', 'free_modifiers')
+    def __new__(cls, words: LetterStringSyntax, boi: Token | None, free_modifiers: Sequence[FreeModifierSyntax]) -> LerfuStringSumtiSyntax:
+        return cls._from_fields((words, boi, free_modifiers))
+    def __init__(self, words: LetterStringSyntax, boi: Token | None, free_modifiers: Sequence[FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def words(self) -> LetterStringSyntax:
+        'The `letter_string` grammar result in the `words` structural role of the `lerfu_string_sumti` production.'
+        return cast(LetterStringSyntax, self._field(0))
+    @property
+    def boi(self) -> Token | None:
+        'The optional `Boi` cmavo marker.'
+        return cast(Token | None, self._field(1))
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Ordered sequence of zero or more free modifiers components.'
+        return cast(tuple[FreeModifierSyntax, ...], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LerfuStringSumtiSyntax is final')
+
+@final
+class LaheSumtiSyntax(_SyntaxNode):
+    'Product node for converted sumti; preserves `lahe`, `relative_clauses`, `inner_sumti`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 347
+    __match_args__ = ('lahe', 'relative_clauses', 'inner_sumti', 'luhu')
+    def __new__(cls, lahe: WithFreeModifiers[Token, FreeModifierSyntax], relative_clauses: RelativeClauseListSyntax | None, inner_sumti: SumtiSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> LaheSumtiSyntax:
+        return cls._from_fields((lahe, relative_clauses, inner_sumti, luhu))
+    def __init__(self, lahe: WithFreeModifiers[Token, FreeModifierSyntax], relative_clauses: RelativeClauseListSyntax | None, inner_sumti: SumtiSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def lahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Lahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(1))
+    @property
+    def inner_sumti(self) -> SumtiSyntax:
+        'The shared inner sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(2))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LaheSumtiSyntax is final')
+
+@final
+class LaheTermWrapperSyntax(_SyntaxNode):
+    'Product node for converted term; preserves `lahe`, `inner_term`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 348
+    __match_args__ = ('lahe', 'inner_term', 'luhu')
+    def __new__(cls, lahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_term: TermSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> LaheTermWrapperSyntax:
+        return cls._from_fields((lahe, inner_term, luhu))
+    def __init__(self, lahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_term: TermSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def lahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Lahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_term(self) -> TermSyntax:
+        'The shared inner term child syntax node.'
+        return cast(TermSyntax, self._field(1))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LaheTermWrapperSyntax is final')
+
+@final
+class ScalarNegatedTermWrapperWithBoSyntax(_SyntaxNode):
+    'Product node for scalar-negated term; preserves `nahe`, `bo`, `inner_term`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 349
+    __match_args__ = ('nahe', 'bo', 'inner_term', 'luhu')
+    def __new__(cls, nahe: Token, bo: WithFreeModifiers[Token, FreeModifierSyntax], inner_term: TermSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ScalarNegatedTermWrapperWithBoSyntax:
+        return cls._from_fields((nahe, bo, inner_term, luhu))
+    def __init__(self, nahe: Token, bo: WithFreeModifiers[Token, FreeModifierSyntax], inner_term: TermSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> Token:
+        'A word from selmaho `Nahe`.'
+        return cast(Token, self._field(0))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def inner_term(self) -> TermSyntax:
+        'The shared inner term child syntax node.'
+        return cast(TermSyntax, self._field(2))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedTermWrapperWithBoSyntax is final')
+
+@final
+class ScalarNegatedTermWrapperSyntax(_SyntaxNode):
+    'Product node for scalar-negated term; preserves `nahe`, `inner_term`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 350
+    __match_args__ = ('nahe', 'inner_term', 'luhu')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_term: TermSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ScalarNegatedTermWrapperSyntax:
+        return cls._from_fields((nahe, inner_term, luhu))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_term: TermSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_term(self) -> TermSyntax:
+        'The shared inner term child syntax node.'
+        return cast(TermSyntax, self._field(1))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedTermWrapperSyntax is final')
+
+@final
+class ScalarNegatedSumtiWithBoSyntax(_SyntaxNode):
+    'Product node for scalar-negated sumti; preserves `nahe`, `bo`, `inner_sumti`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 351
+    __match_args__ = ('nahe', 'bo', 'inner_sumti', 'luhu')
+    def __new__(cls, nahe: Token, bo: WithFreeModifiers[Token, FreeModifierSyntax], inner_sumti: SumtiSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ScalarNegatedSumtiWithBoSyntax:
+        return cls._from_fields((nahe, bo, inner_sumti, luhu))
+    def __init__(self, nahe: Token, bo: WithFreeModifiers[Token, FreeModifierSyntax], inner_sumti: SumtiSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> Token:
+        'A word from selmaho `Nahe`.'
+        return cast(Token, self._field(0))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def inner_sumti(self) -> SumtiSyntax:
+        'The shared inner sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(2))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedSumtiWithBoSyntax is final')
+
+@final
+class ScalarNegatedSumtiSyntax(_SyntaxNode):
+    'Product node for scalar-negated sumti; preserves `nahe`, `inner_sumti`, and `luhu` in source order.'
+    __slots__ = ()
+    _schema_id = 352
+    __match_args__ = ('nahe', 'inner_sumti', 'luhu')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_sumti: SumtiSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ScalarNegatedSumtiSyntax:
+        return cls._from_fields((nahe, inner_sumti, luhu))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_sumti: SumtiSyntax, luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_sumti(self) -> SumtiSyntax:
+        'The shared inner sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(1))
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedSumtiSyntax is final')
+
+@final
+class BridiDescriptionSumtiSyntax(_SyntaxNode):
+    'Product node for bridi description; preserves `lohoi`, `additional_heads`, `statement`, and `kuhau` in source order.'
+    __slots__ = ()
+    _schema_id = 353
+    __match_args__ = ('lohoi', 'additional_heads', 'statement', 'kuhau')
+    def __new__(cls, lohoi: WithFreeModifiers[Token, FreeModifierSyntax], additional_heads: Sequence[LohoiDescriptionHeadContinuationSyntax], statement: StatementSyntax, kuhau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> BridiDescriptionSumtiSyntax:
+        return cls._from_fields((lohoi, additional_heads, statement, kuhau))
+    def __init__(self, lohoi: WithFreeModifiers[Token, FreeModifierSyntax], additional_heads: Sequence[LohoiDescriptionHeadContinuationSyntax], statement: StatementSyntax, kuhau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def lohoi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Lohoi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def additional_heads(self) -> tuple[LohoiDescriptionHeadContinuationSyntax, ...]:
+        'Ordered sequence of zero or more additional heads components.'
+        return cast(tuple[LohoiDescriptionHeadContinuationSyntax, ...], self._field(1))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(2))
+    @property
+    def kuhau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuhau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiDescriptionSumtiSyntax is final')
+
+@final
+class LohoiDescriptionHeadContinuationSyntax(_SyntaxNode):
+    'Product node for bridi description; preserves `connective` and `lohoi` in source order.'
+    __slots__ = ()
+    _schema_id = 354
+    __match_args__ = ('connective', 'lohoi')
+    def __new__(cls, connective: JoikConnectiveSyntax, lohoi: WithFreeModifiers[Token, FreeModifierSyntax]) -> LohoiDescriptionHeadContinuationSyntax:
+        return cls._from_fields((connective, lohoi))
+    def __init__(self, connective: JoikConnectiveSyntax, lohoi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def connective(self) -> JoikConnectiveSyntax:
+        'The `joik_connective` connective joining the adjacent constituents of the `lohoi_description_head_continuation` production.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    @property
+    def lohoi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Lohoi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LohoiDescriptionHeadContinuationSyntax is final')
+
+@final
+class ProSumtiSyntax(_SyntaxNode):
+    'Transparent product node for sumti; preserves the `koha` component.'
+    __slots__ = ()
+    _schema_id = 355
+    __match_args__ = ('koha',)
+    def __new__(cls, koha: WithFreeModifiers[Token, FreeModifierSyntax]) -> ProSumtiSyntax:
+        return cls._from_fields((koha,))
+    def __init__(self, koha: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def koha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `word_category` grammar result in the `koha` structural role of the `pro_sumti` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ProSumtiSyntax is final')
+
+@final
+class NameSumtiSyntax(_SyntaxNode):
+    'Product node for name; preserves `la` and `names` in source order.'
+    __slots__ = ()
+    _schema_id = 356
+    __match_args__ = ('la', 'names')
+    def __new__(cls, la: WithFreeModifiers[Token, FreeModifierSyntax], names: WithFreeModifiers[Sequence[Token], FreeModifierSyntax]) -> NameSumtiSyntax:
+        return cls._from_fields((la, names))
+    def __init__(self, la: WithFreeModifiers[Token, FreeModifierSyntax], names: WithFreeModifiers[Sequence[Token], FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def la(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `La`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def names(self) -> WithFreeModifiers[tuple[Token, ...], FreeModifierSyntax]:
+        'Non-empty ordered sequence of names components.'
+        return cast(WithFreeModifiers[tuple[Token, ...], FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NameSumtiSyntax is final')
+
+@final
+class DescriptionHeadSyntax(_SyntaxNode):
+    'Transparent product node for descriptor; preserves the `description` component.'
+    __slots__ = ()
+    _schema_id = 357
+    __match_args__ = ('description',)
+    def __new__(cls, description: WithFreeModifiers[Token, FreeModifierSyntax]) -> DescriptionHeadSyntax:
+        return cls._from_fields((description,))
+    def __init__(self, description: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def description(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The required description-head word from either selmaho `Le` or selmaho `La`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionHeadSyntax is final')
+
+@final
+class DescriptionHeadConnectiveSyntax(_SyntaxNode):
+    'Transparent product node for descriptor connective; preserves the `connective` component.'
+    __slots__ = ()
+    _schema_id = 358
+    __match_args__ = ('connective',)
+    def __new__(cls, connective: JekConnectiveSyntax) -> DescriptionHeadConnectiveSyntax:
+        return cls._from_fields((connective,))
+    def __init__(self, connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> JekConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionHeadConnectiveSyntax is final')
+
+@final
+class DescriptionConnectionSumtiSyntax(_SyntaxNode):
+    'Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.'
+    __slots__ = ()
+    _schema_id = 359
+    __match_args__ = ('leading_description_head', 'connective', 'trailing_description_head', 'tail', 'ku')
+    def __new__(cls, leading_description_head: DescriptionHeadSyntax, connective: DescriptionHeadConnectiveSyntax, trailing_description_head: DescriptionHeadSyntax, tail: DescriptionTailSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> DescriptionConnectionSumtiSyntax:
+        return cls._from_fields((leading_description_head, connective, trailing_description_head, tail, ku))
+    def __init__(self, leading_description_head: DescriptionHeadSyntax, connective: DescriptionHeadConnectiveSyntax, trailing_description_head: DescriptionHeadSyntax, tail: DescriptionTailSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def leading_description_head(self) -> DescriptionHeadSyntax:
+        'The shared leading description head child syntax node.'
+        return cast(DescriptionHeadSyntax, self._field(0))
+    @property
+    def connective(self) -> DescriptionHeadConnectiveSyntax:
+        'The `description_head_connective` connective joining the adjacent constituents of the `description_connection_sumti` production.'
+        return cast(DescriptionHeadConnectiveSyntax, self._field(1))
+    @property
+    def trailing_description_head(self) -> DescriptionHeadSyntax:
+        'The shared trailing description head child syntax node.'
+        return cast(DescriptionHeadSyntax, self._field(2))
+    @property
+    def tail(self) -> DescriptionTailSyntax:
+        'The `description_tail` grammar result in the `tail` structural role of the `description_connection_sumti` production.'
+        return cast(DescriptionTailSyntax, self._field(3))
+    @property
+    def ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionConnectionSumtiSyntax is final')
+
+@final
+class DescriptorWithGadriSumtiSyntax(_SyntaxNode):
+    'Product node for description; preserves `description`, `tail`, and `ku` in source order.'
+    __slots__ = ()
+    _schema_id = 360
+    __match_args__ = ('description', 'tail', 'ku')
+    def __new__(cls, description: DescriptionHeadSyntax, tail: DescriptionTailSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> DescriptorWithGadriSumtiSyntax:
+        return cls._from_fields((description, tail, ku))
+    def __init__(self, description: DescriptionHeadSyntax, tail: DescriptionTailSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def description(self) -> DescriptionHeadSyntax:
+        'The `description_head` grammar result in the `description` structural role of the `descriptor_with_gadri_sumti` production.'
+        return cast(DescriptionHeadSyntax, self._field(0))
+    @property
+    def tail(self) -> DescriptionTailSyntax:
+        'The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_gadri_sumti` production.'
+        return cast(DescriptionTailSyntax, self._field(1))
+    @property
+    def ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptorWithGadriSumtiSyntax is final')
+
+@final
+class DescriptorWithOuterQuantifierSumtiSyntax(_SyntaxNode):
+    'Product node for description; preserves `outer_quantifier`, `description`, `tail`, and `ku` in source order.'
+    __slots__ = ()
+    _schema_id = 361
+    __match_args__ = ('outer_quantifier', 'description', 'tail', 'ku')
+    def __new__(cls, outer_quantifier: QuantifierSyntax, description: DescriptionHeadSyntax, tail: DescriptionTailSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> DescriptorWithOuterQuantifierSumtiSyntax:
+        return cls._from_fields((outer_quantifier, description, tail, ku))
+    def __init__(self, outer_quantifier: QuantifierSyntax, description: DescriptionHeadSyntax, tail: DescriptionTailSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def outer_quantifier(self) -> QuantifierSyntax:
+        'The `quantifier` grammar result in the `outer_quantifier` structural role of the `descriptor_with_outer_quantifier_sumti` production.'
+        return cast(QuantifierSyntax, self._field(0))
+    @property
+    def description(self) -> DescriptionHeadSyntax:
+        'The `description_head` grammar result in the `description` structural role of the `descriptor_with_outer_quantifier_sumti` production.'
+        return cast(DescriptionHeadSyntax, self._field(1))
+    @property
+    def tail(self) -> DescriptionTailSyntax:
+        'The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_outer_quantifier_sumti` production.'
+        return cast(DescriptionTailSyntax, self._field(2))
+    @property
+    def ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptorWithOuterQuantifierSumtiSyntax is final')
+
+@final
+class DescriptorWithoutGadriSumtiSyntax(_SyntaxNode):
+    'Product node for description; preserves `quantifier`, `selbri`, `ku`, and `relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 362
+    __match_args__ = ('quantifier', 'selbri', 'ku', 'relative_clauses')
+    def __new__(cls, quantifier: QuantifierSyntax, selbri: SelbriSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None, relative_clauses: RelativeClauseListSyntax | None) -> DescriptorWithoutGadriSumtiSyntax:
+        return cls._from_fields((quantifier, selbri, ku, relative_clauses))
+    def __init__(self, quantifier: QuantifierSyntax, selbri: SelbriSyntax, ku: WithFreeModifiers[Token, FreeModifierSyntax] | None, relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def quantifier(self) -> QuantifierSyntax:
+        'The `quantifier` grammar result in the `quantifier` structural role of the `descriptor_without_gadri_sumti` production.'
+        return cast(QuantifierSyntax, self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptorWithoutGadriSumtiSyntax is final')
+
+@final
+class DescriptionTailSyntax(_SyntaxNode):
+    'Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.'
+    __slots__ = ()
+    _schema_id = 363
+    __match_args__ = ('leading_tail_elements', 'tail')
+    def __new__(cls, leading_tail_elements: LeadingDescriptionTailElementsSyntax, tail: DescriptionTailBodySyntax) -> DescriptionTailSyntax:
+        return cls._from_fields((leading_tail_elements, tail))
+    def __init__(self, leading_tail_elements: LeadingDescriptionTailElementsSyntax, tail: DescriptionTailBodySyntax) -> None:
+        pass
+    @property
+    def leading_tail_elements(self) -> LeadingDescriptionTailElementsSyntax:
+        'The `leading_description_tail_elements` grammar result in the `leading_tail_elements` structural role of the `description_tail` production.'
+        return cast(LeadingDescriptionTailElementsSyntax, self._field(0))
+    @property
+    def tail(self) -> DescriptionTailBodySyntax:
+        'The shared tail child syntax node.'
+        return cast(DescriptionTailBodySyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionTailSyntax is final')
+
+@final
+class DescriptionTailBodySyntaxQuantifierRelationDescriptionTail(_SyntaxNode):
+    'Uses the `quantifier_relation_description_tail` product form, whose payload preserves `quantifier`, `selbri`, and `relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 364
+    __match_args__ = ('quantifier_relation_description_tail',)
+    def __new__(cls, quantifier_relation_description_tail: QuantifierRelationDescriptionTailSyntax) -> DescriptionTailBodySyntaxQuantifierRelationDescriptionTail:
+        return cls._from_fields((quantifier_relation_description_tail,))
+    def __init__(self, quantifier_relation_description_tail: QuantifierRelationDescriptionTailSyntax) -> None:
+        pass
+    @property
+    def quantifier_relation_description_tail(self) -> QuantifierRelationDescriptionTailSyntax:
+        'Uses the `quantifier_relation_description_tail` product form, whose payload preserves `quantifier`, `selbri`, and `relative_clauses`.'
+        return cast(QuantifierRelationDescriptionTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionTailBodySyntaxQuantifierRelationDescriptionTail is final')
+
+@final
+class DescriptionTailBodySyntaxQuantifierSumtiDescriptionTail(_SyntaxNode):
+    'Uses the `quantifier_sumti_description_tail` product form, whose payload preserves `quantifier` and `sumti`.'
+    __slots__ = ()
+    _schema_id = 365
+    __match_args__ = ('quantifier_sumti_description_tail',)
+    def __new__(cls, quantifier_sumti_description_tail: QuantifierSumtiDescriptionTailSyntax) -> DescriptionTailBodySyntaxQuantifierSumtiDescriptionTail:
+        return cls._from_fields((quantifier_sumti_description_tail,))
+    def __init__(self, quantifier_sumti_description_tail: QuantifierSumtiDescriptionTailSyntax) -> None:
+        pass
+    @property
+    def quantifier_sumti_description_tail(self) -> QuantifierSumtiDescriptionTailSyntax:
+        'Uses the `quantifier_sumti_description_tail` product form, whose payload preserves `quantifier` and `sumti`.'
+        return cast(QuantifierSumtiDescriptionTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionTailBodySyntaxQuantifierSumtiDescriptionTail is final')
+
+@final
+class DescriptionTailBodySyntaxRelationDescriptionTail(_SyntaxNode):
+    'Uses the `relation_description_tail` product form, whose payload preserves `selbri` and `relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 366
+    __match_args__ = ('relation_description_tail',)
+    def __new__(cls, relation_description_tail: RelationDescriptionTailSyntax) -> DescriptionTailBodySyntaxRelationDescriptionTail:
+        return cls._from_fields((relation_description_tail,))
+    def __init__(self, relation_description_tail: RelationDescriptionTailSyntax) -> None:
+        pass
+    @property
+    def relation_description_tail(self) -> RelationDescriptionTailSyntax:
+        'Uses the `relation_description_tail` product form, whose payload preserves `selbri` and `relative_clauses`.'
+        return cast(RelationDescriptionTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionTailBodySyntaxRelationDescriptionTail is final')
+
+DescriptionTailBodySyntax: TypeAlias = DescriptionTailBodySyntaxQuantifierRelationDescriptionTail | DescriptionTailBodySyntaxQuantifierSumtiDescriptionTail | DescriptionTailBodySyntaxRelationDescriptionTail
+
+@final
+class LeadingDescriptionTailElementsSyntax(_SyntaxNode):
+    'Product node for description tail; preserves `tail_sumti` and `relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 367
+    __match_args__ = ('tail_sumti', 'relative_clauses')
+    def __new__(cls, tail_sumti: DescriptionTailSumtiSyntax | None, relative_clauses: RelativeClauseListSyntax | None) -> LeadingDescriptionTailElementsSyntax:
+        return cls._from_fields((tail_sumti, relative_clauses))
+    def __init__(self, tail_sumti: DescriptionTailSumtiSyntax | None, relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def tail_sumti(self) -> DescriptionTailSumtiSyntax | None:
+        'The optional tail sumti component.'
+        return cast(DescriptionTailSumtiSyntax | None, self._field(0))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LeadingDescriptionTailElementsSyntax is final')
+
+@final
+class DescriptionTailSumtiSyntax(_SyntaxNode):
+    'Transparent product node for description tail; preserves the `sumti` component.'
+    __slots__ = ()
+    _schema_id = 368
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiBaseSyntax) -> DescriptionTailSumtiSyntax:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiBaseSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiBaseSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiBaseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DescriptionTailSumtiSyntax is final')
+
+@final
+class RelationDescriptionTailSyntax(_SyntaxNode):
+    'Product node for description tail; preserves `selbri` and `relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 369
+    __match_args__ = ('selbri', 'relative_clauses')
+    def __new__(cls, selbri: SelbriSyntax, relative_clauses: RelativeClauseListSyntax | None) -> RelationDescriptionTailSyntax:
+        return cls._from_fields((selbri, relative_clauses))
+    def __init__(self, selbri: SelbriSyntax, relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(0))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationDescriptionTailSyntax is final')
+
+@final
+class QuantifierRelationDescriptionTailSyntax(_SyntaxNode):
+    'Product node for description tail; preserves `quantifier`, `selbri`, and `relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 370
+    __match_args__ = ('quantifier', 'selbri', 'relative_clauses')
+    def __new__(cls, quantifier: QuantifierSyntax, selbri: SelbriSyntax, relative_clauses: RelativeClauseListSyntax | None) -> QuantifierRelationDescriptionTailSyntax:
+        return cls._from_fields((quantifier, selbri, relative_clauses))
+    def __init__(self, quantifier: QuantifierSyntax, selbri: SelbriSyntax, relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def quantifier(self) -> QuantifierSyntax:
+        'The `quantifier` grammar result in the `quantifier` structural role of the `quantifier_relation_description_tail` production.'
+        return cast(QuantifierSyntax, self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifierRelationDescriptionTailSyntax is final')
+
+@final
+class QuantifierSumtiDescriptionTailSyntax(_SyntaxNode):
+    'Product node for description tail; preserves `quantifier` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 371
+    __match_args__ = ('quantifier', 'sumti')
+    def __new__(cls, quantifier: QuantifierSyntax, sumti: SumtiSyntax) -> QuantifierSumtiDescriptionTailSyntax:
+        return cls._from_fields((quantifier, sumti))
+    def __init__(self, quantifier: QuantifierSyntax, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def quantifier(self) -> QuantifierSyntax:
+        'The `quantifier` grammar result in the `quantifier` structural role of the `quantifier_sumti_description_tail` production.'
+        return cast(QuantifierSyntax, self._field(0))
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuantifierSumtiDescriptionTailSyntax is final')
+
+@final
+class QuoteSyntaxExperimentalMehoiCompoundQuote(_SyntaxNode):
+    'Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 372
+    __match_args__ = ('experimental_mehoi_compound_quote',)
+    def __new__(cls, experimental_mehoi_compound_quote: ExperimentalMehoiCompoundQuoteSyntax) -> QuoteSyntaxExperimentalMehoiCompoundQuote:
+        return cls._from_fields((experimental_mehoi_compound_quote,))
+    def __init__(self, experimental_mehoi_compound_quote: ExperimentalMehoiCompoundQuoteSyntax) -> None:
+        pass
+    @property
+    def experimental_mehoi_compound_quote(self) -> ExperimentalMehoiCompoundQuoteSyntax:
+        'Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.'
+        return cast(ExperimentalMehoiCompoundQuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuoteSyntaxExperimentalMehoiCompoundQuote is final')
+
+@final
+class QuoteSyntaxExperimentalZohoiCompoundQuote(_SyntaxNode):
+    'Uses the `experimental_zohoi_compound_quote` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 373
+    __match_args__ = ('experimental_zohoi_compound_quote',)
+    def __new__(cls, experimental_zohoi_compound_quote: ExperimentalZohoiCompoundQuoteSyntax) -> QuoteSyntaxExperimentalZohoiCompoundQuote:
+        return cls._from_fields((experimental_zohoi_compound_quote,))
+    def __init__(self, experimental_zohoi_compound_quote: ExperimentalZohoiCompoundQuoteSyntax) -> None:
+        pass
+    @property
+    def experimental_zohoi_compound_quote(self) -> ExperimentalZohoiCompoundQuoteSyntax:
+        'Uses the `experimental_zohoi_compound_quote` product form, whose payload preserves `quote`.'
+        return cast(ExperimentalZohoiCompoundQuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuoteSyntaxExperimentalZohoiCompoundQuote is final')
+
+@final
+class QuoteSyntaxExperimentalRahoiCompoundQuote(_SyntaxNode):
+    'Uses the `experimental_rahoi_compound_quote` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 374
+    __match_args__ = ('experimental_rahoi_compound_quote',)
+    def __new__(cls, experimental_rahoi_compound_quote: ExperimentalRahoiCompoundQuoteSyntax) -> QuoteSyntaxExperimentalRahoiCompoundQuote:
+        return cls._from_fields((experimental_rahoi_compound_quote,))
+    def __init__(self, experimental_rahoi_compound_quote: ExperimentalRahoiCompoundQuoteSyntax) -> None:
+        pass
+    @property
+    def experimental_rahoi_compound_quote(self) -> ExperimentalRahoiCompoundQuoteSyntax:
+        'Uses the `experimental_rahoi_compound_quote` product form, whose payload preserves `quote`.'
+        return cast(ExperimentalRahoiCompoundQuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuoteSyntaxExperimentalRahoiCompoundQuote is final')
+
+@final
+class QuoteSyntaxExperimentalGohoiCompoundQuote(_SyntaxNode):
+    'Uses the `experimental_gohoi_compound_quote` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 375
+    __match_args__ = ('experimental_gohoi_compound_quote',)
+    def __new__(cls, experimental_gohoi_compound_quote: ExperimentalGohoiCompoundQuoteSyntax) -> QuoteSyntaxExperimentalGohoiCompoundQuote:
+        return cls._from_fields((experimental_gohoi_compound_quote,))
+    def __init__(self, experimental_gohoi_compound_quote: ExperimentalGohoiCompoundQuoteSyntax) -> None:
+        pass
+    @property
+    def experimental_gohoi_compound_quote(self) -> ExperimentalGohoiCompoundQuoteSyntax:
+        'Uses the `experimental_gohoi_compound_quote` product form, whose payload preserves `quote`.'
+        return cast(ExperimentalGohoiCompoundQuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuoteSyntaxExperimentalGohoiCompoundQuote is final')
+
+@final
+class QuoteSyntaxGenericCompoundQuote(_SyntaxNode):
+    'Uses the `generic_compound_quote` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 376
+    __match_args__ = ('generic_compound_quote',)
+    def __new__(cls, generic_compound_quote: GenericCompoundQuoteSyntax) -> QuoteSyntaxGenericCompoundQuote:
+        return cls._from_fields((generic_compound_quote,))
+    def __init__(self, generic_compound_quote: GenericCompoundQuoteSyntax) -> None:
+        pass
+    @property
+    def generic_compound_quote(self) -> GenericCompoundQuoteSyntax:
+        'Uses the `generic_compound_quote` product form, whose payload preserves `quote`.'
+        return cast(GenericCompoundQuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuoteSyntaxGenericCompoundQuote is final')
+
+@final
+class QuoteSyntaxTextQuote(_SyntaxNode):
+    'Uses the `text_quote` product form, whose payload preserves `lu`, `text`, and `lihu`.'
+    __slots__ = ()
+    _schema_id = 377
+    __match_args__ = ('text_quote',)
+    def __new__(cls, text_quote: TextQuoteSyntax) -> QuoteSyntaxTextQuote:
+        return cls._from_fields((text_quote,))
+    def __init__(self, text_quote: TextQuoteSyntax) -> None:
+        pass
+    @property
+    def text_quote(self) -> TextQuoteSyntax:
+        'Uses the `text_quote` product form, whose payload preserves `lu`, `text`, and `lihu`.'
+        return cast(TextQuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuoteSyntaxTextQuote is final')
+
+QuoteSyntax: TypeAlias = QuoteSyntaxExperimentalMehoiCompoundQuote | QuoteSyntaxExperimentalZohoiCompoundQuote | QuoteSyntaxExperimentalRahoiCompoundQuote | QuoteSyntaxExperimentalGohoiCompoundQuote | QuoteSyntaxGenericCompoundQuote | QuoteSyntaxTextQuote
+
+@final
+class TextQuoteSyntax(_SyntaxNode):
+    'Product node for text quote; preserves `lu`, `text`, and `lihu` in source order.'
+    __slots__ = ()
+    _schema_id = 378
+    __match_args__ = ('lu', 'text', 'lihu')
+    def __new__(cls, lu: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, lihu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TextQuoteSyntax:
+        return cls._from_fields((lu, text, lihu))
+    def __init__(self, lu: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, lihu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def lu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Lu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def text(self) -> TextSyntax:
+        'The shared text child syntax node.'
+        return cast(TextSyntax, self._field(1))
+    @property
+    def lihu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Lihu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextQuoteSyntax is final')
+
+@final
+class ExperimentalMehoiCompoundQuoteSyntax(_SyntaxNode):
+    'Transparent product node for quote; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 379
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> ExperimentalMehoiCompoundQuoteSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `quote_marker` grammar result in the `quote` structural role of the `experimental_mehoi_compound_quote` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExperimentalMehoiCompoundQuoteSyntax is final')
+
+@final
+class ExperimentalZohoiCompoundQuoteSyntax(_SyntaxNode):
+    'Transparent product node for quote; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 380
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> ExperimentalZohoiCompoundQuoteSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `quote` structural role of the `experimental_zohoi_compound_quote` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExperimentalZohoiCompoundQuoteSyntax is final')
+
+@final
+class ExperimentalRahoiCompoundQuoteSyntax(_SyntaxNode):
+    'Transparent product node for quote; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 381
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> ExperimentalRahoiCompoundQuoteSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `quote_marker` grammar result in the `quote` structural role of the `experimental_rahoi_compound_quote` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExperimentalRahoiCompoundQuoteSyntax is final')
+
+@final
+class ExperimentalGohoiCompoundQuoteSyntax(_SyntaxNode):
+    'Transparent product node for quote; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 382
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> ExperimentalGohoiCompoundQuoteSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `quote` structural role of the `experimental_gohoi_compound_quote` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExperimentalGohoiCompoundQuoteSyntax is final')
+
+@final
+class GenericCompoundQuoteSyntax(_SyntaxNode):
+    'Transparent product node for quote; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 383
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> GenericCompoundQuoteSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `word_category` grammar result in the `quote` structural role of the `generic_compound_quote` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GenericCompoundQuoteSyntax is final')
+
+@final
+class QuotedSumtiSyntax(_SyntaxNode):
+    'Transparent product node for quote; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 384
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: QuoteSyntax) -> QuotedSumtiSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: QuoteSyntax) -> None:
+        pass
+    @property
+    def quote(self) -> QuoteSyntax:
+        'The shared quote child syntax node.'
+        return cast(QuoteSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuotedSumtiSyntax is final')
+
+@final
+class SelbriVocativeSumtiSyntax(_SyntaxNode):
+    'Product node for vocative phrase; preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 385
+    __match_args__ = ('leading_relative_clauses', 'selbri', 'trailing_relative_clauses')
+    def __new__(cls, leading_relative_clauses: RelativeClauseListSyntax | None, selbri: SelbriSyntax, trailing_relative_clauses: RelativeClauseListSyntax | None) -> SelbriVocativeSumtiSyntax:
+        return cls._from_fields((leading_relative_clauses, selbri, trailing_relative_clauses))
+    def __init__(self, leading_relative_clauses: RelativeClauseListSyntax | None, selbri: SelbriSyntax, trailing_relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def leading_relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional leading relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def trailing_relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional trailing relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriVocativeSumtiSyntax is final')
+
+@final
+class CmevlaVocativeSumtiSyntax(_SyntaxNode):
+    'Product node for vocative phrase; preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses` in source order.'
+    __slots__ = ()
+    _schema_id = 386
+    __match_args__ = ('leading_relative_clauses', 'names', 'trailing_relative_clauses')
+    def __new__(cls, leading_relative_clauses: RelativeClauseListSyntax | None, names: WithFreeModifiers[Sequence[Token], FreeModifierSyntax], trailing_relative_clauses: RelativeClauseListSyntax | None) -> CmevlaVocativeSumtiSyntax:
+        return cls._from_fields((leading_relative_clauses, names, trailing_relative_clauses))
+    def __init__(self, leading_relative_clauses: RelativeClauseListSyntax | None, names: WithFreeModifiers[Sequence[Token], FreeModifierSyntax], trailing_relative_clauses: RelativeClauseListSyntax | None) -> None:
+        pass
+    @property
+    def leading_relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional leading relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(0))
+    @property
+    def names(self) -> WithFreeModifiers[tuple[Token, ...], FreeModifierSyntax]:
+        'Non-empty ordered sequence of names components.'
+        return cast(WithFreeModifiers[tuple[Token, ...], FreeModifierSyntax], self._field(1))
+    @property
+    def trailing_relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional trailing relative clauses component.'
+        return cast(RelativeClauseListSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CmevlaVocativeSumtiSyntax is final')
+
+@final
+class VocativeSumtiSyntaxSelbriVocativeSumti(_SyntaxNode):
+    'Uses the `selbri_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 387
+    __match_args__ = ('selbri_vocative_sumti',)
+    def __new__(cls, selbri_vocative_sumti: SelbriVocativeSumtiSyntax) -> VocativeSumtiSyntaxSelbriVocativeSumti:
+        return cls._from_fields((selbri_vocative_sumti,))
+    def __init__(self, selbri_vocative_sumti: SelbriVocativeSumtiSyntax) -> None:
+        pass
+    @property
+    def selbri_vocative_sumti(self) -> SelbriVocativeSumtiSyntax:
+        'Uses the `selbri_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses`.'
+        return cast(SelbriVocativeSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VocativeSumtiSyntaxSelbriVocativeSumti is final')
+
+@final
+class VocativeSumtiSyntaxCmevlaVocativeSumti(_SyntaxNode):
+    'Uses the `cmevla_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses`.'
+    __slots__ = ()
+    _schema_id = 388
+    __match_args__ = ('cmevla_vocative_sumti',)
+    def __new__(cls, cmevla_vocative_sumti: CmevlaVocativeSumtiSyntax) -> VocativeSumtiSyntaxCmevlaVocativeSumti:
+        return cls._from_fields((cmevla_vocative_sumti,))
+    def __init__(self, cmevla_vocative_sumti: CmevlaVocativeSumtiSyntax) -> None:
+        pass
+    @property
+    def cmevla_vocative_sumti(self) -> CmevlaVocativeSumtiSyntax:
+        'Uses the `cmevla_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses`.'
+        return cast(CmevlaVocativeSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VocativeSumtiSyntaxCmevlaVocativeSumti is final')
+
+@final
+class VocativeSumtiSyntaxSumti(_SyntaxNode):
+    'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
+    __slots__ = ()
+    _schema_id = 389
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiSyntax) -> VocativeSumtiSyntaxSumti:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
+        return cast(SumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VocativeSumtiSyntaxSumti is final')
+
+VocativeSumtiSyntax: TypeAlias = VocativeSumtiSyntaxSelbriVocativeSumti | VocativeSumtiSyntaxCmevlaVocativeSumti | VocativeSumtiSyntaxSumti
+
+@final
+class VocativeMarkerWordsSyntaxCoiVocativeMarkerWords(_SyntaxNode):
+    'Uses the `coi_vocative_marker_words` product form, whose payload preserves `first_coi`, `first_nai`, `additional_coi`, and `doi`.'
+    __slots__ = ()
+    _schema_id = 390
+    __match_args__ = ('coi_vocative_marker_words',)
+    def __new__(cls, coi_vocative_marker_words: CoiVocativeMarkerWordsSyntax) -> VocativeMarkerWordsSyntaxCoiVocativeMarkerWords:
+        return cls._from_fields((coi_vocative_marker_words,))
+    def __init__(self, coi_vocative_marker_words: CoiVocativeMarkerWordsSyntax) -> None:
+        pass
+    @property
+    def coi_vocative_marker_words(self) -> CoiVocativeMarkerWordsSyntax:
+        'Uses the `coi_vocative_marker_words` product form, whose payload preserves `first_coi`, `first_nai`, `additional_coi`, and `doi`.'
+        return cast(CoiVocativeMarkerWordsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VocativeMarkerWordsSyntaxCoiVocativeMarkerWords is final')
+
+@final
+class VocativeMarkerWordsSyntaxDoiVocativeMarkerWords(_SyntaxNode):
+    'Uses the `doi_vocative_marker_words` product form, whose payload preserves `doi`.'
+    __slots__ = ()
+    _schema_id = 391
+    __match_args__ = ('doi_vocative_marker_words',)
+    def __new__(cls, doi_vocative_marker_words: DoiVocativeMarkerWordsSyntax) -> VocativeMarkerWordsSyntaxDoiVocativeMarkerWords:
+        return cls._from_fields((doi_vocative_marker_words,))
+    def __init__(self, doi_vocative_marker_words: DoiVocativeMarkerWordsSyntax) -> None:
+        pass
+    @property
+    def doi_vocative_marker_words(self) -> DoiVocativeMarkerWordsSyntax:
+        'Uses the `doi_vocative_marker_words` product form, whose payload preserves `doi`.'
+        return cast(DoiVocativeMarkerWordsSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VocativeMarkerWordsSyntaxDoiVocativeMarkerWords is final')
+
+VocativeMarkerWordsSyntax: TypeAlias = VocativeMarkerWordsSyntaxCoiVocativeMarkerWords | VocativeMarkerWordsSyntaxDoiVocativeMarkerWords
+
+@final
+class CoiVocativeMarkerWordsSyntax(_SyntaxNode):
+    'Product node for vocative marker; preserves `first_coi`, `first_nai`, `additional_coi`, and `doi` in source order.'
+    __slots__ = ()
+    _schema_id = 392
+    __match_args__ = ('first_coi', 'first_nai', 'additional_coi', 'doi')
+    def __new__(cls, first_coi: Token, first_nai: Token | None, additional_coi: Sequence[AdditionalCoiVocativeMarkerSyntax], doi: Token | None) -> CoiVocativeMarkerWordsSyntax:
+        return cls._from_fields((first_coi, first_nai, additional_coi, doi))
+    def __init__(self, first_coi: Token, first_nai: Token | None, additional_coi: Sequence[AdditionalCoiVocativeMarkerSyntax], doi: Token | None) -> None:
+        pass
+    @property
+    def first_coi(self) -> Token:
+        'A word from selmaho `Coi`.'
+        return cast(Token, self._field(0))
+    @property
+    def first_nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(1))
+    @property
+    def additional_coi(self) -> tuple[AdditionalCoiVocativeMarkerSyntax, ...]:
+        'Ordered sequence of zero or more additional coi components.'
+        return cast(tuple[AdditionalCoiVocativeMarkerSyntax, ...], self._field(2))
+    @property
+    def doi(self) -> Token | None:
+        'The optional `Doi` cmavo marker.'
+        return cast(Token | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CoiVocativeMarkerWordsSyntax is final')
+
+@final
+class AdditionalCoiVocativeMarkerSyntax(_SyntaxNode):
+    'Product node for vocative marker; preserves `coi` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 393
+    __match_args__ = ('coi', 'nai')
+    def __new__(cls, coi: Token, nai: Token | None) -> AdditionalCoiVocativeMarkerSyntax:
+        return cls._from_fields((coi, nai))
+    def __init__(self, coi: Token, nai: Token | None) -> None:
+        pass
+    @property
+    def coi(self) -> Token:
+        'A word from selmaho `Coi`.'
+        return cast(Token, self._field(0))
+    @property
+    def nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AdditionalCoiVocativeMarkerSyntax is final')
+
+@final
+class DoiVocativeMarkerWordsSyntax(_SyntaxNode):
+    'Transparent product node for vocative marker; preserves the `doi` component.'
+    __slots__ = ()
+    _schema_id = 394
+    __match_args__ = ('doi',)
+    def __new__(cls, doi: Token) -> DoiVocativeMarkerWordsSyntax:
+        return cls._from_fields((doi,))
+    def __init__(self, doi: Token) -> None:
+        pass
+    @property
+    def doi(self) -> Token:
+        'The `Doi` cmavo marker.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('DoiVocativeMarkerWordsSyntax is final')
+
+@final
+class FreeModifierSyntaxTextReplacementFreeModifier(_SyntaxNode):
+    'Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 395
+    __match_args__ = ('text_replacement_free_modifier',)
+    def __new__(cls, text_replacement_free_modifier: TextReplacementFreeModifierSyntax) -> FreeModifierSyntaxTextReplacementFreeModifier:
+        return cls._from_fields((text_replacement_free_modifier,))
+    def __init__(self, text_replacement_free_modifier: TextReplacementFreeModifierSyntax) -> None:
+        pass
+    @property
+    def text_replacement_free_modifier(self) -> TextReplacementFreeModifierSyntax:
+        'Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.'
+        return cast(TextReplacementFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxTextReplacementFreeModifier is final')
+
+@final
+class FreeModifierSyntaxZantufaSeiStatementFreeModifier(_SyntaxNode):
+    'Uses the `zantufa_sei_statement_free_modifier` product form, whose payload preserves `sei`, `statement`, and `sehu`.'
+    __slots__ = ()
+    _schema_id = 396
+    __match_args__ = ('zantufa_sei_statement_free_modifier',)
+    def __new__(cls, zantufa_sei_statement_free_modifier: ZantufaSeiStatementFreeModifierSyntax) -> FreeModifierSyntaxZantufaSeiStatementFreeModifier:
+        return cls._from_fields((zantufa_sei_statement_free_modifier,))
+    def __init__(self, zantufa_sei_statement_free_modifier: ZantufaSeiStatementFreeModifierSyntax) -> None:
+        pass
+    @property
+    def zantufa_sei_statement_free_modifier(self) -> ZantufaSeiStatementFreeModifierSyntax:
+        'Uses the `zantufa_sei_statement_free_modifier` product form, whose payload preserves `sei`, `statement`, and `sehu`.'
+        return cast(ZantufaSeiStatementFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxZantufaSeiStatementFreeModifier is final')
+
+@final
+class FreeModifierSyntaxSeiFreeModifier(_SyntaxNode):
+    'Uses the `sei_free_modifier` product form, whose payload preserves `sei`, `terms`, `cu`, `selbri`, and `sehu`.'
+    __slots__ = ()
+    _schema_id = 397
+    __match_args__ = ('sei_free_modifier',)
+    def __new__(cls, sei_free_modifier: SeiFreeModifierSyntax) -> FreeModifierSyntaxSeiFreeModifier:
+        return cls._from_fields((sei_free_modifier,))
+    def __init__(self, sei_free_modifier: SeiFreeModifierSyntax) -> None:
+        pass
+    @property
+    def sei_free_modifier(self) -> SeiFreeModifierSyntax:
+        'Uses the `sei_free_modifier` product form, whose payload preserves `sei`, `terms`, `cu`, `selbri`, and `sehu`.'
+        return cast(SeiFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxSeiFreeModifier is final')
+
+@final
+class FreeModifierSyntaxXiFreeModifier(_SyntaxNode):
+    'Uses the nested `xi_free_modifier` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 398
+    __match_args__ = ('xi_free_modifier',)
+    def __new__(cls, xi_free_modifier: XiFreeModifierSyntax) -> FreeModifierSyntaxXiFreeModifier:
+        return cls._from_fields((xi_free_modifier,))
+    def __init__(self, xi_free_modifier: XiFreeModifierSyntax) -> None:
+        pass
+    @property
+    def xi_free_modifier(self) -> XiFreeModifierSyntax:
+        'Uses the nested `xi_free_modifier` sum form and preserves its selected alternative.'
+        return cast(XiFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxXiFreeModifier is final')
+
+@final
+class FreeModifierSyntaxMaiFreeModifier(_SyntaxNode):
+    'Uses the `mai_free_modifier` product form, whose payload preserves `number` and `mai`.'
+    __slots__ = ()
+    _schema_id = 399
+    __match_args__ = ('mai_free_modifier',)
+    def __new__(cls, mai_free_modifier: MaiFreeModifierSyntax) -> FreeModifierSyntaxMaiFreeModifier:
+        return cls._from_fields((mai_free_modifier,))
+    def __init__(self, mai_free_modifier: MaiFreeModifierSyntax) -> None:
+        pass
+    @property
+    def mai_free_modifier(self) -> MaiFreeModifierSyntax:
+        'Uses the `mai_free_modifier` product form, whose payload preserves `number` and `mai`.'
+        return cast(MaiFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxMaiFreeModifier is final')
+
+@final
+class FreeModifierSyntaxZantufaMeksoMaiFreeModifier(_SyntaxNode):
+    'Uses the `zantufa_mekso_mai_free_modifier` product form, whose payload preserves `expression` and `mai`.'
+    __slots__ = ()
+    _schema_id = 400
+    __match_args__ = ('zantufa_mekso_mai_free_modifier',)
+    def __new__(cls, zantufa_mekso_mai_free_modifier: ZantufaMeksoMaiFreeModifierSyntax) -> FreeModifierSyntaxZantufaMeksoMaiFreeModifier:
+        return cls._from_fields((zantufa_mekso_mai_free_modifier,))
+    def __init__(self, zantufa_mekso_mai_free_modifier: ZantufaMeksoMaiFreeModifierSyntax) -> None:
+        pass
+    @property
+    def zantufa_mekso_mai_free_modifier(self) -> ZantufaMeksoMaiFreeModifierSyntax:
+        'Uses the `zantufa_mekso_mai_free_modifier` product form, whose payload preserves `expression` and `mai`.'
+        return cast(ZantufaMeksoMaiFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxZantufaMeksoMaiFreeModifier is final')
+
+@final
+class FreeModifierSyntaxSoiFreeModifier(_SyntaxNode):
+    'Uses the `soi_free_modifier` product form, whose payload preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu`.'
+    __slots__ = ()
+    _schema_id = 401
+    __match_args__ = ('soi_free_modifier',)
+    def __new__(cls, soi_free_modifier: SoiFreeModifierSyntax) -> FreeModifierSyntaxSoiFreeModifier:
+        return cls._from_fields((soi_free_modifier,))
+    def __init__(self, soi_free_modifier: SoiFreeModifierSyntax) -> None:
+        pass
+    @property
+    def soi_free_modifier(self) -> SoiFreeModifierSyntax:
+        'Uses the `soi_free_modifier` product form, whose payload preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu`.'
+        return cast(SoiFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxSoiFreeModifier is final')
+
+@final
+class FreeModifierSyntaxParentheticalText(_SyntaxNode):
+    'Uses the `parenthetical_text` product form, whose payload preserves `to`, `text`, and `toi`.'
+    __slots__ = ()
+    _schema_id = 402
+    __match_args__ = ('parenthetical_text',)
+    def __new__(cls, parenthetical_text: ParentheticalTextSyntax) -> FreeModifierSyntaxParentheticalText:
+        return cls._from_fields((parenthetical_text,))
+    def __init__(self, parenthetical_text: ParentheticalTextSyntax) -> None:
+        pass
+    @property
+    def parenthetical_text(self) -> ParentheticalTextSyntax:
+        'Uses the `parenthetical_text` product form, whose payload preserves `to`, `text`, and `toi`.'
+        return cast(ParentheticalTextSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxParentheticalText is final')
+
+@final
+class FreeModifierSyntaxVocativeFreeModifier(_SyntaxNode):
+    'Uses the `vocative_free_modifier` product form, whose payload preserves `vocative_markers`, `sumti`, and `dohu`.'
+    __slots__ = ()
+    _schema_id = 403
+    __match_args__ = ('vocative_free_modifier',)
+    def __new__(cls, vocative_free_modifier: VocativeFreeModifierSyntax) -> FreeModifierSyntaxVocativeFreeModifier:
+        return cls._from_fields((vocative_free_modifier,))
+    def __init__(self, vocative_free_modifier: VocativeFreeModifierSyntax) -> None:
+        pass
+    @property
+    def vocative_free_modifier(self) -> VocativeFreeModifierSyntax:
+        'Uses the `vocative_free_modifier` product form, whose payload preserves `vocative_markers`, `sumti`, and `dohu`.'
+        return cast(VocativeFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FreeModifierSyntaxVocativeFreeModifier is final')
+
+FreeModifierSyntax: TypeAlias = FreeModifierSyntaxTextReplacementFreeModifier | FreeModifierSyntaxZantufaSeiStatementFreeModifier | FreeModifierSyntaxSeiFreeModifier | FreeModifierSyntaxXiFreeModifier | FreeModifierSyntaxMaiFreeModifier | FreeModifierSyntaxZantufaMeksoMaiFreeModifier | FreeModifierSyntaxSoiFreeModifier | FreeModifierSyntaxParentheticalText | FreeModifierSyntaxVocativeFreeModifier
+
+@final
+class VocativeFreeModifierSyntax(_SyntaxNode):
+    'Product node for vocative phrase; preserves `vocative_markers`, `sumti`, and `dohu` in source order.'
+    __slots__ = ()
+    _schema_id = 404
+    __match_args__ = ('vocative_markers', 'sumti', 'dohu')
+    def __new__(cls, vocative_markers: WithFreeModifiers[VocativeMarkerWordsSyntax, FreeModifierSyntax], sumti: VocativeSumtiSyntax | None, dohu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> VocativeFreeModifierSyntax:
+        return cls._from_fields((vocative_markers, sumti, dohu))
+    def __init__(self, vocative_markers: WithFreeModifiers[VocativeMarkerWordsSyntax, FreeModifierSyntax], sumti: VocativeSumtiSyntax | None, dohu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def vocative_markers(self) -> WithFreeModifiers[VocativeMarkerWordsSyntax, FreeModifierSyntax]:
+        'The `vocative_marker_words` grammar result in the `vocative_markers` structural role of the `vocative_free_modifier` production.'
+        return cast(WithFreeModifiers[VocativeMarkerWordsSyntax, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> VocativeSumtiSyntax | None:
+        'The optional sumti component.'
+        return cast(VocativeSumtiSyntax | None, self._field(1))
+    @property
+    def dohu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Dohu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VocativeFreeModifierSyntax is final')
+
+@final
+class ParentheticalTextSyntax(_SyntaxNode):
+    'Product node for parenthetical text; preserves `to`, `text`, and `toi` in source order.'
+    __slots__ = ()
+    _schema_id = 405
+    __match_args__ = ('to', 'text', 'toi')
+    def __new__(cls, to: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, toi: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ParentheticalTextSyntax:
+        return cls._from_fields((to, text, toi))
+    def __init__(self, to: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, toi: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def to(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `To`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def text(self) -> TextSyntax:
+        'The shared text child syntax node.'
+        return cast(TextSyntax, self._field(1))
+    @property
+    def toi(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Toi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParentheticalTextSyntax is final')
+
+@final
+class SeiFreeModifierSyntax(_SyntaxNode):
+    'Product node for metalinguistic comment; preserves `sei`, `terms`, `cu`, `selbri`, and `sehu` in source order.'
+    __slots__ = ()
+    _schema_id = 406
+    __match_args__ = ('sei', 'terms', 'cu', 'selbri', 'sehu')
+    def __new__(cls, sei: WithFreeModifiers[Token, FreeModifierSyntax], terms: Sequence[TermSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, selbri: SelbriSyntax, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SeiFreeModifierSyntax:
+        return cls._from_fields((sei, terms, cu, selbri, sehu))
+    def __init__(self, sei: WithFreeModifiers[Token, FreeModifierSyntax], terms: Sequence[TermSyntax], cu: WithFreeModifiers[Token, FreeModifierSyntax] | None, selbri: SelbriSyntax, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def sei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Sei`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'Ordered sequence of zero or more terms components.'
+        return cast(tuple[TermSyntax, ...], self._field(1))
+    @property
+    def cu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Cu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(3))
+    @property
+    def sehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Sehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SeiFreeModifierSyntax is final')
+
+@final
+class ZantufaSeiStatementFreeModifierSyntax(_SyntaxNode):
+    'Product node for metalinguistic comment; preserves `sei`, `statement`, and `sehu` in source order.'
+    __slots__ = ()
+    _schema_id = 407
+    __match_args__ = ('sei', 'statement', 'sehu')
+    def __new__(cls, sei: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaSeiStatementFreeModifierSyntax:
+        return cls._from_fields((sei, statement, sehu))
+    def __init__(self, sei: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def sei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Sei`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    @property
+    def sehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Sehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaSeiStatementFreeModifierSyntax is final')
+
+@final
+class XiFreeModifierSyntaxXiNumberFreeModifier(_SyntaxNode):
+    'Uses the `xi_number_free_modifier` product form, whose payload preserves `xi` and `expression`.'
+    __slots__ = ()
+    _schema_id = 408
+    __match_args__ = ('xi_number_free_modifier',)
+    def __new__(cls, xi_number_free_modifier: XiNumberFreeModifierSyntax) -> XiFreeModifierSyntaxXiNumberFreeModifier:
+        return cls._from_fields((xi_number_free_modifier,))
+    def __init__(self, xi_number_free_modifier: XiNumberFreeModifierSyntax) -> None:
+        pass
+    @property
+    def xi_number_free_modifier(self) -> XiNumberFreeModifierSyntax:
+        'Uses the `xi_number_free_modifier` product form, whose payload preserves `xi` and `expression`.'
+        return cast(XiNumberFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('XiFreeModifierSyntaxXiNumberFreeModifier is final')
+
+@final
+class XiFreeModifierSyntaxXiLerfuStringFreeModifier(_SyntaxNode):
+    'Uses the `xi_lerfu_string_free_modifier` product form, whose payload preserves `xi` and `expression`.'
+    __slots__ = ()
+    _schema_id = 409
+    __match_args__ = ('xi_lerfu_string_free_modifier',)
+    def __new__(cls, xi_lerfu_string_free_modifier: XiLerfuStringFreeModifierSyntax) -> XiFreeModifierSyntaxXiLerfuStringFreeModifier:
+        return cls._from_fields((xi_lerfu_string_free_modifier,))
+    def __init__(self, xi_lerfu_string_free_modifier: XiLerfuStringFreeModifierSyntax) -> None:
+        pass
+    @property
+    def xi_lerfu_string_free_modifier(self) -> XiLerfuStringFreeModifierSyntax:
+        'Uses the `xi_lerfu_string_free_modifier` product form, whose payload preserves `xi` and `expression`.'
+        return cast(XiLerfuStringFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('XiFreeModifierSyntaxXiLerfuStringFreeModifier is final')
+
+@final
+class XiFreeModifierSyntaxXiParenthesizedFreeModifier(_SyntaxNode):
+    'Uses the `xi_parenthesized_free_modifier` product form, whose payload preserves `xi` and `expression`.'
+    __slots__ = ()
+    _schema_id = 410
+    __match_args__ = ('xi_parenthesized_free_modifier',)
+    def __new__(cls, xi_parenthesized_free_modifier: XiParenthesizedFreeModifierSyntax) -> XiFreeModifierSyntaxXiParenthesizedFreeModifier:
+        return cls._from_fields((xi_parenthesized_free_modifier,))
+    def __init__(self, xi_parenthesized_free_modifier: XiParenthesizedFreeModifierSyntax) -> None:
+        pass
+    @property
+    def xi_parenthesized_free_modifier(self) -> XiParenthesizedFreeModifierSyntax:
+        'Uses the `xi_parenthesized_free_modifier` product form, whose payload preserves `xi` and `expression`.'
+        return cast(XiParenthesizedFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('XiFreeModifierSyntaxXiParenthesizedFreeModifier is final')
+
+XiFreeModifierSyntax: TypeAlias = XiFreeModifierSyntaxXiNumberFreeModifier | XiFreeModifierSyntaxXiLerfuStringFreeModifier | XiFreeModifierSyntaxXiParenthesizedFreeModifier
+
+@final
+class XiNumberFreeModifierSyntax(_SyntaxNode):
+    'Product node for subscript; preserves `xi` and `expression` in source order.'
+    __slots__ = ()
+    _schema_id = 411
+    __match_args__ = ('xi', 'expression')
+    def __new__(cls, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: NumberMeksoSyntax) -> XiNumberFreeModifierSyntax:
+        return cls._from_fields((xi, expression))
+    def __init__(self, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: NumberMeksoSyntax) -> None:
+        pass
+    @property
+    def xi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Xi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def expression(self) -> NumberMeksoSyntax:
+        'The shared expression child syntax node.'
+        return cast(NumberMeksoSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('XiNumberFreeModifierSyntax is final')
+
+@final
+class XiLerfuStringFreeModifierSyntax(_SyntaxNode):
+    'Product node for subscript; preserves `xi` and `expression` in source order.'
+    __slots__ = ()
+    _schema_id = 412
+    __match_args__ = ('xi', 'expression')
+    def __new__(cls, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: LerfuStringMeksoSyntax) -> XiLerfuStringFreeModifierSyntax:
+        return cls._from_fields((xi, expression))
+    def __init__(self, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: LerfuStringMeksoSyntax) -> None:
+        pass
+    @property
+    def xi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Xi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def expression(self) -> LerfuStringMeksoSyntax:
+        'The shared expression child syntax node.'
+        return cast(LerfuStringMeksoSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('XiLerfuStringFreeModifierSyntax is final')
+
+@final
+class XiParenthesizedFreeModifierSyntax(_SyntaxNode):
+    'Product node for subscript; preserves `xi` and `expression` in source order.'
+    __slots__ = ()
+    _schema_id = 413
+    __match_args__ = ('xi', 'expression')
+    def __new__(cls, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: ParenthesizedMeksoOperandSyntax) -> XiParenthesizedFreeModifierSyntax:
+        return cls._from_fields((xi, expression))
+    def __init__(self, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: ParenthesizedMeksoOperandSyntax) -> None:
+        pass
+    @property
+    def xi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Xi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def expression(self) -> ParenthesizedMeksoOperandSyntax:
+        'The shared expression child syntax node.'
+        return cast(ParenthesizedMeksoOperandSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('XiParenthesizedFreeModifierSyntax is final')
+
+@final
+class MaiFreeModifierSyntax(_SyntaxNode):
+    'Product node for utterance ordinal; preserves `number` and `mai` in source order.'
+    __slots__ = ()
+    _schema_id = 414
+    __match_args__ = ('number', 'mai')
+    def __new__(cls, number: NumberOrLetterWordsSyntax, mai: WithFreeModifiers[Token, FreeModifierSyntax]) -> MaiFreeModifierSyntax:
+        return cls._from_fields((number, mai))
+    def __init__(self, number: NumberOrLetterWordsSyntax, mai: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def number(self) -> NumberOrLetterWordsSyntax:
+        'The `number_or_letter_words` grammar result in the `number` structural role of the `mai_free_modifier` production.'
+        return cast(NumberOrLetterWordsSyntax, self._field(0))
+    @property
+    def mai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Mai`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MaiFreeModifierSyntax is final')
+
+@final
+class ZantufaMeksoMaiFreeModifierSyntax(_SyntaxNode):
+    'Product node for utterance ordinal; preserves `expression` and `mai` in source order.'
+    __slots__ = ()
+    _schema_id = 415
+    __match_args__ = ('expression', 'mai')
+    def __new__(cls, expression: MeksoSyntax, mai: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaMeksoMaiFreeModifierSyntax:
+        return cls._from_fields((expression, mai))
+    def __init__(self, expression: MeksoSyntax, mai: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def expression(self) -> MeksoSyntax:
+        'The required shared mekso expression parsed by `mekso`, accepted only when immediately followed by a MAI-family word.'
+        return cast(MeksoSyntax, self._field(0))
+    @property
+    def mai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Mai`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeksoMaiFreeModifierSyntax is final')
+
+@final
+class SoiFreeModifierSyntax(_SyntaxNode):
+    'Product node for reciprocal; preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu` in source order.'
+    __slots__ = ()
+    _schema_id = 416
+    __match_args__ = ('soi', 'leading_sumti', 'trailing_sumti', 'sehu')
+    def __new__(cls, soi: WithFreeModifiers[Token, FreeModifierSyntax], leading_sumti: SumtiSyntax, trailing_sumti: SumtiSyntax | None, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SoiFreeModifierSyntax:
+        return cls._from_fields((soi, leading_sumti, trailing_sumti, sehu))
+    def __init__(self, soi: WithFreeModifiers[Token, FreeModifierSyntax], leading_sumti: SumtiSyntax, trailing_sumti: SumtiSyntax | None, sehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def soi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Soi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def leading_sumti(self) -> SumtiSyntax:
+        'The shared leading sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(1))
+    @property
+    def trailing_sumti(self) -> SumtiSyntax | None:
+        'The optional trailing sumti component.'
+        return cast(SumtiSyntax | None, self._field(2))
+    @property
+    def sehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Sehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SoiFreeModifierSyntax is final')
+
+@final
+class TextReplacementFreeModifierSyntaxFullTextReplacementFreeModifier(_SyntaxNode):
+    'Uses the `full_text_replacement_free_modifier` product form, whose payload preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai`.'
+    __slots__ = ()
+    _schema_id = 417
+    __match_args__ = ('full_text_replacement_free_modifier',)
+    def __new__(cls, full_text_replacement_free_modifier: FullTextReplacementFreeModifierSyntax) -> TextReplacementFreeModifierSyntaxFullTextReplacementFreeModifier:
+        return cls._from_fields((full_text_replacement_free_modifier,))
+    def __init__(self, full_text_replacement_free_modifier: FullTextReplacementFreeModifierSyntax) -> None:
+        pass
+    @property
+    def full_text_replacement_free_modifier(self) -> FullTextReplacementFreeModifierSyntax:
+        'Uses the `full_text_replacement_free_modifier` product form, whose payload preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai`.'
+        return cast(FullTextReplacementFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextReplacementFreeModifierSyntaxFullTextReplacementFreeModifier is final')
+
+@final
+class TextReplacementFreeModifierSyntaxNewOnlyTextReplacementFreeModifier(_SyntaxNode):
+    'Uses the `new_only_text_replacement_free_modifier` product form, whose payload preserves `sahai`, `new_words`, and `lehai`.'
+    __slots__ = ()
+    _schema_id = 418
+    __match_args__ = ('new_only_text_replacement_free_modifier',)
+    def __new__(cls, new_only_text_replacement_free_modifier: NewOnlyTextReplacementFreeModifierSyntax) -> TextReplacementFreeModifierSyntaxNewOnlyTextReplacementFreeModifier:
+        return cls._from_fields((new_only_text_replacement_free_modifier,))
+    def __init__(self, new_only_text_replacement_free_modifier: NewOnlyTextReplacementFreeModifierSyntax) -> None:
+        pass
+    @property
+    def new_only_text_replacement_free_modifier(self) -> NewOnlyTextReplacementFreeModifierSyntax:
+        'Uses the `new_only_text_replacement_free_modifier` product form, whose payload preserves `sahai`, `new_words`, and `lehai`.'
+        return cast(NewOnlyTextReplacementFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextReplacementFreeModifierSyntaxNewOnlyTextReplacementFreeModifier is final')
+
+@final
+class TextReplacementFreeModifierSyntaxCloseOnlyTextReplacementFreeModifier(_SyntaxNode):
+    'Uses the `close_only_text_replacement_free_modifier` product form, whose payload preserves `lehai`.'
+    __slots__ = ()
+    _schema_id = 419
+    __match_args__ = ('close_only_text_replacement_free_modifier',)
+    def __new__(cls, close_only_text_replacement_free_modifier: CloseOnlyTextReplacementFreeModifierSyntax) -> TextReplacementFreeModifierSyntaxCloseOnlyTextReplacementFreeModifier:
+        return cls._from_fields((close_only_text_replacement_free_modifier,))
+    def __init__(self, close_only_text_replacement_free_modifier: CloseOnlyTextReplacementFreeModifierSyntax) -> None:
+        pass
+    @property
+    def close_only_text_replacement_free_modifier(self) -> CloseOnlyTextReplacementFreeModifierSyntax:
+        'Uses the `close_only_text_replacement_free_modifier` product form, whose payload preserves `lehai`.'
+        return cast(CloseOnlyTextReplacementFreeModifierSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextReplacementFreeModifierSyntaxCloseOnlyTextReplacementFreeModifier is final')
+
+TextReplacementFreeModifierSyntax: TypeAlias = TextReplacementFreeModifierSyntaxFullTextReplacementFreeModifier | TextReplacementFreeModifierSyntaxNewOnlyTextReplacementFreeModifier | TextReplacementFreeModifierSyntaxCloseOnlyTextReplacementFreeModifier
+
+@final
+class FullTextReplacementFreeModifierSyntax(_SyntaxNode):
+    'Product node for replacement phrase; preserves `lohai`, `old_words`, `sahai`, `new_words`, and `lehai` in source order.'
+    __slots__ = ()
+    _schema_id = 420
+    __match_args__ = ('lohai', 'old_words', 'sahai', 'new_words', 'lehai')
+    def __new__(cls, lohai: Token, old_words: Sequence[Token], sahai: Token | None, new_words: Sequence[Token], lehai: WithFreeModifiers[Token, FreeModifierSyntax]) -> FullTextReplacementFreeModifierSyntax:
+        return cls._from_fields((lohai, old_words, sahai, new_words, lehai))
+    def __init__(self, lohai: Token, old_words: Sequence[Token], sahai: Token | None, new_words: Sequence[Token], lehai: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def lohai(self) -> Token:
+        'The `Lohai` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def old_words(self) -> tuple[Token, ...]:
+        'Ordered sequence of zero or more old words components.'
+        return cast(tuple[Token, ...], self._field(1))
+    @property
+    def sahai(self) -> Token | None:
+        'The optional `Sahai` cmavo marker.'
+        return cast(Token | None, self._field(2))
+    @property
+    def new_words(self) -> tuple[Token, ...]:
+        'Ordered sequence of zero or more new words components.'
+        return cast(tuple[Token, ...], self._field(3))
+    @property
+    def lehai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Lehai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FullTextReplacementFreeModifierSyntax is final')
+
+@final
+class NewOnlyTextReplacementFreeModifierSyntax(_SyntaxNode):
+    'Product node for replacement phrase; preserves `sahai`, `new_words`, and `lehai` in source order.'
+    __slots__ = ()
+    _schema_id = 421
+    __match_args__ = ('sahai', 'new_words', 'lehai')
+    def __new__(cls, sahai: Token, new_words: Sequence[Token], lehai: WithFreeModifiers[Token, FreeModifierSyntax]) -> NewOnlyTextReplacementFreeModifierSyntax:
+        return cls._from_fields((sahai, new_words, lehai))
+    def __init__(self, sahai: Token, new_words: Sequence[Token], lehai: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def sahai(self) -> Token:
+        'The `Sahai` cmavo marker.'
+        return cast(Token, self._field(0))
+    @property
+    def new_words(self) -> tuple[Token, ...]:
+        'Ordered sequence of zero or more new words components.'
+        return cast(tuple[Token, ...], self._field(1))
+    @property
+    def lehai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Lehai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NewOnlyTextReplacementFreeModifierSyntax is final')
+
+@final
+class CloseOnlyTextReplacementFreeModifierSyntax(_SyntaxNode):
+    'Transparent product node for replacement phrase; preserves the `lehai` component.'
+    __slots__ = ()
+    _schema_id = 422
+    __match_args__ = ('lehai',)
+    def __new__(cls, lehai: WithFreeModifiers[Token, FreeModifierSyntax]) -> CloseOnlyTextReplacementFreeModifierSyntax:
+        return cls._from_fields((lehai,))
+    def __init__(self, lehai: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def lehai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Lehai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CloseOnlyTextReplacementFreeModifierSyntax is final')
+
+@final
+class RelativeClauseTailSyntaxJoinedRelativeClauseTail(_SyntaxNode):
+    'Uses the `joined_relative_clause_tail` product form, whose payload preserves `zihe` and `inner`.'
+    __slots__ = ()
+    _schema_id = 423
+    __match_args__ = ('joined_relative_clause_tail',)
+    def __new__(cls, joined_relative_clause_tail: JoinedRelativeClauseTailSyntax) -> RelativeClauseTailSyntaxJoinedRelativeClauseTail:
+        return cls._from_fields((joined_relative_clause_tail,))
+    def __init__(self, joined_relative_clause_tail: JoinedRelativeClauseTailSyntax) -> None:
+        pass
+    @property
+    def joined_relative_clause_tail(self) -> JoinedRelativeClauseTailSyntax:
+        'Uses the `joined_relative_clause_tail` product form, whose payload preserves `zihe` and `inner`.'
+        return cast(JoinedRelativeClauseTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseTailSyntaxJoinedRelativeClauseTail is final')
+
+@final
+class RelativeClauseTailSyntaxConnectedRelativeClauseTail(_SyntaxNode):
+    'Uses the `connected_relative_clause_tail` product form, whose payload preserves `connective` and `inner`.'
+    __slots__ = ()
+    _schema_id = 424
+    __match_args__ = ('connected_relative_clause_tail',)
+    def __new__(cls, connected_relative_clause_tail: ConnectedRelativeClauseTailSyntax) -> RelativeClauseTailSyntaxConnectedRelativeClauseTail:
+        return cls._from_fields((connected_relative_clause_tail,))
+    def __init__(self, connected_relative_clause_tail: ConnectedRelativeClauseTailSyntax) -> None:
+        pass
+    @property
+    def connected_relative_clause_tail(self) -> ConnectedRelativeClauseTailSyntax:
+        'Uses the `connected_relative_clause_tail` product form, whose payload preserves `connective` and `inner`.'
+        return cast(ConnectedRelativeClauseTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseTailSyntaxConnectedRelativeClauseTail is final')
+
+RelativeClauseTailSyntax: TypeAlias = RelativeClauseTailSyntaxJoinedRelativeClauseTail | RelativeClauseTailSyntaxConnectedRelativeClauseTail
+
+@final
+class JoinedRelativeClauseTailSyntax(_SyntaxNode):
+    'Product node for relative clause; preserves `zihe` and `inner` in source order.'
+    __slots__ = ()
+    _schema_id = 425
+    __match_args__ = ('zihe', 'inner')
+    def __new__(cls, zihe: WithFreeModifiers[Token, FreeModifierSyntax], inner: RelativeClauseAtomSyntax) -> JoinedRelativeClauseTailSyntax:
+        return cls._from_fields((zihe, inner))
+    def __init__(self, zihe: WithFreeModifiers[Token, FreeModifierSyntax], inner: RelativeClauseAtomSyntax) -> None:
+        pass
+    @property
+    def zihe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Zihe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner(self) -> RelativeClauseAtomSyntax:
+        'The shared inner child syntax node.'
+        return cast(RelativeClauseAtomSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JoinedRelativeClauseTailSyntax is final')
+
+@final
+class ConnectedRelativeClauseTailSyntax(_SyntaxNode):
+    'Product node for relative clause; preserves `connective` and `inner` in source order.'
+    __slots__ = ()
+    _schema_id = 426
+    __match_args__ = ('connective', 'inner')
+    def __new__(cls, connective: RelativeClauseConnectiveSyntax, inner: RelativeClauseAtomSyntax) -> ConnectedRelativeClauseTailSyntax:
+        return cls._from_fields((connective, inner))
+    def __init__(self, connective: RelativeClauseConnectiveSyntax, inner: RelativeClauseAtomSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> RelativeClauseConnectiveSyntax:
+        'The `relative_clause_connective` connective joining the adjacent constituents of the `connected_relative_clause_tail` production.'
+        return cast(RelativeClauseConnectiveSyntax, self._field(0))
+    @property
+    def inner(self) -> RelativeClauseAtomSyntax:
+        'The shared inner child syntax node.'
+        return cast(RelativeClauseAtomSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedRelativeClauseTailSyntax is final')
+
+@final
+class RelativeClauseConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 427
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> RelativeClauseConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseConnectiveSyntaxJoikConnective is final')
+
+@final
+class RelativeClauseConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 428
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> RelativeClauseConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseConnectiveSyntaxJekConnective is final')
+
+RelativeClauseConnectiveSyntax: TypeAlias = RelativeClauseConnectiveSyntaxJoikConnective | RelativeClauseConnectiveSyntaxJekConnective
+
+@final
+class RelativeClauseAtomSyntaxSumtiAssociationRelativeClause(_SyntaxNode):
+    'Uses the `sumti_association_relative_clause` product form, whose payload preserves `association_marker`, `sumti`, and `gehu`.'
+    __slots__ = ()
+    _schema_id = 429
+    __match_args__ = ('sumti_association_relative_clause',)
+    def __new__(cls, sumti_association_relative_clause: SumtiAssociationRelativeClauseSyntax) -> RelativeClauseAtomSyntaxSumtiAssociationRelativeClause:
+        return cls._from_fields((sumti_association_relative_clause,))
+    def __init__(self, sumti_association_relative_clause: SumtiAssociationRelativeClauseSyntax) -> None:
+        pass
+    @property
+    def sumti_association_relative_clause(self) -> SumtiAssociationRelativeClauseSyntax:
+        'Uses the `sumti_association_relative_clause` product form, whose payload preserves `association_marker`, `sumti`, and `gehu`.'
+        return cast(SumtiAssociationRelativeClauseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseAtomSyntaxSumtiAssociationRelativeClause is final')
+
+@final
+class RelativeClauseAtomSyntaxBridiRelativeClause(_SyntaxNode):
+    'Uses the nested `bridi_relative_clause` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 430
+    __match_args__ = ('bridi_relative_clause',)
+    def __new__(cls, bridi_relative_clause: BridiRelativeClauseSyntax) -> RelativeClauseAtomSyntaxBridiRelativeClause:
+        return cls._from_fields((bridi_relative_clause,))
+    def __init__(self, bridi_relative_clause: BridiRelativeClauseSyntax) -> None:
+        pass
+    @property
+    def bridi_relative_clause(self) -> BridiRelativeClauseSyntax:
+        'Uses the nested `bridi_relative_clause` sum form and preserves its selected alternative.'
+        return cast(BridiRelativeClauseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeClauseAtomSyntaxBridiRelativeClause is final')
+
+RelativeClauseAtomSyntax: TypeAlias = RelativeClauseAtomSyntaxSumtiAssociationRelativeClause | RelativeClauseAtomSyntaxBridiRelativeClause
+
+@final
+class SumtiAssociationRelativeClauseSyntax(_SyntaxNode):
+    'Product node for sumti association phrase; preserves `association_marker`, `sumti`, and `gehu` in source order.'
+    __slots__ = ()
+    _schema_id = 431
+    __match_args__ = ('association_marker', 'sumti', 'gehu')
+    def __new__(cls, association_marker: WithFreeModifiers[Token, FreeModifierSyntax], sumti: RelativeSumtiSyntax, gehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SumtiAssociationRelativeClauseSyntax:
+        return cls._from_fields((association_marker, sumti, gehu))
+    def __init__(self, association_marker: WithFreeModifiers[Token, FreeModifierSyntax], sumti: RelativeSumtiSyntax, gehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def association_marker(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Goi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> RelativeSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(RelativeSumtiSyntax, self._field(1))
+    @property
+    def gehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Gehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiAssociationRelativeClauseSyntax is final')
+
+@final
+class RelativeSumtiSyntaxTenseTaggedRelativeSumti(_SyntaxNode):
+    'Uses the `tense_tagged_relative_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
+    __slots__ = ()
+    _schema_id = 432
+    __match_args__ = ('tense_tagged_relative_sumti',)
+    def __new__(cls, tense_tagged_relative_sumti: TenseTaggedRelativeSumtiSyntax) -> RelativeSumtiSyntaxTenseTaggedRelativeSumti:
+        return cls._from_fields((tense_tagged_relative_sumti,))
+    def __init__(self, tense_tagged_relative_sumti: TenseTaggedRelativeSumtiSyntax) -> None:
+        pass
+    @property
+    def tense_tagged_relative_sumti(self) -> TenseTaggedRelativeSumtiSyntax:
+        'Uses the `tense_tagged_relative_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
+        return cast(TenseTaggedRelativeSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeSumtiSyntaxTenseTaggedRelativeSumti is final')
+
+@final
+class RelativeSumtiSyntaxNaKuRelativeSumti(_SyntaxNode):
+    'Uses the `na_ku_relative_sumti` product form, whose payload preserves `na` and `ku`.'
+    __slots__ = ()
+    _schema_id = 433
+    __match_args__ = ('na_ku_relative_sumti',)
+    def __new__(cls, na_ku_relative_sumti: NaKuRelativeSumtiSyntax) -> RelativeSumtiSyntaxNaKuRelativeSumti:
+        return cls._from_fields((na_ku_relative_sumti,))
+    def __init__(self, na_ku_relative_sumti: NaKuRelativeSumtiSyntax) -> None:
+        pass
+    @property
+    def na_ku_relative_sumti(self) -> NaKuRelativeSumtiSyntax:
+        'Uses the `na_ku_relative_sumti` product form, whose payload preserves `na` and `ku`.'
+        return cast(NaKuRelativeSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeSumtiSyntaxNaKuRelativeSumti is final')
+
+@final
+class RelativeSumtiSyntaxPlainRelativeSumti(_SyntaxNode):
+    'Uses the `plain_relative_sumti` product form, whose payload preserves `sumti`.'
+    __slots__ = ()
+    _schema_id = 434
+    __match_args__ = ('plain_relative_sumti',)
+    def __new__(cls, plain_relative_sumti: PlainRelativeSumtiSyntax) -> RelativeSumtiSyntaxPlainRelativeSumti:
+        return cls._from_fields((plain_relative_sumti,))
+    def __init__(self, plain_relative_sumti: PlainRelativeSumtiSyntax) -> None:
+        pass
+    @property
+    def plain_relative_sumti(self) -> PlainRelativeSumtiSyntax:
+        'Uses the `plain_relative_sumti` product form, whose payload preserves `sumti`.'
+        return cast(PlainRelativeSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelativeSumtiSyntaxPlainRelativeSumti is final')
+
+RelativeSumtiSyntax: TypeAlias = RelativeSumtiSyntaxTenseTaggedRelativeSumti | RelativeSumtiSyntaxNaKuRelativeSumti | RelativeSumtiSyntaxPlainRelativeSumti
+
+@final
+class NaKuRelativeSumtiSyntax(_SyntaxNode):
+    'Product node for sumti association phrase; preserves `na` and `ku` in source order.'
+    __slots__ = ()
+    _schema_id = 435
+    __match_args__ = ('na', 'ku')
+    def __new__(cls, na: Token, ku: WithFreeModifiers[Token, FreeModifierSyntax]) -> NaKuRelativeSumtiSyntax:
+        return cls._from_fields((na, ku))
+    def __init__(self, na: Token, ku: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def na(self) -> Token:
+        'A word from selmaho `Na`.'
+        return cast(Token, self._field(0))
+    @property
+    def ku(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ku` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NaKuRelativeSumtiSyntax is final')
+
+@final
+class TenseTaggedRelativeSumtiSyntax(_SyntaxNode):
+    'Product node for tagged sumti; preserves `tense_modal` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 436
+    __match_args__ = ('tense_modal', 'sumti')
+    def __new__(cls, tense_modal: TenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> TenseTaggedRelativeSumtiSyntax:
+        return cls._from_fields((tense_modal, sumti))
+    def __init__(self, tense_modal: TenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(TenseModalSyntax, self._field(0))
+    @property
+    def sumti(self) -> TaggedOrElidedSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(TaggedOrElidedSumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseTaggedRelativeSumtiSyntax is final')
+
+@final
+class PlainRelativeSumtiSyntax(_SyntaxNode):
+    'Transparent product node for sumti association phrase; preserves the `sumti` component.'
+    __slots__ = ()
+    _schema_id = 437
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiSyntax) -> PlainRelativeSumtiSyntax:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PlainRelativeSumtiSyntax is final')
+
+@final
+class BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause(_SyntaxNode):
+    'Uses the `zantufa_restrictive_statement_relative_clause` product form, whose payload preserves `poi`, `statement`, and `kuho`.'
+    __slots__ = ()
+    _schema_id = 438
+    __match_args__ = ('zantufa_restrictive_statement_relative_clause',)
+    def __new__(cls, zantufa_restrictive_statement_relative_clause: ZantufaRestrictiveStatementRelativeClauseSyntax) -> BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause:
+        return cls._from_fields((zantufa_restrictive_statement_relative_clause,))
+    def __init__(self, zantufa_restrictive_statement_relative_clause: ZantufaRestrictiveStatementRelativeClauseSyntax) -> None:
+        pass
+    @property
+    def zantufa_restrictive_statement_relative_clause(self) -> ZantufaRestrictiveStatementRelativeClauseSyntax:
+        'Uses the `zantufa_restrictive_statement_relative_clause` product form, whose payload preserves `poi`, `statement`, and `kuho`.'
+        return cast(ZantufaRestrictiveStatementRelativeClauseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause is final')
+
+@final
+class BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause(_SyntaxNode):
+    'Uses the `zantufa_incidental_statement_relative_clause` product form, whose payload preserves `noi`, `statement`, and `kuho`.'
+    __slots__ = ()
+    _schema_id = 439
+    __match_args__ = ('zantufa_incidental_statement_relative_clause',)
+    def __new__(cls, zantufa_incidental_statement_relative_clause: ZantufaIncidentalStatementRelativeClauseSyntax) -> BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause:
+        return cls._from_fields((zantufa_incidental_statement_relative_clause,))
+    def __init__(self, zantufa_incidental_statement_relative_clause: ZantufaIncidentalStatementRelativeClauseSyntax) -> None:
+        pass
+    @property
+    def zantufa_incidental_statement_relative_clause(self) -> ZantufaIncidentalStatementRelativeClauseSyntax:
+        'Uses the `zantufa_incidental_statement_relative_clause` product form, whose payload preserves `noi`, `statement`, and `kuho`.'
+        return cast(ZantufaIncidentalStatementRelativeClauseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause is final')
+
+@final
+class BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause(_SyntaxNode):
+    'Uses the `restrictive_bridi_relative_clause` product form, whose payload preserves `poi`, `subbridi`, and `kuho`.'
+    __slots__ = ()
+    _schema_id = 440
+    __match_args__ = ('restrictive_bridi_relative_clause',)
+    def __new__(cls, restrictive_bridi_relative_clause: RestrictiveBridiRelativeClauseSyntax) -> BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause:
+        return cls._from_fields((restrictive_bridi_relative_clause,))
+    def __init__(self, restrictive_bridi_relative_clause: RestrictiveBridiRelativeClauseSyntax) -> None:
+        pass
+    @property
+    def restrictive_bridi_relative_clause(self) -> RestrictiveBridiRelativeClauseSyntax:
+        'Uses the `restrictive_bridi_relative_clause` product form, whose payload preserves `poi`, `subbridi`, and `kuho`.'
+        return cast(RestrictiveBridiRelativeClauseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause is final')
+
+@final
+class BridiRelativeClauseSyntaxIncidentalBridiRelativeClause(_SyntaxNode):
+    'Uses the `incidental_bridi_relative_clause` product form, whose payload preserves `noi`, `subbridi`, and `kuho`.'
+    __slots__ = ()
+    _schema_id = 441
+    __match_args__ = ('incidental_bridi_relative_clause',)
+    def __new__(cls, incidental_bridi_relative_clause: IncidentalBridiRelativeClauseSyntax) -> BridiRelativeClauseSyntaxIncidentalBridiRelativeClause:
+        return cls._from_fields((incidental_bridi_relative_clause,))
+    def __init__(self, incidental_bridi_relative_clause: IncidentalBridiRelativeClauseSyntax) -> None:
+        pass
+    @property
+    def incidental_bridi_relative_clause(self) -> IncidentalBridiRelativeClauseSyntax:
+        'Uses the `incidental_bridi_relative_clause` product form, whose payload preserves `noi`, `subbridi`, and `kuho`.'
+        return cast(IncidentalBridiRelativeClauseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiRelativeClauseSyntaxIncidentalBridiRelativeClause is final')
+
+BridiRelativeClauseSyntax: TypeAlias = BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause | BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause | BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause | BridiRelativeClauseSyntaxIncidentalBridiRelativeClause
+
+@final
+class ZantufaRestrictiveStatementRelativeClauseSyntax(_SyntaxNode):
+    'Product node for relative clause; preserves `poi`, `statement`, and `kuho` in source order.'
+    __slots__ = ()
+    _schema_id = 442
+    __match_args__ = ('poi', 'statement', 'kuho')
+    def __new__(cls, poi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaRestrictiveStatementRelativeClauseSyntax:
+        return cls._from_fields((poi, statement, kuho))
+    def __init__(self, poi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def poi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `poi` structural role of the `zantufa_restrictive_statement_relative_clause` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    @property
+    def kuho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaRestrictiveStatementRelativeClauseSyntax is final')
+
+@final
+class ZantufaIncidentalStatementRelativeClauseSyntax(_SyntaxNode):
+    'Product node for relative clause; preserves `noi`, `statement`, and `kuho` in source order.'
+    __slots__ = ()
+    _schema_id = 443
+    __match_args__ = ('noi', 'statement', 'kuho')
+    def __new__(cls, noi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaIncidentalStatementRelativeClauseSyntax:
+        return cls._from_fields((noi, statement, kuho))
+    def __init__(self, noi: WithFreeModifiers[Token, FreeModifierSyntax], statement: StatementSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def noi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `noi` structural role of the `zantufa_incidental_statement_relative_clause` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(1))
+    @property
+    def kuho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaIncidentalStatementRelativeClauseSyntax is final')
+
+@final
+class RestrictiveBridiRelativeClauseSyntax(_SyntaxNode):
+    'Product node for relative clause; preserves `poi`, `subbridi`, and `kuho` in source order.'
+    __slots__ = ()
+    _schema_id = 444
+    __match_args__ = ('poi', 'subbridi', 'kuho')
+    def __new__(cls, poi: WithFreeModifiers[Token, FreeModifierSyntax], subbridi: SubbridiSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> RestrictiveBridiRelativeClauseSyntax:
+        return cls._from_fields((poi, subbridi, kuho))
+    def __init__(self, poi: WithFreeModifiers[Token, FreeModifierSyntax], subbridi: SubbridiSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def poi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `poi` structural role of the `restrictive_bridi_relative_clause` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def subbridi(self) -> SubbridiSyntax:
+        'The shared subbridi child syntax node.'
+        return cast(SubbridiSyntax, self._field(1))
+    @property
+    def kuho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RestrictiveBridiRelativeClauseSyntax is final')
+
+@final
+class IncidentalBridiRelativeClauseSyntax(_SyntaxNode):
+    'Product node for relative clause; preserves `noi`, `subbridi`, and `kuho` in source order.'
+    __slots__ = ()
+    _schema_id = 445
+    __match_args__ = ('noi', 'subbridi', 'kuho')
+    def __new__(cls, noi: WithFreeModifiers[Token, FreeModifierSyntax], subbridi: SubbridiSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> IncidentalBridiRelativeClauseSyntax:
+        return cls._from_fields((noi, subbridi, kuho))
+    def __init__(self, noi: WithFreeModifiers[Token, FreeModifierSyntax], subbridi: SubbridiSyntax, kuho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def noi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `noi` structural role of the `incidental_bridi_relative_clause` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def subbridi(self) -> SubbridiSyntax:
+        'The shared subbridi child syntax node.'
+        return cast(SubbridiSyntax, self._field(1))
+    @property
+    def kuho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kuho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IncidentalBridiRelativeClauseSyntax is final')
+
+@final
+class EkConnectiveSyntax(_SyntaxNode):
+    'Product node for ek; preserves `na`, `se`, `a`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 446
+    __match_args__ = ('na', 'se', 'a', 'nai')
+    def __new__(cls, na: Token | None, se: Token | None, a: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> EkConnectiveSyntax:
+        return cls._from_fields((na, se, a, nai))
+    def __init__(self, na: Token | None, se: Token | None, a: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def na(self) -> Token | None:
+        'The optional na component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def a(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `A`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('EkConnectiveSyntax is final')
+
+@final
+class JehiConnectiveSyntax(_SyntaxNode):
+    'Product node for ek; preserves `na`, `se`, `jehi`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 447
+    __match_args__ = ('na', 'se', 'jehi', 'nai')
+    def __new__(cls, na: Token | None, se: Token | None, jehi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> JehiConnectiveSyntax:
+        return cls._from_fields((na, se, jehi, nai))
+    def __init__(self, na: Token | None, se: Token | None, jehi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def na(self) -> Token | None:
+        'The optional na component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def jehi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Jehi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JehiConnectiveSyntax is final')
+
+@final
+class JekConnectiveSyntax(_SyntaxNode):
+    'Product node for jek; preserves `na`, `se`, `ja`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 448
+    __match_args__ = ('na', 'se', 'ja', 'nai')
+    def __new__(cls, na: Token | None, se: Token | None, ja: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> JekConnectiveSyntax:
+        return cls._from_fields((na, se, ja, nai))
+    def __init__(self, na: Token | None, se: Token | None, ja: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def na(self) -> Token | None:
+        'The optional na component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def ja(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Ja`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JekConnectiveSyntax is final')
+
+@final
+class JoikConnectiveSyntaxJoiConnective(_SyntaxNode):
+    'Uses the `joi_connective` product form, whose payload preserves `se`, `joi`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 449
+    __match_args__ = ('joi_connective',)
+    def __new__(cls, joi_connective: JoiConnectiveSyntax) -> JoikConnectiveSyntaxJoiConnective:
+        return cls._from_fields((joi_connective,))
+    def __init__(self, joi_connective: JoiConnectiveSyntax) -> None:
+        pass
+    @property
+    def joi_connective(self) -> JoiConnectiveSyntax:
+        'Uses the `joi_connective` product form, whose payload preserves `se`, `joi`, and `nai`.'
+        return cast(JoiConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JoikConnectiveSyntaxJoiConnective is final')
+
+@final
+class JoikConnectiveSyntaxSimpleIntervalConnective(_SyntaxNode):
+    'Uses the `simple_interval_connective` product form, whose payload preserves `se`, `bihi`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 450
+    __match_args__ = ('simple_interval_connective',)
+    def __new__(cls, simple_interval_connective: SimpleIntervalConnectiveSyntax) -> JoikConnectiveSyntaxSimpleIntervalConnective:
+        return cls._from_fields((simple_interval_connective,))
+    def __init__(self, simple_interval_connective: SimpleIntervalConnectiveSyntax) -> None:
+        pass
+    @property
+    def simple_interval_connective(self) -> SimpleIntervalConnectiveSyntax:
+        'Uses the `simple_interval_connective` product form, whose payload preserves `se`, `bihi`, and `nai`.'
+        return cast(SimpleIntervalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JoikConnectiveSyntaxSimpleIntervalConnective is final')
+
+@final
+class JoikConnectiveSyntaxClosedIntervalConnective(_SyntaxNode):
+    'Uses the `closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+    __slots__ = ()
+    _schema_id = 451
+    __match_args__ = ('closed_interval_connective',)
+    def __new__(cls, closed_interval_connective: ClosedIntervalConnectiveSyntax) -> JoikConnectiveSyntaxClosedIntervalConnective:
+        return cls._from_fields((closed_interval_connective,))
+    def __init__(self, closed_interval_connective: ClosedIntervalConnectiveSyntax) -> None:
+        pass
+    @property
+    def closed_interval_connective(self) -> ClosedIntervalConnectiveSyntax:
+        'Uses the `closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+        return cast(ClosedIntervalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JoikConnectiveSyntaxClosedIntervalConnective is final')
+
+JoikConnectiveSyntax: TypeAlias = JoikConnectiveSyntaxJoiConnective | JoikConnectiveSyntaxSimpleIntervalConnective | JoikConnectiveSyntaxClosedIntervalConnective
+
+@final
+class JoiConnectiveSyntax(_SyntaxNode):
+    'Product node for joik; preserves `se`, `joi`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 452
+    __match_args__ = ('se', 'joi', 'nai')
+    def __new__(cls, se: Token | None, joi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> JoiConnectiveSyntax:
+        return cls._from_fields((se, joi, nai))
+    def __init__(self, se: Token | None, joi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def joi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Joi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JoiConnectiveSyntax is final')
+
+@final
+class SimpleIntervalConnectiveSyntax(_SyntaxNode):
+    'Product node for interval; preserves `se`, `bihi`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 453
+    __match_args__ = ('se', 'bihi', 'nai')
+    def __new__(cls, se: Token | None, bihi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SimpleIntervalConnectiveSyntax:
+        return cls._from_fields((se, bihi, nai))
+    def __init__(self, se: Token | None, bihi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def bihi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Bihi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SimpleIntervalConnectiveSyntax is final')
+
+@final
+class ClosedIntervalConnectiveSyntax(_SyntaxNode):
+    'Product node for interval; preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval` in source order.'
+    __slots__ = ()
+    _schema_id = 454
+    __match_args__ = ('left_interval', 'se', 'bihi', 'nai', 'right_interval')
+    def __new__(cls, left_interval: Token, se: Token | None, bihi: Token, nai: Token | None, right_interval: WithFreeModifiers[Token, FreeModifierSyntax]) -> ClosedIntervalConnectiveSyntax:
+        return cls._from_fields((left_interval, se, bihi, nai, right_interval))
+    def __init__(self, left_interval: Token, se: Token | None, bihi: Token, nai: Token | None, right_interval: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def left_interval(self) -> Token:
+        'A word from selmaho `Gaho`.'
+        return cast(Token, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def bihi(self) -> Token:
+        'A word from selmaho `Bihi`.'
+        return cast(Token, self._field(2))
+    @property
+    def nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(3))
+    @property
+    def right_interval(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Gaho`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ClosedIntervalConnectiveSyntax is final')
+
+@final
+class VuhuNonlogicalConnectiveSyntax(_SyntaxNode):
+    'Transparent product node for non-logical connective; preserves the `vuhu` component.'
+    __slots__ = ()
+    _schema_id = 455
+    __match_args__ = ('vuhu',)
+    def __new__(cls, vuhu: WithFreeModifiers[Token, FreeModifierSyntax]) -> VuhuNonlogicalConnectiveSyntax:
+        return cls._from_fields((vuhu,))
+    def __init__(self, vuhu: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def vuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Vuhu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VuhuNonlogicalConnectiveSyntax is final')
+
+@final
+class ArgumentConnectiveSyntaxCeheConnective(_SyntaxNode):
+    'Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.'
+    __slots__ = ()
+    _schema_id = 456
+    __match_args__ = ('cehe_connective',)
+    def __new__(cls, cehe_connective: CeheConnectiveSyntax) -> ArgumentConnectiveSyntaxCeheConnective:
+        return cls._from_fields((cehe_connective,))
+    def __init__(self, cehe_connective: CeheConnectiveSyntax) -> None:
+        pass
+    @property
+    def cehe_connective(self) -> CeheConnectiveSyntax:
+        'Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.'
+        return cast(CeheConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ArgumentConnectiveSyntaxCeheConnective is final')
+
+@final
+class ArgumentConnectiveSyntaxEkConnective(_SyntaxNode):
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 457
+    __match_args__ = ('ek_connective',)
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> ArgumentConnectiveSyntaxEkConnective:
+        return cls._from_fields((ek_connective,))
+    def __init__(self, ek_connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ArgumentConnectiveSyntaxEkConnective is final')
+
+@final
+class ArgumentConnectiveSyntaxJehiConnective(_SyntaxNode):
+    'Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 458
+    __match_args__ = ('jehi_connective',)
+    def __new__(cls, jehi_connective: JehiConnectiveSyntax) -> ArgumentConnectiveSyntaxJehiConnective:
+        return cls._from_fields((jehi_connective,))
+    def __init__(self, jehi_connective: JehiConnectiveSyntax) -> None:
+        pass
+    @property
+    def jehi_connective(self) -> JehiConnectiveSyntax:
+        'Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.'
+        return cast(JehiConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ArgumentConnectiveSyntaxJehiConnective is final')
+
+@final
+class ArgumentConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 459
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> ArgumentConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ArgumentConnectiveSyntaxJoikConnective is final')
+
+@final
+class ArgumentConnectiveSyntaxVuhuNonlogicalConnective(_SyntaxNode):
+    'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+    __slots__ = ()
+    _schema_id = 460
+    __match_args__ = ('vuhu_nonlogical_connective',)
+    def __new__(cls, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> ArgumentConnectiveSyntaxVuhuNonlogicalConnective:
+        return cls._from_fields((vuhu_nonlogical_connective,))
+    def __init__(self, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> None:
+        pass
+    @property
+    def vuhu_nonlogical_connective(self) -> VuhuNonlogicalConnectiveSyntax:
+        'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+        return cast(VuhuNonlogicalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ArgumentConnectiveSyntaxVuhuNonlogicalConnective is final')
+
+ArgumentConnectiveSyntax: TypeAlias = ArgumentConnectiveSyntaxCeheConnective | ArgumentConnectiveSyntaxEkConnective | ArgumentConnectiveSyntaxJehiConnective | ArgumentConnectiveSyntaxJoikConnective | ArgumentConnectiveSyntaxVuhuNonlogicalConnective
+
+@final
+class OperandConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 461
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> OperandConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('OperandConnectiveSyntaxJoikConnective is final')
+
+@final
+class OperandConnectiveSyntaxEkConnective(_SyntaxNode):
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 462
+    __match_args__ = ('ek_connective',)
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> OperandConnectiveSyntaxEkConnective:
+        return cls._from_fields((ek_connective,))
+    def __init__(self, ek_connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('OperandConnectiveSyntaxEkConnective is final')
+
+@final
+class OperandConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 463
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> OperandConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('OperandConnectiveSyntaxJekConnective is final')
+
+OperandConnectiveSyntax: TypeAlias = OperandConnectiveSyntaxJoikConnective | OperandConnectiveSyntaxEkConnective | OperandConnectiveSyntaxJekConnective
+
+@final
+class RelationAfterthoughtConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 464
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> RelationAfterthoughtConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationAfterthoughtConnectiveSyntaxJoikConnective is final')
+
+@final
+class RelationAfterthoughtConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 465
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> RelationAfterthoughtConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationAfterthoughtConnectiveSyntaxJekConnective is final')
+
+@final
+class RelationAfterthoughtConnectiveSyntaxEkConnective(_SyntaxNode):
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 466
+    __match_args__ = ('ek_connective',)
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> RelationAfterthoughtConnectiveSyntaxEkConnective:
+        return cls._from_fields((ek_connective,))
+    def __init__(self, ek_connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationAfterthoughtConnectiveSyntaxEkConnective is final')
+
+@final
+class RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective(_SyntaxNode):
+    'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+    __slots__ = ()
+    _schema_id = 467
+    __match_args__ = ('vuhu_nonlogical_connective',)
+    def __new__(cls, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective:
+        return cls._from_fields((vuhu_nonlogical_connective,))
+    def __init__(self, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> None:
+        pass
+    @property
+    def vuhu_nonlogical_connective(self) -> VuhuNonlogicalConnectiveSyntax:
+        'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+        return cast(VuhuNonlogicalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective is final')
+
+RelationAfterthoughtConnectiveSyntax: TypeAlias = RelationAfterthoughtConnectiveSyntaxJoikConnective | RelationAfterthoughtConnectiveSyntaxJekConnective | RelationAfterthoughtConnectiveSyntaxEkConnective | RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective
+
+@final
+class StandardStatementConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 468
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> StandardStatementConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StandardStatementConnectiveSyntaxJoikConnective is final')
+
+@final
+class StandardStatementConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 469
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> StandardStatementConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StandardStatementConnectiveSyntaxJekConnective is final')
+
+StandardStatementConnectiveSyntax: TypeAlias = StandardStatementConnectiveSyntaxJoikConnective | StandardStatementConnectiveSyntaxJekConnective
+
+@final
+class StatementConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 470
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> StatementConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementConnectiveSyntaxJoikConnective is final')
+
+@final
+class StatementConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 471
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> StatementConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementConnectiveSyntaxJekConnective is final')
+
+@final
+class StatementConnectiveSyntaxEkConnective(_SyntaxNode):
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 472
+    __match_args__ = ('ek_connective',)
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> StatementConnectiveSyntaxEkConnective:
+        return cls._from_fields((ek_connective,))
+    def __init__(self, ek_connective: EkConnectiveSyntax) -> None:
+        pass
+    @property
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+        return cast(EkConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementConnectiveSyntaxEkConnective is final')
+
+@final
+class StatementConnectiveSyntaxVuhuNonlogicalConnective(_SyntaxNode):
+    'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+    __slots__ = ()
+    _schema_id = 473
+    __match_args__ = ('vuhu_nonlogical_connective',)
+    def __new__(cls, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> StatementConnectiveSyntaxVuhuNonlogicalConnective:
+        return cls._from_fields((vuhu_nonlogical_connective,))
+    def __init__(self, vuhu_nonlogical_connective: VuhuNonlogicalConnectiveSyntax) -> None:
+        pass
+    @property
+    def vuhu_nonlogical_connective(self) -> VuhuNonlogicalConnectiveSyntax:
+        'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+        return cast(VuhuNonlogicalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StatementConnectiveSyntaxVuhuNonlogicalConnective is final')
+
+StatementConnectiveSyntax: TypeAlias = StatementConnectiveSyntaxJoikConnective | StatementConnectiveSyntaxJekConnective | StatementConnectiveSyntaxEkConnective | StatementConnectiveSyntaxVuhuNonlogicalConnective
+
+@final
+class TextLeadingConnectiveSyntaxStandardStatementConnective(_SyntaxNode):
+    'Uses the nested `standard_statement_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 474
+    __match_args__ = ('standard_statement_connective',)
+    def __new__(cls, standard_statement_connective: StandardStatementConnectiveSyntax) -> TextLeadingConnectiveSyntaxStandardStatementConnective:
+        return cls._from_fields((standard_statement_connective,))
+    def __init__(self, standard_statement_connective: StandardStatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def standard_statement_connective(self) -> StandardStatementConnectiveSyntax:
+        'Uses the nested `standard_statement_connective` sum form and preserves its selected alternative.'
+        return cast(StandardStatementConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextLeadingConnectiveSyntaxStandardStatementConnective is final')
+
+@final
+class TextLeadingConnectiveSyntaxCeheConnective(_SyntaxNode):
+    'Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.'
+    __slots__ = ()
+    _schema_id = 475
+    __match_args__ = ('cehe_connective',)
+    def __new__(cls, cehe_connective: CeheConnectiveSyntax) -> TextLeadingConnectiveSyntaxCeheConnective:
+        return cls._from_fields((cehe_connective,))
+    def __init__(self, cehe_connective: CeheConnectiveSyntax) -> None:
+        pass
+    @property
+    def cehe_connective(self) -> CeheConnectiveSyntax:
+        'Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.'
+        return cast(CeheConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextLeadingConnectiveSyntaxCeheConnective is final')
+
+TextLeadingConnectiveSyntax: TypeAlias = TextLeadingConnectiveSyntaxStandardStatementConnective | TextLeadingConnectiveSyntaxCeheConnective
+
+@final
+class IStatementConnectiveSyntaxIStandardStatementConnective(_SyntaxNode):
+    'Uses the `i_standard_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.'
+    __slots__ = ()
+    _schema_id = 476
+    __match_args__ = ('i_standard_statement_connective',)
+    def __new__(cls, i_standard_statement_connective: IStandardStatementConnectiveSyntax) -> IStatementConnectiveSyntaxIStandardStatementConnective:
+        return cls._from_fields((i_standard_statement_connective,))
+    def __init__(self, i_standard_statement_connective: IStandardStatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def i_standard_statement_connective(self) -> IStandardStatementConnectiveSyntax:
+        'Uses the `i_standard_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.'
+        return cast(IStandardStatementConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStatementConnectiveSyntaxIStandardStatementConnective is final')
+
+@final
+class IStatementConnectiveSyntaxITagBoStatementConnective(_SyntaxNode):
+    'Uses the `i_tag_bo_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.'
+    __slots__ = ()
+    _schema_id = 477
+    __match_args__ = ('i_tag_bo_statement_connective',)
+    def __new__(cls, i_tag_bo_statement_connective: ITagBoStatementConnectiveSyntax) -> IStatementConnectiveSyntaxITagBoStatementConnective:
+        return cls._from_fields((i_tag_bo_statement_connective,))
+    def __init__(self, i_tag_bo_statement_connective: ITagBoStatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def i_tag_bo_statement_connective(self) -> ITagBoStatementConnectiveSyntax:
+        'Uses the `i_tag_bo_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.'
+        return cast(ITagBoStatementConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStatementConnectiveSyntaxITagBoStatementConnective is final')
+
+IStatementConnectiveSyntax: TypeAlias = IStatementConnectiveSyntaxIStandardStatementConnective | IStatementConnectiveSyntaxITagBoStatementConnective
+
+@final
+class IStandardStatementConnectiveSyntax(_SyntaxNode):
+    'Product node for statement connective; preserves `connective` and `tag_bo` in source order.'
+    __slots__ = ()
+    _schema_id = 478
+    __match_args__ = ('connective', 'tag_bo')
+    def __new__(cls, connective: StatementConnectiveSyntax, tag_bo: tuple[TenseModalSyntax | None, WithFreeModifiers[Token, FreeModifierSyntax]] | None) -> IStandardStatementConnectiveSyntax:
+        return cls._from_fields((connective, tag_bo))
+    def __init__(self, connective: StatementConnectiveSyntax, tag_bo: tuple[TenseModalSyntax | None, WithFreeModifiers[Token, FreeModifierSyntax]] | None) -> None:
+        pass
+    @property
+    def connective(self) -> StatementConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(StatementConnectiveSyntax, self._field(0))
+    @property
+    def tag_bo(self) -> tuple[TenseModalSyntax | None, WithFreeModifiers[Token, FreeModifierSyntax]] | None:
+        'The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.'
+        return cast(tuple[TenseModalSyntax | None, WithFreeModifiers[Token, FreeModifierSyntax]] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStandardStatementConnectiveSyntax is final')
+
+@final
+class IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective(_SyntaxNode):
+    'Uses the `i_standard_paragraph_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.'
+    __slots__ = ()
+    _schema_id = 479
+    __match_args__ = ('i_standard_paragraph_statement_connective',)
+    def __new__(cls, i_standard_paragraph_statement_connective: IStandardParagraphStatementConnectiveSyntax) -> IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective:
+        return cls._from_fields((i_standard_paragraph_statement_connective,))
+    def __init__(self, i_standard_paragraph_statement_connective: IStandardParagraphStatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def i_standard_paragraph_statement_connective(self) -> IStandardParagraphStatementConnectiveSyntax:
+        'Uses the `i_standard_paragraph_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.'
+        return cast(IStandardParagraphStatementConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective is final')
+
+@final
+class IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective(_SyntaxNode):
+    'Uses the `i_tag_bo_paragraph_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.'
+    __slots__ = ()
+    _schema_id = 480
+    __match_args__ = ('i_tag_bo_paragraph_statement_connective',)
+    def __new__(cls, i_tag_bo_paragraph_statement_connective: ITagBoParagraphStatementConnectiveSyntax) -> IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective:
+        return cls._from_fields((i_tag_bo_paragraph_statement_connective,))
+    def __init__(self, i_tag_bo_paragraph_statement_connective: ITagBoParagraphStatementConnectiveSyntax) -> None:
+        pass
+    @property
+    def i_tag_bo_paragraph_statement_connective(self) -> ITagBoParagraphStatementConnectiveSyntax:
+        'Uses the `i_tag_bo_paragraph_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.'
+        return cast(ITagBoParagraphStatementConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective is final')
+
+IParagraphStatementConnectiveSyntax: TypeAlias = IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective | IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective
+
+@final
+class IStandardParagraphStatementConnectiveSyntax(_SyntaxNode):
+    'Product node for statement connective; preserves `connective` and `tag_bo` in source order.'
+    __slots__ = ()
+    _schema_id = 481
+    __match_args__ = ('connective', 'tag_bo')
+    def __new__(cls, connective: ParagraphStandardStatementConnectiveSyntax, tag_bo: tuple[TenseModalSyntax | None, Token] | None) -> IStandardParagraphStatementConnectiveSyntax:
+        return cls._from_fields((connective, tag_bo))
+    def __init__(self, connective: ParagraphStandardStatementConnectiveSyntax, tag_bo: tuple[TenseModalSyntax | None, Token] | None) -> None:
+        pass
+    @property
+    def connective(self) -> ParagraphStandardStatementConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(ParagraphStandardStatementConnectiveSyntax, self._field(0))
+    @property
+    def tag_bo(self) -> tuple[TenseModalSyntax | None, Token] | None:
+        'The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.'
+        return cast(tuple[TenseModalSyntax | None, Token] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IStandardParagraphStatementConnectiveSyntax is final')
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective(_SyntaxNode):
+    'Uses the `paragraph_joi_connective` product form, whose payload preserves `se`, `joi`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 482
+    __match_args__ = ('paragraph_joi_connective',)
+    def __new__(cls, paragraph_joi_connective: ParagraphJoiConnectiveSyntax) -> ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective:
+        return cls._from_fields((paragraph_joi_connective,))
+    def __init__(self, paragraph_joi_connective: ParagraphJoiConnectiveSyntax) -> None:
+        pass
+    @property
+    def paragraph_joi_connective(self) -> ParagraphJoiConnectiveSyntax:
+        'Uses the `paragraph_joi_connective` product form, whose payload preserves `se`, `joi`, and `nai`.'
+        return cast(ParagraphJoiConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective is final')
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective(_SyntaxNode):
+    'Uses the `paragraph_simple_interval_connective` product form, whose payload preserves `se`, `bihi`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 483
+    __match_args__ = ('paragraph_simple_interval_connective',)
+    def __new__(cls, paragraph_simple_interval_connective: ParagraphSimpleIntervalConnectiveSyntax) -> ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective:
+        return cls._from_fields((paragraph_simple_interval_connective,))
+    def __init__(self, paragraph_simple_interval_connective: ParagraphSimpleIntervalConnectiveSyntax) -> None:
+        pass
+    @property
+    def paragraph_simple_interval_connective(self) -> ParagraphSimpleIntervalConnectiveSyntax:
+        'Uses the `paragraph_simple_interval_connective` product form, whose payload preserves `se`, `bihi`, and `nai`.'
+        return cast(ParagraphSimpleIntervalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective is final')
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective(_SyntaxNode):
+    'Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+    __slots__ = ()
+    _schema_id = 484
+    __match_args__ = ('paragraph_closed_interval_connective',)
+    def __new__(cls, paragraph_closed_interval_connective: ParagraphClosedIntervalConnectiveSyntax) -> ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective:
+        return cls._from_fields((paragraph_closed_interval_connective,))
+    def __init__(self, paragraph_closed_interval_connective: ParagraphClosedIntervalConnectiveSyntax) -> None:
+        pass
+    @property
+    def paragraph_closed_interval_connective(self) -> ParagraphClosedIntervalConnectiveSyntax:
+        'Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+        return cast(ParagraphClosedIntervalConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective is final')
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective(_SyntaxNode):
+    'Uses the `paragraph_jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 485
+    __match_args__ = ('paragraph_jek_connective',)
+    def __new__(cls, paragraph_jek_connective: ParagraphJekConnectiveSyntax) -> ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective:
+        return cls._from_fields((paragraph_jek_connective,))
+    def __init__(self, paragraph_jek_connective: ParagraphJekConnectiveSyntax) -> None:
+        pass
+    @property
+    def paragraph_jek_connective(self) -> ParagraphJekConnectiveSyntax:
+        'Uses the `paragraph_jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(ParagraphJekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective is final')
+
+ParagraphStandardStatementConnectiveSyntax: TypeAlias = ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective | ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective | ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective | ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective
+
+@final
+class ParagraphJekConnectiveSyntax(_SyntaxNode):
+    'Product node for jek; preserves `na`, `se`, `ja`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 486
+    __match_args__ = ('na', 'se', 'ja', 'nai')
+    def __new__(cls, na: Token | None, se: Token | None, ja: Token, nai: Token | None) -> ParagraphJekConnectiveSyntax:
+        return cls._from_fields((na, se, ja, nai))
+    def __init__(self, na: Token | None, se: Token | None, ja: Token, nai: Token | None) -> None:
+        pass
+    @property
+    def na(self) -> Token | None:
+        'The optional na component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def ja(self) -> Token:
+        'A word from selmaho `Ja`.'
+        return cast(Token, self._field(2))
+    @property
+    def nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphJekConnectiveSyntax is final')
+
+@final
+class ParagraphJoiConnectiveSyntax(_SyntaxNode):
+    'Product node for joik; preserves `se`, `joi`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 487
+    __match_args__ = ('se', 'joi', 'nai')
+    def __new__(cls, se: Token | None, joi: Token, nai: Token | None) -> ParagraphJoiConnectiveSyntax:
+        return cls._from_fields((se, joi, nai))
+    def __init__(self, se: Token | None, joi: Token, nai: Token | None) -> None:
+        pass
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def joi(self) -> Token:
+        'A word from selmaho `Joi`.'
+        return cast(Token, self._field(1))
+    @property
+    def nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphJoiConnectiveSyntax is final')
+
+@final
+class ParagraphSimpleIntervalConnectiveSyntax(_SyntaxNode):
+    'Product node for interval; preserves `se`, `bihi`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 488
+    __match_args__ = ('se', 'bihi', 'nai')
+    def __new__(cls, se: Token | None, bihi: Token, nai: Token | None) -> ParagraphSimpleIntervalConnectiveSyntax:
+        return cls._from_fields((se, bihi, nai))
+    def __init__(self, se: Token | None, bihi: Token, nai: Token | None) -> None:
+        pass
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def bihi(self) -> Token:
+        'A word from selmaho `Bihi`.'
+        return cast(Token, self._field(1))
+    @property
+    def nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphSimpleIntervalConnectiveSyntax is final')
+
+@final
+class ParagraphClosedIntervalConnectiveSyntax(_SyntaxNode):
+    'Product node for interval; preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval` in source order.'
+    __slots__ = ()
+    _schema_id = 489
+    __match_args__ = ('left_interval', 'se', 'bihi', 'nai', 'right_interval')
+    def __new__(cls, left_interval: Token, se: Token | None, bihi: Token, nai: Token | None, right_interval: Token) -> ParagraphClosedIntervalConnectiveSyntax:
+        return cls._from_fields((left_interval, se, bihi, nai, right_interval))
+    def __init__(self, left_interval: Token, se: Token | None, bihi: Token, nai: Token | None, right_interval: Token) -> None:
+        pass
+    @property
+    def left_interval(self) -> Token:
+        'A word from selmaho `Gaho`.'
+        return cast(Token, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def bihi(self) -> Token:
+        'A word from selmaho `Bihi`.'
+        return cast(Token, self._field(2))
+    @property
+    def nai(self) -> Token | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(Token | None, self._field(3))
+    @property
+    def right_interval(self) -> Token:
+        'A word from selmaho `Gaho`.'
+        return cast(Token, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ParagraphClosedIntervalConnectiveSyntax is final')
+
+@final
+class ITagBoParagraphStatementConnectiveSyntax(_SyntaxNode):
+    'Product node for statement connective; preserves `tense_modal` and `bo` in source order.'
+    __slots__ = ()
+    _schema_id = 490
+    __match_args__ = ('tense_modal', 'bo')
+    def __new__(cls, tense_modal: TenseModalSyntax | None, bo: Token) -> ITagBoParagraphStatementConnectiveSyntax:
+        return cls._from_fields((tense_modal, bo))
+    def __init__(self, tense_modal: TenseModalSyntax | None, bo: Token) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(0))
+    @property
+    def bo(self) -> Token:
+        'The `Bo` cmavo marker.'
+        return cast(Token, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ITagBoParagraphStatementConnectiveSyntax is final')
+
+@final
+class ITagBoStatementConnectiveSyntax(_SyntaxNode):
+    'Product node for statement connective; preserves `tense_modal` and `bo` in source order.'
+    __slots__ = ()
+    _schema_id = 491
+    __match_args__ = ('tense_modal', 'bo')
+    def __new__(cls, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax]) -> ITagBoStatementConnectiveSyntax:
+        return cls._from_fields((tense_modal, bo))
+    def __init__(self, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(0))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ITagBoStatementConnectiveSyntax is final')
+
+@final
+class CeheConnectiveSyntax(_SyntaxNode):
+    'Product node for termset connective; preserves `cehe` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 492
+    __match_args__ = ('cehe', 'nai')
+    def __new__(cls, cehe: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> CeheConnectiveSyntax:
+        return cls._from_fields((cehe, nai))
+    def __init__(self, cehe: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def cehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Cehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CeheConnectiveSyntax is final')
+
+@final
+class GihekConnectiveSyntax(_SyntaxNode):
+    'Product node for gihek; preserves `na`, `se`, `giha`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 493
+    __match_args__ = ('na', 'se', 'giha', 'nai')
+    def __new__(cls, na: Token | None, se: Token | None, giha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GihekConnectiveSyntax:
+        return cls._from_fields((na, se, giha, nai))
+    def __init__(self, na: Token | None, se: Token | None, giha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def na(self) -> Token | None:
+        'The optional na component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def giha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Giha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GihekConnectiveSyntax is final')
+
+@final
+class GuhekConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought selbri connective; preserves `nahe`, `se`, `guha`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 494
+    __match_args__ = ('nahe', 'se', 'guha', 'nai')
+    def __new__(cls, nahe: Token | None, se: Token | None, guha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GuhekConnectiveSyntax:
+        return cls._from_fields((nahe, se, guha, nai))
+    def __init__(self, nahe: Token | None, se: Token | None, guha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> Token | None:
+        'The optional nahe component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def guha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Guha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GuhekConnectiveSyntax is final')
+
+@final
+class BridiTailConnectiveSyntaxGihekConnective(_SyntaxNode):
+    'Uses the `gihek_connective` product form, whose payload preserves `na`, `se`, `giha`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 495
+    __match_args__ = ('gihek_connective',)
+    def __new__(cls, gihek_connective: GihekConnectiveSyntax) -> BridiTailConnectiveSyntaxGihekConnective:
+        return cls._from_fields((gihek_connective,))
+    def __init__(self, gihek_connective: GihekConnectiveSyntax) -> None:
+        pass
+    @property
+    def gihek_connective(self) -> GihekConnectiveSyntax:
+        'Uses the `gihek_connective` product form, whose payload preserves `na`, `se`, `giha`, and `nai`.'
+        return cast(GihekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailConnectiveSyntaxGihekConnective is final')
+
+@final
+class BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail(_SyntaxNode):
+    'Uses the `relation_connective_as_bridi_tail` product form, whose payload preserves `connective`.'
+    __slots__ = ()
+    _schema_id = 496
+    __match_args__ = ('relation_connective_as_bridi_tail',)
+    def __new__(cls, relation_connective_as_bridi_tail: RelationConnectiveAsBridiTailSyntax) -> BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail:
+        return cls._from_fields((relation_connective_as_bridi_tail,))
+    def __init__(self, relation_connective_as_bridi_tail: RelationConnectiveAsBridiTailSyntax) -> None:
+        pass
+    @property
+    def relation_connective_as_bridi_tail(self) -> RelationConnectiveAsBridiTailSyntax:
+        'Uses the `relation_connective_as_bridi_tail` product form, whose payload preserves `connective`.'
+        return cast(RelationConnectiveAsBridiTailSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail is final')
+
+BridiTailConnectiveSyntax: TypeAlias = BridiTailConnectiveSyntaxGihekConnective | BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail
+
+@final
+class RelationConnectiveAsBridiTailSyntax(_SyntaxNode):
+    'Transparent product node for bridi tail connective; preserves the `connective` component.'
+    __slots__ = ()
+    _schema_id = 497
+    __match_args__ = ('connective',)
+    def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax) -> RelationConnectiveAsBridiTailSyntax:
+        return cls._from_fields((connective,))
+    def __init__(self, connective: RelationAfterthoughtConnectiveSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> RelationAfterthoughtConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(RelationAfterthoughtConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('RelationConnectiveAsBridiTailSyntax is final')
+
+@final
+class ModalForethoughtConnectiveSyntaxGaForethoughtConnective(_SyntaxNode):
+    'Uses the `ga_forethought_connective` product form, whose payload preserves `se`, `ga`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 498
+    __match_args__ = ('ga_forethought_connective',)
+    def __new__(cls, ga_forethought_connective: GaForethoughtConnectiveSyntax) -> ModalForethoughtConnectiveSyntaxGaForethoughtConnective:
+        return cls._from_fields((ga_forethought_connective,))
+    def __init__(self, ga_forethought_connective: GaForethoughtConnectiveSyntax) -> None:
+        pass
+    @property
+    def ga_forethought_connective(self) -> GaForethoughtConnectiveSyntax:
+        'Uses the `ga_forethought_connective` product form, whose payload preserves `se`, `ga`, and `nai`.'
+        return cast(GaForethoughtConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalForethoughtConnectiveSyntaxGaForethoughtConnective is final')
+
+@final
+class ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective(_SyntaxNode):
+    'Uses the `joik_jek_gi_forethought_connective` product form, whose payload preserves `connective`, `gi`, and `bo`.'
+    __slots__ = ()
+    _schema_id = 499
+    __match_args__ = ('joik_jek_gi_forethought_connective',)
+    def __new__(cls, joik_jek_gi_forethought_connective: JoikJekGiForethoughtConnectiveSyntax) -> ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective:
+        return cls._from_fields((joik_jek_gi_forethought_connective,))
+    def __init__(self, joik_jek_gi_forethought_connective: JoikJekGiForethoughtConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_jek_gi_forethought_connective(self) -> JoikJekGiForethoughtConnectiveSyntax:
+        'Uses the `joik_jek_gi_forethought_connective` product form, whose payload preserves `connective`, `gi`, and `bo`.'
+        return cast(JoikJekGiForethoughtConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective is final')
+
+@final
+class ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective(_SyntaxNode):
+    'Uses the `jek_gi_forethought_connective` product form, whose payload preserves `na`, `se`, `ja`, and 3 other fields.'
+    __slots__ = ()
+    _schema_id = 500
+    __match_args__ = ('jek_gi_forethought_connective',)
+    def __new__(cls, jek_gi_forethought_connective: JekGiForethoughtConnectiveSyntax) -> ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective:
+        return cls._from_fields((jek_gi_forethought_connective,))
+    def __init__(self, jek_gi_forethought_connective: JekGiForethoughtConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_gi_forethought_connective(self) -> JekGiForethoughtConnectiveSyntax:
+        'Uses the `jek_gi_forethought_connective` product form, whose payload preserves `na`, `se`, `ja`, and 3 other fields.'
+        return cast(JekGiForethoughtConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective is final')
+
+@final
+class ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective(_SyntaxNode):
+    'Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `bo`.'
+    __slots__ = ()
+    _schema_id = 501
+    __match_args__ = ('modal_gi_forethought_connective',)
+    def __new__(cls, modal_gi_forethought_connective: ModalGiForethoughtConnectiveSyntax) -> ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective:
+        return cls._from_fields((modal_gi_forethought_connective,))
+    def __init__(self, modal_gi_forethought_connective: ModalGiForethoughtConnectiveSyntax) -> None:
+        pass
+    @property
+    def modal_gi_forethought_connective(self) -> ModalGiForethoughtConnectiveSyntax:
+        'Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `bo`.'
+        return cast(ModalGiForethoughtConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective is final')
+
+@final
+class ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective(_SyntaxNode):
+    'Uses the `zantufa_initial_gi_forethought_connective` product form, whose payload preserves `gi`, `tail`, and `bo`.'
+    __slots__ = ()
+    _schema_id = 502
+    __match_args__ = ('zantufa_initial_gi_forethought_connective',)
+    def __new__(cls, zantufa_initial_gi_forethought_connective: ZantufaInitialGiForethoughtConnectiveSyntax) -> ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective:
+        return cls._from_fields((zantufa_initial_gi_forethought_connective,))
+    def __init__(self, zantufa_initial_gi_forethought_connective: ZantufaInitialGiForethoughtConnectiveSyntax) -> None:
+        pass
+    @property
+    def zantufa_initial_gi_forethought_connective(self) -> ZantufaInitialGiForethoughtConnectiveSyntax:
+        'Uses the `zantufa_initial_gi_forethought_connective` product form, whose payload preserves `gi`, `tail`, and `bo`.'
+        return cast(ZantufaInitialGiForethoughtConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective is final')
+
+ModalForethoughtConnectiveSyntax: TypeAlias = ModalForethoughtConnectiveSyntaxGaForethoughtConnective | ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective | ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective | ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective | ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective
+
+@final
+class GaForethoughtConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought connective; preserves `se`, `ga`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 503
+    __match_args__ = ('se', 'ga', 'nai')
+    def __new__(cls, se: Token | None, ga: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GaForethoughtConnectiveSyntax:
+        return cls._from_fields((se, ga, nai))
+    def __init__(self, se: Token | None, ga: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def ga(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Ga`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GaForethoughtConnectiveSyntax is final')
+
+@final
+class ZantufaInitialGiForethoughtConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought connective; preserves `gi`, `tail`, and `bo` in source order.'
+    __slots__ = ()
+    _schema_id = 504
+    __match_args__ = ('gi', 'tail', 'bo')
+    def __new__(cls, gi: WithFreeModifiers[Token, FreeModifierSyntax], tail: StandardStatementConnectiveSyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaInitialGiForethoughtConnectiveSyntax:
+        return cls._from_fields((gi, tail, bo))
+    def __init__(self, gi: WithFreeModifiers[Token, FreeModifierSyntax], tail: StandardStatementConnectiveSyntax, bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Gi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def tail(self) -> StandardStatementConnectiveSyntax:
+        'The shared tail child syntax node.'
+        return cast(StandardStatementConnectiveSyntax, self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaInitialGiForethoughtConnectiveSyntax is final')
+
+@final
+class JoikJekGiForethoughtConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought connective; preserves `connective`, `gi`, and `bo` in source order.'
+    __slots__ = ()
+    _schema_id = 505
+    __match_args__ = ('connective', 'gi', 'bo')
+    def __new__(cls, connective: JoikConnectiveSyntax, gi: WithFreeModifiers[Token, FreeModifierSyntax], bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> JoikJekGiForethoughtConnectiveSyntax:
+        return cls._from_fields((connective, gi, bo))
+    def __init__(self, connective: JoikConnectiveSyntax, gi: WithFreeModifiers[Token, FreeModifierSyntax], bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> JoikConnectiveSyntax:
+        'The shared connective child syntax node.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Gi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JoikJekGiForethoughtConnectiveSyntax is final')
+
+@final
+class JekGiForethoughtConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought connective; preserves `na`, `se`, `ja`, and 3 other fields in source order.'
+    __slots__ = ()
+    _schema_id = 506
+    __match_args__ = ('na', 'se', 'ja', 'nai', 'gi', 'bo')
+    def __new__(cls, na: Token | None, se: Token | None, ja: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, gi: WithFreeModifiers[Token, FreeModifierSyntax], bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> JekGiForethoughtConnectiveSyntax:
+        return cls._from_fields((na, se, ja, nai, gi, bo))
+    def __init__(self, na: Token | None, se: Token | None, ja: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, gi: WithFreeModifiers[Token, FreeModifierSyntax], bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def na(self) -> Token | None:
+        'The optional na component.'
+        return cast(Token | None, self._field(0))
+    @property
+    def se(self) -> Token | None:
+        'The optional se component.'
+        return cast(Token | None, self._field(1))
+    @property
+    def ja(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Ja`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Gi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(4))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(5))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JekGiForethoughtConnectiveSyntax is final')
+
+@final
+class ModalGiForethoughtConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought connective; preserves `tense_modal`, `gi`, and `bo` in source order.'
+    __slots__ = ()
+    _schema_id = 507
+    __match_args__ = ('tense_modal', 'gi', 'bo')
+    def __new__(cls, tense_modal: TenseModalSyntax, gi: WithFreeModifiers[Token, FreeModifierSyntax], bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ModalGiForethoughtConnectiveSyntax:
+        return cls._from_fields((tense_modal, gi, bo))
+    def __init__(self, tense_modal: TenseModalSyntax, gi: WithFreeModifiers[Token, FreeModifierSyntax], bo: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(TenseModalSyntax, self._field(0))
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Gi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalGiForethoughtConnectiveSyntax is final')
+
+@final
+class GikConnectiveSyntax(_SyntaxNode):
+    'Product node for forethought connective; preserves `gi` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 508
+    __match_args__ = ('gi', 'nai')
+    def __new__(cls, gi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GikConnectiveSyntax:
+        return cls._from_fields((gi, nai))
+    def __init__(self, gi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Gi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GikConnectiveSyntax is final')
+
+@final
+class ZantufaExtraGikConnectiveSyntax(_SyntaxNode):
+    'Transparent product node for forethought connective; preserves the `gi` component.'
+    __slots__ = ()
+    _schema_id = 509
+    __match_args__ = ('gi',)
+    def __new__(cls, gi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaExtraGikConnectiveSyntax:
+        return cls._from_fields((gi,))
+    def __init__(self, gi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def gi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Gi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaExtraGikConnectiveSyntax is final')
+
+@final
+class TenseModalSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `body` component.'
+    __slots__ = ()
+    _schema_id = 510
+    __match_args__ = ('body',)
+    def __new__(cls, body: TenseModalBodySyntax) -> TenseModalSyntax:
+        return cls._from_fields((body,))
+    def __init__(self, body: TenseModalBodySyntax) -> None:
+        pass
+    @property
+    def body(self) -> TenseModalBodySyntax:
+        'The `tense_modal_body` grammar result in the `body` structural role of the `tense_modal` production.'
+        return cast(TenseModalBodySyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalSyntax is final')
+
+@final
+class TenseModalBodySyntaxConnectedTenseModal(_SyntaxNode):
+    'Uses the `connected_tense_modal` product form, whose payload preserves `first` and `continuations`.'
+    __slots__ = ()
+    _schema_id = 511
+    __match_args__ = ('connected_tense_modal',)
+    def __new__(cls, connected_tense_modal: ConnectedTenseModalSyntax) -> TenseModalBodySyntaxConnectedTenseModal:
+        return cls._from_fields((connected_tense_modal,))
+    def __init__(self, connected_tense_modal: ConnectedTenseModalSyntax) -> None:
+        pass
+    @property
+    def connected_tense_modal(self) -> ConnectedTenseModalSyntax:
+        'Uses the `connected_tense_modal` product form, whose payload preserves `first` and `continuations`.'
+        return cast(ConnectedTenseModalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalBodySyntaxConnectedTenseModal is final')
+
+@final
+class TenseModalBodySyntaxTenseModalAtom(_SyntaxNode):
+    'Uses the nested `tense_modal_atom` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 512
+    __match_args__ = ('tense_modal_atom',)
+    def __new__(cls, tense_modal_atom: TenseModalAtomSyntax) -> TenseModalBodySyntaxTenseModalAtom:
+        return cls._from_fields((tense_modal_atom,))
+    def __init__(self, tense_modal_atom: TenseModalAtomSyntax) -> None:
+        pass
+    @property
+    def tense_modal_atom(self) -> TenseModalAtomSyntax:
+        'Uses the nested `tense_modal_atom` sum form and preserves its selected alternative.'
+        return cast(TenseModalAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalBodySyntaxTenseModalAtom is final')
+
+TenseModalBodySyntax: TypeAlias = TenseModalBodySyntaxConnectedTenseModal | TenseModalBodySyntaxTenseModalAtom
+
+@final
+class ConnectedTenseModalSyntax(_SyntaxNode):
+    'Product node for connected tag; preserves `first` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 513
+    __match_args__ = ('first', 'continuations')
+    def __new__(cls, first: TenseModalAtomSyntax, continuations: Sequence[ConnectedTenseModalContinuationSyntax]) -> ConnectedTenseModalSyntax:
+        return cls._from_fields((first, continuations))
+    def __init__(self, first: TenseModalAtomSyntax, continuations: Sequence[ConnectedTenseModalContinuationSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> TenseModalAtomSyntax:
+        'The shared first child syntax node.'
+        return cast(TenseModalAtomSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[ConnectedTenseModalContinuationSyntax, ...]:
+        'Non-empty ordered sequence of continuations components.'
+        return cast(tuple[ConnectedTenseModalContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTenseModalSyntax is final')
+
+@final
+class ConnectedTenseModalContinuationSyntax(_SyntaxNode):
+    'Product node for connected tag continuation; preserves `connective` and `tense_modal` in source order.'
+    __slots__ = ()
+    _schema_id = 514
+    __match_args__ = ('connective', 'tense_modal')
+    def __new__(cls, connective: TenseModalConnectiveSyntax, tense_modal: TenseModalAtomSyntax) -> ConnectedTenseModalContinuationSyntax:
+        return cls._from_fields((connective, tense_modal))
+    def __init__(self, connective: TenseModalConnectiveSyntax, tense_modal: TenseModalAtomSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> TenseModalConnectiveSyntax:
+        'The `tense_modal_connective` connective joining the adjacent constituents of the `connected_tense_modal_continuation` production.'
+        return cast(TenseModalConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalAtomSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(TenseModalAtomSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedTenseModalContinuationSyntax is final')
+
+@final
+class TenseModalConnectiveSyntaxJoikConnective(_SyntaxNode):
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 515
+    __match_args__ = ('joik_connective',)
+    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> TenseModalConnectiveSyntaxJoikConnective:
+        return cls._from_fields((joik_connective,))
+    def __init__(self, joik_connective: JoikConnectiveSyntax) -> None:
+        pass
+    @property
+    def joik_connective(self) -> JoikConnectiveSyntax:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalConnectiveSyntaxJoikConnective is final')
+
+@final
+class TenseModalConnectiveSyntaxJekConnective(_SyntaxNode):
+    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 516
+    __match_args__ = ('jek_connective',)
+    def __new__(cls, jek_connective: JekConnectiveSyntax) -> TenseModalConnectiveSyntaxJekConnective:
+        return cls._from_fields((jek_connective,))
+    def __init__(self, jek_connective: JekConnectiveSyntax) -> None:
+        pass
+    @property
+    def jek_connective(self) -> JekConnectiveSyntax:
+        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
+        return cast(JekConnectiveSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalConnectiveSyntaxJekConnective is final')
+
+TenseModalConnectiveSyntax: TypeAlias = TenseModalConnectiveSyntaxJoikConnective | TenseModalConnectiveSyntaxJekConnective
+
+@final
+class TenseModalAtomSyntaxCompositeTense(_SyntaxNode):
+    'Uses the nested `composite_tense` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 517
+    __match_args__ = ('composite_tense',)
+    def __new__(cls, composite_tense: CompositeTenseSyntax) -> TenseModalAtomSyntaxCompositeTense:
+        return cls._from_fields((composite_tense,))
+    def __init__(self, composite_tense: CompositeTenseSyntax) -> None:
+        pass
+    @property
+    def composite_tense(self) -> CompositeTenseSyntax:
+        'Uses the nested `composite_tense` sum form and preserves its selected alternative.'
+        return cast(CompositeTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxCompositeTense is final')
+
+@final
+class TenseModalAtomSyntaxFihoTense(_SyntaxNode):
+    'Uses the `fiho_tense` product form, whose payload preserves `fiho`, `selbri`, and `fehu`.'
+    __slots__ = ()
+    _schema_id = 518
+    __match_args__ = ('fiho_tense',)
+    def __new__(cls, fiho_tense: FihoTenseSyntax) -> TenseModalAtomSyntaxFihoTense:
+        return cls._from_fields((fiho_tense,))
+    def __init__(self, fiho_tense: FihoTenseSyntax) -> None:
+        pass
+    @property
+    def fiho_tense(self) -> FihoTenseSyntax:
+        'Uses the `fiho_tense` product form, whose payload preserves `fiho`, `selbri`, and `fehu`.'
+        return cast(FihoTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxFihoTense is final')
+
+@final
+class TenseModalAtomSyntaxModalTense(_SyntaxNode):
+    'Uses the `modal_tense` product form, whose payload preserves `nahe`, `se`, `bai`, `nai`, and `ki`.'
+    __slots__ = ()
+    _schema_id = 519
+    __match_args__ = ('modal_tense',)
+    def __new__(cls, modal_tense: ModalTenseSyntax) -> TenseModalAtomSyntaxModalTense:
+        return cls._from_fields((modal_tense,))
+    def __init__(self, modal_tense: ModalTenseSyntax) -> None:
+        pass
+    @property
+    def modal_tense(self) -> ModalTenseSyntax:
+        'Uses the `modal_tense` product form, whose payload preserves `nahe`, `se`, `bai`, `nai`, and `ki`.'
+        return cast(ModalTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxModalTense is final')
+
+@final
+class TenseModalAtomSyntaxNaheSeFlatPrefixedTense(_SyntaxNode):
+    'Uses the `nahe_se_flat_prefixed_tense` product form, whose payload preserves `nahe`, `se`, and `atom`.'
+    __slots__ = ()
+    _schema_id = 520
+    __match_args__ = ('nahe_se_flat_prefixed_tense',)
+    def __new__(cls, nahe_se_flat_prefixed_tense: NaheSeFlatPrefixedTenseSyntax) -> TenseModalAtomSyntaxNaheSeFlatPrefixedTense:
+        return cls._from_fields((nahe_se_flat_prefixed_tense,))
+    def __init__(self, nahe_se_flat_prefixed_tense: NaheSeFlatPrefixedTenseSyntax) -> None:
+        pass
+    @property
+    def nahe_se_flat_prefixed_tense(self) -> NaheSeFlatPrefixedTenseSyntax:
+        'Uses the `nahe_se_flat_prefixed_tense` product form, whose payload preserves `nahe`, `se`, and `atom`.'
+        return cast(NaheSeFlatPrefixedTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxNaheSeFlatPrefixedTense is final')
+
+@final
+class TenseModalAtomSyntaxSeFlatPrefixedTense(_SyntaxNode):
+    'Uses the `se_flat_prefixed_tense` product form, whose payload preserves `se` and `atom`.'
+    __slots__ = ()
+    _schema_id = 521
+    __match_args__ = ('se_flat_prefixed_tense',)
+    def __new__(cls, se_flat_prefixed_tense: SeFlatPrefixedTenseSyntax) -> TenseModalAtomSyntaxSeFlatPrefixedTense:
+        return cls._from_fields((se_flat_prefixed_tense,))
+    def __init__(self, se_flat_prefixed_tense: SeFlatPrefixedTenseSyntax) -> None:
+        pass
+    @property
+    def se_flat_prefixed_tense(self) -> SeFlatPrefixedTenseSyntax:
+        'Uses the `se_flat_prefixed_tense` product form, whose payload preserves `se` and `atom`.'
+        return cast(SeFlatPrefixedTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxSeFlatPrefixedTense is final')
+
+@final
+class TenseModalAtomSyntaxFaFlatTagTense(_SyntaxNode):
+    'Uses the `fa_flat_tag_tense` product form, whose payload preserves `fa`.'
+    __slots__ = ()
+    _schema_id = 522
+    __match_args__ = ('fa_flat_tag_tense',)
+    def __new__(cls, fa_flat_tag_tense: FaFlatTagTenseSyntax) -> TenseModalAtomSyntaxFaFlatTagTense:
+        return cls._from_fields((fa_flat_tag_tense,))
+    def __init__(self, fa_flat_tag_tense: FaFlatTagTenseSyntax) -> None:
+        pass
+    @property
+    def fa_flat_tag_tense(self) -> FaFlatTagTenseSyntax:
+        'Uses the `fa_flat_tag_tense` product form, whose payload preserves `fa`.'
+        return cast(FaFlatTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxFaFlatTagTense is final')
+
+@final
+class TenseModalAtomSyntaxZantufaRecursiveTagTense(_SyntaxNode):
+    'Uses the `zantufa_recursive_tag_tense` product form, whose payload preserves `first_prefix`, `additional_prefixes`, and `atom`.'
+    __slots__ = ()
+    _schema_id = 523
+    __match_args__ = ('zantufa_recursive_tag_tense',)
+    def __new__(cls, zantufa_recursive_tag_tense: ZantufaRecursiveTagTenseSyntax) -> TenseModalAtomSyntaxZantufaRecursiveTagTense:
+        return cls._from_fields((zantufa_recursive_tag_tense,))
+    def __init__(self, zantufa_recursive_tag_tense: ZantufaRecursiveTagTenseSyntax) -> None:
+        pass
+    @property
+    def zantufa_recursive_tag_tense(self) -> ZantufaRecursiveTagTenseSyntax:
+        'Uses the `zantufa_recursive_tag_tense` product form, whose payload preserves `first_prefix`, `additional_prefixes`, and `atom`.'
+        return cast(ZantufaRecursiveTagTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxZantufaRecursiveTagTense is final')
+
+@final
+class TenseModalAtomSyntaxStickyTense(_SyntaxNode):
+    'Uses the `sticky_tense` product form, whose payload preserves `ki`.'
+    __slots__ = ()
+    _schema_id = 524
+    __match_args__ = ('sticky_tense',)
+    def __new__(cls, sticky_tense: StickyTenseSyntax) -> TenseModalAtomSyntaxStickyTense:
+        return cls._from_fields((sticky_tense,))
+    def __init__(self, sticky_tense: StickyTenseSyntax) -> None:
+        pass
+    @property
+    def sticky_tense(self) -> StickyTenseSyntax:
+        'Uses the `sticky_tense` product form, whose payload preserves `ki`.'
+        return cast(StickyTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxStickyTense is final')
+
+TenseModalAtomSyntax: TypeAlias = TenseModalAtomSyntaxCompositeTense | TenseModalAtomSyntaxFihoTense | TenseModalAtomSyntaxModalTense | TenseModalAtomSyntaxNaheSeFlatPrefixedTense | TenseModalAtomSyntaxSeFlatPrefixedTense | TenseModalAtomSyntaxFaFlatTagTense | TenseModalAtomSyntaxZantufaRecursiveTagTense | TenseModalAtomSyntaxStickyTense
+
+@final
+class FihoTenseSyntax(_SyntaxNode):
+    'Product node for FIhO modal; preserves `fiho`, `selbri`, and `fehu` in source order.'
+    __slots__ = ()
+    _schema_id = 525
+    __match_args__ = ('fiho', 'selbri', 'fehu')
+    def __new__(cls, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FihoTenseSyntax:
+        return cls._from_fields((fiho, selbri, fehu))
+    def __init__(self, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def fiho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Fiho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def fehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Fehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FihoTenseSyntax is final')
+
+@final
+class FaFlatTagTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `fa` component.'
+    __slots__ = ()
+    _schema_id = 526
+    __match_args__ = ('fa',)
+    def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> FaFlatTagTenseSyntax:
+        return cls._from_fields((fa,))
+    def __init__(self, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Fa`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FaFlatTagTenseSyntax is final')
+
+@final
+class FlatTagAtomSyntaxFaFlatTagAtom(_SyntaxNode):
+    'Uses the `fa_flat_tag_atom` product form, whose payload preserves `fa`.'
+    __slots__ = ()
+    _schema_id = 527
+    __match_args__ = ('fa_flat_tag_atom',)
+    def __new__(cls, fa_flat_tag_atom: FaFlatTagAtomSyntax) -> FlatTagAtomSyntaxFaFlatTagAtom:
+        return cls._from_fields((fa_flat_tag_atom,))
+    def __init__(self, fa_flat_tag_atom: FaFlatTagAtomSyntax) -> None:
+        pass
+    @property
+    def fa_flat_tag_atom(self) -> FaFlatTagAtomSyntax:
+        'Uses the `fa_flat_tag_atom` product form, whose payload preserves `fa`.'
+        return cast(FaFlatTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FlatTagAtomSyntaxFaFlatTagAtom is final')
+
+@final
+class FlatTagAtomSyntaxModalFlatTagAtom(_SyntaxNode):
+    'Uses the `modal_flat_tag_atom` product form, whose payload preserves `modal`.'
+    __slots__ = ()
+    _schema_id = 528
+    __match_args__ = ('modal_flat_tag_atom',)
+    def __new__(cls, modal_flat_tag_atom: ModalFlatTagAtomSyntax) -> FlatTagAtomSyntaxModalFlatTagAtom:
+        return cls._from_fields((modal_flat_tag_atom,))
+    def __init__(self, modal_flat_tag_atom: ModalFlatTagAtomSyntax) -> None:
+        pass
+    @property
+    def modal_flat_tag_atom(self) -> ModalFlatTagAtomSyntax:
+        'Uses the `modal_flat_tag_atom` product form, whose payload preserves `modal`.'
+        return cast(ModalFlatTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FlatTagAtomSyntaxModalFlatTagAtom is final')
+
+@final
+class FlatTagAtomSyntaxCompositeFlatTagAtom(_SyntaxNode):
+    'Uses the `composite_flat_tag_atom` product form, whose payload preserves `composite`.'
+    __slots__ = ()
+    _schema_id = 529
+    __match_args__ = ('composite_flat_tag_atom',)
+    def __new__(cls, composite_flat_tag_atom: CompositeFlatTagAtomSyntax) -> FlatTagAtomSyntaxCompositeFlatTagAtom:
+        return cls._from_fields((composite_flat_tag_atom,))
+    def __init__(self, composite_flat_tag_atom: CompositeFlatTagAtomSyntax) -> None:
+        pass
+    @property
+    def composite_flat_tag_atom(self) -> CompositeFlatTagAtomSyntax:
+        'Uses the `composite_flat_tag_atom` product form, whose payload preserves `composite`.'
+        return cast(CompositeFlatTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FlatTagAtomSyntaxCompositeFlatTagAtom is final')
+
+FlatTagAtomSyntax: TypeAlias = FlatTagAtomSyntaxFaFlatTagAtom | FlatTagAtomSyntaxModalFlatTagAtom | FlatTagAtomSyntaxCompositeFlatTagAtom
+
+@final
+class FaFlatTagAtomSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `fa` component.'
+    __slots__ = ()
+    _schema_id = 530
+    __match_args__ = ('fa',)
+    def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> FaFlatTagAtomSyntax:
+        return cls._from_fields((fa,))
+    def __init__(self, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Fa`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FaFlatTagAtomSyntax is final')
+
+@final
+class ModalFlatTagAtomSyntax(_SyntaxNode):
+    'Transparent product node for modal tag; preserves the `modal` component.'
+    __slots__ = ()
+    _schema_id = 531
+    __match_args__ = ('modal',)
+    def __new__(cls, modal: ModalTenseSyntax) -> ModalFlatTagAtomSyntax:
+        return cls._from_fields((modal,))
+    def __init__(self, modal: ModalTenseSyntax) -> None:
+        pass
+    @property
+    def modal(self) -> ModalTenseSyntax:
+        'The shared modal child syntax node.'
+        return cast(ModalTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalFlatTagAtomSyntax is final')
+
+@final
+class CompositeFlatTagAtomSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `composite` component.'
+    __slots__ = ()
+    _schema_id = 532
+    __match_args__ = ('composite',)
+    def __new__(cls, composite: CompositeTenseSyntax) -> CompositeFlatTagAtomSyntax:
+        return cls._from_fields((composite,))
+    def __init__(self, composite: CompositeTenseSyntax) -> None:
+        pass
+    @property
+    def composite(self) -> CompositeTenseSyntax:
+        'The shared composite child syntax node.'
+        return cast(CompositeTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CompositeFlatTagAtomSyntax is final')
+
+@final
+class NaheSeFlatPrefixedTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `nahe`, `se`, and `atom` in source order.'
+    __slots__ = ()
+    _schema_id = 533
+    __match_args__ = ('nahe', 'se', 'atom')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], se: WithFreeModifiers[Token, FreeModifierSyntax] | None, atom: FlatTagAtomSyntax) -> NaheSeFlatPrefixedTenseSyntax:
+        return cls._from_fields((nahe, se, atom))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], se: WithFreeModifiers[Token, FreeModifierSyntax] | None, atom: FlatTagAtomSyntax) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional se component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def atom(self) -> FlatTagAtomSyntax:
+        'The `flat_tag_atom` grammar result in the `atom` structural role of the `nahe_se_flat_prefixed_tense` production.'
+        return cast(FlatTagAtomSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NaheSeFlatPrefixedTenseSyntax is final')
+
+@final
+class SeFlatPrefixedTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `se` and `atom` in source order.'
+    __slots__ = ()
+    _schema_id = 534
+    __match_args__ = ('se', 'atom')
+    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], atom: FlatTagAtomSyntax) -> SeFlatPrefixedTenseSyntax:
+        return cls._from_fields((se, atom))
+    def __init__(self, se: WithFreeModifiers[Token, FreeModifierSyntax], atom: FlatTagAtomSyntax) -> None:
+        pass
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Se`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def atom(self) -> FlatTagAtomSyntax:
+        'The `flat_tag_atom` grammar result in the `atom` structural role of the `se_flat_prefixed_tense` production.'
+        return cast(FlatTagAtomSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SeFlatPrefixedTenseSyntax is final')
+
+@final
+class ZantufaRecursiveTagTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `first_prefix`, `additional_prefixes`, and `atom` in source order.'
+    __slots__ = ()
+    _schema_id = 535
+    __match_args__ = ('first_prefix', 'additional_prefixes', 'atom')
+    def __new__(cls, first_prefix: WithFreeModifiers[Token, FreeModifierSyntax], additional_prefixes: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], atom: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaRecursiveTagTenseSyntax:
+        return cls._from_fields((first_prefix, additional_prefixes, atom))
+    def __init__(self, first_prefix: WithFreeModifiers[Token, FreeModifierSyntax], additional_prefixes: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], atom: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def first_prefix(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The first selected prefix alternative before the recursively nested tag tense.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def additional_prefixes(self) -> tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...]:
+        'Ordered sequence of zero or more additional prefixes components.'
+        return cast(tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...], self._field(1))
+    @property
+    def atom(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `atom` structural role of the `zantufa_recursive_tag_tense` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaRecursiveTagTenseSyntax is final')
+
+@final
+class CompositeTenseSyntaxPrefixedTimeSpaceCahaTense(_SyntaxNode):
+    'Uses the `prefixed_time_space_caha_tense` product form, whose payload preserves `nahe`, `tense`, and `ki`.'
+    __slots__ = ()
+    _schema_id = 536
+    __match_args__ = ('prefixed_time_space_caha_tense',)
+    def __new__(cls, prefixed_time_space_caha_tense: PrefixedTimeSpaceCahaTenseSyntax) -> CompositeTenseSyntaxPrefixedTimeSpaceCahaTense:
+        return cls._from_fields((prefixed_time_space_caha_tense,))
+    def __init__(self, prefixed_time_space_caha_tense: PrefixedTimeSpaceCahaTenseSyntax) -> None:
+        pass
+    @property
+    def prefixed_time_space_caha_tense(self) -> PrefixedTimeSpaceCahaTenseSyntax:
+        'Uses the `prefixed_time_space_caha_tense` product form, whose payload preserves `nahe`, `tense`, and `ki`.'
+        return cast(PrefixedTimeSpaceCahaTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CompositeTenseSyntaxPrefixedTimeSpaceCahaTense is final')
+
+@final
+class CompositeTenseSyntaxTimeSpaceCahaKiTense(_SyntaxNode):
+    'Uses the `time_space_caha_ki_tense` product form, whose payload preserves `tense` and `ki`.'
+    __slots__ = ()
+    _schema_id = 537
+    __match_args__ = ('time_space_caha_ki_tense',)
+    def __new__(cls, time_space_caha_ki_tense: TimeSpaceCahaKiTenseSyntax) -> CompositeTenseSyntaxTimeSpaceCahaKiTense:
+        return cls._from_fields((time_space_caha_ki_tense,))
+    def __init__(self, time_space_caha_ki_tense: TimeSpaceCahaKiTenseSyntax) -> None:
+        pass
+    @property
+    def time_space_caha_ki_tense(self) -> TimeSpaceCahaKiTenseSyntax:
+        'Uses the `time_space_caha_ki_tense` product form, whose payload preserves `tense` and `ki`.'
+        return cast(TimeSpaceCahaKiTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CompositeTenseSyntaxTimeSpaceCahaKiTense is final')
+
+@final
+class CompositeTenseSyntaxCuheTense(_SyntaxNode):
+    'Uses the `cuhe_tense` product form, whose payload preserves `cuhe`.'
+    __slots__ = ()
+    _schema_id = 538
+    __match_args__ = ('cuhe_tense',)
+    def __new__(cls, cuhe_tense: CuheTenseSyntax) -> CompositeTenseSyntaxCuheTense:
+        return cls._from_fields((cuhe_tense,))
+    def __init__(self, cuhe_tense: CuheTenseSyntax) -> None:
+        pass
+    @property
+    def cuhe_tense(self) -> CuheTenseSyntax:
+        'Uses the `cuhe_tense` product form, whose payload preserves `cuhe`.'
+        return cast(CuheTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CompositeTenseSyntaxCuheTense is final')
+
+CompositeTenseSyntax: TypeAlias = CompositeTenseSyntaxPrefixedTimeSpaceCahaTense | CompositeTenseSyntaxTimeSpaceCahaKiTense | CompositeTenseSyntaxCuheTense
+
+@final
+class PrefixedTimeSpaceCahaTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `nahe`, `tense`, and `ki` in source order.'
+    __slots__ = ()
+    _schema_id = 539
+    __match_args__ = ('nahe', 'tense', 'ki')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], tense: TimeSpaceCahaTenseSyntax, ki: KiCompositeTenseSyntax | None) -> PrefixedTimeSpaceCahaTenseSyntax:
+        return cls._from_fields((nahe, tense, ki))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], tense: TimeSpaceCahaTenseSyntax, ki: KiCompositeTenseSyntax | None) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def tense(self) -> TimeSpaceCahaTenseSyntax:
+        'The shared tense child syntax node.'
+        return cast(TimeSpaceCahaTenseSyntax, self._field(1))
+    @property
+    def ki(self) -> KiCompositeTenseSyntax | None:
+        'The optional ki component.'
+        return cast(KiCompositeTenseSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PrefixedTimeSpaceCahaTenseSyntax is final')
+
+@final
+class TimeSpaceCahaKiTenseSyntax(_SyntaxNode):
+    'Product node for tag; preserves `tense` and `ki` in source order.'
+    __slots__ = ()
+    _schema_id = 540
+    __match_args__ = ('tense', 'ki')
+    def __new__(cls, tense: TimeSpaceCahaTenseSyntax, ki: KiCompositeTenseSyntax | None) -> TimeSpaceCahaKiTenseSyntax:
+        return cls._from_fields((tense, ki))
+    def __init__(self, tense: TimeSpaceCahaTenseSyntax, ki: KiCompositeTenseSyntax | None) -> None:
+        pass
+    @property
+    def tense(self) -> TimeSpaceCahaTenseSyntax:
+        'The shared tense child syntax node.'
+        return cast(TimeSpaceCahaTenseSyntax, self._field(0))
+    @property
+    def ki(self) -> KiCompositeTenseSyntax | None:
+        'The optional ki component.'
+        return cast(KiCompositeTenseSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeSpaceCahaKiTenseSyntax is final')
+
+@final
+class TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense(_SyntaxNode):
+    'Uses the `time_then_space_caha_tense` product form, whose payload preserves `time`, `space`, and `caha`.'
+    __slots__ = ()
+    _schema_id = 541
+    __match_args__ = ('time_then_space_caha_tense',)
+    def __new__(cls, time_then_space_caha_tense: TimeThenSpaceCahaTenseSyntax) -> TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense:
+        return cls._from_fields((time_then_space_caha_tense,))
+    def __init__(self, time_then_space_caha_tense: TimeThenSpaceCahaTenseSyntax) -> None:
+        pass
+    @property
+    def time_then_space_caha_tense(self) -> TimeThenSpaceCahaTenseSyntax:
+        'Uses the `time_then_space_caha_tense` product form, whose payload preserves `time`, `space`, and `caha`.'
+        return cast(TimeThenSpaceCahaTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense is final')
+
+@final
+class TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense(_SyntaxNode):
+    'Uses the `space_then_time_caha_tense` product form, whose payload preserves `space`, `time`, and `caha`.'
+    __slots__ = ()
+    _schema_id = 542
+    __match_args__ = ('space_then_time_caha_tense',)
+    def __new__(cls, space_then_time_caha_tense: SpaceThenTimeCahaTenseSyntax) -> TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense:
+        return cls._from_fields((space_then_time_caha_tense,))
+    def __init__(self, space_then_time_caha_tense: SpaceThenTimeCahaTenseSyntax) -> None:
+        pass
+    @property
+    def space_then_time_caha_tense(self) -> SpaceThenTimeCahaTenseSyntax:
+        'Uses the `space_then_time_caha_tense` product form, whose payload preserves `space`, `time`, and `caha`.'
+        return cast(SpaceThenTimeCahaTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense is final')
+
+@final
+class TimeSpaceCahaTenseSyntaxCahaTense(_SyntaxNode):
+    'Uses the `caha_tense` product form, whose payload preserves `caha`.'
+    __slots__ = ()
+    _schema_id = 543
+    __match_args__ = ('caha_tense',)
+    def __new__(cls, caha_tense: CahaTenseSyntax) -> TimeSpaceCahaTenseSyntaxCahaTense:
+        return cls._from_fields((caha_tense,))
+    def __init__(self, caha_tense: CahaTenseSyntax) -> None:
+        pass
+    @property
+    def caha_tense(self) -> CahaTenseSyntax:
+        'Uses the `caha_tense` product form, whose payload preserves `caha`.'
+        return cast(CahaTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeSpaceCahaTenseSyntaxCahaTense is final')
+
+TimeSpaceCahaTenseSyntax: TypeAlias = TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense | TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense | TimeSpaceCahaTenseSyntaxCahaTense
+
+@final
+class TimeThenSpaceCahaTenseSyntax(_SyntaxNode):
+    'Product node for time tense; preserves `time`, `space`, and `caha` in source order.'
+    __slots__ = ()
+    _schema_id = 544
+    __match_args__ = ('time', 'space', 'caha')
+    def __new__(cls, time: TimeTenseSyntax, space: SpaceTenseSyntax | None, caha: CahaTenseSyntax | None) -> TimeThenSpaceCahaTenseSyntax:
+        return cls._from_fields((time, space, caha))
+    def __init__(self, time: TimeTenseSyntax, space: SpaceTenseSyntax | None, caha: CahaTenseSyntax | None) -> None:
+        pass
+    @property
+    def time(self) -> TimeTenseSyntax:
+        'The shared time child syntax node.'
+        return cast(TimeTenseSyntax, self._field(0))
+    @property
+    def space(self) -> SpaceTenseSyntax | None:
+        'The optional space component.'
+        return cast(SpaceTenseSyntax | None, self._field(1))
+    @property
+    def caha(self) -> CahaTenseSyntax | None:
+        'The optional caha component.'
+        return cast(CahaTenseSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeThenSpaceCahaTenseSyntax is final')
+
+@final
+class SpaceThenTimeCahaTenseSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `space`, `time`, and `caha` in source order.'
+    __slots__ = ()
+    _schema_id = 545
+    __match_args__ = ('space', 'time', 'caha')
+    def __new__(cls, space: SpaceTenseSyntax, time: TimeTenseSyntax | None, caha: CahaTenseSyntax | None) -> SpaceThenTimeCahaTenseSyntax:
+        return cls._from_fields((space, time, caha))
+    def __init__(self, space: SpaceTenseSyntax, time: TimeTenseSyntax | None, caha: CahaTenseSyntax | None) -> None:
+        pass
+    @property
+    def space(self) -> SpaceTenseSyntax:
+        'The shared space child syntax node.'
+        return cast(SpaceTenseSyntax, self._field(0))
+    @property
+    def time(self) -> TimeTenseSyntax | None:
+        'The optional time component.'
+        return cast(TimeTenseSyntax | None, self._field(1))
+    @property
+    def caha(self) -> CahaTenseSyntax | None:
+        'The optional caha component.'
+        return cast(CahaTenseSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceThenTimeCahaTenseSyntax is final')
+
+@final
+class TimeTenseSyntaxTimeTenseWithZi(_SyntaxNode):
+    'Uses the `time_tense_with_zi` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+    __slots__ = ()
+    _schema_id = 546
+    __match_args__ = ('time_tense_with_zi',)
+    def __new__(cls, time_tense_with_zi: TimeTenseWithZiSyntax) -> TimeTenseSyntaxTimeTenseWithZi:
+        return cls._from_fields((time_tense_with_zi,))
+    def __init__(self, time_tense_with_zi: TimeTenseWithZiSyntax) -> None:
+        pass
+    @property
+    def time_tense_with_zi(self) -> TimeTenseWithZiSyntax:
+        'Uses the `time_tense_with_zi` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+        return cast(TimeTenseWithZiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseSyntaxTimeTenseWithZi is final')
+
+@final
+class TimeTenseSyntaxTimeTenseWithOffset(_SyntaxNode):
+    'Uses the `time_tense_with_offset` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+    __slots__ = ()
+    _schema_id = 547
+    __match_args__ = ('time_tense_with_offset',)
+    def __new__(cls, time_tense_with_offset: TimeTenseWithOffsetSyntax) -> TimeTenseSyntaxTimeTenseWithOffset:
+        return cls._from_fields((time_tense_with_offset,))
+    def __init__(self, time_tense_with_offset: TimeTenseWithOffsetSyntax) -> None:
+        pass
+    @property
+    def time_tense_with_offset(self) -> TimeTenseWithOffsetSyntax:
+        'Uses the `time_tense_with_offset` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+        return cast(TimeTenseWithOffsetSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseSyntaxTimeTenseWithOffset is final')
+
+@final
+class TimeTenseSyntaxTimeTenseWithInterval(_SyntaxNode):
+    'Uses the `time_tense_with_interval` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+    __slots__ = ()
+    _schema_id = 548
+    __match_args__ = ('time_tense_with_interval',)
+    def __new__(cls, time_tense_with_interval: TimeTenseWithIntervalSyntax) -> TimeTenseSyntaxTimeTenseWithInterval:
+        return cls._from_fields((time_tense_with_interval,))
+    def __init__(self, time_tense_with_interval: TimeTenseWithIntervalSyntax) -> None:
+        pass
+    @property
+    def time_tense_with_interval(self) -> TimeTenseWithIntervalSyntax:
+        'Uses the `time_tense_with_interval` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+        return cast(TimeTenseWithIntervalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseSyntaxTimeTenseWithInterval is final')
+
+@final
+class TimeTenseSyntaxTimeTenseWithProperties(_SyntaxNode):
+    'Uses the `time_tense_with_properties` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+    __slots__ = ()
+    _schema_id = 549
+    __match_args__ = ('time_tense_with_properties',)
+    def __new__(cls, time_tense_with_properties: TimeTenseWithPropertiesSyntax) -> TimeTenseSyntaxTimeTenseWithProperties:
+        return cls._from_fields((time_tense_with_properties,))
+    def __init__(self, time_tense_with_properties: TimeTenseWithPropertiesSyntax) -> None:
+        pass
+    @property
+    def time_tense_with_properties(self) -> TimeTenseWithPropertiesSyntax:
+        'Uses the `time_tense_with_properties` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
+        return cast(TimeTenseWithPropertiesSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseSyntaxTimeTenseWithProperties is final')
+
+TimeTenseSyntax: TypeAlias = TimeTenseSyntaxTimeTenseWithZi | TimeTenseSyntaxTimeTenseWithOffset | TimeTenseSyntaxTimeTenseWithInterval | TimeTenseSyntaxTimeTenseWithProperties
+
+@final
+class TimeTenseWithZiSyntax(_SyntaxNode):
+    'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
+    __slots__ = ()
+    _schema_id = 550
+    __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
+    def __new__(cls, zi: ZiTimeDistanceTenseSyntax, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithZiSyntax:
+        return cls._from_fields((zi, offsets, zeha, properties))
+    def __init__(self, zi: ZiTimeDistanceTenseSyntax, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> None:
+        pass
+    @property
+    def zi(self) -> ZiTimeDistanceTenseSyntax:
+        'The shared zi child syntax node.'
+        return cast(ZiTimeDistanceTenseSyntax, self._field(0))
+    @property
+    def offsets(self) -> tuple[PuTimeOffsetTenseSyntax, ...]:
+        'Ordered sequence of zero or more offsets components.'
+        return cast(tuple[PuTimeOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def zeha(self) -> ZehaTimeIntervalTenseSyntax | None:
+        'The optional zeha component.'
+        return cast(ZehaTimeIntervalTenseSyntax | None, self._field(2))
+    @property
+    def properties(self) -> tuple[IntervalPropertyTenseSyntax, ...]:
+        'Ordered sequence of zero or more properties components.'
+        return cast(tuple[IntervalPropertyTenseSyntax, ...], self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseWithZiSyntax is final')
+
+@final
+class TimeTenseWithOffsetSyntax(_SyntaxNode):
+    'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
+    __slots__ = ()
+    _schema_id = 551
+    __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
+    def __new__(cls, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithOffsetSyntax:
+        return cls._from_fields((zi, offsets, zeha, properties))
+    def __init__(self, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> None:
+        pass
+    @property
+    def zi(self) -> ZiTimeDistanceTenseSyntax | None:
+        'The optional zi component.'
+        return cast(ZiTimeDistanceTenseSyntax | None, self._field(0))
+    @property
+    def offsets(self) -> tuple[PuTimeOffsetTenseSyntax, ...]:
+        'Non-empty ordered sequence of offsets components.'
+        return cast(tuple[PuTimeOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def zeha(self) -> ZehaTimeIntervalTenseSyntax | None:
+        'The optional zeha component.'
+        return cast(ZehaTimeIntervalTenseSyntax | None, self._field(2))
+    @property
+    def properties(self) -> tuple[IntervalPropertyTenseSyntax, ...]:
+        'Ordered sequence of zero or more properties components.'
+        return cast(tuple[IntervalPropertyTenseSyntax, ...], self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseWithOffsetSyntax is final')
+
+@final
+class TimeTenseWithIntervalSyntax(_SyntaxNode):
+    'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
+    __slots__ = ()
+    _schema_id = 552
+    __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
+    def __new__(cls, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithIntervalSyntax:
+        return cls._from_fields((zi, offsets, zeha, properties))
+    def __init__(self, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax, properties: Sequence[IntervalPropertyTenseSyntax]) -> None:
+        pass
+    @property
+    def zi(self) -> ZiTimeDistanceTenseSyntax | None:
+        'The optional zi component.'
+        return cast(ZiTimeDistanceTenseSyntax | None, self._field(0))
+    @property
+    def offsets(self) -> tuple[PuTimeOffsetTenseSyntax, ...]:
+        'Ordered sequence of zero or more offsets components.'
+        return cast(tuple[PuTimeOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def zeha(self) -> ZehaTimeIntervalTenseSyntax:
+        'The shared zeha child syntax node.'
+        return cast(ZehaTimeIntervalTenseSyntax, self._field(2))
+    @property
+    def properties(self) -> tuple[IntervalPropertyTenseSyntax, ...]:
+        'Ordered sequence of zero or more properties components.'
+        return cast(tuple[IntervalPropertyTenseSyntax, ...], self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseWithIntervalSyntax is final')
+
+@final
+class TimeTenseWithPropertiesSyntax(_SyntaxNode):
+    'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
+    __slots__ = ()
+    _schema_id = 553
+    __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
+    def __new__(cls, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithPropertiesSyntax:
+        return cls._from_fields((zi, offsets, zeha, properties))
+    def __init__(self, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> None:
+        pass
+    @property
+    def zi(self) -> ZiTimeDistanceTenseSyntax | None:
+        'The optional zi component.'
+        return cast(ZiTimeDistanceTenseSyntax | None, self._field(0))
+    @property
+    def offsets(self) -> tuple[PuTimeOffsetTenseSyntax, ...]:
+        'Ordered sequence of zero or more offsets components.'
+        return cast(tuple[PuTimeOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def zeha(self) -> ZehaTimeIntervalTenseSyntax | None:
+        'The optional zeha component.'
+        return cast(ZehaTimeIntervalTenseSyntax | None, self._field(2))
+    @property
+    def properties(self) -> tuple[IntervalPropertyTenseSyntax, ...]:
+        'Non-empty ordered sequence of properties components.'
+        return cast(tuple[IntervalPropertyTenseSyntax, ...], self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TimeTenseWithPropertiesSyntax is final')
+
+@final
+class IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense(_SyntaxNode):
+    'Uses the `numbered_interval_property_tense` product form, whose payload preserves `number`, `roi`, and `nai`.'
+    __slots__ = ()
+    _schema_id = 554
+    __match_args__ = ('numbered_interval_property_tense',)
+    def __new__(cls, numbered_interval_property_tense: NumberedIntervalPropertyTenseSyntax) -> IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense:
+        return cls._from_fields((numbered_interval_property_tense,))
+    def __init__(self, numbered_interval_property_tense: NumberedIntervalPropertyTenseSyntax) -> None:
+        pass
+    @property
+    def numbered_interval_property_tense(self) -> NumberedIntervalPropertyTenseSyntax:
+        'Uses the `numbered_interval_property_tense` product form, whose payload preserves `number`, `roi`, and `nai`.'
+        return cast(NumberedIntervalPropertyTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense is final')
+
+@final
+class IntervalPropertyTenseSyntaxTaheIntervalPropertyTense(_SyntaxNode):
+    'Uses the `tahe_interval_property_tense` product form, whose payload preserves `tahe` and `nai`.'
+    __slots__ = ()
+    _schema_id = 555
+    __match_args__ = ('tahe_interval_property_tense',)
+    def __new__(cls, tahe_interval_property_tense: TaheIntervalPropertyTenseSyntax) -> IntervalPropertyTenseSyntaxTaheIntervalPropertyTense:
+        return cls._from_fields((tahe_interval_property_tense,))
+    def __init__(self, tahe_interval_property_tense: TaheIntervalPropertyTenseSyntax) -> None:
+        pass
+    @property
+    def tahe_interval_property_tense(self) -> TaheIntervalPropertyTenseSyntax:
+        'Uses the `tahe_interval_property_tense` product form, whose payload preserves `tahe` and `nai`.'
+        return cast(TaheIntervalPropertyTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyTenseSyntaxTaheIntervalPropertyTense is final')
+
+@final
+class IntervalPropertyTenseSyntaxZahoIntervalPropertyTense(_SyntaxNode):
+    'Uses the `zaho_interval_property_tense` product form, whose payload preserves `zaho` and `nai`.'
+    __slots__ = ()
+    _schema_id = 556
+    __match_args__ = ('zaho_interval_property_tense',)
+    def __new__(cls, zaho_interval_property_tense: ZahoIntervalPropertyTenseSyntax) -> IntervalPropertyTenseSyntaxZahoIntervalPropertyTense:
+        return cls._from_fields((zaho_interval_property_tense,))
+    def __init__(self, zaho_interval_property_tense: ZahoIntervalPropertyTenseSyntax) -> None:
+        pass
+    @property
+    def zaho_interval_property_tense(self) -> ZahoIntervalPropertyTenseSyntax:
+        'Uses the `zaho_interval_property_tense` product form, whose payload preserves `zaho` and `nai`.'
+        return cast(ZahoIntervalPropertyTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyTenseSyntaxZahoIntervalPropertyTense is final')
+
+IntervalPropertyTenseSyntax: TypeAlias = IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense | IntervalPropertyTenseSyntaxTaheIntervalPropertyTense | IntervalPropertyTenseSyntaxZahoIntervalPropertyTense
+
+@final
+class NumberedIntervalPropertyTenseSyntax(_SyntaxNode):
+    'Product node for interval property; preserves `number`, `roi`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 557
+    __match_args__ = ('number', 'roi', 'nai')
+    def __new__(cls, number: WithFreeModifiers[IntervalPropertyNumberWordsSyntax, FreeModifierSyntax], roi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> NumberedIntervalPropertyTenseSyntax:
+        return cls._from_fields((number, roi, nai))
+    def __init__(self, number: WithFreeModifiers[IntervalPropertyNumberWordsSyntax, FreeModifierSyntax], roi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def number(self) -> WithFreeModifiers[IntervalPropertyNumberWordsSyntax, FreeModifierSyntax]:
+        'The `interval_property_number_words` grammar result in the `number` structural role of the `numbered_interval_property_tense` production.'
+        return cast(WithFreeModifiers[IntervalPropertyNumberWordsSyntax, FreeModifierSyntax], self._field(0))
+    @property
+    def roi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Roi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NumberedIntervalPropertyTenseSyntax is final')
+
+@final
+class IntervalPropertyNumberWordsSyntax(_SyntaxNode):
+    'Product node for number; preserves `first_number` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 558
+    __match_args__ = ('first_number', 'continuations')
+    def __new__(cls, first_number: Token, continuations: Sequence[IntervalPropertyNumberWordContinuationSyntax]) -> IntervalPropertyNumberWordsSyntax:
+        return cls._from_fields((first_number, continuations))
+    def __init__(self, first_number: Token, continuations: Sequence[IntervalPropertyNumberWordContinuationSyntax]) -> None:
+        pass
+    @property
+    def first_number(self) -> Token:
+        'The initial `pa_word` constituent before the continuations of the `interval_property_number_words` production.'
+        return cast(Token, self._field(0))
+    @property
+    def continuations(self) -> tuple[IntervalPropertyNumberWordContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[IntervalPropertyNumberWordContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyNumberWordsSyntax is final')
+
+@final
+class IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation(_SyntaxNode):
+    'Uses the `interval_property_number_pa_continuation` product form, whose payload preserves `pa`.'
+    __slots__ = ()
+    _schema_id = 559
+    __match_args__ = ('interval_property_number_pa_continuation',)
+    def __new__(cls, interval_property_number_pa_continuation: IntervalPropertyNumberPaContinuationSyntax) -> IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation:
+        return cls._from_fields((interval_property_number_pa_continuation,))
+    def __init__(self, interval_property_number_pa_continuation: IntervalPropertyNumberPaContinuationSyntax) -> None:
+        pass
+    @property
+    def interval_property_number_pa_continuation(self) -> IntervalPropertyNumberPaContinuationSyntax:
+        'Uses the `interval_property_number_pa_continuation` product form, whose payload preserves `pa`.'
+        return cast(IntervalPropertyNumberPaContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation is final')
+
+@final
+class IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation(_SyntaxNode):
+    'Uses the `interval_property_number_letter_continuation` product form, whose payload preserves `letter`.'
+    __slots__ = ()
+    _schema_id = 560
+    __match_args__ = ('interval_property_number_letter_continuation',)
+    def __new__(cls, interval_property_number_letter_continuation: IntervalPropertyNumberLetterContinuationSyntax) -> IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation:
+        return cls._from_fields((interval_property_number_letter_continuation,))
+    def __init__(self, interval_property_number_letter_continuation: IntervalPropertyNumberLetterContinuationSyntax) -> None:
+        pass
+    @property
+    def interval_property_number_letter_continuation(self) -> IntervalPropertyNumberLetterContinuationSyntax:
+        'Uses the `interval_property_number_letter_continuation` product form, whose payload preserves `letter`.'
+        return cast(IntervalPropertyNumberLetterContinuationSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation is final')
+
+IntervalPropertyNumberWordContinuationSyntax: TypeAlias = IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation | IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation
+
+@final
+class IntervalPropertyNumberPaContinuationSyntax(_SyntaxNode):
+    'Transparent product node for number continuation; preserves the `pa` component.'
+    __slots__ = ()
+    _schema_id = 561
+    __match_args__ = ('pa',)
+    def __new__(cls, pa: Token) -> IntervalPropertyNumberPaContinuationSyntax:
+        return cls._from_fields((pa,))
+    def __init__(self, pa: Token) -> None:
+        pass
+    @property
+    def pa(self) -> Token:
+        'The `pa_word` grammar result in the `pa` structural role of the `interval_property_number_pa_continuation` production.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyNumberPaContinuationSyntax is final')
+
+@final
+class IntervalPropertyNumberLetterContinuationSyntax(_SyntaxNode):
+    'Transparent product node for number continuation; preserves the `letter` component.'
+    __slots__ = ()
+    _schema_id = 562
+    __match_args__ = ('letter',)
+    def __new__(cls, letter: Token) -> IntervalPropertyNumberLetterContinuationSyntax:
+        return cls._from_fields((letter,))
+    def __init__(self, letter: Token) -> None:
+        pass
+    @property
+    def letter(self) -> Token:
+        'The `word_category` grammar result in the `letter` structural role of the `interval_property_number_letter_continuation` production.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('IntervalPropertyNumberLetterContinuationSyntax is final')
+
+@final
+class TaheIntervalPropertyTenseSyntax(_SyntaxNode):
+    'Product node for interval property; preserves `tahe` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 563
+    __match_args__ = ('tahe', 'nai')
+    def __new__(cls, tahe: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TaheIntervalPropertyTenseSyntax:
+        return cls._from_fields((tahe, nai))
+    def __init__(self, tahe: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def tahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Tahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaheIntervalPropertyTenseSyntax is final')
+
+@final
+class ZahoIntervalPropertyTenseSyntax(_SyntaxNode):
+    'Product node for interval property; preserves `zaho` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 564
+    __match_args__ = ('zaho', 'nai')
+    def __new__(cls, zaho: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZahoIntervalPropertyTenseSyntax:
+        return cls._from_fields((zaho, nai))
+    def __init__(self, zaho: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def zaho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Zaho`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZahoIntervalPropertyTenseSyntax is final')
+
+@final
+class PuTimeOffsetTenseSyntax(_SyntaxNode):
+    'Product node for time tense; preserves `pu`, `nai`, and `distance` in source order.'
+    __slots__ = ()
+    _schema_id = 565
+    __match_args__ = ('pu', 'nai', 'distance')
+    def __new__(cls, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> PuTimeOffsetTenseSyntax:
+        return cls._from_fields((pu, nai, distance))
+    def __init__(self, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def pu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Pu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def distance(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional distance component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PuTimeOffsetTenseSyntax is final')
+
+@final
+class ZiTimeDistanceTenseSyntax(_SyntaxNode):
+    'Transparent product node for time tense; preserves the `zi` component.'
+    __slots__ = ()
+    _schema_id = 566
+    __match_args__ = ('zi',)
+    def __new__(cls, zi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZiTimeDistanceTenseSyntax:
+        return cls._from_fields((zi,))
+    def __init__(self, zi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def zi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Zi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZiTimeDistanceTenseSyntax is final')
+
+@final
+class ZehaTimeIntervalTenseSyntax(_SyntaxNode):
+    'Product node for time interval; preserves `zeha` and `direction` in source order.'
+    __slots__ = ()
+    _schema_id = 567
+    __match_args__ = ('zeha', 'direction')
+    def __new__(cls, zeha: WithFreeModifiers[Token, FreeModifierSyntax], direction: tuple[WithFreeModifiers[Token, FreeModifierSyntax], WithFreeModifiers[Token, FreeModifierSyntax] | None] | None) -> ZehaTimeIntervalTenseSyntax:
+        return cls._from_fields((zeha, direction))
+    def __init__(self, zeha: WithFreeModifiers[Token, FreeModifierSyntax], direction: tuple[WithFreeModifiers[Token, FreeModifierSyntax], WithFreeModifiers[Token, FreeModifierSyntax] | None] | None) -> None:
+        pass
+    @property
+    def zeha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Zeha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def direction(self) -> tuple[WithFreeModifiers[Token, FreeModifierSyntax], WithFreeModifiers[Token, FreeModifierSyntax] | None] | None:
+        'The optional pair containing a required PU-family direction word followed by an optional `Nai` cmavo marker.'
+        return cast(tuple[WithFreeModifiers[Token, FreeModifierSyntax], WithFreeModifiers[Token, FreeModifierSyntax] | None] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZehaTimeIntervalTenseSyntax is final')
+
+@final
+class SpaceTenseSyntaxSpaceTenseWithVa(_SyntaxNode):
+    'Uses the `space_tense_with_va` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+    __slots__ = ()
+    _schema_id = 568
+    __match_args__ = ('space_tense_with_va',)
+    def __new__(cls, space_tense_with_va: SpaceTenseWithVaSyntax) -> SpaceTenseSyntaxSpaceTenseWithVa:
+        return cls._from_fields((space_tense_with_va,))
+    def __init__(self, space_tense_with_va: SpaceTenseWithVaSyntax) -> None:
+        pass
+    @property
+    def space_tense_with_va(self) -> SpaceTenseWithVaSyntax:
+        'Uses the `space_tense_with_va` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+        return cast(SpaceTenseWithVaSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseSyntaxSpaceTenseWithVa is final')
+
+@final
+class SpaceTenseSyntaxSpaceTenseWithOffset(_SyntaxNode):
+    'Uses the `space_tense_with_offset` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+    __slots__ = ()
+    _schema_id = 569
+    __match_args__ = ('space_tense_with_offset',)
+    def __new__(cls, space_tense_with_offset: SpaceTenseWithOffsetSyntax) -> SpaceTenseSyntaxSpaceTenseWithOffset:
+        return cls._from_fields((space_tense_with_offset,))
+    def __init__(self, space_tense_with_offset: SpaceTenseWithOffsetSyntax) -> None:
+        pass
+    @property
+    def space_tense_with_offset(self) -> SpaceTenseWithOffsetSyntax:
+        'Uses the `space_tense_with_offset` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+        return cast(SpaceTenseWithOffsetSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseSyntaxSpaceTenseWithOffset is final')
+
+@final
+class SpaceTenseSyntaxSpaceTenseWithInterval(_SyntaxNode):
+    'Uses the `space_tense_with_interval` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+    __slots__ = ()
+    _schema_id = 570
+    __match_args__ = ('space_tense_with_interval',)
+    def __new__(cls, space_tense_with_interval: SpaceTenseWithIntervalSyntax) -> SpaceTenseSyntaxSpaceTenseWithInterval:
+        return cls._from_fields((space_tense_with_interval,))
+    def __init__(self, space_tense_with_interval: SpaceTenseWithIntervalSyntax) -> None:
+        pass
+    @property
+    def space_tense_with_interval(self) -> SpaceTenseWithIntervalSyntax:
+        'Uses the `space_tense_with_interval` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+        return cast(SpaceTenseWithIntervalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseSyntaxSpaceTenseWithInterval is final')
+
+@final
+class SpaceTenseSyntaxSpaceTenseWithMohi(_SyntaxNode):
+    'Uses the `space_tense_with_mohi` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+    __slots__ = ()
+    _schema_id = 571
+    __match_args__ = ('space_tense_with_mohi',)
+    def __new__(cls, space_tense_with_mohi: SpaceTenseWithMohiSyntax) -> SpaceTenseSyntaxSpaceTenseWithMohi:
+        return cls._from_fields((space_tense_with_mohi,))
+    def __init__(self, space_tense_with_mohi: SpaceTenseWithMohiSyntax) -> None:
+        pass
+    @property
+    def space_tense_with_mohi(self) -> SpaceTenseWithMohiSyntax:
+        'Uses the `space_tense_with_mohi` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
+        return cast(SpaceTenseWithMohiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseSyntaxSpaceTenseWithMohi is final')
+
+SpaceTenseSyntax: TypeAlias = SpaceTenseSyntaxSpaceTenseWithVa | SpaceTenseSyntaxSpaceTenseWithOffset | SpaceTenseSyntaxSpaceTenseWithInterval | SpaceTenseSyntaxSpaceTenseWithMohi
+
+@final
+class SpaceTenseWithVaSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
+    __slots__ = ()
+    _schema_id = 572
+    __match_args__ = ('va', 'offsets', 'interval', 'mohi')
+    def __new__(cls, va: VaSpaceDistanceTenseSyntax, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax | None) -> SpaceTenseWithVaSyntax:
+        return cls._from_fields((va, offsets, interval, mohi))
+    def __init__(self, va: VaSpaceDistanceTenseSyntax, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax | None) -> None:
+        pass
+    @property
+    def va(self) -> VaSpaceDistanceTenseSyntax:
+        'The shared va child syntax node.'
+        return cast(VaSpaceDistanceTenseSyntax, self._field(0))
+    @property
+    def offsets(self) -> tuple[FahaSpaceOffsetTenseSyntax, ...]:
+        'Ordered sequence of zero or more offsets components.'
+        return cast(tuple[FahaSpaceOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def interval(self) -> SpaceIntervalTenseSyntax | None:
+        'The optional interval component.'
+        return cast(SpaceIntervalTenseSyntax | None, self._field(2))
+    @property
+    def mohi(self) -> MohiSpaceOffsetTenseSyntax | None:
+        'The optional mohi component.'
+        return cast(MohiSpaceOffsetTenseSyntax | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseWithVaSyntax is final')
+
+@final
+class SpaceTenseWithOffsetSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
+    __slots__ = ()
+    _schema_id = 573
+    __match_args__ = ('va', 'offsets', 'interval', 'mohi')
+    def __new__(cls, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax | None) -> SpaceTenseWithOffsetSyntax:
+        return cls._from_fields((va, offsets, interval, mohi))
+    def __init__(self, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax | None) -> None:
+        pass
+    @property
+    def va(self) -> VaSpaceDistanceTenseSyntax | None:
+        'The optional va component.'
+        return cast(VaSpaceDistanceTenseSyntax | None, self._field(0))
+    @property
+    def offsets(self) -> tuple[FahaSpaceOffsetTenseSyntax, ...]:
+        'Non-empty ordered sequence of offsets components.'
+        return cast(tuple[FahaSpaceOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def interval(self) -> SpaceIntervalTenseSyntax | None:
+        'The optional interval component.'
+        return cast(SpaceIntervalTenseSyntax | None, self._field(2))
+    @property
+    def mohi(self) -> MohiSpaceOffsetTenseSyntax | None:
+        'The optional mohi component.'
+        return cast(MohiSpaceOffsetTenseSyntax | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseWithOffsetSyntax is final')
+
+@final
+class SpaceTenseWithIntervalSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
+    __slots__ = ()
+    _schema_id = 574
+    __match_args__ = ('va', 'offsets', 'interval', 'mohi')
+    def __new__(cls, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax, mohi: MohiSpaceOffsetTenseSyntax | None) -> SpaceTenseWithIntervalSyntax:
+        return cls._from_fields((va, offsets, interval, mohi))
+    def __init__(self, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax, mohi: MohiSpaceOffsetTenseSyntax | None) -> None:
+        pass
+    @property
+    def va(self) -> VaSpaceDistanceTenseSyntax | None:
+        'The optional va component.'
+        return cast(VaSpaceDistanceTenseSyntax | None, self._field(0))
+    @property
+    def offsets(self) -> tuple[FahaSpaceOffsetTenseSyntax, ...]:
+        'Ordered sequence of zero or more offsets components.'
+        return cast(tuple[FahaSpaceOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def interval(self) -> SpaceIntervalTenseSyntax:
+        'The shared interval child syntax node.'
+        return cast(SpaceIntervalTenseSyntax, self._field(2))
+    @property
+    def mohi(self) -> MohiSpaceOffsetTenseSyntax | None:
+        'The optional mohi component.'
+        return cast(MohiSpaceOffsetTenseSyntax | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseWithIntervalSyntax is final')
+
+@final
+class SpaceTenseWithMohiSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
+    __slots__ = ()
+    _schema_id = 575
+    __match_args__ = ('va', 'offsets', 'interval', 'mohi')
+    def __new__(cls, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax) -> SpaceTenseWithMohiSyntax:
+        return cls._from_fields((va, offsets, interval, mohi))
+    def __init__(self, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax) -> None:
+        pass
+    @property
+    def va(self) -> VaSpaceDistanceTenseSyntax | None:
+        'The optional va component.'
+        return cast(VaSpaceDistanceTenseSyntax | None, self._field(0))
+    @property
+    def offsets(self) -> tuple[FahaSpaceOffsetTenseSyntax, ...]:
+        'Ordered sequence of zero or more offsets components.'
+        return cast(tuple[FahaSpaceOffsetTenseSyntax, ...], self._field(1))
+    @property
+    def interval(self) -> SpaceIntervalTenseSyntax | None:
+        'The optional interval component.'
+        return cast(SpaceIntervalTenseSyntax | None, self._field(2))
+    @property
+    def mohi(self) -> MohiSpaceOffsetTenseSyntax:
+        'The shared mohi child syntax node.'
+        return cast(MohiSpaceOffsetTenseSyntax, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceTenseWithMohiSyntax is final')
+
+@final
+class VaSpaceDistanceTenseSyntax(_SyntaxNode):
+    'Transparent product node for space tense; preserves the `va` component.'
+    __slots__ = ()
+    _schema_id = 576
+    __match_args__ = ('va',)
+    def __new__(cls, va: WithFreeModifiers[Token, FreeModifierSyntax]) -> VaSpaceDistanceTenseSyntax:
+        return cls._from_fields((va,))
+    def __init__(self, va: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def va(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Va`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VaSpaceDistanceTenseSyntax is final')
+
+@final
+class FahaSpaceOffsetTenseSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `faha`, `nai`, and `distance` in source order.'
+    __slots__ = ()
+    _schema_id = 577
+    __match_args__ = ('faha', 'nai', 'distance')
+    def __new__(cls, faha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FahaSpaceOffsetTenseSyntax:
+        return cls._from_fields((faha, nai, distance))
+    def __init__(self, faha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def faha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Faha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def distance(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional distance component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FahaSpaceOffsetTenseSyntax is final')
+
+@final
+class FahaIntervalDirectionTenseSyntax(_SyntaxNode):
+    'Product node for space interval; preserves `faha` and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 578
+    __match_args__ = ('faha', 'nai')
+    def __new__(cls, faha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FahaIntervalDirectionTenseSyntax:
+        return cls._from_fields((faha, nai))
+    def __init__(self, faha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def faha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Faha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FahaIntervalDirectionTenseSyntax is final')
+
+@final
+class SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense(_SyntaxNode):
+    'Uses the `space_interval_with_extent_tense` product form, whose payload preserves `extent`, `direction`, and `properties`.'
+    __slots__ = ()
+    _schema_id = 579
+    __match_args__ = ('space_interval_with_extent_tense',)
+    def __new__(cls, space_interval_with_extent_tense: SpaceIntervalWithExtentTenseSyntax) -> SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense:
+        return cls._from_fields((space_interval_with_extent_tense,))
+    def __init__(self, space_interval_with_extent_tense: SpaceIntervalWithExtentTenseSyntax) -> None:
+        pass
+    @property
+    def space_interval_with_extent_tense(self) -> SpaceIntervalWithExtentTenseSyntax:
+        'Uses the `space_interval_with_extent_tense` product form, whose payload preserves `extent`, `direction`, and `properties`.'
+        return cast(SpaceIntervalWithExtentTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense is final')
+
+@final
+class SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense(_SyntaxNode):
+    'Uses the `space_interval_properties_tense` product form, whose payload preserves `first` and `additional`.'
+    __slots__ = ()
+    _schema_id = 580
+    __match_args__ = ('space_interval_properties_tense',)
+    def __new__(cls, space_interval_properties_tense: SpaceIntervalPropertiesTenseSyntax) -> SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense:
+        return cls._from_fields((space_interval_properties_tense,))
+    def __init__(self, space_interval_properties_tense: SpaceIntervalPropertiesTenseSyntax) -> None:
+        pass
+    @property
+    def space_interval_properties_tense(self) -> SpaceIntervalPropertiesTenseSyntax:
+        'Uses the `space_interval_properties_tense` product form, whose payload preserves `first` and `additional`.'
+        return cast(SpaceIntervalPropertiesTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense is final')
+
+SpaceIntervalTenseSyntax: TypeAlias = SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense | SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense
+
+@final
+class SpaceIntervalWithExtentTenseSyntax(_SyntaxNode):
+    'Product node for space interval; preserves `extent`, `direction`, and `properties` in source order.'
+    __slots__ = ()
+    _schema_id = 581
+    __match_args__ = ('extent', 'direction', 'properties')
+    def __new__(cls, extent: SpaceIntervalExtentTenseSyntax, direction: FahaIntervalDirectionTenseSyntax | None, properties: SpaceIntervalPropertiesTenseSyntax | None) -> SpaceIntervalWithExtentTenseSyntax:
+        return cls._from_fields((extent, direction, properties))
+    def __init__(self, extent: SpaceIntervalExtentTenseSyntax, direction: FahaIntervalDirectionTenseSyntax | None, properties: SpaceIntervalPropertiesTenseSyntax | None) -> None:
+        pass
+    @property
+    def extent(self) -> SpaceIntervalExtentTenseSyntax:
+        'The shared extent child syntax node.'
+        return cast(SpaceIntervalExtentTenseSyntax, self._field(0))
+    @property
+    def direction(self) -> FahaIntervalDirectionTenseSyntax | None:
+        'The optional direction component.'
+        return cast(FahaIntervalDirectionTenseSyntax | None, self._field(1))
+    @property
+    def properties(self) -> SpaceIntervalPropertiesTenseSyntax | None:
+        'The optional properties component.'
+        return cast(SpaceIntervalPropertiesTenseSyntax | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceIntervalWithExtentTenseSyntax is final')
+
+@final
+class SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense(_SyntaxNode):
+    'Uses the `veha_space_interval_tense` product form, whose payload preserves `veha` and `viha`.'
+    __slots__ = ()
+    _schema_id = 582
+    __match_args__ = ('veha_space_interval_tense',)
+    def __new__(cls, veha_space_interval_tense: VehaSpaceIntervalTenseSyntax) -> SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense:
+        return cls._from_fields((veha_space_interval_tense,))
+    def __init__(self, veha_space_interval_tense: VehaSpaceIntervalTenseSyntax) -> None:
+        pass
+    @property
+    def veha_space_interval_tense(self) -> VehaSpaceIntervalTenseSyntax:
+        'Uses the `veha_space_interval_tense` product form, whose payload preserves `veha` and `viha`.'
+        return cast(VehaSpaceIntervalTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense is final')
+
+@final
+class SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense(_SyntaxNode):
+    'Uses the `viha_space_interval_tense` product form, whose payload preserves `viha`.'
+    __slots__ = ()
+    _schema_id = 583
+    __match_args__ = ('viha_space_interval_tense',)
+    def __new__(cls, viha_space_interval_tense: VihaSpaceIntervalTenseSyntax) -> SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense:
+        return cls._from_fields((viha_space_interval_tense,))
+    def __init__(self, viha_space_interval_tense: VihaSpaceIntervalTenseSyntax) -> None:
+        pass
+    @property
+    def viha_space_interval_tense(self) -> VihaSpaceIntervalTenseSyntax:
+        'Uses the `viha_space_interval_tense` product form, whose payload preserves `viha`.'
+        return cast(VihaSpaceIntervalTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense is final')
+
+SpaceIntervalExtentTenseSyntax: TypeAlias = SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense | SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense
+
+@final
+class SpaceIntervalPropertiesTenseSyntax(_SyntaxNode):
+    'Product node for space interval; preserves `first` and `additional` in source order.'
+    __slots__ = ()
+    _schema_id = 584
+    __match_args__ = ('first', 'additional')
+    def __new__(cls, first: FeheIntervalPropertyTenseSyntax, additional: Sequence[FeheIntervalPropertyTenseSyntax]) -> SpaceIntervalPropertiesTenseSyntax:
+        return cls._from_fields((first, additional))
+    def __init__(self, first: FeheIntervalPropertyTenseSyntax, additional: Sequence[FeheIntervalPropertyTenseSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> FeheIntervalPropertyTenseSyntax:
+        'The shared first child syntax node.'
+        return cast(FeheIntervalPropertyTenseSyntax, self._field(0))
+    @property
+    def additional(self) -> tuple[FeheIntervalPropertyTenseSyntax, ...]:
+        'Ordered sequence of zero or more additional components.'
+        return cast(tuple[FeheIntervalPropertyTenseSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SpaceIntervalPropertiesTenseSyntax is final')
+
+@final
+class VehaSpaceIntervalTenseSyntax(_SyntaxNode):
+    'Product node for space interval; preserves `veha` and `viha` in source order.'
+    __slots__ = ()
+    _schema_id = 585
+    __match_args__ = ('veha', 'viha')
+    def __new__(cls, veha: WithFreeModifiers[Token, FreeModifierSyntax], viha: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> VehaSpaceIntervalTenseSyntax:
+        return cls._from_fields((veha, viha))
+    def __init__(self, veha: WithFreeModifiers[Token, FreeModifierSyntax], viha: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def veha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Veha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def viha(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional viha component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VehaSpaceIntervalTenseSyntax is final')
+
+@final
+class VihaSpaceIntervalTenseSyntax(_SyntaxNode):
+    'Transparent product node for space interval; preserves the `viha` component.'
+    __slots__ = ()
+    _schema_id = 586
+    __match_args__ = ('viha',)
+    def __new__(cls, viha: WithFreeModifiers[Token, FreeModifierSyntax]) -> VihaSpaceIntervalTenseSyntax:
+        return cls._from_fields((viha,))
+    def __init__(self, viha: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def viha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Viha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('VihaSpaceIntervalTenseSyntax is final')
+
+@final
+class FeheIntervalPropertyTenseSyntax(_SyntaxNode):
+    'Product node for space interval property; preserves `fehe` and `property` in source order.'
+    __slots__ = ()
+    _schema_id = 587
+    __match_args__ = ('fehe', 'property')
+    def __new__(cls, fehe: WithFreeModifiers[Token, FreeModifierSyntax], property: IntervalPropertyTenseSyntax) -> FeheIntervalPropertyTenseSyntax:
+        return cls._from_fields((fehe, property))
+    def __init__(self, fehe: WithFreeModifiers[Token, FreeModifierSyntax], property: IntervalPropertyTenseSyntax) -> None:
+        pass
+    @property
+    def fehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Fehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def property(self) -> IntervalPropertyTenseSyntax:
+        'The shared property child syntax node.'
+        return cast(IntervalPropertyTenseSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('FeheIntervalPropertyTenseSyntax is final')
+
+@final
+class MohiSpaceOffsetTenseSyntax(_SyntaxNode):
+    'Product node for space tense; preserves `mohi` and `offset` in source order.'
+    __slots__ = ()
+    _schema_id = 588
+    __match_args__ = ('mohi', 'offset')
+    def __new__(cls, mohi: WithFreeModifiers[Token, FreeModifierSyntax], offset: FahaSpaceOffsetTenseSyntax) -> MohiSpaceOffsetTenseSyntax:
+        return cls._from_fields((mohi, offset))
+    def __init__(self, mohi: WithFreeModifiers[Token, FreeModifierSyntax], offset: FahaSpaceOffsetTenseSyntax) -> None:
+        pass
+    @property
+    def mohi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Mohi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def offset(self) -> FahaSpaceOffsetTenseSyntax:
+        'The shared offset child syntax node.'
+        return cast(FahaSpaceOffsetTenseSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MohiSpaceOffsetTenseSyntax is final')
+
+@final
+class CahaTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `caha` component.'
+    __slots__ = ()
+    _schema_id = 589
+    __match_args__ = ('caha',)
+    def __new__(cls, caha: WithFreeModifiers[Token, FreeModifierSyntax]) -> CahaTenseSyntax:
+        return cls._from_fields((caha,))
+    def __init__(self, caha: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def caha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Caha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CahaTenseSyntax is final')
+
+@final
+class KiCompositeTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `ki` component.'
+    __slots__ = ()
+    _schema_id = 590
+    __match_args__ = ('ki',)
+    def __new__(cls, ki: WithFreeModifiers[Token, FreeModifierSyntax]) -> KiCompositeTenseSyntax:
+        return cls._from_fields((ki,))
+    def __init__(self, ki: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def ki(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ki` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('KiCompositeTenseSyntax is final')
+
+@final
+class CuheTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `cuhe` component.'
+    __slots__ = ()
+    _schema_id = 591
+    __match_args__ = ('cuhe',)
+    def __new__(cls, cuhe: WithFreeModifiers[Token, FreeModifierSyntax]) -> CuheTenseSyntax:
+        return cls._from_fields((cuhe,))
+    def __init__(self, cuhe: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def cuhe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Cuhe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CuheTenseSyntax is final')
+
+@final
+class ModalTenseSyntax(_SyntaxNode):
+    'Product node for modal tag; preserves `nahe`, `se`, `bai`, `nai`, and `ki` in source order.'
+    __slots__ = ()
+    _schema_id = 592
+    __match_args__ = ('nahe', 'se', 'bai', 'nai', 'ki')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax] | None, se: WithFreeModifiers[Token, FreeModifierSyntax] | None, bai: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, ki: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ModalTenseSyntax:
+        return cls._from_fields((nahe, se, bai, nai, ki))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax] | None, se: WithFreeModifiers[Token, FreeModifierSyntax] | None, bai: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, ki: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional nahe component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(0))
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional se component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def bai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Bai`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    @property
+    def ki(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Ki` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ModalTenseSyntax is final')
+
+@final
+class StickyTenseSyntax(_SyntaxNode):
+    'Transparent product node for tag; preserves the `ki` component.'
+    __slots__ = ()
+    _schema_id = 593
+    __match_args__ = ('ki',)
+    def __new__(cls, ki: WithFreeModifiers[Token, FreeModifierSyntax]) -> StickyTenseSyntax:
+        return cls._from_fields((ki,))
+    def __init__(self, ki: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def ki(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ki` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('StickyTenseSyntax is final')
+
+@final
+class SelbriSyntaxTaggedSelbri(_SyntaxNode):
+    'Uses the `tagged_selbri` product form, whose payload preserves `tense_modal` and `inner_selbri`.'
+    __slots__ = ()
+    _schema_id = 594
+    __match_args__ = ('tagged_selbri',)
+    def __new__(cls, tagged_selbri: TaggedSelbriSyntax) -> SelbriSyntaxTaggedSelbri:
+        return cls._from_fields((tagged_selbri,))
+    def __init__(self, tagged_selbri: TaggedSelbriSyntax) -> None:
+        pass
+    @property
+    def tagged_selbri(self) -> TaggedSelbriSyntax:
+        'Uses the `tagged_selbri` product form, whose payload preserves `tense_modal` and `inner_selbri`.'
+        return cast(TaggedSelbriSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriSyntaxTaggedSelbri is final')
+
+@final
+class SelbriSyntaxUntaggedSelbri(_SyntaxNode):
+    'Uses the nested `untagged_selbri` sum form and preserves its selected alternative.'
+    __slots__ = ()
+    _schema_id = 595
+    __match_args__ = ('untagged_selbri',)
+    def __new__(cls, untagged_selbri: UntaggedSelbriSyntax) -> SelbriSyntaxUntaggedSelbri:
+        return cls._from_fields((untagged_selbri,))
+    def __init__(self, untagged_selbri: UntaggedSelbriSyntax) -> None:
+        pass
+    @property
+    def untagged_selbri(self) -> UntaggedSelbriSyntax:
+        'Uses the nested `untagged_selbri` sum form and preserves its selected alternative.'
+        return cast(UntaggedSelbriSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SelbriSyntaxUntaggedSelbri is final')
+
+SelbriSyntax: TypeAlias = SelbriSyntaxTaggedSelbri | SelbriSyntaxUntaggedSelbri
+
+@final
+class UntaggedSelbriSyntaxNegatedSelbri(_SyntaxNode):
+    'Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.'
+    __slots__ = ()
+    _schema_id = 596
+    __match_args__ = ('negated_selbri',)
+    def __new__(cls, negated_selbri: NegatedSelbriSyntax) -> UntaggedSelbriSyntaxNegatedSelbri:
+        return cls._from_fields((negated_selbri,))
+    def __init__(self, negated_selbri: NegatedSelbriSyntax) -> None:
+        pass
+    @property
+    def negated_selbri(self) -> NegatedSelbriSyntax:
+        'Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.'
+        return cast(NegatedSelbriSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('UntaggedSelbriSyntaxNegatedSelbri is final')
+
+@final
+class UntaggedSelbriSyntaxCoSelbri(_SyntaxNode):
+    'Uses the `co_selbri` product form, whose payload preserves `leading_selbri` and `co_tail`.'
+    __slots__ = ()
+    _schema_id = 597
+    __match_args__ = ('co_selbri',)
+    def __new__(cls, co_selbri: CoSelbriSyntax) -> UntaggedSelbriSyntaxCoSelbri:
+        return cls._from_fields((co_selbri,))
+    def __init__(self, co_selbri: CoSelbriSyntax) -> None:
+        pass
+    @property
+    def co_selbri(self) -> CoSelbriSyntax:
+        'Uses the `co_selbri` product form, whose payload preserves `leading_selbri` and `co_tail`.'
+        return cast(CoSelbriSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('UntaggedSelbriSyntaxCoSelbri is final')
+
+@final
+class UntaggedSelbriSyntaxForethoughtSelbriConnection(_SyntaxNode):
+    'Uses the `forethought_selbri_connection` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.'
+    __slots__ = ()
+    _schema_id = 598
+    __match_args__ = ('forethought_selbri_connection',)
+    def __new__(cls, forethought_selbri_connection: ForethoughtSelbriConnectionSyntax) -> UntaggedSelbriSyntaxForethoughtSelbriConnection:
+        return cls._from_fields((forethought_selbri_connection,))
+    def __init__(self, forethought_selbri_connection: ForethoughtSelbriConnectionSyntax) -> None:
+        pass
+    @property
+    def forethought_selbri_connection(self) -> ForethoughtSelbriConnectionSyntax:
+        'Uses the `forethought_selbri_connection` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.'
+        return cast(ForethoughtSelbriConnectionSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('UntaggedSelbriSyntaxForethoughtSelbriConnection is final')
+
+UntaggedSelbriSyntax: TypeAlias = UntaggedSelbriSyntaxNegatedSelbri | UntaggedSelbriSyntaxCoSelbri | UntaggedSelbriSyntaxForethoughtSelbriConnection
+
+@final
+class TaggedSelbriSyntax(_SyntaxNode):
+    'Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 599
+    __match_args__ = ('tense_modal', 'inner_selbri')
+    def __new__(cls, tense_modal: TenseModalSyntax, inner_selbri: UntaggedSelbriSyntax) -> TaggedSelbriSyntax:
+        return cls._from_fields((tense_modal, inner_selbri))
+    def __init__(self, tense_modal: TenseModalSyntax, inner_selbri: UntaggedSelbriSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(TenseModalSyntax, self._field(0))
+    @property
+    def inner_selbri(self) -> UntaggedSelbriSyntax:
+        'The shared inner selbri child syntax node.'
+        return cast(UntaggedSelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedSelbriSyntax is final')
+
+@final
+class NegatedSelbriSyntax(_SyntaxNode):
+    'Product node for negated selbri; preserves `na` and `inner_selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 600
+    __match_args__ = ('na', 'inner_selbri')
+    def __new__(cls, na: WithFreeModifiers[Token, FreeModifierSyntax], inner_selbri: SelbriSyntax) -> NegatedSelbriSyntax:
+        return cls._from_fields((na, inner_selbri))
+    def __init__(self, na: WithFreeModifiers[Token, FreeModifierSyntax], inner_selbri: SelbriSyntax) -> None:
+        pass
+    @property
+    def na(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Na`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_selbri(self) -> SelbriSyntax:
+        'The shared inner selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('NegatedSelbriSyntax is final')
+
+@final
+class CoSelbriSyntax(_SyntaxNode):
+    'Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.'
+    __slots__ = ()
+    _schema_id = 601
+    __match_args__ = ('leading_selbri', 'co_tail')
+    def __new__(cls, leading_selbri: ConnectedSelbriSyntax, co_tail: CoSelbriTailSyntax | None) -> CoSelbriSyntax:
+        return cls._from_fields((leading_selbri, co_tail))
+    def __init__(self, leading_selbri: ConnectedSelbriSyntax, co_tail: CoSelbriTailSyntax | None) -> None:
+        pass
+    @property
+    def leading_selbri(self) -> ConnectedSelbriSyntax:
+        'The shared leading selbri child syntax node.'
+        return cast(ConnectedSelbriSyntax, self._field(0))
+    @property
+    def co_tail(self) -> CoSelbriTailSyntax | None:
+        'The optional co tail component.'
+        return cast(CoSelbriTailSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CoSelbriSyntax is final')
+
+@final
+class CoSelbriTailSyntax(_SyntaxNode):
+    'Product node for selbri; preserves `co` and `trailing_selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 602
+    __match_args__ = ('co', 'trailing_selbri')
+    def __new__(cls, co: WithFreeModifiers[Token, FreeModifierSyntax], trailing_selbri: CoSelbriSyntax) -> CoSelbriTailSyntax:
+        return cls._from_fields((co, trailing_selbri))
+    def __init__(self, co: WithFreeModifiers[Token, FreeModifierSyntax], trailing_selbri: CoSelbriSyntax) -> None:
+        pass
+    @property
+    def co(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Co` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def trailing_selbri(self) -> CoSelbriSyntax:
+        'The shared trailing selbri child syntax node.'
+        return cast(CoSelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('CoSelbriTailSyntax is final')
+
+@final
+class ForethoughtSelbriConnectionSyntax(_SyntaxNode):
+    'Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.'
+    __slots__ = ()
+    _schema_id = 603
+    __match_args__ = ('guhek', 'leading_selbri', 'first_branch', 'additional_branches', 'gihi')
+    def __new__(cls, guhek: GuhekConnectiveSyntax, leading_selbri: SelbriSyntax, first_branch: ForethoughtSelbriBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSelbriBranchSyntax], gihi: Token | None) -> ForethoughtSelbriConnectionSyntax:
+        return cls._from_fields((guhek, leading_selbri, first_branch, additional_branches, gihi))
+    def __init__(self, guhek: GuhekConnectiveSyntax, leading_selbri: SelbriSyntax, first_branch: ForethoughtSelbriBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSelbriBranchSyntax], gihi: Token | None) -> None:
+        pass
+    @property
+    def guhek(self) -> GuhekConnectiveSyntax:
+        'The `guhek_connective` forethought connective opening the paired branches of the `forethought_selbri_connection` production.'
+        return cast(GuhekConnectiveSyntax, self._field(0))
+    @property
+    def leading_selbri(self) -> SelbriSyntax:
+        'The shared leading selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def first_branch(self) -> ForethoughtSelbriBranchSyntax:
+        'The initial `forethought_selbri_branch` constituent before the continuations of the `forethought_selbri_connection` production.'
+        return cast(ForethoughtSelbriBranchSyntax, self._field(2))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtSelbriBranchSyntax, ...]:
+        'Ordered sequence of zero or more additional branches components.'
+        return cast(tuple[ZantufaForethoughtSelbriBranchSyntax, ...], self._field(3))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional gihi component.'
+        return cast(Token | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSelbriConnectionSyntax is final')
+
+@final
+class ForethoughtSelbriBranchSyntax(_SyntaxNode):
+    'Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 604
+    __match_args__ = ('gik', 'selbri')
+    def __new__(cls, gik: GikConnectiveSyntax, selbri: SelbriSyntax) -> ForethoughtSelbriBranchSyntax:
+        return cls._from_fields((gik, selbri))
+    def __init__(self, gik: GikConnectiveSyntax, selbri: SelbriSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_selbri_branch` production.'
+        return cast(GikConnectiveSyntax, self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSelbriBranchSyntax is final')
+
+@final
+class ZantufaForethoughtSelbriBranchSyntax(_SyntaxNode):
+    'Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 605
+    __match_args__ = ('gik', 'selbri')
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, selbri: SelbriSyntax) -> ZantufaForethoughtSelbriBranchSyntax:
+        return cls._from_fields((gik, selbri))
+    def __init__(self, gik: ZantufaExtraGikConnectiveSyntax, selbri: SelbriSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> ZantufaExtraGikConnectiveSyntax:
+        'The GI-family `zantufa_extra_gik_connective` connective separating the forethought branches of the `zantufa_forethought_selbri_branch` production.'
+        return cast(ZantufaExtraGikConnectiveSyntax, self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaForethoughtSelbriBranchSyntax is final')
+
+@final
+class ConnectedSelbriSyntax(_SyntaxNode):
+    'Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 606
+    __match_args__ = ('leading_selbri', 'continuations')
+    def __new__(cls, leading_selbri: TanruSelbriSyntax, continuations: Sequence[ConnectedSelbriContinuationSyntax]) -> ConnectedSelbriSyntax:
+        return cls._from_fields((leading_selbri, continuations))
+    def __init__(self, leading_selbri: TanruSelbriSyntax, continuations: Sequence[ConnectedSelbriContinuationSyntax]) -> None:
+        pass
+    @property
+    def leading_selbri(self) -> TanruSelbriSyntax:
+        'The shared leading selbri child syntax node.'
+        return cast(TanruSelbriSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[ConnectedSelbriContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[ConnectedSelbriContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedSelbriSyntax is final')
+
+@final
+class ConnectedSelbriContinuationSyntax(_SyntaxNode):
+    'Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 607
+    __match_args__ = ('connective', 'trailing_selbri')
+    def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, trailing_selbri: TanruSelbriSyntax) -> ConnectedSelbriContinuationSyntax:
+        return cls._from_fields((connective, trailing_selbri))
+    def __init__(self, connective: RelationAfterthoughtConnectiveSyntax, trailing_selbri: TanruSelbriSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> RelationAfterthoughtConnectiveSyntax:
+        'The `relation_afterthought_connective` connective joining the adjacent constituents of the `connected_selbri_continuation` production.'
+        return cast(RelationAfterthoughtConnectiveSyntax, self._field(0))
+    @property
+    def trailing_selbri(self) -> TanruSelbriSyntax:
+        'The shared trailing selbri child syntax node.'
+        return cast(TanruSelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedSelbriContinuationSyntax is final')
+
+@final
+class TanruSelbriSyntax(_SyntaxNode):
+    'Product node for tanru; preserves `first_unit` and `additional_units` in source order.'
+    __slots__ = ()
+    _schema_id = 608
+    __match_args__ = ('first_unit', 'additional_units')
+    def __new__(cls, first_unit: TanruUnitSyntax, additional_units: Sequence[TanruUnitSyntax]) -> TanruSelbriSyntax:
+        return cls._from_fields((first_unit, additional_units))
+    def __init__(self, first_unit: TanruUnitSyntax, additional_units: Sequence[TanruUnitSyntax]) -> None:
+        pass
+    @property
+    def first_unit(self) -> TanruUnitSyntax:
+        'The initial `tanru_unit` constituent before the continuations of the `tanru_selbri` production.'
+        return cast(TanruUnitSyntax, self._field(0))
+    @property
+    def additional_units(self) -> tuple[TanruUnitSyntax, ...]:
+        'Ordered sequence of zero or more additional units components.'
+        return cast(tuple[TanruUnitSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruSelbriSyntax is final')
+
+@final
+class TanruUnitSyntax(_SyntaxNode):
+    'Transparent product node for tanru unit; preserves the `units` component.'
+    __slots__ = ()
+    _schema_id = 609
+    __match_args__ = ('units',)
+    def __new__(cls, units: Chain[BoOrLinkedTanruUnitSyntax, TanruUnitContinuationSyntax]) -> TanruUnitSyntax:
+        return cls._from_fields((units,))
+    def __init__(self, units: Chain[BoOrLinkedTanruUnitSyntax, TanruUnitContinuationSyntax]) -> None:
+        pass
+    @property
+    def units(self) -> Chain[BoOrLinkedTanruUnitSyntax, TanruUnitContinuationSyntax]:
+        'The source-ordered `units` chain assembled by the `tanru_unit` production.'
+        return cast(Chain[BoOrLinkedTanruUnitSyntax, TanruUnitContinuationSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitSyntax is final')
+
+@final
+class TanruUnitContinuationSyntax(_SyntaxNode):
+    'Product node for tanru unit continuation; preserves `connective` and `trailing_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 610
+    __match_args__ = ('connective', 'trailing_unit')
+    def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, trailing_unit: BoOrLinkedTanruUnitSyntax) -> TanruUnitContinuationSyntax:
+        return cls._from_fields((connective, trailing_unit))
+    def __init__(self, connective: RelationAfterthoughtConnectiveSyntax, trailing_unit: BoOrLinkedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> RelationAfterthoughtConnectiveSyntax:
+        'The `relation_afterthought_connective` connective joining the adjacent constituents of the `tanru_unit_continuation` production.'
+        return cast(RelationAfterthoughtConnectiveSyntax, self._field(0))
+    @property
+    def trailing_unit(self) -> BoOrLinkedTanruUnitSyntax:
+        'The shared trailing unit child syntax node.'
+        return cast(BoOrLinkedTanruUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitContinuationSyntax is final')
+
+@final
+class BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit(_SyntaxNode):
+    'Uses the `forethought_selbri_group_tanru_unit` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.'
+    __slots__ = ()
+    _schema_id = 611
+    __match_args__ = ('forethought_selbri_group_tanru_unit',)
+    def __new__(cls, forethought_selbri_group_tanru_unit: ForethoughtSelbriGroupTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit:
+        return cls._from_fields((forethought_selbri_group_tanru_unit,))
+    def __init__(self, forethought_selbri_group_tanru_unit: ForethoughtSelbriGroupTanruUnitSyntax) -> None:
+        pass
+    @property
+    def forethought_selbri_group_tanru_unit(self) -> ForethoughtSelbriGroupTanruUnitSyntax:
+        'Uses the `forethought_selbri_group_tanru_unit` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.'
+        return cast(ForethoughtSelbriGroupTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit is final')
+
+@final
+class BoOrLinkedTanruUnitSyntaxBoundTanruUnit(_SyntaxNode):
+    'Uses the `bound_tanru_unit` product form, whose payload preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit`.'
+    __slots__ = ()
+    _schema_id = 612
+    __match_args__ = ('bound_tanru_unit',)
+    def __new__(cls, bound_tanru_unit: BoundTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxBoundTanruUnit:
+        return cls._from_fields((bound_tanru_unit,))
+    def __init__(self, bound_tanru_unit: BoundTanruUnitSyntax) -> None:
+        pass
+    @property
+    def bound_tanru_unit(self) -> BoundTanruUnitSyntax:
+        'Uses the `bound_tanru_unit` product form, whose payload preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit`.'
+        return cast(BoundTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoOrLinkedTanruUnitSyntaxBoundTanruUnit is final')
+
+@final
+class BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit(_SyntaxNode):
+    'Uses the `assigned_pro_bridi_tanru_unit` product form, whose payload preserves `base` and `assignments`.'
+    __slots__ = ()
+    _schema_id = 613
+    __match_args__ = ('assigned_pro_bridi_tanru_unit',)
+    def __new__(cls, assigned_pro_bridi_tanru_unit: AssignedProBridiTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit:
+        return cls._from_fields((assigned_pro_bridi_tanru_unit,))
+    def __init__(self, assigned_pro_bridi_tanru_unit: AssignedProBridiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def assigned_pro_bridi_tanru_unit(self) -> AssignedProBridiTanruUnitSyntax:
+        'Uses the `assigned_pro_bridi_tanru_unit` product form, whose payload preserves `base` and `assignments`.'
+        return cast(AssignedProBridiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit is final')
+
+@final
+class BoOrLinkedTanruUnitSyntaxLinkedTanruUnit(_SyntaxNode):
+    'Uses the `linked_tanru_unit` product form, whose payload preserves `base` and `linkargs`.'
+    __slots__ = ()
+    _schema_id = 614
+    __match_args__ = ('linked_tanru_unit',)
+    def __new__(cls, linked_tanru_unit: LinkedTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxLinkedTanruUnit:
+        return cls._from_fields((linked_tanru_unit,))
+    def __init__(self, linked_tanru_unit: LinkedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def linked_tanru_unit(self) -> LinkedTanruUnitSyntax:
+        'Uses the `linked_tanru_unit` product form, whose payload preserves `base` and `linkargs`.'
+        return cast(LinkedTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoOrLinkedTanruUnitSyntaxLinkedTanruUnit is final')
+
+BoOrLinkedTanruUnitSyntax: TypeAlias = BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit | BoOrLinkedTanruUnitSyntaxBoundTanruUnit | BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit | BoOrLinkedTanruUnitSyntaxLinkedTanruUnit
+
+@final
+class ForethoughtSelbriGroupTanruUnitSyntax(_SyntaxNode):
+    'Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.'
+    __slots__ = ()
+    _schema_id = 615
+    __match_args__ = ('guhek', 'leading_selbri', 'first_branch', 'additional_branches', 'gihi')
+    def __new__(cls, guhek: GuhekConnectiveSyntax, leading_selbri: SelbriSyntax, first_branch: ForethoughtSelbriGroupBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSelbriGroupBranchSyntax], gihi: Token | None) -> ForethoughtSelbriGroupTanruUnitSyntax:
+        return cls._from_fields((guhek, leading_selbri, first_branch, additional_branches, gihi))
+    def __init__(self, guhek: GuhekConnectiveSyntax, leading_selbri: SelbriSyntax, first_branch: ForethoughtSelbriGroupBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSelbriGroupBranchSyntax], gihi: Token | None) -> None:
+        pass
+    @property
+    def guhek(self) -> GuhekConnectiveSyntax:
+        'The `guhek_connective` forethought connective opening the paired branches of the `forethought_selbri_group_tanru_unit` production.'
+        return cast(GuhekConnectiveSyntax, self._field(0))
+    @property
+    def leading_selbri(self) -> SelbriSyntax:
+        'The shared leading selbri child syntax node.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def first_branch(self) -> ForethoughtSelbriGroupBranchSyntax:
+        'The initial `forethought_selbri_group_branch` constituent before the continuations of the `forethought_selbri_group_tanru_unit` production.'
+        return cast(ForethoughtSelbriGroupBranchSyntax, self._field(2))
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtSelbriGroupBranchSyntax, ...]:
+        'Ordered sequence of zero or more additional branches components.'
+        return cast(tuple[ZantufaForethoughtSelbriGroupBranchSyntax, ...], self._field(3))
+    @property
+    def gihi(self) -> Token | None:
+        'The optional gihi component.'
+        return cast(Token | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSelbriGroupTanruUnitSyntax is final')
+
+@final
+class ForethoughtSelbriGroupBranchSyntax(_SyntaxNode):
+    'Product node for forethought selbri connection; preserves `gik` and `unit` in source order.'
+    __slots__ = ()
+    _schema_id = 616
+    __match_args__ = ('gik', 'unit')
+    def __new__(cls, gik: GikConnectiveSyntax, unit: BoOrLinkedTanruUnitSyntax) -> ForethoughtSelbriGroupBranchSyntax:
+        return cls._from_fields((gik, unit))
+    def __init__(self, gik: GikConnectiveSyntax, unit: BoOrLinkedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_selbri_group_branch` production.'
+        return cast(GikConnectiveSyntax, self._field(0))
+    @property
+    def unit(self) -> BoOrLinkedTanruUnitSyntax:
+        'The shared unit child syntax node.'
+        return cast(BoOrLinkedTanruUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ForethoughtSelbriGroupBranchSyntax is final')
+
+@final
+class ZantufaForethoughtSelbriGroupBranchSyntax(_SyntaxNode):
+    'Product node for forethought selbri connection; preserves `gik` and `unit` in source order.'
+    __slots__ = ()
+    _schema_id = 617
+    __match_args__ = ('gik', 'unit')
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, unit: BoOrLinkedTanruUnitSyntax) -> ZantufaForethoughtSelbriGroupBranchSyntax:
+        return cls._from_fields((gik, unit))
+    def __init__(self, gik: ZantufaExtraGikConnectiveSyntax, unit: BoOrLinkedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def gik(self) -> ZantufaExtraGikConnectiveSyntax:
+        'The GI-family `zantufa_extra_gik_connective` connective separating the forethought branches of the `zantufa_forethought_selbri_group_branch` production.'
+        return cast(ZantufaExtraGikConnectiveSyntax, self._field(0))
+    @property
+    def unit(self) -> BoOrLinkedTanruUnitSyntax:
+        'The shared unit child syntax node.'
+        return cast(BoOrLinkedTanruUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaForethoughtSelbriGroupBranchSyntax is final')
+
+@final
+class BoundTanruUnitSyntax(_SyntaxNode):
+    'Product node for BO-grouped tanru unit; preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 618
+    __match_args__ = ('leading_unit', 'bo_connective', 'bo_tense_modal', 'bo', 'trailing_unit')
+    def __new__(cls, leading_unit: LinkedTanruUnitSyntax, bo_connective: RelationAfterthoughtConnectiveSyntax | None, bo_tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_unit: BoOrLinkedTanruUnitSyntax) -> BoundTanruUnitSyntax:
+        return cls._from_fields((leading_unit, bo_connective, bo_tense_modal, bo, trailing_unit))
+    def __init__(self, leading_unit: LinkedTanruUnitSyntax, bo_connective: RelationAfterthoughtConnectiveSyntax | None, bo_tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_unit: BoOrLinkedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def leading_unit(self) -> LinkedTanruUnitSyntax:
+        'The shared leading unit child syntax node.'
+        return cast(LinkedTanruUnitSyntax, self._field(0))
+    @property
+    def bo_connective(self) -> RelationAfterthoughtConnectiveSyntax | None:
+        'The optional bo connective component.'
+        return cast(RelationAfterthoughtConnectiveSyntax | None, self._field(1))
+    @property
+    def bo_tense_modal(self) -> TenseModalSyntax | None:
+        'The optional bo tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(2))
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bo` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(3))
+    @property
+    def trailing_unit(self) -> BoOrLinkedTanruUnitSyntax:
+        'The shared trailing unit child syntax node.'
+        return cast(BoOrLinkedTanruUnitSyntax, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BoundTanruUnitSyntax is final')
+
+@final
+class AssignedProBridiTanruUnitSyntax(_SyntaxNode):
+    'Product node for pro-bridi assignment; preserves `base` and `assignments` in source order.'
+    __slots__ = ()
+    _schema_id = 619
+    __match_args__ = ('base', 'assignments')
+    def __new__(cls, base: LinkedTanruUnitForCeiSyntax, assignments: Sequence[ProBridiTanruUnitAssignmentSyntax]) -> AssignedProBridiTanruUnitSyntax:
+        return cls._from_fields((base, assignments))
+    def __init__(self, base: LinkedTanruUnitForCeiSyntax, assignments: Sequence[ProBridiTanruUnitAssignmentSyntax]) -> None:
+        pass
+    @property
+    def base(self) -> LinkedTanruUnitForCeiSyntax:
+        'The shared base child syntax node.'
+        return cast(LinkedTanruUnitForCeiSyntax, self._field(0))
+    @property
+    def assignments(self) -> tuple[ProBridiTanruUnitAssignmentSyntax, ...]:
+        'Non-empty ordered sequence of assignments components.'
+        return cast(tuple[ProBridiTanruUnitAssignmentSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AssignedProBridiTanruUnitSyntax is final')
+
+@final
+class ProBridiTanruUnitAssignmentSyntax(_SyntaxNode):
+    'Product node for pro-bridi assignment; preserves `cei` and `tanru_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 620
+    __match_args__ = ('cei', 'tanru_unit')
+    def __new__(cls, cei: WithFreeModifiers[Token, FreeModifierSyntax], tanru_unit: LinkedTanruUnitForCeiSyntax) -> ProBridiTanruUnitAssignmentSyntax:
+        return cls._from_fields((cei, tanru_unit))
+    def __init__(self, cei: WithFreeModifiers[Token, FreeModifierSyntax], tanru_unit: LinkedTanruUnitForCeiSyntax) -> None:
+        pass
+    @property
+    def cei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Cei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def tanru_unit(self) -> LinkedTanruUnitForCeiSyntax:
+        'The shared tanru unit child syntax node.'
+        return cast(LinkedTanruUnitForCeiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ProBridiTanruUnitAssignmentSyntax is final')
+
+@final
+class LinkedTanruUnitSyntax(_SyntaxNode):
+    'Product node for tanru unit; preserves `base` and `linkargs` in source order.'
+    __slots__ = ()
+    _schema_id = 621
+    __match_args__ = ('base', 'linkargs')
+    def __new__(cls, base: TanruUnitAtomSyntax, linkargs: LinkargsSyntax | None) -> LinkedTanruUnitSyntax:
+        return cls._from_fields((base, linkargs))
+    def __init__(self, base: TanruUnitAtomSyntax, linkargs: LinkargsSyntax | None) -> None:
+        pass
+    @property
+    def base(self) -> TanruUnitAtomSyntax:
+        'The shared base child syntax node.'
+        return cast(TanruUnitAtomSyntax, self._field(0))
+    @property
+    def linkargs(self) -> LinkargsSyntax | None:
+        'The optional linkargs component.'
+        return cast(LinkargsSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedTanruUnitSyntax is final')
+
+@final
+class LinkedTanruUnitForCeiSyntax(_SyntaxNode):
+    'Product node for tanru unit; preserves `base` and `linkargs` in source order.'
+    __slots__ = ()
+    _schema_id = 622
+    __match_args__ = ('base', 'linkargs')
+    def __new__(cls, base: TanruUnitAtomForCeiSyntax, linkargs: LinkargsSyntax | None) -> LinkedTanruUnitForCeiSyntax:
+        return cls._from_fields((base, linkargs))
+    def __init__(self, base: TanruUnitAtomForCeiSyntax, linkargs: LinkargsSyntax | None) -> None:
+        pass
+    @property
+    def base(self) -> TanruUnitAtomForCeiSyntax:
+        'The shared base child syntax node.'
+        return cast(TanruUnitAtomForCeiSyntax, self._field(0))
+    @property
+    def linkargs(self) -> LinkargsSyntax | None:
+        'The optional linkargs component.'
+        return cast(LinkargsSyntax | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedTanruUnitForCeiSyntax is final')
+
+@final
+class TanruUnitAtomForCeiSyntax(_SyntaxNode):
+    'Product node for tanru unit; preserves `conversions` and `base` in source order.'
+    __slots__ = ()
+    _schema_id = 623
+    __match_args__ = ('conversions', 'base')
+    def __new__(cls, conversions: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], base: TanruUnitAtomBaseForCeiSyntax) -> TanruUnitAtomForCeiSyntax:
+        return cls._from_fields((conversions, base))
+    def __init__(self, conversions: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], base: TanruUnitAtomBaseForCeiSyntax) -> None:
+        pass
+    @property
+    def conversions(self) -> tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...]:
+        'Ordered sequence of zero or more conversions components.'
+        return cast(tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...], self._field(0))
+    @property
+    def base(self) -> TanruUnitAtomBaseForCeiSyntax:
+        'The shared base child syntax node.'
+        return cast(TanruUnitAtomBaseForCeiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomForCeiSyntax is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit(_SyntaxNode):
+    'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+    __slots__ = ()
+    _schema_id = 624
+    __match_args__ = ('pro_bridi_tanru_unit',)
+    def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit:
+        return cls._from_fields((pro_bridi_tanru_unit,))
+    def __init__(self, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def pro_bridi_tanru_unit(self) -> ProBridiTanruUnitSyntax:
+        'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+        return cast(ProBridiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit(_SyntaxNode):
+    'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
+    __slots__ = ()
+    _schema_id = 625
+    __match_args__ = ('ordinal_tanru_unit',)
+    def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit:
+        return cls._from_fields((ordinal_tanru_unit,))
+    def __init__(self, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> None:
+        pass
+    @property
+    def ordinal_tanru_unit(self) -> OrdinalTanruUnitSyntax:
+        'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
+        return cast(OrdinalTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxWordTanruUnit(_SyntaxNode):
+    'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
+    __slots__ = ()
+    _schema_id = 626
+    __match_args__ = ('word_tanru_unit',)
+    def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxWordTanruUnit:
+        return cls._from_fields((word_tanru_unit,))
+    def __init__(self, word_tanru_unit: WordTanruUnitSyntax) -> None:
+        pass
+    @property
+    def word_tanru_unit(self) -> WordTanruUnitSyntax:
+        'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
+        return cast(WordTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxWordTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit(_SyntaxNode):
+    'Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.'
+    __slots__ = ()
+    _schema_id = 627
+    __match_args__ = ('preposed_linkargs_tanru_unit',)
+    def __new__(cls, preposed_linkargs_tanru_unit: PreposedLinkargsTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit:
+        return cls._from_fields((preposed_linkargs_tanru_unit,))
+    def __init__(self, preposed_linkargs_tanru_unit: PreposedLinkargsTanruUnitSyntax) -> None:
+        pass
+    @property
+    def preposed_linkargs_tanru_unit(self) -> PreposedLinkargsTanruUnitSyntax:
+        'Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.'
+        return cast(PreposedLinkargsTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit(_SyntaxNode):
+    'Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.'
+    __slots__ = ()
+    _schema_id = 628
+    __match_args__ = ('jai_modal_tanru_unit',)
+    def __new__(cls, jai_modal_tanru_unit: JaiModalTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit:
+        return cls._from_fields((jai_modal_tanru_unit,))
+    def __init__(self, jai_modal_tanru_unit: JaiModalTanruUnitSyntax) -> None:
+        pass
+    @property
+    def jai_modal_tanru_unit(self) -> JaiModalTanruUnitSyntax:
+        'Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.'
+        return cast(JaiModalTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit(_SyntaxNode):
+    'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
+    __slots__ = ()
+    _schema_id = 629
+    __match_args__ = ('scalar_negated_tanru_unit',)
+    def __new__(cls, scalar_negated_tanru_unit: ScalarNegatedTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit:
+        return cls._from_fields((scalar_negated_tanru_unit,))
+    def __init__(self, scalar_negated_tanru_unit: ScalarNegatedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_tanru_unit(self) -> ScalarNegatedTanruUnitSyntax:
+        'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
+        return cast(ScalarNegatedTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit(_SyntaxNode):
+    'Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.'
+    __slots__ = ()
+    _schema_id = 630
+    __match_args__ = ('zantufa_statement_abstraction_tanru_unit',)
+    def __new__(cls, zantufa_statement_abstraction_tanru_unit: ZantufaStatementAbstractionTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit:
+        return cls._from_fields((zantufa_statement_abstraction_tanru_unit,))
+    def __init__(self, zantufa_statement_abstraction_tanru_unit: ZantufaStatementAbstractionTanruUnitSyntax) -> None:
+        pass
+    @property
+    def zantufa_statement_abstraction_tanru_unit(self) -> ZantufaStatementAbstractionTanruUnitSyntax:
+        'Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.'
+        return cast(ZantufaStatementAbstractionTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit(_SyntaxNode):
+    'Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.'
+    __slots__ = ()
+    _schema_id = 631
+    __match_args__ = ('abstraction_tanru_unit',)
+    def __new__(cls, abstraction_tanru_unit: AbstractionTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit:
+        return cls._from_fields((abstraction_tanru_unit,))
+    def __init__(self, abstraction_tanru_unit: AbstractionTanruUnitSyntax) -> None:
+        pass
+    @property
+    def abstraction_tanru_unit(self) -> AbstractionTanruUnitSyntax:
+        'Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.'
+        return cast(AbstractionTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
+    'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
+    __slots__ = ()
+    _schema_id = 632
+    __match_args__ = ('sumti_selbri_tanru_unit',)
+    def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit:
+        return cls._from_fields((sumti_selbri_tanru_unit,))
+    def __init__(self, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def sumti_selbri_tanru_unit(self) -> SumtiSelbriTanruUnitSyntax:
+        'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
+        return cast(SumtiSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit(_SyntaxNode):
+    'Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.'
+    __slots__ = ()
+    _schema_id = 633
+    __match_args__ = ('zantufa_me_tanru_unit',)
+    def __new__(cls, zantufa_me_tanru_unit: ZantufaMeTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit:
+        return cls._from_fields((zantufa_me_tanru_unit,))
+    def __init__(self, zantufa_me_tanru_unit: ZantufaMeTanruUnitSyntax) -> None:
+        pass
+    @property
+    def zantufa_me_tanru_unit(self) -> ZantufaMeTanruUnitSyntax:
+        'Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.'
+        return cast(ZantufaMeTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit(_SyntaxNode):
+    'Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.'
+    __slots__ = ()
+    _schema_id = 634
+    __match_args__ = ('zantufa_mex_moi_tanru_unit',)
+    def __new__(cls, zantufa_mex_moi_tanru_unit: ZantufaMexMoiTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit:
+        return cls._from_fields((zantufa_mex_moi_tanru_unit,))
+    def __init__(self, zantufa_mex_moi_tanru_unit: ZantufaMexMoiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def zantufa_mex_moi_tanru_unit(self) -> ZantufaMexMoiTanruUnitSyntax:
+        'Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.'
+        return cast(ZantufaMexMoiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
+    'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+    __slots__ = ()
+    _schema_id = 635
+    __match_args__ = ('operator_selbri_tanru_unit',)
+    def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit:
+        return cls._from_fields((operator_selbri_tanru_unit,))
+    def __init__(self, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def operator_selbri_tanru_unit(self) -> OperatorSelbriTanruUnitSyntax:
+        'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+        return cast(OperatorSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
+    'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 636
+    __match_args__ = ('quoted_bridi_selbri_tanru_unit',)
+    def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit:
+        return cls._from_fields((quoted_bridi_selbri_tanru_unit,))
+    def __init__(self, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def quoted_bridi_selbri_tanru_unit(self) -> QuotedBridiSelbriTanruUnitSyntax:
+        'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
+        return cast(QuotedBridiSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
+    'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
+    __slots__ = ()
+    _schema_id = 637
+    __match_args__ = ('quoted_text_selbri_tanru_unit',)
+    def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit:
+        return cls._from_fields((quoted_text_selbri_tanru_unit,))
+    def __init__(self, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def quoted_text_selbri_tanru_unit(self) -> QuotedTextSelbriTanruUnitSyntax:
+        'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
+        return cast(QuotedTextSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit(_SyntaxNode):
+    'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
+    __slots__ = ()
+    _schema_id = 638
+    __match_args__ = ('text_selbri_tanru_unit',)
+    def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit:
+        return cls._from_fields((text_selbri_tanru_unit,))
+    def __init__(self, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def text_selbri_tanru_unit(self) -> TextSelbriTanruUnitSyntax:
+        'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
+        return cast(TextSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit(_SyntaxNode):
+    'Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.'
+    __slots__ = ()
+    _schema_id = 639
+    __match_args__ = ('tag_selbri_tanru_unit',)
+    def __new__(cls, tag_selbri_tanru_unit: TagSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit:
+        return cls._from_fields((tag_selbri_tanru_unit,))
+    def __init__(self, tag_selbri_tanru_unit: TagSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def tag_selbri_tanru_unit(self) -> TagSelbriTanruUnitSyntax:
+        'Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.'
+        return cast(TagSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit(_SyntaxNode):
+    'Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.'
+    __slots__ = ()
+    _schema_id = 640
+    __match_args__ = ('goha_word_tanru_unit',)
+    def __new__(cls, goha_word_tanru_unit: GohaWordTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit:
+        return cls._from_fields((goha_word_tanru_unit,))
+    def __init__(self, goha_word_tanru_unit: GohaWordTanruUnitSyntax) -> None:
+        pass
+    @property
+    def goha_word_tanru_unit(self) -> GohaWordTanruUnitSyntax:
+        'Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.'
+        return cast(GohaWordTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit(_SyntaxNode):
+    'Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 641
+    __match_args__ = ('grouped_tanru_unit',)
+    def __new__(cls, grouped_tanru_unit: GroupedTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit:
+        return cls._from_fields((grouped_tanru_unit,))
+    def __init__(self, grouped_tanru_unit: GroupedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def grouped_tanru_unit(self) -> GroupedTanruUnitSyntax:
+        'Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
+        return cast(GroupedTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit is final')
+
+TanruUnitAtomBaseForCeiSyntax: TypeAlias = TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit | TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit | TanruUnitAtomBaseForCeiSyntaxWordTanruUnit | TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit | TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit | TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit | TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit
+
+@final
+class TanruUnitAtomSyntax(_SyntaxNode):
+    'Product node for tanru unit; preserves `conversions` and `base` in source order.'
+    __slots__ = ()
+    _schema_id = 642
+    __match_args__ = ('conversions', 'base')
+    def __new__(cls, conversions: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], base: TanruUnitAtomBaseSyntax) -> TanruUnitAtomSyntax:
+        return cls._from_fields((conversions, base))
+    def __init__(self, conversions: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], base: TanruUnitAtomBaseSyntax) -> None:
+        pass
+    @property
+    def conversions(self) -> tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...]:
+        'Ordered sequence of zero or more conversions components.'
+        return cast(tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...], self._field(0))
+    @property
+    def base(self) -> TanruUnitAtomBaseSyntax:
+        'The shared base child syntax node.'
+        return cast(TanruUnitAtomBaseSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomSyntax is final')
+
+@final
+class TanruUnitAtomBaseSyntaxOrdinalTanruUnit(_SyntaxNode):
+    'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
+    __slots__ = ()
+    _schema_id = 643
+    __match_args__ = ('ordinal_tanru_unit',)
+    def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxOrdinalTanruUnit:
+        return cls._from_fields((ordinal_tanru_unit,))
+    def __init__(self, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> None:
+        pass
+    @property
+    def ordinal_tanru_unit(self) -> OrdinalTanruUnitSyntax:
+        'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
+        return cast(OrdinalTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxOrdinalTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxWordTanruUnit(_SyntaxNode):
+    'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
+    __slots__ = ()
+    _schema_id = 644
+    __match_args__ = ('word_tanru_unit',)
+    def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxWordTanruUnit:
+        return cls._from_fields((word_tanru_unit,))
+    def __init__(self, word_tanru_unit: WordTanruUnitSyntax) -> None:
+        pass
+    @property
+    def word_tanru_unit(self) -> WordTanruUnitSyntax:
+        'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
+        return cast(WordTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxWordTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit(_SyntaxNode):
+    'Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.'
+    __slots__ = ()
+    _schema_id = 645
+    __match_args__ = ('preposed_linkargs_tanru_unit',)
+    def __new__(cls, preposed_linkargs_tanru_unit: PreposedLinkargsTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit:
+        return cls._from_fields((preposed_linkargs_tanru_unit,))
+    def __init__(self, preposed_linkargs_tanru_unit: PreposedLinkargsTanruUnitSyntax) -> None:
+        pass
+    @property
+    def preposed_linkargs_tanru_unit(self) -> PreposedLinkargsTanruUnitSyntax:
+        'Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.'
+        return cast(PreposedLinkargsTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxJaiModalTanruUnit(_SyntaxNode):
+    'Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.'
+    __slots__ = ()
+    _schema_id = 646
+    __match_args__ = ('jai_modal_tanru_unit',)
+    def __new__(cls, jai_modal_tanru_unit: JaiModalTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxJaiModalTanruUnit:
+        return cls._from_fields((jai_modal_tanru_unit,))
+    def __init__(self, jai_modal_tanru_unit: JaiModalTanruUnitSyntax) -> None:
+        pass
+    @property
+    def jai_modal_tanru_unit(self) -> JaiModalTanruUnitSyntax:
+        'Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.'
+        return cast(JaiModalTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxJaiModalTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit(_SyntaxNode):
+    'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
+    __slots__ = ()
+    _schema_id = 647
+    __match_args__ = ('scalar_negated_tanru_unit',)
+    def __new__(cls, scalar_negated_tanru_unit: ScalarNegatedTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit:
+        return cls._from_fields((scalar_negated_tanru_unit,))
+    def __init__(self, scalar_negated_tanru_unit: ScalarNegatedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_tanru_unit(self) -> ScalarNegatedTanruUnitSyntax:
+        'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
+        return cast(ScalarNegatedTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit(_SyntaxNode):
+    'Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.'
+    __slots__ = ()
+    _schema_id = 648
+    __match_args__ = ('zantufa_statement_abstraction_tanru_unit',)
+    def __new__(cls, zantufa_statement_abstraction_tanru_unit: ZantufaStatementAbstractionTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit:
+        return cls._from_fields((zantufa_statement_abstraction_tanru_unit,))
+    def __init__(self, zantufa_statement_abstraction_tanru_unit: ZantufaStatementAbstractionTanruUnitSyntax) -> None:
+        pass
+    @property
+    def zantufa_statement_abstraction_tanru_unit(self) -> ZantufaStatementAbstractionTanruUnitSyntax:
+        'Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.'
+        return cast(ZantufaStatementAbstractionTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxAbstractionTanruUnit(_SyntaxNode):
+    'Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.'
+    __slots__ = ()
+    _schema_id = 649
+    __match_args__ = ('abstraction_tanru_unit',)
+    def __new__(cls, abstraction_tanru_unit: AbstractionTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxAbstractionTanruUnit:
+        return cls._from_fields((abstraction_tanru_unit,))
+    def __init__(self, abstraction_tanru_unit: AbstractionTanruUnitSyntax) -> None:
+        pass
+    @property
+    def abstraction_tanru_unit(self) -> AbstractionTanruUnitSyntax:
+        'Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.'
+        return cast(AbstractionTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxAbstractionTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
+    'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
+    __slots__ = ()
+    _schema_id = 650
+    __match_args__ = ('sumti_selbri_tanru_unit',)
+    def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit:
+        return cls._from_fields((sumti_selbri_tanru_unit,))
+    def __init__(self, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def sumti_selbri_tanru_unit(self) -> SumtiSelbriTanruUnitSyntax:
+        'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
+        return cast(SumtiSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxZantufaMeTanruUnit(_SyntaxNode):
+    'Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.'
+    __slots__ = ()
+    _schema_id = 651
+    __match_args__ = ('zantufa_me_tanru_unit',)
+    def __new__(cls, zantufa_me_tanru_unit: ZantufaMeTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaMeTanruUnit:
+        return cls._from_fields((zantufa_me_tanru_unit,))
+    def __init__(self, zantufa_me_tanru_unit: ZantufaMeTanruUnitSyntax) -> None:
+        pass
+    @property
+    def zantufa_me_tanru_unit(self) -> ZantufaMeTanruUnitSyntax:
+        'Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.'
+        return cast(ZantufaMeTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxZantufaMeTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit(_SyntaxNode):
+    'Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.'
+    __slots__ = ()
+    _schema_id = 652
+    __match_args__ = ('zantufa_mex_moi_tanru_unit',)
+    def __new__(cls, zantufa_mex_moi_tanru_unit: ZantufaMexMoiTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit:
+        return cls._from_fields((zantufa_mex_moi_tanru_unit,))
+    def __init__(self, zantufa_mex_moi_tanru_unit: ZantufaMexMoiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def zantufa_mex_moi_tanru_unit(self) -> ZantufaMexMoiTanruUnitSyntax:
+        'Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.'
+        return cast(ZantufaMexMoiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
+    'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+    __slots__ = ()
+    _schema_id = 653
+    __match_args__ = ('operator_selbri_tanru_unit',)
+    def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit:
+        return cls._from_fields((operator_selbri_tanru_unit,))
+    def __init__(self, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def operator_selbri_tanru_unit(self) -> OperatorSelbriTanruUnitSyntax:
+        'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+        return cast(OperatorSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
+    'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 654
+    __match_args__ = ('quoted_bridi_selbri_tanru_unit',)
+    def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit:
+        return cls._from_fields((quoted_bridi_selbri_tanru_unit,))
+    def __init__(self, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def quoted_bridi_selbri_tanru_unit(self) -> QuotedBridiSelbriTanruUnitSyntax:
+        'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
+        return cast(QuotedBridiSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
+    'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
+    __slots__ = ()
+    _schema_id = 655
+    __match_args__ = ('quoted_text_selbri_tanru_unit',)
+    def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit:
+        return cls._from_fields((quoted_text_selbri_tanru_unit,))
+    def __init__(self, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def quoted_text_selbri_tanru_unit(self) -> QuotedTextSelbriTanruUnitSyntax:
+        'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
+        return cast(QuotedTextSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxTextSelbriTanruUnit(_SyntaxNode):
+    'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
+    __slots__ = ()
+    _schema_id = 656
+    __match_args__ = ('text_selbri_tanru_unit',)
+    def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxTextSelbriTanruUnit:
+        return cls._from_fields((text_selbri_tanru_unit,))
+    def __init__(self, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def text_selbri_tanru_unit(self) -> TextSelbriTanruUnitSyntax:
+        'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
+        return cast(TextSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxTextSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxTagSelbriTanruUnit(_SyntaxNode):
+    'Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.'
+    __slots__ = ()
+    _schema_id = 657
+    __match_args__ = ('tag_selbri_tanru_unit',)
+    def __new__(cls, tag_selbri_tanru_unit: TagSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxTagSelbriTanruUnit:
+        return cls._from_fields((tag_selbri_tanru_unit,))
+    def __init__(self, tag_selbri_tanru_unit: TagSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def tag_selbri_tanru_unit(self) -> TagSelbriTanruUnitSyntax:
+        'Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.'
+        return cast(TagSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxTagSelbriTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxGohaWordTanruUnit(_SyntaxNode):
+    'Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.'
+    __slots__ = ()
+    _schema_id = 658
+    __match_args__ = ('goha_word_tanru_unit',)
+    def __new__(cls, goha_word_tanru_unit: GohaWordTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxGohaWordTanruUnit:
+        return cls._from_fields((goha_word_tanru_unit,))
+    def __init__(self, goha_word_tanru_unit: GohaWordTanruUnitSyntax) -> None:
+        pass
+    @property
+    def goha_word_tanru_unit(self) -> GohaWordTanruUnitSyntax:
+        'Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.'
+        return cast(GohaWordTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxGohaWordTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxProBridiTanruUnit(_SyntaxNode):
+    'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+    __slots__ = ()
+    _schema_id = 659
+    __match_args__ = ('pro_bridi_tanru_unit',)
+    def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxProBridiTanruUnit:
+        return cls._from_fields((pro_bridi_tanru_unit,))
+    def __init__(self, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def pro_bridi_tanru_unit(self) -> ProBridiTanruUnitSyntax:
+        'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+        return cast(ProBridiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxProBridiTanruUnit is final')
+
+@final
+class TanruUnitAtomBaseSyntaxGroupedTanruUnit(_SyntaxNode):
+    'Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 660
+    __match_args__ = ('grouped_tanru_unit',)
+    def __new__(cls, grouped_tanru_unit: GroupedTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxGroupedTanruUnit:
+        return cls._from_fields((grouped_tanru_unit,))
+    def __init__(self, grouped_tanru_unit: GroupedTanruUnitSyntax) -> None:
+        pass
+    @property
+    def grouped_tanru_unit(self) -> GroupedTanruUnitSyntax:
+        'Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
+        return cast(GroupedTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruUnitAtomBaseSyntaxGroupedTanruUnit is final')
+
+TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
+
+@final
+class TaggedSelbriGroupTanruUnitSyntax(_SyntaxNode):
+    'Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 661
+    __match_args__ = ('tense_modal', 'inner_selbri')
+    def __new__(cls, tense_modal: TenseModalSyntax, inner_selbri: ConnectedSelbriSyntax) -> TaggedSelbriGroupTanruUnitSyntax:
+        return cls._from_fields((tense_modal, inner_selbri))
+    def __init__(self, tense_modal: TenseModalSyntax, inner_selbri: ConnectedSelbriSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(TenseModalSyntax, self._field(0))
+    @property
+    def inner_selbri(self) -> ConnectedSelbriSyntax:
+        'The shared inner selbri child syntax node.'
+        return cast(ConnectedSelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TaggedSelbriGroupTanruUnitSyntax is final')
+
+@final
+class PreposedLinkargsTanruUnitSyntax(_SyntaxNode):
+    'Product node for linked arguments; preserves `linkargs` and `base` in source order.'
+    __slots__ = ()
+    _schema_id = 662
+    __match_args__ = ('linkargs', 'base')
+    def __new__(cls, linkargs: LinkargsSyntax, base: TanruUnitSyntax) -> PreposedLinkargsTanruUnitSyntax:
+        return cls._from_fields((linkargs, base))
+    def __init__(self, linkargs: LinkargsSyntax, base: TanruUnitSyntax) -> None:
+        pass
+    @property
+    def linkargs(self) -> LinkargsSyntax:
+        'The `linkargs` grammar result in the `linkargs` structural role of the `preposed_linkargs_tanru_unit` production.'
+        return cast(LinkargsSyntax, self._field(0))
+    @property
+    def base(self) -> TanruUnitSyntax:
+        'The shared base child syntax node.'
+        return cast(TanruUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PreposedLinkargsTanruUnitSyntax is final')
+
+@final
+class ScalarNegatedTanruUnitSyntax(_SyntaxNode):
+    'Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 663
+    __match_args__ = ('nahe', 'inner_unit')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: ScalarNegatedTanruInnerUnitSyntax) -> ScalarNegatedTanruUnitSyntax:
+        return cls._from_fields((nahe, inner_unit))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: ScalarNegatedTanruInnerUnitSyntax) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_unit(self) -> ScalarNegatedTanruInnerUnitSyntax:
+        'The shared inner unit child syntax node.'
+        return cast(ScalarNegatedTanruInnerUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedTanruUnitSyntax is final')
+
+@final
+class ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit(_SyntaxNode):
+    'Uses the `tagged_selbri_group_tanru_unit` product form, whose payload preserves `tense_modal` and `inner_selbri`.'
+    __slots__ = ()
+    _schema_id = 664
+    __match_args__ = ('tagged_selbri_group_tanru_unit',)
+    def __new__(cls, tagged_selbri_group_tanru_unit: TaggedSelbriGroupTanruUnitSyntax) -> ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit:
+        return cls._from_fields((tagged_selbri_group_tanru_unit,))
+    def __init__(self, tagged_selbri_group_tanru_unit: TaggedSelbriGroupTanruUnitSyntax) -> None:
+        pass
+    @property
+    def tagged_selbri_group_tanru_unit(self) -> TaggedSelbriGroupTanruUnitSyntax:
+        'Uses the `tagged_selbri_group_tanru_unit` product form, whose payload preserves `tense_modal` and `inner_selbri`.'
+        return cast(TaggedSelbriGroupTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit is final')
+
+@final
+class ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit(_SyntaxNode):
+    'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+    __slots__ = ()
+    _schema_id = 665
+    __match_args__ = ('pro_bridi_tanru_unit',)
+    def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit:
+        return cls._from_fields((pro_bridi_tanru_unit,))
+    def __init__(self, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def pro_bridi_tanru_unit(self) -> ProBridiTanruUnitSyntax:
+        'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+        return cast(ProBridiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit is final')
+
+@final
+class ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom(_SyntaxNode):
+    'Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.'
+    __slots__ = ()
+    _schema_id = 666
+    __match_args__ = ('tanru_unit_atom',)
+    def __new__(cls, tanru_unit_atom: TanruUnitAtomSyntax) -> ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom:
+        return cls._from_fields((tanru_unit_atom,))
+    def __init__(self, tanru_unit_atom: TanruUnitAtomSyntax) -> None:
+        pass
+    @property
+    def tanru_unit_atom(self) -> TanruUnitAtomSyntax:
+        'Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.'
+        return cast(TanruUnitAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom is final')
+
+ScalarNegatedTanruInnerUnitSyntax: TypeAlias = ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit | ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit | ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom
+
+@final
+class JaiModalTanruUnitSyntax(_SyntaxNode):
+    'Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 667
+    __match_args__ = ('jai', 'tense_modal', 'inner_unit')
+    def __new__(cls, jai: WithFreeModifiers[Token, FreeModifierSyntax], tense_modal: TenseModalSyntax | None, inner_unit: JaiInnerTanruUnitSyntax) -> JaiModalTanruUnitSyntax:
+        return cls._from_fields((jai, tense_modal, inner_unit))
+    def __init__(self, jai: WithFreeModifiers[Token, FreeModifierSyntax], tense_modal: TenseModalSyntax | None, inner_unit: JaiInnerTanruUnitSyntax) -> None:
+        pass
+    @property
+    def jai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Jai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        return cast(TenseModalSyntax | None, self._field(1))
+    @property
+    def inner_unit(self) -> JaiInnerTanruUnitSyntax:
+        'The shared inner unit child syntax node.'
+        return cast(JaiInnerTanruUnitSyntax, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiModalTanruUnitSyntax is final')
+
+@final
+class JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit(_SyntaxNode):
+    'Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.'
+    __slots__ = ()
+    _schema_id = 668
+    __match_args__ = ('converted_jai_inner_tanru_unit',)
+    def __new__(cls, converted_jai_inner_tanru_unit: ConvertedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit:
+        return cls._from_fields((converted_jai_inner_tanru_unit,))
+    def __init__(self, converted_jai_inner_tanru_unit: ConvertedJaiInnerTanruUnitSyntax) -> None:
+        pass
+    @property
+    def converted_jai_inner_tanru_unit(self) -> ConvertedJaiInnerTanruUnitSyntax:
+        'Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.'
+        return cast(ConvertedJaiInnerTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit(_SyntaxNode):
+    'Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
+    __slots__ = ()
+    _schema_id = 669
+    __match_args__ = ('scalar_negated_jai_inner_tanru_unit',)
+    def __new__(cls, scalar_negated_jai_inner_tanru_unit: ScalarNegatedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit:
+        return cls._from_fields((scalar_negated_jai_inner_tanru_unit,))
+    def __init__(self, scalar_negated_jai_inner_tanru_unit: ScalarNegatedJaiInnerTanruUnitSyntax) -> None:
+        pass
+    @property
+    def scalar_negated_jai_inner_tanru_unit(self) -> ScalarNegatedJaiInnerTanruUnitSyntax:
+        'Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
+        return cast(ScalarNegatedJaiInnerTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
+    'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
+    __slots__ = ()
+    _schema_id = 670
+    __match_args__ = ('sumti_selbri_tanru_unit',)
+    def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit:
+        return cls._from_fields((sumti_selbri_tanru_unit,))
+    def __init__(self, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def sumti_selbri_tanru_unit(self) -> SumtiSelbriTanruUnitSyntax:
+        'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
+        return cast(SumtiSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
+    'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
+    __slots__ = ()
+    _schema_id = 671
+    __match_args__ = ('quoted_bridi_selbri_tanru_unit',)
+    def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit:
+        return cls._from_fields((quoted_bridi_selbri_tanru_unit,))
+    def __init__(self, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def quoted_bridi_selbri_tanru_unit(self) -> QuotedBridiSelbriTanruUnitSyntax:
+        'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
+        return cast(QuotedBridiSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
+    'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
+    __slots__ = ()
+    _schema_id = 672
+    __match_args__ = ('quoted_text_selbri_tanru_unit',)
+    def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit:
+        return cls._from_fields((quoted_text_selbri_tanru_unit,))
+    def __init__(self, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def quoted_text_selbri_tanru_unit(self) -> QuotedTextSelbriTanruUnitSyntax:
+        'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
+        return cast(QuotedTextSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxTextSelbriTanruUnit(_SyntaxNode):
+    'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
+    __slots__ = ()
+    _schema_id = 673
+    __match_args__ = ('text_selbri_tanru_unit',)
+    def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxTextSelbriTanruUnit:
+        return cls._from_fields((text_selbri_tanru_unit,))
+    def __init__(self, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def text_selbri_tanru_unit(self) -> TextSelbriTanruUnitSyntax:
+        'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
+        return cast(TextSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxTextSelbriTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit(_SyntaxNode):
+    'Uses the `grouped_jai_inner_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
+    __slots__ = ()
+    _schema_id = 674
+    __match_args__ = ('grouped_jai_inner_tanru_unit',)
+    def __new__(cls, grouped_jai_inner_tanru_unit: GroupedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit:
+        return cls._from_fields((grouped_jai_inner_tanru_unit,))
+    def __init__(self, grouped_jai_inner_tanru_unit: GroupedJaiInnerTanruUnitSyntax) -> None:
+        pass
+    @property
+    def grouped_jai_inner_tanru_unit(self) -> GroupedJaiInnerTanruUnitSyntax:
+        'Uses the `grouped_jai_inner_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
+        return cast(GroupedJaiInnerTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxOrdinalTanruUnit(_SyntaxNode):
+    'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
+    __slots__ = ()
+    _schema_id = 675
+    __match_args__ = ('ordinal_tanru_unit',)
+    def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxOrdinalTanruUnit:
+        return cls._from_fields((ordinal_tanru_unit,))
+    def __init__(self, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> None:
+        pass
+    @property
+    def ordinal_tanru_unit(self) -> OrdinalTanruUnitSyntax:
+        'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
+        return cast(OrdinalTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxOrdinalTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
+    'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+    __slots__ = ()
+    _schema_id = 676
+    __match_args__ = ('operator_selbri_tanru_unit',)
+    def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit:
+        return cls._from_fields((operator_selbri_tanru_unit,))
+    def __init__(self, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> None:
+        pass
+    @property
+    def operator_selbri_tanru_unit(self) -> OperatorSelbriTanruUnitSyntax:
+        'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
+        return cast(OperatorSelbriTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxProBridiTanruUnit(_SyntaxNode):
+    'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+    __slots__ = ()
+    _schema_id = 677
+    __match_args__ = ('pro_bridi_tanru_unit',)
+    def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxProBridiTanruUnit:
+        return cls._from_fields((pro_bridi_tanru_unit,))
+    def __init__(self, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> None:
+        pass
+    @property
+    def pro_bridi_tanru_unit(self) -> ProBridiTanruUnitSyntax:
+        'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
+        return cast(ProBridiTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxProBridiTanruUnit is final')
+
+@final
+class JaiInnerTanruUnitSyntaxWordTanruUnit(_SyntaxNode):
+    'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
+    __slots__ = ()
+    _schema_id = 678
+    __match_args__ = ('word_tanru_unit',)
+    def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxWordTanruUnit:
+        return cls._from_fields((word_tanru_unit,))
+    def __init__(self, word_tanru_unit: WordTanruUnitSyntax) -> None:
+        pass
+    @property
+    def word_tanru_unit(self) -> WordTanruUnitSyntax:
+        'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
+        return cast(WordTanruUnitSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('JaiInnerTanruUnitSyntaxWordTanruUnit is final')
+
+JaiInnerTanruUnitSyntax: TypeAlias = JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit | JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit | JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit | JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit | JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit | JaiInnerTanruUnitSyntaxTextSelbriTanruUnit | JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit | JaiInnerTanruUnitSyntaxOrdinalTanruUnit | JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit | JaiInnerTanruUnitSyntaxProBridiTanruUnit | JaiInnerTanruUnitSyntaxWordTanruUnit
+
+@final
+class ConvertedJaiInnerTanruUnitSyntax(_SyntaxNode):
+    'Product node for converted tanru unit; preserves `se` and `inner_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 679
+    __match_args__ = ('se', 'inner_unit')
+    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> ConvertedJaiInnerTanruUnitSyntax:
+        return cls._from_fields((se, inner_unit))
+    def __init__(self, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> None:
+        pass
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Se`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_unit(self) -> JaiInnerTanruUnitSyntax:
+        'The shared inner unit child syntax node.'
+        return cast(JaiInnerTanruUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConvertedJaiInnerTanruUnitSyntax is final')
+
+@final
+class ScalarNegatedJaiInnerTanruUnitSyntax(_SyntaxNode):
+    'Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.'
+    __slots__ = ()
+    _schema_id = 680
+    __match_args__ = ('nahe', 'inner_unit')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> ScalarNegatedJaiInnerTanruUnitSyntax:
+        return cls._from_fields((nahe, inner_unit))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> None:
+        pass
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nahe`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner_unit(self) -> JaiInnerTanruUnitSyntax:
+        'The shared inner unit child syntax node.'
+        return cast(JaiInnerTanruUnitSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ScalarNegatedJaiInnerTanruUnitSyntax is final')
+
+@final
+class QuotedBridiSelbriTanruUnitSyntax(_SyntaxNode):
+    'Transparent product node for quoted bridi selbri; preserves the `quote` component.'
+    __slots__ = ()
+    _schema_id = 681
+    __match_args__ = ('quote',)
+    def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> QuotedBridiSelbriTanruUnitSyntax:
+        return cls._from_fields((quote,))
+    def __init__(self, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def quote(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The selected grammar alternative in the `quote` structural role of the `quoted_bridi_selbri_tanru_unit` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuotedBridiSelbriTanruUnitSyntax is final')
+
+@final
+class TextSelbriTanruUnitSyntax(_SyntaxNode):
+    'Product node for text selbri; preserves `luhei`, `text`, and `lihau` in source order.'
+    __slots__ = ()
+    _schema_id = 682
+    __match_args__ = ('luhei', 'text', 'lihau')
+    def __new__(cls, luhei: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, lihau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TextSelbriTanruUnitSyntax:
+        return cls._from_fields((luhei, text, lihau))
+    def __init__(self, luhei: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, lihau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def luhei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Luhei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def text(self) -> TextSyntax:
+        'The shared text child syntax node.'
+        return cast(TextSyntax, self._field(1))
+    @property
+    def lihau(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Lihau` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TextSelbriTanruUnitSyntax is final')
+
+@final
+class QuotedTextSelbriTanruUnitSyntax(_SyntaxNode):
+    'Transparent product node for quoted text selbri; preserves the `muhoi` component.'
+    __slots__ = ()
+    _schema_id = 683
+    __match_args__ = ('muhoi',)
+    def __new__(cls, muhoi: WithFreeModifiers[Token, FreeModifierSyntax]) -> QuotedTextSelbriTanruUnitSyntax:
+        return cls._from_fields((muhoi,))
+    def __init__(self, muhoi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def muhoi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `delimited_quote_marker` grammar result in the `muhoi` structural role of the `quoted_text_selbri_tanru_unit` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('QuotedTextSelbriTanruUnitSyntax is final')
+
+@final
+class TagSelbriTanruUnitSyntax(_SyntaxNode):
+    'Product node for tag selbri; preserves `xohi` and `tag` in source order.'
+    __slots__ = ()
+    _schema_id = 684
+    __match_args__ = ('xohi', 'tag')
+    def __new__(cls, xohi: WithFreeModifiers[Token, FreeModifierSyntax], tag: TenseModalSyntax) -> TagSelbriTanruUnitSyntax:
+        return cls._from_fields((xohi, tag))
+    def __init__(self, xohi: WithFreeModifiers[Token, FreeModifierSyntax], tag: TenseModalSyntax) -> None:
+        pass
+    @property
+    def xohi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Xohi` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def tag(self) -> TenseModalSyntax:
+        'The shared tag child syntax node.'
+        return cast(TenseModalSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TagSelbriTanruUnitSyntax is final')
+
+@final
+class OrdinalTanruUnitSyntax(_SyntaxNode):
+    'Product node for ordinal selbri; preserves `number` and `moi` in source order.'
+    __slots__ = ()
+    _schema_id = 685
+    __match_args__ = ('number', 'moi')
+    def __new__(cls, number: NumberOrLetterWordsSyntax, moi: WithFreeModifiers[Token, FreeModifierSyntax]) -> OrdinalTanruUnitSyntax:
+        return cls._from_fields((number, moi))
+    def __init__(self, number: NumberOrLetterWordsSyntax, moi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def number(self) -> NumberOrLetterWordsSyntax:
+        'The `number_or_letter_words` grammar result in the `number` structural role of the `ordinal_tanru_unit` production.'
+        return cast(NumberOrLetterWordsSyntax, self._field(0))
+    @property
+    def moi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Moi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('OrdinalTanruUnitSyntax is final')
+
+@final
+class WordTanruUnitSyntax(_SyntaxNode):
+    'Transparent product node for tanru unit; preserves the `word` component.'
+    __slots__ = ()
+    _schema_id = 686
+    __match_args__ = ('word',)
+    def __new__(cls, word: WithFreeModifiers[Token, FreeModifierSyntax]) -> WordTanruUnitSyntax:
+        return cls._from_fields((word,))
+    def __init__(self, word: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def word(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `tanru_unit_relation_word` grammar result in the `word` structural role of the `word_tanru_unit` production.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('WordTanruUnitSyntax is final')
+
+@final
+class GohaWordTanruUnitSyntax(_SyntaxNode):
+    'Transparent product node for tanru unit; preserves the `word` component.'
+    __slots__ = ()
+    _schema_id = 687
+    __match_args__ = ('word',)
+    def __new__(cls, word: WithFreeModifiers[Token, FreeModifierSyntax]) -> GohaWordTanruUnitSyntax:
+        return cls._from_fields((word,))
+    def __init__(self, word: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def word(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Goha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GohaWordTanruUnitSyntax is final')
+
+@final
+class ProBridiTanruUnitSyntax(_SyntaxNode):
+    'Product node for pro-bridi; preserves `goha` and `raho` in source order.'
+    __slots__ = ()
+    _schema_id = 688
+    __match_args__ = ('goha', 'raho')
+    def __new__(cls, goha: WithFreeModifiers[Token, FreeModifierSyntax], raho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ProBridiTanruUnitSyntax:
+        return cls._from_fields((goha, raho))
+    def __init__(self, goha: WithFreeModifiers[Token, FreeModifierSyntax], raho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def goha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Goha`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def raho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Raho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ProBridiTanruUnitSyntax is final')
+
+@final
+class SumtiSelbriTanruUnitSyntax(_SyntaxNode):
+    'Product node for sumti-to-selbri; preserves `me`, `sumti`, `mehu`, and `moi_marker` in source order.'
+    __slots__ = ()
+    _schema_id = 689
+    __match_args__ = ('me', 'sumti', 'mehu', 'moi_marker')
+    def __new__(cls, me: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSelbriSumtiSyntax, mehu: WithFreeModifiers[Token, FreeModifierSyntax] | None, moi_marker: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SumtiSelbriTanruUnitSyntax:
+        return cls._from_fields((me, sumti, mehu, moi_marker))
+    def __init__(self, me: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSelbriSumtiSyntax, mehu: WithFreeModifiers[Token, FreeModifierSyntax] | None, moi_marker: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def me(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Me` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> SumtiSelbriSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSelbriSumtiSyntax, self._field(1))
+    @property
+    def mehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Mehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    @property
+    def moi_marker(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional moi marker component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiSelbriTanruUnitSyntax is final')
+
+@final
+class ZantufaMeTanruUnitSyntax(_SyntaxNode):
+    'Product node for sumti-to-selbri; preserves `me`, `body`, `mehu`, and `moi_marker` in source order.'
+    __slots__ = ()
+    _schema_id = 690
+    __match_args__ = ('me', 'body', 'mehu', 'moi_marker')
+    def __new__(cls, me: WithFreeModifiers[Token, FreeModifierSyntax], body: ZantufaMeSelbriBodySyntax, mehu: WithFreeModifiers[Token, FreeModifierSyntax] | None, moi_marker: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaMeTanruUnitSyntax:
+        return cls._from_fields((me, body, mehu, moi_marker))
+    def __init__(self, me: WithFreeModifiers[Token, FreeModifierSyntax], body: ZantufaMeSelbriBodySyntax, mehu: WithFreeModifiers[Token, FreeModifierSyntax] | None, moi_marker: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def me(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Me` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def body(self) -> ZantufaMeSelbriBodySyntax:
+        'The shared body child syntax node.'
+        return cast(ZantufaMeSelbriBodySyntax, self._field(1))
+    @property
+    def mehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Mehu` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    @property
+    def moi_marker(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional moi marker component.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeTanruUnitSyntax is final')
+
+@final
+class ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody(_SyntaxNode):
+    'Uses the `zantufa_me_operator_selbri_body` product form, whose payload preserves `operators`.'
+    __slots__ = ()
+    _schema_id = 691
+    __match_args__ = ('zantufa_me_operator_selbri_body',)
+    def __new__(cls, zantufa_me_operator_selbri_body: ZantufaMeOperatorSelbriBodySyntax) -> ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody:
+        return cls._from_fields((zantufa_me_operator_selbri_body,))
+    def __init__(self, zantufa_me_operator_selbri_body: ZantufaMeOperatorSelbriBodySyntax) -> None:
+        pass
+    @property
+    def zantufa_me_operator_selbri_body(self) -> ZantufaMeOperatorSelbriBodySyntax:
+        'Uses the `zantufa_me_operator_selbri_body` product form, whose payload preserves `operators`.'
+        return cast(ZantufaMeOperatorSelbriBodySyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody is final')
+
+@final
+class ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody(_SyntaxNode):
+    'Uses the `zantufa_me_mekso_selbri_body` product form, whose payload preserves `expression`.'
+    __slots__ = ()
+    _schema_id = 692
+    __match_args__ = ('zantufa_me_mekso_selbri_body',)
+    def __new__(cls, zantufa_me_mekso_selbri_body: ZantufaMeMeksoSelbriBodySyntax) -> ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody:
+        return cls._from_fields((zantufa_me_mekso_selbri_body,))
+    def __init__(self, zantufa_me_mekso_selbri_body: ZantufaMeMeksoSelbriBodySyntax) -> None:
+        pass
+    @property
+    def zantufa_me_mekso_selbri_body(self) -> ZantufaMeMeksoSelbriBodySyntax:
+        'Uses the `zantufa_me_mekso_selbri_body` product form, whose payload preserves `expression`.'
+        return cast(ZantufaMeMeksoSelbriBodySyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody is final')
+
+@final
+class ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody(_SyntaxNode):
+    'Uses the `zantufa_me_tag_selbri_body` product form, whose payload preserves `tag`.'
+    __slots__ = ()
+    _schema_id = 693
+    __match_args__ = ('zantufa_me_tag_selbri_body',)
+    def __new__(cls, zantufa_me_tag_selbri_body: ZantufaMeTagSelbriBodySyntax) -> ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody:
+        return cls._from_fields((zantufa_me_tag_selbri_body,))
+    def __init__(self, zantufa_me_tag_selbri_body: ZantufaMeTagSelbriBodySyntax) -> None:
+        pass
+    @property
+    def zantufa_me_tag_selbri_body(self) -> ZantufaMeTagSelbriBodySyntax:
+        'Uses the `zantufa_me_tag_selbri_body` product form, whose payload preserves `tag`.'
+        return cast(ZantufaMeTagSelbriBodySyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody is final')
+
+ZantufaMeSelbriBodySyntax: TypeAlias = ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody | ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody | ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody
+
+@final
+class ZantufaMeOperatorSelbriBodySyntax(_SyntaxNode):
+    'Transparent product node for sumti-to-selbri; preserves the `operators` component.'
+    __slots__ = ()
+    _schema_id = 694
+    __match_args__ = ('operators',)
+    def __new__(cls, operators: Sequence[MeksoOperatorSyntax]) -> ZantufaMeOperatorSelbriBodySyntax:
+        return cls._from_fields((operators,))
+    def __init__(self, operators: Sequence[MeksoOperatorSyntax]) -> None:
+        pass
+    @property
+    def operators(self) -> tuple[MeksoOperatorSyntax, ...]:
+        'Non-empty ordered sequence of operators components.'
+        return cast(tuple[MeksoOperatorSyntax, ...], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeOperatorSelbriBodySyntax is final')
+
+@final
+class ZantufaMeMeksoSelbriBodySyntax(_SyntaxNode):
+    'Transparent product node for sumti-to-selbri; preserves the `expression` component.'
+    __slots__ = ()
+    _schema_id = 695
+    __match_args__ = ('expression',)
+    def __new__(cls, expression: MeksoSyntax) -> ZantufaMeMeksoSelbriBodySyntax:
+        return cls._from_fields((expression,))
+    def __init__(self, expression: MeksoSyntax) -> None:
+        pass
+    @property
+    def expression(self) -> MeksoSyntax:
+        'The shared expression child syntax node.'
+        return cast(MeksoSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeMeksoSelbriBodySyntax is final')
+
+@final
+class ZantufaMeTagSelbriBodySyntax(_SyntaxNode):
+    'Transparent product node for sumti-to-selbri; preserves the `tag` component.'
+    __slots__ = ()
+    _schema_id = 696
+    __match_args__ = ('tag',)
+    def __new__(cls, tag: TenseModalSyntax) -> ZantufaMeTagSelbriBodySyntax:
+        return cls._from_fields((tag,))
+    def __init__(self, tag: TenseModalSyntax) -> None:
+        pass
+    @property
+    def tag(self) -> TenseModalSyntax:
+        'The shared tag child syntax node.'
+        return cast(TenseModalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMeTagSelbriBodySyntax is final')
+
+@final
+class ZantufaMexMoiTanruUnitSyntax(_SyntaxNode):
+    'Product node for mex selbri; preserves `expression` and `moi` in source order.'
+    __slots__ = ()
+    _schema_id = 697
+    __match_args__ = ('expression', 'moi')
+    def __new__(cls, expression: MeksoSyntax, moi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaMexMoiTanruUnitSyntax:
+        return cls._from_fields((expression, moi))
+    def __init__(self, expression: MeksoSyntax, moi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def expression(self) -> MeksoSyntax:
+        'The required shared mekso expression parsed by `mekso`, completed immediately before the following MOI-family word.'
+        return cast(MeksoSyntax, self._field(0))
+    @property
+    def moi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Moi`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMexMoiTanruUnitSyntax is final')
+
+@final
+class SumtiSelbriSumtiSyntaxSumti(_SyntaxNode):
+    'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
+    __slots__ = ()
+    _schema_id = 698
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiSyntax) -> SumtiSelbriSumtiSyntaxSumti:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
+        return cast(SumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiSelbriSumtiSyntaxSumti is final')
+
+@final
+class SumtiSelbriSumtiSyntaxMeLerfuSumti(_SyntaxNode):
+    'Uses the `me_lerfu_sumti` product form, whose payload preserves `words`.'
+    __slots__ = ()
+    _schema_id = 699
+    __match_args__ = ('me_lerfu_sumti',)
+    def __new__(cls, me_lerfu_sumti: MeLerfuSumtiSyntax) -> SumtiSelbriSumtiSyntaxMeLerfuSumti:
+        return cls._from_fields((me_lerfu_sumti,))
+    def __init__(self, me_lerfu_sumti: MeLerfuSumtiSyntax) -> None:
+        pass
+    @property
+    def me_lerfu_sumti(self) -> MeLerfuSumtiSyntax:
+        'Uses the `me_lerfu_sumti` product form, whose payload preserves `words`.'
+        return cast(MeLerfuSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('SumtiSelbriSumtiSyntaxMeLerfuSumti is final')
+
+SumtiSelbriSumtiSyntax: TypeAlias = SumtiSelbriSumtiSyntaxSumti | SumtiSelbriSumtiSyntaxMeLerfuSumti
+
+@final
+class MeLerfuSumtiSyntax(_SyntaxNode):
+    'Transparent product node for lerfu string; preserves the `words` component.'
+    __slots__ = ()
+    _schema_id = 700
+    __match_args__ = ('words',)
+    def __new__(cls, words: LetterStringSyntax) -> MeLerfuSumtiSyntax:
+        return cls._from_fields((words,))
+    def __init__(self, words: LetterStringSyntax) -> None:
+        pass
+    @property
+    def words(self) -> LetterStringSyntax:
+        'The `letter_string` grammar result in the `words` structural role of the `me_lerfu_sumti` production.'
+        return cast(LetterStringSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('MeLerfuSumtiSyntax is final')
+
+@final
+class OperatorSelbriTanruUnitSyntax(_SyntaxNode):
+    'Product node for operator-to-selbri; preserves `nuha` and `mekso_operator` in source order.'
+    __slots__ = ()
+    _schema_id = 701
+    __match_args__ = ('nuha', 'mekso_operator')
+    def __new__(cls, nuha: WithFreeModifiers[Token, FreeModifierSyntax], mekso_operator: MeksoOperatorSyntax) -> OperatorSelbriTanruUnitSyntax:
+        return cls._from_fields((nuha, mekso_operator))
+    def __init__(self, nuha: WithFreeModifiers[Token, FreeModifierSyntax], mekso_operator: MeksoOperatorSyntax) -> None:
+        pass
+    @property
+    def nuha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Nuha` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def mekso_operator(self) -> MeksoOperatorSyntax:
+        'The shared mekso operator child syntax node.'
+        return cast(MeksoOperatorSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('OperatorSelbriTanruUnitSyntax is final')
+
+@final
+class GroupedTanruUnitSyntax(_SyntaxNode):
+    'Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 702
+    __match_args__ = ('ke', 'selbri', 'kehe')
+    def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], selbri: ConnectedSelbriSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedTanruUnitSyntax:
+        return cls._from_fields((ke, selbri, kehe))
+    def __init__(self, ke: WithFreeModifiers[Token, FreeModifierSyntax], selbri: ConnectedSelbriSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> ConnectedSelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(ConnectedSelbriSyntax, self._field(1))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GroupedTanruUnitSyntax is final')
+
+@final
+class GroupedJaiInnerTanruUnitSyntax(_SyntaxNode):
+    'Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.'
+    __slots__ = ()
+    _schema_id = 703
+    __match_args__ = ('ke', 'selbri', 'kehe')
+    def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], selbri: ConnectedJaiInnerSelbriSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedJaiInnerTanruUnitSyntax:
+        return cls._from_fields((ke, selbri, kehe))
+    def __init__(self, ke: WithFreeModifiers[Token, FreeModifierSyntax], selbri: ConnectedJaiInnerSelbriSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> ConnectedJaiInnerSelbriSyntax:
+        'The shared selbri child syntax node.'
+        return cast(ConnectedJaiInnerSelbriSyntax, self._field(1))
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('GroupedJaiInnerTanruUnitSyntax is final')
+
+@final
+class ConnectedJaiInnerSelbriSyntax(_SyntaxNode):
+    'Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.'
+    __slots__ = ()
+    _schema_id = 704
+    __match_args__ = ('leading_selbri', 'continuations')
+    def __new__(cls, leading_selbri: TanruJaiInnerSelbriSyntax, continuations: Sequence[ConnectedJaiInnerSelbriContinuationSyntax]) -> ConnectedJaiInnerSelbriSyntax:
+        return cls._from_fields((leading_selbri, continuations))
+    def __init__(self, leading_selbri: TanruJaiInnerSelbriSyntax, continuations: Sequence[ConnectedJaiInnerSelbriContinuationSyntax]) -> None:
+        pass
+    @property
+    def leading_selbri(self) -> TanruJaiInnerSelbriSyntax:
+        'The shared leading selbri child syntax node.'
+        return cast(TanruJaiInnerSelbriSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[ConnectedJaiInnerSelbriContinuationSyntax, ...]:
+        'Ordered sequence of zero or more continuations components.'
+        return cast(tuple[ConnectedJaiInnerSelbriContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedJaiInnerSelbriSyntax is final')
+
+@final
+class ConnectedJaiInnerSelbriContinuationSyntax(_SyntaxNode):
+    'Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.'
+    __slots__ = ()
+    _schema_id = 705
+    __match_args__ = ('connective', 'trailing_selbri')
+    def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, trailing_selbri: TanruJaiInnerSelbriSyntax) -> ConnectedJaiInnerSelbriContinuationSyntax:
+        return cls._from_fields((connective, trailing_selbri))
+    def __init__(self, connective: RelationAfterthoughtConnectiveSyntax, trailing_selbri: TanruJaiInnerSelbriSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> RelationAfterthoughtConnectiveSyntax:
+        'The `relation_afterthought_connective` connective joining the adjacent constituents of the `connected_jai_inner_selbri_continuation` production.'
+        return cast(RelationAfterthoughtConnectiveSyntax, self._field(0))
+    @property
+    def trailing_selbri(self) -> TanruJaiInnerSelbriSyntax:
+        'The shared trailing selbri child syntax node.'
+        return cast(TanruJaiInnerSelbriSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ConnectedJaiInnerSelbriContinuationSyntax is final')
+
+@final
+class TanruJaiInnerSelbriSyntax(_SyntaxNode):
+    'Product node for selbri; preserves `first_unit` and `additional_units` in source order.'
+    __slots__ = ()
+    _schema_id = 706
+    __match_args__ = ('first_unit', 'additional_units')
+    def __new__(cls, first_unit: JaiInnerTanruUnitSyntax, additional_units: Sequence[JaiInnerTanruUnitSyntax]) -> TanruJaiInnerSelbriSyntax:
+        return cls._from_fields((first_unit, additional_units))
+    def __init__(self, first_unit: JaiInnerTanruUnitSyntax, additional_units: Sequence[JaiInnerTanruUnitSyntax]) -> None:
+        pass
+    @property
+    def first_unit(self) -> JaiInnerTanruUnitSyntax:
+        'The initial `jai_inner_tanru_unit` constituent before the continuations of the `tanru_jai_inner_selbri` production.'
+        return cast(JaiInnerTanruUnitSyntax, self._field(0))
+    @property
+    def additional_units(self) -> tuple[JaiInnerTanruUnitSyntax, ...]:
+        'Ordered sequence of zero or more additional units components.'
+        return cast(tuple[JaiInnerTanruUnitSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TanruJaiInnerSelbriSyntax is final')
+
+@final
+class LinkedSumtiSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
+    'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
+    __slots__ = ()
+    _schema_id = 707
+    __match_args__ = ('place_tagged_linked_sumti',)
+    def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> LinkedSumtiSyntaxPlaceTaggedLinkedSumti:
+        return cls._from_fields((place_tagged_linked_sumti,))
+    def __init__(self, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> None:
+        pass
+    @property
+    def place_tagged_linked_sumti(self) -> PlaceTaggedLinkedSumtiSyntax:
+        'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
+        return cast(PlaceTaggedLinkedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedSumtiSyntaxPlaceTaggedLinkedSumti is final')
+
+@final
+class LinkedSumtiSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
+    'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
+    __slots__ = ()
+    _schema_id = 708
+    __match_args__ = ('tense_tagged_linked_sumti',)
+    def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> LinkedSumtiSyntaxTenseTaggedLinkedSumti:
+        return cls._from_fields((tense_tagged_linked_sumti,))
+    def __init__(self, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> None:
+        pass
+    @property
+    def tense_tagged_linked_sumti(self) -> TenseTaggedLinkedSumtiSyntax:
+        'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
+        return cast(TenseTaggedLinkedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedSumtiSyntaxTenseTaggedLinkedSumti is final')
+
+@final
+class LinkedSumtiSyntaxPlainLinkedSumti(_SyntaxNode):
+    'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
+    __slots__ = ()
+    _schema_id = 709
+    __match_args__ = ('plain_linked_sumti',)
+    def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> LinkedSumtiSyntaxPlainLinkedSumti:
+        return cls._from_fields((plain_linked_sumti,))
+    def __init__(self, plain_linked_sumti: PlainLinkedSumtiSyntax) -> None:
+        pass
+    @property
+    def plain_linked_sumti(self) -> PlainLinkedSumtiSyntax:
+        'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
+        return cast(PlainLinkedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedSumtiSyntaxPlainLinkedSumti is final')
+
+@final
+class LinkedSumtiSyntaxEmptyLinkedSumti(_SyntaxNode):
+    'Uses the marker-only `empty_linked_sumti` product form.'
+    __slots__ = ()
+    _schema_id = 710
+    __match_args__ = ('empty_linked_sumti',)
+    def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedSumtiSyntaxEmptyLinkedSumti:
+        return cls._from_fields((empty_linked_sumti,))
+    def __init__(self, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> None:
+        pass
+    @property
+    def empty_linked_sumti(self) -> EmptyLinkedSumtiSyntax:
+        'Uses the marker-only `empty_linked_sumti` product form.'
+        return cast(EmptyLinkedSumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkedSumtiSyntaxEmptyLinkedSumti is final')
+
+LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedSumtiSyntaxTenseTaggedLinkedSumti | LinkedSumtiSyntaxPlainLinkedSumti | LinkedSumtiSyntaxEmptyLinkedSumti
+
+@final
+class PlaceTaggedLinkedSumtiSyntax(_SyntaxNode):
+    'Product node for linked arguments; preserves `fa` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 711
+    __match_args__ = ('fa', 'sumti')
+    def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax], sumti: TaggedOrElidedSumtiSyntax) -> PlaceTaggedLinkedSumtiSyntax:
+        return cls._from_fields((fa, sumti))
+    def __init__(self, fa: WithFreeModifiers[Token, FreeModifierSyntax], sumti: TaggedOrElidedSumtiSyntax) -> None:
+        pass
+    @property
+    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Fa`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> TaggedOrElidedSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(TaggedOrElidedSumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PlaceTaggedLinkedSumtiSyntax is final')
+
+@final
+class TenseTaggedLinkedSumtiSyntax(_SyntaxNode):
+    'Product node for linked arguments; preserves `tense_modal` and `sumti` in source order.'
+    __slots__ = ()
+    _schema_id = 712
+    __match_args__ = ('tense_modal', 'sumti')
+    def __new__(cls, tense_modal: TenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> TenseTaggedLinkedSumtiSyntax:
+        return cls._from_fields((tense_modal, sumti))
+    def __init__(self, tense_modal: TenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> None:
+        pass
+    @property
+    def tense_modal(self) -> TenseModalSyntax:
+        'The shared tense modal child syntax node.'
+        return cast(TenseModalSyntax, self._field(0))
+    @property
+    def sumti(self) -> TaggedOrElidedSumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(TaggedOrElidedSumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseTaggedLinkedSumtiSyntax is final')
+
+@final
+class PlainLinkedSumtiSyntax(_SyntaxNode):
+    'Transparent product node for linked arguments; preserves the `sumti` component.'
+    __slots__ = ()
+    _schema_id = 713
+    __match_args__ = ('sumti',)
+    def __new__(cls, sumti: SumtiSyntax) -> PlainLinkedSumtiSyntax:
+        return cls._from_fields((sumti,))
+    def __init__(self, sumti: SumtiSyntax) -> None:
+        pass
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The shared sumti child syntax node.'
+        return cast(SumtiSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('PlainLinkedSumtiSyntax is final')
+
+@final
+class EmptyLinkedSumtiSyntax(_SyntaxNode):
+    'Marker-only product node for linked arguments; the parser retains no public fields.'
+    __slots__ = ()
+    _schema_id = 714
+    __match_args__ = ()
+    def __new__(cls) -> EmptyLinkedSumtiSyntax:
+        return cls._from_fields(())
+    def __init__(self) -> None:
+        pass
+    def __init_subclass__(cls) -> None:
+        raise TypeError('EmptyLinkedSumtiSyntax is final')
+
+@final
+class BeiLinkSyntax(_SyntaxNode):
+    'Product node for linked arguments; preserves `bei` and `link` in source order.'
+    __slots__ = ()
+    _schema_id = 715
+    __match_args__ = ('bei', 'link')
+    def __new__(cls, bei: WithFreeModifiers[Token, FreeModifierSyntax], link: LinkedSumtiSyntax) -> BeiLinkSyntax:
+        return cls._from_fields((bei, link))
+    def __init__(self, bei: WithFreeModifiers[Token, FreeModifierSyntax], link: LinkedSumtiSyntax) -> None:
+        pass
+    @property
+    def bei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Bei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def link(self) -> LinkedSumtiSyntax:
+        'The `linked_sumti` grammar result in the `link` structural role of the `bei_link` production.'
+        return cast(LinkedSumtiSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BeiLinkSyntax is final')
+
+@final
+class LinkargsSyntax(_SyntaxNode):
+    'Product node for linked arguments; preserves `be`, `first_link`, `bei_links`, and `beho` in source order.'
+    __slots__ = ()
+    _schema_id = 716
+    __match_args__ = ('be', 'first_link', 'bei_links', 'beho')
+    def __new__(cls, be: WithFreeModifiers[Token, FreeModifierSyntax], first_link: LinkedSumtiSyntax, bei_links: Sequence[BeiLinkSyntax], beho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> LinkargsSyntax:
+        return cls._from_fields((be, first_link, bei_links, beho))
+    def __init__(self, be: WithFreeModifiers[Token, FreeModifierSyntax], first_link: LinkedSumtiSyntax, bei_links: Sequence[BeiLinkSyntax], beho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def be(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Be` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def first_link(self) -> LinkedSumtiSyntax:
+        'The initial `linked_sumti` constituent before the continuations of the `linkargs` production.'
+        return cast(LinkedSumtiSyntax, self._field(1))
+    @property
+    def bei_links(self) -> tuple[BeiLinkSyntax, ...]:
+        'Ordered sequence of zero or more bei links components.'
+        return cast(tuple[BeiLinkSyntax, ...], self._field(2))
+    @property
+    def beho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Beho` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(3))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('LinkargsSyntax is final')
+
+@final
+class AbstractionTanruUnitSyntax(_SyntaxNode):
+    'Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei` in source order.'
+    __slots__ = ()
+    _schema_id = 717
+    __match_args__ = ('nu', 'nai', 'abstractor_connections', 'subbridi', 'kei')
+    def __new__(cls, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[AbstractorConnectionSyntax], subbridi: SubbridiSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> AbstractionTanruUnitSyntax:
+        return cls._from_fields((nu, nai, abstractor_connections, subbridi, kei))
+    def __init__(self, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[AbstractorConnectionSyntax], subbridi: SubbridiSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def abstractor_connections(self) -> tuple[AbstractorConnectionSyntax, ...]:
+        'Ordered sequence of zero or more abstractor connections components.'
+        return cast(tuple[AbstractorConnectionSyntax, ...], self._field(2))
+    @property
+    def subbridi(self) -> SubbridiSyntax:
+        'The shared subbridi child syntax node.'
+        return cast(SubbridiSyntax, self._field(3))
+    @property
+    def kei(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AbstractionTanruUnitSyntax is final')
+
+@final
+class AbstractorConnectionSyntax(_SyntaxNode):
+    'Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 718
+    __match_args__ = ('connective', 'nu', 'nai')
+    def __new__(cls, connective: StandardStatementConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> AbstractorConnectionSyntax:
+        return cls._from_fields((connective, nu, nai))
+    def __init__(self, connective: StandardStatementConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> StandardStatementConnectiveSyntax:
+        'The `standard_statement_connective` connective joining the adjacent constituents of the `abstractor_connection` production.'
+        return cast(StandardStatementConnectiveSyntax, self._field(0))
+    @property
+    def nu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('AbstractorConnectionSyntax is final')
+
+@final
+class ZantufaStatementAbstractionTanruUnitSyntax(_SyntaxNode):
+    'Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei` in source order.'
+    __slots__ = ()
+    _schema_id = 719
+    __match_args__ = ('nu', 'nai', 'abstractor_connections', 'statement', 'kei')
+    def __new__(cls, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[ZantufaAbstractorConnectionSyntax], statement: StatementSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaStatementAbstractionTanruUnitSyntax:
+        return cls._from_fields((nu, nai, abstractor_connections, statement, kei))
+    def __init__(self, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[ZantufaAbstractorConnectionSyntax], statement: StatementSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def abstractor_connections(self) -> tuple[ZantufaAbstractorConnectionSyntax, ...]:
+        'Ordered sequence of zero or more abstractor connections components.'
+        return cast(tuple[ZantufaAbstractorConnectionSyntax, ...], self._field(2))
+    @property
+    def statement(self) -> StatementSyntax:
+        'The shared statement child syntax node.'
+        return cast(StatementSyntax, self._field(3))
+    @property
+    def kei(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kei` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(4))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaStatementAbstractionTanruUnitSyntax is final')
+
+@final
+class ZantufaAbstractorConnectionSyntax(_SyntaxNode):
+    'Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.'
+    __slots__ = ()
+    _schema_id = 720
+    __match_args__ = ('connective', 'nu', 'nai')
+    def __new__(cls, connective: JoikConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaAbstractorConnectionSyntax:
+        return cls._from_fields((connective, nu, nai))
+    def __init__(self, connective: JoikConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def connective(self) -> JoikConnectiveSyntax:
+        'The `joik_connective` connective joining the adjacent constituents of the `zantufa_abstractor_connection` production.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    @property
+    def nu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Nu`.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaAbstractorConnectionSyntax is final')
+
+__all__ = (
+    'LeadingIndicatorSyntax',
+    'TextSyntaxExplicitXauhaLohoiText',
+    'TextSyntaxRegularText',
+    'TextSyntax',
+    'ExplicitXauhaLohoiTextSyntax',
+    'RegularTextSyntax',
+    'TextParagraphsSyntaxTextParagraphWithAdditionalNiho',
+    'TextParagraphsSyntaxTextNihoParagraphs',
+    'TextParagraphsSyntax',
+    'TextParagraphWithAdditionalNihoSyntax',
+    'TextNihoParagraphsSyntax',
+    'LeadingIStatementSyntax',
+    'ParagraphSyntaxINihoParagraph',
+    'ParagraphSyntaxSimpleParagraph',
+    'ParagraphSyntax',
+    'SimpleParagraphSyntax',
+    'ParagraphStatementSequenceSyntax',
+    'INihoParagraphSyntax',
+    'NihoParagraphSyntax',
+    'InitialParagraphStatementSyntax',
+    'FollowingParagraphStatementSyntax',
+    'TrailingIjekParagraphStatementSyntax',
+    'StatementSyntaxIStatementConnection',
+    'StatementSyntaxPreposedIStatementConnection',
+    'StatementSyntaxStatementBase',
+    'StatementSyntax',
+    'StatementBaseSyntaxPrenexStatement',
+    'StatementBaseSyntaxForethoughtStatement',
+    'StatementBaseSyntaxBridiStatement',
+    'StatementBaseSyntaxTextGroupStatement',
+    'StatementBaseSyntax',
+    'StatementOrFragmentSyntaxZantufaStatementTermsStatement',
+    'StatementOrFragmentSyntaxStatementOrFragmentStatement',
+    'StatementOrFragmentSyntaxFragmentStatement',
+    'StatementOrFragmentSyntax',
+    'ZantufaStatementTermsStatementSyntax',
+    'ZantufaStatementTermsTailSyntaxZantufaIauStatementTermsTail',
+    'ZantufaStatementTermsTailSyntaxZantufaBareStatementTermsTail',
+    'ZantufaStatementTermsTailSyntax',
+    'ZantufaIauStatementTermsTailSyntax',
+    'ZantufaBareStatementTermsTailSyntax',
+    'StatementOrFragmentStatementSyntax',
+    'FragmentStatementSyntaxPrenexFragment',
+    'FragmentStatementSyntaxSelbriFragment',
+    'FragmentStatementSyntaxEkFragment',
+    'FragmentStatementSyntaxGihekFragment',
+    'FragmentStatementSyntaxMultipleNaFragment',
+    'FragmentStatementSyntaxSingleNaFragment',
+    'FragmentStatementSyntaxTermsFragment',
+    'FragmentStatementSyntaxMeksoFragment',
+    'FragmentStatementSyntaxRelativeClauseFragment',
+    'FragmentStatementSyntaxLinkedSumtiContinuationFragment',
+    'FragmentStatementSyntaxLinkedSumtiFragment',
+    'FragmentStatementSyntaxZantufaMeksoFragment',
+    'FragmentStatementSyntax',
+    'StatementAfterIConnectiveSyntaxForethoughtStatement',
+    'StatementAfterIConnectiveSyntaxBridiStatement',
+    'StatementAfterIConnectiveSyntaxTextGroupStatement',
+    'StatementAfterIConnectiveSyntax',
+    'MultipleNaFragmentSyntax',
+    'SingleNaFragmentSyntax',
+    'EkFragmentSyntax',
+    'GihekFragmentSyntax',
+    'IStatementConnectionSyntax',
+    'PendingIConnectiveSyntax',
+    'IStatementConnectionTailSyntaxChainedIConnectiveStatementTail',
+    'IStatementConnectionTailSyntaxSimpleIConnectiveStatementTail',
+    'IStatementConnectionTailSyntax',
+    'ChainedIConnectiveStatementTailSyntax',
+    'SimpleIConnectiveStatementTailSyntax',
+    'PreposedIStatementConnectionSyntax',
+    'TextGroupStatementSyntax',
+    'PrenexFragmentSyntax',
+    'PrenexStatementSyntax',
+    'ForethoughtStatementSyntax',
+    'ForethoughtStatementBranchSyntax',
+    'ZantufaForethoughtStatementBranchSyntax',
+    'BridiStatementSyntax',
+    'BridiStatementContinuationSyntaxBoBridiStatementContinuation',
+    'BridiStatementContinuationSyntaxKeBridiStatementContinuation',
+    'BridiStatementContinuationSyntax',
+    'BoBridiStatementContinuationSyntax',
+    'KeBridiStatementContinuationSyntax',
+    'SelbriFragmentSyntax',
+    'TermsFragmentSyntax',
+    'MeksoFragmentSyntax',
+    'ZantufaMeksoFragmentSyntax',
+    'RelativeClauseListSyntax',
+    'RelativeClauseFragmentSyntax',
+    'LinkedSumtiContinuationFragmentSyntax',
+    'LinkedSumtiFragmentSyntax',
+    'BridiSyntaxBridiWithLeadingTerms',
+    'BridiSyntaxBridiWithPostCuTerms',
+    'BridiSyntaxBareCuBridi',
+    'BridiSyntaxBareCuTermsBridi',
+    'BridiSyntaxRelationOnlyBridi',
+    'BridiSyntax',
+    'BridiWithLeadingTermsSyntax',
+    'BridiWithPostCuTermsSyntax',
+    'BareCuBridiSyntax',
+    'BareCuTermsBridiSyntax',
+    'RelationOnlyBridiSyntax',
+    'CuTermsBridiTailSyntax',
+    'BridiTailSyntaxZantufaGroupedBridiTail',
+    'BridiTailSyntaxBridiTailWithPossibleTailTerms',
+    'BridiTailSyntaxBridiTailWithoutTailTerms',
+    'BridiTailSyntax',
+    'ZantufaGroupedBridiTailSyntax',
+    'BridiTailWithoutTailTermsSyntax',
+    'BridiTailWithPossibleTailTermsSyntax',
+    'AfterthoughtBridiTailWithoutTailTermsSyntax',
+    'AfterthoughtBridiTailSyntax',
+    'BoGroupedBridiTailWithoutTailTermsSyntax',
+    'BoGroupedBridiTailSyntax',
+    'SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms',
+    'SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms',
+    'SimpleBridiTailWithoutTailTermsSyntax',
+    'SimpleBridiTailSyntaxForethoughtSimpleBridiTail',
+    'SimpleBridiTailSyntaxSelbriSimpleBridiTail',
+    'SimpleBridiTailSyntax',
+    'ForethoughtSimpleBridiTailWithoutTailTermsSyntax',
+    'ForethoughtSimpleBridiTailSyntax',
+    'SelbriSimpleBridiTailWithoutTailTermsSyntax',
+    'SelbriSimpleBridiTailSyntax',
+    'ForethoughtBridiConnectionSyntaxDirectForethoughtBridiConnection',
+    'ForethoughtBridiConnectionSyntaxGroupedForethoughtBridiConnection',
+    'ForethoughtBridiConnectionSyntaxNegatedForethoughtBridiConnection',
+    'ForethoughtBridiConnectionSyntax',
+    'ForethoughtBridiConnectionWithoutTailTermsSyntaxDirectForethoughtBridiConnectionWithoutTailTerms',
+    'ForethoughtBridiConnectionWithoutTailTermsSyntaxGroupedForethoughtBridiConnectionWithoutTailTerms',
+    'ForethoughtBridiConnectionWithoutTailTermsSyntaxNegatedForethoughtBridiConnectionWithoutTailTerms',
+    'ForethoughtBridiConnectionWithoutTailTermsSyntax',
+    'DirectForethoughtBridiConnectionSyntax',
+    'DirectForethoughtBridiConnectionWithoutTailTermsSyntax',
+    'ForethoughtBridiBranchSyntax',
+    'ZantufaForethoughtBridiBranchSyntax',
+    'GroupedForethoughtBridiConnectionSyntax',
+    'GroupedForethoughtBridiConnectionWithoutTailTermsSyntax',
+    'NegatedForethoughtBridiConnectionSyntax',
+    'NegatedForethoughtBridiConnectionWithoutTailTermsSyntax',
+    'BridiTailKeContinuationSyntax',
+    'GihekBridiTailKeContinuationSyntax',
+    'BridiTailBoContinuationWithoutTailTermsSyntax',
+    'BridiTailBoContinuationSyntax',
+    'BridiTailContinuationWithoutTailTermsSyntax',
+    'BridiTailContinuationSyntax',
+    'SubbridiSyntaxPrenexSubbridi',
+    'SubbridiSyntaxBridiSubbridi',
+    'SubbridiSyntax',
+    'BridiSubbridiSyntax',
+    'PrenexSubbridiSyntax',
+    'TermSyntaxPeheTermsetConnection',
+    'TermSyntaxBoundTermConnection',
+    'TermSyntaxTermsetGroup',
+    'TermSyntaxConnectedTerm',
+    'TermSyntaxSimpleTerm',
+    'TermSyntax',
+    'PeheTermsetConnectionSyntax',
+    'PeheTermsetConnectionContinuationSyntax',
+    'PeheTermsetOperandSyntaxBoundTermConnection',
+    'PeheTermsetOperandSyntaxTermsetGroup',
+    'PeheTermsetOperandSyntaxSimpleTerm',
+    'PeheTermsetOperandSyntax',
+    'SimpleTermSyntaxPlaceTaggedSumtiTerm',
+    'SimpleTermSyntaxJaiTaggedSumtiTerm',
+    'SimpleTermSyntaxTaggedSumtiBeforeTagTerm',
+    'SimpleTermSyntaxTaggedSumtiTerm',
+    'SimpleTermSyntaxNoihaAdverbialTerm',
+    'SimpleTermSyntaxFihoiAdverbialTerm',
+    'SimpleTermSyntaxSoiAdverbialTerm',
+    'SimpleTermSyntaxNaKuTerm',
+    'SimpleTermSyntaxSumtiTerm',
+    'SimpleTermSyntaxBareNaTerm',
+    'SimpleTermSyntaxForethoughtTermset',
+    'SimpleTermSyntaxNuhiTermset',
+    'SimpleTermSyntaxKeTermset',
+    'SimpleTermSyntax',
+    'BoundTermConnectionSyntax',
+    'BoundTermConnectiveSyntaxJoikConnective',
+    'BoundTermConnectiveSyntaxEkConnective',
+    'BoundTermConnectiveSyntax',
+    'ConnectedTermSyntax',
+    'ConnectedTermContinuationSyntax',
+    'ConnectedTermConnectiveSyntaxJoikConnective',
+    'ConnectedTermConnectiveSyntaxJekConnective',
+    'ConnectedTermConnectiveSyntaxEkConnective',
+    'ConnectedTermConnectiveSyntaxVuhuNonlogicalConnective',
+    'ConnectedTermConnectiveSyntax',
+    'TermsetGroupSyntax',
+    'TermsetGroupContinuationSyntax',
+    'ForethoughtTermsetSyntax',
+    'ForethoughtTermsetBranchSyntax',
+    'ZantufaForethoughtTermsetBranchSyntax',
+    'NuhiTermsetSyntax',
+    'KeTermsetSyntax',
+    'NoihaAdverbialTermSyntaxNoihaVariableAdverbialTerm',
+    'NoihaAdverbialTermSyntaxNoihaRelativeAdverbialTerm',
+    'NoihaAdverbialTermSyntax',
+    'NoihaVariableAdverbialTermSyntax',
+    'NoihaRelativeAdverbialTermSyntax',
+    'FihoiAdverbialTermSyntax',
+    'SoiAdverbialTermSyntax',
+    'SumtiTermSyntax',
+    'PlaceTaggedSumtiTermSyntax',
+    'NaKuTermSyntax',
+    'BareNaTermSyntax',
+    'TaggedSumtiBeforeTagTermSyntax',
+    'TaggedSumtiTermSyntax',
+    'JaiTaggedSumtiTermSyntax',
+    'LeadingTermTagTenseModalSyntaxPuBeforeNaheLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxPuDistanceBeforeTagLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxZiBeforeZiLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxVaBeforeVaLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxMohiBeforeMohiLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxCahaBeforeTagLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxIntervalPropertyLeadingTermTagTense',
+    'LeadingTermTagTenseModalSyntaxTenseModal',
+    'LeadingTermTagTenseModalSyntax',
+    'PuBeforeNaheLeadingTermTagTenseSyntax',
+    'PuDistanceBeforeTagLeadingTermTagTenseSyntax',
+    'ZiBeforeZiLeadingTermTagTenseSyntax',
+    'VaBeforeVaLeadingTermTagTenseSyntax',
+    'MohiBeforeMohiLeadingTermTagTenseSyntax',
+    'CahaBeforeTagLeadingTermTagTenseSyntax',
+    'IntervalPropertyLeadingTermTagTenseSyntax',
+    'TaggedOrElidedSumtiSyntaxSumti',
+    'TaggedOrElidedSumtiSyntaxTaggedElidedSumti',
+    'TaggedOrElidedSumtiSyntax',
+    'TaggedElidedSumtiSyntax',
+    'SumtiSyntax',
+    'SumtiGroupedSyntax',
+    'SumtiAfterthoughtSyntax',
+    'SumtiBoundSyntax',
+    'SumtiForethoughtSyntaxForethoughtSumti',
+    'SumtiForethoughtSyntaxSimpleSumti',
+    'SumtiForethoughtSyntax',
+    'ForethoughtSumtiSyntax',
+    'ForethoughtSumtiBranchSyntax',
+    'ZantufaForethoughtSumtiBranchSyntax',
+    'BoundSumtiTailSyntax',
+    'SumtiAfterthoughtTailSyntax',
+    'GroupedSumtiTailSyntax',
+    'VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail',
+    'VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail',
+    'VuhoSumtiAttachmentTailSyntax',
+    'VuhoRelativeSumtiAttachmentTailSyntax',
+    'VuhoConnectedSumtiAttachmentTailSyntax',
+    'SimpleSumtiSyntax',
+    'SumtiAtomSyntaxSumtiBase',
+    'SumtiAtomSyntaxQuantifiedSumti',
+    'SumtiAtomSyntax',
+    'SumtiBaseSyntaxScalarNegatedSumtiWithBo',
+    'SumtiBaseSyntaxScalarNegatedSumti',
+    'SumtiBaseSyntaxLaheSumti',
+    'SumtiBaseSyntaxLaheTermWrapper',
+    'SumtiBaseSyntaxScalarNegatedTermWrapperWithBo',
+    'SumtiBaseSyntaxScalarNegatedTermWrapper',
+    'SumtiBaseSyntaxBridiDescriptionSumti',
+    'SumtiBaseSyntaxNameSumti',
+    'SumtiBaseSyntaxDescriptionConnectionSumti',
+    'SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti',
+    'SumtiBaseSyntaxDescriptorWithGadriSumti',
+    'SumtiBaseSyntaxDescriptorWithoutGadriSumti',
+    'SumtiBaseSyntaxNumberSumti',
+    'SumtiBaseSyntaxLerfuStringSumti',
+    'SumtiBaseSyntaxQuotedSumti',
+    'SumtiBaseSyntaxProSumti',
+    'SumtiBaseSyntax',
+    'QuantifiedSumtiSyntax',
+    'SumtiConnectionTailSyntax',
+    'PaRunQuantifierSyntax',
+    'MeksoQuantifierSyntax',
+    'ZantufaRawMeksoQuantifierSyntax',
+    'ZantufaPriorityRawMeksoQuantifierSyntax',
+    'QuantifierSyntaxZantufaPriorityRawMeksoQuantifier',
+    'QuantifierSyntaxMeksoQuantifier',
+    'QuantifierSyntaxPaRunQuantifier',
+    'QuantifierSyntaxZantufaRawMeksoQuantifier',
+    'QuantifierSyntax',
+    'NumberMeksoSyntax',
+    'PrimitiveMeksoOperatorSyntax',
+    'MeksoOperatorSyntaxAfterthoughtMeksoOperator',
+    'MeksoOperatorSyntaxBoundMeksoOperator',
+    'MeksoOperatorSyntaxSimpleMeksoOperator',
+    'MeksoOperatorSyntax',
+    'AfterthoughtMeksoOperatorSyntax',
+    'AfterthoughtMeksoOperatorContinuationSyntax',
+    'BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator',
+    'BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator',
+    'BoundOrAtomMeksoOperatorSyntax',
+    'BoundMeksoOperatorSyntax',
+    'SimpleMeksoOperatorSyntaxConvertedMeksoOperator',
+    'SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator',
+    'SimpleMeksoOperatorSyntaxForethoughtMeksoOperator',
+    'SimpleMeksoOperatorSyntaxGroupedMeksoOperator',
+    'SimpleMeksoOperatorSyntaxSelbriMeksoOperator',
+    'SimpleMeksoOperatorSyntaxOperandMeksoOperator',
+    'SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator',
+    'SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator',
+    'SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator',
+    'SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator',
+    'SimpleMeksoOperatorSyntax',
+    'ConvertedMeksoOperatorSyntax',
+    'ScalarNegatedMeksoOperatorSyntax',
+    'ForethoughtMeksoOperatorSyntax',
+    'GroupedMeksoOperatorSyntax',
+    'SelbriMeksoOperatorSyntax',
+    'OperandMeksoOperatorSyntax',
+    'ZantufaMahoSelbriMeksoOperatorSyntax',
+    'ZantufaMahoSumtiMeksoOperatorSyntax',
+    'ZantufaConnectiveMeksoOperatorSyntax',
+    'MeksoOperandSyntaxAfterthoughtMeksoOperand',
+    'MeksoOperandSyntaxBoundMeksoOperand',
+    'MeksoOperandSyntaxSimpleMeksoOperand',
+    'MeksoOperandSyntax',
+    'AfterthoughtMeksoOperandSyntax',
+    'AfterthoughtMeksoOperandContinuationSyntax',
+    'BoundOrSimpleMeksoOperandSyntaxBoundMeksoOperand',
+    'BoundOrSimpleMeksoOperandSyntaxSimpleMeksoOperand',
+    'BoundOrSimpleMeksoOperandSyntax',
+    'BoundMeksoOperandSyntax',
+    'SimpleMeksoOperandSyntaxForethoughtMeksoOperand',
+    'SimpleMeksoOperandSyntaxQualifiedMeksoOperand',
+    'SimpleMeksoOperandSyntaxParenthesizedMeksoOperand',
+    'SimpleMeksoOperandSyntaxSumtiMeksoOperand',
+    'SimpleMeksoOperandSyntaxSelbriMeksoOperand',
+    'SimpleMeksoOperandSyntaxArrayMeksoOperand',
+    'SimpleMeksoOperandSyntaxNumberMekso',
+    'SimpleMeksoOperandSyntaxLerfuStringMekso',
+    'SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand',
+    'SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand',
+    'SimpleMeksoOperandSyntax',
+    'ZantufaScalarNegatedMeksoOperandSyntax',
+    'QualifiedMeksoOperandSyntax',
+    'ForethoughtMeksoOperandSyntax',
+    'SumtiMeksoOperandSyntax',
+    'ZantufaSelbriMoheMeksoOperandSyntax',
+    'SelbriMeksoOperandSyntax',
+    'ParenthesizedMeksoOperandSyntax',
+    'ArrayMeksoOperandSyntax',
+    'LetterStringSyntax',
+    'LetterStringContinuationSyntaxLetterStringPaContinuation',
+    'LetterStringContinuationSyntaxLetterStringLerfuContinuation',
+    'LetterStringContinuationSyntax',
+    'LetterStringPaContinuationSyntax',
+    'LetterStringLerfuContinuationSyntax',
+    'NumberWordsSyntax',
+    'NumberWordContinuationSyntaxNumberWordPaContinuation',
+    'NumberWordContinuationSyntaxNumberWordLerfuContinuation',
+    'NumberWordContinuationSyntax',
+    'NumberWordPaContinuationSyntax',
+    'NumberWordLerfuContinuationSyntax',
+    'NumberOrLetterWordsSyntaxNumberWords',
+    'NumberOrLetterWordsSyntaxLetterString',
+    'NumberOrLetterWordsSyntax',
+    'LetterTokensSyntaxSimpleLerfuWord',
+    'LetterTokensSyntaxLauLerfuWord',
+    'LetterTokensSyntaxTeiLerfuWord',
+    'LetterTokensSyntax',
+    'SimpleLerfuWordSyntax',
+    'LauLerfuWordSyntax',
+    'TeiLerfuWordSyntax',
+    'LerfuStringMeksoSyntax',
+    'MeksoBaseSyntaxZantufaBoGroupedMeksoBase',
+    'MeksoBaseSyntaxMeksoOperand',
+    'MeksoBaseSyntaxForethoughtCallMekso',
+    'MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence',
+    'MeksoBaseSyntax',
+    'ZantufaBoGroupedMeksoBaseSyntax',
+    'ZantufaBoGroupedMeksoContinuationSyntax',
+    'ZantufaGroupedMeksoOperandSequenceSyntax',
+    'MeksoPrecedenceSyntax',
+    'MeksoPrecedenceTailSyntax',
+    'InfixMeksoSyntax',
+    'InfixMeksoContinuationSyntax',
+    'ZantufaInfixMeksoSyntax',
+    'ZantufaInfixMeksoContinuationSyntax',
+    'ForethoughtCallMeksoSyntax',
+    'MeksoSyntaxZantufaReversePolishMekso',
+    'MeksoSyntaxZantufaInfixMekso',
+    'MeksoSyntaxInfixMekso',
+    'MeksoSyntaxReversePolishMekso',
+    'MeksoSyntax',
+    'ZantufaReversePolishMeksoSyntax',
+    'ZantufaReversePolishTailSyntax',
+    'ReversePolishPartsSyntax',
+    'ReversePolishPartsTailSyntax',
+    'ReversePolishMeksoSyntax',
+    'NumberSumtiSyntax',
+    'LerfuStringSumtiSyntax',
+    'LaheSumtiSyntax',
+    'LaheTermWrapperSyntax',
+    'ScalarNegatedTermWrapperWithBoSyntax',
+    'ScalarNegatedTermWrapperSyntax',
+    'ScalarNegatedSumtiWithBoSyntax',
+    'ScalarNegatedSumtiSyntax',
+    'BridiDescriptionSumtiSyntax',
+    'LohoiDescriptionHeadContinuationSyntax',
+    'ProSumtiSyntax',
+    'NameSumtiSyntax',
+    'DescriptionHeadSyntax',
+    'DescriptionHeadConnectiveSyntax',
+    'DescriptionConnectionSumtiSyntax',
+    'DescriptorWithGadriSumtiSyntax',
+    'DescriptorWithOuterQuantifierSumtiSyntax',
+    'DescriptorWithoutGadriSumtiSyntax',
+    'DescriptionTailSyntax',
+    'DescriptionTailBodySyntaxQuantifierRelationDescriptionTail',
+    'DescriptionTailBodySyntaxQuantifierSumtiDescriptionTail',
+    'DescriptionTailBodySyntaxRelationDescriptionTail',
+    'DescriptionTailBodySyntax',
+    'LeadingDescriptionTailElementsSyntax',
+    'DescriptionTailSumtiSyntax',
+    'RelationDescriptionTailSyntax',
+    'QuantifierRelationDescriptionTailSyntax',
+    'QuantifierSumtiDescriptionTailSyntax',
+    'QuoteSyntaxExperimentalMehoiCompoundQuote',
+    'QuoteSyntaxExperimentalZohoiCompoundQuote',
+    'QuoteSyntaxExperimentalRahoiCompoundQuote',
+    'QuoteSyntaxExperimentalGohoiCompoundQuote',
+    'QuoteSyntaxGenericCompoundQuote',
+    'QuoteSyntaxTextQuote',
+    'QuoteSyntax',
+    'TextQuoteSyntax',
+    'ExperimentalMehoiCompoundQuoteSyntax',
+    'ExperimentalZohoiCompoundQuoteSyntax',
+    'ExperimentalRahoiCompoundQuoteSyntax',
+    'ExperimentalGohoiCompoundQuoteSyntax',
+    'GenericCompoundQuoteSyntax',
+    'QuotedSumtiSyntax',
+    'SelbriVocativeSumtiSyntax',
+    'CmevlaVocativeSumtiSyntax',
+    'VocativeSumtiSyntaxSelbriVocativeSumti',
+    'VocativeSumtiSyntaxCmevlaVocativeSumti',
+    'VocativeSumtiSyntaxSumti',
+    'VocativeSumtiSyntax',
+    'VocativeMarkerWordsSyntaxCoiVocativeMarkerWords',
+    'VocativeMarkerWordsSyntaxDoiVocativeMarkerWords',
+    'VocativeMarkerWordsSyntax',
+    'CoiVocativeMarkerWordsSyntax',
+    'AdditionalCoiVocativeMarkerSyntax',
+    'DoiVocativeMarkerWordsSyntax',
+    'FreeModifierSyntaxTextReplacementFreeModifier',
+    'FreeModifierSyntaxZantufaSeiStatementFreeModifier',
+    'FreeModifierSyntaxSeiFreeModifier',
+    'FreeModifierSyntaxXiFreeModifier',
+    'FreeModifierSyntaxMaiFreeModifier',
+    'FreeModifierSyntaxZantufaMeksoMaiFreeModifier',
+    'FreeModifierSyntaxSoiFreeModifier',
+    'FreeModifierSyntaxParentheticalText',
+    'FreeModifierSyntaxVocativeFreeModifier',
+    'FreeModifierSyntax',
+    'VocativeFreeModifierSyntax',
+    'ParentheticalTextSyntax',
+    'SeiFreeModifierSyntax',
+    'ZantufaSeiStatementFreeModifierSyntax',
+    'XiFreeModifierSyntaxXiNumberFreeModifier',
+    'XiFreeModifierSyntaxXiLerfuStringFreeModifier',
+    'XiFreeModifierSyntaxXiParenthesizedFreeModifier',
+    'XiFreeModifierSyntax',
+    'XiNumberFreeModifierSyntax',
+    'XiLerfuStringFreeModifierSyntax',
+    'XiParenthesizedFreeModifierSyntax',
+    'MaiFreeModifierSyntax',
+    'ZantufaMeksoMaiFreeModifierSyntax',
+    'SoiFreeModifierSyntax',
+    'TextReplacementFreeModifierSyntaxFullTextReplacementFreeModifier',
+    'TextReplacementFreeModifierSyntaxNewOnlyTextReplacementFreeModifier',
+    'TextReplacementFreeModifierSyntaxCloseOnlyTextReplacementFreeModifier',
+    'TextReplacementFreeModifierSyntax',
+    'FullTextReplacementFreeModifierSyntax',
+    'NewOnlyTextReplacementFreeModifierSyntax',
+    'CloseOnlyTextReplacementFreeModifierSyntax',
+    'RelativeClauseTailSyntaxJoinedRelativeClauseTail',
+    'RelativeClauseTailSyntaxConnectedRelativeClauseTail',
+    'RelativeClauseTailSyntax',
+    'JoinedRelativeClauseTailSyntax',
+    'ConnectedRelativeClauseTailSyntax',
+    'RelativeClauseConnectiveSyntaxJoikConnective',
+    'RelativeClauseConnectiveSyntaxJekConnective',
+    'RelativeClauseConnectiveSyntax',
+    'RelativeClauseAtomSyntaxSumtiAssociationRelativeClause',
+    'RelativeClauseAtomSyntaxBridiRelativeClause',
+    'RelativeClauseAtomSyntax',
+    'SumtiAssociationRelativeClauseSyntax',
+    'RelativeSumtiSyntaxTenseTaggedRelativeSumti',
+    'RelativeSumtiSyntaxNaKuRelativeSumti',
+    'RelativeSumtiSyntaxPlainRelativeSumti',
+    'RelativeSumtiSyntax',
+    'NaKuRelativeSumtiSyntax',
+    'TenseTaggedRelativeSumtiSyntax',
+    'PlainRelativeSumtiSyntax',
+    'BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause',
+    'BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause',
+    'BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause',
+    'BridiRelativeClauseSyntaxIncidentalBridiRelativeClause',
+    'BridiRelativeClauseSyntax',
+    'ZantufaRestrictiveStatementRelativeClauseSyntax',
+    'ZantufaIncidentalStatementRelativeClauseSyntax',
+    'RestrictiveBridiRelativeClauseSyntax',
+    'IncidentalBridiRelativeClauseSyntax',
+    'EkConnectiveSyntax',
+    'JehiConnectiveSyntax',
+    'JekConnectiveSyntax',
+    'JoikConnectiveSyntaxJoiConnective',
+    'JoikConnectiveSyntaxSimpleIntervalConnective',
+    'JoikConnectiveSyntaxClosedIntervalConnective',
+    'JoikConnectiveSyntax',
+    'JoiConnectiveSyntax',
+    'SimpleIntervalConnectiveSyntax',
+    'ClosedIntervalConnectiveSyntax',
+    'VuhuNonlogicalConnectiveSyntax',
+    'ArgumentConnectiveSyntaxCeheConnective',
+    'ArgumentConnectiveSyntaxEkConnective',
+    'ArgumentConnectiveSyntaxJehiConnective',
+    'ArgumentConnectiveSyntaxJoikConnective',
+    'ArgumentConnectiveSyntaxVuhuNonlogicalConnective',
+    'ArgumentConnectiveSyntax',
+    'OperandConnectiveSyntaxJoikConnective',
+    'OperandConnectiveSyntaxEkConnective',
+    'OperandConnectiveSyntaxJekConnective',
+    'OperandConnectiveSyntax',
+    'RelationAfterthoughtConnectiveSyntaxJoikConnective',
+    'RelationAfterthoughtConnectiveSyntaxJekConnective',
+    'RelationAfterthoughtConnectiveSyntaxEkConnective',
+    'RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective',
+    'RelationAfterthoughtConnectiveSyntax',
+    'StandardStatementConnectiveSyntaxJoikConnective',
+    'StandardStatementConnectiveSyntaxJekConnective',
+    'StandardStatementConnectiveSyntax',
+    'StatementConnectiveSyntaxJoikConnective',
+    'StatementConnectiveSyntaxJekConnective',
+    'StatementConnectiveSyntaxEkConnective',
+    'StatementConnectiveSyntaxVuhuNonlogicalConnective',
+    'StatementConnectiveSyntax',
+    'TextLeadingConnectiveSyntaxStandardStatementConnective',
+    'TextLeadingConnectiveSyntaxCeheConnective',
+    'TextLeadingConnectiveSyntax',
+    'IStatementConnectiveSyntaxIStandardStatementConnective',
+    'IStatementConnectiveSyntaxITagBoStatementConnective',
+    'IStatementConnectiveSyntax',
+    'IStandardStatementConnectiveSyntax',
+    'IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective',
+    'IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective',
+    'IParagraphStatementConnectiveSyntax',
+    'IStandardParagraphStatementConnectiveSyntax',
+    'ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective',
+    'ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective',
+    'ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective',
+    'ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective',
+    'ParagraphStandardStatementConnectiveSyntax',
+    'ParagraphJekConnectiveSyntax',
+    'ParagraphJoiConnectiveSyntax',
+    'ParagraphSimpleIntervalConnectiveSyntax',
+    'ParagraphClosedIntervalConnectiveSyntax',
+    'ITagBoParagraphStatementConnectiveSyntax',
+    'ITagBoStatementConnectiveSyntax',
+    'CeheConnectiveSyntax',
+    'GihekConnectiveSyntax',
+    'GuhekConnectiveSyntax',
+    'BridiTailConnectiveSyntaxGihekConnective',
+    'BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail',
+    'BridiTailConnectiveSyntax',
+    'RelationConnectiveAsBridiTailSyntax',
+    'ModalForethoughtConnectiveSyntaxGaForethoughtConnective',
+    'ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective',
+    'ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective',
+    'ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective',
+    'ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective',
+    'ModalForethoughtConnectiveSyntax',
+    'GaForethoughtConnectiveSyntax',
+    'ZantufaInitialGiForethoughtConnectiveSyntax',
+    'JoikJekGiForethoughtConnectiveSyntax',
+    'JekGiForethoughtConnectiveSyntax',
+    'ModalGiForethoughtConnectiveSyntax',
+    'GikConnectiveSyntax',
+    'ZantufaExtraGikConnectiveSyntax',
+    'TenseModalSyntax',
+    'TenseModalBodySyntaxConnectedTenseModal',
+    'TenseModalBodySyntaxTenseModalAtom',
+    'TenseModalBodySyntax',
+    'ConnectedTenseModalSyntax',
+    'ConnectedTenseModalContinuationSyntax',
+    'TenseModalConnectiveSyntaxJoikConnective',
+    'TenseModalConnectiveSyntaxJekConnective',
+    'TenseModalConnectiveSyntax',
+    'TenseModalAtomSyntaxCompositeTense',
+    'TenseModalAtomSyntaxFihoTense',
+    'TenseModalAtomSyntaxModalTense',
+    'TenseModalAtomSyntaxNaheSeFlatPrefixedTense',
+    'TenseModalAtomSyntaxSeFlatPrefixedTense',
+    'TenseModalAtomSyntaxFaFlatTagTense',
+    'TenseModalAtomSyntaxZantufaRecursiveTagTense',
+    'TenseModalAtomSyntaxStickyTense',
+    'TenseModalAtomSyntax',
+    'FihoTenseSyntax',
+    'FaFlatTagTenseSyntax',
+    'FlatTagAtomSyntaxFaFlatTagAtom',
+    'FlatTagAtomSyntaxModalFlatTagAtom',
+    'FlatTagAtomSyntaxCompositeFlatTagAtom',
+    'FlatTagAtomSyntax',
+    'FaFlatTagAtomSyntax',
+    'ModalFlatTagAtomSyntax',
+    'CompositeFlatTagAtomSyntax',
+    'NaheSeFlatPrefixedTenseSyntax',
+    'SeFlatPrefixedTenseSyntax',
+    'ZantufaRecursiveTagTenseSyntax',
+    'CompositeTenseSyntaxPrefixedTimeSpaceCahaTense',
+    'CompositeTenseSyntaxTimeSpaceCahaKiTense',
+    'CompositeTenseSyntaxCuheTense',
+    'CompositeTenseSyntax',
+    'PrefixedTimeSpaceCahaTenseSyntax',
+    'TimeSpaceCahaKiTenseSyntax',
+    'TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense',
+    'TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense',
+    'TimeSpaceCahaTenseSyntaxCahaTense',
+    'TimeSpaceCahaTenseSyntax',
+    'TimeThenSpaceCahaTenseSyntax',
+    'SpaceThenTimeCahaTenseSyntax',
+    'TimeTenseSyntaxTimeTenseWithZi',
+    'TimeTenseSyntaxTimeTenseWithOffset',
+    'TimeTenseSyntaxTimeTenseWithInterval',
+    'TimeTenseSyntaxTimeTenseWithProperties',
+    'TimeTenseSyntax',
+    'TimeTenseWithZiSyntax',
+    'TimeTenseWithOffsetSyntax',
+    'TimeTenseWithIntervalSyntax',
+    'TimeTenseWithPropertiesSyntax',
+    'IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense',
+    'IntervalPropertyTenseSyntaxTaheIntervalPropertyTense',
+    'IntervalPropertyTenseSyntaxZahoIntervalPropertyTense',
+    'IntervalPropertyTenseSyntax',
+    'NumberedIntervalPropertyTenseSyntax',
+    'IntervalPropertyNumberWordsSyntax',
+    'IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation',
+    'IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation',
+    'IntervalPropertyNumberWordContinuationSyntax',
+    'IntervalPropertyNumberPaContinuationSyntax',
+    'IntervalPropertyNumberLetterContinuationSyntax',
+    'TaheIntervalPropertyTenseSyntax',
+    'ZahoIntervalPropertyTenseSyntax',
+    'PuTimeOffsetTenseSyntax',
+    'ZiTimeDistanceTenseSyntax',
+    'ZehaTimeIntervalTenseSyntax',
+    'SpaceTenseSyntaxSpaceTenseWithVa',
+    'SpaceTenseSyntaxSpaceTenseWithOffset',
+    'SpaceTenseSyntaxSpaceTenseWithInterval',
+    'SpaceTenseSyntaxSpaceTenseWithMohi',
+    'SpaceTenseSyntax',
+    'SpaceTenseWithVaSyntax',
+    'SpaceTenseWithOffsetSyntax',
+    'SpaceTenseWithIntervalSyntax',
+    'SpaceTenseWithMohiSyntax',
+    'VaSpaceDistanceTenseSyntax',
+    'FahaSpaceOffsetTenseSyntax',
+    'FahaIntervalDirectionTenseSyntax',
+    'SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense',
+    'SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense',
+    'SpaceIntervalTenseSyntax',
+    'SpaceIntervalWithExtentTenseSyntax',
+    'SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense',
+    'SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense',
+    'SpaceIntervalExtentTenseSyntax',
+    'SpaceIntervalPropertiesTenseSyntax',
+    'VehaSpaceIntervalTenseSyntax',
+    'VihaSpaceIntervalTenseSyntax',
+    'FeheIntervalPropertyTenseSyntax',
+    'MohiSpaceOffsetTenseSyntax',
+    'CahaTenseSyntax',
+    'KiCompositeTenseSyntax',
+    'CuheTenseSyntax',
+    'ModalTenseSyntax',
+    'StickyTenseSyntax',
+    'SelbriSyntaxTaggedSelbri',
+    'SelbriSyntaxUntaggedSelbri',
+    'SelbriSyntax',
+    'UntaggedSelbriSyntaxNegatedSelbri',
+    'UntaggedSelbriSyntaxCoSelbri',
+    'UntaggedSelbriSyntaxForethoughtSelbriConnection',
+    'UntaggedSelbriSyntax',
+    'TaggedSelbriSyntax',
+    'NegatedSelbriSyntax',
+    'CoSelbriSyntax',
+    'CoSelbriTailSyntax',
+    'ForethoughtSelbriConnectionSyntax',
+    'ForethoughtSelbriBranchSyntax',
+    'ZantufaForethoughtSelbriBranchSyntax',
+    'ConnectedSelbriSyntax',
+    'ConnectedSelbriContinuationSyntax',
+    'TanruSelbriSyntax',
+    'TanruUnitSyntax',
+    'TanruUnitContinuationSyntax',
+    'BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit',
+    'BoOrLinkedTanruUnitSyntaxBoundTanruUnit',
+    'BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit',
+    'BoOrLinkedTanruUnitSyntaxLinkedTanruUnit',
+    'BoOrLinkedTanruUnitSyntax',
+    'ForethoughtSelbriGroupTanruUnitSyntax',
+    'ForethoughtSelbriGroupBranchSyntax',
+    'ZantufaForethoughtSelbriGroupBranchSyntax',
+    'BoundTanruUnitSyntax',
+    'AssignedProBridiTanruUnitSyntax',
+    'ProBridiTanruUnitAssignmentSyntax',
+    'LinkedTanruUnitSyntax',
+    'LinkedTanruUnitForCeiSyntax',
+    'TanruUnitAtomForCeiSyntax',
+    'TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxWordTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit',
+    'TanruUnitAtomBaseForCeiSyntax',
+    'TanruUnitAtomSyntax',
+    'TanruUnitAtomBaseSyntaxOrdinalTanruUnit',
+    'TanruUnitAtomBaseSyntaxWordTanruUnit',
+    'TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit',
+    'TanruUnitAtomBaseSyntaxJaiModalTanruUnit',
+    'TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit',
+    'TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit',
+    'TanruUnitAtomBaseSyntaxAbstractionTanruUnit',
+    'TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit',
+    'TanruUnitAtomBaseSyntaxZantufaMeTanruUnit',
+    'TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit',
+    'TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit',
+    'TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit',
+    'TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit',
+    'TanruUnitAtomBaseSyntaxTextSelbriTanruUnit',
+    'TanruUnitAtomBaseSyntaxTagSelbriTanruUnit',
+    'TanruUnitAtomBaseSyntaxGohaWordTanruUnit',
+    'TanruUnitAtomBaseSyntaxProBridiTanruUnit',
+    'TanruUnitAtomBaseSyntaxGroupedTanruUnit',
+    'TanruUnitAtomBaseSyntax',
+    'TaggedSelbriGroupTanruUnitSyntax',
+    'PreposedLinkargsTanruUnitSyntax',
+    'ScalarNegatedTanruUnitSyntax',
+    'ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit',
+    'ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit',
+    'ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom',
+    'ScalarNegatedTanruInnerUnitSyntax',
+    'JaiModalTanruUnitSyntax',
+    'JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit',
+    'JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit',
+    'JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit',
+    'JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit',
+    'JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit',
+    'JaiInnerTanruUnitSyntaxTextSelbriTanruUnit',
+    'JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit',
+    'JaiInnerTanruUnitSyntaxOrdinalTanruUnit',
+    'JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit',
+    'JaiInnerTanruUnitSyntaxProBridiTanruUnit',
+    'JaiInnerTanruUnitSyntaxWordTanruUnit',
+    'JaiInnerTanruUnitSyntax',
+    'ConvertedJaiInnerTanruUnitSyntax',
+    'ScalarNegatedJaiInnerTanruUnitSyntax',
+    'QuotedBridiSelbriTanruUnitSyntax',
+    'TextSelbriTanruUnitSyntax',
+    'QuotedTextSelbriTanruUnitSyntax',
+    'TagSelbriTanruUnitSyntax',
+    'OrdinalTanruUnitSyntax',
+    'WordTanruUnitSyntax',
+    'GohaWordTanruUnitSyntax',
+    'ProBridiTanruUnitSyntax',
+    'SumtiSelbriTanruUnitSyntax',
+    'ZantufaMeTanruUnitSyntax',
+    'ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody',
+    'ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody',
+    'ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody',
+    'ZantufaMeSelbriBodySyntax',
+    'ZantufaMeOperatorSelbriBodySyntax',
+    'ZantufaMeMeksoSelbriBodySyntax',
+    'ZantufaMeTagSelbriBodySyntax',
+    'ZantufaMexMoiTanruUnitSyntax',
+    'SumtiSelbriSumtiSyntaxSumti',
+    'SumtiSelbriSumtiSyntaxMeLerfuSumti',
+    'SumtiSelbriSumtiSyntax',
+    'MeLerfuSumtiSyntax',
+    'OperatorSelbriTanruUnitSyntax',
+    'GroupedTanruUnitSyntax',
+    'GroupedJaiInnerTanruUnitSyntax',
+    'ConnectedJaiInnerSelbriSyntax',
+    'ConnectedJaiInnerSelbriContinuationSyntax',
+    'TanruJaiInnerSelbriSyntax',
+    'LinkedSumtiSyntaxPlaceTaggedLinkedSumti',
+    'LinkedSumtiSyntaxTenseTaggedLinkedSumti',
+    'LinkedSumtiSyntaxPlainLinkedSumti',
+    'LinkedSumtiSyntaxEmptyLinkedSumti',
+    'LinkedSumtiSyntax',
+    'PlaceTaggedLinkedSumtiSyntax',
+    'TenseTaggedLinkedSumtiSyntax',
+    'PlainLinkedSumtiSyntax',
+    'EmptyLinkedSumtiSyntax',
+    'BeiLinkSyntax',
+    'LinkargsSyntax',
+    'AbstractionTanruUnitSyntax',
+    'AbstractorConnectionSyntax',
+    'ZantufaStatementAbstractionTanruUnitSyntax',
+    'ZantufaAbstractorConnectionSyntax'
+)
