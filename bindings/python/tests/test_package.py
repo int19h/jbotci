@@ -582,7 +582,29 @@ def test_structured_error_conversion_uses_public_hierarchy() -> None:
         ("diagnostics", None),
         ("dialect", None),
         ("morphology", None),
-        ("syntax", ()),
+        (
+            "syntax",
+            (
+                "Chain",
+                "EmphasizedWithIndicators",
+                "IndicatorWithIndicators",
+                "MissingRequiredField",
+                "PlainWithIndicators",
+                "RecoveredError",
+                "RecoveredField",
+                "RecoveredPrefix",
+                "RecoveredValid",
+                "SkippedTokens",
+                "SyntaxRecoveryItem",
+                "Token",
+                "WithFreeModifiers",
+                "WithIndicators",
+                "recovered",
+                "strict",
+            ),
+        ),
+        ("syntax.strict", None),
+        ("syntax.recovered", None),
         ("dictionary", None),
         ("jvozba", ()),
         ("semantics", ("references",)),
@@ -603,6 +625,20 @@ def test_typed_namespace_is_importable(
 def test_stub_composition_is_current() -> None:
     result = subprocess.run(
         [sys.executable, str(PACKAGE_ROOT / "tools" / "compose_stubs.py"), "--check"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_syntax_model_generation_is_current() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PACKAGE_ROOT / "tools" / "generate_syntax_models.py"),
+            "--check",
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -878,7 +914,11 @@ def _stub_match_args_arity(annotation: ast.expr) -> int:
 
 
 def test_native_stub_sources_and_output_do_not_use_any() -> None:
-    for stub_path in (*FRAGMENTS, OUTPUT):
+    generated_syntax_stubs = (
+        PACKAGE_ROOT / "python" / "jbotci" / "syntax" / "strict.pyi",
+        PACKAGE_ROOT / "python" / "jbotci" / "syntax" / "recovered.pyi",
+    )
+    for stub_path in (*FRAGMENTS, OUTPUT, *generated_syntax_stubs):
         source_text = stub_path.read_text(encoding="utf-8")
         assert _STANDALONE_ANY.search(source_text) is None, stub_path.relative_to(
             PACKAGE_ROOT

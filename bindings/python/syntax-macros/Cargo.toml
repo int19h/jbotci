@@ -1,0 +1,25 @@
+[package]
+name = "jbotci-python-syntax-macros"
+description = "Binding-only consumer for the canonical jbotci syntax schema."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+bityzba.workspace = true
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+
+[build-dependencies]
+bityzba = { workspace = true, features = ["contract_scanner"] }
+
+[lints]
+workspace = true

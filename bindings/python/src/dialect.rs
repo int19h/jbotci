@@ -33,7 +33,7 @@ use pyo3::types::{PyAny, PyModule, PyTuple};
 use crate::InvalidInputError;
 use crate::support::{
     PythonStringEnum, extract_sequence, extract_string_enum, register_private_object,
-    register_string_enum, register_type, sequence_to_tuple, string_enum_member, string_repr,
+    register_string_enum, register_type, sequence_to_tuple, string_enum_member,
 };
 
 const PUBLIC_MODULE: &str = "jbotci.dialect";
