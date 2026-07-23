@@ -1,0 +1,335 @@
+version = 1
+
+# This catalog validates classifications after discovery from the pinned Git tree. It is never an
+# input to source-universe discovery. Every path is exact; generation rejects missing, duplicate,
+# unused, or newly discovered paths and every migration selector must match exactly one rule.
+
+[[python-files]]
+path = "bindings/python/python/jbotci/__init__.py"
+class = "binding-runtime"
+reason = "Public Python package runtime module; current tersmu APIs are not exposed here."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/_errors.py"
+class = "binding-runtime"
+reason = "Python binding error-conversion runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/_native.pyi"
+class = "binding-stub"
+reason = "Composed native-extension stub output; inventoried independently of current tersmu exposure."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/_validation.py"
+class = "binding-runtime"
+reason = "Python binding validation runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/diagnostics.py"
+class = "binding-runtime"
+reason = "Python diagnostics binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/dialect.py"
+class = "binding-runtime"
+reason = "Python dialect binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/dictionary.py"
+class = "binding-runtime"
+reason = "Python dictionary binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/jvozba.py"
+class = "binding-runtime"
+reason = "Python jvozba binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/morphology.py"
+class = "binding-runtime"
+reason = "Python morphology binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/semantics/__init__.py"
+class = "binding-runtime"
+reason = "Reserved typed semantics namespace; it exposes no current tersmu graph API."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/semantics/references.py"
+class = "binding-runtime"
+reason = "Reserved typed semantic-reference namespace; it exposes no current tersmu graph API."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/source.py"
+class = "binding-runtime"
+reason = "Python source-location binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/python/jbotci/syntax.py"
+class = "binding-runtime"
+reason = "Python syntax binding runtime; no current tersmu surface."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/diagnostics.pyi"
+class = "binding-stub"
+reason = "Native diagnostics stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/dialect.pyi"
+class = "binding-stub"
+reason = "Native dialect stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/dictionary.pyi"
+class = "binding-stub"
+reason = "Native dictionary stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/domain_enums.pyi"
+class = "binding-stub"
+reason = "Generated native domain-enum stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/generated.pyi"
+class = "binding-stub"
+reason = "Generated native binding stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/manual.pyi"
+class = "binding-stub"
+reason = "Manual native binding stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/morphology.pyi"
+class = "binding-stub"
+reason = "Native morphology stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/stubs/_native/source.pyi"
+class = "binding-stub"
+reason = "Native source-location stub fragment; no current tersmu declaration."
+
+[[python-files]]
+path = "bindings/python/tests/test_dictionary.py"
+class = "binding-test"
+reason = "Python dictionary binding runtime test; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/test_morphology.py"
+class = "binding-test"
+reason = "Python morphology binding runtime test; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/test_package.py"
+class = "binding-test"
+reason = "Python package smoke test; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/test_source_diagnostics_dialect.py"
+class = "binding-test"
+reason = "Python source/diagnostics/dialect binding test; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/test_typing_failures.py"
+class = "binding-test"
+reason = "Python binding negative typing harness; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/typecheck.py"
+class = "binding-test"
+reason = "Python binding typecheck driver; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/typing_failures/dictionary_misuse.py"
+class = "binding-test"
+reason = "Expected dictionary typing failure; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/typing_failures/morphology_returned_only.py"
+class = "binding-test"
+reason = "Expected morphology typing failure; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tests/typing_failures/sequence_misuse.py"
+class = "binding-test"
+reason = "Expected sequence typing failure; outside current tersmu behavior."
+
+[[python-files]]
+path = "bindings/python/tools/compose_stubs.py"
+class = "binding-maintenance"
+reason = "Binding stub composition tool; no current tersmu declaration or invocation."
+
+[[python-files]]
+path = "bindings/python/tools/generate_domain_enum_stubs.py"
+class = "binding-maintenance"
+reason = "Binding domain-enum stub generator; no current tersmu declaration or invocation."
+
+[[python-files]]
+path = "scripts/verify-domain-import-fixtures.py"
+class = "semantic-fixture-verifier"
+reason = "Executable migration verifier for the tersmu domainImport fixture surface."
+
+[[python-files]]
+path = "scripts/verify-recovery-marker-fixture-migration.py"
+class = "recovery-fixture-maintenance"
+reason = "Recovery-marker fixture migration verifier with no tersmu semantic occurrence."
+
+[[python-files]]
+path = "scripts/verify_issue_368_cli_compatibility.py"
+class = "semantic-fixture-verifier"
+reason = "Executable two-binary compatibility gate for tersmu CLI formats and defaults."
+
+[[python-files]]
+path = "scripts/verify_issue_368_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #368 tersmu fixture migration gate."
+
+[[python-files]]
+path = "scripts/verify_issue_373_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #373 tersmu fixture migration gate."
+
+[[python-files]]
+path = "scripts/verify_issue_374_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #374 semantics fixture migration gate, including the TanruLink witness."
+
+[[python-files]]
+path = "scripts/verify_issue_376_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #376 allowlist and tersmu fixture migration gate."
+
+[[python-files]]
+path = "scripts/verify_issue_377_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #377 semantics and fixture migration gate."
+
+[[python-files]]
+path = "scripts/verify_issue_378_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #378 behavior-matrix and fixture migration gate."
+
+[[python-files]]
+path = "scripts/verify_issue_379_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #379 behavior-matrix and fixture migration gate."
+
+[[python-files]]
+path = "scripts/verify_issue_394_fixture_migration.py"
+class = "semantic-fixture-verifier"
+reason = "Executable issue #394 renderer-only tersmu fixture migration gate."
+
+[[python-files]]
+path = "tools/compare-recovery-fixture-expectations.py"
+class = "recovery-fixture-maintenance"
+reason = "Recovery-fixture expectation comparison utility with no tersmu semantic occurrence."
+
+[[python-files]]
+path = "tools/embedding-pack/f2llm/build-vector-pack.py"
+class = "embedding-artifact-tooling"
+reason = "Embedding vector-pack build utility with no tersmu semantic occurrence."
+
+[[python-files]]
+path = "tools/embedding-pack/f2llm/export-webgpu-from-onnx-q4.py"
+class = "embedding-artifact-tooling"
+reason = "Embedding WebGPU export utility with no tersmu semantic occurrence."
+
+[[python-files]]
+path = "tools/embedding-pack/f2llm/validate-vector-pack.py"
+class = "embedding-artifact-tooling"
+reason = "Embedding vector-pack validator with no tersmu semantic occurrence."
+
+[[python-files]]
+path = "tools/embedding-pack/f2llm/validate-webgpu-artifact.py"
+class = "embedding-artifact-tooling"
+reason = "Embedding WebGPU artifact validator with no tersmu semantic occurrence."
+
+[[python-files]]
+path = "tools/verify-discourse-fixture-updates.py"
+class = "semantic-fixture-verifier"
+reason = "Executable old/current binary verifier for discourse-related tersmu fixture updates."
+
+[[python-files]]
+path = "tools/xarsnu/scripts/bisect-openrouter-request.py"
+class = "xarsnu-service-tooling"
+reason = "xarsnu OpenRouter request bisection utility; no current tersmu semantic occurrence."
+
+[[python-files]]
+path = "tools/xarsnu/scripts/import-bickr-openrouter-capabilities.py"
+class = "xarsnu-service-tooling"
+reason = "xarsnu OpenRouter capability import utility; no current tersmu semantic occurrence."
+
+[[executable-consumers]]
+path = "apps/jbotci/src/commands/tersmu.rs"
+language = "rust"
+consumer-kind = "cli-command"
+cli-formats = ["json", "tree", "tree+proj"]
+cli-default = "tree+proj"
+error-surfaces = ["morphology diagnostics", "syntax diagnostics", "semantic build diagnostics"]
+hard-coded-tokens = ["tersmu", "json", "tree", "tree+proj"]
+binary-assumptions = ["in-process jbotci CLI command"]
+exact-invocation = "jbotci tersmu [--format json|tree|tree+proj] <LOJBAN>"
+downstream-migration-owners = [579, 581]
+lifecycle-disposition = "adapt-and-run"
+
+[[executable-consumers]]
+path = "apps/jbotci/src/tool.rs"
+language = "rust"
+consumer-kind = "typed-tool-surface"
+cli-formats = ["json", "tree", "tree+proj"]
+cli-default = "tree+proj"
+error-surfaces = ["typed tool error string"]
+hard-coded-tokens = ["tersmu", "tree+proj"]
+binary-assumptions = ["in-process shared library surface"]
+exact-invocation = "TersmuRequest::run()"
+downstream-migration-owners = [581]
+lifecycle-disposition = "adapt-and-run"
+
+[[executable-consumers]]
+path = "apps/jbotci-server/src/lib.rs"
+language = "rust"
+consumer-kind = "server-delivery-surface"
+cli-formats = ["json", "tree", "tree+proj"]
+cli-default = "tree+proj"
+error-surfaces = ["HTTP/MCP tool result error surface"]
+hard-coded-tokens = ["tersmu", "tree+proj"]
+binary-assumptions = ["in-process jbotci server"]
+exact-invocation = "jbotci-server tersmu tool dispatch"
+downstream-migration-owners = [581]
+lifecycle-disposition = "adapt-and-run"
+
+[[executable-consumers]]
+path = "apps/jbotci-server/src/mcp.rs"
+language = "rust"
+consumer-kind = "mcp-protocol-surface"
+cli-formats = ["json", "tree", "tree+proj"]
+cli-default = "tree+proj"
+error-surfaces = ["MCP tools/call error result"]
+hard-coded-tokens = ["tersmu", "tree+proj"]
+binary-assumptions = ["MCP protocol 2025-06-18"]
+exact-invocation = "MCP tools/call name=tersmu"
+downstream-migration-owners = [581]
+lifecycle-disposition = "adapt-and-run"
+
+[[executable-consumers]]
+path = "xtask-full/src/semantics_coverage.rs"
+language = "rust"
+consumer-kind = "semantic-fixture-coverage-harness"
+error-surfaces = ["semantic builder errors", "panic classification"]
+fixture-reads = ["tests/fixtures"]
+hard-coded-tokens = ["generated semantic builder does not yet support"]
+binary-assumptions = ["in-process syntax and semantic libraries"]
+exact-invocation = "cargo run -r -p xtask-full -- semantics-coverage"
+allowlist-count-hash-pins = ["tests/semantics-coverage-allowlist.txt"]
+downstream-migration-owners = [579]
+lifecycle-disposition = "adapt-and-run"
+
+# Python executable-consumer rows are added only after their lifecycle ASK is answered.
+
+[[migration-rules]]
+id = "source-scaffold-placeholder"
+paths = ["crates/jbotci-semantics/src/lib.rs"]
+record-families = ["file"]
+disposition = "retain"
+primary-owner = 569
+rationale = "Exact source-file ownership rule for the semantic crate root."

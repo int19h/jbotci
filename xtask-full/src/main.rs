@@ -63,9 +63,11 @@ use xtask_common::service_worker::{
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
 mod semantic_doc_audit;
+mod semantic_source_inventory;
 mod semantics_coverage;
 
 use semantic_doc_audit::SemanticDocAuditArgs;
+use semantic_source_inventory::SemanticSourceInventoryArgs;
 use semantics_coverage::SemanticsCoverageArgs;
 
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
@@ -199,6 +201,7 @@ struct Cli {
 #[invariant(::FixtureTest(..) => true)]
 #[invariant(::SemanticsCoverage(..) => true)]
 #[invariant(::SemanticDocAudit(..) => true)]
+#[invariant(::SemanticSourceInventory(..) => true)]
 #[invariant(::SyntaxParserBenchmark(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::VendorWiki(..) => true)]
@@ -234,6 +237,8 @@ enum Command {
     SemanticsCoverage(SemanticsCoverageArgs),
     #[command(name = "semantic-doc-audit")]
     SemanticDocAudit(SemanticDocAuditArgs),
+    #[command(name = "semantic-source-inventory")]
+    SemanticSourceInventory(SemanticSourceInventoryArgs),
     #[command(name = "syntax-parser-benchmark")]
     SyntaxParserBenchmark(SyntaxParserBenchmarkArgs),
     VendorDictionary(VendorDictionaryArgs),
@@ -1114,6 +1119,7 @@ fn main() -> Result<()> {
         Command::FixtureTest(args) => fixture_test(args),
         Command::SemanticsCoverage(args) => semantics_coverage::run(args),
         Command::SemanticDocAudit(args) => semantic_doc_audit::run(args),
+        Command::SemanticSourceInventory(args) => semantic_source_inventory::run(args),
         Command::SyntaxParserBenchmark(args) => syntax_parser_benchmark(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::VendorWiki(args) => vendor_wiki(args),
