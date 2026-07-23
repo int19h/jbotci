@@ -29,7 +29,7 @@ def _syntax_construct(module_name: str, class_id: int, fields: tuple[object, ...
 @final
 class _syntax_Token:
     __match_args__: ClassVar[tuple[str]]
-    __hash__: ClassVar[None]
+    __hash__: ClassVar[None]  # type: ignore[assignment]
     def __new__(cls, indicators: _SyntaxWithIndicators) -> _syntax_Token: ...
     @property
     def indicators(self) -> _SyntaxWithIndicators: ...
@@ -45,7 +45,7 @@ class _syntax_Token:
 @final
 class _syntax_PlainWithIndicators:
     __match_args__: ClassVar[tuple[str]]
-    __hash__: ClassVar[None]
+    __hash__: ClassVar[None]  # type: ignore[assignment]
     def __new__(cls, word_like: _MorphologyWordLike) -> _syntax_PlainWithIndicators: ...
     @property
     def word_like(self) -> _MorphologyWordLike: ...
@@ -56,7 +56,7 @@ class _syntax_PlainWithIndicators:
 @final
 class _syntax_EmphasizedWithIndicators:
     __match_args__: ClassVar[tuple[str, str, str]]
-    __hash__: ClassVar[None]
+    __hash__: ClassVar[None]  # type: ignore[assignment]
     def __new__(
         cls,
         bahe: _MorphologyWord,
@@ -76,7 +76,7 @@ class _syntax_EmphasizedWithIndicators:
 @final
 class _syntax_IndicatorWithIndicators:
     __match_args__: ClassVar[tuple[str, str, str, str, str]]
-    __hash__: ClassVar[None]
+    __hash__: ClassVar[None]  # type: ignore[assignment]
     def __new__(
         cls,
         base: _SyntaxWithIndicators,
@@ -104,7 +104,7 @@ _SyntaxWithIndicators = _syntax_PlainWithIndicators | _syntax_EmphasizedWithIndi
 @final
 class _syntax_SkippedTokens:
     __match_args__: ClassVar[tuple[str, str]]
-    __hash__: ClassVar[None]
+    __hash__: ClassVar[None]  # type: ignore[assignment]
     def __new__(cls, error_index: int, tokens: Sequence[_syntax_Token]) -> _syntax_SkippedTokens: ...
     @property
     def error_index(self) -> int: ...
@@ -116,7 +116,7 @@ class _syntax_SkippedTokens:
 @final
 class _syntax_MissingRequiredField:
     __match_args__: ClassVar[tuple[str, str, str]]
-    __hash__: ClassVar[None]
+    __hash__: ClassVar[None]  # type: ignore[assignment]
     def __new__(
         cls,
         error_index: int,

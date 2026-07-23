@@ -407,6 +407,17 @@ impl ProjectionMode {
     }
 }
 
+// One dispatcher match arm together with the outlined function holding its
+// body.  Arm bodies must live in dedicated `#[inline(never)]` functions: an
+// unoptimized build gives every inline arm's locals distinct stack slots, so a
+// schema-wide dispatcher with all bodies inline accumulates a multi-megabyte
+// frame and overflows the default thread stack on entry.
+#[invariant(true)]
+struct OutlinedMatchArm {
+    function: TokenStream2,
+    arm: TokenStream2,
+}
+
 #[invariant(
     true,
     "metadata is validated structurally even when not emitted publicly"
@@ -1811,8 +1822,10 @@ fn render_stub_class(
         )
         .expect("writing to String cannot fail");
     }
+    // `__hash__: ClassVar[None]` is the typeshed idiom for unhashable classes;
+    // the ignore is required because it overrides `object.__hash__`.
     output.push_str(
-        "    __hash__: ClassVar[None]\n    def same_identity(self, other: object, /) -> bool: ...\n    def __repr__(self, /) -> str: ...\n    def __eq__(self, other: object, /) -> bool: ...\n\n",
+        "    __hash__: ClassVar[None]  # type: ignore[assignment]\n    def same_identity(self, other: object, /) -> bool: ...\n    def __repr__(self, /) -> str: ...\n    def __eq__(self, other: object, /) -> bool: ...\n\n",
     );
 }
 
@@ -2500,7 +2513,7 @@ fn constructor_arm(
     shape: Shape,
     fields: &[Field],
     mode: ProjectionMode,
-) -> TokenStream2 {
+) -> OutlinedMatchArm {
     let module = LitStr::new(mode.module_name(), proc_macro2::Span::call_site());
     let field_count = fields.len();
     let field_bindings = fields
@@ -2552,8 +2565,14 @@ fn constructor_arm(
             }
         },
     };
-    quote! {
-        (#module, #class_id) => {
+    let fn_name = format_ident!("construct_{}_{}", mode.mode_name(), class_id);
+    let function = quote! {
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(ret.is_ok() || ret.is_err())]
+        #[inline(never)]
+        fn #fn_name(
+            fields: &::pyo3::Bound<'_, ::pyo3::types::PyTuple>,
+        ) -> ::pyo3::PyResult<PySyntaxValue> {
             if fields.len() != #field_count {
                 return Err(::pyo3::exceptions::PyTypeError::new_err(format!(
                     "{} constructor requires exactly {} fields, received {}",
@@ -2575,11 +2594,15 @@ fn constructor_arm(
             let handle = ::bityzba::new!(SyntaxHandle {
                 owner,
                 path: ::jbotci_tree::TreePath::new(),
-                class_id,
+                class_id: #class_id,
             });
             Ok(PySyntaxValue { handle })
         }
-    }
+    };
+    let arm = quote! {
+        (#module, #class_id) => #fn_name(fields)
+    };
+    OutlinedMatchArm { function, arm }
 }
 
 #[requires(!schema.models.is_empty())]
@@ -2640,7 +2663,15 @@ fn expand_constructors(schema: &Schema) -> TokenStream2 {
             }
         }
     }
+    let functions = strict_arms
+        .iter()
+        .chain(&recovered_arms)
+        .map(|outlined| &outlined.function);
+    let strict_arms = strict_arms.iter().map(|outlined| &outlined.arm);
+    let recovered_arms = recovered_arms.iter().map(|outlined| &outlined.arm);
     quote! {
+        #(#functions)*
+
         #[bityzba::requires(true)]
         #[bityzba::ensures(ret.is_ok() || ret.is_err())]
         #[::pyo3::pyfunction]
@@ -3342,7 +3373,7 @@ fn with_indicators_resolution_arms_for_fields(
     fields: &[Field],
     mode: ProjectionMode,
     class_id: usize,
-) -> Vec<TokenStream2> {
+) -> Vec<OutlinedMatchArm> {
     let node_ident = match variant_name {
         Some(variant) => format_ident!("{model_name}{variant}"),
         None => format_ident!("{model_name}"),
@@ -3373,8 +3404,25 @@ fn with_indicators_resolution_arms_for_fields(
                 ProjectionMode::Strict => quote!(SyntaxRoot::Strict { value: root }),
                 ProjectionMode::Recovered => quote!(SyntaxRoot::Recovered { value: root }),
             };
-            quote! {
-                (#root_pattern, #class_id, #index) => {
+            let root_type = match mode {
+                ProjectionMode::Strict => quote!(StrictSyntaxRoot),
+                ProjectionMode::Recovered => quote!(RecoveredSyntaxRoot),
+            };
+            let fn_name = format_ident!(
+                "with_indicators_{}_{}_{}",
+                mode.mode_name(),
+                class_id,
+                index,
+            );
+            let function = quote! {
+                #[bityzba::requires(true)]
+                #[bityzba::ensures(true)]
+                #[inline(never)]
+                fn #fn_name<'a>(
+                    root: &'a #root_type,
+                    path: &::jbotci_tree::TreePath,
+                    remaining: &[usize],
+                ) -> Option<&'a ::jbotci_syntax::WithIndicators<::jbotci_morphology::WordLike>> {
                     let node = root.node_at_path(path)?;
                     let #node_pattern = node else {
                         return None;
@@ -3382,7 +3430,11 @@ fn with_indicators_resolution_arms_for_fields(
                     let value = #access;
                     #resolution
                 }
-            }
+            };
+            let arm = quote! {
+                (#root_pattern, #class_id, #index) => #fn_name(root, path, remaining)
+            };
+            OutlinedMatchArm { function, arm }
         })
         .collect()
 }
@@ -3426,7 +3478,7 @@ fn projection_arms_for_fields(
     fields: &[Field],
     mode: ProjectionMode,
     class_id: usize,
-) -> Vec<TokenStream2> {
+) -> Vec<OutlinedMatchArm> {
     let node_ident = match variant_name {
         Some(variant) => format_ident!("{model_name}{variant}"),
         None => format_ident!("{model_name}"),
@@ -3468,8 +3520,20 @@ fn projection_arms_for_fields(
                 ProjectionMode::Strict => quote!(SyntaxRoot::Strict { value: root }),
                 ProjectionMode::Recovered => quote!(SyntaxRoot::Recovered { value: root }),
             };
-            quote! {
-                (#root_pattern, #class_id, #index) => {
+            let root_type = match mode {
+                ProjectionMode::Strict => quote!(StrictSyntaxRoot),
+                ProjectionMode::Recovered => quote!(RecoveredSyntaxRoot),
+            };
+            let fn_name = format_ident!("project_{}_{}_{}", mode.mode_name(), class_id, index,);
+            let function = quote! {
+                #[bityzba::requires(true)]
+                #[bityzba::ensures(ret.is_ok() || ret.is_err())]
+                #[inline(never)]
+                fn #fn_name(
+                    py: ::pyo3::Python<'_>,
+                    handle: &SyntaxHandle,
+                    root: &#root_type,
+                ) -> ::pyo3::PyResult<::pyo3::Py<::pyo3::PyAny>> {
                     handle.owner.record_projection();
                     let node = root.node_at_path(&handle.path).ok_or_else(|| {
                         ::pyo3::exceptions::PyValueError::new_err(
@@ -3486,7 +3550,11 @@ fn projection_arms_for_fields(
                     field_path.push(::jbotci_tree::TreePathStep::field(#field_name, #index));
                     #projection
                 }
-            }
+            };
+            let arm = quote! {
+                (#root_pattern, #class_id, #index) => #fn_name(py, handle, root)
+            };
+            OutlinedMatchArm { function, arm }
         })
         .collect()
 }
@@ -3565,7 +3633,17 @@ fn expand_field_projection(schema: &Schema) -> TokenStream2 {
             }
         }
     }
+    let projection_functions = arms.iter().map(|outlined| &outlined.function);
+    let arms = arms.iter().map(|outlined| &outlined.arm);
+    let with_indicators_functions = with_indicators_arms
+        .iter()
+        .map(|outlined| &outlined.function);
+    let with_indicators_arms = with_indicators_arms.iter().map(|outlined| &outlined.arm);
     quote! {
+        #(#projection_functions)*
+
+        #(#with_indicators_functions)*
+
         #[bityzba::requires(true)]
         #[bityzba::ensures(ret.is_ok() || ret.is_err())]
         fn project_syntax_field(

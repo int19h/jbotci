@@ -54,4 +54,4 @@ class _SyntaxNode:
         assert isinstance(other, _SyntaxNode)
         return self._native._structural_eq(other._native)
 
-    __hash__ = None
+    __hash__ = None  # type: ignore[assignment]

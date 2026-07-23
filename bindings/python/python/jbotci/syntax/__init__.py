@@ -51,7 +51,7 @@ class _ImmutableValue:
     def __setattr__(self, name: str, value: object) -> None:
         raise AttributeError(f"{type(self).__name__} is immutable")
 
-    __hash__ = None
+    __hash__ = None  # type: ignore[assignment]
 
 
 @final
