@@ -41,6 +41,32 @@ def dictionary_batch(words: tuple[str, ...]) -> tuple[str | None, ...]:
     return dictionary.english.first_gloss_keywords_for_words(words)
 
 
+def dictionary_pronunciation_targets(
+    word: str,
+) -> tuple[int, tuple[int, ...], float] | None:
+    """Exercise target views, returned identifiers, and concrete realizations."""
+    entry = dictionary.english.lookup_word(word)
+    if entry is None:
+        return None
+    index = dictionary.english.entry_index_for_entry(entry)
+    if index is None:
+        return None
+    sound = next(
+        (value for value in dictionary.english.sound_index if value.entry_index == index),
+        None,
+    )
+    if sound is None:
+        return None
+    sequence: dictionary.PronunciationTargetSequenceView = sound.pronunciation_targets
+    target: dictionary.PronunciationTargetId = sequence.targets[0]
+    realization: dictionary.IpaSegmentId | None = target.realization(0)
+    values = tuple(value.value for value in target.realizations)
+    if realization is not None:
+        assert realization.value == values[0]
+    assert target.realization(-1) is None
+    return (target.value, values, sequence.self_similarity)
+
+
 def typed_source_and_diagnostics(text: str) -> diagnostics.Diagnostic:
     """Exercise source and immutable diagnostic result declarations."""
 
