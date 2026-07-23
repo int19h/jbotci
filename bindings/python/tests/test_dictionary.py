@@ -742,7 +742,7 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
     )
     assert str(
         inspect.signature(dictionary.PronunciationTargetSequenceView.target_count)
-    ) == "(self)"
+    ) == "(self, /)"
     assert not hasattr(dictionary.PronunciationTargetId, "__match_args__")
     assert not hasattr(dictionary.PronunciationTargetSequenceView, "__match_args__")
 
@@ -829,7 +829,8 @@ def test_pronunciation_target_runtime_and_stub_shape_is_exact() -> None:
         for statement in classes["_dictionary_PronunciationTargetSequenceView"].body
         if isinstance(statement, ast.FunctionDef) and statement.name == "target_count"
     )
-    assert [argument.arg for argument in sequence_count.args.args] == ["self"]
+    assert [argument.arg for argument in sequence_count.args.posonlyargs] == ["self"]
+    assert sequence_count.args.args == []
 
     sound_class = classes["_dictionary_DictionarySoundEntry"]
     sound_properties = {
