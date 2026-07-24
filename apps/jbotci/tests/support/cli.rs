@@ -1571,7 +1571,15 @@ fn gentufa_mahoi_quotes_have_exact_bracket_output() {
             let run = run_cli_capture(args, false);
             assert_eq!(run.status, CliStatus::Success, "{args:?}");
             assert_eq!(run.stdout, expected_stdout, "{args:?}");
-            assert!(run.stderr.is_empty(), "{args:?}: {}", run.stderr);
+            // `ma'oi` is experimental syntax: a valid parse stays successful but
+            // must still surface the experimental-cmavo warning on stderr.
+            assert!(
+                run.stderr
+                    .contains("syntax.warning.experimental-cmavo"),
+                "{args:?}: {}",
+                run.stderr
+            );
+            assert!(run.stderr.contains("ma'oi"), "{args:?}: {}", run.stderr);
         }
     });
 }
@@ -2428,7 +2436,6 @@ fn gentufa_indent_zero_makes_json_single_line() {
 }
 
 #[test]
-#[ignore = "generated syntax CLI output temporarily has no generated syntax warnings"]
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_warnings_go_to_stderr() {
@@ -2830,7 +2837,6 @@ fn vlasei_trace_writes_morphology_stderr() {
 }
 
 #[test]
-#[ignore = "generated syntax CLI output temporarily has no generated syntax warnings"]
 #[requires(true)]
 #[ensures(true)]
 fn warning_context_includes_verbatim_quote_text() {

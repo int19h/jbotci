@@ -124,9 +124,22 @@ fn render_gentufa(
         &parse_options,
     );
     let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
-    let generated_model =
+    // A valid (non-recovered) parse can still carry warnings (e.g. experimental
+    // syntax). They are advisory, not errors, so the command stays successful,
+    // but the warnings must still reach stderr just like on the recovered path.
+    let (generated_model, syntax_warning_diagnostics) =
         match parsed.result.into_data() {
-            data!(SyntaxRecoveryParse::Valid { parse }) => parse.into_data().parse_tree,
+            data!(SyntaxRecoveryParse::Valid { parse }) => {
+                let parsed = parse.into_data();
+                let syntax_warning_diagnostics = parsed
+                    .warnings
+                    .iter()
+                    .map(|warning| {
+                        warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    })
+                    .collect::<Vec<_>>();
+                (parsed.parse_tree, syntax_warning_diagnostics)
+            }
             data!(SyntaxRecoveryParse::Recovered { parse }) => {
                 let stdout = render_recovered_gentufa_output(
                     &parse,
@@ -164,7 +177,8 @@ fn render_gentufa(
                 }));
             }
         };
-    let diagnostics = morphology_diagnostics;
+    let mut diagnostics = morphology_diagnostics;
+    diagnostics.extend(syntax_warning_diagnostics);
     let mut stderr = morphology_trace_stderr;
     stderr.push_str(&render_source_diagnostics(
         &source_label,
