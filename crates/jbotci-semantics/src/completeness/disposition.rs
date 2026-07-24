@@ -9,13 +9,18 @@
 //! actual output against these dispositions.
 //!
 //! Policy (evidence-grounded where possible):
-//! * Source-provenance surfaces (`SemanticSource`, `SourceByteSpan`, and the
-//!   `SemanticObjectCommon.source` link) are `ExcludedWithReason`: they carry no
-//!   coordinate in any frozen `lean3` sample output — `lean3` renders semantic
-//!   content, not source spans.
-//! * The three explicit `NOT COMPUTED` derived facts are `NotComputedDeclared`
+//! * A field whose *type* is `SemanticSource`/`SourceByteSpan` (every `.source`
+//!   link, wherever it nests, plus the two provenance structs' own fields) is
+//!   `ExcludedWithReason`: source provenance carries no coordinate in any frozen
+//!   `lean3` sample. Excluding by type — not by field name — keeps lexical
+//!   `source` fields such as `Connector.source` (a word, not a `SemanticSource`)
+//!   rendering.
+//! * Exactly one document-level `NOT COMPUTED` fact
+//!   (`not-computed:denotation-multiplicity`) is `NotComputedDeclared`
 //!   (evidence: the `NOT COMPUTED { denotation-multiplicity; }` block present in
-//!   every frozen `lean3` sample).
+//!   every frozen `lean3` sample). The tested-winner role wordings ALL HOLD /
+//!   ROLE FOR are *rendered* wordings (FREEZE-PHASE-B.md (d)), so they RENDER —
+//!   they are unexercised by the corpus, not uncomputed.
 //! * Everything else — content fields, enum variants, content-bearing derived
 //!   facts — is `Renders`, per DESIGN-RECORD.md's "content-complete rendering".
 //!   Absent optionals stay `Renders` (they surface as `UNSPECIFIED`, not as a
@@ -34,28 +39,74 @@ use super::model::{
 const SOURCE_PROVENANCE_REASON: &str =
     "source provenance; lean3 renders semantic content, not source spans (absent from every frozen lean3 sample output)";
 
-/// The three document-level `NOT COMPUTED` facts the frozen `lean3` renderer
-/// declares rather than computes.
-#[requires(true)]
-#[ensures(true)]
-fn is_not_computed_fact(entry: &InventoryEntry) -> bool {
-    entry.kind == EntryKind::DerivedFact
-        && (entry.field.starts_with("not-computed:")
-            || entry.field == "fact:role-composition-all-hold"
-            || entry.field == "fact:role-binding-role-for")
-}
+/// The single document-level `NOT COMPUTED` fact `lean3` declares rather than
+/// computes. (ALL HOLD / ROLE FOR are rendered wordings, not NOT COMPUTED.)
+const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 
-/// True for the source-provenance surfaces `lean3` deliberately omits.
+/// Surfaces whose `source` field is a `SemanticSource` provenance link (the 13
+/// object kinds carry it via `SemanticObjectCommon`; the rest are value structs).
+/// Derived from the model type graph and pinned by the `provenance_is_type_based`
+/// test, which fails if the set drifts from the `SemanticSource`-typed fields.
+/// `Connector.source` is deliberately absent — its type is `String` (a lexical
+/// word), so it renders.
+const SOURCE_LINK_SURFACES: &[&str] = &[
+    // object kinds (source via SemanticObjectCommon)
+    "Utterance",
+    "Sequence",
+    "Eventuality",
+    "Referent",
+    "Sign",
+    "Parameter",
+    "Predication",
+    "Formula",
+    "DisplayedContent",
+    "MathExpression",
+    "Quantity",
+    "RelationMetadata",
+    "Question",
+    // value structs
+    "AnchorMagnitude",
+    "ArgumentValue",
+    "AssignedName",
+    "DisplayedContentModifier",
+    "ModalArgument",
+    "OrdinalLabel",
+    "PlaceQuestionBinding",
+    "QuantifierBinding",
+    "ReciprocalExchange",
+    "Recurrence",
+    "RelativeClause",
+    "Subscript",
+];
+
+/// True for a `SemanticSource`/`SourceByteSpan` value or a `SemanticSource`-typed
+/// `source` link on any surface.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret == (matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
+    || (entry.field == "source" && SOURCE_LINK_SURFACES.contains(&entry.surface.name))))]
 fn is_source_provenance(entry: &InventoryEntry) -> bool {
     matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
-        || (entry.surface.name == "SemanticObjectCommon" && entry.field == "source")
+        || (entry.field == "source" && SOURCE_LINK_SURFACES.contains(&entry.surface.name))
+}
+
+/// True for the one declared document-level NOT COMPUTED fact.
+#[requires(true)]
+#[ensures(ret == (entry.kind == EntryKind::DerivedFact && entry.field == NOT_COMPUTED_FACT))]
+fn is_not_computed_fact(entry: &InventoryEntry) -> bool {
+    entry.kind == EntryKind::DerivedFact && entry.field == NOT_COMPUTED_FACT
 }
 
 /// The baseline disposition for a single entry under the `lean3` design intent.
+///
+/// The postconditions pin the exact policy so a predicate regression (e.g.
+/// re-classifying a rendered wording as NOT COMPUTED, or missing a nested
+/// provenance link) is caught mechanically.
 #[requires(true)]
-#[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared)) == is_not_computed_fact(entry))]
+#[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_))) == is_source_provenance(entry))]
+#[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared))
+    == (is_not_computed_fact(entry) && !is_source_provenance(entry)))]
+#[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
+    == (!is_source_provenance(entry) && !is_not_computed_fact(entry)))]
 pub fn baseline_disposition(entry: &InventoryEntry) -> Disposition {
     if is_source_provenance(entry) {
         return new!(Disposition::ExcludedWithReason(SOURCE_PROVENANCE_REASON));
@@ -63,13 +114,12 @@ pub fn baseline_disposition(entry: &InventoryEntry) -> Disposition {
     if is_not_computed_fact(entry) {
         return new!(Disposition::NotComputedDeclared);
     }
-    // The document envelope and every content field/variant/fact renders.
     new!(Disposition::Renders)
 }
 
 /// Build the baseline contract: every inventory entry registered with its
-/// [`baseline_disposition`]. The audit against [`render_field_inventory`] is
-/// complete by construction (verified by the contract-completeness test).
+/// [`baseline_disposition`]. Complete by construction (verified by the
+/// contract-completeness test).
 #[requires(true)]
 #[ensures(ret.len() == inventory.len())]
 pub fn baseline_contract_for(inventory: &RenderFieldInventory) -> CompletenessContract {

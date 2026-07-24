@@ -101,7 +101,11 @@ pub enum Presence {
 #[invariant(::Value(value) => !value.is_empty())]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WitnessExpect {
-    /// The JSON coordinate is populated in the witness document.
+    /// The JSON coordinate is populated with a non-null value in the witness
+    /// document. The corpus walker treats a JSON `null` as absent (it is never
+    /// recorded as a coordinate), so `Present` means present-and-non-null; the
+    /// model elides absent optionals via `skip_serializing_if` rather than
+    /// emitting `null`, so the two coincide in practice.
     Present,
     /// The JSON coordinate carries this exact scalar value (variant witness).
     Value(&'static str),
@@ -330,16 +334,46 @@ impl CompletenessContract {
     }
 
     /// Register (or overwrite) the disposition for an entry key.
+    ///
+    /// The design-intent baseline builds a contract from scratch, so silent
+    /// overwrite is harmless here; a renderer accumulating coverage should use
+    /// [`CompletenessContract::try_register`] instead, which rejects a
+    /// double-registration rather than masking it.
     #[requires(true)]
     #[ensures(self.dispositions.get(&key) == Some(&disposition))]
     pub fn register(&mut self, key: EntryKey, disposition: Disposition) {
         self.dispositions.insert(key, disposition);
     }
 
+    /// Register a disposition, failing (returning the key) if one is already
+    /// registered — so a renderer cannot silently double-cover an entry.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == old(self.dispositions.get(&key).is_none()))]
+    #[ensures(ret.is_ok() -> (self.dispositions.get(&key) == Some(&disposition)))]
+    pub fn try_register(
+        &mut self,
+        key: EntryKey,
+        disposition: Disposition,
+    ) -> Result<(), EntryKey> {
+        if self.dispositions.contains_key(&key) {
+            return Err(key);
+        }
+        self.dispositions.insert(key, disposition);
+        Ok(())
+    }
+
     #[requires(true)]
     #[ensures(ret == self.dispositions.get(&key))]
     pub fn disposition_for(&self, key: &EntryKey) -> Option<&Disposition> {
         self.dispositions.get(key)
+    }
+
+    /// Iterate the registered `(key, disposition)` pairs in key order — the
+    /// renderer PR consumes this to drive rendering from the contract.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn iter(&self) -> impl Iterator<Item = (&EntryKey, &Disposition)> {
+        self.dispositions.iter()
     }
 
     #[requires(true)]

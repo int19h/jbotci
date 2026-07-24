@@ -1,16 +1,22 @@
-//! Corpus-driven verification of the render-field completeness inventory.
+//! Corpus-driven and source-driven verification of the completeness inventory.
 //!
-//! Phase-B step 2 (research repo `DESIGN-RECORD.md`). Every graph here is
-//! re-derived from the vendored `<doc>.lojban` by *this* jbotci build — never
-//! read from the frozen `<doc>.frozen.json`. Three checks:
+//! Phase-B step 2 (research repo `DESIGN-RECORD.md`). Four checks:
 //!
-//! * `drift_guard` — every serde coordinate this build emits over the corpus is
-//!   covered by an inventoried field entry, and no witnessed field entry points
-//!   at a coordinate the build no longer emits.
-//! * `witness_verification` — every `Witness::Corpus` pointer resolves: its
-//!   field is populated (or its variant value present) in the named document.
-//! * `frozen_divergence_report` — compares this build's graph against the frozen
-//!   JSON and *reports* (never fails on) structural or value divergences.
+//! * `model_surface_lower_bound` — *corpus-independent*: scans the model source
+//!   for every serialized struct/enum and its members and fails if any is
+//!   missing from the inventory. This is what makes the inventory provably
+//!   complete against the model rather than only against what the corpus
+//!   happens to exercise.
+//! * `witness_verification` — resolves each `Witness::Corpus` pointer through
+//!   the model type graph, so a witness cannot pass on a coincidental equal
+//!   string carried by an *unrelated* field: the path must land on the claimed
+//!   surface/field.
+//! * `drift_guard` — every serde edge this build emits over the corpus is
+//!   covered by an inventoried field entry (and no witnessed entry is stale).
+//! * `frozen_divergence_report` — structural + scalar comparison of this build's
+//!   graph against the frozen JSON, pinned to a baseline so regressions surface.
+//!
+//! Graphs are re-derived by this build from the vendored `<doc>.lojban`.
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
@@ -29,7 +35,15 @@ use jbotci_semantics::{
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 
-/// Path to a vendored corpus fixture.
+#[path = "support/schema_scan.rs"]
+mod schema_scan;
+#[path = "support/type_graph.rs"]
+mod type_graph;
+
+// ---------------------------------------------------------------------------
+// Pipeline: re-derive a graph and walk its serialized coordinates.
+// ---------------------------------------------------------------------------
+
 #[requires(!doc.is_empty() && !suffix.is_empty())]
 #[ensures(true)]
 fn fixture(doc: &str, suffix: &str) -> PathBuf {
@@ -39,7 +53,6 @@ fn fixture(doc: &str, suffix: &str) -> PathBuf {
     path
 }
 
-/// Re-derive the semantic graph for a corpus document with this build.
 #[requires(!doc.is_empty())]
 #[ensures(true)]
 fn graph_for(doc: &str) -> SemanticGraph {
@@ -66,11 +79,9 @@ fn graph_for(doc: &str) -> SemanticGraph {
     .unwrap_or_else(|error| panic!("semantics {doc}: {error}"))
 }
 
-/// The Rust node type a serialized object belongs to.
-///
-/// The JSON `type` tag collapses `Referent`/`Eventuality`/`Sign` onto
-/// `"referent"`; the ID sort prefix (`eventuality*`, `sign`, else entity-like)
-/// disambiguates — mirroring how the objects are constructed.
+/// The Rust node type a serialized object belongs to. The JSON `type` tag
+/// collapses Referent/Eventuality/Sign onto `"referent"`; the ID sort prefix
+/// disambiguates, mirroring construction.
 #[requires(!id.is_empty())]
 #[ensures(!ret.is_empty())]
 fn node_type(id: &str, json_type: &str) -> String {
@@ -100,8 +111,6 @@ fn node_type(id: &str, json_type: &str) -> String {
     }
 }
 
-/// Canonicalize a JSON map key: numbered places (`x1`, `x2`, ...) collapse to
-/// `x*` so per-place arguments share one coordinate.
 #[requires(true)]
 #[ensures(!ret.is_empty() || key.is_empty())]
 fn canonical_key(key: &str) -> String {
@@ -111,13 +120,18 @@ fn canonical_key(key: &str) -> String {
     if is_place { "x*".to_owned() } else { key.to_owned() }
 }
 
-/// What one corpus document exercises: the set of `"<NodeType>:<path>"`
-/// coordinates, and the scalar values seen at each coordinate.
+/// A serialized graph as a `serde_json::Value`.
+#[requires(!doc.is_empty())]
+#[ensures(true)]
+fn graph_json(doc: &str) -> serde_json::Value {
+    let json = graph_for(doc).to_json_string(0).expect("serialize graph");
+    serde_json::from_str(&json).expect("parse graph json")
+}
+
+/// The `"<NodeType>:<path>"` coordinate set and the scalar values seen at each.
 #[requires(true)]
 #[ensures(true)]
-fn walk_document(graph: &SemanticGraph) -> (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>) {
-    let json = graph.to_json_string(0).expect("serialize graph");
-    let value: serde_json::Value = serde_json::from_str(&json).expect("parse graph json");
+fn walk_document(value: &serde_json::Value) -> (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>) {
     let objects = value
         .get("objects")
         .and_then(serde_json::Value::as_object)
@@ -132,7 +146,6 @@ fn walk_document(graph: &SemanticGraph) -> (BTreeSet<String>, BTreeMap<String, B
     (coords, values)
 }
 
-/// Recursively record coordinates and scalar values under `prefix`.
 #[requires(!node.is_empty())]
 #[ensures(true)]
 fn walk_value(
@@ -146,6 +159,9 @@ fn walk_value(
         serde_json::Value::Object(map) => {
             for (key, child) in map {
                 if prefix.is_empty() && key == "type" {
+                    continue;
+                }
+                if child.is_null() {
                     continue;
                 }
                 let canonical = canonical_key(key);
@@ -181,43 +197,13 @@ fn walk_value(
     }
 }
 
-/// Reduce a `"<NodeType>:<path>"` coordinate to a *serde edge*
-/// `(parent-context, leaf)` — the struct-occurrence-invariant unit the drift
-/// guard compares. A value struct (e.g. `SemanticSource`) recurs at many paths
-/// (`source`, `assignedNames.source`, `arguments.x*.source`, ...) but always
-/// emits the same edges (`source -> span`, `span -> byteStart`), so edges make
-/// one inventory entry per struct field sufficient.
-///
-/// * A depth-1 object field yields `("OBJECT", field)` — node-agnostic, so the
-///   shared `SemanticObjectCommon` fields (`source`, `diagnostics`) match under
-///   every node type.
-/// * A deeper field yields `(immediate-parent-segment, leaf)`.
-/// * A dynamic map-instance coordinate (leaf `x*`, a per-place `ArgumentValue`)
-///   is not a serde field and returns `None`.
-#[requires(true)]
-#[ensures(true)]
-fn edge_of(coord: &str) -> Option<(String, String)> {
-    let path = coord.split_once(':').map_or(coord, |(_, path)| path);
-    let segments: Vec<&str> = path.split('.').collect();
-    let (leaf, parent) = match segments.as_slice() {
-        [] => return None,
-        [only] => (*only, "OBJECT"),
-        [.., parent, leaf] => (*leaf, *parent),
-    };
-    if leaf == "x*" {
-        return None;
-    }
-    Some((parent.to_owned(), leaf.to_owned()))
-}
-
-/// Union of the corpus coordinate sets and value maps across all 37 documents.
 #[requires(true)]
 #[ensures(true)]
 fn corpus_surface() -> (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>) {
     let mut coords = BTreeSet::new();
     let mut values: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for doc in CORPUS_DOCS {
-        let (doc_coords, doc_values) = walk_document(&graph_for(doc));
+        let (doc_coords, doc_values) = walk_document(&graph_json(doc));
         coords.extend(doc_coords);
         for (key, set) in doc_values {
             values.entry(key).or_default().extend(set);
@@ -226,53 +212,74 @@ fn corpus_surface() -> (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>) {
     (coords, values)
 }
 
-/// Every serde field this build emits over the corpus is inventoried, and no
-/// witnessed field entry points at a coordinate the build no longer emits.
+// ---------------------------------------------------------------------------
+// drift_guard
+// ---------------------------------------------------------------------------
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn drift_guard() {
     let (corpus_coords, _values) = corpus_surface();
-    let corpus_edges: BTreeSet<(String, String)> =
-        corpus_coords.iter().filter_map(|coord| edge_of(coord)).collect();
+    let graph = type_graph::TypeGraph::from_source();
 
-    let inventory = render_field_inventory();
-    let inventory_edges: BTreeSet<(String, String)> = inventory
+    // Every emitted coordinate resolves to a `(type, field)` in the type graph,
+    // and that pair is inventoried as a field entry. Both are required: an
+    // unresolvable coordinate means the type graph (hence the resolver) is
+    // incomplete; an un-inventoried pair means the model gained a serde field
+    // the inventory does not list.
+    let inventory_pairs: BTreeSet<(String, String)> = render_field_inventory()
         .entries()
         .iter()
         .filter(|entry| entry.kind == EntryKind::Field)
         .filter(|entry| {
             matches!(entry.surface.category, SurfaceCategory::Object | SurfaceCategory::ValueStruct)
         })
-        .filter_map(|entry| entry.witness.corpus().and_then(|(_, path, _)| edge_of(path)))
+        .map(|entry| (entry.surface.name.to_owned(), entry.field.to_owned()))
         .collect();
 
-    let emitted_but_uninventoried: Vec<&(String, String)> =
-        corpus_edges.difference(&inventory_edges).collect();
-    let inventoried_but_stale: Vec<&(String, String)> =
-        inventory_edges.difference(&corpus_edges).collect();
+    let mut unresolved: Vec<String> = Vec::new();
+    let mut uninventoried: Vec<(String, String)> = Vec::new();
+    for coord in &corpus_coords {
+        match graph.resolve(coord) {
+            None => unresolved.push(coord.clone()),
+            Some(resolved) => {
+                let pair = (resolved.owner, resolved.key);
+                if !inventory_pairs.contains(&pair) {
+                    uninventoried.push(pair);
+                }
+            }
+        }
+    }
+    unresolved.sort();
+    unresolved.dedup();
+    uninventoried.sort();
+    uninventoried.dedup();
 
     assert!(
-        emitted_but_uninventoried.is_empty(),
-        "this build emits {} serde edge(s) no inventory field entry covers: {:?}",
-        emitted_but_uninventoried.len(),
-        &emitted_but_uninventoried[..emitted_but_uninventoried.len().min(20)]
+        unresolved.is_empty(),
+        "{} emitted coordinate(s) the type graph cannot resolve (resolver incomplete): {:?}",
+        unresolved.len(),
+        &unresolved[..unresolved.len().min(20)]
     );
     assert!(
-        inventoried_but_stale.is_empty(),
-        "{} witnessed field entr(ies) name a serde edge this build no longer emits: {:?}",
-        inventoried_but_stale.len(),
-        &inventoried_but_stale[..inventoried_but_stale.len().min(20)]
+        uninventoried.is_empty(),
+        "this build emits {} serde field(s) no inventory entry covers: {:?}",
+        uninventoried.len(),
+        &uninventoried[..uninventoried.len().min(20)]
     );
 }
 
-/// Every corpus witness pointer resolves in its named document.
+// ---------------------------------------------------------------------------
+// witness_verification (type-directed; ties path -> claimed surface)
+// ---------------------------------------------------------------------------
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn witness_verification() {
     let inventory = render_field_inventory();
-    // Cache each witness document's surface once.
+    let graph = type_graph::TypeGraph::from_source();
     let mut cache: BTreeMap<&str, (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>)> =
         BTreeMap::new();
     let mut failures: Vec<String> = Vec::new();
@@ -281,13 +288,26 @@ fn witness_verification() {
         let Some((doc, path, expect)) = entry.witness.corpus() else {
             continue;
         };
-        // Document-level facts point at the graph envelope, not an object path.
         if entry.surface.category == SurfaceCategory::Document {
+            continue; // envelope facts point at the graph root, not an object path
+        }
+        // (1) The path must resolve, through the type graph, to the claimed
+        //     surface/field — an equal string at an unrelated field cannot
+        //     "witness" this entry. Derived facts are skipped: their `field` is a
+        //     synthetic fact name, not a JSON key, so only presence is checked.
+        if entry.kind != EntryKind::DerivedFact
+            && !graph.path_matches_entry(path, entry.surface.category, entry.surface.name, entry.field)
+        {
+            failures.push(format!(
+                "{:?} {}::{} — witness path {path} does not resolve to this surface/field",
+                entry.surface.category, entry.surface.name, entry.field
+            ));
             continue;
         }
+        // (2) The coordinate is actually populated (or carries the value).
         let surface = cache
             .entry(doc)
-            .or_insert_with(|| walk_document(&graph_for(doc)));
+            .or_insert_with(|| walk_document(&graph_json(doc)));
         let (coords, values) = surface;
         let present = match expect.value() {
             None => coords.contains(path),
@@ -295,7 +315,8 @@ fn witness_verification() {
         };
         if !present {
             failures.push(format!(
-                "{}::{} -> {path} in {doc} (expect value {:?})",
+                "{:?} {}::{} — {path} not populated in {doc} (expect value {:?})",
+                entry.surface.category,
                 entry.surface.name,
                 entry.field,
                 expect.value()
@@ -305,58 +326,168 @@ fn witness_verification() {
 
     assert!(
         failures.is_empty(),
-        "{} witness pointer(s) did not resolve:\n{}",
+        "{} witness pointer(s) did not resolve soundly:\n{}",
         failures.len(),
         failures.join("\n")
     );
 }
 
-/// Report (never fail on) divergences between this build's graph and the frozen
-/// corpus JSON: object-count-by-type, root, and coordinate-set differences.
+// ---------------------------------------------------------------------------
+// model_surface_lower_bound (corpus-independent)
+// ---------------------------------------------------------------------------
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn model_surface_lower_bound() {
+    let scan = schema_scan::SerializedSurface::from_source();
+    let inventory = render_field_inventory();
+
+    let mut inv_members: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut inv_surfaces: BTreeSet<String> = BTreeSet::new();
+    for entry in inventory.entries() {
+        inv_surfaces.insert(entry.surface.name.to_owned());
+        inv_members.insert((entry.surface.name.to_owned(), entry.field.to_owned()));
+    }
+
+    let mut missing: Vec<String> = Vec::new();
+
+    for (name, fields) in &scan.value_structs {
+        if !inv_surfaces.contains(name) {
+            missing.push(format!("missing ValueStruct surface: {name}"));
+            continue;
+        }
+        for field in fields {
+            if !inv_members.contains(&(name.clone(), field.clone())) {
+                missing.push(format!("missing field {name}::{field}"));
+            }
+        }
+    }
+    for (name, variants) in &scan.enums {
+        if !inv_surfaces.contains(name) {
+            missing.push(format!("missing Enum surface: {name}"));
+            continue;
+        }
+        for variant in variants {
+            if !inv_members.contains(&(name.clone(), variant.clone())) {
+                missing.push(format!("missing variant {name}::{variant}"));
+            }
+        }
+    }
+    for (node, keys) in &scan.node_keys {
+        for key in keys {
+            if !inv_members.contains(&(node.clone(), key.clone())) {
+                missing.push(format!("missing object field {node}::{key}"));
+            }
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "model surface not fully inventoried ({} gap(s)):\n{}",
+        missing.len(),
+        missing.join("\n")
+    );
+}
+
+// ---------------------------------------------------------------------------
+// node_type disambiguation pin (should-fix 10)
+// ---------------------------------------------------------------------------
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn node_type_scheme_is_exercised() {
+    let (coords, _) = corpus_surface();
+    assert!(
+        coords.iter().any(|coord| coord.starts_with("Eventuality:")),
+        "no Eventuality: coordinate — the referent/eventuality/sign ID-prefix scheme is unexercised"
+    );
+    assert!(
+        coords.iter().any(|coord| coord.starts_with("Sign:")),
+        "no Sign: coordinate — the referent/eventuality/sign ID-prefix scheme is unexercised"
+    );
+    assert!(coords.iter().any(|coord| coord.starts_with("Referent:")));
+}
+
+// ---------------------------------------------------------------------------
+// frozen_divergence_report (structural + scalar, pinned to a baseline)
+// ---------------------------------------------------------------------------
+
+/// Corpus documents currently diverging from the frozen oracle graph. Pinned so
+/// a regression fails rather than scrolling past in the report.
+const FROZEN_DIVERGENCE_BASELINE: usize = 0;
+
+/// A JSON scalar looks like a semantic-object ID (`entity:1`, `eventuality/locution:25`).
+#[requires(true)]
+#[ensures(true)]
+fn is_object_id(text: &str) -> bool {
+    text.split_once(':').is_some_and(|(prefix, index)| {
+        !prefix.is_empty()
+            && prefix.chars().all(|c| c.is_ascii_lowercase() || c == '/')
+            && !index.is_empty()
+            && index.chars().all(|c| c.is_ascii_digit())
+    })
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn frozen_divergence_report() {
     let mut diverging = 0usize;
     for doc in CORPUS_DOCS {
-        let built = graph_for(doc);
-        let (built_coords, _) = walk_document(&built);
-
+        let built = graph_json(doc);
         let frozen_text = std::fs::read_to_string(fixture(doc, "frozen.json"))
             .unwrap_or_else(|error| panic!("read {doc}.frozen.json: {error}"));
         let frozen: serde_json::Value =
             serde_json::from_str(&frozen_text).expect("parse frozen json");
-        let frozen_coords = frozen_coordinate_set(&frozen);
+
+        let (built_coords, built_values) = walk_document(&built);
+        let (frozen_coords, frozen_values) = walk_document(&frozen);
 
         let only_built: Vec<&String> = built_coords.difference(&frozen_coords).collect();
         let only_frozen: Vec<&String> = frozen_coords.difference(&built_coords).collect();
-        if !only_built.is_empty() || !only_frozen.is_empty() {
+
+        // Scalar divergence, ID-agnostic and source-excluded (IDs renumber between
+        // builds; source text is input-derived and equal by construction).
+        let mut value_diffs: Vec<String> = Vec::new();
+        for coord in built_coords.intersection(&frozen_coords) {
+            if coord.contains(":source") || coord.contains(".source") {
+                continue;
+            }
+            let normalize = |set: Option<&BTreeSet<String>>| -> BTreeSet<String> {
+                set.map(|s| {
+                    s.iter()
+                        .map(|v| if is_object_id(v) { "<ID>".to_owned() } else { v.clone() })
+                        .collect()
+                })
+                .unwrap_or_default()
+            };
+            let built_set = normalize(built_values.get(coord));
+            let frozen_set = normalize(frozen_values.get(coord));
+            if built_set != frozen_set {
+                value_diffs.push(format!("    {coord}: this={built_set:?} frozen={frozen_set:?}"));
+            }
+        }
+
+        if !only_built.is_empty() || !only_frozen.is_empty() || !value_diffs.is_empty() {
             diverging += 1;
-            eprintln!("[{doc}] coordinate divergence:");
+            eprintln!("[{doc}] divergence:");
             if !only_built.is_empty() {
                 eprintln!("    only in this build: {only_built:?}");
             }
             if !only_frozen.is_empty() {
                 eprintln!("    only in frozen: {only_frozen:?}");
             }
+            for line in &value_diffs {
+                eprintln!("{line}");
+            }
         }
     }
-    // Reported, not asserted: divergences are a report item per the task.
     eprintln!("frozen-divergence report: {diverging} of {} documents diverge", CORPUS_DOCS.len());
-}
-
-/// The coordinate set of a frozen graph, walked exactly like this build's.
-#[requires(true)]
-#[ensures(true)]
-fn frozen_coordinate_set(frozen: &serde_json::Value) -> BTreeSet<String> {
-    let mut coords = BTreeSet::new();
-    let mut values: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    if let Some(objects) = frozen.get("objects").and_then(serde_json::Value::as_object) {
-        for (id, object) in objects {
-            let json_type = object.get("type").and_then(serde_json::Value::as_str).unwrap_or("");
-            let node = node_type(id, json_type);
-            walk_value(&node, "", object, &mut coords, &mut values);
-        }
-    }
-    coords
+    assert_eq!(
+        diverging, FROZEN_DIVERGENCE_BASELINE,
+        "frozen divergence changed from the pinned baseline; if this build's graph intentionally \
+         changed, update FROZEN_DIVERGENCE_BASELINE with justification"
+    );
 }

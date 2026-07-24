@@ -116,4 +116,76 @@ mod tests {
         }
         assert!(saw_excluded && saw_not_computed);
     }
+
+    /// Pin the disposition-class counts so a policy-predicate regression (e.g.
+    /// mis-classifying a rendered wording, or dropping a nested provenance link)
+    /// changes a number rather than sliding by unnoticed.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn disposition_class_counts_are_pinned() {
+        let inventory = render_field_inventory();
+        let mut renders = 0usize;
+        let mut not_computed = 0usize;
+        let mut excluded = 0usize;
+        for entry in inventory.entries() {
+            match baseline_disposition(entry).as_data() {
+                data!(Disposition::Renders) => renders += 1,
+                data!(Disposition::NotComputedDeclared) => not_computed += 1,
+                data!(Disposition::ExcludedWithReason(_)) => excluded += 1,
+            }
+        }
+        // Exactly one declared NOT COMPUTED fact (denotation-multiplicity); the
+        // tested-winner role wordings are Renders, not NOT COMPUTED.
+        assert_eq!(not_computed, 1, "exactly one NOT COMPUTED fact expected");
+        // Source provenance: SemanticSource(3) + SourceByteSpan(2) + one `source`
+        // link per object kind (13) and per source-bearing value struct (12).
+        assert_eq!(excluded, 30, "source-provenance ExcludedWithReason count drifted");
+        assert_eq!(renders + not_computed + excluded, inventory.len());
+    }
+
+    /// Blocker-5 spot check: provenance is excluded by *type*. A `source` field
+    /// whose type is `SemanticSource` is excluded wherever it nests; the lexical
+    /// `Connector.source` (a `String`) renders.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn provenance_excludes_nested_source_links_but_not_lexical() {
+        let inventory = render_field_inventory();
+        let disposition_of = |surface: &str, field: &str| {
+            inventory
+                .entries()
+                .iter()
+                .find(|entry| entry.surface.name == surface && entry.field == field)
+                .map(|entry| baseline_disposition(entry))
+        };
+        for surface in ["ArgumentValue", "RelativeClause", "AssignedName", "QuantifierBinding"] {
+            let disposition = disposition_of(surface, "source")
+                .unwrap_or_else(|| panic!("{surface}.source not inventoried"));
+            assert!(
+                matches!(disposition.as_data(), data!(Disposition::ExcludedWithReason(_))),
+                "{surface}.source (SemanticSource) must be excluded"
+            );
+        }
+        let connector_source =
+            disposition_of("Connector", "source").expect("Connector.source not inventoried");
+        assert!(
+            matches!(connector_source.as_data(), data!(Disposition::Renders)),
+            "Connector.source (a lexical String) must render"
+        );
+    }
+
+    /// `try_register` rejects a double-registration; `iter` exposes the pairs.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn try_register_rejects_duplicates_and_iter_exposes_pairs() {
+        let inventory = render_field_inventory();
+        let first = inventory.entries()[0];
+        let mut contract = CompletenessContract::new();
+        assert!(contract.try_register(first.key(), baseline_disposition(&first)).is_ok());
+        assert_eq!(contract.try_register(first.key(), baseline_disposition(&first)), Err(first.key()));
+        assert_eq!(contract.iter().count(), 1);
+        assert_eq!(contract.iter().next().map(|(key, _)| *key), Some(first.key()));
+    }
 }
