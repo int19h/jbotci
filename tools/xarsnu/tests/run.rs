@@ -601,6 +601,9 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
         "the rendering is the meaning that will be scored",
         "you MUST call register_intent again with the revised meaning BEFORE confirming",
         "re-declaring is cheap and encouraged",
+        "a target you would have been willing to commit to before you saw this rendering",
+        "Deriving the new intent FROM the tersmu output so that it will match is not a revision, it is a mismatch",
+        "never a way to make a wrong rendering count as right",
         "Confirming while noting a discrepancy between your intent and the rendering is a contradiction",
         "never for waiving a known mismatch",
     ] {

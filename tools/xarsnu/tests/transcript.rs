@@ -582,6 +582,57 @@ fn corrupted_transcripts_report_the_exact_line() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn confirm_intent_sequence_must_name_the_latest_preceding_registration() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut lines = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid transcript line"))
+        .collect::<Vec<_>>();
+    // The fixture's only alice turn-1 registration is revision 1; its confirm is at
+    // index 8 and carries no intent_sequence (legacy). That legacy shape must read.
+    let unmodified = temp_path("intent-seq-legacy");
+    write_records(&unmodified, &lines);
+    read_transcript(&unmodified).expect("legacy confirm without intent_sequence validates");
+
+    // Naming the latest registration (revision 1) is accepted.
+    lines[8]["event"]["intent_sequence"] = serde_json::json!(1);
+    let matching = temp_path("intent-seq-match");
+    write_records(&matching, &lines);
+    read_transcript(&matching).expect("confirm naming the latest intent validates");
+
+    // Naming a non-latest revision (0 when the latest is 1) is rejected at that line.
+    lines[8]["event"]["intent_sequence"] = serde_json::json!(0);
+    let mismatch = temp_path("intent-seq-mismatch");
+    write_records(&mismatch, &lines);
+    let error = read_transcript(&mismatch).expect_err("stale intent_sequence must fail");
+    assert_eq!(error.line, 9);
+    assert!(
+        error.to_string().contains("confirm intent-sequence mismatch"),
+        "unexpected error: {error}"
+    );
+    assert!(error.to_string().contains("revision 0"));
+    assert!(error.to_string().contains("latest registered intent is revision 1"));
+
+    for path in [unmodified, matching, mismatch] {
+        fs::remove_file(path).expect("remove temporary transcript");
+    }
+}
+
+#[requires(!records.is_empty())]
+#[ensures(true)]
+fn write_records(path: &Path, records: &[serde_json::Value]) {
+    let body = records
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("serialize transcript record"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(path, format!("{body}\n")).expect("write transcript records");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn report_subcommand_is_offline_and_matches_the_library() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let output = Command::new(env!("CARGO_BIN_EXE_xarsnu"))
