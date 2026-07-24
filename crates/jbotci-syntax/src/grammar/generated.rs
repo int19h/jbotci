@@ -2353,7 +2353,10 @@ pub mod generated_model {
     /// Product node for converted term; preserves `lahe`, `inner_term`, and `luhu` in source order.
     rule "converted term" lahe_term_wrapper(term) -> struct {
         /// A word from selmaho `Lahe`.
-        field lahe <- selmaho(Lahe).wf();
+        ///
+        /// Wrapping a bare term (rather than a sumti) in `LAhE` is a non-CLL extension:
+        /// standard grammar only allows `LAhE` over a sumti, so the term-wrapper form warns.
+        field lahe <- selmaho(Lahe).warn(ExperimentalLaheNaheTermWrapper).wf();
         #[tree_child(primary)]
         /// The shared inner term child syntax node.
         field inner_term <- arc(term);
@@ -2364,7 +2367,11 @@ pub mod generated_model {
     /// Product node for scalar-negated term; preserves `nahe`, `bo`, `inner_term`, and `luhu` in source order.
     rule "scalar-negated term" scalar_negated_term_wrapper_with_bo(term) -> struct {
         /// A word from selmaho `Nahe`.
-        field nahe <- selmaho(Nahe);
+        ///
+        /// `NAhE BO` wrapping a bare term (rather than a sumti) is a non-CLL extension:
+        /// even with `bo`, the standard grammar only allows `NAhE BO` over a sumti, so the
+        /// term-wrapper form warns. The warning anchors on `na'e` to match the v0 behavior.
+        field nahe <- selmaho(Nahe).warn(ExperimentalLaheNaheTermWrapper);
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         #[tree_child(primary)]
@@ -2377,7 +2384,12 @@ pub mod generated_model {
     /// Product node for scalar-negated term; preserves `nahe`, `inner_term`, and `luhu` in source order.
     rule "scalar-negated term" scalar_negated_term_wrapper(term) -> struct {
         /// A word from selmaho `Nahe`.
-        field nahe <- selmaho(Nahe).wf();
+        ///
+        /// Bare `na'e` wrapping a term (rather than a sumti) without `bo` is a non-CLL
+        /// extension. Following v0, this carries only the term-wrapper warning
+        /// (`ExperimentalLaheNaheTermWrapper`), not the sumti-oriented without-`bo`
+        /// warning: the distinguishing property here is the term payload, not the missing `bo`.
+        field nahe <- selmaho(Nahe).warn(ExperimentalLaheNaheTermWrapper).wf();
         #[tree_child(primary)]
         /// The shared inner term child syntax node.
         field inner_term <- arc(term);
@@ -2401,7 +2413,11 @@ pub mod generated_model {
     /// Product node for scalar-negated sumti; preserves `nahe`, `inner_sumti`, and `luhu` in source order.
     rule "scalar-negated sumti" scalar_negated_sumti(sumti) -> struct {
         /// A word from selmaho `Nahe`.
-        field nahe <- selmaho(Nahe).wf();
+        ///
+        /// Bare `na'e` before a sumti without `bo` is a non-CLL extension (standard
+        /// `sumti-6` permits only `NAhE BO` before a sumti), so it warns; the `bo`-ful
+        /// sibling `scalar_negated_sumti_with_bo` is standard grammar and does not warn.
+        field nahe <- selmaho(Nahe).warn(ExperimentalNaheArgumentWithoutBo).wf();
         #[tree_child(primary)]
         /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
