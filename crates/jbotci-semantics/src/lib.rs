@@ -1,5 +1,6 @@
 //! Lojban semantic model and builder facade.
 
+pub mod completeness;
 pub mod facade;
 pub mod generated_builder;
 pub mod model;
