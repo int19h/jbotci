@@ -2462,6 +2462,35 @@ fn gentufa_warnings_go_to_stderr() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn gentufa_bare_nahe_sumti_without_bo_warning_goes_to_stderr() {
+    run_on_normal_stack(|| {
+        // Bare `na'e <sumti>` without `bo` is a valid parse (Success) that carries the
+        // experimental without-`bo` warning; the warning must surface on stderr.
+        let cli = Cli::try_parse_from([
+            "jbotci", "gentufa", "--format", "brackets", "mi", "viska", "na'e", "lo", "mlatu",
+        ])
+        .expect("gentufa nahe warning parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa nahe run");
+        assert_eq!(status, CliStatus::Success);
+
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(!stdout.contains("warning:"));
+        assert!(stderr.contains("experimental syntax"), "{stderr}");
+        assert!(
+            stderr.contains("syntax.warning.experimental-nahe-sumti-without-bo"),
+            "{stderr}"
+        );
+        assert!(stderr.contains("NAhE before sumti without BO"), "{stderr}");
+        assert!(stderr.contains("na'e"), "{stderr}");
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn gentufa_syntax_errors_go_to_stderr() {
     run_on_normal_stack(|| {
         let cli =
