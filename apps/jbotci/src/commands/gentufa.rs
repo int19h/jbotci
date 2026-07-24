@@ -127,18 +127,17 @@ fn render_gentufa(
     // A valid (non-recovered) parse can still carry warnings (e.g. experimental
     // syntax). They are advisory, not errors, so the command stays successful,
     // but the warnings must still reach stderr just like on the recovered path.
-    let (generated_model, syntax_warning_diagnostics) =
+    // Both arms fold their syntax diagnostics into the same accumulator, seeded
+    // with the morphology diagnostics.
+    let mut diagnostics = morphology_diagnostics;
+    let generated_model =
         match parsed.result.into_data() {
             data!(SyntaxRecoveryParse::Valid { parse }) => {
                 let parsed = parse.into_data();
-                let syntax_warning_diagnostics = parsed
-                    .warnings
-                    .iter()
-                    .map(|warning| {
-                        warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
-                    })
-                    .collect::<Vec<_>>();
-                (parsed.parse_tree, syntax_warning_diagnostics)
+                diagnostics.extend(parsed.warnings.iter().map(|warning| {
+                    warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                }));
+                parsed.parse_tree
             }
             data!(SyntaxRecoveryParse::Recovered { parse }) => {
                 let stdout = render_recovered_gentufa_output(
@@ -151,7 +150,6 @@ fn render_gentufa(
                     phoneme_options,
                 )?;
                 let parsed = parse.into_data();
-                let mut diagnostics = morphology_diagnostics;
                 diagnostics.extend(
                     parsed.errors.iter().map(|error| {
                         error.to_diagnostic(Some(SourceId(source_label.clone())), &text)
@@ -177,8 +175,6 @@ fn render_gentufa(
                 }));
             }
         };
-    let mut diagnostics = morphology_diagnostics;
-    diagnostics.extend(syntax_warning_diagnostics);
     let mut stderr = morphology_trace_stderr;
     stderr.push_str(&render_source_diagnostics(
         &source_label,
