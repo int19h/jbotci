@@ -195,8 +195,16 @@ pub fn read_transcript(path: &Path) -> Result<Vec<TranscriptRecord>, TranscriptE
             }
         }
         // A confirm's `intent_sequence`, when present, must name the latest intent
-        // registered so far for the same turn and speaker (issue #612). `None`
-        // marks a legacy transcript and is accepted without a governing intent.
+        // registered so far for the same turn and speaker (issue #612). `None` marks
+        // a legacy transcript and is accepted without a governing intent.
+        //
+        // This is a targeted link check, deliberately NOT a full state-machine replay:
+        // it confirms the intent↔confirm reference is internally consistent, not that
+        // the whole protocol run was legal. It intentionally does not catch every
+        // fabricated shape — e.g. a confirm forged after a forfeit, or one whose
+        // `intent_sequence` is `None`, passes here. Full replay validation, if ever
+        // needed, belongs in a separate pass; the audit tooling that scores drift is
+        // the consumer that reconstructs run state.
         match record.event.as_data() {
             bityzba::data!(ProtocolEvent::IntentRegistered {
                 turn_number,

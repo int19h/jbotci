@@ -457,7 +457,9 @@ impl SpeakerState {
         }
     }
 
-    /// Parse attempts consumed so far this turn (0 before any composition).
+    /// Parse attempts consumed while composing this turn. Zero in the phases that
+    /// carry no counter: before any composition (`AwaitingIntent`) and after the
+    /// message is posted (`Posted`).
     #[requires(true)]
     #[ensures(matches!(self.phase(), SpeakerPhase::AwaitingIntent | SpeakerPhase::Posted) -> ret == 0)]
     fn parse_attempts(&self) -> usize {
@@ -470,7 +472,9 @@ impl SpeakerState {
         }
     }
 
-    /// Intent revisions applied so far this turn (0 before any registration).
+    /// Intent revisions applied while composing this turn. Zero in the phases that
+    /// carry no counter: before any registration (`AwaitingIntent`) and after the
+    /// message is posted (`Posted`).
     #[requires(true)]
     #[ensures(matches!(self.phase(), SpeakerPhase::AwaitingIntent | SpeakerPhase::Posted) -> ret == 0)]
     fn intent_revisions(&self) -> usize {
@@ -483,18 +487,28 @@ impl SpeakerState {
         }
     }
 
-    /// Apply a (re-)declared intent, carrying the caller-computed revision counter.
+    /// Apply a (re-)declared intent, deriving the turn's revision counter itself so
+    /// no caller can stamp an arbitrary sequence: the first declaration of a turn is
+    /// revision 0 and every later re-declaration is exactly one more than the
+    /// previous.
     ///
-    /// When a candidate awaits confirmation it is retained and the speaker stays
-    /// in `AwaitingConfirmation`, so the accepted rendering is measured against the
+    /// When a candidate awaits confirmation it is retained and the speaker stays in
+    /// `AwaitingConfirmation`, so the accepted rendering is measured against the
     /// revised intent instead of a stale target (issue #612); otherwise the speaker
-    /// composes anew. The parse-attempt budget is always preserved.
+    /// composes anew. The parse-attempt budget is always preserved. A posted turn is
+    /// terminal and cannot re-declare, so `Posted` is rejected as a source.
     #[requires(!meaning_en.trim().is_empty())]
+    #[requires(self.phase() != SpeakerPhase::Posted, "a posted turn is terminal and cannot re-declare intent")]
     #[ensures((self.phase() == SpeakerPhase::AwaitingConfirmation) == (ret.phase() == SpeakerPhase::AwaitingConfirmation), "re-declaration preserves an awaiting-confirmation phase and never invents one")]
     #[ensures(ret.pending_candidate() == self.pending_candidate(), "any accepted candidate is retained across re-declaration")]
     #[ensures(ret.parse_attempts() == self.parse_attempts(), "the parse-attempt budget is preserved")]
-    #[ensures(ret.intent_revisions() == revision_number, "the revised intent carries the caller's revision counter")]
-    fn with_redeclared_intent(&self, meaning_en: String, revision_number: usize) -> Self {
+    #[ensures((self.phase() == SpeakerPhase::AwaitingIntent) -> ret.intent_revisions() == 0, "the first registration of a turn is revision 0")]
+    #[ensures((self.phase() != SpeakerPhase::AwaitingIntent) -> ret.intent_revisions() == self.intent_revisions() + 1, "each re-declaration increments the turn's revision counter by exactly one")]
+    fn with_redeclared_intent(&self, meaning_en: String) -> Self {
+        let revision_number = match self.phase() {
+            SpeakerPhase::AwaitingIntent => 0,
+            _ => self.intent_revisions() + 1,
+        };
         match self.pending_candidate() {
             Some(candidate) => new!(SpeakerState::AwaitingConfirmation {
                 meaning_en,
@@ -2822,8 +2836,10 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 // retained across the revision (see `with_redeclared_intent`) so the
                 // honest "re-declare then confirm" path (issue #612) measures the
                 // accepted rendering against the revised message, not a stale target.
-                let (revision, revision_number) = match state.phase() {
-                    SpeakerPhase::AwaitingIntent => (false, 0),
+                // The revision counter is derived inside `with_redeclared_intent`; we
+                // read it back for the event after the transition.
+                let revision = match state.phase() {
+                    SpeakerPhase::AwaitingIntent => false,
                     SpeakerPhase::Composing | SpeakerPhase::AwaitingConfirmation => {
                         if state.intent_revisions() >= self.caps.max_intent_revisions_per_turn {
                             self.events.push(new!(ProtocolEvent::TurnForfeited {
@@ -2840,7 +2856,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                                 ),
                             }));
                         }
-                        (true, state.intent_revisions() + 1)
+                        true
                     }
                     SpeakerPhase::Posted => {
                         unreachable!("tool legality was validated against the state")
@@ -2848,7 +2864,8 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 };
                 let RegisterIntentArguments { meaning_en } = arguments;
                 let retained_candidate = state.pending_candidate().is_some();
-                *state = state.with_redeclared_intent(meaning_en.clone(), revision_number);
+                *state = state.with_redeclared_intent(meaning_en.clone());
+                let revision_number = state.intent_revisions();
                 let content = phase_instruction(
                     if retained_candidate {
                         "Intent re-declared; the accepted candidate is retained. Compare its tersmu rendering with the revised intent and call confirm_meaning (matches=true to post, matches=false to revise the Lojban)."

@@ -2080,10 +2080,15 @@ fn redeclaring_intent_while_awaiting_confirmation_retains_candidate_and_records_
                 "submit_lojban",
                 json!({ "text": "mi klama le zarci" }),
             ),
+            // Register ONLY the narrowed message the retained candidate actually
+            // expresses. The rationale for the retreat (dropping the "to buy fish"
+            // purpose clause that could not be parsed) stays in this comment, never in
+            // the declared intent, so the confirm is a genuine match — not a mismatch
+            // against unexpressed meta-text.
             step(
                 &["register_intent", "confirm_meaning"],
                 "register_intent",
-                json!({ "meaning_en": "I am going to the market (dropping the purpose clause I could not express)." }),
+                json!({ "meaning_en": "I am going to the market." }),
             ),
             step(
                 &["register_intent", "confirm_meaning"],
