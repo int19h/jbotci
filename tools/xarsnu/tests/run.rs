@@ -592,14 +592,17 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
     let confirm_request = &captured[3].body;
     assert!(request_offers_tool(confirm_request, "confirm_meaning"));
     for required_precision_language in [
-        "matches=true only when the tersmu rendering captures the registered intent precisely",
+        "matches=true only when the tersmu rendering precisely expresses your currently intended message",
         "every predicate relation as rendered, under its dictionary place structure",
         "Calques or idioms from other languages (malgli) are mismatches",
         "physically chases another",
         "call matches=false and recompose",
         "the gist is right are not the standard",
         "the rendering is the meaning that will be scored",
-        "not for waiving a known mismatch",
+        "you MUST call register_intent again with the revised meaning BEFORE confirming",
+        "re-declaring is cheap and encouraged",
+        "Confirming while noting a discrepancy between your intent and the rendering is a contradiction",
+        "never for waiving a known mismatch",
     ] {
         assert!(
             request_has_message(confirm_request, required_precision_language),
