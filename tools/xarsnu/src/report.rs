@@ -1578,6 +1578,7 @@ const fn tersmu_format_name(format: crate::TersmuFormat) -> &'static str {
         crate::TersmuFormat::TreeProj => "tree+proj",
         crate::TersmuFormat::Tree => "tree",
         crate::TersmuFormat::Json => "json",
+        crate::TersmuFormat::Lean3 => "lean3",
     }
 }
 
