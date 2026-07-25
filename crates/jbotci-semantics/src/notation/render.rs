@@ -851,7 +851,25 @@ fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("PREDICATION", &vid, None, true, |w| {
-        w.field("RELATION", &lexical(req_str(obj, "relation")));
+        // A predication's relation (`PredicationRelation`) is either a lexical
+        // relation word (`relation`) or — for a relation-question or
+        // relation-variable predication (`mo`, `bu'a`) — a bound relation
+        // parameter (`relationParameter`, a pointer to a `parameter` object
+        // whose own PARAMETER declaration carries ROLE: relation question /
+        // relation variable). Exactly one field is present. A relation
+        // parameter is referenced by the same `VALUE <id>` marker every other
+        // parameter reference uses (§6.3 operand fillers, argument questions),
+        // so the relation slot reads as a bound value and the question/variable
+        // semantics live on its PARAMETER declaration — mirroring how a `ma`
+        // argument-question already surfaces as `VALUE <id>` in ARGS. Neither
+        // field present is a genuine `lojban-semantics-json-1` contract
+        // violation and still fails loudly via `req_val`.
+        if let Some(relation) = field_str(obj, "relation") {
+            w.field("RELATION", &lexical(relation));
+        } else {
+            let parameter = ctx.id_of(req_val(obj, "relationParameter"));
+            w.field("RELATION", &format!("VALUE {parameter}"));
+        }
         if let Some(eventuality) = obj.get("eventuality") {
             w.field("EVENTUALITY", &ctx.id_of(eventuality));
         }
