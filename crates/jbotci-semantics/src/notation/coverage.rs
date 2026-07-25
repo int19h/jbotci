@@ -51,13 +51,15 @@
 //!   `NotComputedDeclared` inventory entry would expand the merged inventory's
 //!   scope; it is recorded here as consistent-by-construction debt (round-2
 //!   review, kimi 7a).
-//! * **Deferred content gaps (provenance).** Argument-attached `RelativeClause`s
-//!   are not rendered at all (a default-output content gap, distinct from
-//!   provenance), so their nested `source` is not rendered either; and value
-//!   structs the renderer never traverses (`AnchorMagnitude`, `ModalArgument`,
-//!   `QuantifierBinding`, …) have no rendered source under provenance. The
-//!   coverage reflects this precisely (their `source` stays `ExcludedWithReason`
-//!   even under provenance). See the PR body / FREEZE Amendment 2.
+//! * **Untraversed value structs (provenance).** Value structs the renderer
+//!   never traverses (`AnchorMagnitude`, `ModalArgument`, `QuantifierBinding`,
+//!   …) and object kinds with no per-kind renderer (`Question`,
+//!   `RelationMetadata`) have no rendered source under provenance; the coverage
+//!   reflects this precisely (their `source` stays `ExcludedWithReason` even
+//!   under provenance). None is corpus-present, so there is no fixture impact.
+//!   (Argument-attached `RelativeClause`s ARE now rendered — Amendment 3 — so
+//!   the round-2 deferral is resolved; `RelativeClause`/`ArgumentValue`
+//!   traversal is total and the provenance coverage is occurrence-accurate.)
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, requires};
@@ -81,9 +83,9 @@ const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 /// other source-bearing value structs (`AnchorMagnitude`, `ModalArgument`,
 /// `QuantifierBinding`, ...) are not traversed at all — so under provenance
 /// their `source` still does not surface, and the coverage must not claim it
-/// does. (`RelativeClause` renders its source for descriptor-attached clauses,
-/// the common corpus case; argument-attached clauses are not rendered at all —
-/// a separate content gap, deferred — see the PR body / FREEZE Amendment 2.)
+/// does. (`RelativeClause` is now rendered for BOTH descriptor-attached and
+/// argument-attached clauses — Amendment 3, round-3 review — so its `source` is
+/// occurrence-accurate under provenance, no longer partial.)
 const SOURCE_RENDERED_SURFACES: &[&str] = &[
     "Utterance",
     "Sequence",

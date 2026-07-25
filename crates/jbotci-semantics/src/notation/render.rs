@@ -551,6 +551,31 @@ fn render_with_optional_source(w: &mut Writer, ctx: &Ctx, label: &str, obj: &Val
     }
 }
 
+/// A `RELATIVE CLAUSES` collection, shared by descriptor-attached clauses and
+/// (Amendment 3, round-3 review) predication-argument-attached clauses. Each
+/// clause is the compact `<KIND> <id>` entry, or — under provenance with a
+/// source — a heading carrying its own nested source ([`render_with_optional_source`]).
+/// Argument-attached clauses were previously dropped: the semantics builder
+/// attaches them only to `ArgumentValue.relative_clauses`
+/// (`attach_generated_relative_clauses_to_argument`), with no invariant
+/// duplicating them as a rendered restriction, so rendering them here is the
+/// field-completeness fix, not a redundant echo. `kind`/`body` are
+/// required-when-reached (`body` via strict [`req_val`]).
+#[requires(true)]
+#[ensures(true)]
+fn render_relative_clauses(w: &mut Writer, ctx: &Ctx, clauses: &[Value]) {
+    w.collection("RELATIVE CLAUSES", |w| {
+        for clause in clauses {
+            let text = format!(
+                "{} {}",
+                enum_render(req_str(clause, "kind")),
+                ctx.id_of(req_val(clause, "body"))
+            );
+            render_with_optional_source(w, ctx, &text, clause);
+        }
+    });
+}
+
 /// `scopeDependence`: a `SCOPE DEPENDENCE: <kind>;` scalar, or a heading with a
 /// `MAY DEPEND ON { ... }` collection when the referent depends on binders.
 #[requires(true)]
@@ -762,19 +787,7 @@ fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
             w.field("NAME", &quote(name));
         }
         if let Some(clauses) = d.get("relativeClauses").and_then(Value::as_array).filter(|c| !c.is_empty()) {
-            w.collection("RELATIVE CLAUSES", |w| {
-                for clause in clauses {
-                    // `kind`/`body` are required-when-reached; `body` via strict
-                    // req_val (round-2 review, Codex 6). Amendment 2: the
-                    // clause's own `source` renders under provenance.
-                    let text = format!(
-                        "{} {}",
-                        enum_render(req_str(clause, "kind")),
-                        ctx.id_of(req_val(clause, "body"))
-                    );
-                    render_with_optional_source(w, ctx, &text, clause);
-                }
-            });
+            render_relative_clauses(w, ctx, clauses);
         }
     });
 }
@@ -851,9 +864,30 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                     let n = place_number(xk);
                     let arg = &args[xk];
                     let operand = operand_ref(ctx, req_val(arg, "value"));
-                    // Amendment 2: the ArgumentValue filler's own `source`
-                    // renders under provenance (round-2 review).
-                    render_with_optional_source(w, ctx, &format!("[{n}]: {operand}"), arg);
+                    let label = format!("[{n}]: {operand}");
+                    // Amendment 3: an ArgumentValue's own `relativeClauses`
+                    // render (the builder attaches them only to the argument
+                    // occurrence; no invariant duplicates them as a rendered
+                    // restriction). Amendment 2: the filler's own `source`
+                    // renders under provenance. An argument with either becomes
+                    // a heading (RELATIVE CLAUSES first, then its PROVENANCE);
+                    // a plain argument stays the compact entry.
+                    let arg_rcs = arg
+                        .get("relativeClauses")
+                        .and_then(Value::as_array)
+                        .filter(|c| !c.is_empty());
+                    let show_source =
+                        ctx.provenance && arg.get("source").is_some_and(|s| !s.is_null());
+                    if arg_rcs.is_some() || show_source {
+                        w.heading(&label, |w| {
+                            if let Some(clauses) = arg_rcs {
+                                render_relative_clauses(w, ctx, clauses);
+                            }
+                            render_source(w, ctx, arg);
+                        });
+                    } else {
+                        w.entry(&label);
+                    }
                 }
             });
         }

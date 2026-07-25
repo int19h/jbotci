@@ -158,12 +158,12 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("lean3.txt"),
-        "6ed45e77517acdcf2f819d21064ccb4b77baf4b90fb19e9dacffb6f902c35641",
+        "4d3e18385ed48605019f0543c95598c45f7fe2a05cdf8bbac4e19c0a31569c81",
         "lean3.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("lean3-prov.txt"),
-        "25c26460c2db8a2552597a7cdafcdea531722946194f9e5d8419246ac08b54df",
+        "d9c1fe502528d67246d3ba7cce9f25e4bd17726b24e564a1383217986bf968a7",
         "lean3-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
