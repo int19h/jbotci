@@ -529,6 +529,28 @@ fn render_source(w: &mut Writer, ctx: &Ctx, obj: &Value) {
     });
 }
 
+/// Emit a compact one-line `label` as a plain `entry`, EXCEPT when provenance is
+/// on AND the nested value struct `obj` carries its own `source` — then `label`
+/// becomes a heading whose body is that struct's nested PROVENANCE block
+/// (Phase-B Amendment 2, round-2 review). This keeps the compact-entry form
+/// byte-identical whenever provenance is off or the struct has no source, so the
+/// provenance delta is confined to the newly rendered nested sources; a
+/// sourceless sibling in the same collection stays a plain entry. Used for the
+/// value structs the renderer traverses whose `source` the flat top-level
+/// PROVENANCE pass never reaches — predication `ArgumentValue` fillers and
+/// descriptor-attached `RelativeClause`s (`AssignedName`, already a heading,
+/// calls [`render_source`] directly). Lockstep with the oracle's
+/// `render_with_optional_source`.
+#[requires(true)]
+#[ensures(true)]
+fn render_with_optional_source(w: &mut Writer, ctx: &Ctx, label: &str, obj: &Value) {
+    if ctx.provenance && obj.get("source").is_some_and(|source| !source.is_null()) {
+        w.heading(label, |w| render_source(w, ctx, obj));
+    } else {
+        w.entry(label);
+    }
+}
+
 /// `scopeDependence`: a `SCOPE DEPENDENCE: <kind>;` scalar, or a heading with a
 /// `MAY DEPEND ON { ... }` collection when the referent depends on binders.
 #[requires(true)]
@@ -628,7 +650,7 @@ fn render_interval_modifiers(w: &mut Writer, ctx: &Ctx, obj: &Value) {
 /// not rendered here.
 #[requires(true)]
 #[ensures(true)]
-fn render_assigned_names(w: &mut Writer, obj: &Value) {
+fn render_assigned_names(w: &mut Writer, ctx: &Ctx, obj: &Value) {
     if let Some(names) = obj.get("assignedNames").and_then(Value::as_array).filter(|n| !n.is_empty()) {
         w.collection("ASSIGNED NAMES", |w| {
             for name in names {
@@ -636,6 +658,9 @@ fn render_assigned_names(w: &mut Writer, obj: &Value) {
                     w.field("WORD", &lexical(req_str(name, "word")));
                     w.field("NAME", &quote(req_str(name, "name")));
                     w.field("INTRODUCED BY", &lexical(req_str(name, "introducedBy")));
+                    // Amendment 2: the AssignedName's own `source` renders under
+                    // provenance (render_source is a no-op when provenance off).
+                    render_source(w, ctx, name);
                 });
             }
         });
@@ -658,7 +683,7 @@ fn render_eventuality_dimensions(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Val
     match obj.get("time").filter(|t| !t.is_null()) {
         Some(t) => {
             let relation = enum_render(req_str(t, "relation"));
-            let anchor = t.get("anchor").map(|a| ctx.id_of(a)).unwrap_or_default();
+            let anchor = ctx.id_of(req_val(t, "anchor"));
             pairs.push((
                 "time".to_string(),
                 format!("{{ relation = {relation}, anchor = {anchor} }}"),
@@ -739,12 +764,15 @@ fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
         if let Some(clauses) = d.get("relativeClauses").and_then(Value::as_array).filter(|c| !c.is_empty()) {
             w.collection("RELATIVE CLAUSES", |w| {
                 for clause in clauses {
+                    // `kind`/`body` are required-when-reached; `body` via strict
+                    // req_val (round-2 review, Codex 6). Amendment 2: the
+                    // clause's own `source` renders under provenance.
                     let text = format!(
                         "{} {}",
                         enum_render(req_str(clause, "kind")),
-                        clause.get("body").map(|b| ctx.id_of(b)).unwrap_or_default()
+                        ctx.id_of(req_val(clause, "body"))
                     );
-                    w.entry(&text);
+                    render_with_optional_source(w, ctx, &text, clause);
                 }
             });
         }
@@ -757,7 +785,7 @@ fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
 #[ensures(!ret.is_empty())]
 fn operand_ref(ctx: &Ctx, value: &Value) -> String {
     let val = value.as_str().unwrap_or_else(|| {
-        panic!("argument `value` is not a graph pointer, found {value} (contract violated)")
+        panic!("operand filler must be a graph-pointer string; found non-string JSON {value} (lojban-semantics-json-1 contract violated)")
     });
     let is_parameter = ctx
         .objects
@@ -821,9 +849,11 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             w.ordered("ARGS", |w| {
                 for xk in keys {
                     let n = place_number(xk);
-                    let value = &args[xk]["value"];
-                    let operand = operand_ref(ctx, value);
-                    w.entry(&format!("[{n}]: {operand}"));
+                    let arg = &args[xk];
+                    let operand = operand_ref(ctx, req_val(arg, "value"));
+                    // Amendment 2: the ArgumentValue filler's own `source`
+                    // renders under provenance (round-2 review).
+                    render_with_optional_source(w, ctx, &format!("[{n}]: {operand}"), arg);
                 }
             });
         }
@@ -1007,7 +1037,7 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         if let Some(descriptor) = obj.get("descriptor").filter(|d| !d.is_null()) {
             render_descriptor(w, ctx, descriptor);
         }
-        render_assigned_names(w, obj);
+        render_assigned_names(w, ctx, obj);
         if let Some(body) = obj.get("body") {
             w.field("BODY", &ctx.id_of(body));
         }
@@ -1055,8 +1085,12 @@ fn render_quantity(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("QUANTITY", &vid, None, true, |w| {
         w.field("FORM", &enum_render(req_str(obj, "form")));
-        let empty = serde_json::Map::new();
-        let val = obj.get("value").and_then(Value::as_object).unwrap_or(&empty);
+        // `value` is mandatory (the QuantityValue invariant requires exactly one
+        // of integer/text/mathExpression); fail loudly, not tolerantly (round-2
+        // review, Codex 6).
+        let val = req_val(obj, "value").as_object().unwrap_or_else(|| {
+            panic!("quantity `value` must be a JSON object (contract violated)")
+        });
         let mut handled = std::collections::BTreeSet::new();
         if let Some(integer) = val.get("integer") {
             w.field("VALUE", &number_str(integer));

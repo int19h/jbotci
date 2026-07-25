@@ -5,14 +5,19 @@ vendored from the research repo so the completeness tests are self-contained.
 
 Provenance (see `FREEZE-PHASE-B.md` in the research repo):
 
-- Oracle commit: `57a28c9458258db363d794a9b5cb022f0dd02b9d` (corrected oracle;
-  `FREEZE-PHASE-B.md` section (e), Amendment 1). This supersedes the original
-  `cab176bcce9e35ba8a8646249f521fd84c2591a0`: round-1 review adjudicated that
-  three corpus-present fields (`Predication.tanruLink`, `Referent.assignedNames`,
-  `Referent.intervalModifiers`) must render (content-complete doctrine), so the
-  oracle was corrected and the `<name>.lean3.txt` / `<name>.lean3-prov.txt`
-  fixtures regenerated from it (6 documents changed: `b19`, `b30`, `b31`, `b39`,
-  `b40`, `nd1`). The `*.json` inputs and the corpus hash below are unchanged.
+- Oracle commit: `810c3bf8b643511fb6f18bf703f8855d096238a8` (corrected oracle;
+  `FREEZE-PHASE-B.md` sections (e)/(f), Amendments 1 & 2). Supersedes `57a28c9`
+  and the original `cab176bcce9e35ba8a8646249f521fd84c2591a0`. Amendment 1
+  (round-1): three corpus-present fields (`Predication.tanruLink`,
+  `Referent.assignedNames`, `Eventuality.intervalModifiers`) render
+  (content-complete doctrine) — `*.lean3.txt` + `*.lean3-prov.txt` changed for
+  6 docs (`b19`, `b30`, `b31`, `b39`, `b40`, `nd1`). Amendment 2 (round-2):
+  nested value-struct sources (`AssignedName`, `ArgumentValue`,
+  descriptor-attached `RelativeClause`) render under `--provenance` only —
+  `*.lean3-prov.txt` changed for 8 docs (`b19`, `b21`, `medium-quantified`,
+  `nd1`, `nd2`, `nd3`, `numeral-price`, `paragraph-narrative`); `*.lean3.txt`
+  (default) is byte-identical (its aggregate hash is unchanged). The `*.json`
+  inputs and the corpus hash below are unchanged throughout.
 - Corpus: 33 `battery-docs/b*.json`/`nd*.json` + 4
   `notation-renderer-v0/samples/*.json` = 37 documents.
 - Combined corpus hash (over the sorted `sha256sum` listing of the raw
@@ -20,9 +25,9 @@ Provenance (see `FREEZE-PHASE-B.md` in the research repo):
 - Aggregate fixture hashes (pinned in `tests/lean3_parity.rs`
   `frozen_fixture_aggregate_hashes_are_pinned`, so the two fixture sets cannot
   silently drift together): `lean3.txt` →
-  `6ed45e77517acdcf2f819d21064ccb4b77baf4b90fb19e9dacffb6f902c35641`;
-  `lean3-prov.txt` →
-  `2fbeae6e02fce4b3f4d50b82f8a7fe7b0b47a99b9b117dc3f6ad1940d6478da2`.
+  `6ed45e77517acdcf2f819d21064ccb4b77baf4b90fb19e9dacffb6f902c35641` (unchanged
+  since Amendment 1); `lean3-prov.txt` →
+  `25c26460c2db8a2552597a7cdafcdea531722946194f9e5d8419246ac08b54df`.
 
 For each document `<name>`:
 
