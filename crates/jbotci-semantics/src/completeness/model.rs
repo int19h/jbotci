@@ -291,6 +291,26 @@ pub enum Disposition {
     ExcludedWithReason(&'static str),
 }
 
+impl Disposition {
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::Renders)))]
+    pub fn renders() -> Self {
+        new!(Disposition::Renders)
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared)))]
+    pub fn not_computed_declared() -> Self {
+        new!(Disposition::NotComputedDeclared)
+    }
+
+    #[requires(!reason.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_))))]
+    pub fn excluded_with_reason(reason: &'static str) -> Self {
+        new!(Disposition::ExcludedWithReason(reason))
+    }
+}
+
 /// A checked mapping from inventory entries to renderer dispositions.
 ///
 /// A future renderer registers its coverage here; [`CompletenessContract::audit`]
@@ -410,6 +430,25 @@ impl CompletenessContract {
             .copied()
             .collect();
         new!(ContractAudit { missing, orphans })
+    }
+
+    /// Entry keys where this contract's disposition differs from `expected`'s —
+    /// the expected-vs-implemented mismatch check a renderer's registered
+    /// coverage is held to against the design-intent baseline. Only keys present
+    /// in both contracts are compared; presence gaps are the [`Self::audit`]'s job.
+    #[requires(true)]
+    #[ensures(ret.iter().all(|key| self.dispositions.get(key) != expected.dispositions.get(key)))]
+    pub fn disagreements(&self, expected: &CompletenessContract) -> Vec<EntryKey> {
+        self.dispositions
+            .iter()
+            .filter(|(key, disposition)| {
+                expected
+                    .dispositions
+                    .get(*key)
+                    .is_some_and(|other| other != *disposition)
+            })
+            .map(|(key, _)| *key)
+            .collect()
     }
 }
 

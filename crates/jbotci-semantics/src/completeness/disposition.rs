@@ -79,6 +79,15 @@ const SOURCE_LINK_SURFACES: &[&str] = &[
     "Subscript",
 ];
 
+/// The surfaces whose `source` field is a `SemanticSource` provenance link.
+/// Exposed so `provenance_is_type_based` can cross-check it against the model
+/// type graph (fails if this hard-coded set drifts from the typed reality).
+#[requires(true)]
+#[ensures(true)]
+pub fn source_link_surfaces() -> &'static [&'static str] {
+    SOURCE_LINK_SURFACES
+}
+
 /// True for a `SemanticSource`/`SourceByteSpan` value or a `SemanticSource`-typed
 /// `source` link on any surface.
 #[requires(true)]
@@ -125,7 +134,11 @@ pub fn baseline_disposition(entry: &InventoryEntry) -> Disposition {
 pub fn baseline_contract_for(inventory: &RenderFieldInventory) -> CompletenessContract {
     let mut contract = CompletenessContract::new();
     for entry in inventory.entries() {
-        contract.register(entry.key(), baseline_disposition(entry));
+        // The inventory is unique-by-key, so try_register never fails here; using
+        // it (over `register`) documents that the baseline builds each key once.
+        contract
+            .try_register(entry.key(), baseline_disposition(entry))
+            .expect("inventory entries are unique by key");
     }
     contract
 }

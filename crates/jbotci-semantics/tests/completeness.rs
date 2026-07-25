@@ -28,7 +28,9 @@ use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id};
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::completeness::model::{EntryKind, SurfaceCategory};
-use jbotci_semantics::completeness::render_field_inventory;
+use jbotci_semantics::completeness::{
+    baseline_contract_for, baseline_disposition, render_field_inventory, source_link_surfaces,
+};
 use jbotci_semantics::{
     SemanticBuildOptions, SemanticGraph, build_generated_semantic_graph_with_dictionary_and_options,
 };
@@ -304,6 +306,19 @@ fn witness_verification() {
             ));
             continue;
         }
+        // (1b) A variant witness must assert the variant's own discriminant value
+        //      (not just that the field is of the enum type) — otherwise a variant
+        //      could borrow a sibling's occurrence at the same field.
+        if entry.kind == EntryKind::Variant && expect.value() != entry.variant_of {
+            failures.push(format!(
+                "Enum {}::{} — variant witness must expect discriminant {:?}, got {:?}",
+                entry.surface.name,
+                entry.field,
+                entry.variant_of,
+                expect.value()
+            ));
+            continue;
+        }
         // (2) The coordinate is actually populated (or carries the value).
         let surface = cache
             .entry(doc)
@@ -430,10 +445,23 @@ fn is_object_id(text: &str) -> bool {
     })
 }
 
+/// True when a coordinate lands on a source-provenance value (`SemanticSource`
+/// or `SourceByteSpan`), by type — not by a `:source` substring, which would
+/// wrongly catch semantic fields like `Connector.source` (a String) or
+/// `RelationMetadata:sourceWords`.
+#[requires(true)]
+#[ensures(true)]
+fn is_provenance_coord(graph: &type_graph::TypeGraph, coord: &str) -> bool {
+    graph
+        .resolve(coord)
+        .is_some_and(|resolved| matches!(resolved.owner.as_str(), "SemanticSource" | "SourceByteSpan"))
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn frozen_divergence_report() {
+    let graph = type_graph::TypeGraph::from_source();
     let mut diverging = 0usize;
     for doc in CORPUS_DOCS {
         let built = graph_json(doc);
@@ -452,7 +480,9 @@ fn frozen_divergence_report() {
         // builds; source text is input-derived and equal by construction).
         let mut value_diffs: Vec<String> = Vec::new();
         for coord in built_coords.intersection(&frozen_coords) {
-            if coord.contains(":source") || coord.contains(".source") {
+            // Exclude source provenance by *type* (span bytes / source text are
+            // input-derived and equal by construction), not by substring.
+            if is_provenance_coord(&graph, coord) {
                 continue;
             }
             let normalize = |set: Option<&BTreeSet<String>>| -> BTreeSet<String> {
@@ -490,4 +520,78 @@ fn frozen_divergence_report() {
         "frozen divergence changed from the pinned baseline; if this build's graph intentionally \
          changed, update FROZEN_DIVERGENCE_BASELINE with justification"
     );
+}
+
+// ---------------------------------------------------------------------------
+// provenance_is_type_based (SF4) — the excluded set is the SemanticSource-typed
+// source fields, derived from the type graph, not a hand list that can drift.
+// ---------------------------------------------------------------------------
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn provenance_is_type_based() {
+    let graph = type_graph::TypeGraph::from_source();
+    let inventory = render_field_inventory();
+    let links = source_link_surfaces();
+    let mut mismatches: Vec<String> = Vec::new();
+    let mut saw_source = false;
+    for entry in inventory.entries() {
+        if entry.field != "source" {
+            continue;
+        }
+        saw_source = true;
+        let policy_says_provenance = links.contains(&entry.surface.name);
+        let type_says_provenance =
+            graph.field_type(entry.surface.name, "source") == Some("SemanticSource");
+        if policy_says_provenance != type_says_provenance {
+            mismatches.push(format!(
+                "{}::source — policy provenance={policy_says_provenance} but type graph says {:?}",
+                entry.surface.name,
+                graph.field_type(entry.surface.name, "source")
+            ));
+        }
+    }
+    assert!(saw_source, "no source fields inventoried?");
+    assert!(
+        mismatches.is_empty(),
+        "provenance policy disagrees with the type graph:\n{}",
+        mismatches.join("\n")
+    );
+    // The load-bearing distinction: Connector.source is a lexical String, not
+    // provenance — so it is NOT in the source-link set.
+    assert_eq!(graph.field_type("Connector", "source"), Some("String"));
+    assert!(!links.contains(&"Connector"));
+}
+
+// ---------------------------------------------------------------------------
+// contract_disagreements_are_flagged (SF3) — registered-vs-baseline mismatch.
+// ---------------------------------------------------------------------------
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn contract_disagreements_are_flagged() {
+    use jbotci_semantics::completeness::{CompletenessContract, Disposition};
+
+    let inventory = render_field_inventory();
+    let baseline = baseline_contract_for(&inventory);
+
+    // A renderer that agrees everywhere has no disagreements.
+    let faithful = baseline_contract_for(&inventory);
+    assert!(faithful.disagreements(&baseline).is_empty());
+
+    // A renderer that flips one entry's disposition is caught.
+    let target = inventory.entries()[0].key();
+    let mut deviating = CompletenessContract::new();
+    for entry in inventory.entries() {
+        let disposition = if entry.key() == target {
+            Disposition::not_computed_declared()
+        } else {
+            baseline_disposition(entry)
+        };
+        deviating.register(entry.key(), disposition);
+    }
+    let disagreements = deviating.disagreements(&baseline);
+    assert_eq!(disagreements, vec![target]);
 }

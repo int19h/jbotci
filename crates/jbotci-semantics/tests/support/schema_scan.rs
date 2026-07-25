@@ -36,14 +36,23 @@ pub struct Variant {
     pub fields: Vec<Field>,
 }
 
-/// A parsed enum: rename policy, untagged flag, variants, serialize flag.
+/// A parsed enum: rename policy, tagging, variants, and serialize flag.
+///
+/// `manual_serialize` means the enum has a hand-written `impl Serialize` (it
+/// serializes as a scalar string, e.g. `SemanticSort`), so it has no JSON object
+/// shape even if its variants carry data.
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub struct EnumDef {
     pub rename: String,
     pub untagged: bool,
+    /// Internal-tag field name (`#[serde(tag = "...")]`), if any.
+    pub tag: Option<String>,
+    /// Adjacent `content` field name (`#[serde(content = "...")]`), if any.
+    pub content: Option<String>,
     pub variants: Vec<Variant>,
     pub serialize: bool,
+    pub manual_serialize: bool,
 }
 
 /// The parsed model: serialize-bearing structs and enums, and node serializer keys.
@@ -130,12 +139,27 @@ pub fn base_type(raw: &str) -> String {
     ty
 }
 
-/// Parse a `pub NAME: TYPE` field line at struct/variant depth; returns the
-/// serde key, base type, and whether the *preceding* line carried a skip attr.
+/// Extract a serde `key = "value"` from an attribute line.
+#[requires(!key.is_empty())]
+#[ensures(true)]
+fn serde_attr_value(attr: &str, key: &str) -> Option<String> {
+    let needle = format!("{key} = \"");
+    let idx = attr.find(&needle)?;
+    let rest = &attr[idx + needle.len()..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_owned())
+}
+
+/// Parse a `[pub ] NAME: TYPE` field line (struct fields are `pub`; enum
+/// struct-variant fields are not). `prev_has_skip` / `prev_rename` come from the
+/// preceding `#[serde(...)]` line; an explicit `rename` wins over camelCase.
 #[requires(true)]
 #[ensures(true)]
-fn parse_field(line: &str, prev_has_skip: bool) -> Option<Field> {
+fn parse_field(line: &str, prev_has_skip: bool, prev_rename: Option<&str>) -> Option<Field> {
     let trimmed = line.trim();
+    if trimmed.starts_with('#') || trimmed.starts_with("//") {
+        return None;
+    }
     let rest = trimmed.strip_prefix("pub ").unwrap_or(trimmed);
     let colon = rest.find(':')?;
     let name = rest[..colon].trim();
@@ -149,8 +173,9 @@ fn parse_field(line: &str, prev_has_skip: bool) -> Option<Field> {
     if ty.is_empty() {
         return None;
     }
+    let key = prev_rename.map(str::to_owned).unwrap_or_else(|| camel_case(name));
     Some(Field {
-        key: camel_case(name),
+        key,
         base_type: base_type(ty),
         optional: prev_has_skip || ty.starts_with("Option<"),
     })
@@ -216,17 +241,22 @@ fn parse_source(
         }
         if let Some(name) = line.strip_prefix("pub enum ") {
             let name = name.split(['<', ' ', '{']).next().unwrap_or("").to_owned();
-            let serialize = preceding_derives_serialize(&lines, i)
-                || has_manual_serialize(source, &name);
+            let manual_serialize = has_manual_serialize(source, &name);
+            let serialize = preceding_derives_serialize(&lines, i) || manual_serialize;
             let mut rename = String::new();
             let mut untagged = false;
+            let mut tag = None;
+            let mut content = None;
             let start = i.saturating_sub(10);
             for attr in &lines[start..i] {
-                if let Some(idx) = attr.find("rename_all = \"") {
-                    let rest = &attr[idx + "rename_all = \"".len()..];
-                    if let Some(end) = rest.find('"') {
-                        rename = rest[..end].to_owned();
-                    }
+                if let Some(value) = serde_attr_value(attr, "rename_all") {
+                    rename = value;
+                }
+                if let Some(value) = serde_attr_value(attr, "tag") {
+                    tag = Some(value);
+                }
+                if let Some(value) = serde_attr_value(attr, "content") {
+                    content = Some(value);
                 }
                 if attr.contains("untagged") {
                     untagged = true;
@@ -238,8 +268,11 @@ fn parse_source(
                 EnumDef {
                     rename,
                     untagged,
+                    tag,
+                    content,
                     variants,
                     serialize,
+                    manual_serialize,
                 },
             );
             i = next;
@@ -256,15 +289,18 @@ fn parse_struct_body(lines: &[&str], mut i: usize) -> (Vec<Field>, usize) {
     let mut depth = 1i32;
     let mut fields = Vec::new();
     let mut prev_skip = false;
+    let mut prev_rename: Option<String> = None;
     while i < lines.len() && depth > 0 {
         let line = lines[i];
+        // Fields live one level deep and are `[pub ] name: Type` (struct fields
+        // are `pub`; enum struct-variant fields are not).
         if depth == 1
-            && line.trim_start().starts_with("pub ")
-            && let Some(field) = parse_field(line, prev_skip)
+            && let Some(field) = parse_field(line, prev_skip, prev_rename.as_deref())
         {
             fields.push(field);
         }
         prev_skip = line.contains("skip_serializing_if");
+        prev_rename = serde_attr_value(line, "rename");
         depth += brace_delta(line);
         i += 1;
     }
@@ -440,14 +476,23 @@ const NODE_OR_HELPER_STRUCTS: &[&str] = &[
     "FormulaTraversal",
     "ForethoughtRelationBranch",
 ];
-/// Enums that do not enumerate as discriminant surfaces (scalar/free-form/internal).
+/// Enums that are not surfaces at all — dispatch/ID/type-tag internals.
+const INTERNAL_ENUMS: &[&str] = &[
+    "SemanticObject",     // the object dispatch, represented by the 13 Object surfaces
+    "SemanticObjectKind", // the `type` tag value
+    "SemanticIdPrefix",   // internal to ID strings
+    "SemanticOperator",   // internal operator dispatch
+];
+/// Enums excluded from the *variant-discriminant* surface (a superset of the
+/// internals): `RelationLabel` serializes as free-form relation text, and
+/// `QuestionSlot` (untagged struct-enum) is inventoried only as a value struct.
 const ENUM_EXCLUDE: &[&str] = &[
     "SemanticObject",
     "SemanticObjectKind",
     "SemanticIdPrefix",
     "SemanticOperator",
     "RelationLabel",
-    "QuestionSlot", // untagged struct-enum, inventoried as a value struct
+    "QuestionSlot",
 ];
 
 /// The serialized surface the inventory must at minimum cover.
@@ -478,30 +523,23 @@ impl SerializedSurface {
             }
             value_structs.insert(name.clone(), fields.iter().map(|f| f.key.clone()).collect());
         }
-        // QuestionSlot (untagged struct-enum) is a value struct: the union of its
-        // variant fields.
-        if let Some(question_slot) = model.enums.get("QuestionSlot") {
-            let mut keys: Vec<String> = Vec::new();
-            for variant in &question_slot.variants {
-                for field in &variant.fields {
-                    if !keys.contains(&field.key) {
-                        keys.push(field.key.clone());
-                    }
-                }
-            }
-            value_structs.insert("QuestionSlot".to_owned(), keys);
-        }
-
         let mut enums = BTreeMap::new();
         for (name, def) in &model.enums {
-            if !def.serialize || ENUM_EXCLUDE.contains(&name.as_str()) {
+            if !def.serialize || INTERNAL_ENUMS.contains(&name.as_str()) {
                 continue;
             }
             // Discriminant enums are inventoried by their Rust variant names.
-            enums.insert(
-                name.clone(),
-                def.variants.iter().map(|v| v.name.clone()).collect(),
-            );
+            if !ENUM_EXCLUDE.contains(&name.as_str()) {
+                enums.insert(name.clone(), def.variants.iter().map(|v| v.name.clone()).collect());
+            }
+            // Enums that serialize as a JSON object also contribute a value-struct
+            // member set the inventory must cover. Manually-serialized enums
+            // (scalar strings, e.g. SemanticSort) never do.
+            if !def.manual_serialize {
+                if let Some(fields) = enum_object_fields(def) {
+                    value_structs.insert(name.clone(), fields);
+                }
+            }
         }
 
         SerializedSurface {
@@ -510,6 +548,51 @@ impl SerializedSurface {
             node_keys: model.node_keys,
         }
     }
+}
+
+/// The union of struct-variant field keys of an enum.
+#[requires(true)]
+#[ensures(true)]
+fn variant_field_union(def: &EnumDef) -> Vec<String> {
+    let mut keys: Vec<String> = Vec::new();
+    for variant in &def.variants {
+        for field in &variant.fields {
+            if !keys.contains(&field.key) {
+                keys.push(field.key.clone());
+            }
+        }
+    }
+    keys
+}
+
+/// The JSON object member set an enum serializes to, if any — the fields the
+/// inventory must cover beyond the variant discriminants.
+///
+/// * untagged struct variants (`QuestionSlot`) -> the union of variant fields;
+/// * internally tagged (`tag`, maybe `content`) -> the tag key plus either the
+///   content key (`IntervalModifier` -> `{kind, value}`) or the variant fields
+///   (`ScopeDependence` -> `{kind, mayDependOn}`);
+/// * externally tagged with struct variants (`SequenceRelation`) -> the variant
+///   fields (nested under the variant key, but the fields must still be listed).
+///
+/// Untagged/external newtype or unit-only enums have no fixed object shape.
+#[requires(true)]
+#[ensures(true)]
+fn enum_object_fields(def: &EnumDef) -> Option<Vec<String>> {
+    let has_struct_variant = def.variants.iter().any(|variant| variant.is_struct);
+    if let Some(tag) = &def.tag {
+        let mut fields = vec![tag.clone()];
+        if let Some(content) = &def.content {
+            fields.push(content.clone());
+        } else {
+            fields.extend(variant_field_union(def));
+        }
+        return Some(fields);
+    }
+    if has_struct_variant {
+        return Some(variant_field_union(def));
+    }
+    None
 }
 
 #[cfg(test)]
@@ -539,7 +622,24 @@ mod tests {
         // Node keys must include Formula's variant fields.
         assert!(surface.node_keys["Formula"].iter().any(|k| k == "operator"));
         assert!(surface.node_keys["Utterance"].iter().any(|k| k == "force"));
-        // Roughly the right size (47 value structs + QuestionSlot).
+
+        // Non-pub enum-struct-variant fields must be parsed (blocker 2). Before
+        // the fix these member sets were empty.
+        let members = |name: &str| surface.value_structs.get(name).cloned().unwrap_or_default();
+        let has = |name: &str, field: &str| members(name).iter().any(|k| k == field);
+        // QuestionSlot (untagged struct-enum) — union of private variant fields.
+        for field in ["parameter", "role", "kind", "domain"] {
+            assert!(has("QuestionSlot", field), "QuestionSlot missing {field}");
+        }
+        // ScopeDependence (internal tag "kind", private struct-variant field
+        // renamed to mayDependOn) — object shape {kind, mayDependOn}.
+        assert!(has("ScopeDependence", "kind") && has("ScopeDependence", "mayDependOn"));
+        // IntervalModifier (internal tag "kind", content "value").
+        assert!(has("IntervalModifier", "kind") && has("IntervalModifier", "value"));
+        // SequenceRelation (external tag) — ParagraphBoundary's inline fields.
+        assert!(has("SequenceRelation", "transition") && has("SequenceRelation", "additional"));
+
+        // Roughly the right size (47 value structs + the enum object-shapes).
         assert!(
             surface.value_structs.len() >= 47,
             "expected >=47 value structs, got {}",

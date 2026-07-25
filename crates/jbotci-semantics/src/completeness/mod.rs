@@ -17,7 +17,9 @@ pub mod disposition;
 pub mod inventory;
 pub mod model;
 
-pub use disposition::{baseline_contract, baseline_contract_for, baseline_disposition};
+pub use disposition::{
+    baseline_contract, baseline_contract_for, baseline_disposition, source_link_surfaces,
+};
 pub use inventory::render_field_inventory;
 pub use model::{
     CompletenessContract, ContractAudit, Disposition, EntryKey, EntryKind, InventoryEntry,

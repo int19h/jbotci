@@ -153,6 +153,15 @@ impl TypeGraph {
         self.edges.get(&(owner.to_owned(), key.to_owned())).map(String::as_str)
     }
 
+    /// The declared base type of `owner.key`, if known. Public so a test can
+    /// derive provenance (`SemanticSource`-typed fields) from the type graph and
+    /// cross-check the disposition policy's hard-coded source-link set.
+    #[requires(!owner.is_empty() && !key.is_empty())]
+    #[ensures(true)]
+    pub fn field_type(&self, owner: &str, key: &str) -> Option<&str> {
+        self.edge(owner, key)
+    }
+
     /// The concrete child-owner reached from `owner` through `key`, given the
     /// following segment (needed to disambiguate the polymorphic wrappers).
     #[requires(!owner.is_empty() && !key.is_empty())]
