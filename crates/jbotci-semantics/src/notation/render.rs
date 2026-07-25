@@ -1181,11 +1181,14 @@ fn render_math_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     let literal = obj.get("literal").filter(|l| !l.is_null());
     let operator = field_str(obj, "operator");
-    let variant = match literal {
-        Some(literal) => enum_render(req_str(literal, "kind")),
-        None => enum_render(operator.unwrap_or("")),
+    // Match the oracle: literal → its kind; else the operator; else no variant
+    // at all (an unrecognized shape has no `IS <variant>` clause, not `IS ` with
+    // an empty word).
+    let variant: Option<String> = match literal {
+        Some(literal) => Some(enum_render(req_str(literal, "kind"))),
+        None => operator.map(enum_render),
     };
-    w.declaration("MATH EXPRESSION", &vid, Some(&variant), true, |w| {
+    w.declaration("MATH EXPRESSION", &vid, variant.as_deref(), true, |w| {
         if let Some(literal) = literal {
             let kind = req_str(literal, "kind");
             if kind == "integer" && literal.get("value").is_some() {
