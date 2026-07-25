@@ -944,6 +944,38 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word classifications are produced from morphology segmentation of a single word-like token",
     ),
     (
+        "crates/jbotci-semantics/src/completeness/model.rs:CompletenessContract",
+        "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
+        "test-only parsed enum record; any combination of rename/tagging/variants is a valid parse result",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Field",
+        "test-only parsed field record whose fields are populated valid by the source scanner",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Model",
+        "test-only parsed-model aggregate; any parsed structs/enums/node-keys are a valid scan result",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:SerializedSurface",
+        "test-only classified surface aggregate; any value-struct/enum/node-key maps are a valid derivation",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Variant",
+        "test-only parsed enum-variant record whose fields are populated valid by the source scanner",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/type_graph.rs:Resolved",
+        "test-only resolution result whose owner/key are populated valid by the resolver",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/type_graph.rs:TypeGraph",
+        "test-only edge/field maps derived from the source scan; any consistent maps are a valid graph",
+    ),
+    (
         "crates/jbotci-semantics/src/facade.rs:SemanticBuildOptions",
         "semantic build options are caller transport state with no invalid combination beyond lifetimes",
     ),
