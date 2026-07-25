@@ -20,9 +20,20 @@ For each document `<name>`:
 - `<name>.frozen.json` — the frozen `lojban-semantics-json-1` graph (the
   Python oracle's input). Re-serialized with a stable 1-space indent; content
   is byte-identical in meaning to the frozen file (`json.load`/`json.dump`).
+- `<name>.lean3.txt` — the byte-parity **expected output** of the frozen Python
+  `lean3` renderer, produced verbatim by
+  `python3 experiments/notation-renderer-v0/render_v5.py <name>.frozen.json
+  --profile lean3` at the oracle commit `cab176bcce`. These are the fixtures the
+  `tests/lean3_parity.rs` byte-parity test compares this build's `render_lean3`
+  output against (graph re-derived from `<name>.lojban`, never from the frozen
+  JSON — see below). Regenerate by re-running the oracle over the
+  `<name>.frozen.json` files.
 
-The completeness tests **re-derive** each graph from `<name>.lojban` using
-*this* jbotci build (never reading `<name>.frozen.json` as the graph under
-test). The frozen JSON is used only by the divergence-report test, which
-compares this build's graph against it and reports (never fails on)
-differences.
+The completeness and `lean3` byte-parity tests **re-derive** each graph from
+`<name>.lojban` using *this* jbotci build (never reading `<name>.frozen.json`
+as the graph under test). The frozen JSON is used only by (a) the completeness
+divergence-report test, which compares this build's graph against it and
+reports (never fails on) differences, and (b) generating the `<name>.lean3.txt`
+oracle fixtures above. Because every corpus graph this build produces is
+byte-identical (in meaning) to the frozen graph, the byte-parity test isolates
+renderer correctness from any semantic drift.
