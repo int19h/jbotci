@@ -39,8 +39,9 @@ pub enum NotationProfile {
 }
 
 /// Render `graph` under `profile`, producing the model-facing notation text
-/// (terminated by a single trailing newline).
-#[requires(true)]
+/// (terminated by a single trailing newline). Requires a valid this-build
+/// `SemanticGraph` (see [`render_lean3`]).
+#[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.ends_with('\n'))]
 pub fn render_notation(graph: &SemanticGraph, profile: NotationProfile) -> String {
     match profile {
@@ -48,8 +49,11 @@ pub fn render_notation(graph: &SemanticGraph, profile: NotationProfile) -> Strin
     }
 }
 
-/// Convenience entry for the `lean3` profile.
-#[requires(true)]
+/// Convenience entry for the `lean3` profile. Requires a valid this-build
+/// `SemanticGraph`: its type invariants guarantee referential integrity and
+/// required-field population, which the renderer relies on (failing loudly, not
+/// degrading, if ever violated). See [`render::render_lean3`]'s contract.
+#[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.ends_with('\n'))]
 pub fn render_lean3(graph: &SemanticGraph, config: Lean3Config) -> String {
     render::render_lean3(graph, config)

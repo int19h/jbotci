@@ -984,6 +984,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
+        "crates/jbotci-semantics/src/notation/render.rs:Ctx",
+        "lean3 render context is borrowed views (object map, id map) built together over one graph plus a bool toggle; every field combination is a valid context",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/render.rs:Lean3Config",
+        "lean3 render config is a single bool provenance toggle; every value is a valid configuration",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/writer.rs:Writer",
+        "notation Writer is a mutable line-accumulating builder, not a validated model type; its structural discipline is enforced by the RAII body closures, not a field invariant",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
