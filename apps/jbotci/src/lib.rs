@@ -375,6 +375,9 @@ pub enum TersmuFormat {
     TreeProj,
     /// EXPERIMENTAL: model-facing "lean3" notation (Phase-B candidate; working
     /// name, subject to change — not the default, tree+proj remains default).
+    /// Provenance (source spans) renders off; the provenance opt-in is
+    /// library-only for now (`jbotci_semantics::render_lean3` with
+    /// `Lean3Config { provenance: true }`), not exposed as a CLI/MCP flag.
     Lean3,
 }
 
