@@ -1,4 +1,4 @@
-//! Physical writer for the model-facing notation (Proposal v5, `lean3` profile).
+//! Physical writer for the model-facing notation (Proposal v5, `smusni` profile).
 //!
 //! This is a faithful Rust port of the Python oracle's `Writer` class plus its
 //! two dense-declaration helpers (`experiments/notation-renderer-v0/render_v5.py`
@@ -12,7 +12,7 @@
 //! * [`Writer::collection`] — `LABEL { ... }` collections/maps/sets (role 5);
 //! * [`Writer::entry`] — one `text;` element inside an ordered/collection body (role 6);
 //! * [`Writer::declaration`] — `<KIND> <identity> ...` identified declarations (§3.1),
-//!   with the `lean3` brace closer (`opt_braces`, N4) and one-line collapsing
+//!   with the `smusni` brace closer (`opt_braces`, N4) and one-line collapsing
 //!   (`opt_dense_decls`, N8e).
 //!
 //! The dense-declaration machinery captures a declaration's body into a scratch
@@ -27,7 +27,7 @@
 use bityzba::{ensures, invariant, requires};
 
 /// The physical line writer. Roles are separate methods so their punctuation
-/// cannot be blended; `opt_braces`/`opt_dense_decls` are the two `lean3` shape
+/// cannot be blended; `opt_braces`/`opt_dense_decls` are the two `smusni` shape
 /// options that alter [`Writer::declaration`] only.
 ///
 /// `collect_stack` is empty except while a dense declaration's body is being
@@ -176,7 +176,7 @@ impl Writer {
     }
 
     /// §3.1: `<KIND> <identity> [IS <variant>] ... ` declaration, with the
-    /// `lean3` brace closer and one-line collapsing.
+    /// `smusni` brace closer and one-line collapsing.
     ///
     /// N4 (`opt_braces`): the opener line gains a trailing ` {` and the closer
     /// drops the `END <KIND> <identity>;` repetition in favour of a bare `}`.

@@ -985,11 +985,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/notation/render.rs:Ctx",
-        "lean3 render context is borrowed views (object map, id map) built together over one graph plus a bool toggle; every field combination is a valid context",
+        "smusni render context is borrowed views (object map, id map) built together over one graph plus a bool toggle; every field combination is a valid context",
     ),
     (
-        "crates/jbotci-semantics/src/notation/render.rs:Lean3Config",
-        "lean3 render config is a single bool provenance toggle; every value is a valid configuration",
+        "crates/jbotci-semantics/src/notation/render.rs:SmusniConfig",
+        "smusni render config is a single bool provenance toggle; every value is a valid configuration",
     ),
     (
         "crates/jbotci-semantics/src/notation/writer.rs:Writer",

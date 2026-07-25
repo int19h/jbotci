@@ -1,9 +1,9 @@
-//! The `lean3` renderer's completeness coverage, registered against the merged
+//! The `smusni` renderer's completeness coverage, registered against the merged
 //! inventory ([`crate::completeness`]).
 //!
-//! Phase-B step 2 authored a completeness *contract* (the declared `lean3`
+//! Phase-B step 2 authored a completeness *contract* (the declared `smusni`
 //! design intent) with no renderer present. This module is the renderer side:
-//! it declares, per inventory entry, the [`Disposition`] the `lean3` renderer in
+//! it declares, per inventory entry, the [`Disposition`] the `smusni` renderer in
 //! [`super::render`] actually applies, and the tests below verify that coverage
 //! (a) audits complete against [`render_field_inventory`] — every entry
 //! dispositioned, no orphans — and (b) agrees, with zero [`disagreements`], with
@@ -11,11 +11,11 @@
 //!
 //! # The renderer's coverage policy (independently stated from the render code)
 //!
-//! The `lean3` renderer in [`super::render`] treats each surface as follows,
+//! The `smusni` renderer in [`super::render`] treats each surface as follows,
 //! and this policy is authored from that code — not copied from
 //! [`crate::completeness::baseline_disposition`]:
 //!
-//! * **Source provenance is config-dependent.** [`super::render::Lean3Config`]
+//! * **Source provenance is config-dependent.** [`super::render::SmusniConfig`]
 //!   defaults `provenance` off, so `render_source` renders nothing and every
 //!   source-provenance coordinate is `ExcludedWithReason` — the profile the
 //!   design-intent baseline models. With `provenance` ON, the coordinates the
@@ -74,9 +74,9 @@ use crate::completeness::{
     render_field_inventory, source_link_surfaces, source_provenance_reason, CompletenessContract,
     Disposition, EntryKind, InventoryEntry,
 };
-use super::render::Lean3Config;
+use super::render::SmusniConfig;
 
-/// The one document-level NOT COMPUTED fact the `lean3` renderer declares.
+/// The one document-level NOT COMPUTED fact the `smusni` renderer declares.
 const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 
 /// The surfaces whose `source` the renderer's `render_source` is actually
@@ -146,12 +146,12 @@ fn renderer_declares_not_computed(entry: &InventoryEntry) -> bool {
 #[requires(true)]
 #[ensures(ret == (is_source_provenance(entry)
     && !(config.provenance && source_rendered_under_provenance(entry))))]
-fn renderer_excludes(entry: &InventoryEntry, config: Lean3Config) -> bool {
+fn renderer_excludes(entry: &InventoryEntry, config: SmusniConfig) -> bool {
     is_source_provenance(entry) && !(config.provenance && source_rendered_under_provenance(entry))
 }
 
-/// The disposition the `lean3` renderer applies to one inventory entry under a
-/// given [`Lean3Config`], stated from the render code (see the module docs). The
+/// The disposition the `smusni` renderer applies to one inventory entry under a
+/// given [`SmusniConfig`], stated from the render code (see the module docs). The
 /// coverage is genuinely *config-dependent* (round-1 review, kimi 8): with
 /// provenance OFF (the default, which the design-intent baseline models) every
 /// source-provenance coordinate is `ExcludedWithReason`; with provenance ON the
@@ -167,7 +167,7 @@ fn renderer_excludes(entry: &InventoryEntry, config: Lean3Config) -> bool {
     == (renderer_declares_not_computed(entry) && !renderer_excludes(entry, config)))]
 #[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
     == (!renderer_excludes(entry, config) && !renderer_declares_not_computed(entry)))]
-pub fn renderer_disposition(entry: &InventoryEntry, config: Lean3Config) -> Disposition {
+pub fn renderer_disposition(entry: &InventoryEntry, config: SmusniConfig) -> Disposition {
     if renderer_excludes(entry, config) {
         // Adopt the spec's own stated reason verbatim (the `Disposition` carries
         // the reason, so agreeing with the baseline means reusing it).
@@ -179,13 +179,13 @@ pub fn renderer_disposition(entry: &InventoryEntry, config: Lean3Config) -> Disp
     Disposition::renders()
 }
 
-/// The `lean3` renderer's completeness contract under `config`: every inventory
+/// The `smusni` renderer's completeness contract under `config`: every inventory
 /// entry registered (via `try_register`, so a double-cover is rejected) with the
-/// disposition the renderer applies. Pass [`Lean3Config::default`] (provenance
+/// disposition the renderer applies. Pass [`SmusniConfig::default`] (provenance
 /// off) for the profile the design-intent baseline models.
 #[requires(true)]
 #[ensures(ret.len() == render_field_inventory().len())]
-pub fn lean3_coverage_contract(config: Lean3Config) -> CompletenessContract {
+pub fn smusni_coverage_contract(config: SmusniConfig) -> CompletenessContract {
     let inventory = render_field_inventory();
     let mut contract = CompletenessContract::new();
     for entry in inventory.entries() {
@@ -226,7 +226,7 @@ mod tests {
     #[ensures(true)]
     fn coverage_audits_complete() {
         let inventory = render_field_inventory();
-        let contract = lean3_coverage_contract(Lean3Config::default());
+        let contract = smusni_coverage_contract(SmusniConfig::default());
         let audit = contract.audit(&inventory);
         assert!(
             audit.missing.is_empty(),
@@ -243,7 +243,7 @@ mod tests {
         assert!(audit.is_complete());
     }
 
-    /// (b) The renderer's actual coverage agrees with the declared `lean3`
+    /// (b) The renderer's actual coverage agrees with the declared `smusni`
     /// design-intent baseline — zero disagreements in either direction.
     #[test]
     #[requires(true)]
@@ -251,12 +251,12 @@ mod tests {
     fn coverage_matches_design_intent_baseline() {
         let inventory = render_field_inventory();
         // The baseline models the DEFAULT profile (provenance off).
-        let contract = lean3_coverage_contract(Lean3Config::default());
+        let contract = smusni_coverage_contract(SmusniConfig::default());
         let baseline = baseline_contract_for(&inventory);
         let disagreements = contract.disagreements(&baseline);
         assert!(
             disagreements.is_empty(),
-            "{} renderer dispositions disagree with the lean3 design intent: {:?}",
+            "{} renderer dispositions disagree with the smusni design intent: {:?}",
             disagreements.len(),
             &disagreements[..disagreements.len().min(8)]
         );
@@ -277,7 +277,7 @@ mod tests {
     #[ensures(true)]
     fn provenance_on_flips_exactly_the_rendered_source_entries() {
         let inventory = render_field_inventory();
-        let with_provenance = lean3_coverage_contract(Lean3Config { provenance: true });
+        let with_provenance = smusni_coverage_contract(SmusniConfig { provenance: true });
         let baseline = baseline_contract_for(&inventory);
         let disagreements = with_provenance.disagreements(&baseline);
         let expected_flipped = inventory

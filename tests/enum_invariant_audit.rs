@@ -908,8 +908,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit expectation asserting the coordinate is populated (present and non-null); no payload to constrain",
     ),
     (
-        "crates/jbotci-semantics/src/notation/mod.rs:NotationProfile::Lean3",
-        "notation profile selector; the wrapped Lean3Config validates its own (single-bool) domain, so every Lean3 value is a valid selection",
+        "crates/jbotci-semantics/src/notation/mod.rs:NotationProfile::Smusni",
+        "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservation::Candidate",

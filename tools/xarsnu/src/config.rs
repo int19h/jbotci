@@ -195,7 +195,7 @@ impl ClientConfig {
 #[invariant(::TreeProj => true)]
 #[invariant(::Tree => true)]
 #[invariant(::Json => true)]
-#[invariant(::Lean3 => true)]
+#[invariant(::Smusni => true)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
@@ -204,9 +204,9 @@ pub enum TersmuFormat {
     TreeProj,
     Tree,
     Json,
-    /// Experimental model-facing "lean3" notation from the Rust renderer merged
+    /// Experimental model-facing `smusni` notation from the Rust renderer merged
     /// in PR #615; not the default (`tree+proj` remains the default).
-    Lean3,
+    Smusni,
 }
 
 /// Information available when a listener first interprets a posted message.
@@ -349,7 +349,7 @@ system-prompt = "Speak only Lojban."
             ("tree+proj", TersmuFormat::TreeProj),
             ("tree", TersmuFormat::Tree),
             ("json", TersmuFormat::Json),
-            ("lean3", TersmuFormat::Lean3),
+            ("smusni", TersmuFormat::Smusni),
         ] {
             let source = VALID_CONFIG.replace(
                 "scenario = \"schedule-negotiation\"",

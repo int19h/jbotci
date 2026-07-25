@@ -1,10 +1,10 @@
-//! The baseline `lean3` disposition contract.
+//! The baseline `smusni` disposition contract.
 //!
 //! Phase-B forbids a renderer in this PR, but the completeness contract must be
 //! exercised end to end: every inventoried entry needs a disposition or the
 //! audit fails. This module registers the *declared design intent* of the frozen
-//! `lean3` profile (DESIGN-RECORD.md + FREEZE-PHASE-B.md + the frozen
-//! `*.lean3.txt` sample outputs) as the baseline. It is the spec the future
+//! `smusni` profile (DESIGN-RECORD.md + FREEZE-PHASE-B.md + the frozen
+//! `*.smusni.txt` sample outputs) as the baseline. It is the spec the future
 //! renderer is held to, not the renderer itself; the byte-parity PR will verify
 //! actual output against these dispositions.
 //!
@@ -12,13 +12,13 @@
 //! * A field whose *type* is `SemanticSource`/`SourceByteSpan` (every `.source`
 //!   link, wherever it nests, plus the two provenance structs' own fields) is
 //!   `ExcludedWithReason`: source provenance carries no coordinate in any frozen
-//!   `lean3` sample. Excluding by type — not by field name — keeps lexical
+//!   `smusni` sample. Excluding by type — not by field name — keeps lexical
 //!   `source` fields such as `Connector.source` (a word, not a `SemanticSource`)
 //!   rendering.
 //! * Exactly one document-level `NOT COMPUTED` fact
 //!   (`not-computed:denotation-multiplicity`) is `NotComputedDeclared`
 //!   (evidence: the `NOT COMPUTED { denotation-multiplicity; }` block present in
-//!   every frozen `lean3` sample). The tested-winner role wordings ALL HOLD /
+//!   every frozen `smusni` sample). The tested-winner role wordings ALL HOLD /
 //!   ROLE FOR are *rendered* wordings (FREEZE-PHASE-B.md (d)), so they RENDER —
 //!   they are unexercised by the corpus, not uncomputed.
 //! * Everything else — content fields, enum variants, content-bearing derived
@@ -37,9 +37,9 @@ use super::model::{
 };
 
 const SOURCE_PROVENANCE_REASON: &str =
-    "source provenance; lean3 renders semantic content, not source spans (absent from every frozen lean3 sample output)";
+    "source provenance; smusni renders semantic content, not source spans (absent from every frozen smusni sample output)";
 
-/// The single document-level `NOT COMPUTED` fact `lean3` declares rather than
+/// The single document-level `NOT COMPUTED` fact `smusni` declares rather than
 /// computes. (ALL HOLD / ROLE FOR are rendered wordings, not NOT COMPUTED.)
 const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 
@@ -89,7 +89,7 @@ pub fn source_link_surfaces() -> &'static [&'static str] {
 }
 
 /// The exact reason a source-provenance entry is `ExcludedWithReason` under the
-/// `lean3` design intent. Exposed so a renderer registering coverage adopts the
+/// `smusni` design intent. Exposed so a renderer registering coverage adopts the
 /// spec's own stated reason verbatim (the `Disposition` carries the reason, so a
 /// coverage contract can only agree with the baseline by reusing this string),
 /// mirroring how [`source_link_surfaces`] exposes the exclusion set.
@@ -116,7 +116,7 @@ fn is_not_computed_fact(entry: &InventoryEntry) -> bool {
     entry.kind == EntryKind::DerivedFact && entry.field == NOT_COMPUTED_FACT
 }
 
-/// The baseline disposition for a single entry under the `lean3` design intent.
+/// The baseline disposition for a single entry under the `smusni` design intent.
 ///
 /// The postconditions pin the exact policy so a predicate regression (e.g.
 /// re-classifying a rendered wording as NOT COMPUTED, or missing a nested

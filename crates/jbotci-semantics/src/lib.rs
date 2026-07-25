@@ -21,5 +21,5 @@ pub use model::{
     semantic_graph_references_are_defined, semantic_object_domain_imports_are_valid,
     semantic_object_scope_dependences_are_derived,
 };
-pub use notation::{render_lean3, render_notation, Lean3Config, NotationProfile};
+pub use notation::{render_smusni, render_notation, SmusniConfig, NotationProfile};
 pub use render::{render_tree, render_tree_proj};
