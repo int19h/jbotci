@@ -27,6 +27,7 @@ use jbotci_semantics::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
+use sha2::{Digest, Sha256};
 
 #[requires(!doc.is_empty() && !suffix.is_empty())]
 #[ensures(true)]
@@ -126,4 +127,71 @@ fn lean3_byte_parity_over_frozen_corpus() {
 #[ensures(true)]
 fn lean3_provenance_byte_parity_over_frozen_corpus() {
     assert_parity("lean3-prov.txt", Lean3Config { provenance: true });
+}
+
+/// The pinned aggregate SHA-256 of a fixture set: `sha256( for each doc in
+/// lexicographically-sorted `CORPUS_DOCS`: doc-name + '\n' + file bytes )`.
+#[requires(!suffix.is_empty())]
+#[ensures(true)]
+fn aggregate_fixture_hash(suffix: &str) -> String {
+    let mut docs: Vec<&&str> = CORPUS_DOCS.iter().collect();
+    docs.sort();
+    let mut hasher = Sha256::new();
+    for doc in docs {
+        let bytes = std::fs::read(fixture(doc, suffix))
+            .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
+        hasher.update(doc.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(&bytes);
+    }
+    hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Should-fix 7 (round-1 review, Codex 4): pin the aggregate hash of BOTH
+/// vendored fixture sets so the renderer-expected and provenance fixtures cannot
+/// silently drift together (e.g. a regeneration that changes both while a stale
+/// oracle is in use). If a deliberate oracle change lands, this pin and the
+/// `FREEZE-PHASE-B.md` amendment are updated in lockstep.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn frozen_fixture_aggregate_hashes_are_pinned() {
+    assert_eq!(
+        aggregate_fixture_hash("lean3.txt"),
+        "6ed45e77517acdcf2f819d21064ccb4b77baf4b90fb19e9dacffb6f902c35641",
+        "lean3.txt fixture set drifted from the pinned oracle output"
+    );
+    assert_eq!(
+        aggregate_fixture_hash("lean3-prov.txt"),
+        "2fbeae6e02fce4b3f4d50b82f8a7fe7b0b47a99b9b117dc3f6ad1940d6478da2",
+        "lean3-prov.txt fixture set drifted from the pinned oracle output"
+    );
+}
+
+/// Blocker-3 regression (round-1 review, kimi 5): a `zoi` quotation whose text
+/// carries notation metacharacters (`{ ( ; } )`) renders them safely inside a
+/// quoted value and stays byte-identical to the oracle. This is a dedicated
+/// hostile-witness fixture, deliberately *outside* [`CORPUS_DOCS`] so it does
+/// not perturb the frozen 37-document corpus hash. (The dense-flatten path that
+/// the hardening protects is exercised directly in `writer.rs`'s unit tests.)
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn lean3_hostile_witness_regression() {
+    let doc = "hostile-quote";
+    for (suffix, config) in [
+        ("lean3.txt", Lean3Config { provenance: false }),
+        ("lean3-prov.txt", Lean3Config { provenance: true }),
+    ] {
+        let expected = std::fs::read_to_string(fixture(doc, suffix))
+            .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
+        let actual = render_lean3(&graph_for(doc), config);
+        assert_eq!(
+            expected, actual,
+            "{doc} ({suffix}) diverges from the oracle at {:?}",
+            first_diff(&expected, &actual)
+        );
+        // The metacharacters survive inside a quoted value, un-split.
+        assert!(actual.contains("QUOTED TEXT: \"zoi gy. a{b(c;d}e .gy\";"));
+    }
 }
