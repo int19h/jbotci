@@ -5,7 +5,7 @@
 //! Today one profile is realised, [`NotationProfile::Smusni`] — the Phase-B
 //! default-candidate `smusni` profile, a byte-parity port of the frozen Python
 //! oracle (`experiments/notation-renderer-v0/render_v5.py` at commit
-//! `cab176bcce`). The research repo's internal profile name for this rendering
+//! `28c7d5f`). The research repo's internal profile name for this rendering
 //! is `lean3` (a historical experiment label); `smusni` is its product name.
 //! The [`NotationProfile`] seam is the profile-driven extension
 //! point: a future `dense` (or other) profile adds a variant and its own

@@ -1,5 +1,5 @@
 //! The `smusni` graph walk: a faithful Rust port of the Python oracle's `lean3`
-//! rendering path (`render_v5.py` at commit `cab176bcce`; `lean3` is the
+//! rendering path (`render_v5.py` at commit `28c7d5f`; `lean3` is the
 //! research repo's historical name for what ships as the `smusni` profile).
 //!
 //! # Why this reads the canonical JSON

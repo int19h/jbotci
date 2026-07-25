@@ -2,7 +2,7 @@
 //!
 //! This is a faithful Rust port of the Python oracle's `Writer` class plus its
 //! two dense-declaration helpers (`experiments/notation-renderer-v0/render_v5.py`
-//! at commit `cab176bcce`, the byte-parity oracle fixed by the research repo's
+//! at commit `28c7d5f`, the byte-parity oracle fixed by the research repo's
 //! `FREEZE-PHASE-B.md`). It enforces the five disjoint punctuation roles of the
 //! notation as distinct call shapes so a renderer cannot accidentally blend them:
 //!

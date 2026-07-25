@@ -3,7 +3,7 @@
 //!
 //! For each of the 37 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at the oracle commit `cab176bcce` (`lean3` is the research repo's
+//! lean3` at the oracle commit `28c7d5f` (`lean3` is the research repo's
 //! historical profile name for the product's `smusni` notation). This test
 //! re-derives each graph
 //! from `<doc>.lojban` with *this* build (the same pipeline the completeness
