@@ -50,8 +50,38 @@ SEMANTIC DOCUMENT document_1 {
         TEXT: "sutra bajra prenu";
         CONSTRUCT: "restrictive-tanru-formula";
     }
-    PREDICATION p23 { RELATION: tanru; ARGS ( [1]: VALUE x10; [2]: REFERENCE DENOTATION l22; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 3..20; TEXT: "sutra bajra prenu"; CONSTRUCT: "restrictive-tanru-formula"; } }
-    PREDICATION p27 { RELATION: tanru; ARGS ( [1]: REFERENCE DENOTATION r7; [2]: REFERENCE DENOTATION l26; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 3..20; TEXT: "sutra bajra prenu"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    PREDICATION p23 {
+      RELATION: tanru;
+      ARGS (
+        [1]: VALUE x10;
+        [2]: REFERENCE DENOTATION l22;
+      )
+      MODE: RESTRICTIVE;
+      TANRU LINK
+        HEAD: p15;
+        MODIFIER: l22;
+        RELATION LABEL: sutra-bajra;
+      PROVENANCE
+        BYTE SPAN: 3..20;
+        TEXT: "sutra bajra prenu";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+    PREDICATION p27 {
+      RELATION: tanru;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+        [2]: REFERENCE DENOTATION l26;
+      )
+      MODE: RESTRICTIVE;
+      TANRU LINK
+        HEAD: p8;
+        MODIFIER: l26;
+        RELATION LABEL: sutra-bajra-prenu;
+      PROVENANCE
+        BYTE SPAN: 3..20;
+        TEXT: "sutra bajra prenu";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
     PREDICATION p33 {
       RELATION: tavla;
       EVENTUALITY: r6;

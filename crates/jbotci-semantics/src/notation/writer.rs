@@ -287,6 +287,22 @@ fn line_depth_and_text(line: &str, indent_width: usize) -> (usize, &str) {
     (depth, stripped)
 }
 
+/// Whether a captured line is a self-delimiting group opener, matched against
+/// the EXACT three opener suffixes the [`Writer`] emits — `ordered`'s ` (`,
+/// `collection`'s (and a synthesized `heading`'s) ` {`, and `dimension_record`'s
+/// `.{` — rather than a bare trailing `{`/`(`. Every non-opener leaf line is
+/// either `;`-terminated (`field`/`entry`), ends in a closing quote `"` (all
+/// free/witness text goes through [`super::render`]'s `quote`), or is a closed
+/// sort/enum word (`annotate`, `dimension_record` pairs) — none of which can end
+/// in ` (`, ` {`, or `.{`. So this never false-positives on a field value that
+/// merely happens to contain a brace/paren (adversarial review round 1;
+/// lockstep with the oracle's `_is_group_opener`).
+#[requires(true)]
+#[ensures(ret == (text.ends_with(" (") || text.ends_with(" {") || text.ends_with(".{")))]
+fn is_group_opener(text: &str) -> bool {
+    text.ends_with(" (") || text.ends_with(" {") || text.ends_with(".{")
+}
+
 /// How many direct fields a declaration's captured body has, at `child_indent`
 /// (one level deeper than the declaration's own head line): one whole
 /// self-delimiting group (`ARGS (...)`, `DESCRIPTOR IS ... {...}`) or heading
@@ -307,7 +323,7 @@ pub fn count_direct_units(body_lines: &[String], child_indent: usize, indent_wid
             continue;
         }
         count += 1;
-        if text.ends_with('{') || text.ends_with('(') {
+        if is_group_opener(text) {
             let closer = if text.ends_with('{') { '}' } else { ')' };
             let mut depth_count = 1;
             i += 1;
@@ -358,7 +374,7 @@ fn flatten_span(
         if line_depth < depth {
             break;
         }
-        if text.ends_with('{') || text.ends_with('(') {
+        if is_group_opener(text) {
             let closer = if text.ends_with('{') { '}' } else { ')' };
             parts.push(text.to_string());
             let (inner, next) = flatten_span(body_lines, i + 1, depth + 1, indent_width);
@@ -389,4 +405,74 @@ fn flatten_span(
         i += 1;
     }
     (parts.join(" "), i)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Blocker-3 regression (round-1 review, kimi 5): a leaf whose value merely
+    /// ends in a bare `{`/`(` (a hypothetical future unquoted field, or a
+    /// hostile witness value), and a quoted value carrying `{ ( ; } )`, must not
+    /// be mistaken for a group opener. `is_group_opener` matches only the exact
+    /// ` (`/` {`/`.{` suffixes the Writer emits, so both stay leaves.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn flatten_does_not_treat_hostile_leaf_values_as_group_openers() {
+        // A captured declaration body at child_indent = 1 (two-space indent):
+        // a real ordered group, a quoted hostile value, and a hypothetical
+        // unquoted value ending in a bare `(`.
+        let body = vec![
+            "  ARGS (".to_string(),
+            "    [1]: r1;".to_string(),
+            "  )".to_string(),
+            "  NAME: \"a{b(c;d}e\";".to_string(),
+            "  WEIRD value(".to_string(),
+        ];
+        // Three direct units: the ARGS group counts as one (not consuming the
+        // hostile lines after it); the two leaves are one each.
+        assert_eq!(count_direct_units(&body, 1, 2), 3);
+        assert_eq!(
+            flatten_body(&body, 1, 2),
+            "ARGS ( [1]: r1; ) NAME: \"a{b(c;d}e\"; WEIRD value(;"
+        );
+    }
+
+    /// A heading group nested inside a collection (the `ASSIGNED NAMES { ASSIGNED
+    /// NAME … }` shape introduced this round) flattens with the heading's
+    /// synthetic braces and the collection's own braces intact — the whole
+    /// collection is one direct unit.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn flatten_handles_heading_group_inside_collection() {
+        let body = vec![
+            "  ASSIGNED NAMES {".to_string(),
+            "    ASSIGNED NAME".to_string(),
+            "      WORD: ko'a;".to_string(),
+            "      NAME: \"ko'a\";".to_string(),
+            "      INTRODUCED BY: goi;".to_string(),
+            "  }".to_string(),
+        ];
+        assert_eq!(count_direct_units(&body, 1, 2), 1);
+        assert_eq!(
+            flatten_body(&body, 1, 2),
+            "ASSIGNED NAMES { ASSIGNED NAME { WORD: ko'a; NAME: \"ko'a\"; INTRODUCED BY: goi; } }"
+        );
+    }
+
+    /// `is_group_opener` accepts exactly the three suffixes the Writer emits and
+    /// rejects bare-brace/paren leaf endings.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn group_opener_matches_only_writer_suffixes() {
+        assert!(is_group_opener("ARGS ("));
+        assert!(is_group_opener("ASSIGNED NAMES {"));
+        assert!(is_group_opener("r6.{"));
+        assert!(!is_group_opener("WEIRD value("));
+        assert!(!is_group_opener("NAME: \"x{\";"));
+        assert!(!is_group_opener("DENOTES VALUES OF SORT Entity"));
+    }
 }

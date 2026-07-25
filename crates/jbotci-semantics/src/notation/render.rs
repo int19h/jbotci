@@ -78,26 +78,6 @@ fn short_prefix(kind: &str) -> Option<&'static str> {
         .map(|(_, prefix)| *prefix)
 }
 
-/// The `lean3` declaration kind label for a JSON object `type`, mirroring the
-/// oracle's `KIND_LABEL` keyed through `id_kind_for`.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn kind_label(id_kind: &str) -> &'static str {
-    match id_kind {
-        "utterance" => "UTTERANCE",
-        "predication" => "PREDICATION",
-        "formula" => "FORMULA",
-        "reference" => "REFERENCE",
-        "relation_expression" => "RELATION EXPRESSION",
-        "quantity" => "QUANTITY",
-        "parameter" => "PARAMETER",
-        "sequence" => "SEQUENCE",
-        "displayed_content" => "DISPLAYED CONTENT",
-        "mathExpression" => "MATH EXPRESSION",
-        _ => "UNKNOWN",
-    }
-}
-
 /// `id_kind_for`: the ID/declaration kind for an object. A `referent` collapses
 /// onto `reference` except when its `sort` is `relation` (a ka-style
 /// characteristic function → `relation_expression`); `displayedContent` maps to
@@ -137,11 +117,27 @@ fn key_number(key: &str) -> String {
     if !digits.is_empty() {
         return digits;
     }
-    sanitize_non_word(key)
+    // Fallback for a key with no trailing decimal run. Real this-build graph
+    // keys always end in their counter digit, so this path is unexercised by
+    // the corpus; the debug assertion documents and guards its one invariant
+    // (a non-empty key yields a non-empty id component) since no test reaches it
+    // (round-1 review, kimi 10).
+    let sanitized = sanitize_non_word(key);
+    debug_assert!(
+        key.is_empty() || !sanitized.is_empty(),
+        "key_number fallback produced an empty component for non-empty key `{key}`"
+    );
+    sanitized
 }
 
-/// Replace every maximal run of non-word characters with a single `_` (Python
-/// `re.sub(r"\W+", "_", s)`; word = `[A-Za-z0-9_]`).
+/// Replace every maximal run of non-word characters with a single `_`, where
+/// "word" is the ASCII class `[A-Za-z0-9_]`. The oracle uses Python
+/// `re.sub(r"\W+", "_", s)`; note Python's `\W` is Unicode-aware by default (it
+/// treats non-ASCII letters as word chars), so the two would differ on a key
+/// containing non-ASCII letters — which cannot arise here: this runs only on the
+/// `key_number` fallback for a key with no trailing digit, and every graph key
+/// is ASCII (`<sort-or-kind>:<counter>`). Documented precisely rather than
+/// claimed byte-equivalent on all inputs (round-1 review, kimi 9).
 #[requires(true)]
 #[ensures(true)]
 fn sanitize_non_word(s: &str) -> String {
@@ -160,12 +156,19 @@ fn sanitize_non_word(s: &str) -> String {
 }
 
 /// Build the `graph key -> generated id` map, in object iteration order, using
-/// the `opt_short_ids` (N8c) scheme with the frozen collision fallback. Every ID
-/// is verified unique across the whole document; a genuine collision falls back
-/// to appending the disambiguated source key so uniqueness is never silently
-/// violated.
+/// the `opt_short_ids` (N8c) scheme with a collision-disambiguation loop.
+///
+/// The base ID is `<prefix><num>` (or `<kind>_<num>` for an unrecognized kind).
+/// If that base is already taken, it is disambiguated by appending the source
+/// key (with `:`/`/`→`_`); and — round-1 review (kimi 3): the single-step
+/// fallback could itself collide — if the disambiguated form is *also* taken
+/// (two distinct keys can sanitise equal, e.g. `a:b` and `a/b`), a numeric
+/// suffix is bumped until the ID is unique. Injectivity is proven by the
+/// postcondition (every graph key maps to a distinct ID), so no two objects can
+/// silently share an ID. Lockstep with the oracle's identical loop.
 #[requires(true)]
 #[ensures(ret.len() == order.len())]
+#[ensures(ret.values().collect::<std::collections::BTreeSet<&String>>().len() == ret.len())]
 fn build_id_map(order: &[String], objects: &BTreeMap<String, Value>) -> BTreeMap<String, String> {
     let mut id_map = BTreeMap::new();
     let mut used = std::collections::BTreeSet::new();
@@ -173,12 +176,19 @@ fn build_id_map(order: &[String], objects: &BTreeMap<String, Value>) -> BTreeMap
         let obj = &objects[key];
         let kind = id_kind_for(obj);
         let num = key_number(key);
-        let mut vid = match short_prefix(kind) {
+        let base = match short_prefix(kind) {
             Some(prefix) => format!("{prefix}{num}"),
             None => format!("{kind}_{num}"),
         };
+        let mut vid = base.clone();
         if used.contains(&vid) {
-            vid = format!("{vid}_{}", sanitize_colon_slash(key));
+            let disambiguated = format!("{base}_{}", sanitize_colon_slash(key));
+            vid = disambiguated.clone();
+            let mut n = 2;
+            while used.contains(&vid) {
+                vid = format!("{disambiguated}_{n}");
+                n += 1;
+            }
         }
         used.insert(vid.clone());
         id_map.insert(key.clone(), vid);
@@ -274,7 +284,11 @@ fn title_sort(sort: &str) -> String {
         .join("/")
 }
 
-/// Python `str.capitalize`: first character uppercased, the rest lowercased.
+/// First character uppercased, the rest lowercased — matching Python
+/// `str.capitalize` on the ASCII sort names this is applied to (`entity` →
+/// `Entity`). Both use Unicode case mapping, so they coincide on ASCII; on
+/// exotic Unicode input Python's titlecase-first-codepoint rule could differ,
+/// but `sort` values are ASCII lowercase words (round-1 review, kimi 9).
 #[requires(true)]
 #[ensures(true)]
 fn capitalize(s: &str) -> String {
@@ -336,15 +350,58 @@ impl Ctx<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn id_of(&self, value: &Value) -> String {
-        self.id(value.as_str().unwrap_or("")).to_string()
+        self.id(pointer_key(value)).to_string()
+    }
+
+    /// The object a graph key points at. Absence means a dangling pointer, i.e.
+    /// a violated referential-integrity invariant, which fails loudly.
+    #[requires(true)]
+    #[ensures(true)]
+    fn object(&self, key: &str) -> &Value {
+        self.objects.get(key).unwrap_or_else(|| {
+            panic!("graph pointer `{key}` resolves to no object (contract violated)")
+        })
     }
 }
 
-/// Read a string field.
+/// A graph-pointer string value, strictly (a pointer field must hold a string).
+#[requires(true)]
+#[ensures(true)]
+fn pointer_key(value: &Value) -> &str {
+    value.as_str().unwrap_or_else(|| {
+        panic!("expected a graph-pointer string, found {value} (contract violated)")
+    })
+}
+
+/// Read an optional string field (absent → `None`).
 #[requires(true)]
 #[ensures(true)]
 fn field_str<'a>(obj: &'a Value, key: &str) -> Option<&'a str> {
     obj.get(key).and_then(Value::as_str)
+}
+
+/// Read a REQUIRED string field. A valid `lojban-semantics-json-1` graph built
+/// by *this* jbotci build always carries it (the model's own type invariants
+/// make the field mandatory); its absence means the graph contract was violated
+/// — schema drift or a hand-forged graph — which fails loudly here with the
+/// field name rather than silently emitting blank notation (round-1 review:
+/// strict accessors over `unwrap_or("")` masking).
+#[requires(true)]
+#[ensures(true)]
+fn req_str<'a>(obj: &'a Value, key: &str) -> &'a str {
+    field_str(obj, key).unwrap_or_else(|| {
+        panic!("required field `{key}` absent (lojban-semantics-json-1 contract violated)")
+    })
+}
+
+/// Read a REQUIRED field as a raw `Value` (for a mandatory pointer edge). Same
+/// loud-on-violation contract as [`req_str`].
+#[requires(true)]
+#[ensures(true)]
+fn req_val<'a>(obj: &'a Value, key: &str) -> &'a Value {
+    obj.get(key).unwrap_or_else(|| {
+        panic!("required field `{key}` absent (lojban-semantics-json-1 contract violated)")
+    })
 }
 
 /// A JSON number rendered bare (integers as `190`, no quotes), for VALUE/ARITY.
@@ -355,7 +412,19 @@ fn number_str(value: &Value) -> String {
 }
 
 /// The public render entry: walk `graph` and produce its `lean3` notation.
-#[requires(true)]
+///
+/// # Contract
+///
+/// `graph` must be a valid `lojban-semantics-json-1` graph produced by *this*
+/// jbotci build: its `SemanticGraph` type invariants already guarantee
+/// referential integrity (every pointer resolves — `semantic_graph_references_are_defined`)
+/// and that required fields are populated. The renderer relies on those
+/// invariants (the strict accessors [`req_str`]/[`req_val`]/[`Ctx::id`] fail
+/// loudly if they are ever violated rather than degrading to blank notation);
+/// it never fabricates or guesses missing structure. A genuinely unknown object
+/// `type` is the one open case and is handled explicitly by the `UNKNOWN … NOT
+/// COMPUTED` path, never a panic.
+#[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.ends_with('\n'))]
 pub fn render_lean3(graph: &SemanticGraph, config: Lean3Config) -> String {
     let order: Vec<String> = graph.objects.keys().map(|id| id.to_string()).collect();
@@ -424,9 +493,12 @@ fn render_one(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         "mathExpression" => render_math_expression(w, ctx, key, obj),
         other => {
             let vid = ctx.id(key).to_string();
-            let other = other.to_string();
+            // The raw `type` is quoted (round-1 review, kimi 10): an unknown or
+            // untrusted type could carry notation metacharacters (`;`, `{`, …)
+            // that would otherwise break the surrounding NOT COMPUTED marker.
+            let marker = format!("renderer-support({})", quote(other));
             w.declaration("UNKNOWN", &vid, None, true, |w| {
-                w.field("NOT COMPUTED", &format!("renderer-support({other})"));
+                w.field("NOT COMPUTED", &marker);
             });
         }
     }
@@ -462,7 +534,7 @@ fn render_source(w: &mut Writer, ctx: &Ctx, obj: &Value) {
 #[requires(true)]
 #[ensures(true)]
 fn render_scope_dependence(w: &mut Writer, ctx: &Ctx, sd: &Value) {
-    let kind = field_str(sd, "kind").unwrap_or("");
+    let kind = req_str(sd, "kind");
     let deps = sd.get("mayDependOn").and_then(Value::as_array);
     match deps.filter(|d| !d.is_empty()) {
         Some(deps) => {
@@ -494,8 +566,8 @@ const UNOBSERVED_DIMENSION_FIELDS: &[(&str, &str)] = &[
 #[requires(true)]
 #[ensures(true)]
 fn recurrence_item_text(ctx: &Ctx, item: &Value) -> String {
-    let kind = field_str(item, "kind").unwrap_or("");
-    let introduced_by = field_str(item, "introducedBy").unwrap_or("");
+    let kind = req_str(item, "kind");
+    let introduced_by = req_str(item, "introducedBy");
     let mut text = format!("{} INTRODUCED BY {}", enum_render(kind), lexical(introduced_by));
     if kind == "occurrenceCount" || kind == "ordinalOccurrence" {
         match item.get("quantity") {
@@ -506,6 +578,68 @@ fn recurrence_item_text(ctx: &Ctx, item: &Value) -> String {
         return format!("NOT COMPUTED: recurrence-item-shape({kind})");
     }
     text
+}
+
+/// One `intervalModifiers` entry (`IntervalModifier`, a `{kind, value}` tagged
+/// union). Adjudicated rendered (content-complete doctrine; round-1 review) —
+/// previously dropped by renderer and oracle alike. It is NOT provably redundant
+/// with the `aspect`/`recurrence` dimension-record fields (ordering and
+/// per-modifier distinctions are uncaptured there), so it renders in full,
+/// reusing the same value renderers as its dimension twins so the two forms
+/// cannot drift; any other kind, or an aspect modifier without a `contour`, is
+/// flagged rather than guessed at.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn interval_modifier_text(ctx: &Ctx, modifier: &Value) -> String {
+    let kind = req_str(modifier, "kind");
+    let value = modifier.get("value").cloned().unwrap_or(Value::Null);
+    match kind {
+        "aspect" => match field_str(&value, "contour") {
+            Some(contour) => format!("{} {}", enum_render(kind), enum_render(contour)),
+            None => "NOT COMPUTED: interval-modifier-shape(aspect)".to_string(),
+        },
+        "recurrence" => format!("{} {}", enum_render(kind), recurrence_item_text(ctx, &value)),
+        other => format!("NOT COMPUTED: interval-modifier-shape({other})"),
+    }
+}
+
+/// The `intervalModifiers` collection on an eventuality reference. Complete-or-
+/// absent, like every other optional collection here.
+#[requires(true)]
+#[ensures(true)]
+fn render_interval_modifiers(w: &mut Writer, ctx: &Ctx, obj: &Value) {
+    if let Some(mods) = obj.get("intervalModifiers").and_then(Value::as_array).filter(|m| !m.is_empty()) {
+        w.collection("INTERVAL MODIFIERS", |w| {
+            for modifier in mods {
+                w.entry(&interval_modifier_text(ctx, modifier));
+            }
+        });
+    }
+}
+
+/// The `assignedNames` collection on a referent (`AssignedName`: the goi/cei-
+/// assigned cmavo, the naming word, and the assignment marker). Adjudicated
+/// rendered (content-complete doctrine; round-1 review) — previously dropped by
+/// renderer and oracle alike. Each name is a small structured record, so it
+/// renders as a heading group (like DESCRIPTOR / DEICTIC GROUND) inside the
+/// collection: WORD/INTRODUCED BY are Lojban cmavo, NAME is the assigned label
+/// as witness text (quoted, matching DESCRIPTOR's own NAME field). Per-name
+/// `source` provenance obeys the same profile gate as every other source and is
+/// not rendered here.
+#[requires(true)]
+#[ensures(true)]
+fn render_assigned_names(w: &mut Writer, obj: &Value) {
+    if let Some(names) = obj.get("assignedNames").and_then(Value::as_array).filter(|n| !n.is_empty()) {
+        w.collection("ASSIGNED NAMES", |w| {
+            for name in names {
+                w.heading("ASSIGNED NAME", |w| {
+                    w.field("WORD", &lexical(req_str(name, "word")));
+                    w.field("NAME", &quote(req_str(name, "name")));
+                    w.field("INTRODUCED BY", &lexical(req_str(name, "introducedBy")));
+                });
+            }
+        });
+    }
 }
 
 /// The eight shipped eventuality dimensions as one compact, COMPLETE record
@@ -523,7 +657,7 @@ fn render_eventuality_dimensions(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Val
 
     match obj.get("time").filter(|t| !t.is_null()) {
         Some(t) => {
-            let relation = enum_render(field_str(t, "relation").unwrap_or(""));
+            let relation = enum_render(req_str(t, "relation"));
             let anchor = t.get("anchor").map(|a| ctx.id_of(a)).unwrap_or_default();
             pairs.push((
                 "time".to_string(),
@@ -536,7 +670,7 @@ fn render_eventuality_dimensions(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Val
     match obj.get("actuality").filter(|a| !a.is_null()) {
         Some(a) => pairs.push((
             "actuality".to_string(),
-            enum_render(field_str(a, "kind").unwrap_or("")),
+            enum_render(req_str(a, "kind")),
         )),
         None => pairs.push(("actuality".to_string(), "UNSPECIFIED".to_string())),
     }
@@ -584,7 +718,7 @@ fn render_eventuality_dimensions(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Val
 #[requires(true)]
 #[ensures(true)]
 fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
-    let kind = field_str(d, "kind").unwrap_or("");
+    let kind = req_str(d, "kind");
     let heading = format!("DESCRIPTOR IS {}", enum_render(kind));
     w.heading(&heading, |w| {
         if let Some(word) = field_str(d, "word") {
@@ -607,7 +741,7 @@ fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
                 for clause in clauses {
                     let text = format!(
                         "{} {}",
-                        enum_render(field_str(clause, "kind").unwrap_or("")),
+                        enum_render(req_str(clause, "kind")),
                         clause.get("body").map(|b| ctx.id_of(b)).unwrap_or_default()
                     );
                     w.entry(&text);
@@ -622,7 +756,9 @@ fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn operand_ref(ctx: &Ctx, value: &Value) -> String {
-    let val = value.as_str().unwrap_or("");
+    let val = value.as_str().unwrap_or_else(|| {
+        panic!("argument `value` is not a graph pointer, found {value} (contract violated)")
+    });
     let is_parameter = ctx
         .objects
         .get(val)
@@ -641,10 +777,10 @@ fn operand_ref(ctx: &Ctx, value: &Value) -> String {
 fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("UTTERANCE", &vid, None, true, |w| {
-        w.field("FORCE", &enum_render(field_str(obj, "force").unwrap_or("")));
-        w.field("SPEAKER", &ctx.id_of(&obj["speaker"]));
-        w.field("AUDIENCE", &ctx.id_of(&obj["audience"]));
-        w.field("EVENTUALITY", &ctx.id_of(&obj["eventuality"]));
+        w.field("FORCE", &enum_render(req_str(obj, "force")));
+        w.field("SPEAKER", &ctx.id_of(req_val(obj, "speaker")));
+        w.field("AUDIENCE", &ctx.id_of(req_val(obj, "audience")));
+        w.field("EVENTUALITY", &ctx.id_of(req_val(obj, "eventuality")));
         if let Some(content) = obj.get("content") {
             w.field("CONTENT", &ctx.id_of(content));
         }
@@ -653,8 +789,8 @@ fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         }
         if let Some(dg) = obj.get("deicticGround").filter(|d| !d.is_null()) {
             w.heading("DEICTIC GROUND", |w| {
-                w.field("TIME", &ctx.id_of(&dg["time"]));
-                w.field("PLACE", &ctx.id_of(&dg["place"]));
+                w.field("TIME", &ctx.id_of(req_val(dg, "time")));
+                w.field("PLACE", &ctx.id_of(req_val(dg, "place")));
             });
         }
         if let Some(asides) = obj.get("asides").and_then(Value::as_array).filter(|a| !a.is_empty()) {
@@ -673,7 +809,7 @@ fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("PREDICATION", &vid, None, true, |w| {
-        w.field("RELATION", &lexical(field_str(obj, "relation").unwrap_or("")));
+        w.field("RELATION", &lexical(req_str(obj, "relation")));
         if let Some(eventuality) = obj.get("eventuality") {
             w.field("EVENTUALITY", &ctx.id_of(eventuality));
         }
@@ -691,7 +827,19 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                 }
             });
         }
-        w.field("MODE", &enum_render(field_str(obj, "mode").unwrap_or("")));
+        w.field("MODE", &enum_render(req_str(obj, "mode")));
+        // `tanruLink` (`TanruLink`): a tanru's head/modifier structural link and
+        // its synthesized relation label. Adjudicated rendered (content-complete
+        // doctrine; round-1 review) — previously dropped by renderer and oracle
+        // alike. HEAD is a predication id, MODIFIER an argument filler id, and
+        // the relation label is synthesized Lojban tanru vocabulary.
+        if let Some(tanru_link) = obj.get("tanruLink").filter(|t| !t.is_null()) {
+            w.heading("TANRU LINK", |w| {
+                w.field("HEAD", &ctx.id_of(req_val(tanru_link, "head")));
+                w.field("MODIFIER", &ctx.id_of(req_val(tanru_link, "modifier")));
+                w.field("RELATION LABEL", &lexical(req_str(tanru_link, "relationLabel")));
+            });
+        }
         render_source(w, ctx, obj);
     });
 }
@@ -717,9 +865,9 @@ fn render_connector(w: &mut Writer, connector: Option<&Value>, full: bool) {
     let Some(connector) = connector.filter(|c| !c.is_null()) else {
         return;
     };
-    w.field("CONNECTIVE SOURCE", &lexical(field_str(connector, "source").unwrap_or("")));
+    w.field("CONNECTIVE SOURCE", &lexical(req_str(connector, "source")));
     if full {
-        w.field("LOCUS", &enum_render(field_str(connector, "locus").unwrap_or("")));
+        w.field("LOCUS", &enum_render(req_str(connector, "locus")));
     }
     if let Some(truth_table) = field_str(connector, "truthTable") {
         w.field("TRUTH TABLE", &enum_render(truth_table));
@@ -733,7 +881,7 @@ fn render_connector(w: &mut Writer, connector: Option<&Value>, full: bool) {
 #[ensures(true)]
 fn render_formula(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
-    let op = field_str(obj, "operator").unwrap_or("");
+    let op = req_str(obj, "operator");
     // opt_glyph_formulas: glyph for the five named operators, else worded.
     let variant = glyph_operator(op)
         .map(str::to_string)
@@ -796,18 +944,20 @@ fn render_sign_content(w: &mut Writer, ctx: &Ctx, obj: &Value) {
     w.field("KIND", &enum_render(kind));
     match kind {
         "quotation" => {
-            let q = obj.get("quotation").cloned().unwrap_or(Value::Null);
-            let mode = field_str(&q, "mode");
-            w.field("MODE", &enum_render(mode.unwrap_or("")));
-            if mode == Some("parsed") && q.get("utterance").is_some() {
-                w.field("QUOTED UTTERANCE", &ctx.id_of(&q["utterance"]));
-            } else if mode == Some("opaque") && q.get("text").is_some() {
-                w.field("QUOTED TEXT", &quote(field_str(&q, "text").unwrap_or("")));
-                if let Some(delimiter) = field_str(&q, "delimiter") {
+            // A quotation sign always carries a `quotation` object with a
+            // `mode` (model invariant); both are required-when-reached.
+            let q = req_val(obj, "quotation");
+            let mode = req_str(q, "mode");
+            w.field("MODE", &enum_render(mode));
+            if mode == "parsed" && q.get("utterance").is_some() {
+                w.field("QUOTED UTTERANCE", &ctx.id_of(req_val(q, "utterance")));
+            } else if mode == "opaque" && q.get("text").is_some() {
+                w.field("QUOTED TEXT", &quote(req_str(q, "text")));
+                if let Some(delimiter) = field_str(q, "delimiter") {
                     w.field("DELIMITER", &quote(delimiter));
                 }
             } else {
-                w.field("NOT COMPUTED", &format!("quotation-shape({})", mode.unwrap_or("")));
+                w.field("NOT COMPUTED", &format!("quotation-shape({mode})"));
             }
         }
         "word" => {
@@ -833,7 +983,7 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         // opt_terse_labels: the tested-winner reference-sort header.
         w.annotate(
             "DENOTES VALUES OF SORT",
-            &title_sort(field_str(obj, "sort").unwrap_or("")),
+            &title_sort(req_str(obj, "sort")),
         );
         // opt_collapse_notcomputed: the per-reference denotation-multiplicity
         // note is collapsed to the one document-level NOT COMPUTED block, so no
@@ -852,10 +1002,12 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             render_scope_dependence(w, ctx, sd);
         }
         render_eventuality_dimensions(w, ctx, &key, obj);
+        render_interval_modifiers(w, ctx, obj);
         render_sign_content(w, ctx, obj);
         if let Some(descriptor) = obj.get("descriptor").filter(|d| !d.is_null()) {
             render_descriptor(w, ctx, descriptor);
         }
+        render_assigned_names(w, obj);
         if let Some(body) = obj.get("body") {
             w.field("BODY", &ctx.id_of(body));
         }
@@ -878,13 +1030,8 @@ fn render_relation_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value)
             // opt_terse_labels: PARAMETERS IN CALLABLE ORDER -> PARAMS.
             w.ordered("PARAMS", |w| {
                 for p in params {
-                    let param_key = p.as_str().unwrap_or("");
-                    let param_sort = ctx
-                        .objects
-                        .get(param_key)
-                        .and_then(|o| field_str(o, "sort"))
-                        .map(title_sort)
-                        .unwrap_or_default();
+                    let param_key = pointer_key(p);
+                    let param_sort = title_sort(req_str(ctx.object(param_key), "sort"));
                     w.entry(&format!("{} AS {param_sort}", ctx.id(param_key)));
                 }
             });
@@ -893,12 +1040,8 @@ fn render_relation_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value)
             w.field("ARITY", &number_str(arity));
         }
         if let Some(body) = obj.get("body") {
-            let body_key = body.as_str().unwrap_or("");
-            let body_type = ctx
-                .objects
-                .get(body_key)
-                .and_then(|o| field_str(o, "type"))
-                .unwrap_or("");
+            let body_key = pointer_key(body);
+            let body_type = req_str(ctx.object(body_key), "type");
             w.field("OUTPUT TYPE", &title_sort(body_type));
             w.field("BODY", &ctx.id(body_key).to_string());
         }
@@ -911,7 +1054,7 @@ fn render_relation_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value)
 fn render_quantity(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("QUANTITY", &vid, None, true, |w| {
-        w.field("FORM", &enum_render(field_str(obj, "form").unwrap_or("")));
+        w.field("FORM", &enum_render(req_str(obj, "form")));
         let empty = serde_json::Map::new();
         let val = obj.get("value").and_then(Value::as_object).unwrap_or(&empty);
         let mut handled = std::collections::BTreeSet::new();
@@ -950,9 +1093,9 @@ fn render_quantity(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_parameter(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("PARAMETER", &vid, None, true, |w| {
-        w.field("SORT", &title_sort(field_str(obj, "sort").unwrap_or("")));
-        w.field("ROLE", &enum_render(field_str(obj, "role").unwrap_or("")));
-        w.field("INTRODUCED BY", &lexical(field_str(obj, "introducedBy").unwrap_or("")));
+        w.field("SORT", &title_sort(req_str(obj, "sort")));
+        w.field("ROLE", &enum_render(req_str(obj, "role")));
+        w.field("INTRODUCED BY", &lexical(req_str(obj, "introducedBy")));
         render_source(w, ctx, obj);
     });
 }
@@ -983,10 +1126,10 @@ fn render_sequence(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                 }
             });
         }
-        w.field("RELATION", &enum_render(field_str(obj, "relation").unwrap_or("")));
+        w.field("RELATION", &enum_render(req_str(obj, "relation")));
         if let Some(nc) = obj.get("nonlogicalConnection").filter(|n| !n.is_null()) {
             w.heading("NONLOGICAL CONNECTION", |w| {
-                let operator = field_str(nc, "operator").unwrap_or("");
+                let operator = req_str(nc, "operator");
                 if let Some(rest) = operator.strip_prefix("nonlogical:") {
                     w.field("OPERATOR", &format!("{} {}", enum_render("nonlogical"), lexical(rest)));
                 } else {
@@ -1006,7 +1149,7 @@ fn render_sequence(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_displayed_content(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("DISPLAYED CONTENT", &vid, None, true, |w| {
-        w.field("RELATION", &lexical(field_str(obj, "relation").unwrap_or("")));
+        w.field("RELATION", &lexical(req_str(obj, "relation")));
         if let Some(family) = field_str(obj, "family") {
             w.field("FAMILY", &enum_render(family));
         }
@@ -1039,14 +1182,14 @@ fn render_math_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let literal = obj.get("literal").filter(|l| !l.is_null());
     let operator = field_str(obj, "operator");
     let variant = match literal {
-        Some(literal) => enum_render(field_str(literal, "kind").unwrap_or("")),
+        Some(literal) => enum_render(req_str(literal, "kind")),
         None => enum_render(operator.unwrap_or("")),
     };
     w.declaration("MATH EXPRESSION", &vid, Some(&variant), true, |w| {
         if let Some(literal) = literal {
-            let kind = field_str(literal, "kind").unwrap_or("");
+            let kind = req_str(literal, "kind");
             if kind == "integer" && literal.get("value").is_some() {
-                w.field("VALUE", &number_str(&literal["value"]));
+                w.field("VALUE", &number_str(req_val(literal, "value")));
             } else {
                 w.field("NOT COMPUTED", &format!("math-literal-shape({kind})"));
             }
