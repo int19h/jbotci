@@ -195,6 +195,7 @@ impl ClientConfig {
 #[invariant(::TreeProj => true)]
 #[invariant(::Tree => true)]
 #[invariant(::Json => true)]
+#[invariant(::Lean3 => true)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
@@ -203,6 +204,9 @@ pub enum TersmuFormat {
     TreeProj,
     Tree,
     Json,
+    /// Experimental model-facing "lean3" notation from the Rust renderer merged
+    /// in PR #615; not the default (`tree+proj` remains the default).
+    Lean3,
 }
 
 /// Information available when a listener first interprets a posted message.
@@ -335,6 +339,31 @@ system-prompt = "Speak only Lojban."
                 .iter()
                 .all(|participant| participant.reasoning.is_none())
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_format_is_explicitly_selectable() {
+        for (configured, expected) in [
+            ("tree+proj", TersmuFormat::TreeProj),
+            ("tree", TersmuFormat::Tree),
+            ("json", TersmuFormat::Json),
+            ("lean3", TersmuFormat::Lean3),
+        ] {
+            let source = VALID_CONFIG.replace(
+                "scenario = \"schedule-negotiation\"",
+                &format!("scenario = \"schedule-negotiation\"\ntersmu-format = \"{configured}\""),
+            );
+            let config = RunConfig::from_toml(&source).expect("valid tersmu format");
+            assert_eq!(config.tersmu_format, expected);
+        }
+
+        let invalid = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\ntersmu-format = \"lean4\"",
+        );
+        assert!(RunConfig::from_toml(&invalid).is_err());
     }
 
     #[test]
