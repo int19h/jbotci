@@ -39,7 +39,7 @@ For each document `<name>`:
 - `<name>.lean3.txt` — the byte-parity **expected output** of the Python
   `lean3` renderer, produced verbatim by
   `python3 experiments/notation-renderer-v0/render_v5.py <name>.frozen.json
-  --profile lean3` at the corrected oracle commit `57a28c9`. These are the
+  --profile lean3` at the corrected oracle commit `28c7d5f`. These are the
   fixtures the `tests/lean3_parity.rs` byte-parity test compares this build's
   `render_lean3` output against (graph re-derived from `<name>.lojban`, never
   from the frozen JSON — see below).

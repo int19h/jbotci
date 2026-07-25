@@ -58,8 +58,13 @@
 //!   reflects this precisely (their `source` stays `ExcludedWithReason` even
 //!   under provenance). None is corpus-present, so there is no fixture impact.
 //!   (Argument-attached `RelativeClause`s ARE now rendered — Amendment 3 — so
-//!   the round-2 deferral is resolved; `RelativeClause`/`ArgumentValue`
-//!   traversal is total and the provenance coverage is occurrence-accurate.)
+//!   the round-2 deferral is resolved. `RelativeClause`/`ArgumentValue`
+//!   traversal is total across the RENDERED parent paths — descriptors and
+//!   predication arguments — and the provenance coverage is occurrence-accurate
+//!   there; `ArgumentValue`s reachable only through the untraversed value
+//!   structs above (`ModalArgument`, `PlaceQuestionBinding`,
+//!   `ReciprocalExchange`) remain part of that acknowledged `NoCorpusWitness`
+//!   debt, not covered by this claim.)
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, requires};
@@ -85,7 +90,9 @@ const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 /// their `source` still does not surface, and the coverage must not claim it
 /// does. (`RelativeClause` is now rendered for BOTH descriptor-attached and
 /// argument-attached clauses — Amendment 3, round-3 review — so its `source` is
-/// occurrence-accurate under provenance, no longer partial.)
+/// occurrence-accurate under provenance for every clause on a rendered parent
+/// path; clauses on `ArgumentValue`s nested inside the untraversed value
+/// structs above share those structs' `NoCorpusWitness` debt.)
 const SOURCE_RENDERED_SURFACES: &[&str] = &[
     "Utterance",
     "Sequence",
