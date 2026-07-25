@@ -21,6 +21,14 @@
 //!   every frozen `smusni` sample). The tested-winner role wordings ALL HOLD /
 //!   ROLE FOR are *rendered* wordings (FREEZE-PHASE-B.md (d)), so they RENDER —
 //!   they are unexercised by the corpus, not uncomputed.
+//! * The `Question` object and a predication's `placeQuestions` binding (with
+//!   their `QuestionSlot`/`QuestionKind`/`QuestionMode`/`QuestionSlotRole` and
+//!   `PlaceQuestionBinding` sub-surfaces) are `NotComputedDeclared`: the renderer
+//!   emits `NOT COMPUTED: renderer-support("question");` / `NOT COMPUTED:
+//!   place-questions;` for them rather than rendering their content. This is the
+//!   honest disposition adjudicated on jbotci#620 round-1 review (B2/B3), not a
+//!   decision to render QUESTION records (a spec question deferred to a follow-up
+//!   issue). See [`NOT_COMPUTED_QUESTION_SURFACES`].
 //! * Everything else — content fields, enum variants, content-bearing derived
 //!   facts — is `Renders`, per DESIGN-RECORD.md's "content-complete rendering".
 //!   Absent optionals stay `Renders` (they surface as `UNSPECIFIED`, not as a
@@ -42,6 +50,44 @@ const SOURCE_PROVENANCE_REASON: &str =
 /// The single document-level `NOT COMPUTED` fact `smusni` declares rather than
 /// computes. (ALL HOLD / ROLE FOR are rendered wordings, not NOT COMPUTED.)
 const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
+
+/// Surfaces whose content the `smusni` renderer does not compute — it emits an
+/// explicit `NOT COMPUTED` marker in their place, so their fields and variants
+/// are `NotComputedDeclared`, not `Renders`.
+///
+/// PM adjudication (jbotci#620 round-1 review B2/B3): the design intent for this
+/// PR is *not* to render first-class QUESTION records — that is a
+/// notation-wording spec decision, tracked by follow-up #622. So the honest
+/// disposition matches the renderer's actual emission:
+/// * The whole `Question` object goes to the `UNKNOWN <id> { NOT COMPUTED:
+///   renderer-support("question"); }` fallback, taking its
+///   `QuestionSlot`/`QuestionKind`/`QuestionMode`/`QuestionSlotRole` sub-surfaces
+///   with it.
+/// * A predication's `placeQuestions` binding is flagged `NOT COMPUTED:
+///   place-questions;`, taking its `PlaceQuestionBinding` sub-struct with it (see
+///   [`is_not_computed_question_surface`], which also covers the `placeQuestions`
+///   field on the otherwise-rendered `Predication`).
+///
+/// A `.source` field on any of these keeps its `ExcludedWithReason` disposition
+/// (source provenance is checked *first*), so it never reaches this set.
+const NOT_COMPUTED_QUESTION_SURFACES: &[&str] = &[
+    "Question",
+    "QuestionSlot",
+    "QuestionKind",
+    "QuestionMode",
+    "QuestionSlotRole",
+    "PlaceQuestionBinding",
+];
+
+/// True for an entry whose content the renderer does not compute (a NOT COMPUTED
+/// question/place-question surface, or the `placeQuestions` field itself).
+#[requires(true)]
+#[ensures(ret == (NOT_COMPUTED_QUESTION_SURFACES.contains(&entry.surface.name)
+    || (entry.surface.name == "Predication" && entry.field == "placeQuestions")))]
+fn is_not_computed_question_surface(entry: &InventoryEntry) -> bool {
+    NOT_COMPUTED_QUESTION_SURFACES.contains(&entry.surface.name)
+        || (entry.surface.name == "Predication" && entry.field == "placeQuestions")
+}
 
 /// Surfaces whose `source` field is a `SemanticSource` provenance link (the 13
 /// object kinds carry it via `SemanticObjectCommon`; the rest are value structs).
@@ -124,14 +170,14 @@ fn is_not_computed_fact(entry: &InventoryEntry) -> bool {
 #[requires(true)]
 #[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_))) == is_source_provenance(entry))]
 #[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared))
-    == (is_not_computed_fact(entry) && !is_source_provenance(entry)))]
+    == (!is_source_provenance(entry) && (is_not_computed_fact(entry) || is_not_computed_question_surface(entry))))]
 #[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
-    == (!is_source_provenance(entry) && !is_not_computed_fact(entry)))]
+    == (!is_source_provenance(entry) && !is_not_computed_fact(entry) && !is_not_computed_question_surface(entry)))]
 pub fn baseline_disposition(entry: &InventoryEntry) -> Disposition {
     if is_source_provenance(entry) {
         return new!(Disposition::ExcludedWithReason(SOURCE_PROVENANCE_REASON));
     }
-    if is_not_computed_fact(entry) {
+    if is_not_computed_fact(entry) || is_not_computed_question_surface(entry) {
         return new!(Disposition::NotComputedDeclared);
     }
     new!(Disposition::Renders)

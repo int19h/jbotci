@@ -851,7 +851,25 @@ fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("PREDICATION", &vid, None, true, |w| {
-        w.field("RELATION", &lexical(req_str(obj, "relation")));
+        // A predication's relation (`PredicationRelation`) is either a lexical
+        // relation word (`relation`) or — for a relation-question or
+        // relation-variable predication (`mo`, `bu'a`) — a bound relation
+        // parameter (`relationParameter`, a pointer to a `parameter` object
+        // whose own PARAMETER declaration carries ROLE: relation question /
+        // relation variable). Exactly one field is present. A relation
+        // parameter is referenced by the same `VALUE <id>` marker every other
+        // parameter reference uses (§6.3 operand fillers, argument questions),
+        // so the relation slot reads as a bound value and the question/variable
+        // semantics live on its PARAMETER declaration — mirroring how a `ma`
+        // argument-question already surfaces as `VALUE <id>` in ARGS. Neither
+        // field present is a genuine `lojban-semantics-json-1` contract
+        // violation and still fails loudly via `req_val`.
+        if let Some(relation) = field_str(obj, "relation") {
+            w.field("RELATION", &lexical(relation));
+        } else {
+            let parameter = ctx.id_of(req_val(obj, "relationParameter"));
+            w.field("RELATION", &format!("VALUE {parameter}"));
+        }
         if let Some(eventuality) = obj.get("eventuality") {
             w.field("EVENTUALITY", &ctx.id_of(eventuality));
         }
@@ -893,6 +911,19 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             });
         }
         w.field("MODE", &enum_render(req_str(obj, "mode")));
+        // `placeQuestions` (`Vec<PlaceQuestionBinding>`): a `fi'a` place-structure
+        // question — which numbered place of the relation is being asked about.
+        // The smusni profile has no rendered surface for it yet, so when present
+        // it is flagged with an explicit typed `NOT COMPUTED: place-questions;`
+        // marker rather than dropped silently (parallel to `connector-parameter`
+        // and the `renderer-support("question")` object fallback). Whenever this
+        // field is populated it is unconditionally not computed, so its inventory
+        // disposition is `NotComputedDeclared` (jbotci#620 round-1 review B3);
+        // designing a first-class rendering is deferred to the QUESTION-record
+        // follow-up. Kept in lockstep with the oracle.
+        if obj.get("placeQuestions").and_then(Value::as_array).is_some_and(|q| !q.is_empty()) {
+            w.field("NOT COMPUTED", "place-questions");
+        }
         // `tanruLink` (`TanruLink`): a tanru's head/modifier structural link and
         // its synthesized relation label. Adjudicated rendered (content-complete
         // doctrine; round-1 review) — previously dropped by renderer and oracle

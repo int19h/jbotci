@@ -1,0 +1,171 @@
+{
+ "version": "lojban-semantics-json-1",
+ "root": "utterance:5",
+ "objects": {
+  "utterance:5": {
+   "type": "utterance",
+   "force": "ask",
+   "speaker": "entity:1",
+   "audience": "entity:2",
+   "eventuality": "eventuality/locution:12",
+   "content": "question:11",
+   "deicticGround": {
+    "time": "eventuality:3",
+    "place": "entity:4"
+   },
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 5
+    },
+    "text": "ti mo",
+    "construct": "bridi"
+   }
+  },
+  "parameter:6": {
+   "type": "parameter",
+   "sort": "relation",
+   "role": "relationQuestion",
+   "introducedBy": "mo",
+   "source": {
+    "span": {
+     "byteStart": 3,
+     "byteEnd": 5
+    },
+    "text": "mo",
+    "construct": "parameter"
+   }
+  },
+  "predication:9": {
+   "type": "predication",
+   "eventuality": "eventuality:7",
+   "relationParameter": "parameter:6",
+   "arguments": {
+    "x1": {
+     "kind": "filled",
+     "value": "entity:8"
+    }
+   },
+   "mode": "asserted",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 5
+    },
+    "text": "ti mo",
+    "construct": "relation-question-formula"
+   }
+  },
+  "formula:10": {
+   "type": "formula",
+   "operator": "atom",
+   "predication": "predication:9",
+   "boundEventualities": [
+    "eventuality:7"
+   ],
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 5
+    },
+    "text": "ti mo",
+    "construct": "relation-question-formula"
+   }
+  },
+  "question:11": {
+   "type": "question",
+   "body": "formula:10",
+   "kind": "relation",
+   "mode": "direct",
+   "asker": "entity:1",
+   "respondent": "entity:2",
+   "domain": "relation",
+   "slots": [
+    {
+     "parameter": "parameter:6",
+     "role": "answer"
+    }
+   ],
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 5
+    },
+    "text": "ti mo",
+    "construct": "question"
+   }
+  },
+  "entity:1": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "speaker"
+  },
+  "entity:2": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "audience"
+  },
+  "entity:4": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "here"
+  },
+  "entity:8": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "proximalDemonstrative",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 2
+    },
+    "text": "ti",
+    "construct": "sumti"
+   }
+  },
+  "eventuality:3": {
+   "type": "referent",
+   "denotation": "referential",
+   "category": "indexical",
+   "sort": "eventuality",
+   "indexical": "now"
+  },
+  "eventuality:7": {
+   "type": "referent",
+   "denotation": "generated-bound",
+   "sort": "eventuality",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 5
+    },
+    "text": "ti mo",
+    "construct": "relation-question-formula"
+   }
+  },
+  "eventuality/locution:12": {
+   "type": "referent",
+   "denotation": "referential",
+   "actuality": {
+    "kind": "actual"
+   },
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "eventuality/locution",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 5
+    },
+    "text": "ti mo",
+    "construct": "bridi"
+   }
+  }
+ }
+}
