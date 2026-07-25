@@ -1,10 +1,12 @@
 //! Byte-parity of this build's `smusni` notation renderer against the frozen
 //! Python oracle (Phase-B step 4; research repo `FREEZE-PHASE-B.md`).
 //!
-//! For each of the 38 frozen corpus documents, the vendored `<doc>.smusni.txt`
+//! For each of the 39 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at the oracle commit `28c7d5f` (37 documents) or `7e9c722` (the
-//! `ti-mo` relation-question witness, jbotci#620); `lean3` is the research
+//! lean3` at the oracle commit `28c7d5f` (37 documents), `7e9c722` (the `ti-mo`
+//! relation-question witness, jbotci#620), or `0263b93` (the `mi-klama-fia`
+//! place-question witness, jbotci#620 round-1 review B3 — `NOT COMPUTED:
+//! place-questions;`); `lean3` is the research
 //! repo's historical profile name for the product's `smusni` notation. This test
 //! re-derives each graph
 //! from `<doc>.lojban` with *this* build (the same pipeline the completeness
@@ -115,7 +117,7 @@ fn assert_parity(suffix: &str, config: SmusniConfig) {
 }
 
 /// The default `smusni` profile (provenance off) byte-matches the oracle on all
-/// 38 frozen corpus documents.
+/// 39 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -124,7 +126,7 @@ fn smusni_byte_parity_over_frozen_corpus() {
 }
 
 /// The provenance opt-in (`--provenance`) byte-matches the oracle's
-/// `--profile lean3 --provenance` output on all 38 frozen corpus documents.
+/// `--profile lean3 --provenance` output on all 39 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -161,12 +163,12 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "c7f174e98dcd25e9f41f9d4cab66e25a554bcf87eb5f3d056f982a680435c673",
+        "60bcc3af6f96ef5cc74b0d0ffe1804d525461e37ac58445c2e594dd07ff413c2",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "d1984a3edd5ffde67c6470323604692c5d0b8ab291af3b4be9f87567d87c384d",
+        "ded698b536d9c36de47d73e58d0c048cc914437074c340e6b944897e55da62b6",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }

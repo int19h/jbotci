@@ -31,6 +31,16 @@
 //! * **One document-level NOT COMPUTED fact is declared.** The renderer emits
 //!   `NOT COMPUTED { denotation-multiplicity; }`, so
 //!   `document.not-computed:denotation-multiplicity` is `NotComputedDeclared`.
+//! * **QUESTION and place-question surfaces are declared not-computed.** The
+//!   renderer has no per-kind renderer for the `Question` object (it falls to the
+//!   `UNKNOWN <id> { NOT COMPUTED: renderer-support("question"); }` path) and
+//!   emits `NOT COMPUTED: place-questions;` for a predication's `placeQuestions`
+//!   binding. So those surfaces' fields/variants
+//!   ([`NOT_COMPUTED_QUESTION_SURFACES`] plus the `placeQuestions` field) are
+//!   `NotComputedDeclared`, matching the emitted markers — the honest disposition
+//!   adjudicated on jbotci#620 round-1 review (B2/B3). First-class QUESTION-record
+//!   rendering is a spec decision deferred to follow-up #622, deliberately not
+//!   expanded into this PR.
 //! * **Everything else renders.** Content fields, enum variants, and the
 //!   content-bearing derived facts are `Renders`. Absent optionals still count
 //!   as `Renders` (they surface as `UNSPECIFIED`, never `NOT COMPUTED`); the
@@ -56,7 +66,10 @@
 //!   …) and object kinds with no per-kind renderer (`Question`,
 //!   `RelationMetadata`) have no rendered source under provenance; the coverage
 //!   reflects this precisely (their `source` stays `ExcludedWithReason` even
-//!   under provenance). None is corpus-present, so there is no fixture impact.
+//!   under provenance). `Question`/`PlaceQuestionBinding` ARE now corpus-present
+//!   (witnessed by `ti-mo`/`mi-klama-fia`), but their objects render as
+//!   `NOT COMPUTED` with no source line, so there is still no provenance-fixture
+//!   impact; the remaining untraversed structs stay corpus-absent.
 //!   (Argument-attached `RelativeClause`s ARE now rendered — Amendment 3 — so
 //!   the round-2 deferral is resolved. `RelativeClause`/`ArgumentValue`
 //!   traversal is total across the RENDERED parent paths — descriptors and
@@ -78,6 +91,41 @@ use super::render::SmusniConfig;
 
 /// The one document-level NOT COMPUTED fact the `smusni` renderer declares.
 const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
+
+/// Surfaces the renderer emits a `NOT COMPUTED` marker for instead of rendering
+/// their content — stated here from the render code, not copied from the
+/// completeness baseline (this module is the renderer side). [`super::render`]:
+/// * every `Question` object falls to the `UNKNOWN <id> { NOT COMPUTED:
+///   renderer-support("question"); }` path (no per-kind renderer), taking its
+///   `QuestionSlot`/`QuestionKind`/`QuestionMode`/`QuestionSlotRole` sub-surfaces;
+/// * a predication's `placeQuestions` binding is emitted as `NOT COMPUTED:
+///   place-questions;` (see `render_predication`), taking its
+///   `PlaceQuestionBinding` sub-struct — and the `placeQuestions` field on the
+///   otherwise-rendered `Predication` itself (handled in
+///   [`renderer_not_computes_question_surface`]).
+///
+/// So the renderer's disposition for their fields/variants is
+/// `NotComputedDeclared`, matching the emitted marker (jbotci#620 round-1 review
+/// B2/B3 — the honest disposition, not `Renders`). A `.source` on any of these
+/// keeps `ExcludedWithReason` (source provenance is checked first).
+const NOT_COMPUTED_QUESTION_SURFACES: &[&str] = &[
+    "Question",
+    "QuestionSlot",
+    "QuestionKind",
+    "QuestionMode",
+    "QuestionSlotRole",
+    "PlaceQuestionBinding",
+];
+
+/// True for an entry the renderer emits a `NOT COMPUTED` marker for rather than
+/// rendering (a question/place-question surface, or the `placeQuestions` field).
+#[requires(true)]
+#[ensures(ret == (NOT_COMPUTED_QUESTION_SURFACES.contains(&entry.surface.name)
+    || (entry.surface.name == "Predication" && entry.field == "placeQuestions")))]
+fn renderer_not_computes_question_surface(entry: &InventoryEntry) -> bool {
+    NOT_COMPUTED_QUESTION_SURFACES.contains(&entry.surface.name)
+        || (entry.surface.name == "Predication" && entry.field == "placeQuestions")
+}
 
 /// The surfaces whose `source` the renderer's `render_source` is actually
 /// reached on — the 11 object kinds it has per-kind renderers for (each calls
@@ -164,16 +212,19 @@ fn renderer_excludes(entry: &InventoryEntry, config: SmusniConfig) -> bool {
 #[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_)))
     == renderer_excludes(entry, config))]
 #[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared))
-    == (renderer_declares_not_computed(entry) && !renderer_excludes(entry, config)))]
+    == (!renderer_excludes(entry, config)
+        && (renderer_declares_not_computed(entry) || renderer_not_computes_question_surface(entry))))]
 #[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
-    == (!renderer_excludes(entry, config) && !renderer_declares_not_computed(entry)))]
+    == (!renderer_excludes(entry, config)
+        && !renderer_declares_not_computed(entry)
+        && !renderer_not_computes_question_surface(entry)))]
 pub fn renderer_disposition(entry: &InventoryEntry, config: SmusniConfig) -> Disposition {
     if renderer_excludes(entry, config) {
         // Adopt the spec's own stated reason verbatim (the `Disposition` carries
         // the reason, so agreeing with the baseline means reusing it).
         return Disposition::excluded_with_reason(source_provenance_reason());
     }
-    if renderer_declares_not_computed(entry) {
+    if renderer_declares_not_computed(entry) || renderer_not_computes_question_surface(entry) {
         return Disposition::not_computed_declared();
     }
     Disposition::renders()
