@@ -82,15 +82,16 @@ fn first_diff(expected: &str, actual: &str) -> Option<(usize, String, String)> {
     None
 }
 
-#[test]
-#[requires(true)]
+/// Assert byte parity between this build's `render_lean3` and the vendored
+/// oracle fixtures with `suffix`, under the given `config`.
+#[requires(!suffix.is_empty())]
 #[ensures(true)]
-fn lean3_byte_parity_over_frozen_corpus() {
+fn assert_parity(suffix: &str, config: Lean3Config) {
     let mut mismatches: Vec<String> = Vec::new();
     for doc in CORPUS_DOCS {
-        let expected = std::fs::read_to_string(fixture(doc, "lean3.txt"))
-            .unwrap_or_else(|error| panic!("read {doc}.lean3.txt: {error}"));
-        let actual = render_lean3(&graph_for(doc), Lean3Config { provenance: false });
+        let expected = std::fs::read_to_string(fixture(doc, suffix))
+            .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
+        let actual = render_lean3(&graph_for(doc), config);
         if expected != actual {
             match first_diff(&expected, &actual) {
                 Some((line, e, a)) => mismatches.push(format!(
@@ -102,9 +103,27 @@ fn lean3_byte_parity_over_frozen_corpus() {
     }
     assert!(
         mismatches.is_empty(),
-        "{}/{} corpus documents diverge from the frozen lean3 oracle:\n{}",
+        "{}/{} corpus documents diverge from the frozen lean3 oracle ({suffix}):\n{}",
         mismatches.len(),
         CORPUS_DOCS.len(),
         mismatches.join("\n")
     );
+}
+
+/// The default `lean3` profile (provenance off) byte-matches the oracle on all
+/// 37 frozen corpus documents.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn lean3_byte_parity_over_frozen_corpus() {
+    assert_parity("lean3.txt", Lean3Config { provenance: false });
+}
+
+/// The provenance opt-in (`--provenance`) byte-matches the oracle's
+/// `--profile lean3 --provenance` output on all 37 frozen corpus documents.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn lean3_provenance_byte_parity_over_frozen_corpus() {
+    assert_parity("lean3-prov.txt", Lean3Config { provenance: true });
 }

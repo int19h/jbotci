@@ -40,6 +40,9 @@ use super::writer::Writer;
 /// `lean3` render configuration. `provenance` is the one runtime toggle
 /// (`--provenance` / `opt_provenance_off` off): when set, source spans/text are
 /// rendered; otherwise the profile renders semantic content only.
+// `#[invariant(true)]`: an audited no-op — a single `bool` toggle, so every
+// value is a valid configuration; the field type already expresses the whole
+// domain.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Lean3Config {
@@ -635,8 +638,8 @@ fn operand_ref(ctx: &Ctx, value: &Value) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_utterance(w: &mut Writer, ctx: &Ctx, _key: &str, obj: &Value) {
-    let vid = ctx.id(_key).to_string();
+fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
+    let vid = ctx.id(key).to_string();
     w.declaration("UTTERANCE", &vid, None, true, |w| {
         w.field("FORCE", &enum_render(field_str(obj, "force").unwrap_or("")));
         w.field("SPEAKER", &ctx.id_of(&obj["speaker"]));

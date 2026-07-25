@@ -1,0 +1,132 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASSERT;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r18;
+      CONTENT: f25;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 23..50;
+        TEXT: "ro de poi prenu cu prami da";
+        CONSTRUCT: "bridi";
+    }
+    PREDICATION p10 {
+      RELATION: prenu;
+      EVENTUALITY: r8;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 33..38;
+        TEXT: "prenu";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p13 {
+      RELATION: prami;
+      EVENTUALITY: r6;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+        [2]: REFERENCE DENOTATION r12;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 23..50;
+        TEXT: "ro de poi prenu cu prami da";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p23 {
+      RELATION: mlatu;
+      EVENTUALITY: r20;
+      ARGS (
+        [1]: REFERENCE DENOTATION r12;
+        [2]: REFERENCE DENOTATION r22;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 12..17;
+        TEXT: "mlatu";
+        CONSTRUCT: "predication";
+    }
+    FORMULA f11 IS ATOM { PREDICATION: p10; BOUND EVENTUALITIES { r8; } PROVENANCE { BYTE SPAN: 33..38; TEXT: "prenu"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f14 IS ATOM { PREDICATION: p13; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 23..50; TEXT: "ro de poi prenu cu prami da"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f17 IS ∀ {
+      VARIABLE: r7;
+      RESTRICTION: f11;
+      DOMAIN IMPORT: PROJECTIVE;
+      BODY: f14;
+      QUANTITY: q15;
+      PROVENANCE
+        BYTE SPAN: 23..28;
+        TEXT: "ro de";
+        CONSTRUCT: "quantifier-scope";
+    }
+    FORMULA f24 IS ATOM { PREDICATION: p23; BOUND EVENTUALITIES { r20; } PROVENANCE { BYTE SPAN: 12..17; TEXT: "mlatu"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f25 IS CARDINALITY {
+      VARIABLE: r12;
+      RESTRICTION: f24;
+      BODY: f17;
+      QUANTITY: q19;
+      PROVENANCE
+        BYTE SPAN: 0..7;
+        TEXT: "su'o da";
+        CONSTRUCT: "quantifier-scope";
+    }
+    QUANTITY q15 { FORM: ALL; VALUE TEXT: ro; SCALE: COUNT; PROVENANCE { BYTE SPAN: 23..25; TEXT: "ro"; CONSTRUCT: "quantity"; } }
+    QUANTITY q19 { FORM: AT LEAST; VALUE TEXT: su'o; SCALE: COUNT; PROVENANCE { BYTE SPAN: 0..4; TEXT: "su'o"; CONSTRUCT: "quantity"; } }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r7 { DENOTES VALUES OF SORT Entity; BINDING: VARIABLE; DESCRIPTOR IS PRO SUMTI { WORD: de; } PROVENANCE { BYTE SPAN: 26..28; TEXT: "de"; CONSTRUCT: "sumti"; } }
+    REFERENCE r12 { DENOTES VALUES OF SORT Entity; BINDING: VARIABLE; DESCRIPTOR IS PRO SUMTI { WORD: da; } PROVENANCE { BYTE SPAN: 5..7; TEXT: "da"; CONSTRUCT: "sumti"; } }
+    REFERENCE r22 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { r12; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r6 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r6.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 23..50; TEXT: "ro de poi prenu cu prami da"; CONSTRUCT: "predication"; } }
+    REFERENCE r8 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r8.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 33..38; TEXT: "prenu"; CONSTRUCT: "predication"; } }
+    REFERENCE r20 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r20.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 12..17; TEXT: "mlatu"; CONSTRUCT: "predication"; } }
+    REFERENCE r18 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r18.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 23..50;
+        TEXT: "ro de poi prenu cu prami da";
+        CONSTRUCT: "bridi";
+    }
+  }
+}

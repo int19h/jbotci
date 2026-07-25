@@ -1,0 +1,90 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASSERT;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r10;
+      CONTENT: f9;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 0..25;
+        TEXT: "mi co'a tadni la .lojban.";
+        CONSTRUCT: "bridi";
+    }
+    PREDICATION p8 {
+      RELATION: tadni;
+      EVENTUALITY: r6;
+      ARGS (
+        [1]: REFERENCE DENOTATION r1;
+        [2]: REFERENCE DENOTATION r7;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..25;
+        TEXT: "mi co'a tadni la .lojban.";
+        CONSTRUCT: "predication";
+    }
+    FORMULA f9 IS ATOM { PREDICATION: p8; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 0..25; TEXT: "mi co'a tadni la .lojban."; CONSTRUCT: "bridi-formula"; } }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r7 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS NAME
+        WORD: la;
+        SPEAKER: r1;
+        NAME: "lojban";
+      PROVENANCE
+        BYTE SPAN: 14..25;
+        TEXT: "la .lojban.";
+        CONSTRUCT: "sumti";
+    }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r6 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r6.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = INITIATIVE; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..25; TEXT: "mi co'a tadni la .lojban."; CONSTRUCT: "predication"; } }
+    REFERENCE r10 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r10.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 0..25;
+        TEXT: "mi co'a tadni la .lojban.";
+        CONSTRUCT: "bridi";
+    }
+  }
+}

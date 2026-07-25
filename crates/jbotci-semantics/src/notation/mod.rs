@@ -27,6 +27,9 @@ use crate::model::SemanticGraph;
 
 /// A notation profile. Only `lean3` exists today (the Phase-B default
 /// candidate); the enum is the profile-driven seam future profiles extend.
+// `#[invariant(::Lean3(_) => true)]`: an audited no-op — the wrapped
+// `Lean3Config` validates its own (trivial) domain, so every `Lean3` value is a
+// valid profile selection.
 #[invariant(::Lean3(_) => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotationProfile {
