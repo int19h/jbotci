@@ -183,6 +183,9 @@ fn render_tersmu(
         )?,
         TersmuFormat::Tree => render_tree(&graph),
         TersmuFormat::TreeProj => render_tree_proj(&graph),
+        TersmuFormat::Lean3 => {
+            render_lean3(&graph, jbotci_semantics::Lean3Config { provenance: false })
+        }
     };
     stdout.push_str(&rendered);
     stdout.push('\n');

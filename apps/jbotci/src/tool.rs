@@ -1492,6 +1492,7 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 #[invariant(::Json => true)]
 #[invariant(::Tree => true)]
 #[invariant(::TreeProj => true)]
+#[invariant(::Lean3 => true)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -1507,6 +1508,10 @@ pub enum ToolTersmuFormat {
     /// `+proj` is the format-feature suffix added to the `tree` base format.
     #[serde(rename = "tree+proj")]
     TreeProj,
+    /// EXPERIMENTAL (working name, subject to change): the model-facing "lean3"
+    /// notation — a flat, keyword-oriented rendering of the same graph tuned for
+    /// language models. Not the default; `tree+proj` remains the default.
+    Lean3,
 }
 
 impl Default for ToolTersmuFormat {
@@ -1531,6 +1536,7 @@ impl ToolTersmuFormat {
             Self::Json => TersmuFormat::Json,
             Self::Tree => TersmuFormat::Tree,
             Self::TreeProj => TersmuFormat::TreeProj,
+            Self::Lean3 => TersmuFormat::Lean3,
         }
     }
 
@@ -1539,7 +1545,7 @@ impl ToolTersmuFormat {
     fn content_type(self) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Tree | Self::TreeProj => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Tree | Self::TreeProj | Self::Lean3 => TEXT_PLAIN_CONTENT_TYPE,
         }
     }
 }
