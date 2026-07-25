@@ -15,42 +15,49 @@
 //! and this policy is authored from that code — not copied from
 //! [`crate::completeness::baseline_disposition`]:
 //!
-//! * **Source provenance is excluded.** [`super::render::Lean3Config`] defaults
-//!   `provenance` off, so `render_source` returns before emitting anything, and
-//!   `SemanticSource`/`SourceByteSpan` never surface. Every `source` link (typed
-//!   `SemanticSource`) and the two provenance structs' own fields are therefore
-//!   `ExcludedWithReason`. The set of surfaces carrying a `SemanticSource`
-//!   `source` link is taken from [`source_link_surfaces`], the model-type-graph
-//!   authority the completeness crate already cross-checks — so this side and
-//!   the baseline draw the exclusion set from the same source of truth rather
-//!   than two hand-maintained lists.
+//! * **Source provenance is config-dependent.** [`super::render::Lean3Config`]
+//!   defaults `provenance` off, so `render_source` renders nothing and every
+//!   source-provenance coordinate is `ExcludedWithReason` — the profile the
+//!   design-intent baseline models. With `provenance` ON, the coordinates the
+//!   renderer actually emits ([`source_rendered_under_provenance`]: the 11
+//!   object kinds it has renderers for, plus the traversed value structs
+//!   `AssignedName`/`RelativeClause`/`ArgumentValue` per Amendment 2, plus the
+//!   `SemanticSource`/`SourceByteSpan` fields those emit) become `Renders`; a
+//!   source whose struct the renderer never renders (unhandled `Question`/
+//!   `RelationMetadata`, or untraversed value structs like `ModalArgument`)
+//!   stays `ExcludedWithReason`. The source-link surface set comes from
+//!   [`source_link_surfaces`], the model-type-graph authority the completeness
+//!   crate cross-checks, so this side and the baseline share one source of truth.
 //! * **One document-level NOT COMPUTED fact is declared.** The renderer emits
-//!   `NOT COMPUTED { denotation-multiplicity; }` (the `opt_collapse_notcomputed`
-//!   block), so `document.not-computed:denotation-multiplicity` is
-//!   `NotComputedDeclared`.
+//!   `NOT COMPUTED { denotation-multiplicity; }`, so
+//!   `document.not-computed:denotation-multiplicity` is `NotComputedDeclared`.
 //! * **Everything else renders.** Content fields, enum variants, and the
-//!   content-bearing derived facts (sort header, binding label, denotation
-//!   reading, dimension record, the tested-winner role wordings) are `Renders`.
-//!   Absent optionals still count as `Renders`: they surface as `UNSPECIFIED`
-//!   inside the compact dimension record, never as a `NOT COMPUTED` — the
+//!   content-bearing derived facts are `Renders`. Absent optionals still count
+//!   as `Renders` (they surface as `UNSPECIFIED`, never `NOT COMPUTED`); the
 //!   absent-in-document vs not-computed distinction lives in
 //!   [`crate::completeness::Presence`], not in the disposition.
 //!
-//! # Reported design-intent gaps (PM adjudication, not a build failure)
+//! # Known-consistent-pattern debt (documented, not a build failure)
 //!
-//! The [`Disposition`] vocabulary is deliberately coarse (`Renders` /
-//! `NotComputedDeclared` / `ExcludedWithReason`); it has no "structurally not
-//! yet read" class. A few inventory fields are *present in the corpus graph but
-//! not read by the frozen `lean3` prototype* — most notably
-//! `Eventuality.intervalModifiers`, which is the redundant interval-form of the
-//! `aspect`/`recurrence` the dimension record already renders (verified on
-//! `b30`: the same `initiative` contour appears in both `aspect` and
-//! `intervalModifiers`). Both the oracle and this port drop it, so byte parity
-//! is unaffected. The baseline classifies such fields `Renders` (design intent);
-//! this coverage matches that classification rather than inventing a
-//! disposition the enum cannot express. These prototype-completeness gaps are
-//! listed for PM adjudication in the PR body, not papered over — the baseline
-//! may want a future "redundant-with" disposition, which is out of scope here.
+//! * **Runtime shape-markers.** For genuinely *unobserved variant shapes* of a
+//!   present field, the renderer emits an ad-hoc `NOT COMPUTED: <shape>(…)`
+//!   marker at runtime (e.g. an `aspect` interval-modifier with no `contour`, a
+//!   quotation with an unrecognised `mode`, a non-`integer` math literal). These
+//!   are flag-don't-guess safety nets, NOT declared inventory facts: no frozen
+//!   corpus document exercises any of them (verified — the only `NOT COMPUTED`
+//!   in any fixture is the document-level `denotation-multiplicity`), so they
+//!   have zero fixture impact, and the per-field disposition (`Renders`) reflects
+//!   the observed shape's rendering. Promoting each to a first-class
+//!   `NotComputedDeclared` inventory entry would expand the merged inventory's
+//!   scope; it is recorded here as consistent-by-construction debt (round-2
+//!   review, kimi 7a).
+//! * **Deferred content gaps (provenance).** Argument-attached `RelativeClause`s
+//!   are not rendered at all (a default-output content gap, distinct from
+//!   provenance), so their nested `source` is not rendered either; and value
+//!   structs the renderer never traverses (`AnchorMagnitude`, `ModalArgument`,
+//!   `QuantifierBinding`, …) have no rendered source under provenance. The
+//!   coverage reflects this precisely (their `source` stays `ExcludedWithReason`
+//!   even under provenance). See the PR body / FREEZE Amendment 2.
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, requires};
@@ -65,15 +72,56 @@ use super::render::Lean3Config;
 /// The one document-level NOT COMPUTED fact the `lean3` renderer declares.
 const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 
+/// The surfaces whose `source` the renderer's `render_source` is actually
+/// reached on — the 11 object kinds it has per-kind renderers for (each calls
+/// `render_source`), plus the three value structs it traverses and, under
+/// Amendment 2, renders the nested source of: `AssignedName`, `RelativeClause`,
+/// `ArgumentValue`. Object kinds with no per-kind renderer (`Question`,
+/// `RelationMetadata`) fall to the `UNKNOWN` path and never render a source; the
+/// other source-bearing value structs (`AnchorMagnitude`, `ModalArgument`,
+/// `QuantifierBinding`, ...) are not traversed at all — so under provenance
+/// their `source` still does not surface, and the coverage must not claim it
+/// does. (`RelativeClause` renders its source for descriptor-attached clauses,
+/// the common corpus case; argument-attached clauses are not rendered at all —
+/// a separate content gap, deferred — see the PR body / FREEZE Amendment 2.)
+const SOURCE_RENDERED_SURFACES: &[&str] = &[
+    "Utterance",
+    "Sequence",
+    "Eventuality",
+    "Referent",
+    "Sign",
+    "Parameter",
+    "Predication",
+    "Formula",
+    "DisplayedContent",
+    "MathExpression",
+    "Quantity",
+    "AssignedName",
+    "RelativeClause",
+    "ArgumentValue",
+];
+
 /// True for a `SemanticSource`/`SourceByteSpan` value, or a `SemanticSource`
-/// `source` link on any surface — exactly the coordinates the renderer omits
-/// when provenance is off (its default).
+/// `source` link on any surface — the source-provenance coordinates.
 #[requires(true)]
 #[ensures(ret == (matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
     || (entry.field == "source" && source_link_surfaces().contains(&entry.surface.name))))]
-fn renderer_excludes_as_provenance(entry: &InventoryEntry) -> bool {
+fn is_source_provenance(entry: &InventoryEntry) -> bool {
     matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
         || (entry.field == "source" && source_link_surfaces().contains(&entry.surface.name))
+}
+
+/// True when, under `--provenance`, the renderer actually emits this
+/// source-provenance coordinate: the source struct's own fields
+/// (`SemanticSource`/`SourceByteSpan`) render whenever any source renders (top-
+/// level object sources always do), and a `source` link renders iff its surface
+/// is one the renderer reaches [`render_source`] on.
+#[requires(is_source_provenance(entry))]
+#[ensures(ret == (matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
+    || SOURCE_RENDERED_SURFACES.contains(&entry.surface.name)))]
+fn source_rendered_under_provenance(entry: &InventoryEntry) -> bool {
+    matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
+        || SOURCE_RENDERED_SURFACES.contains(&entry.surface.name)
 }
 
 /// True for the one document-level NOT COMPUTED fact the renderer declares.
@@ -83,30 +131,37 @@ fn renderer_declares_not_computed(entry: &InventoryEntry) -> bool {
     entry.kind == EntryKind::DerivedFact && entry.field == NOT_COMPUTED_FACT
 }
 
+/// True when the renderer excludes this entry from output — a source-provenance
+/// coordinate the renderer does not emit: either provenance is off, or the
+/// coordinate's struct is one the renderer never renders a source for.
+#[requires(true)]
+#[ensures(ret == (is_source_provenance(entry)
+    && !(config.provenance && source_rendered_under_provenance(entry))))]
+fn renderer_excludes(entry: &InventoryEntry, config: Lean3Config) -> bool {
+    is_source_provenance(entry) && !(config.provenance && source_rendered_under_provenance(entry))
+}
+
 /// The disposition the `lean3` renderer applies to one inventory entry under a
 /// given [`Lean3Config`], stated from the render code (see the module docs). The
 /// coverage is genuinely *config-dependent* (round-1 review, kimi 8): with
 /// provenance OFF (the default, which the design-intent baseline models) every
-/// source-provenance coordinate is `ExcludedWithReason`; with provenance ON
-/// `render_source` emits them, so they become `Renders`. The postconditions pin
-/// the exact policy for both configs so a regression changes a proof obligation,
-/// not just a number.
+/// source-provenance coordinate is `ExcludedWithReason`; with provenance ON the
+/// coordinates the renderer actually emits ([`source_rendered_under_provenance`])
+/// become `Renders`, while a source whose struct the renderer never renders
+/// stays `ExcludedWithReason` (round-2 review, Blocker 1 — the coverage must not
+/// claim a nested source renders when it does not). The three postconditions pin
+/// the exact policy for both configs so a regression changes a proof obligation.
 #[requires(true)]
 #[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_)))
-    == (renderer_excludes_as_provenance(entry) && !config.provenance))]
+    == renderer_excludes(entry, config))]
 #[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared))
-    == (renderer_declares_not_computed(entry)
-        && !(renderer_excludes_as_provenance(entry) && !config.provenance)))]
+    == (renderer_declares_not_computed(entry) && !renderer_excludes(entry, config)))]
+#[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
+    == (!renderer_excludes(entry, config) && !renderer_declares_not_computed(entry)))]
 pub fn renderer_disposition(entry: &InventoryEntry, config: Lean3Config) -> Disposition {
-    if renderer_excludes_as_provenance(entry) {
-        if config.provenance {
-            // Provenance on: `render_source` renders the span/text/construct.
-            return Disposition::renders();
-        }
-        // Provenance off (default): the renderer excludes exactly these
-        // coordinates, adopting the spec's own stated reason verbatim (the
-        // `Disposition` carries the reason, so agreeing with the baseline means
-        // reusing it) — realised by `render_source` returning before emitting.
+    if renderer_excludes(entry, config) {
+        // Adopt the spec's own stated reason verbatim (the `Disposition` carries
+        // the reason, so agreeing with the baseline means reusing it).
         return Disposition::excluded_with_reason(source_provenance_reason());
     }
     if renderer_declares_not_computed(entry) {
@@ -132,20 +187,22 @@ pub fn lean3_coverage_contract(config: Lean3Config) -> CompletenessContract {
     contract
 }
 
-/// Behavioral-verification split of the inventory (round-1 review, kimi 6 /
-/// Codex 1): a zero-`disagreements` coverage contract certifies *declared*
-/// intent, not *observed* behaviour. This partitions entries into those a frozen
-/// corpus document actually exercises (`witnessed` — their rendering is
-/// byte-checked by `tests/lean3_parity.rs`) and those with no corpus witness
-/// (`declared_only` — behaviorally unverified, future test-fixture debt). The
-/// distinction is read from the inventory's own [`Witness`](crate::completeness::Witness)
-/// data, so "zero disagreements" can never be misread as "fully verified".
+/// Corpus-*presence* split of the inventory (round-1 kimi 6 / Codex 1; refined
+/// round-2 Codex 5). A zero-`disagreements` coverage contract certifies
+/// *declared* intent, not *observed* behaviour — and even this split certifies
+/// only that a coordinate is **present** in some frozen corpus document, NOT
+/// that the field affects output (the original silent drops were corpus-present
+/// while parity still passed). It returns `(corpus_present, corpus_absent)` read
+/// from the inventory's own [`Witness`](crate::completeness::Witness) data.
+/// True read-grounding (proving each field changes the rendered bytes) is out of
+/// scope for this PR; this is deliberately the weaker presence claim, named so
+/// it cannot be misread as behavioral verification.
 #[requires(true)]
 #[ensures(ret.0 + ret.1 == render_field_inventory().len())]
-pub fn behavioral_coverage() -> (usize, usize) {
+pub fn corpus_presence_coverage() -> (usize, usize) {
     let inventory = render_field_inventory();
-    let witnessed = inventory.witnessed_count();
-    (witnessed, inventory.len() - witnessed)
+    let corpus_present = inventory.witnessed_count();
+    (corpus_present, inventory.len() - corpus_present)
 }
 
 #[cfg(test)]
@@ -200,48 +257,61 @@ mod tests {
         assert!(baseline.disagreements(&contract).is_empty());
     }
 
-    /// The coverage is config-dependent (kimi 8): turning provenance ON
-    /// reclassifies exactly the source-provenance entries (and only those) from
-    /// `ExcludedWithReason` to `Renders`, so it disagrees with the
-    /// provenance-off baseline on precisely that set — nothing else moves.
+    /// The coverage is config-dependent (kimi 8) AND accurate about which nested
+    /// sources actually render (round-2 Blocker 1): turning provenance ON flips
+    /// to `Renders` exactly the source coordinates the renderer emits
+    /// ([`source_rendered_under_provenance`]) — no more (a source whose struct is
+    /// never rendered stays `ExcludedWithReason`), no less, and nothing that
+    /// isn't a source moves.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn provenance_on_flips_exactly_the_source_entries() {
+    fn provenance_on_flips_exactly_the_rendered_source_entries() {
         let inventory = render_field_inventory();
         let with_provenance = lean3_coverage_contract(Lean3Config { provenance: true });
         let baseline = baseline_contract_for(&inventory);
         let disagreements = with_provenance.disagreements(&baseline);
-        let source_entries = inventory
+        let expected_flipped = inventory
             .entries()
             .iter()
-            .filter(|entry| renderer_excludes_as_provenance(entry))
+            .filter(|entry| is_source_provenance(entry) && source_rendered_under_provenance(entry))
             .count();
+        assert!(expected_flipped > 0, "some nested/object sources must render under provenance");
         assert_eq!(
             disagreements.len(),
-            source_entries,
-            "provenance-on must flip exactly the {source_entries} source-provenance entries"
+            expected_flipped,
+            "provenance-on must flip exactly the {expected_flipped} rendered source coordinates"
         );
-        assert!(disagreements
-            .iter()
-            .all(|key| key.field == "source"
-                || matches!(key.surface, "SemanticSource" | "SourceByteSpan")));
+        // Every flipped entry is a source coordinate whose struct is rendered.
+        for key in &disagreements {
+            let entry = inventory
+                .entries()
+                .iter()
+                .find(|e| e.key() == *key)
+                .expect("disagreement key is an inventory entry");
+            assert!(is_source_provenance(entry) && source_rendered_under_provenance(entry));
+        }
+        // A non-rendered source struct (e.g. ModalArgument.source) does NOT flip.
+        let unrendered = inventory.entries().iter().any(|entry| {
+            is_source_provenance(entry) && !source_rendered_under_provenance(entry)
+        });
+        assert!(unrendered, "the corpus inventory includes a non-rendered source struct");
     }
 
-    /// The behavioral-verification split is surfaced and consistent (kimi 6):
-    /// some entries are corpus-exercised (their rendering is byte-checked) and
-    /// the bulk are declared-only (behaviorally unverified) — the two partition
-    /// the whole inventory.
+    /// The corpus-presence split is surfaced and consistent (Codex 5): some
+    /// entries are corpus-present (their coordinate appears in a frozen doc) and
+    /// the bulk are corpus-absent — the two partition the whole inventory. This
+    /// certifies presence, not read-grounding.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn behavioral_coverage_partitions_the_inventory() {
-        let (witnessed, declared_only) = behavioral_coverage();
-        assert_eq!(witnessed + declared_only, render_field_inventory().len());
-        assert!(witnessed > 0, "some entries must be corpus-exercised");
+    fn corpus_presence_partitions_the_inventory() {
+        let (corpus_present, corpus_absent) = corpus_presence_coverage();
+        assert_eq!(corpus_present + corpus_absent, render_field_inventory().len());
+        assert!(corpus_present > 0, "some coordinates must be corpus-present");
         assert!(
-            declared_only > 0,
-            "the declared-only (behaviorally unverified) set must be surfaced, not hidden"
+            corpus_absent > 0,
+            "the corpus-absent set must be surfaced, not hidden"
         );
     }
 }

@@ -163,7 +163,7 @@ fn frozen_fixture_aggregate_hashes_are_pinned() {
     );
     assert_eq!(
         aggregate_fixture_hash("lean3-prov.txt"),
-        "2fbeae6e02fce4b3f4d50b82f8a7fe7b0b47a99b9b117dc3f6ad1940d6478da2",
+        "25c26460c2db8a2552597a7cdafcdea531722946194f9e5d8419246ac08b54df",
         "lean3-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
