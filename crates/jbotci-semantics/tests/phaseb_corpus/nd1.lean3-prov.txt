@@ -1,0 +1,297 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASSERT;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r56;
+      CONTENT: f55;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 0..85;
+        TEXT: "lo nanmu poi dasni lo xunre creka cu dunda lo cukta lo nanmu poi dasni lo blanu creka";
+        CONSTRUCT: "bridi";
+    }
+    PARAMETER x15 { SORT: Entity; ROLE: PROPERTY SLOT; INTRODUCED BY: ce'u; PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    PARAMETER x42 { SORT: Entity; ROLE: PROPERTY SLOT; INTRODUCED BY: ce'u; PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    PREDICATION p8 { RELATION: nanmu; ARGS ( [1]: REFERENCE DENOTATION r7; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 3..8; TEXT: "nanmu"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p13 { RELATION: creka; ARGS ( [1]: REFERENCE DENOTATION r11; [2]: REFERENCE DENOTATION r12; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p17 {
+      RELATION: xunre;
+      EVENTUALITY: r16;
+      ARGS (
+        [1]: VALUE x15;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 22..33;
+        TEXT: "xunre creka";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+    PREDICATION p20 {
+      RELATION: tanru;
+      ARGS (
+        [1]: REFERENCE DENOTATION r11;
+        [2]: REFERENCE DENOTATION l19;
+      )
+      MODE: RESTRICTIVE;
+      TANRU LINK
+        HEAD: p13;
+        MODIFIER: l19;
+        RELATION LABEL: xunre-creka;
+      PROVENANCE
+        BYTE SPAN: 22..33;
+        TEXT: "xunre creka";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+    PREDICATION p25 {
+      RELATION: dasni;
+      EVENTUALITY: r10;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+        [2]: REFERENCE DENOTATION r11;
+        [3]: REFERENCE DENOTATION r24;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 13..33;
+        TEXT: "dasni lo xunre creka";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p32 { RELATION: cukta; ARGS ( [1]: REFERENCE DENOTATION r27; [2]: REFERENCE DENOTATION r28; [3]: REFERENCE DENOTATION r29; [4]: REFERENCE DENOTATION r30; [5]: REFERENCE DENOTATION r31; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 46..51; TEXT: "cukta"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p35 { RELATION: nanmu; ARGS ( [1]: REFERENCE DENOTATION r34; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 55..60; TEXT: "nanmu"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p40 { RELATION: creka; ARGS ( [1]: REFERENCE DENOTATION r38; [2]: REFERENCE DENOTATION r39; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p44 {
+      RELATION: blanu;
+      EVENTUALITY: r43;
+      ARGS (
+        [1]: VALUE x42;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 74..85;
+        TEXT: "blanu creka";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+    PREDICATION p47 {
+      RELATION: tanru;
+      ARGS (
+        [1]: REFERENCE DENOTATION r38;
+        [2]: REFERENCE DENOTATION l46;
+      )
+      MODE: RESTRICTIVE;
+      TANRU LINK
+        HEAD: p40;
+        MODIFIER: l46;
+        RELATION LABEL: blanu-creka;
+      PROVENANCE
+        BYTE SPAN: 74..85;
+        TEXT: "blanu creka";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+    PREDICATION p52 {
+      RELATION: dasni;
+      EVENTUALITY: r37;
+      ARGS (
+        [1]: REFERENCE DENOTATION r34;
+        [2]: REFERENCE DENOTATION r38;
+        [3]: REFERENCE DENOTATION r51;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 65..85;
+        TEXT: "dasni lo blanu creka";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p54 {
+      RELATION: dunda;
+      EVENTUALITY: r6;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+        [2]: REFERENCE DENOTATION r27;
+        [3]: REFERENCE DENOTATION r34;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..85;
+        TEXT: "lo nanmu poi dasni lo xunre creka cu dunda lo cukta lo nanmu poi dasni lo blanu creka";
+        CONSTRUCT: "predication";
+    }
+    FORMULA f9 IS ATOM { PREDICATION: p8; PROVENANCE { BYTE SPAN: 3..8; TEXT: "nanmu"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f14 IS ATOM { PREDICATION: p13; PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-predication"; } }
+    FORMULA f18 IS ATOM { PREDICATION: p17; BOUND EVENTUALITIES { r16; } PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    FORMULA f21 IS ATOM { PREDICATION: p20; PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    FORMULA f22 IS ∧ { OPERANDS IN ORDER ( f14; f21; ) CONNECTIVE SOURCE: tanru; PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    FORMULA f26 IS ATOM { PREDICATION: p25; BOUND EVENTUALITIES { r10; } PROVENANCE { BYTE SPAN: 13..33; TEXT: "dasni lo xunre creka"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f33 IS ATOM { PREDICATION: p32; PROVENANCE { BYTE SPAN: 46..51; TEXT: "cukta"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f36 IS ATOM { PREDICATION: p35; PROVENANCE { BYTE SPAN: 55..60; TEXT: "nanmu"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f41 IS ATOM { PREDICATION: p40; PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-predication"; } }
+    FORMULA f45 IS ATOM { PREDICATION: p44; BOUND EVENTUALITIES { r43; } PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    FORMULA f48 IS ATOM { PREDICATION: p47; PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    FORMULA f49 IS ∧ { OPERANDS IN ORDER ( f41; f48; ) CONNECTIVE SOURCE: tanru; PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    FORMULA f53 IS ATOM { PREDICATION: p52; BOUND EVENTUALITIES { r37; } PROVENANCE { BYTE SPAN: 65..85; TEXT: "dasni lo blanu creka"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f55 IS ATOM { PREDICATION: p54; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 0..85; TEXT: "lo nanmu poi dasni lo xunre creka cu dunda lo cukta lo nanmu poi dasni lo blanu creka"; CONSTRUCT: "bridi-formula"; } }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r7 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f9;
+        RELATIVE CLAUSES {
+          RESTRICTIVE f26
+            PROVENANCE
+              BYTE SPAN: 13..33;
+              TEXT: "dasni lo xunre creka";
+              CONSTRUCT: "relative-clause";
+        }
+      PROVENANCE
+        BYTE SPAN: 0..33;
+        TEXT: "lo nanmu poi dasni lo xunre creka";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r11 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f22;
+      PROVENANCE
+        BYTE SPAN: 19..33;
+        TEXT: "lo xunre creka";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r12 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r24 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r27 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f33;
+      PROVENANCE
+        BYTE SPAN: 43..51;
+        TEXT: "lo cukta";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r28 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r29 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r30 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r31 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r34 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f36;
+        RELATIVE CLAUSES {
+          RESTRICTIVE f53
+            PROVENANCE
+              BYTE SPAN: 65..85;
+              TEXT: "dasni lo blanu creka";
+              CONSTRUCT: "relative-clause";
+        }
+      PROVENANCE
+        BYTE SPAN: 52..85;
+        TEXT: "lo nanmu poi dasni lo blanu creka";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r38 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f49;
+      PROVENANCE
+        BYTE SPAN: 71..85;
+        TEXT: "lo blanu creka";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r39 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r51 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r6 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r6.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..85; TEXT: "lo nanmu poi dasni lo xunre creka cu dunda lo cukta lo nanmu poi dasni lo blanu creka"; CONSTRUCT: "predication"; } }
+    REFERENCE r10 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r10.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 13..33; TEXT: "dasni lo xunre creka"; CONSTRUCT: "predication"; } }
+    REFERENCE r16 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r16.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 22..33; TEXT: "xunre creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    REFERENCE r37 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r37.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 65..85; TEXT: "dasni lo blanu creka"; CONSTRUCT: "predication"; } }
+    REFERENCE r43 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r43.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 74..85; TEXT: "blanu creka"; CONSTRUCT: "restrictive-tanru-formula"; } }
+    REFERENCE r56 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r56.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 0..85;
+        TEXT: "lo nanmu poi dasni lo xunre creka cu dunda lo cukta lo nanmu poi dasni lo blanu creka";
+        CONSTRUCT: "bridi";
+    }
+    RELATION EXPRESSION l19 {
+      PARAMS (
+        x15 AS Entity;
+      )
+      ARITY: 1;
+      OUTPUT TYPE: Formula;
+      BODY: f18;
+      PROVENANCE
+        BYTE SPAN: 22..33;
+        TEXT: "xunre creka";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+    RELATION EXPRESSION l46 {
+      PARAMS (
+        x42 AS Entity;
+      )
+      ARITY: 1;
+      OUTPUT TYPE: Formula;
+      BODY: f45;
+      PROVENANCE
+        BYTE SPAN: 74..85;
+        TEXT: "blanu creka";
+        CONSTRUCT: "restrictive-tanru-formula";
+    }
+  }
+}

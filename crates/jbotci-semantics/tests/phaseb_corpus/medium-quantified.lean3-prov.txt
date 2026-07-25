@@ -1,0 +1,220 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASSERT;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r40;
+      CONTENT: f39;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 0..80;
+        TEXT: "ro lo prenu poi nelci lo gerku ku'o cu djuno lo du'u su'o lo mlatu cu terpa vo'a";
+        CONSTRUCT: "bridi";
+    }
+    PREDICATION p10 {
+      RELATION: terpa;
+      EVENTUALITY: r8;
+      ARGS (
+        [1]: REFERENCE DENOTATION r9;
+        [2]: REFERENCE DENOTATION r9;
+      )
+      MODE: INERT;
+      PROVENANCE
+        BYTE SPAN: 53..80;
+        TEXT: "su'o lo mlatu cu terpa vo'a";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p14 { RELATION: mlatu; ARGS ( [1]: REFERENCE DENOTATION r12; [2]: REFERENCE DENOTATION r13; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 61..66; TEXT: "mlatu"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p16 { RELATION: MEMBER OF; ARGS ( [1]: REFERENCE DENOTATION r9; [2]: REFERENCE DENOTATION r12; ) MODE: INERT; }
+    PREDICATION p23 {
+      RELATION: djuno;
+      EVENTUALITY: r6;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+        [2]: REFERENCE DENOTATION r20;
+        [3]: REFERENCE DENOTATION r21;
+        [4]: REFERENCE DENOTATION r22;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..80;
+        TEXT: "ro lo prenu poi nelci lo gerku ku'o cu djuno lo du'u su'o lo mlatu cu terpa vo'a";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p26 { RELATION: prenu; ARGS ( [1]: REFERENCE DENOTATION r25; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 6..11; TEXT: "prenu"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p31 { RELATION: gerku; ARGS ( [1]: REFERENCE DENOTATION r29; [2]: REFERENCE DENOTATION r30; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 25..30; TEXT: "gerku"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p34 {
+      RELATION: nelci;
+      EVENTUALITY: r28;
+      ARGS (
+        [1]: REFERENCE DENOTATION r25;
+        [2]: REFERENCE DENOTATION r29;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 16..30;
+        TEXT: "nelci lo gerku";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p36 { RELATION: MEMBER OF; ARGS ( [1]: REFERENCE DENOTATION r7; [2]: REFERENCE DENOTATION r25; ) MODE: RESTRICTIVE; }
+    FORMULA f11 IS ATOM { PREDICATION: p10; BOUND EVENTUALITIES { r8; } PROVENANCE { BYTE SPAN: 53..80; TEXT: "su'o lo mlatu cu terpa vo'a"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f15 IS ATOM { PREDICATION: p14; PROVENANCE { BYTE SPAN: 61..66; TEXT: "mlatu"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f17 IS ATOM { PREDICATION: p16; }
+    FORMULA f19 IS CARDINALITY {
+      VARIABLE: r9;
+      RESTRICTION: f17;
+      BODY: f11;
+      QUANTITY: q18;
+      PROVENANCE
+        BYTE SPAN: 53..66;
+        TEXT: "su'o lo mlatu";
+        CONSTRUCT: "quantifier-scope";
+    }
+    FORMULA f24 IS ATOM { PREDICATION: p23; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 0..80; TEXT: "ro lo prenu poi nelci lo gerku ku'o cu djuno lo du'u su'o lo mlatu cu terpa vo'a"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f27 IS ATOM { PREDICATION: p26; PROVENANCE { BYTE SPAN: 6..11; TEXT: "prenu"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f32 IS ATOM { PREDICATION: p31; PROVENANCE { BYTE SPAN: 25..30; TEXT: "gerku"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f35 IS ATOM { PREDICATION: p34; BOUND EVENTUALITIES { r28; } PROVENANCE { BYTE SPAN: 16..30; TEXT: "nelci lo gerku"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f37 IS ATOM { PREDICATION: p36; }
+    FORMULA f39 IS ∀ {
+      VARIABLE: r7;
+      RESTRICTION: f37;
+      DOMAIN IMPORT: PROJECTIVE;
+      BODY: f24;
+      QUANTITY: q38;
+      PROVENANCE
+        BYTE SPAN: 0..35;
+        TEXT: "ro lo prenu poi nelci lo gerku ku'o";
+        CONSTRUCT: "quantifier-scope";
+    }
+    QUANTITY q18 { FORM: AT LEAST; VALUE TEXT: su'o; SCALE: COUNT; PROVENANCE { BYTE SPAN: 53..57; TEXT: "su'o"; CONSTRUCT: "quantity"; } }
+    QUANTITY q38 { FORM: ALL; VALUE TEXT: ro; SCALE: COUNT; PROVENANCE { BYTE SPAN: 0..2; TEXT: "ro"; CONSTRUCT: "quantity"; } }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r7 { DENOTES VALUES OF SORT Entity; BINDING: VARIABLE; PROVENANCE { BYTE SPAN: 0..35; TEXT: "ro lo prenu poi nelci lo gerku ku'o"; CONSTRUCT: "bound-argument"; } }
+    REFERENCE r9 { DENOTES VALUES OF SORT Entity; BINDING: VARIABLE; PROVENANCE { BYTE SPAN: 53..66; TEXT: "su'o lo mlatu"; CONSTRUCT: "bound-argument"; } }
+    REFERENCE r12 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE IS UNDERSPECIFIED
+        MAY DEPEND ON {
+          r7;
+          r9;
+        }
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f15;
+      PROVENANCE
+        BYTE SPAN: 58..66;
+        TEXT: "lo mlatu";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r13 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { r7; r9; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r21 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { r7; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r22 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { r7; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r25 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE IS UNDERSPECIFIED
+        MAY DEPEND ON {
+          r7;
+        }
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f27;
+        RELATIVE CLAUSES {
+          RESTRICTIVE f35
+            PROVENANCE
+              BYTE SPAN: 16..30;
+              TEXT: "nelci lo gerku";
+              CONSTRUCT: "relative-clause";
+        }
+      PROVENANCE
+        BYTE SPAN: 3..35;
+        TEXT: "lo prenu poi nelci lo gerku ku'o";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r29 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE IS UNDERSPECIFIED
+        MAY DEPEND ON {
+          r7;
+        }
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f32;
+      PROVENANCE
+        BYTE SPAN: 22..30;
+        TEXT: "lo gerku";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r30 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { r7; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r6 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r6.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..80; TEXT: "ro lo prenu poi nelci lo gerku ku'o cu djuno lo du'u su'o lo mlatu cu terpa vo'a"; CONSTRUCT: "predication"; } }
+    REFERENCE r8 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r8.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 53..80; TEXT: "su'o lo mlatu cu terpa vo'a"; CONSTRUCT: "predication"; } }
+    REFERENCE r28 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r28.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 16..30; TEXT: "nelci lo gerku"; CONSTRUCT: "predication"; } }
+    REFERENCE r40 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r40.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 0..80;
+        TEXT: "ro lo prenu poi nelci lo gerku ku'o cu djuno lo du'u su'o lo mlatu cu terpa vo'a";
+        CONSTRUCT: "bridi";
+    }
+    REFERENCE r20 {
+      DENOTES VALUES OF SORT Proposition
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE IS UNDERSPECIFIED
+        MAY DEPEND ON {
+          r7;
+        }
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+      BODY: f19;
+      PROVENANCE
+        BYTE SPAN: 45..80;
+        TEXT: "lo du'u su'o lo mlatu cu terpa vo'a";
+        CONSTRUCT: "description";
+    }
+  }
+}

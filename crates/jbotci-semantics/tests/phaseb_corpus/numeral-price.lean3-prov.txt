@@ -1,0 +1,151 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASSERT;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r27;
+      CONTENT: f26;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 0..45;
+        TEXT: "le cukta poi mi nelci ke'a cu jdima li pasono";
+        CONSTRUCT: "bridi";
+    }
+    PARAMETER x8 { SORT: Entity; ROLE: PROPERTY SLOT; INTRODUCED BY: ce'u; PROVENANCE { BYTE SPAN: 3..8; TEXT: "cukta"; CONSTRUCT: "speaker-description-property"; } }
+    PREDICATION p13 { RELATION: cukta; ARGS ( [1]: VALUE x8; [2]: REFERENCE DENOTATION r9; [3]: REFERENCE DENOTATION r10; [4]: REFERENCE DENOTATION r11; [5]: REFERENCE DENOTATION r12; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 3..8; TEXT: "cukta"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p16 { RELATION: skicu; ARGS ( [1]: REFERENCE DENOTATION r1; [2]: REFERENCE DENOTATION r7; [3]: REFERENCE DENOTATION r2; [4]: REFERENCE DENOTATION l15; ) MODE: INCIDENTAL; PROVENANCE { BYTE SPAN: 0..26; TEXT: "le cukta poi mi nelci ke'a"; CONSTRUCT: "speaker-description"; } }
+    PREDICATION p19 {
+      RELATION: nelci;
+      EVENTUALITY: r18;
+      ARGS (
+        [1]: REFERENCE DENOTATION r1;
+        [2]: REFERENCE DENOTATION r7;
+      )
+      MODE: RESTRICTIVE;
+      PROVENANCE
+        BYTE SPAN: 13..26;
+        TEXT: "mi nelci ke'a";
+        CONSTRUCT: "predication";
+    }
+    PREDICATION p25 {
+      RELATION: jdima;
+      EVENTUALITY: r6;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+        [2]: REFERENCE DENOTATION r22;
+        [3]: REFERENCE DENOTATION r23;
+        [4]: REFERENCE DENOTATION r24;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..45;
+        TEXT: "le cukta poi mi nelci ke'a cu jdima li pasono";
+        CONSTRUCT: "predication";
+    }
+    FORMULA f14 IS ATOM { PREDICATION: p13; PROVENANCE { BYTE SPAN: 3..8; TEXT: "cukta"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f17 IS ATOM { PREDICATION: p16; PROVENANCE { BYTE SPAN: 0..26; TEXT: "le cukta poi mi nelci ke'a"; CONSTRUCT: "speaker-description"; } }
+    FORMULA f20 IS ATOM { PREDICATION: p19; BOUND EVENTUALITIES { r18; } PROVENANCE { BYTE SPAN: 13..26; TEXT: "mi nelci ke'a"; CONSTRUCT: "bridi-formula"; } }
+    FORMULA f26 IS ATOM { PREDICATION: p25; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 0..45; TEXT: "le cukta poi mi nelci ke'a cu jdima li pasono"; CONSTRUCT: "bridi-formula"; } }
+    QUANTITY q21 { FORM: EXACT; VALUE: 190; SCALE: COUNT; PROVENANCE { BYTE SPAN: 36..45; TEXT: "li pasono"; CONSTRUCT: "quantity"; } }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r7 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS SPEAKER DESCRIPTION
+        WORD: le;
+        SPEAKER: r1;
+        BODY: f17;
+        RELATIVE CLAUSES {
+          RESTRICTIVE f20
+            PROVENANCE
+              BYTE SPAN: 13..26;
+              TEXT: "mi nelci ke'a";
+              CONSTRUCT: "relative-clause";
+        }
+      PROVENANCE
+        BYTE SPAN: 0..26;
+        TEXT: "le cukta poi mi nelci ke'a";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r9 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { x8; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r10 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { x8; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r11 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { x8; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r12 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { x8; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r23 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r24 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r6 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r6.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..45; TEXT: "le cukta poi mi nelci ke'a cu jdima li pasono"; CONSTRUCT: "predication"; } }
+    REFERENCE r18 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r18.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 13..26; TEXT: "mi nelci ke'a"; CONSTRUCT: "predication"; } }
+    REFERENCE r27 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r27.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 0..45;
+        TEXT: "le cukta poi mi nelci ke'a cu jdima li pasono";
+        CONSTRUCT: "bridi";
+    }
+    REFERENCE r22 {
+      DENOTES VALUES OF SORT Number
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS NUMBER
+        WORD: li;
+        QUANTITY: q21;
+        NAME: "pa so no";
+      PROVENANCE
+        BYTE SPAN: 36..45;
+        TEXT: "li pasono";
+        CONSTRUCT: "number-sumti";
+    }
+    RELATION EXPRESSION l15 {
+      PARAMS (
+        x8 AS Entity;
+      )
+      ARITY: 1;
+      OUTPUT TYPE: Formula;
+      BODY: f14;
+      PROVENANCE
+        BYTE SPAN: 3..8;
+        TEXT: "cukta";
+        CONSTRUCT: "speaker-description-property";
+    }
+  }
+}
