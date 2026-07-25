@@ -1829,6 +1829,22 @@ mod tests {
         }
     }
 
+    // The `smusni` format renamed the earlier `lean3` working name with no
+    // deprecated alias: the serde boundary accepts `smusni` and rejects `lean3`.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_format_serde_accepts_smusni_and_rejects_retired_lean3() {
+        assert_eq!(
+            serde_json::from_str::<ToolTersmuFormat>("\"smusni\"").expect("smusni deserializes"),
+            ToolTersmuFormat::Smusni
+        );
+        assert!(
+            serde_json::from_str::<ToolTersmuFormat>("\"lean3\"").is_err(),
+            "the retired `lean3` alias must not deserialize"
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]

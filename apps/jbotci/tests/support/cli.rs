@@ -907,6 +907,13 @@ fn parses_tersmu_formats_with_tree_proj_default() {
         assert_eq!(input.format, expected);
     }
 
+    // The `lean3` working name was renamed to `smusni` with no deprecated
+    // alias, so the CLI must reject the old value as an unknown format.
+    assert!(
+        Cli::try_parse_from(["jbotci", "tersmu", "--format", "lean3", "coi"]).is_err(),
+        "the retired `lean3` format value must be rejected by the CLI"
+    );
+
     let Command::Tersmu(defs_input) = Cli::try_parse_from([
         "jbotci",
         "tersmu",

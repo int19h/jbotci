@@ -364,6 +364,14 @@ system-prompt = "Speak only Lojban."
             "scenario = \"schedule-negotiation\"\ntersmu-format = \"lean4\"",
         );
         assert!(RunConfig::from_toml(&invalid).is_err());
+
+        // The `smusni` format renamed the earlier `lean3` working name with no
+        // deprecated alias, so the retired value must not deserialize.
+        let retired = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\ntersmu-format = \"lean3\"",
+        );
+        assert!(RunConfig::from_toml(&retired).is_err());
     }
 
     #[test]
