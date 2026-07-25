@@ -9,7 +9,7 @@
 //! model type graph (so a coincidental equal string at an unrelated field cannot
 //! pass); `drift_guard` resolves every emitted coordinate to its `(type, field)`
 //! and fails if one is un-inventoried. Derived/document facts at the end are
-//! authored by hand from `FREEZE-PHASE-B.md` and the frozen `lean3` samples.
+//! authored by hand from `FREEZE-PHASE-B.md` and the frozen `smusni` samples.
 
 #[allow(unused_imports)]
 use bityzba::{ensures, new, requires};
@@ -712,7 +712,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::ValueStruct, "SequenceRelation", "additional", EntryKind::Field, Presence::VariantConditional,
           new!(Witness::NoCorpusWitness), Some("ParagraphBoundary")),
         // --- Derived / document-level facts (authored from FREEZE-PHASE-B.md
-        //     and the frozen lean3 sample outputs; not single serde fields) ---
+        //     and the frozen smusni sample outputs; not single serde fields) ---
         e(SurfaceCategory::Document, "document", "root", EntryKind::DerivedFact, Presence::Always,
           new!(Witness::Corpus { doc: "small-mi-klama", path: "Document:root", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Document, "document", "declarations", EntryKind::DerivedFact, Presence::Always,

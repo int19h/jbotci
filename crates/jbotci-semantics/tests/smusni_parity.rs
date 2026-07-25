@@ -1,11 +1,13 @@
-//! Byte-parity of this build's `lean3` notation renderer against the frozen
+//! Byte-parity of this build's `smusni` notation renderer against the frozen
 //! Python oracle (Phase-B step 4; research repo `FREEZE-PHASE-B.md`).
 //!
-//! For each of the 37 frozen corpus documents, the vendored `<doc>.lean3.txt`
+//! For each of the 37 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at the oracle commit `cab176bcce`. This test re-derives each graph
+//! lean3` at the oracle commit `28c7d5f` (`lean3` is the research repo's
+//! historical profile name for the product's `smusni` notation). This test
+//! re-derives each graph
 //! from `<doc>.lojban` with *this* build (the same pipeline the completeness
-//! tests use — never reading `<doc>.frozen.json`), renders it with the `lean3`
+//! tests use — never reading `<doc>.frozen.json`), renders it with the `smusni`
 //! profile, and asserts a byte-for-byte match.
 //!
 //! Because every corpus graph this build produces is byte-identical (in meaning)
@@ -22,8 +24,8 @@ use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id};
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::{
-    Lean3Config, SemanticBuildOptions, SemanticGraph,
-    build_generated_semantic_graph_with_dictionary_and_options, render_lean3,
+    SmusniConfig, SemanticBuildOptions, SemanticGraph,
+    build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
@@ -83,16 +85,16 @@ fn first_diff(expected: &str, actual: &str) -> Option<(usize, String, String)> {
     None
 }
 
-/// Assert byte parity between this build's `render_lean3` and the vendored
+/// Assert byte parity between this build's `render_smusni` and the vendored
 /// oracle fixtures with `suffix`, under the given `config`.
 #[requires(!suffix.is_empty())]
 #[ensures(true)]
-fn assert_parity(suffix: &str, config: Lean3Config) {
+fn assert_parity(suffix: &str, config: SmusniConfig) {
     let mut mismatches: Vec<String> = Vec::new();
     for doc in CORPUS_DOCS {
         let expected = std::fs::read_to_string(fixture(doc, suffix))
             .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
-        let actual = render_lean3(&graph_for(doc), config);
+        let actual = render_smusni(&graph_for(doc), config);
         if expected != actual {
             match first_diff(&expected, &actual) {
                 Some((line, e, a)) => mismatches.push(format!(
@@ -104,20 +106,20 @@ fn assert_parity(suffix: &str, config: Lean3Config) {
     }
     assert!(
         mismatches.is_empty(),
-        "{}/{} corpus documents diverge from the frozen lean3 oracle ({suffix}):\n{}",
+        "{}/{} corpus documents diverge from the frozen smusni oracle ({suffix}):\n{}",
         mismatches.len(),
         CORPUS_DOCS.len(),
         mismatches.join("\n")
     );
 }
 
-/// The default `lean3` profile (provenance off) byte-matches the oracle on all
+/// The default `smusni` profile (provenance off) byte-matches the oracle on all
 /// 37 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn lean3_byte_parity_over_frozen_corpus() {
-    assert_parity("lean3.txt", Lean3Config { provenance: false });
+fn smusni_byte_parity_over_frozen_corpus() {
+    assert_parity("smusni.txt", SmusniConfig { provenance: false });
 }
 
 /// The provenance opt-in (`--provenance`) byte-matches the oracle's
@@ -125,8 +127,8 @@ fn lean3_byte_parity_over_frozen_corpus() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn lean3_provenance_byte_parity_over_frozen_corpus() {
-    assert_parity("lean3-prov.txt", Lean3Config { provenance: true });
+fn smusni_provenance_byte_parity_over_frozen_corpus() {
+    assert_parity("smusni-prov.txt", SmusniConfig { provenance: true });
 }
 
 /// The pinned aggregate SHA-256 of a fixture set: `sha256( for each doc in
@@ -157,14 +159,14 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
 #[ensures(true)]
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
-        aggregate_fixture_hash("lean3.txt"),
+        aggregate_fixture_hash("smusni.txt"),
         "4d3e18385ed48605019f0543c95598c45f7fe2a05cdf8bbac4e19c0a31569c81",
-        "lean3.txt fixture set drifted from the pinned oracle output"
+        "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
-        aggregate_fixture_hash("lean3-prov.txt"),
+        aggregate_fixture_hash("smusni-prov.txt"),
         "d9c1fe502528d67246d3ba7cce9f25e4bd17726b24e564a1383217986bf968a7",
-        "lean3-prov.txt fixture set drifted from the pinned oracle output"
+        "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
 
@@ -177,15 +179,15 @@ fn frozen_fixture_aggregate_hashes_are_pinned() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn lean3_hostile_witness_regression() {
+fn smusni_hostile_witness_regression() {
     let doc = "hostile-quote";
     for (suffix, config) in [
-        ("lean3.txt", Lean3Config { provenance: false }),
-        ("lean3-prov.txt", Lean3Config { provenance: true }),
+        ("smusni.txt", SmusniConfig { provenance: false }),
+        ("smusni-prov.txt", SmusniConfig { provenance: true }),
     ] {
         let expected = std::fs::read_to_string(fixture(doc, suffix))
             .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
-        let actual = render_lean3(&graph_for(doc), config);
+        let actual = render_smusni(&graph_for(doc), config);
         assert_eq!(
             expected, actual,
             "{doc} ({suffix}) diverges from the oracle at {:?}",

@@ -185,7 +185,7 @@ fn tool_tersmu_format(format: TersmuFormat) -> ToolTersmuFormat {
         TersmuFormat::TreeProj => ToolTersmuFormat::TreeProj,
         TersmuFormat::Tree => ToolTersmuFormat::Tree,
         TersmuFormat::Json => ToolTersmuFormat::Json,
-        TersmuFormat::Lean3 => ToolTersmuFormat::Lean3,
+        TersmuFormat::Smusni => ToolTersmuFormat::Smusni,
     }
 }
 
@@ -561,23 +561,23 @@ mod tests {
         assert_ne!(json, default, "format selection must not be inert");
         assert_eq!(json, direct_json.stdout);
 
-        let lean3 = gate_lojban("mi klama".to_owned(), Some(TersmuFormat::Lean3), None)
-            .expect("lean3 gate")
+        let smusni = gate_lojban("mi klama".to_owned(), Some(TersmuFormat::Smusni), None)
+            .expect("smusni gate")
             .tersmu_rendering()
-            .expect("lean3 success")
+            .expect("smusni success")
             .to_owned();
-        let direct_lean3 = run_tool_tersmu(ToolTersmuRequest {
+        let direct_smusni = run_tool_tersmu(ToolTersmuRequest {
             text: "mi klama".to_owned(),
-            format: ToolTersmuFormat::Lean3,
+            format: ToolTersmuFormat::Smusni,
             dialect: None,
             show_defs: true,
             story_time: false,
             indent: None,
         })
-        .expect("direct lean3 call");
-        assert_ne!(lean3, default, "lean3 selection must not be inert");
-        assert_ne!(lean3, json, "lean3 is a distinct rendering from json");
-        assert_eq!(lean3, direct_lean3.stdout);
+        .expect("direct smusni call");
+        assert_ne!(smusni, default, "smusni selection must not be inert");
+        assert_ne!(smusni, json, "smusni is a distinct rendering from json");
+        assert_eq!(smusni, direct_smusni.stdout);
 
         let invalid_dialect = "(definitely-not-a-jbotci-dialect)".to_owned();
         let direct_error = run_tool_tersmu(ToolTersmuRequest {

@@ -2446,10 +2446,17 @@ mod tests {
             tersmu_schema["properties"]["format"]["default"],
             serde_json::json!("tree+proj")
         );
+        let tersmu_format_schema = tersmu_schema["properties"]["format"].to_string();
+        assert!(tersmu_format_schema.contains("tree+proj"));
+        // The MCP format enumeration offers the renamed `smusni` value and must
+        // not leak the retired `lean3` working name (no deprecated alias).
         assert!(
-            tersmu_schema["properties"]["format"]
-                .to_string()
-                .contains("tree+proj")
+            tersmu_format_schema.contains("smusni"),
+            "tersmu format enumeration must advertise `smusni`: {tersmu_format_schema}"
+        );
+        assert!(
+            !tersmu_format_schema.contains("lean3"),
+            "tersmu format enumeration must not expose the retired `lean3` alias: {tersmu_format_schema}"
         );
         let tersmu_description = tools_array
             .iter()

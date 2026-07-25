@@ -9,7 +9,7 @@
 //!
 //! * [`model`] — the typed inventory/contract vocabulary.
 //! * [`inventory::render_field_inventory`] — the authored entries.
-//! * [`disposition::baseline_contract`] — the baseline `lean3` design contract.
+//! * [`disposition::baseline_contract`] — the baseline `smusni` design contract.
 //! * [`corpus`] — the frozen Phase-B corpus manifest.
 
 pub mod corpus;

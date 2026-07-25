@@ -1,5 +1,6 @@
-//! The `lean3` graph walk: a faithful Rust port of the Python oracle's `lean3`
-//! rendering path (`render_v5.py` at commit `cab176bcce`).
+//! The `smusni` graph walk: a faithful Rust port of the Python oracle's `lean3`
+//! rendering path (`render_v5.py` at commit `28c7d5f`; `lean3` is the
+//! research repo's historical name for what ships as the `smusni` profile).
 //!
 //! # Why this reads the canonical JSON
 //!
@@ -18,14 +19,14 @@
 //! [`SemanticGraph::objects`] `BTreeMap`, whose `SemanticObjectId` ordering is
 //! byte-for-byte the frozen graph's object order.
 //!
-//! Only the `lean3` profile is realised here: the frozen `lean3` option set
+//! Only the `smusni` profile is realised here: the frozen `smusni` option set
 //! (`opt_compact_dimensions`, `opt_bracket_keys`, `opt_collapse_notcomputed`,
 //! `opt_terse_labels`, `opt_glyph_formulas`, `opt_braces`, `opt_short_ids`,
 //! `opt_dense_decls`, all on; `opt_provenance_off` following the runtime
-//! `provenance` toggle). The experiment-only options that `lean3` leaves off
+//! `provenance` toggle). The experiment-only options that `smusni` leaves off
 //! (nav-index, scope-paths, inline-lambda, colocated-defs, discourse-order,
 //! infix-implication, inline-introductions, content-ids) are intentionally not
-//! ported — they are not part of `lean3` and are unreachable through this API.
+//! ported — they are not part of `smusni` and are unreachable through this API.
 
 use std::collections::BTreeMap;
 
@@ -37,7 +38,7 @@ use crate::model::SemanticGraph;
 
 use super::writer::Writer;
 
-/// `lean3` render configuration. `provenance` is the one runtime toggle
+/// `smusni` render configuration. `provenance` is the one runtime toggle
 /// (`--provenance` / `opt_provenance_off` off): when set, source spans/text are
 /// rendered; otherwise the profile renders semantic content only.
 // `#[invariant(true)]`: an audited no-op — a single `bool` toggle, so every
@@ -45,7 +46,7 @@ use super::writer::Writer;
 // domain.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Lean3Config {
+pub struct SmusniConfig {
     pub provenance: bool,
 }
 
@@ -322,7 +323,7 @@ fn glyph_operator(op: &str) -> Option<&'static str> {
 // The render context and per-kind renderers.
 // ---------------------------------------------------------------------------
 
-/// Threads the object lookup, id map, and the one `lean3` runtime toggle through
+/// Threads the object lookup, id map, and the one `smusni` runtime toggle through
 /// the per-kind render functions.
 // `#[invariant(true)]`: an audited no-op — `objects` and `id_map` are borrowed
 // views built together over the same graph, and every field combination is a
@@ -411,7 +412,7 @@ fn number_str(value: &Value) -> String {
     value.to_string()
 }
 
-/// The public render entry: walk `graph` and produce its `lean3` notation.
+/// The public render entry: walk `graph` and produce its `smusni` notation.
 ///
 /// # Contract
 ///
@@ -426,7 +427,7 @@ fn number_str(value: &Value) -> String {
 /// COMPUTED` path, never a panic.
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.ends_with('\n'))]
-pub fn render_lean3(graph: &SemanticGraph, config: Lean3Config) -> String {
+pub fn render_smusni(graph: &SemanticGraph, config: SmusniConfig) -> String {
     let order: Vec<String> = graph.objects.keys().map(|id| id.to_string()).collect();
     let objects: BTreeMap<String, Value> = graph
         .objects

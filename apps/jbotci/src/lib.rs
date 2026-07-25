@@ -194,7 +194,7 @@ use jbotci_search::vlacku::{
     normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options, render_lean3,
+    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
     render_tree, render_tree_proj,
 };
 use jbotci_source::SourceId;
@@ -373,12 +373,12 @@ pub enum TersmuFormat {
     /// Structural tree plus only commitments displaced from their tree site.
     #[value(name = "tree+proj")]
     TreeProj,
-    /// EXPERIMENTAL: model-facing "lean3" notation (Phase-B candidate; working
-    /// name, subject to change — not the default, tree+proj remains default).
+    /// EXPERIMENTAL: model-facing `smusni` notation (Phase-B candidate; not the
+    /// default, tree+proj remains default).
     /// Provenance (source spans) renders off; the provenance opt-in is
-    /// library-only for now (`jbotci_semantics::render_lean3` with
-    /// `Lean3Config { provenance: true }`), not exposed as a CLI/MCP flag.
-    Lean3,
+    /// library-only for now (`jbotci_semantics::render_smusni` with
+    /// `SmusniConfig { provenance: true }`), not exposed as a CLI/MCP flag.
+    Smusni,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

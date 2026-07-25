@@ -853,15 +853,15 @@ fn parses_gentufa_formats_and_flags() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_lean3_cli_output_has_a_single_trailing_newline() {
+fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
     // Round-1 review (Codex 3): the delivered CLI surface must be
-    // oracle-identical — `render_lean3` already ends in one newline, and the
+    // oracle-identical — `render_smusni` already ends in one newline, and the
     // command must not double it.
-    let run = run_cli_capture(&["jbotci", "tersmu", "--format", "lean3", "mi klama"], false);
+    let run = run_cli_capture(&["jbotci", "tersmu", "--format", "smusni", "mi klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     assert!(
         run.stdout.starts_with("SEMANTIC DOCUMENT document_1 {\n"),
-        "lean3 CLI output should be the notation document, got: {:?}",
+        "smusni CLI output should be the notation document, got: {:?}",
         &run.stdout[..run.stdout.len().min(48)]
     );
     assert!(run.stdout.contains("ID PREFIXES: r=reference"));
@@ -895,7 +895,7 @@ fn parses_tersmu_formats_with_tree_proj_default() {
     for (name, expected) in [
         ("tree", TersmuFormat::Tree),
         ("tree+proj", TersmuFormat::TreeProj),
-        ("lean3", TersmuFormat::Lean3),
+        ("smusni", TersmuFormat::Smusni),
     ] {
         let Command::Tersmu(input) =
             Cli::try_parse_from(["jbotci", "tersmu", "--format", name, "coi"])
@@ -906,6 +906,13 @@ fn parses_tersmu_formats_with_tree_proj_default() {
         };
         assert_eq!(input.format, expected);
     }
+
+    // The `lean3` working name was renamed to `smusni` with no deprecated
+    // alias, so the CLI must reject the old value as an unknown format.
+    assert!(
+        Cli::try_parse_from(["jbotci", "tersmu", "--format", "lean3", "coi"]).is_err(),
+        "the retired `lean3` format value must be rejected by the CLI"
+    );
 
     let Command::Tersmu(defs_input) = Cli::try_parse_from([
         "jbotci",
