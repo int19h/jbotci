@@ -88,6 +88,17 @@ pub fn source_link_surfaces() -> &'static [&'static str] {
     SOURCE_LINK_SURFACES
 }
 
+/// The exact reason a source-provenance entry is `ExcludedWithReason` under the
+/// `lean3` design intent. Exposed so a renderer registering coverage adopts the
+/// spec's own stated reason verbatim (the `Disposition` carries the reason, so a
+/// coverage contract can only agree with the baseline by reusing this string),
+/// mirroring how [`source_link_surfaces`] exposes the exclusion set.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn source_provenance_reason() -> &'static str {
+    SOURCE_PROVENANCE_REASON
+}
+
 /// True for a `SemanticSource`/`SourceByteSpan` value or a `SemanticSource`-typed
 /// `source` link on any surface.
 #[requires(true)]
