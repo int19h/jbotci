@@ -1,0 +1,208 @@
+{
+ "version": "lojban-semantics-json-1",
+ "root": "utterance:5",
+ "objects": {
+  "utterance:5": {
+   "type": "utterance",
+   "force": "assert",
+   "speaker": "entity:1",
+   "audience": "entity:2",
+   "eventuality": "eventuality/locution:14",
+   "content": "formula:13",
+   "deicticGround": {
+    "time": "eventuality:3",
+    "place": "entity:4"
+   },
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "lo ci mlatu cu blabi",
+    "construct": "bridi"
+   }
+  },
+  "predication:9": {
+   "type": "predication",
+   "relation": "mlatu",
+   "arguments": {
+    "x1": {
+     "kind": "filled",
+     "value": "entity:7"
+    },
+    "x2": {
+     "kind": "elided",
+     "value": "entity:8",
+     "introducedBy": "zo'e"
+    }
+   },
+   "mode": "restrictive",
+   "source": {
+    "span": {
+     "byteStart": 6,
+     "byteEnd": 11
+    },
+    "text": "mlatu",
+    "construct": "restrictive-predication"
+   }
+  },
+  "predication:12": {
+   "type": "predication",
+   "eventuality": "eventuality:6",
+   "relation": "blabi",
+   "arguments": {
+    "x1": {
+     "kind": "filled",
+     "value": "entity:7"
+    }
+   },
+   "mode": "asserted",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "lo ci mlatu cu blabi",
+    "construct": "predication"
+   }
+  },
+  "formula:10": {
+   "type": "formula",
+   "operator": "atom",
+   "predication": "predication:9",
+   "source": {
+    "span": {
+     "byteStart": 6,
+     "byteEnd": 11
+    },
+    "text": "mlatu",
+    "construct": "restrictive-formula"
+   }
+  },
+  "formula:13": {
+   "type": "formula",
+   "operator": "atom",
+   "predication": "predication:12",
+   "boundEventualities": [
+    "eventuality:6"
+   ],
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "lo ci mlatu cu blabi",
+    "construct": "bridi-formula"
+   }
+  },
+  "quantity:11": {
+   "type": "quantity",
+   "form": "exact",
+   "value": {
+    "integer": 3
+   },
+   "scale": "count",
+   "source": {
+    "span": {
+     "byteStart": 3,
+     "byteEnd": 5
+    },
+    "text": "ci",
+    "construct": "quantity"
+   }
+  },
+  "entity:1": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "speaker"
+  },
+  "entity:2": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "audience"
+  },
+  "entity:4": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "here"
+  },
+  "entity:7": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "veridicalDescription",
+    "word": "lo",
+    "speaker": "entity:1",
+    "body": "formula:10",
+    "quantity": "quantity:11"
+   },
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 11
+    },
+    "text": "lo ci mlatu",
+    "construct": "description"
+   }
+  },
+  "entity:8": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "elided",
+    "word": "zo'e"
+   }
+  },
+  "eventuality:3": {
+   "type": "referent",
+   "denotation": "referential",
+   "category": "indexical",
+   "sort": "eventuality",
+   "indexical": "now"
+  },
+  "eventuality:6": {
+   "type": "referent",
+   "denotation": "generated-bound",
+   "sort": "eventuality",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "lo ci mlatu cu blabi",
+    "construct": "predication"
+   }
+  },
+  "eventuality/locution:14": {
+   "type": "referent",
+   "denotation": "referential",
+   "actuality": {
+    "kind": "actual"
+   },
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "eventuality/locution",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "lo ci mlatu cu blabi",
+    "construct": "bridi"
+   }
+  }
+ }
+}
