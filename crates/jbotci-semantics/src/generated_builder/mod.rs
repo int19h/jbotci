@@ -229,9 +229,68 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     // vo'a-series (CLL 7.8) placeholders that could not be resolved inline because the referenced
     // place of the local bridi was not yet filled when the pro-sumti was built (an implicit `ke'a`
     // relative-clause head, an elided place, a description's `ce'u` slot, an abstraction subject).
-    // Maps the placeholder referent to the local-bridi place index it refers to; resolved against
-    // the finished predication arguments in `resolve_pending_voha_references` before pruning.
+    // Maps the placeholder referent to the surface local-bridi place index it refers to; resolved
+    // against the finished predication arguments in `resolve_pending_voha_references` before
+    // pruning.
     pending_voha_places: BTreeMap<SemanticObjectId, usize>,
+    // Each underlying predication produced for a converted surface selbri needs its own place map.
+    // This cannot be stored once per placeholder: a tanru argument is shared by all component
+    // predications, while SE can convert only one component (CLL 5.11).
+    pending_voha_place_maps: BTreeMap<SemanticObjectId, GeneratedVohaPlaceMap>,
+    // Cumulative place maps already applied before recursively lowering a grouped or delegated
+    // selbri. The eventual underlying predication composes this context with its own local SE.
+    active_voha_place_maps: Vec<GeneratedVohaPlaceMap>,
+    // JAI can promote a modal or raised participant into surface x1 without assigning it an
+    // underlying numbered place (CLL 9.12). Record that direct target per predication and surface
+    // place rather than pretending JAI is an SE permutation.
+    pending_voha_direct_targets: BTreeMap<(SemanticObjectId, usize), SemanticObjectId>,
+}
+
+#[invariant(surface_to_underlying.iter().all(|place| *place > 0))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GeneratedVohaPlaceMap {
+    surface_to_underlying: [usize; 5],
+}
+
+impl GeneratedVohaPlaceMap {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|mapping| mapping.surface_to_underlying.iter().all(|place| *place > 0)) || ret.is_err())]
+    fn try_from_mapper(
+        mut mapper: impl FnMut(usize) -> Result<usize, SemanticsError>,
+    ) -> Result<Self, SemanticsError> {
+        let surface_to_underlying = [mapper(1)?, mapper(2)?, mapper(3)?, mapper(4)?, mapper(5)?];
+        Ok(new!(GeneratedVohaPlaceMap {
+            surface_to_underlying,
+        }))
+    }
+
+    #[requires((1..=5).contains(&surface_place))]
+    #[ensures(ret > 0)]
+    fn underlying_place(&self, surface_place: usize) -> usize {
+        self.surface_to_underlying[surface_place - 1]
+    }
+}
+
+#[invariant(::Numbered { place } => place.get() > 0)]
+#[invariant(::Modal { place, .. } => place.get() > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GeneratedVohaUpdateLocation {
+    Numbered {
+        place: PlaceIndex,
+    },
+    Modal {
+        modal_index: usize,
+        place: PlaceIndex,
+    },
+}
+
+#[invariant(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+#[invariant(resolved.object_kind() == crate::model::SemanticObjectKind::Referent || resolved.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GeneratedVohaUpdate {
+    predication: SemanticObjectId,
+    location: GeneratedVohaUpdateLocation,
+    resolved: SemanticObjectId,
 }
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
@@ -1567,6 +1626,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             suppress_prenex_bound_implicit_existential_recording: 0,
             pending_after_eventuality_reservations: 0,
             pending_voha_places: BTreeMap::new(),
+            pending_voha_place_maps: BTreeMap::new(),
+            active_voha_place_maps: Vec::new(),
+            pending_voha_direct_targets: BTreeMap::new(),
         };
         builder.insert_deictics();
         builder
@@ -6078,17 +6140,38 @@ fn voha_place_for_cmavo(cmavo: Cmavo) -> Option<usize> {
 #[ensures(true)]
 fn resolve_voha_placeholder(
     arguments: &BTreeMap<PlaceIndex, ArgumentValue>,
+    predication: SemanticObjectId,
     placeholder: SemanticObjectId,
     pending: &BTreeMap<SemanticObjectId, usize>,
+    place_map: Option<&GeneratedVohaPlaceMap>,
+    direct_targets: &BTreeMap<(SemanticObjectId, usize), SemanticObjectId>,
     visited: &mut BTreeSet<SemanticObjectId>,
 ) -> Option<SemanticObjectId> {
     if !visited.insert(placeholder) {
         return None;
     }
-    let target_place = *pending.get(&placeholder)?;
-    let filler = arguments.get(&argument_key(target_place)).and_then(|argument| argument.value)?;
+    let surface_place = *pending.get(&placeholder)?;
+    let target_place = place_map
+        .map(|mapping| mapping.underlying_place(surface_place))
+        .unwrap_or(surface_place);
+    let filler = direct_targets
+        .get(&(predication, surface_place))
+        .copied()
+        .or_else(|| {
+            arguments
+                .get(&argument_key(target_place))
+                .and_then(|argument| argument.value)
+        })?;
     if pending.contains_key(&filler) {
-        resolve_voha_placeholder(arguments, filler, pending, visited)
+        resolve_voha_placeholder(
+            arguments,
+            predication,
+            filler,
+            pending,
+            place_map,
+            direct_targets,
+            visited,
+        )
     } else {
         Some(filler)
     }
@@ -8590,6 +8673,44 @@ mod tests {
             .and_then(|predication| predication.arguments.get(&argument_key(place)))
             .and_then(|argument| argument.value)
             .unwrap_or_else(|| panic!("`{relation}` x{place} has no filled value"))
+    }
+
+    #[requires(!relation.is_empty() && !modal_relation.is_empty() && place > 0)]
+    #[ensures(graph.objects.contains_key(&ret))]
+    fn named_predication_modal_place_value(
+        graph: &SemanticGraph,
+        relation: &str,
+        modal_relation: &str,
+        place: usize,
+    ) -> SemanticObjectId {
+        let ids = named_predication_ids(graph, relation);
+        let [id] = ids.as_slice() else {
+            panic!(
+                "expected exactly one `{relation}` predication, found {}",
+                ids.len()
+            );
+        };
+        let predication = graph.objects[id]
+            .as_predication()
+            .expect("named object must remain a predication");
+        let modals = predication
+            .modal_arguments
+            .iter()
+            .filter(|modal| modal.relation.as_deref() == Some(modal_relation))
+            .collect::<Vec<_>>();
+        let [modal] = modals.as_slice() else {
+            panic!(
+                "expected exactly one `{modal_relation}` modal on `{relation}`, found {}",
+                modals.len()
+            );
+        };
+        modal
+            .arguments
+            .get(&argument_key(place))
+            .and_then(|argument| argument.value)
+            .unwrap_or_else(|| {
+                panic!("`{modal_relation}` modal on `{relation}` has no filled x{place}")
+            })
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -13487,11 +13608,17 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn voha_same_bridi_control_still_resolves_to_x1() {
-        // The already-working same-bridi control must keep resolving inline.
+        // The already-working same-bridi controls, including a converted selbri whose x1 is
+        // already available when `vo'a` is built, must keep resolving inline.
         let graph = semantic_graph_for("su'o lo mlatu cu terpa vo'a");
         assert_eq!(
             named_predication_place_value(&graph, "terpa", 1),
             named_predication_place_value(&graph, "terpa", 2),
+        );
+        let converted = semantic_graph_for("mi se terpa vo'a");
+        assert_eq!(
+            named_predication_place_value(&converted, "terpa", 1),
+            named_predication_place_value(&converted, "terpa", 2),
         );
     }
 
@@ -13518,6 +13645,146 @@ mod tests {
         assert_eq!(
             named_predication_place_value(&graph, "prami", 1),
             named_predication_place_value(&graph, "prami", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_voha_in_relative_clause_resolves_to_the_surface_x1_head() {
+        // Issue #627 / CLL 7.8, 9.4: `vo'a` names surface x1 of `se terpa`. The implicit `ke'a`
+        // head fills that surface x1 (underlying terpa x2), while the spoken x2 `vo'a` fills
+        // underlying terpa x1. Both underlying places must therefore contain the relativized cat.
+        for text in [
+            "mi viska lo mlatu poi se terpa vo'a",
+            "mi viska lo mlatu poi se ke cadzu terpa ke'e vo'a",
+        ] {
+            let graph = semantic_graph_for(text);
+            let terpa_x1 = named_predication_place_value(&graph, "terpa", 1);
+            let terpa_x2 = named_predication_place_value(&graph, "terpa", 2);
+            let viska_x2 = named_predication_place_value(&graph, "viska", 2);
+            assert_eq!(terpa_x1, terpa_x2, "{text}");
+            assert_eq!(terpa_x1, viska_x2, "{text}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_voha_in_description_linked_sumti_resolves_to_surface_x1() {
+        // Issue #627 / CLL 7.8, 9.4: the implicit description head is surface x1 of `se klama`
+        // (underlying klama x2); linked `be vo'a` is surface x2 (underlying x1) and must share it.
+        let graph = semantic_graph_for("le se klama be vo'a cu blanu");
+        assert_eq!(
+            named_predication_place_value(&graph, "klama", 1),
+            named_predication_place_value(&graph, "klama", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_voha_series_uses_surface_places() {
+        // Each vo'a-series member is built before the FA-tagged filler of the surface place it
+        // names, forcing post-build resolution. SE then moves the placeholder and target to
+        // different underlying places.
+        for (text, placeholder_place, target_place) in [
+            ("fe vo'a fa mi cu se klama", 1, 2),
+            ("fa vo'e fe mi cu se klama", 2, 1),
+            ("fa vo'i fi mi cu te klama", 3, 1),
+            ("fa vo'o fo mi cu ve klama", 4, 1),
+            ("fa vo'u fu mi cu xe klama", 5, 1),
+        ] {
+            let graph = semantic_graph_for(text);
+            assert_eq!(
+                named_predication_place_value(&graph, "klama", placeholder_place),
+                named_predication_place_value(&graph, "klama", target_place),
+                "{text}",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_se_conversions_compose_for_voha_resolution() {
+        // CLL 9.4: inner conversions apply before outer conversions. For `se te klama`, surface
+        // x1 maps to underlying x2 and surface x2 maps to underlying x3.
+        let graph = semantic_graph_for("fa vo'e fe mi cu se te klama");
+        assert_eq!(
+            named_predication_place_value(&graph, "klama", 2),
+            named_predication_place_value(&graph, "klama", 3),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_local_conversions_map_voha_per_underlying_predication() {
+        // CLL 5.11: an ungrouped SE converts only its following tanru unit, while the bridi place
+        // structure comes from the final unit. A non-final conversion therefore does not permute
+        // the bridi's klama places, while a conversion of the final unit or the entire grouped
+        // tanru does.
+        for text in [
+            "fa vo'e fe mi cu se cadzu klama",
+            "fa vo'e fe mi cu cadzu se klama",
+            "fa vo'e fe mi cu se ke cadzu klama ke'e",
+        ] {
+            let graph = semantic_graph_for(text);
+            assert_eq!(
+                named_predication_place_value(&graph, "klama", 1),
+                named_predication_place_value(&graph, "klama", 2),
+                "{text}: klama surface x1 and x2 must corefer",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_jai_surface_x1_resolves_voha_to_the_promoted_modal_sumti() {
+        // CLL 9.12 explicitly makes the JAI modal place surface x1. Whether that x1 is supplied
+        // by a description head or an explicit FA-tagged sumti, `vo'a` in surface x2 of `cusku`
+        // must resolve to the promoted bangu argument rather than to underlying cusku x1.
+        for text in [
+            "le jai bau cusku be vo'a cu blanu",
+            "fe vo'a fa mi cu jai bau cusku",
+        ] {
+            let graph = semantic_graph_for(text);
+            assert_eq!(
+                named_predication_modal_place_value(&graph, "cusku", "bangu", 1),
+                named_predication_place_value(&graph, "cusku", 2),
+                "{text}",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_jai_resolves_grounded_slots_without_guessing_bare_jai() {
+        // `vo'e` occupies JAI's promoted surface x1 and denotes surface x2. Building the modal
+        // argument moves the placeholder out of the numbered cusku arguments, so the post-build
+        // resolver must update the invariant-bearing ModalArgument itself.
+        let graph = semantic_graph_for("fa vo'e fe mi cu jai bau cusku");
+        assert_eq!(
+            named_predication_modal_place_value(&graph, "cusku", "bangu", 1),
+            named_predication_place_value(&graph, "cusku", 2),
+        );
+        // CLL 9.12 describes bare JAI as raising an unspecified sumti from an abstract sub-bridi
+        // and calls the construction vague. Preserve `vo'a` as the operand of that vague
+        // abstraction instead of inventing which unspoken abstraction place it fills.
+        let bare = semantic_graph_for("fa vo'a cu jai broda");
+        let raised = named_predication_place_value(&bare, "broda", 1);
+        let placeholder = bare.objects[&raised]
+            .descriptor()
+            .and_then(|descriptor| descriptor.operand)
+            .expect("bare JAI keeps the raised pro-sumti as the abstraction operand");
+        assert_eq!(
+            bare.objects[&placeholder]
+                .descriptor()
+                .map(|descriptor| descriptor.word.as_str()),
+            Some("vo'a"),
         );
     }
 }

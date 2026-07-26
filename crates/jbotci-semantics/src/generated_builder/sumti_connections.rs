@@ -489,7 +489,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
                 predication_object.set_predication_modal_arguments(modal_arguments);
                 let predication = self.next_predication_id();
-                self.insert(predication, predication_object)?;
+                self.insert_converted_predication_with_voha_place_map(
+                    predication,
+                    predication_object,
+                    |surface_place| {
+                        mapped_place_for_generated_conversions(surface_place, conversions)
+                    },
+                )?;
                 self.set_scalar_negation(
                     predication,
                     scalar_negation_context.scalar_negation.clone(),
@@ -564,7 +570,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
                 predication_object.set_predication_modal_arguments(modal_arguments);
                 let predication = self.next_predication_id();
-                self.insert(predication, predication_object)?;
+                self.insert_converted_predication_with_voha_place_map(
+                    predication,
+                    predication_object,
+                    |surface_place| {
+                        mapped_place_for_generated_conversions(surface_place, conversions)
+                    },
+                )?;
                 let formula = self.next_formula_id();
                 self.insert(
                     formula,
@@ -1259,7 +1271,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_modal_arguments(modal_arguments);
             let predication = self.next_predication_id();
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| mapped_place_for_generated_conversions(surface_place, conversions),
+            )?;
             let formula = self.next_formula_id();
             self.insert(
                 formula,
@@ -1478,7 +1494,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_modal_arguments(modal_arguments);
             let predication = self.next_predication_id();
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| mapped_place_for_generated_conversions(surface_place, conversions),
+            )?;
             let formula = self.next_formula_id();
             self.insert(
                 formula,
