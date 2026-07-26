@@ -1,0 +1,139 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content qu=question;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASK;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r19;
+      CONTENT: qu18;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 0..24;
+        TEXT: "pu ko'a ji ba ko'e broda";
+        CONSTRUCT: "bridi";
+    }
+    PARAMETER x16 { SORT: Connective; ROLE: CONNECTIVE QUESTION; INTRODUCED BY: ji; PROVENANCE { BYTE SPAN: 8..10; TEXT: "ji"; CONSTRUCT: "parameter"; } }
+    PREDICATION p9 {
+      RELATION: broda;
+      EVENTUALITY: r7;
+      ARGS (
+        [1]: REFERENCE DENOTATION r6;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..18;
+        TEXT: "pu ko'a ji ba ko'e";
+        CONSTRUCT: "term-connection-formula";
+    }
+    PREDICATION p14 {
+      RELATION: broda;
+      EVENTUALITY: r12;
+      ARGS (
+        [1]: REFERENCE DENOTATION r11;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..18;
+        TEXT: "pu ko'a ji ba ko'e";
+        CONSTRUCT: "term-connection-formula";
+    }
+    FORMULA f10 IS ATOM { PREDICATION: p9; BOUND EVENTUALITIES { r7; } PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
+    FORMULA f15 IS ATOM { PREDICATION: p14; BOUND EVENTUALITIES { r12; } PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
+    FORMULA f17 IS CONNECTIVE QUESTION { OPERANDS IN ORDER ( f10; f15; ) CONNECTIVE SOURCE: ji; NOT COMPUTED: connector-parameter; PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
+    QUESTION qu18 {
+      BODY: f17;
+      KIND: CONNECTIVE;
+      MODE: DIRECT;
+      ASKER: r1;
+      RESPONDENT: r2;
+      DOMAIN: Connective;
+      SLOTS (
+        [1]:
+          PARAMETER: x16;
+          ROLE: ANSWER;
+      )
+      PROVENANCE
+        BYTE SPAN: 0..24;
+        TEXT: "pu ko'a ji ba ko'e broda";
+        CONSTRUCT: "question";
+    }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r6 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { x16; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r8 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE IS UNDERSPECIFIED
+        MAY DEPEND ON {
+          x16;
+        }
+      DESCRIPTOR IS PRO SUMTI
+        WORD: ko'a;
+      PROVENANCE
+        BYTE SPAN: 3..7;
+        TEXT: "ko'a";
+        CONSTRUCT: "sumti";
+    }
+    REFERENCE r11 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE IS UNDERSPECIFIED { MAY DEPEND ON { x16; } } DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r13 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE IS UNDERSPECIFIED
+        MAY DEPEND ON {
+          x16;
+        }
+      DESCRIPTOR IS PRO SUMTI
+        WORD: ko'e;
+      PROVENANCE
+        BYTE SPAN: 14..18;
+        TEXT: "ko'e";
+        CONSTRUCT: "sumti";
+    }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r7 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r7.{ time = { relation = BEFORE, anchor = r8 }; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
+    REFERENCE r12 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r12.{ time = { relation = AFTER, anchor = r13 }; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
+    REFERENCE r19 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r19.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 0..24;
+        TEXT: "pu ko'a ji ba ko'e broda";
+        CONSTRUCT: "bridi";
+    }
+  }
+}
