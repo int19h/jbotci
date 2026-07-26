@@ -1099,8 +1099,13 @@ fn error_heavy_completion_returns_before_followup_diagnostics() {
     initialize(&mut client, "utf-16", true);
     open_document_text(&mut client, DOCUMENT_URI, 1, &text);
 
+    // Deep contract instrumentation changes the work measured by this literal
+    // production wall-clock boundary; the functional assertions below remain
+    // active in both configurations.
+    #[cfg(not(feature = "expensive_contracts"))]
     let started = Instant::now();
     let completions = completion(&mut client, DOCUMENT_URI, cursor as u64);
+    #[cfg(not(feature = "expensive_contracts"))]
     assert!(
         started.elapsed() < Duration::from_secs(3),
         "error-heavy LSP completion unexpectedly took {:?}",
