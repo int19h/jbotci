@@ -209,6 +209,60 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_property_abstraction_output(body, vec![parameter], source)
     }
 
+    /// Resolve vo'a-series (CLL 7.8) placeholders that could not be resolved inline. Each
+    /// placeholder refers to a place of the bridi it appears in; by the time the whole graph is
+    /// built, that place has been filled (an explicit term, an elided `zo'e`, a relative-clause
+    /// `ke'a` head, a description's `ce'u` slot, an abstraction subject). Point each placeholder's
+    /// argument at that filler so the vo'a-series shares its referent, as the same-bridi control
+    /// (`su'o lo mlatu cu terpa vo'a`) already does inline. Runs before `prune_unreachable_objects`,
+    /// so a placeholder that is no longer referenced afterwards is pruned.
+    #[requires(true)]
+    #[ensures(self.pending_voha_places.is_empty())]
+    fn resolve_pending_voha_references(&mut self) {
+        if self.pending_voha_places.is_empty() {
+            return;
+        }
+        let mut updates: Vec<(SemanticObjectId, PlaceIndex, SemanticObjectId)> = Vec::new();
+        for (id, object) in &self.objects {
+            let Some(predication) = object.as_predication() else {
+                continue;
+            };
+            for (place, argument) in &predication.arguments {
+                let Some(value) = argument.value else {
+                    continue;
+                };
+                if !self.pending_voha_places.contains_key(&value) {
+                    continue;
+                }
+                if let Some(resolved) = resolve_voha_placeholder(
+                    &predication.arguments,
+                    value,
+                    &self.pending_voha_places,
+                    &mut BTreeSet::new(),
+                ) && resolved != value
+                {
+                    updates.push((*id, *place, resolved));
+                }
+            }
+        }
+        for (id, place, resolved) in updates {
+            if let Some(object) = self.objects.get_mut(&id) {
+                object.update_predication(|node| {
+                    let data = node.into_data();
+                    let mut arguments = data.arguments;
+                    if let Some(argument) = arguments.get(&place).cloned() {
+                        arguments.insert(place, argument.with_data(data! { value: Some(resolved) }));
+                    }
+                    PredicationNode::from_data(data!(PredicationNode {
+                        arguments: arguments,
+                        ..data
+                    }))
+                });
+            }
+        }
+        self.pending_voha_places.clear();
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn build_text(
@@ -244,6 +298,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             sequence
         };
+        self.resolve_pending_voha_references();
         self.prune_unreachable_objects(root);
         if let Some(error) =
             crate::model::semantic_object_question_slots_validation_error(&self.objects)

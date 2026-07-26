@@ -226,6 +226,12 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     pending_negated_selbri_argument_scope_reservations: usize,
     suppress_prenex_bound_implicit_existential_recording: usize,
     pending_after_eventuality_reservations: usize,
+    // vo'a-series (CLL 7.8) placeholders that could not be resolved inline because the referenced
+    // place of the local bridi was not yet filled when the pro-sumti was built (an implicit `ke'a`
+    // relative-clause head, an elided place, a description's `ce'u` slot, an abstraction subject).
+    // Maps the placeholder referent to the local-bridi place index it refers to; resolved against
+    // the finished predication arguments in `resolve_pending_voha_references` before pruning.
+    pending_voha_places: BTreeMap<SemanticObjectId, usize>,
 }
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
@@ -1560,6 +1566,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             pending_negated_selbri_argument_scope_reservations: 0,
             suppress_prenex_bound_implicit_existential_recording: 0,
             pending_after_eventuality_reservations: 0,
+            pending_voha_places: BTreeMap::new(),
         };
         builder.insert_deictics();
         builder
@@ -6047,13 +6054,43 @@ fn generated_sumti_is_deleted(sumti: &SumtiSyntax) -> bool {
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| (1..=5).contains(&place)))]
 fn generated_voha_place_for_sumti(sumti: &SumtiSyntax) -> Option<usize> {
-    match generated_sumti_spine_cmavo(sumti)? {
+    voha_place_for_cmavo(generated_sumti_spine_cmavo(sumti)?)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| (1..=5).contains(&place)))]
+fn voha_place_for_cmavo(cmavo: Cmavo) -> Option<usize> {
+    match cmavo {
         Cmavo::Voha => Some(1),
         Cmavo::Vohe => Some(2),
         Cmavo::Vohi => Some(3),
         Cmavo::Voho => Some(4),
         Cmavo::Vohu => Some(5),
         _ => None,
+    }
+}
+
+/// Resolve a vo'a-series placeholder to the referent filling its target place within the same
+/// predication, following chains when the target place is itself filled by another vo'a placeholder
+/// and bailing out on cycles. Returns `None` when the target place is absent or unfilled (a
+/// vo'a-series place that is not filled in the local bridi), leaving the placeholder as-is.
+#[requires(true)]
+#[ensures(true)]
+fn resolve_voha_placeholder(
+    arguments: &BTreeMap<PlaceIndex, ArgumentValue>,
+    placeholder: SemanticObjectId,
+    pending: &BTreeMap<SemanticObjectId, usize>,
+    visited: &mut BTreeSet<SemanticObjectId>,
+) -> Option<SemanticObjectId> {
+    if !visited.insert(placeholder) {
+        return None;
+    }
+    let target_place = *pending.get(&placeholder)?;
+    let filler = arguments.get(&argument_key(target_place)).and_then(|argument| argument.value)?;
+    if pending.contains_key(&filler) {
+        resolve_voha_placeholder(arguments, filler, pending, visited)
+    } else {
+        Some(filler)
     }
 }
 
@@ -8530,6 +8567,29 @@ mod tests {
                     .then_some(id)
             })
             .collect()
+    }
+
+    #[requires(!relation.is_empty() && place > 0)]
+    #[ensures(graph.objects.contains_key(&ret))]
+    fn named_predication_place_value(
+        graph: &SemanticGraph,
+        relation: &str,
+        place: usize,
+    ) -> SemanticObjectId {
+        let ids = named_predication_ids(graph, relation);
+        let [id] = ids.as_slice() else {
+            panic!(
+                "expected exactly one `{relation}` predication, found {}",
+                ids.len()
+            );
+        };
+        graph
+            .objects
+            .get(id)
+            .and_then(SemanticObject::as_predication)
+            .and_then(|predication| predication.arguments.get(&argument_key(place)))
+            .and_then(|argument| argument.value)
+            .unwrap_or_else(|| panic!("`{relation}` x{place} has no filled value"))
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -13743,5 +13803,65 @@ mod tests {
         );
         assert!(graph.objects.contains_key(&state));
         assert!(graph.objects.contains_key(&event));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_in_relative_clause_resolves_to_the_relativized_head() {
+        // Issue #600 / CLL 7.8: `vo'a` denotes x1 of its own bridi. In `poi terpa vo'a` the terpa
+        // clause's x1 is the implicit `ke'a` (the relativized cat), so `vo'a` (terpa x2) must be
+        // that same referent — "a cat that fears itself", not a fresh unbound pro-sumti.
+        let graph = semantic_graph_for("mi viska lo mlatu poi terpa vo'a");
+        let terpa_x1 = named_predication_place_value(&graph, "terpa", 1);
+        let terpa_x2 = named_predication_place_value(&graph, "terpa", 2);
+        assert_eq!(
+            terpa_x1, terpa_x2,
+            "vo'a must corefer with the relative clause's own x1"
+        );
+        // That x1 is exactly the relativized sumti, i.e. the cat viska sees (viska x2).
+        let viska_x2 = named_predication_place_value(&graph, "viska", 2);
+        assert_eq!(
+            terpa_x1, viska_x2,
+            "the clause x1 is the relativized cat, so vo'a is the cat"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_same_bridi_control_still_resolves_to_x1() {
+        // The already-working same-bridi control must keep resolving inline.
+        let graph = semantic_graph_for("su'o lo mlatu cu terpa vo'a");
+        assert_eq!(
+            named_predication_place_value(&graph, "terpa", 1),
+            named_predication_place_value(&graph, "terpa", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_in_abstraction_body_resolves_to_the_local_x1() {
+        // Subordinate context: inside a `nu` abstraction body `vo'a` refers to the abstraction
+        // bridi's own (elided) x1, so broda x1 and x2 share the same referent.
+        let graph = semantic_graph_for("mi kakne lo nu broda vo'a");
+        assert_eq!(
+            named_predication_place_value(&graph, "broda", 1),
+            named_predication_place_value(&graph, "broda", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_in_description_linked_sumti_resolves_to_the_local_x1() {
+        // #51 context (linked `be` sumti): `le prami be vo'a` = "the self-lover"; prami x1 (the
+        // described `ce'u` slot) must equal prami x2 (`vo'a`).
+        let graph = semantic_graph_for("le prami be vo'a cu blanu");
+        assert_eq!(
+            named_predication_place_value(&graph, "prami", 1),
+            named_predication_place_value(&graph, "prami", 2),
+        );
     }
 }
