@@ -266,46 +266,48 @@ impl DocumentSnapshot {
     }
 }
 
-#[invariant(true)]
+#[invariant(!constructor.is_empty(), "generated constructor names are never empty")]
+#[derive(Debug, Clone, Copy)]
 struct NodeFrame {
     constructor: &'static str,
     bounds: Option<ByteBounds>,
     contains_lohu_quote: bool,
 }
 
-#[invariant(true)]
+#[invariant(nodes.borrow().iter().all(|node| !node.constructor.is_empty()), "every open traversal frame names its generated constructor")]
 struct TreeRegionCollector<'index> {
     line_index: &'index LineIndex,
-    nodes: Vec<NodeFrame>,
-    regions: Vec<TreeRegion>,
+    nodes: RefCell<Vec<NodeFrame>>,
+    regions: RefCell<Vec<TreeRegion>>,
 }
 
 impl<'index> TreeRegionCollector<'index> {
     #[requires(true)]
-    #[ensures(ret.nodes.is_empty() && ret.regions.is_empty())]
+    #[ensures(ret.nodes.borrow().is_empty() && ret.regions.borrow().is_empty())]
     fn new(line_index: &'index LineIndex) -> Self {
-        Self {
+        new!(TreeRegionCollector {
             line_index,
-            nodes: Vec::new(),
-            regions: Vec::new(),
-        }
+            nodes: RefCell::new(Vec::new()),
+            regions: RefCell::new(Vec::new()),
+        })
     }
 
     #[requires(!constructor.is_empty())]
-    #[ensures(self.nodes.len() == old(self.nodes.len()) + 1)]
-    fn enter_node(&mut self, constructor: &'static str) {
-        self.nodes.push(NodeFrame {
+    #[ensures(self.nodes.borrow().len() == old(self.nodes.borrow().len()) + 1)]
+    fn enter_node(&self, constructor: &'static str) {
+        self.nodes.borrow_mut().push(new!(NodeFrame {
             constructor,
             bounds: None,
             contains_lohu_quote: false,
-        });
+        }));
     }
 
-    #[requires(!self.nodes.is_empty())]
-    #[ensures(self.nodes.len() == old(self.nodes.len()) - 1)]
-    fn exit_node(&mut self, constructor: &'static str) {
+    #[requires(!self.nodes.borrow().is_empty())]
+    #[ensures(self.nodes.borrow().len() == old(self.nodes.borrow().len()) - 1)]
+    fn exit_node(&self, constructor: &'static str) {
         let frame = self
             .nodes
+            .borrow_mut()
             .pop()
             .expect("generated traversal exits every entered node");
         debug_assert_eq!(frame.constructor, constructor);
@@ -313,7 +315,7 @@ impl<'index> TreeRegionCollector<'index> {
             return;
         };
         let span = span_for_bounds(bounds, self.line_index);
-        self.regions.push(new!(TreeRegion {
+        self.regions.borrow_mut().push(new!(TreeRegion {
             span,
             foldable: foldable_constructor(constructor, frame.contains_lohu_quote),
         }));
@@ -321,7 +323,7 @@ impl<'index> TreeRegionCollector<'index> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_token(&mut self, token: &Token) {
+    fn visit_token(&self, token: &Token) {
         if let Some(range) = token.core_word().byte_range()
             && range.start < range.end
         {
@@ -331,15 +333,17 @@ impl<'index> TreeRegionCollector<'index> {
             token.core_word().as_data(),
             data!(WordLike::QuotedWords { .. })
         ) {
-            for node in &mut self.nodes {
-                node.contains_lohu_quote = true;
+            for node in self.nodes.borrow_mut().iter_mut() {
+                *node = node.clone().with_data(data! {
+                    contains_lohu_quote: true,
+                });
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_recovered_error<E: RecoveryItemState>(&mut self, item: &E) {
+    fn visit_recovered_error<E: RecoveryItemState>(&self, item: &E) {
         item.visit_source_spans(&mut |span| {
             if span.byte_start < span.byte_end {
                 self.include_bounds(ByteBounds::new(span.byte_start, span.byte_end));
@@ -349,17 +353,19 @@ impl<'index> TreeRegionCollector<'index> {
 
     #[requires(bounds.byte_start < bounds.byte_end)]
     #[ensures(true)]
-    fn include_bounds(&mut self, bounds: ByteBounds) {
-        for node in &mut self.nodes {
-            node.bounds = Some(
-                node.bounds
-                    .map_or(bounds, |existing| existing.including(bounds)),
-            );
+    fn include_bounds(&self, bounds: ByteBounds) {
+        for node in self.nodes.borrow_mut().iter_mut() {
+            let included = node
+                .bounds
+                .map_or(bounds, |existing| existing.including(bounds));
+            *node = node.clone().with_data(data! {
+                bounds: Some(included),
+            });
         }
     }
 }
 
-#[invariant(true)]
+#[invariant(collector.nodes.borrow().iter().all(|node| !node.constructor.is_empty()), "the valid-tree visitor preserves collector frame names")]
 struct ValidTreeRegionVisitor<'index> {
     collector: TreeRegionCollector<'index>,
 }
@@ -374,7 +380,7 @@ impl<'tree> TreeVisitor<'tree> for ValidTreeRegionVisitor<'_> {
         self.collector.enter_node(node.constructor_name());
     }
 
-    #[requires(!self.collector.nodes.is_empty())]
+    #[requires(!self.collector.nodes.borrow().is_empty())]
     #[ensures(true)]
     fn exit_node(&mut self, node: Self::Node) {
         self.collector.exit_node(node.constructor_name());
@@ -388,7 +394,7 @@ impl<'tree> TreeVisitor<'tree> for ValidTreeRegionVisitor<'_> {
     }
 }
 
-#[invariant(true)]
+#[invariant(collector.nodes.borrow().iter().all(|node| !node.constructor.is_empty()), "the recovered-tree visitor preserves collector frame names")]
 struct RecoveredTreeRegionVisitor<'index> {
     collector: TreeRegionCollector<'index>,
 }
@@ -403,7 +409,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredTreeRegionVisitor<'_> {
         self.collector.enter_node(node.constructor_name());
     }
 
-    #[requires(!self.collector.nodes.is_empty())]
+    #[requires(!self.collector.nodes.borrow().is_empty())]
     #[ensures(true)]
     fn exit_node(&mut self, node: Self::Node) {
         self.collector.exit_node(node.constructor_name());
@@ -443,18 +449,22 @@ impl<'tree> generated_model::recovered::TreeWalker<'tree> for SkippedTokenRunCol
 fn collect_parse_regions(parse: &SyntaxRecoveryParse, line_index: &LineIndex) -> Vec<TreeRegion> {
     match parse.as_data() {
         SyntaxRecoveryParseData::Valid { parse } => {
-            let mut visitor = ValidTreeRegionVisitor {
+            let mut visitor = new!(ValidTreeRegionVisitor {
                 collector: TreeRegionCollector::new(line_index),
-            };
+            });
             generated_model::TreeNode::visit_in_order(&parse.parse_tree, &mut visitor);
-            visitor.collector.regions
+            let data!(ValidTreeRegionVisitor { collector }) = visitor.into_data();
+            let data!(TreeRegionCollector { regions, .. }) = collector.into_data();
+            regions.into_inner()
         }
         SyntaxRecoveryParseData::Recovered { parse } => {
-            let mut visitor = RecoveredTreeRegionVisitor {
+            let mut visitor = new!(RecoveredTreeRegionVisitor {
                 collector: TreeRegionCollector::new(line_index),
-            };
+            });
             generated_model::recovered::TreeNode::visit_in_order(&parse.parse_tree, &mut visitor);
-            visitor.collector.regions
+            let data!(RecoveredTreeRegionVisitor { collector }) = visitor.into_data();
+            let data!(TreeRegionCollector { regions, .. }) = collector.into_data();
+            regions.into_inner()
         }
     }
 }
