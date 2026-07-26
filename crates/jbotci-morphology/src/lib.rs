@@ -1081,6 +1081,30 @@ impl Word {
 }
 
 impl LujvoPart {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Rafsi(_))) || ret.is_err())]
+    pub fn parse_bare_rafsi(text: &str) -> Result<Self, LujvoFragmentError> {
+        let folded = fold_lojban_diacritics(text);
+        if rafsi_shape(&folded) == RafsiShape::Other {
+            return Err(LujvoFragmentError::InvalidRafsi);
+        }
+        let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(text))
+            .expect("a validated rafsi shape contains nonempty canonical phonemes");
+        Ok(Self::rafsi(phonemes))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Hyphen(_))) || ret.is_err())]
+    pub fn parse_bonding_hyphen(text: &str) -> Result<Self, LujvoFragmentError> {
+        let folded = fold_lojban_diacritics(text);
+        if !is_bonding_hyphen(&folded) {
+            return Err(LujvoFragmentError::InvalidHyphen);
+        }
+        let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(text))
+            .expect("a validated bonding hyphen contains nonempty canonical phonemes");
+        Ok(Self::hyphen(phonemes))
+    }
+
     #[requires(!phonemes.as_str().is_empty())]
     #[ensures(true)]
     pub fn rafsi(phonemes: Phonemes) -> Self {
@@ -1100,6 +1124,15 @@ impl LujvoPart {
             LujvoPart::Rafsi(phonemes) | LujvoPart::Hyphen(phonemes) => phonemes,
         }
     }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum LujvoFragmentError {
+    #[error("fragment is not a valid bare rafsi")]
+    InvalidRafsi,
+    #[error("fragment is not a valid lujvo bonding hyphen")]
+    InvalidHyphen,
 }
 
 impl Verbatim {

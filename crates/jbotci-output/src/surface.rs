@@ -1,10 +1,27 @@
 use bityzba::{data, invariant, requires};
 use jbotci_morphology::{
-    GlideMark, LeadingPauseContext, LeadingPauseVowelMode, MorphologyError, MorphologyOptions,
-    PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+    GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoPart, MorphologyError,
+    MorphologyOptions, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
     segment_words_for_display_with_options_and_source_id, word_needs_leading_pause_in_context,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
+use thiserror::Error;
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LujvoFragmentKind {
+    Rafsi,
+    BondingHyphen,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum LujvoFragmentRenderError {
+    #[error("invalid rafsi")]
+    InvalidRafsi,
+    #[error("invalid bonding hyphen")]
+    InvalidBondingHyphen,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -84,6 +101,31 @@ pub fn render_lojban_text_for_script_with_options(
         script,
         &words,
         phoneme_render_options_for_script(script, options),
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty()) || ret.is_err())]
+pub fn render_lujvo_fragment_for_script(
+    text: &str,
+    kind: LujvoFragmentKind,
+    script: LojbanScript,
+    options: PhonemeRenderOptions,
+) -> Result<String, LujvoFragmentRenderError> {
+    let part = match kind {
+        LujvoFragmentKind::Rafsi => {
+            LujvoPart::parse_bare_rafsi(text).map_err(|_| LujvoFragmentRenderError::InvalidRafsi)?
+        }
+        LujvoFragmentKind::BondingHyphen => LujvoPart::parse_bonding_hyphen(text)
+            .map_err(|_| LujvoFragmentRenderError::InvalidBondingHyphen)?,
+    };
+    let latin = part
+        .phonemes()
+        .render(phoneme_render_options_for_script(script, options));
+    Ok(render_latin_word_surface_for_script(
+        script,
+        WordKind::Gismu,
+        &latin,
     ))
 }
 
@@ -367,5 +409,117 @@ mod tests {
                 .expect_err("invalid Lojban text should not be transliterated loosely");
 
         assert!(!error.to_string().is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_bare_rafsis_exactly_in_cyrillic() {
+        let render = |text| {
+            render_lujvo_fragment_for_script(
+                text,
+                LujvoFragmentKind::Rafsi,
+                LojbanScript::Cyrillic,
+                display_options(),
+            )
+            .expect("valid bare rafsi")
+        };
+
+        assert_eq!(render("lob"), "лоб");
+        assert_eq!(render("jbo"), "жбо");
+        assert_eq!(render("gism"), "гисм");
+        assert_eq!(render("gau"), "гаў");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_bare_rafsis_exactly_in_zbalermorna_regular_vowel_mode() {
+        let render = |text| {
+            render_lujvo_fragment_for_script(
+                text,
+                LujvoFragmentKind::Rafsi,
+                LojbanScript::Zbalermorna,
+                display_options(),
+            )
+            .expect("valid bare rafsi")
+        };
+
+        assert_eq!(render("lob"), "\u{ed84}\u{eda3}\u{ed90}");
+        assert_eq!(render("jbo"), "\u{ed96}\u{ed90}\u{eda3}");
+        assert_eq!(render("gism"), "\u{ed92}\u{eda2}\u{ed85}\u{ed87}");
+        assert_eq!(render("gau"), "\u{ed92}\u{eda9}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_each_bonding_hyphen_through_the_typed_fragment_path() {
+        for (text, cyrillic) in [("y", "ъ"), ("r", "р"), ("n", "н")] {
+            assert_eq!(
+                render_lujvo_fragment_for_script(
+                    text,
+                    LujvoFragmentKind::BondingHyphen,
+                    LojbanScript::Cyrillic,
+                    display_options(),
+                )
+                .expect("valid bonding hyphen"),
+                cyrillic
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_fragments_return_typed_errors_without_latin_fallback() {
+        assert!(matches!(
+            render_lujvo_fragment_for_script(
+                "hello",
+                LujvoFragmentKind::Rafsi,
+                LojbanScript::Cyrillic,
+                display_options(),
+            ),
+            Err(LujvoFragmentRenderError::InvalidRafsi)
+        ));
+        assert!(matches!(
+            render_lujvo_fragment_for_script(
+                "x",
+                LujvoFragmentKind::BondingHyphen,
+                LojbanScript::Cyrillic,
+                display_options(),
+            ),
+            Err(LujvoFragmentRenderError::InvalidBondingHyphen)
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_dictionary_rafsi_transliterates_without_ascii_latin_output() {
+        for entry in jbotci_dictionary_data::english().entries() {
+            for rafsi in entry.rafsi {
+                for script in [LojbanScript::Cyrillic, LojbanScript::Zbalermorna] {
+                    let rendered = render_lujvo_fragment_for_script(
+                        rafsi.0,
+                        LujvoFragmentKind::Rafsi,
+                        script,
+                        display_options(),
+                    )
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "dictionary rafsi {:?} for {:?} failed in {script:?}: {error}",
+                            rafsi.0, entry.word
+                        )
+                    });
+                    assert!(
+                        !rendered.chars().any(|ch| ch.is_ascii_alphabetic()),
+                        "dictionary rafsi {:?} for {:?} retained ASCII Latin in {script:?}: {rendered:?}",
+                        rafsi.0,
+                        entry.word
+                    );
+                }
+            }
+        }
     }
 }

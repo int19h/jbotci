@@ -55,8 +55,9 @@ pub use references::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 pub use surface::{
-    phoneme_render_options_for_script, render_lojban_text_for_script,
-    render_lojban_text_for_script_with_options,
+    LujvoFragmentKind, LujvoFragmentRenderError, phoneme_render_options_for_script,
+    render_lojban_text_for_script, render_lojban_text_for_script_with_options,
+    render_lujvo_fragment_for_script,
 };
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};

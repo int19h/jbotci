@@ -1042,7 +1042,10 @@ fn collect_vlacku_card_page_find_entries(
     }
     if card.decomposition.is_empty() {
         for rafsi in &card.rafsi {
-            push_page_find_entry(entries, display_lojban_text(script, rafsi));
+            push_page_find_entry(
+                entries,
+                display_lujvo_fragment(script, rafsi, LujvoFragmentKind::Rafsi),
+            );
         }
     }
     if let Some(author) = &card.author {
@@ -1077,7 +1080,10 @@ fn collect_vlacku_composition_piece_page_find_entries(
     if piece.kind != VlackuCompositionPieceKind::Rafsi {
         return;
     }
-    push_page_find_entry(entries, display_lojban_text(script, &piece.display_surface));
+    push_page_find_entry(
+        entries,
+        display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi),
+    );
     if let Some(source) = &piece.source
         && !piece.source_is_surface
     {
