@@ -138,16 +138,11 @@ mod tests {
                 data!(Disposition::ExcludedWithReason(_)) => excluded += 1,
             }
         }
-        // NotComputedDeclared = 1 document fact (denotation-multiplicity) + the
-        // 32 non-source question/place-question surface entries the renderer emits
-        // a NOT COMPUTED marker for instead of rendering (jbotci#620 round-1 review
-        // B2/B3): Question object 10 non-source fields (body, kind, mode, asker,
-        // respondent, domain, slots, focus, presupposedAnswer, diagnostics) +
-        // QuestionSlot 4 + QuestionKind 10 + QuestionMode 2 + QuestionSlotRole 2 +
-        // PlaceQuestionBinding 3 non-source fields (parameter, argument,
-        // candidatePlaces) + Predication.placeQuestions 1 = 32. The `.source`
-        // fields on Question/PlaceQuestionBinding stay ExcludedWithReason (below).
-        assert_eq!(not_computed, 33, "NOT COMPUTED disposition count drifted");
+        // NotComputedDeclared = the one document fact
+        // `denotation-multiplicity`. The 32 non-source question/place-question
+        // entries previously added here now render as first-class QUESTION /
+        // PLACE QUESTIONS records (jbotci#622).
+        assert_eq!(not_computed, 1, "NOT COMPUTED disposition count drifted");
         // Source provenance: SemanticSource(3) + SourceByteSpan(2) + one `source`
         // link per object kind (13) and per source-bearing value struct (12).
         assert_eq!(excluded, 30, "source-provenance ExcludedWithReason count drifted");

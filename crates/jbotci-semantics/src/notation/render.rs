@@ -65,6 +65,7 @@ const SHORT_ID_PREFIX: &[(&str, &str)] = &[
     ("parameter", "x"),
     ("relation_expression", "l"),
     ("displayed_content", "d"),
+    ("question", "qu"),
 ];
 
 /// The short prefix for a kind, or `None` for a kind this renderer has never
@@ -492,6 +493,7 @@ fn render_one(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         "sequence" => render_sequence(w, ctx, key, obj),
         "displayedContent" => render_displayed_content(w, ctx, key, obj),
         "mathExpression" => render_math_expression(w, ctx, key, obj),
+        "question" => render_question(w, ctx, key, obj),
         other => {
             let vid = ctx.id(key).to_string();
             // The raw `type` is quoted (round-1 review, kimi 10): an unknown or
@@ -911,18 +913,12 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             });
         }
         w.field("MODE", &enum_render(req_str(obj, "mode")));
-        // `placeQuestions` (`Vec<PlaceQuestionBinding>`): a `fi'a` place-structure
-        // question — which numbered place of the relation is being asked about.
-        // The smusni profile has no rendered surface for it yet, so when present
-        // it is flagged with an explicit typed `NOT COMPUTED: place-questions;`
-        // marker rather than dropped silently (parallel to `connector-parameter`
-        // and the `renderer-support("question")` object fallback). Whenever this
-        // field is populated it is unconditionally not computed, so its inventory
-        // disposition is `NotComputedDeclared` (jbotci#620 round-1 review B3);
-        // designing a first-class rendering is deferred to the QUESTION-record
-        // follow-up. Kept in lockstep with the oracle.
-        if obj.get("placeQuestions").and_then(Value::as_array).is_some_and(|q| !q.is_empty()) {
-            w.field("NOT COMPUTED", "place-questions");
+        if let Some(place_questions) = obj
+            .get("placeQuestions")
+            .and_then(Value::as_array)
+            .filter(|questions| !questions.is_empty())
+        {
+            render_place_questions(w, ctx, place_questions);
         }
         // `tanruLink` (`TanruLink`): a tanru's head/modifier structural link and
         // its synthesized relation label. Adjudicated rendered (content-complete
@@ -950,6 +946,63 @@ fn place_number(place: &str) -> usize {
         .collect::<String>()
         .parse()
         .unwrap_or(0)
+}
+
+/// A predication's `placeQuestions` bindings. The outer vector is order-bearing,
+/// so each binding receives the same one-based bracket key used by `ARGS`.
+/// `candidatePlaces` is likewise serialized as ordered `xN` keys; it renders as
+/// bracketed place numbers so the notation preserves both identity and order
+/// without copying the JSON spelling.
+#[requires(!questions.is_empty())]
+#[ensures(true)]
+fn render_place_questions(w: &mut Writer, ctx: &Ctx, questions: &[Value]) {
+    w.ordered("PLACE QUESTIONS", |w| {
+        for (index, question) in questions.iter().enumerate() {
+            w.heading(&format!("[{}]:", index + 1), |w| {
+                w.field("PARAMETER", &ctx.id_of(req_val(question, "parameter")));
+                let argument = req_val(question, "argument");
+                let operand = operand_ref(ctx, req_val(argument, "value"));
+                let relative_clauses = argument
+                    .get("relativeClauses")
+                    .and_then(Value::as_array)
+                    .filter(|clauses| !clauses.is_empty());
+                let show_source =
+                    ctx.provenance && argument.get("source").is_some_and(|source| !source.is_null());
+                if relative_clauses.is_some() || show_source {
+                    w.heading(&format!("ARGUMENT: {operand}"), |w| {
+                        if let Some(clauses) = relative_clauses {
+                            render_relative_clauses(w, ctx, clauses);
+                        }
+                        render_source(w, ctx, argument);
+                    });
+                } else {
+                    w.field("ARGUMENT", &operand);
+                }
+                let candidate_places = req_val(question, "candidatePlaces")
+                    .as_array()
+                    .filter(|places| !places.is_empty())
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "place-question `candidatePlaces` must be a non-empty array \
+                             (contract violated)"
+                        )
+                    });
+                w.ordered("CANDIDATE PLACES", |w| {
+                    for place in candidate_places {
+                        let place = pointer_key(place);
+                        let number = place_number(place);
+                        assert!(
+                            number > 0 && place == format!("x{number}"),
+                            "candidate place `{place}` is not a canonical xN key \
+                             (contract violated)"
+                        );
+                        w.entry(&format!("[{number}]"));
+                    }
+                });
+                render_source(w, ctx, question);
+            });
+        }
+    });
 }
 
 /// A formula's own `connector` (`full = false`): CONNECTIVE SOURCE plus, when
@@ -1308,5 +1361,73 @@ fn render_math_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             w.field("NOT COMPUTED", "math-expression-shape");
         }
         render_source(w, ctx, obj);
+    });
+}
+
+/// A first-class semantic question. Required scalar fields fail loudly on
+/// schema drift; empty optional slots are omitted, matching every other
+/// optional collection in the notation.
+#[requires(true)]
+#[ensures(true)]
+fn render_question(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
+    let vid = ctx.id(key).to_string();
+    w.declaration("QUESTION", &vid, None, true, |w| {
+        w.field("BODY", &ctx.id_of(req_val(obj, "body")));
+        w.field("KIND", &enum_render(req_str(obj, "kind")));
+        w.field("MODE", &enum_render(req_str(obj, "mode")));
+        w.field("ASKER", &ctx.id_of(req_val(obj, "asker")));
+        w.field("RESPONDENT", &ctx.id_of(req_val(obj, "respondent")));
+        w.field("DOMAIN", &title_sort(req_str(obj, "domain")));
+        if let Some(slots) = obj
+            .get("slots")
+            .and_then(Value::as_array)
+            .filter(|slots| !slots.is_empty())
+        {
+            render_question_slots(w, ctx, slots);
+        }
+        if let Some(focus) = obj.get("focus") {
+            w.field("FOCUS", &ctx.id_of(focus));
+        }
+        if let Some(answer) = obj.get("presupposedAnswer") {
+            w.field("PRESUPPOSED ANSWER", &ctx.id_of(answer));
+        }
+        render_source(w, ctx, obj);
+    });
+}
+
+/// Ordered answer slots for a question. Homogeneous slots carry only
+/// `parameter`/`role`; typed slots additionally carry `kind`/`domain`, and a
+/// typed truth slot legitimately omits `parameter`.
+#[requires(!slots.is_empty())]
+#[ensures(true)]
+fn render_question_slots(w: &mut Writer, ctx: &Ctx, slots: &[Value]) {
+    w.ordered("SLOTS", |w| {
+        for (index, slot) in slots.iter().enumerate() {
+            w.heading(&format!("[{}]:", index + 1), |w| {
+                let kind = field_str(slot, "kind");
+                let domain = field_str(slot, "domain");
+                match (kind, domain) {
+                    (None, None) => {
+                        w.field("PARAMETER", &ctx.id_of(req_val(slot, "parameter")));
+                    }
+                    (Some(_), Some(_)) => {
+                        if let Some(parameter) = slot.get("parameter") {
+                            w.field("PARAMETER", &ctx.id_of(parameter));
+                        }
+                    }
+                    _ => {
+                        panic!(
+                            "question slot must carry both `kind` and `domain`, or neither \
+                             (contract violated)"
+                        );
+                    }
+                }
+                w.field("ROLE", &enum_render(req_str(slot, "role")));
+                if let (Some(kind), Some(domain)) = (kind, domain) {
+                    w.field("KIND", &enum_render(kind));
+                    w.field("DOMAIN", &title_sort(domain));
+                }
+            });
+        }
     });
 }
