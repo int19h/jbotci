@@ -181,8 +181,6 @@ fn render_tersmu(
                 ..JsonRenderOptions::default()
             },
         )?,
-        TersmuFormat::Tree => render_tree(&graph),
-        TersmuFormat::TreeProj => render_tree_proj(&graph),
         TersmuFormat::Smusni => {
             // `render_smusni` already terminates with a single newline; the
             // shared `stdout.push('\n')` below would double it. Drop the

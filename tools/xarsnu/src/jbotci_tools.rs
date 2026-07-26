@@ -182,8 +182,6 @@ fn classify_gate_failure(
 #[ensures(true)]
 fn tool_tersmu_format(format: TersmuFormat) -> ToolTersmuFormat {
     match format {
-        TersmuFormat::TreeProj => ToolTersmuFormat::TreeProj,
-        TersmuFormat::Tree => ToolTersmuFormat::Tree,
         TersmuFormat::Json => ToolTersmuFormat::Json,
         TersmuFormat::Smusni => ToolTersmuFormat::Smusni,
     }
@@ -575,14 +573,14 @@ mod tests {
             indent: None,
         })
         .expect("direct smusni call");
-        assert_ne!(smusni, default, "smusni selection must not be inert");
+        assert_eq!(smusni, default, "smusni is now the default rendering");
         assert_ne!(smusni, json, "smusni is a distinct rendering from json");
         assert_eq!(smusni, direct_smusni.stdout);
 
         let invalid_dialect = "(definitely-not-a-jbotci-dialect)".to_owned();
         let direct_error = run_tool_tersmu(ToolTersmuRequest {
             text: "mi klama".to_owned(),
-            format: ToolTersmuFormat::TreeProj,
+            format: ToolTersmuFormat::Smusni,
             dialect: Some(invalid_dialect.clone()),
             show_defs: true,
             story_time: false,
@@ -652,7 +650,7 @@ mod tests {
     fn tersmu_request(text: &str) -> ToolTersmuRequest {
         ToolTersmuRequest {
             text: text.to_owned(),
-            format: ToolTersmuFormat::TreeProj,
+            format: ToolTersmuFormat::Smusni,
             dialect: None,
             show_defs: true,
             story_time: false,

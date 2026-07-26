@@ -2,15 +2,16 @@
 //! `lojban-semantics-json-1` graph (Phase-B steps 3–4 of the tersmu notation
 //! program; research repo `DESIGN-RECORD.md` / `FREEZE-PHASE-B.md`).
 //!
-//! Today one profile is realised, [`NotationProfile::Smusni`] — the Phase-B
-//! default-candidate `smusni` profile, a byte-parity port of the frozen Python
-//! oracle (`experiments/notation-renderer-v0/render_v5.py` at commit
-//! `28c7d5f`). The research repo's internal profile name for this rendering
-//! is `lean3` (a historical experiment label); `smusni` is its product name.
-//! The [`NotationProfile`] seam is the profile-driven extension
-//! point: a future `dense` (or other) profile adds a variant and its own
-//! render path without disturbing `smusni` or the existing `render.rs`
-//! tree+proj renderer (which this module does not touch).
+//! Today one profile is realised, [`NotationProfile::Smusni`] — the `smusni`
+//! profile, a byte-parity port of the frozen Python oracle
+//! (`experiments/notation-renderer-v0/render_v5.py` at commit `28c7d5f`).
+//! `smusni` is now the default tersmu output format everywhere (CLI and MCP);
+//! the legacy `tree`/`tree+proj` renderers it replaced have been removed. The
+//! research repo's internal profile name for this rendering is `lean3` (a
+//! historical experiment label); `smusni` is its product name. The
+//! [`NotationProfile`] seam is the profile-driven extension point: a future
+//! `dense` (or other) profile adds a variant and its own render path without
+//! disturbing `smusni`.
 //!
 //! [`coverage`] registers this renderer's field coverage against the merged
 //! completeness contract ([`crate::completeness`]); the tests there verify the
@@ -27,8 +28,8 @@ pub use render::SmusniConfig;
 
 use crate::model::SemanticGraph;
 
-/// A notation profile. Only `smusni` exists today (the Phase-B default
-/// candidate); the enum is the profile-driven seam future profiles extend.
+/// A notation profile. Only `smusni` exists today (the default tersmu output
+/// format); the enum is the profile-driven seam future profiles extend.
 // `#[invariant(::Smusni(_) => true)]`: an audited no-op — the wrapped
 // `SmusniConfig` validates its own (trivial) domain, so every `Smusni` value is a
 // valid profile selection.

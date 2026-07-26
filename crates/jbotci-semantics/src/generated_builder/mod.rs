@@ -9341,254 +9341,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn derived_renderings_descend_into_formula_valued_arguments() {
-        let graph = semantic_graph_for("gy prane cukla .i se ni'i bo lo nabmi cu nadycai");
-        let sequence = graph
-            .objects
-            .get(&graph.root)
-            .and_then(SemanticObject::as_sequence)
-            .expect("modal statement connection builds a sequence");
-        let claim_formula = sequence.connection_claims[0];
-        let claim_predication = graph
-            .objects
-            .get(&claim_formula)
-            .and_then(SemanticObject::formula_predication)
-            .expect("modal statement connection claim is atomic");
-        let claim = graph
-            .objects
-            .get(&claim_predication)
-            .and_then(SemanticObject::as_predication)
-            .expect("modal statement connection has a predication");
-        let branch_formulas = [
-            claim.arguments[&argument_key(1)]
-                .value
-                .expect("connection x1 is present"),
-            claim.arguments[&argument_key(2)]
-                .value
-                .expect("connection x2 is present"),
-        ];
-        assert_ne!(branch_formulas[0], branch_formulas[1]);
-        assert!(branch_formulas.iter().all(|id| {
-            id.object_kind() == SemanticObjectKind::Formula && graph.objects.contains_key(id)
-        }));
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            let lines: Vec<_> = rendered.lines().collect();
-            let claim_index = lines
-                .iter()
-                .position(|line| line.contains(&format!("[{claim_predication}]")))
-                .expect("connection claim predication is rendered");
-            let claim_indent = lines[claim_index]
-                .bytes()
-                .take_while(|byte| *byte == b' ')
-                .count();
-            let descendants: Vec<_> = lines[claim_index + 1..]
-                .iter()
-                .take_while(|line| {
-                    line.bytes().take_while(|byte| *byte == b' ').count() > claim_indent
-                })
-                .copied()
-                .collect();
-            for branch in branch_formulas {
-                assert!(descendants.iter().any(|line| {
-                    line.trim_start().starts_with("formula argument: ")
-                        && line.ends_with(&format!(" [{branch}]"))
-                }));
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_descend_eventuality_content_as_nonclaim_structure() {
-        let graph = semantic_graph_for("mi nitcu lo nu mi klama");
-        let (abstraction, content) = graph
-            .objects
-            .iter()
-            .find_map(|(&id, object)| {
-                let eventuality = object.as_eventuality()?;
-                (eventuality
-                    .descriptor
-                    .as_ref()
-                    .is_some_and(|descriptor| descriptor.word == "lo"))
-                .then_some((id, eventuality.content?))
-            })
-            .expect("lo nu introduces a content-bearing eventuality");
-        let content_predication = graph
-            .objects
-            .get(&content)
-            .and_then(SemanticObject::formula_predication)
-            .expect("the probe abstraction content is atomic");
-        let expected_label = format!("lo klama[{abstraction}]");
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            assert!(rendered.contains(&format!("x2={expected_label}")));
-            assert!(rendered.lines().any(|line| {
-                line.trim_start().starts_with("abstraction content: atom ")
-                    && line.ends_with(&format!(" [{content}]"))
-            }));
-            assert!(rendered.contains(&format!("[{content_predication}]")));
-            assert!(!rendered.contains("content=formula:"));
-        }
-
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        let (_, projected) = tree_proj
-            .split_once("\n\nprojected:\n")
-            .expect("tree+proj has a projected section");
-        assert!(projected.contains(&format!("denotes {expected_label}")));
-        assert!(projected.contains("details=unspecified"));
-        assert!(
-            !projected.contains(&format!("[{content_predication}]")),
-            "intensional abstraction content must not become a displaced commitment"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_eventuality_content_descent_is_cycle_safe() {
-        let graph = semantic_graph_for("do nelci mi .ibabo mi nelci do");
-        let content_edges = graph
-            .objects
-            .iter()
-            .filter_map(|(&id, object)| {
-                object
-                    .as_eventuality()?
-                    .content
-                    .map(|content| (id, content))
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            content_edges.len(),
-            2,
-            "the temporal connection reifies both bridi"
-        );
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            for (eventuality, content) in &content_edges {
-                let expected = format!("abstraction content: atom [{content}]");
-                assert_eq!(
-                    rendered.matches(&expected).count(),
-                    1,
-                    "event {eventuality} content must expand once without recursing through itself"
-                );
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_reach_content_through_questions_and_parsed_quotations() {
-        let question = semantic_graph_for(
-            "ca ku la .alis. co'a sipydji lifri gi'e di'a senva sezysku lu xu lo mlatu cu \
-             citka lo volratcu .i xu lo mlatu cu citka lo volratcu li'u .e su'o roi bo lu \
-             xu lo volratcu cu citka lo mlatu li'u",
-        );
-        assert!(question.objects.values().any(|object| {
-            object
-                .as_question()
-                .is_some_and(|question| question.mode == QuestionMode::Direct)
-        }));
-        assert_eq!(
-            question
-                .objects
-                .values()
-                .filter(|object| object
-                    .as_eventuality()
-                    .is_some_and(|eventuality| eventuality.content.is_some()))
-                .count(),
-            2
-        );
-
-        let quotation = semantic_graph_for(
-            "la'e di'u madni'i la'e lu ko kurji lo smuni .i se va'o bo lo sance cu kurji \
-             vo'a li'u",
-        );
-        assert_eq!(
-            quotation
-                .objects
-                .values()
-                .filter(|object| object
-                    .as_eventuality()
-                    .is_some_and(|eventuality| eventuality.content.is_some()))
-                .count(),
-            2
-        );
-
-        for (graph, required_branch) in [
-            (&question, "question body:"),
-            (&quotation, "descriptor operand: sign quotation mode=parsed"),
-        ] {
-            for render in [
-                crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-                crate::render::render_tree,
-            ] {
-                let rendered = render(graph);
-                assert!(rendered.contains(required_branch));
-                assert_eq!(
-                    crate::render::missing_eventuality_content_edges(graph, &rendered),
-                    Vec::new()
-                );
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_descend_sequence_typed_eventuality_content() {
-        let dialect =
-            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
-        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
-        let graph = semantic_result_for_with_parse_options(
-            "mi na me la .mabel. .i ki'u bo ge mi djuno lo so'i vrici gi my .y djuno lo \
-             tolmutce",
-            &options,
-        )
-        .expect("Zantufa statement connection should build semantics");
-        let sequence_content = graph
-            .objects
-            .values()
-            .find_map(|object| {
-                object
-                    .as_eventuality()?
-                    .content
-                    .filter(|content| content.object_kind() == SemanticObjectKind::Sequence)
-            })
-            .expect("the statement connection reifies a sequence");
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            assert!(rendered.contains(&format!(
-                "abstraction content: sequence [{sequence_content}]"
-            )));
-            assert_eq!(
-                crate::render::missing_eventuality_content_edges(&graph, &rendered),
-                Vec::new()
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");
@@ -9608,142 +9360,6 @@ mod tests {
         assert_eq!(json["denotation"], serde_json::json!("generated-bound"));
         assert!(json.get("category").is_none());
         assert!(json.get("scopeDependence").is_none());
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        assert!(tree_proj.contains(&format!("binds=exists eventuality[{event}]")));
-        assert!(tree_proj.contains(&format!("event=eventuality[{event}]")));
-        assert!(!tree_proj.contains(&format!("denotes eventuality[{event}]")));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_project_event_conditions_and_explicit_absence() {
-        let tenseless = semantic_graph_for("mi klama");
-        let past = semantic_graph_for("mi pu klama");
-        let actual = semantic_graph_for("mi ca'a klama");
-        let interval = semantic_graph_for("mi pu ze'a klama");
-        let aspect = semantic_graph_for("mi ca'o klama");
-        let spatial = semantic_graph_for("mi vi klama");
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let tenseless = render(&tenseless);
-            let past = render(&past);
-            assert_ne!(tenseless, past);
-            assert!(tenseless.contains("time=unspecified; actuality=unspecified"));
-            assert!(past.contains("time=before(anchor=now[eventuality:3]"));
-            assert!(render(&actual).contains("actuality=actual"));
-            assert!(render(&interval).contains("time-interval=medium(anchor=unspecified)"));
-            assert!(render(&aspect).contains("aspect=continuative(anchor=unspecified"));
-            assert!(render(&spatial).contains(
-                "space=distanceFrom(anchor=here[entity:4]; sticky=false; details={distance=short"
-            ));
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tree_proj_format_partitions_tree_and_displaced_commitments() {
-        let graph = semantic_graph_for("mi nitcu lo tanxe");
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        let (tree, projected) = tree_proj
-            .split_once("\n\nprojected:\n")
-            .expect("tree+proj format has a tree spine and projected section");
-
-        assert!(tree.starts_with("utterance assert "));
-        assert!(tree.contains("descriptor body: atom"));
-        assert!(projected.contains("tanxe("));
-        assert!(projected.contains("[mode=restrictive]"));
-        assert!(!tree_proj.contains("at-issue commitments:"));
-        assert!(!tree_proj.contains("presupposed/projected:"));
-        assert!(!tree_proj.contains("context="));
-
-        let elided = graph
-            .objects
-            .iter()
-            .filter_map(|(&id, object)| {
-                (object.referent_category() == Some(ReferentCategory::Constant)
-                    && object
-                        .descriptor()
-                        .is_some_and(|descriptor| descriptor.kind == DescriptorKind::Elided))
-                .then_some(id)
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(elided.len(), 3, "the probe has three implicit places");
-        let grouped = projected
-            .lines()
-            .find(|line| line.contains("descriptor-kind=elided"))
-            .expect("elided constants share one projected line");
-        assert_eq!(
-            projected
-                .lines()
-                .filter(|line| line.contains("descriptor-kind=elided"))
-                .count(),
-            1,
-            "the shared implicit-constant template must not be split"
-        );
-        for id in elided {
-            assert_eq!(
-                grouped.matches(&format!("[{id}]")).count(),
-                1,
-                "each grouped constant must be retained exactly once"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tree_proj_format_renders_each_event_condition_block_once() {
-        let graph = semantic_graph_for("mi pu klama");
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        let tree = crate::render::render_tree(&graph);
-        let event = generated_event_for_relation(&graph, "klama");
-
-        assert!(tree.matches(&format!("[{event}]; time=")).count() >= 1);
-        assert!(tree.matches(&format!("[{event}] {{time=")).count() >= 1);
-        for (&id, object) in &graph.objects {
-            if object.as_eventuality().is_none() {
-                continue;
-            }
-            let condition_sites = tree_proj.matches(&format!("[{id}]; time=")).count()
-                + tree_proj.matches(&format!("[{id}] {{time=")).count();
-            assert_eq!(
-                condition_sites, 1,
-                "event {id} must have exactly one tree+proj condition site"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_traversal_surfaces_scoped_connective_event() {
-        let graph = semantic_graph_for("mi na pu na ca klama le zarci");
-        let eventuality = graph
-            .objects
-            .values()
-            .find_map(|object| match object.as_formula()?.as_data() {
-                data!(FormulaNode::Connective(node)) if node.eventuality.is_some() => {
-                    node.eventuality
-                }
-                _ => None,
-            })
-            .expect("scoped tense formula has its own eventuality");
-        let expected_use = format!("scoped {{event=eventuality[{eventuality}]");
-        let expected_binding = format!(
-            "binds=exists eventuality[{eventuality}] {{time=before(anchor=now[eventuality:3]"
-        );
-        for rendering in [
-            crate::render::render_tree_proj(&graph),
-            crate::render::render_tree(&graph),
-        ] {
-            assert!(rendering.contains(&expected_use));
-            assert!(rendering.contains(&expected_binding));
-        }
     }
 
     #[test]
@@ -9764,8 +9380,6 @@ mod tests {
             object.formula_operator() == Some(FormulaOperator::Not)
                 && object.formula_children().contains(&owner)
         }));
-        let tree = crate::render::render_tree(&graph);
-        assert!(tree.contains(&format!("child: atom binds=exists eventuality[{event}]")));
     }
 
     #[test]
@@ -9781,10 +9395,6 @@ mod tests {
                 .get(&owner)
                 .and_then(SemanticObject::formula_operator),
             Some(FormulaOperator::And)
-        );
-        assert!(
-            crate::render::render_tree(&graph)
-                .contains(&format!("and binds=exists eventuality[{event}]"))
         );
     }
 
@@ -11230,13 +10840,6 @@ mod tests {
         for constant in &constants {
             assert_underspecified_scope(&graph, *constant, &[variable]);
         }
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        assert!(tree_proj.contains("binder-dependence=underspecified; may-depend-on="));
-        for constant in constants {
-            assert!(!tree_proj.lines().any(|line| {
-                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
-            }));
-        }
     }
 
     #[test]
@@ -11253,12 +10856,6 @@ mod tests {
         );
         for constant in &constants {
             assert_underspecified_scope(&graph, *constant, &[variable]);
-        }
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        for constant in constants {
-            assert!(!tree_proj.lines().any(|line| {
-                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
-            }));
         }
     }
 
@@ -11283,13 +10880,6 @@ mod tests {
                 serde_json::to_value(object).expect("constant should serialize")["scopeDependence"],
                 serde_json::json!({ "kind": "fixed" })
             );
-        }
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        assert!(tree_proj.contains("binder-dependence=fixed; constant"));
-        for constant in constants {
-            assert!(!tree_proj.lines().any(|line| {
-                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
-            }));
         }
     }
 

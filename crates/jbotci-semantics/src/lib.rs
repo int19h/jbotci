@@ -6,7 +6,6 @@ pub mod generated_builder;
 pub mod model;
 pub mod notation;
 pub mod references;
-pub mod render;
 
 pub use facade::{SemanticBuildOptions, SemanticsError, dictionary_relation_place_count};
 pub use generated_builder::{
@@ -22,4 +21,3 @@ pub use model::{
     semantic_object_scope_dependences_are_derived,
 };
 pub use notation::{render_smusni, render_notation, SmusniConfig, NotationProfile};
-pub use render::{render_tree, render_tree_proj};

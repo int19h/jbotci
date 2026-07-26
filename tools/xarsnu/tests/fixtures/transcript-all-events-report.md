@@ -2,7 +2,7 @@
 
 - Transcript schema: 1
 - Scenario reference: `schedule-negotiation-1.toml`
-- Gate format: `tree+proj`
+- Gate format: `smusni`
 - Listener mode: `blind-then-reveal`
 - Allow degraded search: `false`
 - Models:

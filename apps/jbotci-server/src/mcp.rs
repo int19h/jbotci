@@ -195,7 +195,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to `tree+proj`, its structural scope tree plus displaced projective commitments. Request `json` explicitly for the canonical interchange graph."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to `smusni`, a flat, self-describing declaration listing of the semantic graph. Request `json` explicitly for the canonical interchange graph."
     })
 }
 
@@ -263,22 +263,16 @@ fn mcp_tools() -> Vec<Value> {
         tool_definition(
             "tersmu",
             "Lojban semantics",
-            "Compute the deep semantic/logical meaning of Lojban text. The default `tree+proj` \
-             format is an indented scope tree plus only commitments displaced from their \
-             structural site. `tree` gives the bare spine; request `json` explicitly for the \
-             canonical flat id-graph (referents, predications, eventualities, formulas). In JSON \
-             request bodies, the feature-bearing format is the literal string `tree+proj`; `+proj` \
-             follows the `base+feature` naming convention. Interpretation contract: indentation \
-             and `>` mean structural descent. The tree spine is authoritative where commitment \
-             follows structural position; entries under `projected:` take widest commitment scope. \
-             `mode=` is exact graph vocabulary. \
-             `denotes` states referential identity; `binder-dependence=underspecified` names \
-             possible binders, not proven dependence. Generated-bound events co-vary through \
-             structural `binds=exists`; referential events use denotation commitments, and \
-             `binds=exists` is not itself projected. Event suffixes explicitly cover time, \
-             actuality, aspect, recurrence, space, spatial aspect, spatial recurrence, and \
-             details; `unspecified` means absent information, never a negative claim. For grammar \
-             use `gentufa`, for morphology use `vlasei`.",
+            "Compute the deep semantic/logical meaning of Lojban text. The default `smusni` \
+             format is a flat, self-describing declaration listing of the semantic graph: it \
+             opens with the root id, an ID-prefix legend (r=reference, p=predication, f=formula, \
+             u=utterance, s=sequence, q=quantity, x=parameter, l=relation_expression, ...) and a \
+             `NOT COMPUTED` block naming what was left underived, then lists every utterance, \
+             predication, formula, reference, and eventuality as an id-tagged `DECLARATION`. \
+             Request `json` explicitly for the canonical flat id-graph (the same objects as a \
+             pure JSON document). `mode=` and the declaration keywords are exact graph \
+             vocabulary; `UNDERSPECIFIED` and `NOT COMPUTED` mean absent information, never a \
+             negative claim. For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),
     ]
