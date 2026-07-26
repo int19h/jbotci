@@ -1,6 +1,6 @@
 SEMANTIC DOCUMENT document_1 {
   ROOT: u5;
-  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content qu=question;
   NOT COMPUTED {
     denotation-multiplicity;
   }
@@ -10,7 +10,7 @@ SEMANTIC DOCUMENT document_1 {
       SPEAKER: r1;
       AUDIENCE: r2;
       EVENTUALITY: r16;
-      CONTENT: question_15;
+      CONTENT: qu15;
       DEICTIC GROUND
         TIME: r3;
         PLACE: r4;
@@ -31,14 +31,44 @@ SEMANTIC DOCUMENT document_1 {
         [5]: REFERENCE DENOTATION r12;
       )
       MODE: ASSERTED;
-      NOT COMPUTED: place-questions;
+      PLACE QUESTIONS (
+        [1]:
+          PARAMETER: x8;
+          ARGUMENT: REFERENCE DENOTATION r7;
+          CANDIDATE PLACES (
+            [2];
+            [3];
+            [4];
+            [5];
+          )
+          PROVENANCE
+            BYTE SPAN: 9..13;
+            TEXT: "fi'a";
+            CONSTRUCT: "place-question";
+      )
       PROVENANCE
         BYTE SPAN: 0..13;
         TEXT: "mi klama fi'a";
         CONSTRUCT: "predication";
     }
     FORMULA f14 IS ATOM { PREDICATION: p13; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 0..13; TEXT: "mi klama fi'a"; CONSTRUCT: "bridi-formula"; } }
-    UNKNOWN question_15 { NOT COMPUTED: renderer-support("question"); }
+    QUESTION qu15 {
+      BODY: f14;
+      KIND: PLACE;
+      MODE: DIRECT;
+      ASKER: r1;
+      RESPONDENT: r2;
+      DOMAIN: Place;
+      SLOTS (
+        [1]:
+          PARAMETER: x8;
+          ROLE: ANSWER;
+      )
+      PROVENANCE
+        BYTE SPAN: 0..13;
+        TEXT: "mi klama fi'a";
+        CONSTRUCT: "question";
+    }
     REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
     REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
     REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }

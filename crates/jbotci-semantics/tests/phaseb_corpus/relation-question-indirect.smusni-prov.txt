@@ -1,6 +1,6 @@
 SEMANTIC DOCUMENT document_1 {
   ROOT: u5;
-  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content qu=question;
   NOT COMPUTED {
     denotation-multiplicity;
   }
@@ -10,7 +10,7 @@ SEMANTIC DOCUMENT document_1 {
       SPEAKER: r1;
       AUDIENCE: r2;
       EVENTUALITY: r15;
-      CONTENT: question_14;
+      CONTENT: qu14;
       DEICTIC GROUND
         TIME: r3;
         PLACE: r4;
@@ -35,7 +35,23 @@ SEMANTIC DOCUMENT document_1 {
     }
     FORMULA f11 IS ATOM { PREDICATION: p10; PROVENANCE { BYTE SPAN: 3..11; TEXT: "se jalge"; CONSTRUCT: "restrictive-formula"; } }
     FORMULA f13 IS ATOM { PREDICATION: p12; BOUND EVENTUALITIES { r7; } PROVENANCE { BYTE SPAN: 0..21; TEXT: "lo se jalge cu mo kau"; CONSTRUCT: "relation-question-formula"; } }
-    UNKNOWN question_14 { NOT COMPUTED: renderer-support("question"); }
+    QUESTION qu14 {
+      BODY: f13;
+      KIND: RELATION;
+      MODE: DIRECT;
+      ASKER: r1;
+      RESPONDENT: r2;
+      DOMAIN: Relation;
+      SLOTS (
+        [1]:
+          PARAMETER: x6;
+          ROLE: ANSWER;
+      )
+      PROVENANCE
+        BYTE SPAN: 0..21;
+        TEXT: "lo se jalge cu mo kau";
+        CONSTRUCT: "question";
+    }
     REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
     REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
     REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }

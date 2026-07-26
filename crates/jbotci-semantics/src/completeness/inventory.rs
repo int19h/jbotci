@@ -149,10 +149,8 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::Object, "Predication", "tanruLink", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "b39", path: "Predication:tanruLink", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Predication", "arguments", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "b13", path: "Predication:arguments", expect: new!(WitnessExpect::Present) }), None),
         // `placeQuestions` (a `fi'a` place-structure question) is corpus-witnessed
-        // by `mi-klama-fia` (`mi klama fi'a`). The smusni renderer flags it with an
-        // explicit `NOT COMPUTED: place-questions;` marker rather than rendering the
-        // bindings, so this field's disposition is `NotComputedDeclared` (jbotci#620
-        // round-1 review B3); the witness attests corpus presence, not rendering.
+        // by `mi-klama-fia` (`mi klama fi'a`) and renders as the predication's
+        // first-class `PLACE QUESTIONS` ordered binding record (jbotci#622).
         e(SurfaceCategory::Object, "Predication", "placeQuestions", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "mi-klama-fia", path: "Predication:placeQuestions", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Predication", "modalArguments", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
         e(SurfaceCategory::Object, "Predication", "reciprocity", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
@@ -217,12 +215,9 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::Object, "RelationMetadata", "source", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
         e(SurfaceCategory::Object, "RelationMetadata", "diagnostics", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
         // Question object fields — corpus-witnessed by `ti-mo` (`ti mo`), whose
-        // `question:11` place/relation question carries them (jbotci#620 round-1
-        // review B1). The Question object is not yet rendered (the smusni renderer
-        // sends it to the `UNKNOWN … renderer-support("question")` fallback), so
-        // these fields' *disposition* is `NotComputedDeclared` (see
-        // `completeness::disposition`); a witness attests corpus *presence*, which
-        // is independent of rendering.
+        // `question:11` relation question carries them (jbotci#620 round-1 review
+        // B1). They render in the first-class QUESTION record specified by
+        // jbotci#622.
         e(SurfaceCategory::Object, "Question", "body", EntryKind::Field, Presence::Always, new!(Witness::Corpus { doc: "ti-mo", path: "Question:body", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Question", "kind", EntryKind::Field, Presence::Always, new!(Witness::Corpus { doc: "ti-mo", path: "Question:kind", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Question", "mode", EntryKind::Field, Presence::Always, new!(Witness::Corpus { doc: "ti-mo", path: "Question:mode", expect: new!(WitnessExpect::Present) }), None),
@@ -230,8 +225,8 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::Object, "Question", "respondent", EntryKind::Field, Presence::Always, new!(Witness::Corpus { doc: "ti-mo", path: "Question:respondent", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Question", "domain", EntryKind::Field, Presence::Always, new!(Witness::Corpus { doc: "ti-mo", path: "Question:domain", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Question", "slots", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:slots", expect: new!(WitnessExpect::Present) }), None),
-        e(SurfaceCategory::Object, "Question", "focus", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
-        e(SurfaceCategory::Object, "Question", "presupposedAnswer", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
+        e(SurfaceCategory::Object, "Question", "focus", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "question-indirect-presupposed", path: "Question:focus", expect: new!(WitnessExpect::Present) }), None),
+        e(SurfaceCategory::Object, "Question", "presupposedAnswer", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "question-indirect-presupposed", path: "Question:presupposedAnswer", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Question", "source", EntryKind::Field, Presence::Optional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:source", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Object, "Question", "diagnostics", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
         e(SurfaceCategory::ValueStruct, "Actuality", "kind", EntryKind::Field, Presence::Always, new!(Witness::Corpus { doc: "b13", path: "Eventuality:actuality.kind", expect: new!(WitnessExpect::Present) }), None),
@@ -422,8 +417,8 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::ValueStruct, "TimeSpanEndpoint", "scalarNegation", EntryKind::Field, Presence::Optional, new!(Witness::NoCorpusWitness), None),
         e(SurfaceCategory::ValueStruct, "QuestionSlot", "parameter", EntryKind::Field, Presence::VariantConditional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:slots.parameter", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::ValueStruct, "QuestionSlot", "role", EntryKind::Field, Presence::VariantConditional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:slots.role", expect: new!(WitnessExpect::Present) }), None),
-        e(SurfaceCategory::ValueStruct, "QuestionSlot", "kind", EntryKind::Field, Presence::VariantConditional, new!(Witness::NoCorpusWitness), None),
-        e(SurfaceCategory::ValueStruct, "QuestionSlot", "domain", EntryKind::Field, Presence::VariantConditional, new!(Witness::NoCorpusWitness), None),
+        e(SurfaceCategory::ValueStruct, "QuestionSlot", "kind", EntryKind::Field, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Question:slots.kind", expect: new!(WitnessExpect::Present) }), None),
+        e(SurfaceCategory::ValueStruct, "QuestionSlot", "domain", EntryKind::Field, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Question:slots.domain", expect: new!(WitnessExpect::Present) }), None),
         e(SurfaceCategory::Enum, "AbstractionKind", "Event", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("event")),
         e(SurfaceCategory::Enum, "AbstractionKind", "Achievement", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("achievement")),
         e(SurfaceCategory::Enum, "AbstractionKind", "Process", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("process")),
@@ -592,15 +587,15 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::Enum, "ParagraphTransition", "ResumePriorTopic", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("resume-prior-topic")),
         e(SurfaceCategory::Enum, "ParameterRole", "PropertySlot", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "b13", path: "Parameter:role", expect: new!(WitnessExpect::Value("propertySlot")) }), Some("propertySlot")),
         e(SurfaceCategory::Enum, "ParameterRole", "RelativeClauseHead", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("relativeClauseHead")),
-        e(SurfaceCategory::Enum, "ParameterRole", "ArgumentQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("argumentQuestion")),
+        e(SurfaceCategory::Enum, "ParameterRole", "ArgumentQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Parameter:role", expect: new!(WitnessExpect::Value("argumentQuestion")) }), Some("argumentQuestion")),
         e(SurfaceCategory::Enum, "ParameterRole", "RelationQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "ti-mo", path: "Parameter:role", expect: new!(WitnessExpect::Value("relationQuestion")) }), Some("relationQuestion")),
         e(SurfaceCategory::Enum, "ParameterRole", "RelationVariable", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("relationVariable")),
         e(SurfaceCategory::Enum, "ParameterRole", "UnspecifiedRelation", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("unspecifiedRelation")),
         e(SurfaceCategory::Enum, "ParameterRole", "PlaceQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "mi-klama-fia", path: "Parameter:role", expect: new!(WitnessExpect::Value("placeQuestion")) }), Some("placeQuestion")),
-        e(SurfaceCategory::Enum, "ParameterRole", "ConnectiveQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("connectiveQuestion")),
-        e(SurfaceCategory::Enum, "ParameterRole", "TenseQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("tenseQuestion")),
-        e(SurfaceCategory::Enum, "ParameterRole", "MathOperatorQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("mathOperatorQuestion")),
-        e(SurfaceCategory::Enum, "ParameterRole", "QuantityQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("quantityQuestion")),
+        e(SurfaceCategory::Enum, "ParameterRole", "ConnectiveQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-connective", path: "Parameter:role", expect: new!(WitnessExpect::Value("connectiveQuestion")) }), Some("connectiveQuestion")),
+        e(SurfaceCategory::Enum, "ParameterRole", "TenseQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-tense", path: "Parameter:role", expect: new!(WitnessExpect::Value("tenseQuestion")) }), Some("tenseQuestion")),
+        e(SurfaceCategory::Enum, "ParameterRole", "MathOperatorQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-math-operator", path: "Parameter:role", expect: new!(WitnessExpect::Value("mathOperatorQuestion")) }), Some("mathOperatorQuestion")),
+        e(SurfaceCategory::Enum, "ParameterRole", "QuantityQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Parameter:role", expect: new!(WitnessExpect::Value("quantityQuestion")) }), Some("quantityQuestion")),
         e(SurfaceCategory::Enum, "ParameterRole", "AttitudeQuestion", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("attitudeQuestion")),
         e(SurfaceCategory::Enum, "ParameterRole", "RespectiveSlot", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("respectiveSlot")),
         e(SurfaceCategory::Enum, "PredicationMode", "Asserted", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "b13", path: "Predication:mode", expect: new!(WitnessExpect::Value("asserted")) }), Some("asserted")),
@@ -627,18 +622,25 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(SurfaceCategory::Enum, "QuantityScale", "Amount", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("amount")),
         e(SurfaceCategory::Enum, "QuantityScale", "Extent", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("extent")),
         e(SurfaceCategory::Enum, "QuantityScale", "Frequency", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("frequency")),
-        e(SurfaceCategory::Enum, "QuestionKind", "Truth", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("truth")),
-        e(SurfaceCategory::Enum, "QuestionKind", "Argument", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("argument")),
+        // Every question kind the generated builder currently emits has a
+        // discriminant-verified corpus witness below. `Attitude` remains
+        // `NoCorpusWitness`: the model supports it, but no builder path
+        // constructs an attitude-kind Question object.
+        e(SurfaceCategory::Enum, "QuestionKind", "Truth", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Question:slots.kind", expect: new!(WitnessExpect::Value("truth")) }), Some("truth")),
+        e(SurfaceCategory::Enum, "QuestionKind", "Argument", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-indirect-presupposed", path: "Question:kind", expect: new!(WitnessExpect::Value("argument")) }), Some("argument")),
         e(SurfaceCategory::Enum, "QuestionKind", "Relation", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:kind", expect: new!(WitnessExpect::Value("relation")) }), Some("relation")),
         e(SurfaceCategory::Enum, "QuestionKind", "Place", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "mi-klama-fia", path: "Question:kind", expect: new!(WitnessExpect::Value("place")) }), Some("place")),
-        e(SurfaceCategory::Enum, "QuestionKind", "Connective", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("connective")),
-        e(SurfaceCategory::Enum, "QuestionKind", "Tense", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("tense")),
-        e(SurfaceCategory::Enum, "QuestionKind", "MathOperator", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("mathOperator")),
+        e(SurfaceCategory::Enum, "QuestionKind", "Connective", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-connective", path: "Question:kind", expect: new!(WitnessExpect::Value("connective")) }), Some("connective")),
+        e(SurfaceCategory::Enum, "QuestionKind", "Tense", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-tense", path: "Question:kind", expect: new!(WitnessExpect::Value("tense")) }), Some("tense")),
+        e(SurfaceCategory::Enum, "QuestionKind", "MathOperator", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-math-operator", path: "Question:kind", expect: new!(WitnessExpect::Value("mathOperator")) }), Some("mathOperator")),
         e(SurfaceCategory::Enum, "QuestionKind", "Attitude", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("attitude")),
-        e(SurfaceCategory::Enum, "QuestionKind", "Quantity", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("quantity")),
-        e(SurfaceCategory::Enum, "QuestionKind", "Multiple", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("multiple")),
+        e(SurfaceCategory::Enum, "QuestionKind", "Quantity", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Question:slots.kind", expect: new!(WitnessExpect::Value("quantity")) }), Some("quantity")),
+        e(SurfaceCategory::Enum, "QuestionKind", "Multiple", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-multiple-domains", path: "Question:kind", expect: new!(WitnessExpect::Value("multiple")) }), Some("multiple")),
         e(SurfaceCategory::Enum, "QuestionMode", "Direct", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:mode", expect: new!(WitnessExpect::Value("direct")) }), Some("direct")),
-        e(SurfaceCategory::Enum, "QuestionMode", "Indirect", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("indirect")),
+        e(SurfaceCategory::Enum, "QuestionMode", "Indirect", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "question-indirect-presupposed", path: "Question:mode", expect: new!(WitnessExpect::Value("indirect")) }), Some("indirect")),
+        // The builder emits Answer slots for questions. `RespectiveSlot` is a
+        // model-supported role used by respectively streams, but no current
+        // builder path places it in a QuestionSlot.
         e(SurfaceCategory::Enum, "QuestionSlotRole", "Answer", EntryKind::Variant, Presence::VariantConditional, new!(Witness::Corpus { doc: "ti-mo", path: "Question:slots.role", expect: new!(WitnessExpect::Value("answer")) }), Some("answer")),
         e(SurfaceCategory::Enum, "QuestionSlotRole", "RespectiveSlot", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("respectiveSlot")),
         e(SurfaceCategory::Enum, "RecurrenceConnectionKind", "Product", EntryKind::Variant, Presence::VariantConditional, new!(Witness::NoCorpusWitness), Some("product")),

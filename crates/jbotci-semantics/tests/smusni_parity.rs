@@ -1,12 +1,11 @@
 //! Byte-parity of this build's `smusni` notation renderer against the frozen
 //! Python oracle (Phase-B step 4; research repo `FREEZE-PHASE-B.md`).
 //!
-//! For each of the 39 frozen corpus documents, the vendored `<doc>.smusni.txt`
+//! For each of the 44 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at the oracle commit `28c7d5f` (37 documents), `7e9c722` (the `ti-mo`
-//! relation-question witness, jbotci#620), or `0263b93` (the `mi-klama-fia`
-//! place-question witness, jbotci#620 round-1 review B3 — `NOT COMPUTED:
-//! place-questions;`); `lean3` is the research
+//! lean3` at oracle commit `d5d1dfd` (jbotci#622). The corpus comprises the
+//! original 37 documents, the two jbotci#620 witnesses, and five new
+//! discriminant-verified question witnesses. `lean3` is the research
 //! repo's historical profile name for the product's `smusni` notation. This test
 //! re-derives each graph
 //! from `<doc>.lojban` with *this* build (the same pipeline the completeness
@@ -117,7 +116,7 @@ fn assert_parity(suffix: &str, config: SmusniConfig) {
 }
 
 /// The default `smusni` profile (provenance off) byte-matches the oracle on all
-/// 39 frozen corpus documents.
+/// 44 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -126,7 +125,7 @@ fn smusni_byte_parity_over_frozen_corpus() {
 }
 
 /// The provenance opt-in (`--provenance`) byte-matches the oracle's
-/// `--profile lean3 --provenance` output on all 39 frozen corpus documents.
+/// `--profile lean3 --provenance` output on all 44 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -163,12 +162,12 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "60bcc3af6f96ef5cc74b0d0ffe1804d525461e37ac58445c2e594dd07ff413c2",
+        "0dbc1d7f96c49217382b9602c62001b5f3ae35c919b7a681e8dbe0b1e216a93e",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "ded698b536d9c36de47d73e58d0c048cc914437074c340e6b944897e55da62b6",
+        "d6fb701f5855382f3ddf7d6026951e5f4c74ae16bef6919968c515dce17a4e8a",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
@@ -231,5 +230,77 @@ fn smusni_relation_question_indirect_regression() {
         // a `VALUE <id>` reference, and the ordinary lexical relation beside it.
         assert!(actual.contains("RELATION: VALUE "));
         assert!(actual.contains("RELATION: jalge;"));
+        assert!(actual.contains("QUESTION qu"));
+        assert!(actual.contains("KIND: RELATION;"));
+        assert!(!actual.contains("UNKNOWN question_"));
+    }
+}
+
+/// jbotci#622 regression: the corpus witnesses collectively exercise every
+/// currently builder-reachable question kind, both modes, homogeneous and typed
+/// slots, and the optional focus/presupposed-answer fields. Byte parity above is
+/// the oracle proof; these assertions make the intended discriminants explicit.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn smusni_question_record_shapes_are_explicit() {
+    let multiple = render_smusni(
+        &graph_for("question-multiple-domains"),
+        SmusniConfig { provenance: false },
+    );
+    for wording in [
+        "KIND: MULTIPLE;",
+        "KIND: TRUTH;",
+        "KIND: QUANTITY;",
+        "KIND: ARGUMENT;",
+        "KIND: RELATION;",
+        "DOMAIN: Argumentbundle;",
+        "SLOTS (",
+    ] {
+        assert!(multiple.contains(wording), "missing `{wording}`");
+    }
+
+    let connective = render_smusni(
+        &graph_for("question-connective"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(connective.contains("KIND: CONNECTIVE;"));
+
+    let tense = render_smusni(
+        &graph_for("question-tense"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(tense.contains("KIND: TENSE;"));
+
+    let math_operator = render_smusni(
+        &graph_for("question-math-operator"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(math_operator.contains("KIND: MATH OPERATOR;"));
+
+    let indirect = render_smusni(
+        &graph_for("question-indirect-presupposed"),
+        SmusniConfig { provenance: false },
+    );
+    for wording in [
+        "KIND: ARGUMENT;",
+        "MODE: INDIRECT;",
+        "FOCUS: ",
+        "PRESUPPOSED ANSWER: ",
+    ] {
+        assert!(indirect.contains(wording), "missing `{wording}`");
+    }
+
+    let place = render_smusni(
+        &graph_for("mi-klama-fia"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(place.contains("KIND: PLACE;"));
+    assert!(place.contains("PLACE QUESTIONS ("));
+
+    for rendered in [multiple, connective, tense, math_operator, indirect, place] {
+        assert!(rendered.contains("QUESTION qu"));
+        assert!(!rendered.contains("UNKNOWN question_"));
+        assert!(!rendered.contains("renderer-support(\"question\")"));
     }
 }
