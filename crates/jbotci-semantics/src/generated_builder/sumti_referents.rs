@@ -9023,7 +9023,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             object.set_predication_attachments(branch_modal_arguments, Vec::new());
             object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                object,
+                |surface_place| {
+                    mapped_place_for_generated_conversions(surface_place, &atom.conversions)
+                },
+            )?;
+            self.record_voha_direct_target(predication, 1, referent)?;
             let formula = self.next_formula_id();
             self.insert(
                 formula,

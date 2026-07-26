@@ -209,6 +209,90 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_property_abstraction_output(body, vec![parameter], source)
     }
 
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(object.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_err() || self.objects.contains_key(&predication))]
+    pub(super) fn insert_converted_predication_with_voha_place_map(
+        &mut self,
+        predication: SemanticObjectId,
+        object: SemanticObject,
+        mut mapper: impl FnMut(usize) -> Result<usize, SemanticsError>,
+    ) -> Result<(), SemanticsError> {
+        let needs_place_map = object.as_predication().is_some_and(|node| {
+            node.arguments
+                .values()
+                .chain(
+                    node.modal_arguments
+                        .iter()
+                        .flat_map(|modal| modal.arguments.values()),
+                )
+                .filter_map(|argument| argument.value)
+                .any(|value| self.pending_voha_places.contains_key(&value))
+        });
+        let outer_place_map = self.active_voha_place_maps.last().copied();
+        let place_map = needs_place_map
+            .then(|| {
+                GeneratedVohaPlaceMap::try_from_mapper(|surface_place| {
+                    let place = outer_place_map
+                        .as_ref()
+                        .map(|mapping| mapping.underlying_place(surface_place))
+                        .unwrap_or(surface_place);
+                    mapper(place)
+                })
+            })
+            .transpose()?;
+        self.insert(predication, object)?;
+        if let Some(place_map) = place_map {
+            self.pending_voha_place_maps.insert(predication, place_map);
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires((1..=5).contains(&surface_place))]
+    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Referent || target.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_err() || self.pending_voha_direct_targets.get(&(predication, surface_place)) == Some(&target))]
+    pub(super) fn record_voha_direct_target(
+        &mut self,
+        predication: SemanticObjectId,
+        surface_place: usize,
+        target: SemanticObjectId,
+    ) -> Result<(), SemanticsError> {
+        if let Some(existing) = self
+            .pending_voha_direct_targets
+            .insert((predication, surface_place), target)
+            && existing != target
+        {
+            return Err(invalid_graph(format!(
+                "surface x{surface_place} of {predication} has conflicting direct vo'a targets"
+            )));
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(self.active_voha_place_maps.len() == old(self.active_voha_place_maps.len()))]
+    pub(super) fn with_voha_place_map<R>(
+        &mut self,
+        mut mapper: impl FnMut(usize) -> Result<usize, SemanticsError>,
+        build: impl FnOnce(&mut Self) -> Result<R, SemanticsError>,
+    ) -> Result<R, SemanticsError> {
+        let outer_place_map = self.active_voha_place_maps.last().copied();
+        let place_map = GeneratedVohaPlaceMap::try_from_mapper(|surface_place| {
+            let place = outer_place_map
+                .as_ref()
+                .map(|mapping| mapping.underlying_place(surface_place))
+                .unwrap_or(surface_place);
+            mapper(place)
+        })?;
+        self.active_voha_place_maps.push(place_map);
+        let result = build(self);
+        self.active_voha_place_maps
+            .pop()
+            .expect("vo'a place-map context was just pushed");
+        result
+    }
+
     /// Resolve vo'a-series (CLL 7.8) placeholders that could not be resolved inline. Each
     /// placeholder refers to a place of the bridi it appears in; by the time the whole graph is
     /// built, that place has been filled (an explicit term, an elided `zo'e`, a relative-clause
@@ -217,12 +301,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     /// (`su'o lo mlatu cu terpa vo'a`) already does inline. Runs before `prune_unreachable_objects`,
     /// so a placeholder that is no longer referenced afterwards is pruned.
     #[requires(true)]
-    #[ensures(self.pending_voha_places.is_empty())]
+    #[ensures(self.pending_voha_places.is_empty() && self.pending_voha_place_maps.is_empty() && self.pending_voha_direct_targets.is_empty())]
     fn resolve_pending_voha_references(&mut self) {
         if self.pending_voha_places.is_empty() {
+            self.pending_voha_place_maps.clear();
+            self.pending_voha_direct_targets.clear();
             return;
         }
-        let mut updates: Vec<(SemanticObjectId, PlaceIndex, SemanticObjectId)> = Vec::new();
+        let mut updates = Vec::new();
         for (id, object) in &self.objects {
             let Some(predication) = object.as_predication() else {
                 continue;
@@ -236,31 +322,95 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 if let Some(resolved) = resolve_voha_placeholder(
                     &predication.arguments,
+                    *id,
                     value,
                     &self.pending_voha_places,
+                    self.pending_voha_place_maps.get(id),
+                    &self.pending_voha_direct_targets,
                     &mut BTreeSet::new(),
                 ) && resolved != value
                 {
-                    updates.push((*id, *place, resolved));
+                    updates.push(new!(GeneratedVohaUpdate {
+                        predication: *id,
+                        location: new!(GeneratedVohaUpdateLocation::Numbered { place: *place }),
+                        resolved,
+                    }));
+                }
+            }
+            for (modal_index, modal) in predication.modal_arguments.iter().enumerate() {
+                for (place, argument) in &modal.arguments {
+                    let Some(value) = argument.value else {
+                        continue;
+                    };
+                    if !self.pending_voha_places.contains_key(&value) {
+                        continue;
+                    }
+                    if let Some(resolved) = resolve_voha_placeholder(
+                        &predication.arguments,
+                        *id,
+                    value,
+                    &self.pending_voha_places,
+                        self.pending_voha_place_maps.get(id),
+                        &self.pending_voha_direct_targets,
+                    &mut BTreeSet::new(),
+                ) && resolved != value
+                {
+                        updates.push(new!(GeneratedVohaUpdate {
+                            predication: *id,
+                            location: new!(GeneratedVohaUpdateLocation::Modal {
+                                modal_index,
+                                place: *place,
+                            }),
+                            resolved,
+                        }));
                 }
             }
         }
-        for (id, place, resolved) in updates {
-            if let Some(object) = self.objects.get_mut(&id) {
+        }
+        for update in updates {
+            if let Some(object) = self.objects.get_mut(&update.predication) {
                 object.update_predication(|node| {
                     let data = node.into_data();
+                    match update.location.as_data() {
+                        data!(GeneratedVohaUpdateLocation::Numbered { place }) => {
                     let mut arguments = data.arguments;
-                    if let Some(argument) = arguments.get(&place).cloned() {
-                        arguments.insert(place, argument.with_data(data! { value: Some(resolved) }));
+                            if let Some(argument) = arguments.get(place).cloned() {
+                                arguments.insert(
+                                    *place,
+                                    argument.with_data(data! { value: Some(update.resolved) }),
+                                );
+                            }
+                            PredicationNode::from_data(data!(PredicationNode { arguments, ..data }))
+                        }
+                        data!(GeneratedVohaUpdateLocation::Modal { modal_index, place }) => {
+                            let mut modal_arguments = data.modal_arguments;
+                            if let Some(modal) = modal_arguments.get(*modal_index).cloned() {
+                                let modal_data = modal.into_data();
+                                let mut arguments = modal_data.arguments;
+                                if let Some(argument) = arguments.get(place).cloned() {
+                                    arguments.insert(
+                                        *place,
+                                        argument.with_data(data! { value: Some(update.resolved) }),
+                                    );
+                                }
+                                modal_arguments[*modal_index] =
+                                    ModalArgument::from_data(data!(ModalArgument {
+                                        arguments,
+                                        ..modal_data
+                                    }));
                     }
                     PredicationNode::from_data(data!(PredicationNode {
-                        arguments: arguments,
+                                modal_arguments,
                         ..data
                     }))
+                        }
+                    }
                 });
             }
         }
         self.pending_voha_places.clear();
+        self.pending_voha_place_maps.clear();
+        self.pending_voha_direct_targets.clear();
     }
 
     #[requires(true)]
