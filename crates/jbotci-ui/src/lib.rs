@@ -20,9 +20,9 @@ use jbotci_dialect::{
 #[cfg(test)]
 use jbotci_gentufa::ReferenceMarkerKind;
 use jbotci_output::{
-    GlideMark, PhonemeRenderOptions, StressMark,
+    GlideMark, LujvoFragmentKind, PhonemeRenderOptions, StressMark,
     qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
-    render_lojban_text_for_script,
+    render_lojban_text_for_script, render_lujvo_fragment_for_script,
 };
 use jbotci_web_core::CollisionScope;
 use jbotci_web_core::GentufaBlockRole;

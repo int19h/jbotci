@@ -279,7 +279,7 @@ pub fn ends_with_vowel(word_text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn is_bonding_hyphen(part: &str) -> bool {
-    matches!(part, "y" | "y'" | "'y" | "r" | "n")
+    matches!(part, "y" | "y'" | "'y" | "'y'" | "r" | "n")
 }
 
 #[requires(true)]

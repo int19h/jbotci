@@ -1810,6 +1810,20 @@ fn selected_script_renders_visible_lojban_text_only() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn fragment_display_surfaces_typed_failure_visibly() {
+    let rendered = display_lujvo_fragment(
+        GentufaScript::Cyrillic,
+        "not-a-rafsi",
+        LujvoFragmentKind::Rafsi,
+    );
+
+    assert!(rendered.starts_with("⟨invalid rafsi:"));
+    assert!(rendered.contains("not-a-rafsi"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn dictionary_tooltip_position_keeps_normal_above_host_placement() {
     let position = platform::place_tooltip(
         platform::Rect {

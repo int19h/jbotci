@@ -599,7 +599,11 @@ pub(super) fn render_dictionary_tooltip(
                     span { class: "tooltip-decomposition-pieces",
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
                             {
-                                let display_surface = display_lojban_text(script, &piece.display_surface);
+                                let display_surface = display_lujvo_fragment(
+                                    script,
+                                    &piece.display_surface,
+                                    LujvoFragmentKind::Rafsi,
+                                );
                                 if let Some(source) = &piece.source {
                                     let display_source = display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
                                     if show_link {
@@ -732,7 +736,11 @@ pub(super) fn render_reference_dictionary_card(
                     span { class: "tooltip-decomposition-pieces",
                         for piece in card.decomposition.iter().filter(|piece| piece.kind != VlackuCompositionPieceKind::Hyphen) {
                             {
-                                let display_surface = display_lojban_text(script, &piece.display_surface);
+                                let display_surface = display_lujvo_fragment(
+                                    script,
+                                    &piece.display_surface,
+                                    LujvoFragmentKind::Rafsi,
+                                );
                                 if let Some(source) = &piece.source {
                                     let display_source = display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
                                     rsx! {
@@ -1343,7 +1351,11 @@ pub(super) fn render_composition_piece(
 ) -> Element {
     match piece.kind {
         VlackuCompositionPieceKind::Hyphen => {
-            let display_surface = display_lojban_text(script, &piece.display_surface);
+            let display_surface = display_lujvo_fragment(
+                script,
+                &piece.display_surface,
+                LujvoFragmentKind::BondingHyphen,
+            );
             rsx! {
                 span { class: "dictionary-word-inline-separator",
                     { render_page_find_text(page_find, &display_surface) }
@@ -1351,7 +1363,8 @@ pub(super) fn render_composition_piece(
             }
         }
         VlackuCompositionPieceKind::Rafsi => {
-            let display_surface = display_lojban_text(script, &piece.display_surface);
+            let display_surface =
+                display_lujvo_fragment(script, &piece.display_surface, LujvoFragmentKind::Rafsi);
             if let Some(source) = &piece.source {
                 let display_source =
                     display_lojban_text(script, piece.display_source.as_deref().unwrap_or(source));
@@ -1460,7 +1473,7 @@ pub(super) fn render_rafsi_pill(
     let pane_open = jvozba_available && jvozba_pane.read().open;
     let rafsi_value = rafsi.to_owned();
     let source_value = source_word.to_owned();
-    let display_rafsi = display_lojban_text(script, rafsi);
+    let display_rafsi = display_lujvo_fragment(script, rafsi, LujvoFragmentKind::Rafsi);
     if pane_open {
         rsx! {
             button {

@@ -1808,6 +1808,17 @@ pub(super) fn display_lojban_text(script: GentufaScript, text: &str) -> String {
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(super) fn display_lujvo_fragment(
+    script: GentufaScript,
+    text: &str,
+    kind: LujvoFragmentKind,
+) -> String {
+    render_lujvo_fragment_for_script(text, kind, script, display_lojban_phoneme_options())
+        .unwrap_or_else(|error| format!("⟨{error}: {text}⟩"))
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(super) fn display_lojban_text_if(
     script: GentufaScript,
