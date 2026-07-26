@@ -16,6 +16,37 @@
 //! [`coverage`] registers this renderer's field coverage against the merged
 //! completeness contract ([`crate::completeness`]); the tests there verify the
 //! coverage audits complete and agrees with the declared `smusni` design intent.
+//!
+//! ## QUESTION record design (#622)
+//!
+//! - A question object is declared as `QUESTION quN { ... }`, following the
+//!   existing uppercase-keyword + typed-short-ID + braces declaration shape.
+//!   `qu` is the shortest question-derived prefix that does not collide with the
+//!   existing `q=quantity` prefix, and it is added to `ID PREFIXES` from the same
+//!   prefix table that assigns IDs.
+//! - Fields follow the graph order `BODY`, `KIND`, `MODE`, `ASKER`, `RESPONDENT`,
+//!   `DOMAIN`, `SLOTS`, then optional `FOCUS` and `PRESUPPOSED ANSWER`. Graph
+//!   edges use typed-short IDs; `KIND`, `MODE`, and slot `ROLE`/`KIND` use the
+//!   established uppercase enum vocabulary. `DOMAIN` uses the title-cased
+//!   semantic-sort vocabulary already used by `PARAMETER SORT`.
+//! - `SLOTS` is an ordered sequence whose one-based entries use `[N]:`, matching
+//!   `ARGS`. Each entry is a field-labelled record: `PARAMETER` when present,
+//!   `ROLE`, and, for heterogeneous slots, `KIND` plus `DOMAIN`. This preserves
+//!   slot order and renders every `QuestionSlot` shape without inventing a new
+//!   wording class.
+//! - A predication's `PLACE QUESTIONS` is likewise an ordered `[N]:` sequence.
+//!   Each binding renders `PARAMETER`, its `ARGUMENT` using the existing
+//!   operand-site `VALUE`/`REFERENCE DENOTATION` convention, and ordered
+//!   `CANDIDATE PLACES` entries written as bracketed place keys. This replaces
+//!   the former `NOT COMPUTED: place-questions;` marker.
+//! - QUESTION declarations use the existing dense-declaration rule unchanged:
+//!   at most four direct fields collapse to one line; larger records remain
+//!   multiline. Optional provenance continues to use the existing nested
+//!   `PROVENANCE` block.
+//!
+//! Open for PM review: `qu` is the first multi-letter typed-short prefix, chosen
+//! by the existing shortest-unambiguous rule; `DOMAIN` is title-cased rather
+//! than uppercased because it is a semantic sort, not a closed enum wording.
 
 pub mod coverage;
 mod render;
