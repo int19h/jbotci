@@ -1124,22 +1124,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "source byte spans are projected from validated SourceSpan values",
     ),
     (
-        "crates/jbotci-semantics/src/render.rs:TreeProjProjectedVisitor",
-        "tree+proj projected visitor is transient mutable accumulator state; typed group keys and exact projection tests enforce its output partition",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TraversalLocation",
-        "traversal location is the unrestricted product of closed commitment-placement and role enums with a nesting depth",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TraversalState",
-        "traversal state is transient mutable cycle and visited-set bookkeeping initialized and owned by DerivedTraversal",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TreeVisitor",
-        "tree visitor is transient mutable output state over a validated graph and every output prefix is representationally valid",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:AbstractionNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),

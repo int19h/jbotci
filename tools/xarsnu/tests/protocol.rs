@@ -368,7 +368,7 @@ fn runner(
         participants,
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
     )
 }
@@ -444,7 +444,7 @@ fn reference_budget_withdraws_tools_on_the_wire_and_preserves_turn_forfeit() {
         vec![speaker, listener],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -516,7 +516,7 @@ fn duplicate_reference_lookup_reuses_prior_payload_byte_for_byte() {
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -588,7 +588,7 @@ fn disabling_reference_dedupe_reexecutes_exact_repeats() {
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -647,7 +647,7 @@ fn idle_reference_nudge_fires_once_at_threshold_in_each_phase() {
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -805,7 +805,7 @@ fn informed_listener_receives_rendering_from_the_start_and_acknowledges_once() {
         vec![speaker, listener],
         caps(3, 2, 1),
         ListenerMode::Informed,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
     )
     .expect("valid informed runner");
@@ -1717,7 +1717,7 @@ fn referential_answers_close_dialog_and_are_collected_from_one_frozen_boundary()
         ],
         caps(2, 2, 8),
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
         scenario,
     )
@@ -1828,7 +1828,7 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
         scenario: "debate-consciousness-1.toml".to_owned(),
         caps: caps(3, 2, 12),
         client: xarsnu::ClientConfig::default(),
-        tersmu_format: TersmuFormat::TreeProj,
+        tersmu_format: TersmuFormat::Smusni,
         listener_mode: ListenerMode::BlindThenReveal,
         allow_degraded_search: false,
     });
@@ -1838,7 +1838,7 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
         participants,
         run_config.caps.clone(),
         run_config.listener_mode,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
         scenario,
     )
@@ -1988,7 +1988,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
             scenario: "schedule-negotiation-1.toml".to_owned(),
             caps: caps(3, 2, 6),
             client: xarsnu::ClientConfig::default(),
-            tersmu_format: TersmuFormat::TreeProj,
+            tersmu_format: TersmuFormat::Smusni,
             listener_mode: ListenerMode::BlindThenReveal,
             allow_degraded_search: false,
         }),
@@ -2000,7 +2000,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
         vec![alice, bob],
         caps(3, 2, 6),
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
         scenario,
     )

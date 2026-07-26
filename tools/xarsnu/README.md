@@ -20,7 +20,7 @@ diagnostics in fenced blocks so the export shows exactly what the model received
 
 ```toml
 scenario = "schedule-negotiation-1.toml"
-tersmu-format = "tree+proj"
+tersmu-format = "smusni"
 listener-mode = "informed"
 allow-degraded-search = false
 
