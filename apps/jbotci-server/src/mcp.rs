@@ -266,13 +266,17 @@ fn mcp_tools() -> Vec<Value> {
             "Compute the deep semantic/logical meaning of Lojban text. The default `smusni` \
              format is a flat, self-describing declaration listing of the semantic graph: it \
              opens with the root id, an ID-prefix legend (r=reference, p=predication, f=formula, \
-             u=utterance, s=sequence, q=quantity, x=parameter, l=relation_expression, ...) and a \
-             `NOT COMPUTED` block naming what was left underived, then lists every utterance, \
-             predication, formula, reference, and eventuality as an id-tagged `DECLARATION`. \
-             Request `json` explicitly for the canonical flat id-graph (the same objects as a \
-             pure JSON document). `mode=` and the declaration keywords are exact graph \
-             vocabulary; `UNDERSPECIFIED` and `NOT COMPUTED` mean absent information, never a \
-             negative claim. For grammar use `gentufa`, for morphology use `vlasei`.",
+             q=quantity, u=utterance, s=sequence, m=mathExpression, x=parameter, \
+             l=relation_expression, d=displayed_content) and a `NOT COMPUTED` block naming what \
+             was left underived, then lists every utterance, predication, formula, reference, and \
+             eventuality as an id-tagged `DECLARATION`. Every field is an uppercase label followed \
+             by its value (e.g. `MODE <value>`, `SCOPE DEPENDENCE <kind>`), never a `key=value` \
+             pair. Request `json` explicitly for the canonical flat id-graph (the same objects as \
+             a pure JSON document). The uppercase field labels and declaration keywords are exact \
+             graph vocabulary; `UNSPECIFIED` marks a graph dimension (time, actuality, aspect, \
+             space) left without a committed value and `NOT COMPUTED` marks a surface the \
+             renderer did not derive — both are an absence of commitment, never a negative claim. \
+             For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),
     ]

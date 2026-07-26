@@ -2474,7 +2474,7 @@ mod tests {
             "flat, self-describing declaration listing",
             "ID-prefix legend",
             "`NOT COMPUTED` block",
-            "`mode=` and the declaration keywords are exact graph",
+            "The uppercase field labels and declaration keywords are exact graph vocabulary",
             "never a negative claim",
         ] {
             assert!(
