@@ -7210,6 +7210,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.build_implicit_existential_variable(pro_sumti)
                 }
             }
+            Some(
+                cmavo @ (Cmavo::Voha | Cmavo::Vohe | Cmavo::Vohi | Cmavo::Voho | Cmavo::Vohu),
+            ) => {
+                // Reaching here means the referenced place of the local bridi was not already
+                // filled by an explicit term (which `insert_generated_simple_term_assignment`
+                // would have resolved inline), e.g. an implicit `ke'a` relative-clause head, an
+                // elided place, a description's `ce'u` slot, or an abstraction subject. Build a
+                // placeholder referent and record the place it refers to; it is resolved against
+                // the finished predication arguments in `resolve_pending_voha_references`, per
+                // CLL 7.8 (the vo'a-series denotes the places of the bridi it appears in).
+                let referent = self.build_generated_pro_sumti_fallback_referent(
+                    pro_sumti,
+                    ReferentCategory::Constant,
+                )?;
+                if let Some(place) = voha_place_for_cmavo(cmavo) {
+                    self.pending_voha_places.insert(referent, place);
+                }
+                Ok(referent)
+            }
             _ => self
                 .build_generated_pro_sumti_fallback_referent(pro_sumti, ReferentCategory::Constant),
         }
