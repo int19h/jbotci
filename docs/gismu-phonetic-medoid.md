@@ -353,21 +353,6 @@ rather than better hand constants. The single most suspect default for *this*
 purpose is C_vwl: with several-way averaging, vowels are often where sources
 disagree most, and how much they count materially changes which candidate wins.
 
-## Ferment reference run
-
-The issue #587 reference run uses the Ilmen12 weights and default gismu shapes,
-requests 160 results, and supplies these concrete observations: Mandarin
-`[fat͡ɕjɑʊ]`, English `[fɚmɛnt]`, Spanish `[feɾment]`, Hindi `[kɪɳʋan]`,
-Arabic `[taxamːur]`, Bengali `[ɡãd͡ʒɔn]`, Russian `[fʲermʲent]`, Portuguese
-`[feʁmẽt]`, Malay `[pɘnapaian]`, Japanese `[hakːoː]`, German `[ɡɛːʁ]`, and
-French `[fɛʁmɑ̃t]`. With collision filtering enabled, the run examines 96,475
-valid candidates and retains 82,567 after filtering. Its top three are `ferme`,
-`farme`, and `ferma`. The winner `ferme` is also the first r-bearing result, at
-rank 1; this is the intended meaningful placement that accepting every
-consonantal Lojban-r realization restores. The run is pinned bit-exactly by a
-regression test and reproduced by the `issue_587_benchmark` example in
-`jbotci-gimfihi`.
-
 ## Properties
 
 - **Exactness.** The optimum over G is exact; no alignment or averaging
