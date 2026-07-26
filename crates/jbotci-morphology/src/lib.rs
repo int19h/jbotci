@@ -1088,8 +1088,8 @@ impl LujvoPart {
         if rafsi_shape(&folded) == RafsiShape::Other {
             return Err(LujvoFragmentError::InvalidRafsi);
         }
-        let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(text))
-            .expect("a validated rafsi shape contains nonempty canonical phonemes");
+        let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(&folded))
+            .map_err(|_| LujvoFragmentError::InvalidRafsi)?;
         Ok(Self::rafsi(phonemes))
     }
 
@@ -1100,8 +1100,8 @@ impl LujvoPart {
         if !is_bonding_hyphen(&folded) {
             return Err(LujvoFragmentError::InvalidHyphen);
         }
-        let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(text))
-            .expect("a validated bonding hyphen contains nonempty canonical phonemes");
+        let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(&folded))
+            .map_err(|_| LujvoFragmentError::InvalidHyphen)?;
         Ok(Self::hyphen(phonemes))
     }
 

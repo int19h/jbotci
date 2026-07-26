@@ -330,6 +330,7 @@ mod tests {
     use bityzba::requires;
 
     use super::*;
+    use jbotci_dictionary::{RafsiSource, universal_gismu_rafsi_forms};
     use jbotci_morphology::{GlideMark, StressMark};
 
     #[requires(true)]
@@ -454,6 +455,41 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn normalized_diacritic_fragments_use_the_validated_canonical_form() {
+        for text in ["gáu", "ga\u{301}u"] {
+            let part = LujvoPart::parse_bare_rafsi(text)
+                .expect("a diacritic rafsi accepted by shape validation must remain fallible");
+            assert_eq!(part.phonemes().as_str(), "gaŭ");
+            assert_eq!(
+                render_lujvo_fragment_for_script(
+                    text,
+                    LujvoFragmentKind::Rafsi,
+                    LojbanScript::Cyrillic,
+                    display_options(),
+                )
+                .expect("valid normalized diacritic rafsi"),
+                "гаў"
+            );
+            assert_eq!(
+                render_lujvo_fragment_for_script(
+                    text,
+                    LujvoFragmentKind::Rafsi,
+                    LojbanScript::Zbalermorna,
+                    display_options(),
+                )
+                .expect("valid normalized diacritic rafsi"),
+                "\u{ed92}\u{eda9}"
+            );
+        }
+
+        let hyphen = LujvoPart::parse_bonding_hyphen("ý")
+            .expect("a diacritic hyphen accepted by validation must remain fallible");
+        assert_eq!(hyphen.phonemes().as_str(), "y");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn renders_each_bonding_hyphen_through_the_typed_fragment_path() {
         for (text, cyrillic) in [("y", "ъ"), ("r", "р"), ("n", "н")] {
             assert_eq!(
@@ -497,29 +533,61 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn every_dictionary_rafsi_transliterates_without_ascii_latin_output() {
+        let mut listed_count = 0;
+        let mut universal_count = 0;
+        let mut banl_universal_short_count = 0;
+
         for entry in jbotci_dictionary_data::english().entries() {
             for rafsi in entry.rafsi {
-                for script in [LojbanScript::Cyrillic, LojbanScript::Zbalermorna] {
-                    let rendered = render_lujvo_fragment_for_script(
-                        rafsi.0,
-                        LujvoFragmentKind::Rafsi,
-                        script,
-                        display_options(),
-                    )
-                    .unwrap_or_else(|error| {
-                        panic!(
-                            "dictionary rafsi {:?} for {:?} failed in {script:?}: {error}",
-                            rafsi.0, entry.word
-                        )
-                    });
-                    assert!(
-                        !rendered.chars().any(|ch| ch.is_ascii_alphabetic()),
-                        "dictionary rafsi {:?} for {:?} retained ASCII Latin in {script:?}: {rendered:?}",
-                        rafsi.0,
-                        entry.word
-                    );
+                assert_dictionary_rafsi_transliterates(rafsi.0, entry.word, RafsiSource::Listed);
+                listed_count += 1;
+            }
+
+            if entry.word_type.is_gismu_like() {
+                for (rafsi, source) in universal_gismu_rafsi_forms(entry.word) {
+                    assert_dictionary_rafsi_transliterates(&rafsi, entry.word, source);
+                    universal_count += 1;
+                    if rafsi == "banl" && source == RafsiSource::UniversalShort {
+                        banl_universal_short_count += 1;
+                    }
                 }
             }
+        }
+
+        assert!(
+            listed_count > 0,
+            "the listed rafsi sweep must be non-vacuous"
+        );
+        assert!(
+            universal_count > 0,
+            "the generated universal rafsi sweep must be non-vacuous"
+        );
+        assert_eq!(
+            banl_universal_short_count, 1,
+            "banl must be covered exactly once as a generated UniversalShort rafsi"
+        );
+    }
+
+    #[requires(!rafsi.is_empty())]
+    #[requires(!word.is_empty())]
+    #[ensures(true)]
+    fn assert_dictionary_rafsi_transliterates(rafsi: &str, word: &str, source: RafsiSource) {
+        for script in [LojbanScript::Cyrillic, LojbanScript::Zbalermorna] {
+            let rendered = render_lujvo_fragment_for_script(
+                rafsi,
+                LujvoFragmentKind::Rafsi,
+                script,
+                display_options(),
+            )
+            .unwrap_or_else(|error| {
+                panic!(
+                    "dictionary rafsi {rafsi:?} ({source:?}) for {word:?} failed in {script:?}: {error}"
+                )
+            });
+            assert!(
+                !rendered.chars().any(|ch| ch.is_ascii_alphabetic()),
+                "dictionary rafsi {rafsi:?} ({source:?}) for {word:?} retained ASCII Latin in {script:?}: {rendered:?}"
+            );
         }
     }
 }
