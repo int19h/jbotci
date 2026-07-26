@@ -908,6 +908,33 @@ pub(crate) fn classify_lujvo_rafsi(text: &str) -> crate::ValsiLujvoRafsiKind {
 }
 
 #[requires(true)]
+#[ensures(!ret || !text.is_empty())]
+pub(crate) fn is_lujvo_rafsi_fragment(text: &str) -> bool {
+    if classify_lujvo_rafsi(text) != crate::ValsiLujvoRafsiKind::Unknown {
+        return true;
+    }
+
+    let mut chars = text_chars(text);
+    if chars.is_empty() {
+        return false;
+    }
+
+    // Extended and cultural fu'ivla rafsi are the fu'ivla stem with its final
+    // vowel removed. Test that exact segmenter shape rule with each possible
+    // final vowel; unlike jvozba's RafsiShape, this also covers consonant-final
+    // pieces such as `spaget`, `kulnrfars`, and `akt`.
+    for final_vowel in ['a', 'e', 'i', 'o', 'u'] {
+        chars.push(final_vowel);
+        let is_fuhivla = is_fuhivla_shape_slice(&chars, 0, chars.len());
+        chars.pop();
+        if is_fuhivla {
+            return true;
+        }
+    }
+    false
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn classify_fuhivla_stage(text: &str) -> crate::ValsiFuhivlaStage {
     let chars = text_chars(text);

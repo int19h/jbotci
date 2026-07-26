@@ -1,26 +1,17 @@
 use bityzba::{data, invariant, requires};
+pub use jbotci_morphology::LujvoFragmentError as LujvoFragmentRenderError;
 use jbotci_morphology::{
     GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoPart, MorphologyError,
     MorphologyOptions, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
     segment_words_for_display_with_options_and_source_id, word_needs_leading_pause_in_context,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
-use thiserror::Error;
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LujvoFragmentKind {
     Rafsi,
     BondingHyphen,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum LujvoFragmentRenderError {
-    #[error("invalid rafsi")]
-    InvalidRafsi,
-    #[error("invalid bonding hyphen")]
-    InvalidBondingHyphen,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -113,18 +104,19 @@ pub fn render_lujvo_fragment_for_script(
     options: PhonemeRenderOptions,
 ) -> Result<String, LujvoFragmentRenderError> {
     let part = match kind {
-        LujvoFragmentKind::Rafsi => {
-            LujvoPart::parse_bare_rafsi(text).map_err(|_| LujvoFragmentRenderError::InvalidRafsi)?
-        }
-        LujvoFragmentKind::BondingHyphen => LujvoPart::parse_bonding_hyphen(text)
-            .map_err(|_| LujvoFragmentRenderError::InvalidBondingHyphen)?,
-    };
+        LujvoFragmentKind::Rafsi => LujvoPart::parse_bare_rafsi(text),
+        LujvoFragmentKind::BondingHyphen => LujvoPart::parse_bonding_hyphen(text),
+    }?;
     let latin = part
         .phonemes()
         .render(phoneme_render_options_for_script(script, options));
+    // A fuhivla-shaped rafsi is still displayed as a piece of a lujvo, not as
+    // a standalone fu'ivla. Using lujvo vowel forms keeps its zbalermorna
+    // letters visually identical to the same letters in the displayed whole
+    // lujvo instead of switching the isolated piece to full-vowel forms.
     Ok(render_latin_word_surface_for_script(
         script,
-        WordKind::Gismu,
+        WordKind::Lujvo,
         &latin,
     ))
 }
@@ -330,7 +322,8 @@ mod tests {
     use bityzba::requires;
 
     use super::*;
-    use jbotci_dictionary::{RafsiSource, universal_gismu_rafsi_forms};
+    use jbotci_dictionary::{RafsiSource, WordType, universal_gismu_rafsi_forms};
+    use jbotci_jvozba::decompose_lujvo_like;
     use jbotci_morphology::{GlideMark, StressMark};
 
     #[requires(true)]
@@ -430,6 +423,7 @@ mod tests {
         assert_eq!(render("jbo"), "жбо");
         assert_eq!(render("gism"), "гисм");
         assert_eq!(render("gau"), "гаў");
+        assert_eq!(render("spaget"), "спагет");
     }
 
     #[test]
@@ -450,6 +444,10 @@ mod tests {
         assert_eq!(render("jbo"), "\u{ed96}\u{ed90}\u{eda3}");
         assert_eq!(render("gism"), "\u{ed92}\u{eda2}\u{ed85}\u{ed87}");
         assert_eq!(render("gau"), "\u{ed92}\u{eda9}");
+        assert_eq!(
+            render("spaget"),
+            "\u{ed85}\u{ed80}\u{eda0}\u{ed92}\u{eda1}\u{ed81}"
+        );
     }
 
     #[test]
@@ -491,7 +489,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn renders_each_bonding_hyphen_through_the_typed_fragment_path() {
-        for (text, cyrillic) in [("y", "ъ"), ("r", "р"), ("n", "н")] {
+        for (text, cyrillic) in [
+            ("y", "ъ"),
+            ("y'", "ъ"),
+            ("'y", "ъ"),
+            ("'y'", "ъ"),
+            ("r", "р"),
+            ("n", "н"),
+        ] {
             assert_eq!(
                 render_lujvo_fragment_for_script(
                     text,
@@ -568,6 +573,44 @@ mod tests {
         );
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_dictionary_lujvo_decomposition_part_transliterates_without_fallback() {
+        let mut attempted_lujvo_count = 0;
+        let mut decomposed_lujvo_count = 0;
+        let mut part_count = 0;
+
+        let dictionary = jbotci_dictionary_data::english();
+        for entry in dictionary.entries() {
+            if entry.word_type != WordType::Lujvo {
+                continue;
+            }
+            attempted_lujvo_count += 1;
+            let Some(decomposition) = decompose_lujvo_like(dictionary, entry.word) else {
+                continue;
+            };
+            for segment in &decomposition.segments {
+                assert_dictionary_lujvo_part_transliterates(&segment.segment, entry.word);
+                part_count += 1;
+            }
+            decomposed_lujvo_count += 1;
+        }
+
+        assert!(
+            attempted_lujvo_count > 0,
+            "the dictionary lujvo sweep must attempt at least one entry"
+        );
+        assert!(
+            decomposed_lujvo_count > 0,
+            "the dictionary lujvo sweep must produce at least one decomposition"
+        );
+        assert!(
+            part_count >= decomposed_lujvo_count * 2,
+            "every decomposed dictionary lujvo must contribute at least two parts"
+        );
+    }
+
     #[requires(!rafsi.is_empty())]
     #[requires(!word.is_empty())]
     #[ensures(true)]
@@ -587,6 +630,33 @@ mod tests {
             assert!(
                 !rendered.chars().any(|ch| ch.is_ascii_alphabetic()),
                 "dictionary rafsi {rafsi:?} ({source:?}) for {word:?} retained ASCII Latin in {script:?}: {rendered:?}"
+            );
+        }
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(true)]
+    fn assert_dictionary_lujvo_part_transliterates(part: &LujvoPart, word: &str) {
+        let kind = match part {
+            LujvoPart::Rafsi(_) => LujvoFragmentKind::Rafsi,
+            LujvoPart::Hyphen(_) => LujvoFragmentKind::BondingHyphen,
+        };
+        let text = part.phonemes().as_str();
+        for script in [LojbanScript::Cyrillic, LojbanScript::Zbalermorna] {
+            let rendered =
+                render_lujvo_fragment_for_script(text, kind, script, display_options())
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "decomposition part {text:?} of dictionary lujvo {word:?} failed in {script:?}: {error}"
+                        )
+                    });
+            assert!(
+                !rendered.chars().any(|ch| ch.is_ascii_alphabetic()),
+                "decomposition part {text:?} of dictionary lujvo {word:?} retained ASCII Latin in {script:?}: {rendered:?}"
+            );
+            assert!(
+                !rendered.contains("⟨invalid "),
+                "decomposition part {text:?} of dictionary lujvo {word:?} produced an error marker in {script:?}: {rendered:?}"
             );
         }
     }

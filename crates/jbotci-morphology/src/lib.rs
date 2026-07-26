@@ -1085,7 +1085,7 @@ impl LujvoPart {
     #[ensures(ret.as_ref().is_ok_and(|part| matches!(part, LujvoPart::Rafsi(_))) || ret.is_err())]
     pub fn parse_bare_rafsi(text: &str) -> Result<Self, LujvoFragmentError> {
         let folded = fold_lojban_diacritics(text);
-        if rafsi_shape(&folded) == RafsiShape::Other {
+        if !segment::is_lujvo_rafsi_fragment(&folded) {
             return Err(LujvoFragmentError::InvalidRafsi);
         }
         let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(&folded))
@@ -1098,10 +1098,10 @@ impl LujvoPart {
     pub fn parse_bonding_hyphen(text: &str) -> Result<Self, LujvoFragmentError> {
         let folded = fold_lojban_diacritics(text);
         if !is_bonding_hyphen(&folded) {
-            return Err(LujvoFragmentError::InvalidHyphen);
+            return Err(LujvoFragmentError::InvalidBondingHyphen);
         }
         let phonemes = Phonemes::from_canonical(segment::canonicalize_word_phonemes(&folded))
-            .map_err(|_| LujvoFragmentError::InvalidHyphen)?;
+            .map_err(|_| LujvoFragmentError::InvalidBondingHyphen)?;
         Ok(Self::hyphen(phonemes))
     }
 
@@ -1129,10 +1129,10 @@ impl LujvoPart {
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum LujvoFragmentError {
-    #[error("fragment is not a valid bare rafsi")]
+    #[error("invalid rafsi")]
     InvalidRafsi,
-    #[error("fragment is not a valid lujvo bonding hyphen")]
-    InvalidHyphen,
+    #[error("invalid bonding hyphen")]
+    InvalidBondingHyphen,
 }
 
 impl Verbatim {
@@ -3336,6 +3336,45 @@ mod tests {
 
         assert_eq!(base_phoneme_texts(&words), vec!["tci'ilykemcantútra"]);
         assert_eq!(base_word(&words[0]).map(Word::kind), Some(WordKind::Lujvo));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_rafsi_parser_accepts_every_segmenter_rafsi_class() {
+        for (text, expected_kind) in [
+            ("lob", ValsiLujvoRafsiKind::Cvc),
+            ("jbo", ValsiLujvoRafsiKind::Ccv),
+            ("gau", ValsiLujvoRafsiKind::Cvv),
+            ("gism", ValsiLujvoRafsiKind::Long),
+            ("gismu", ValsiLujvoRafsiKind::Gismu),
+            ("spageti", ValsiLujvoRafsiKind::Fuhivla),
+            ("tci'ily", ValsiLujvoRafsiKind::Cultural),
+            ("lobklama", ValsiLujvoRafsiKind::Extended),
+        ] {
+            assert_eq!(segment::classify_lujvo_rafsi(text), expected_kind, "{text}");
+            assert!(
+                matches!(LujvoPart::parse_bare_rafsi(text), Ok(LujvoPart::Rafsi(_))),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_rafsi_parser_accepts_consonant_final_fuhivla_stems() {
+        for text in ["spaget", "kulnrfars", "akt"] {
+            assert_eq!(
+                segment::classify_lujvo_rafsi(text),
+                ValsiLujvoRafsiKind::Unknown,
+                "{text} exercises the fu'ivla-stem predicate rather than a known standalone class"
+            );
+            assert!(
+                matches!(LujvoPart::parse_bare_rafsi(text), Ok(LujvoPart::Rafsi(_))),
+                "{text}"
+            );
+        }
     }
 
     #[test]
