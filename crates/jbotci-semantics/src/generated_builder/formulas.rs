@@ -871,6 +871,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )? {
             return Ok(formula);
         }
+        // Guard direct term connections before computing the first visible place: the
+        // place-advancement helper below cannot walk a connected leading term and would trip the
+        // "connected term reached simple visible-place advancement" invariant. This mirrors the
+        // shared guard at `build_selbri_simple_bridi_tail_formula_from_terms_with_source_constructs`
+        // (which covers the relation-only / prefix-term paths whose first visible place does not
+        // depend on scanning the terms); routing through the same handler keeps behavior uniform.
         if let Some(formula) = self.build_generated_direct_term_connection_formula(
             simple_tail,
             &terms,
@@ -921,19 +927,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let connection = *connection;
-        if eventuality.is_some() {
-            return Err(invalid_graph(
-                "direct term connection reached branch lowering with an explicit eventuality"
-                    .to_owned(),
-            ));
-        }
-
-        let before_terms = &terms[..position];
-        let after_terms = &terms[position + 1..];
-        let prefix_assignments =
-            self.build_term_assignments_for_terms(before_terms.to_vec(), first_visible_place)?;
-        let suffix_assignments = self.build_term_assignments_for_terms(after_terms.to_vec(), 1)?;
-        let source = self.source_for_node(connection, "term-connection-formula");
 
         let (leading_term, continuations): (
             &'syntax SimpleTermSyntax,
@@ -965,6 +958,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             _ => unreachable!("the direct term connection search returned another term kind"),
         };
 
+        // Nonlogical direct term connections (e.g. `bi'o`) are unsupported in every context.
+        // Detect them here, before any context-specific gating, so that all lowering paths that
+        // funnel through this shared guard report the same graceful unsupported-construct error
+        // rather than falling through to simple-term assignment lowering (which trips a graph
+        // invariant) or the explicit-eventuality guard below.
+        if continuations
+            .iter()
+            .any(|(connective, _)| !generated_direct_term_connective_is_logical(*connective))
+        {
+            return Err(undefined_semantics(
+                "an experimental nonlogical direct term connection",
+            ));
+        }
+
+        if eventuality.is_some() {
+            return Err(invalid_graph(
+                "direct term connection reached branch lowering with an explicit eventuality"
+                    .to_owned(),
+            ));
+        }
+
+        let before_terms = &terms[..position];
+        let after_terms = &terms[position + 1..];
+        let prefix_assignments =
+            self.build_term_assignments_for_terms(before_terms.to_vec(), first_visible_place)?;
+        let suffix_assignments = self.build_term_assignments_for_terms(after_terms.to_vec(), 1)?;
+        let source = self.source_for_node(connection, "term-connection-formula");
+
         let mut formula = self.build_generated_direct_term_branch_formula_in_mode(
             simple_tail,
             &prefix_assignments,
@@ -975,11 +996,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
         )?;
         for (connective, trailing_term) in continuations {
-            if !generated_direct_term_connective_is_logical(connective) {
-                return Err(undefined_semantics(
-                    "an experimental nonlogical direct term connection",
-                ));
-            }
             let right = self.build_generated_direct_term_branch_formula_in_mode(
                 simple_tail,
                 &prefix_assignments,
@@ -3295,6 +3311,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         predication_construct: &'static str,
         formula_construct: &'static str,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        // Direct term connections (`ti'u li so bi'o ti'u li pano`, `broda .e brode` in argument
+        // position) must be intercepted before the terms reach simple-term assignment lowering,
+        // which cannot represent a connected term and would trip a graph invariant. This is the
+        // shared choke point every bridi-tail lowering path funnels through, so guarding here
+        // routes top-level bridi, relation-only bridi (relative-clause / abstraction bodies), and
+        // prefix-term bridi uniformly through the same handler instead of relying on each caller
+        // to add its own check.
+        if let Some(formula) = self.build_generated_direct_term_connection_formula(
+            simple_tail,
+            &terms,
+            first_visible_place,
+            eventuality,
+            mode,
+        )? {
+            return Ok(formula);
+        }
         let predication_source = self.source_for_node(source_node, predication_construct);
         let formula_source = self.source_for_node(source_node, formula_construct);
         let abstraction = if terms.is_empty() && eventuality.is_none() {
@@ -3850,6 +3882,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 allow_single_argument_distribution,
                 formula_construct,
             );
+        }
+        // The shared-tail / excluded-source branches below bypass
+        // `build_selbri_simple_bridi_tail_formula_from_terms_with_source_constructs`, so route any
+        // direct term connection through the same guard here (the guard does not incorporate
+        // preassigned arguments, so this only applies when there are none). Without this, a direct
+        // term connection combined with statement-level suffix terms would reach simple-term
+        // assignment lowering and trip a graph invariant.
+        if preassigned_visible_arguments.is_empty()
+            && preassigned_place_questions.is_empty()
+            && let Some(formula) = self.build_generated_direct_term_connection_formula(
+                simple_tail,
+                &terms,
+                first_visible_place,
+                eventuality,
+                mode,
+            )?
+        {
+            return Ok(formula);
         }
         let predication_source = self.source_for_node(source_node, "predication");
         let formula_source = self.source_for_node(source_node, formula_construct);

@@ -13403,6 +13403,51 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn nonlogical_direct_term_connection_is_graceful_in_every_bridi_context() {
+        // Issue #603: a nonlogical direct term connection (`bi'o`) between tagged terms is an
+        // unsupported construct. It must report the same graceful undefined-semantics error
+        // whether it appears in a top-level bridi or inside an abstraction body (a relation-only
+        // bridi). Previously the abstraction-body path bypassed the direct-term-connection guard
+        // and instead tripped the "connected term reached simple-term assignment lowering" graph
+        // invariant, which is unactionable for callers.
+        for source in [
+            // top-level bridi (already graceful before the fix)
+            "mi casnu ca lo reldei ti'u li so bi'o ti'u li pano",
+            // inside an abstraction body — the regression from #603
+            "mi kakne lo nu casnu ca lo reldei ti'u li so pi'e no pi'e no bi'o ti'u li pano pi'e no pi'e no",
+        ] {
+            let error = semantic_result_for(source).expect_err(
+                "a nonlogical direct term connection is an undefined experimental construct",
+            );
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                "semantic interpretation is undefined for an experimental nonlogical direct term connection"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_direct_term_connection_lowers_inside_an_abstraction_body() {
+        // Unifying the direct-term-connection guard at the shared choke point also means a
+        // *logical* direct term connection inside a relation-only abstraction body now lowers to a
+        // conjunction instead of tripping the simple-term-assignment invariant. Guard against a
+        // regression back to the crash by requiring a successful build that contains the `and`.
+        let graph = semantic_graph_for("mi kakne lo nu ctuca fi la .alis. .e la .bab.");
+        assert!(
+            graph
+                .objects
+                .values()
+                .any(|object| object.formula_operator() == Some(FormulaOperator::And)),
+            "the logical `.e` term connection inside the abstraction should build a conjunction"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn preposed_joi_statement_connection_is_a_typed_nonlogical_mass() {
         let graph = semantic_graph_for("mi klama joi i do klama");
         let sequence = graph.objects[&graph.root]
