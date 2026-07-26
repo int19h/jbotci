@@ -77,9 +77,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term,
                 leading_term.as_ref(),
             ),
-            _ => Err(invalid_graph(
-                "connected term reached simple-term assignment lowering".to_owned(),
-            )),
+            // Shared choke point: a direct term connection (a `ConnectedTerm` with continuations or
+            // a `BoundTermConnection`) reaches here only on lowering paths that no upstream guard
+            // could build (e.g. terms shared across a `gi'e` bridi connection, which carry
+            // preassigned arguments the branch builder cannot thread through the connection).
+            // Report the graceful unsupported-construct error rather than tripping the invariant, so
+            // no path crashes: nonlogical connections are unsupported everywhere, and logical
+            // connections combined with shared arguments are unsupported (a separate feature).
+            _ => Err(generated_direct_term_connection_unsupported_error(std::slice::from_ref(&term))
+                .unwrap_or_else(|| {
+                    invalid_graph("connected term reached simple-term assignment lowering".to_owned())
+                })),
         }
     }
 

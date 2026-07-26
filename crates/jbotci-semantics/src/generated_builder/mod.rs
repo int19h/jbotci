@@ -13415,6 +13415,9 @@ mod tests {
             "mi casnu ca lo reldei ti'u li so bi'o ti'u li pano",
             // inside an abstraction body — the regression from #603
             "mi kakne lo nu casnu ca lo reldei ti'u li so pi'e no pi'e no bi'o ti'u li pano pi'e no pi'e no",
+            // terms shared across a gi'e bridi connection — the preassigned-arguments path, which
+            // bypasses the choke-point guards and is caught in insert_generated_term_assignment
+            "mi casnu gi'e tavla ti'u li so bi'o ti'u li pano",
         ] {
             let error = semantic_result_for(source).expect_err(
                 "a nonlogical direct term connection is an undefined experimental construct",
@@ -13430,18 +13433,36 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn logical_direct_term_connection_lowers_inside_an_abstraction_body() {
-        // Unifying the direct-term-connection guard at the shared choke point also means a
-        // *logical* direct term connection inside a relation-only abstraction body now lowers to a
-        // conjunction instead of tripping the simple-term-assignment invariant. Guard against a
-        // regression back to the crash by requiring a successful build that contains the `and`.
-        let graph = semantic_graph_for("mi kakne lo nu ctuca fi la .alis. .e la .bab.");
+    fn logical_tagged_direct_term_connection_lowers_inside_an_abstraction_body() {
+        // Unifying the direct-term-connection guard at the shared choke point means a *logical*
+        // direct term connection between *tagged* terms (`ti'u li so .e ti'u li pano`, a genuine
+        // ConnectedTerm/BoundTermConnection rather than a sumti connection) inside a relation-only
+        // abstraction body now lowers to a conjunction through the branch builder instead of
+        // tripping the simple-term-assignment invariant. Guard against a regression to the crash.
+        let graph = semantic_graph_for("mi kakne lo nu casnu ti'u li so .e ti'u li pano");
         assert!(
             graph
                 .objects
                 .values()
                 .any(|object| object.formula_operator() == Some(FormulaOperator::And)),
-            "the logical `.e` term connection inside the abstraction should build a conjunction"
+            "the logical `.e` tagged-term connection inside the abstraction should build a conjunction"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_direct_term_connection_sharing_bridi_terms_is_graceful() {
+        // A logical direct term connection among terms shared across a `gi'e` bridi connection
+        // carries preassigned arguments the branch builder cannot thread through the connection.
+        // It must report a graceful unsupported-construct error at the shared choke point rather
+        // than tripping the "connected term reached simple-term assignment lowering" invariant.
+        let error = semantic_result_for("mi casnu gi'e tavla ti'u li so .e ti'u li pano")
+            .expect_err("a logical direct term connection with shared bridi terms is unsupported");
+        assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+        assert_eq!(
+            error.message,
+            "semantic interpretation is undefined for a direct term connection that shares terms with a connected bridi"
         );
     }
 

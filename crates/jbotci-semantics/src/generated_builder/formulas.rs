@@ -3884,11 +3884,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         // The shared-tail / excluded-source branches below bypass
-        // `build_selbri_simple_bridi_tail_formula_from_terms_with_source_constructs`, so route any
-        // direct term connection through the same guard here (the guard does not incorporate
-        // preassigned arguments, so this only applies when there are none). Without this, a direct
-        // term connection combined with statement-level suffix terms would reach simple-term
-        // assignment lowering and trip a graph invariant.
+        // `build_selbri_simple_bridi_tail_formula_from_terms_with_source_constructs`, so when there
+        // are no preassigned arguments to thread through the connection, route any direct term
+        // connection through the same guard the other paths use so it is built (logical) or reported
+        // gracefully (nonlogical) rather than reaching simple-term assignment lowering. Connections
+        // that arrive here with preassigned arguments (or on any other unguarded path) are caught at
+        // the shared choke point in `insert_generated_term_assignment`.
         if preassigned_visible_arguments.is_empty()
             && preassigned_place_questions.is_empty()
             && let Some(formula) = self.build_generated_direct_term_connection_formula(

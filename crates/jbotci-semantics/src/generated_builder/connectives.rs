@@ -366,6 +366,43 @@ pub(super) fn generated_direct_term_connective_is_logical(
     )
 }
 
+/// Classify a direct term connection among `terms` (if any) for lowering paths that cannot build
+/// it — e.g. paths carrying preassigned/shared arguments (`gi'e`-shared terms). Returns the
+/// graceful unsupported-construct error so such a connection never reaches simple-term assignment
+/// lowering and trips a graph invariant: a nonlogical connection is unsupported everywhere, and a
+/// logical connection is unsupported specifically when combined with shared arguments (threading
+/// preassigned arguments through the connection is a separate feature). Returns `None` when the
+/// terms contain no direct term connection.
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_direct_term_connection_unsupported_error(
+    terms: &[&TermSyntax],
+) -> Option<SemanticsError> {
+    let connection = terms.iter().copied().find_map(|term| match term {
+        TermSyntax::ConnectedTerm(connection) if !connection.continuations.is_empty() => Some(term),
+        TermSyntax::BoundTermConnection(_) => Some(term),
+        _ => None,
+    })?;
+    let all_logical = match connection {
+        TermSyntax::ConnectedTerm(connection) => {
+            connection.continuations.iter().all(|continuation| {
+                generated_direct_term_connective_is_logical(
+                    GeneratedDirectTermConnective::Connected(&continuation.connective),
+                )
+            })
+        }
+        TermSyntax::BoundTermConnection(connection) => generated_direct_term_connective_is_logical(
+            GeneratedDirectTermConnective::Bound(&connection.connective),
+        ),
+        _ => unreachable!("the direct term connection search returned another term kind"),
+    };
+    Some(if all_logical {
+        undefined_semantics("a direct term connection that shares terms with a connected bridi")
+    } else {
+        undefined_semantics("an experimental nonlogical direct term connection")
+    })
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_formula_operator(
