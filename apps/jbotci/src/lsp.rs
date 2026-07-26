@@ -14,10 +14,11 @@ use async_lsp::lsp_types::{
     self, CompletionItemKind, CompletionItemLabelDetails, CompletionOptions, CompletionResponse,
     CompletionTextEdit, DiagnosticRelatedInformation, DiagnosticServerCapabilities,
     DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentDiagnosticReportResult,
-    Documentation, FullDocumentDiagnosticReport, InitializeParams, InitializeResult, InlayHint,
-    InlayHintLabel, InlayHintOptions, InlayHintServerCapabilities, Location, LogMessageParams,
-    MessageType, NumberOrString, OneOf, PositionEncodingKind, PublishDiagnosticsParams, Range,
-    RelatedFullDocumentDiagnosticReport, RelatedUnchangedDocumentDiagnosticReport,
+    Documentation, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, InitializeParams,
+    InitializeResult, InlayHint, InlayHintLabel, InlayHintOptions, InlayHintServerCapabilities,
+    Location, LogMessageParams, MessageType, NumberOrString, OneOf, PositionEncodingKind,
+    PublishDiagnosticsParams, Range, RelatedFullDocumentDiagnosticReport,
+    RelatedUnchangedDocumentDiagnosticReport, SelectionRangeProviderCapability,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, ServerCapabilities,
     ServerInfo, TextDocumentContentChangeEvent, TextDocumentSyncCapability, TextDocumentSyncKind,
     TextDocumentSyncOptions, TextEdit, UnchangedDocumentDiagnosticReport, Url,
@@ -34,10 +35,10 @@ use jbotci_diagnostics::{
 };
 use jbotci_ide::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionItem as JbotciCompletion,
-    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot, InlayOptions,
-    LineIndex, MAX_POSITION_VALUE, Position, PositionEncoding, PositionRange,
-    PreparedDocumentAnalysis, SemanticTokenKind, StructureBracketInlayOptions,
-    completion_documentation_markdown,
+    CompletionKind, DecorationProfile, DiagnosticSnapshot, DocumentSnapshot,
+    FoldingRangeKind as JbotciFoldingRangeKind, InlayOptions, LineIndex, MAX_POSITION_VALUE,
+    Position, PositionEncoding, PositionRange, PreparedDocumentAnalysis, SelectionRangeChain,
+    SemanticTokenKind, StructureBracketInlayOptions, completion_documentation_markdown,
 };
 use jbotci_syntax::{SyntaxExpectationReason, SyntaxExpectationReasonData};
 use serde::Deserialize;
@@ -612,6 +613,8 @@ impl ServerState {
                         resolve_provider: Some(false),
                     },
                 ))),
+                selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+                folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
                 ..ServerCapabilities::default()
             },
             server_info: Some(ServerInfo {
@@ -704,6 +707,15 @@ async fn run_server() -> Result<()> {
                 let documents = state.documents.clone();
                 let encoding = state.position_encoding;
                 async move { Ok(document_hover(documents, encoding, params).await) }
+            })
+            .request::<request::SelectionRangeRequest, _>(|state, params| {
+                let documents = state.documents.clone();
+                let encoding = state.position_encoding;
+                async move { Ok(document_selection_ranges(documents, encoding, params).await) }
+            })
+            .request::<request::FoldingRangeRequest, _>(|state, params| {
+                let documents = state.documents.clone();
+                async move { Ok(document_folding_ranges(documents, params).await) }
             })
             .request::<request::Completion, _>(|state, params| {
                 let documents = state.documents.clone();
@@ -1019,6 +1031,91 @@ async fn document_hover(
         }),
         range: Some(lsp_range(range)),
     })
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(ret.as_ref().is_none_or(|ranges| ranges.len() == params.positions.len()))]
+async fn document_selection_ranges(
+    documents: DocumentStore,
+    encoding: PositionEncoding,
+    params: lsp_types::SelectionRangeParams,
+) -> Option<Vec<lsp_types::SelectionRange>> {
+    let snapshot = documents
+        .snapshot_for_features(&params.text_document.uri)
+        .await?;
+    let offsets = params
+        .positions
+        .iter()
+        .map(|position| {
+            snapshot.line_index.char_offset_for_position(
+                Position::new(position.line as usize, position.character as usize),
+                encoding,
+            )
+        })
+        .collect::<Vec<_>>();
+    Some(
+        snapshot
+            .selection_ranges(&offsets)
+            .into_iter()
+            .map(|chain| selection_range_to_lsp(&snapshot, encoding, chain))
+            .collect(),
+    )
+}
+
+#[requires(encoding != PositionEncoding::Utf32)]
+#[ensures(true)]
+fn selection_range_to_lsp(
+    snapshot: &DocumentSnapshot,
+    encoding: PositionEncoding,
+    chain: SelectionRangeChain,
+) -> lsp_types::SelectionRange {
+    chain
+        .spans
+        .iter()
+        .rev()
+        .fold(None, |parent, span| {
+            Some(Box::new(lsp_types::SelectionRange {
+                range: lsp_range(snapshot.line_index.positions_for_span(&span, encoding)),
+                parent,
+            }))
+        })
+        .map(|range| *range)
+        .expect("selection chain invariants guarantee a document range")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start_line < range.end_line)))]
+async fn document_folding_ranges(
+    documents: DocumentStore,
+    params: lsp_types::FoldingRangeParams,
+) -> Option<Vec<lsp_types::FoldingRange>> {
+    let snapshot = documents
+        .snapshot_for_features(&params.text_document.uri)
+        .await?;
+    Some(
+        snapshot
+            .folding_ranges()
+            .into_iter()
+            .map(|range| lsp_types::FoldingRange {
+                start_line: range.start_line as u32,
+                start_character: None,
+                end_line: range.end_line as u32,
+                end_character: None,
+                kind: range.kind.map(folding_range_kind_to_lsp),
+                collapsed_text: None,
+            })
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn folding_range_kind_to_lsp(kind: JbotciFoldingRangeKind) -> lsp_types::FoldingRangeKind {
+    match kind {
+        JbotciFoldingRangeKind::Comment => lsp_types::FoldingRangeKind::Comment,
+        JbotciFoldingRangeKind::Imports => lsp_types::FoldingRangeKind::Imports,
+        JbotciFoldingRangeKind::Region => lsp_types::FoldingRangeKind::Region,
+    }
 }
 
 #[requires(encoding != PositionEncoding::Utf32)]

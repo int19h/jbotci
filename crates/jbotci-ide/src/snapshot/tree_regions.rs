@@ -731,30 +731,32 @@ mod tests {
             "do poi ke'a tavla\n",
             "cu klama kei\n",
             ".i mi cusku lu\n",
-            "do tavla\n",
+            "do cusku lo'u coi\n",
+            "ni'o li'u le'u\n",
+            ".i do tavla\n",
             "li'u\n",
-            "ni'o mi klama",
+            "ni'o mi ku cu klama",
         );
         let snapshot = DocumentSnapshot::new(source.to_owned(), 1);
         let folds = snapshot.folding_ranges();
 
         assert!(folds.iter().all(|fold| fold.start_line < fold.end_line));
         assert!(folds.iter().all(|fold| fold.kind.is_none()));
-        assert!(
+        assert_eq!(
             folds
                 .iter()
-                .any(|fold| fold.start_line == 0 && fold.end_line >= 2),
-            "first paragraph/abstraction must fold: {folds:?}"
+                .map(|fold| (fold.start_line, fold.end_line))
+                .collect::<Vec<_>>(),
+            vec![(0, 7), (0, 2), (3, 7), (4, 6), (4, 5)],
+            "the recovered multi-paragraph fixture has stable outer, abstraction, LU, and nested LOhU folds",
         );
         assert!(
-            folds
-                .iter()
-                .any(|fold| fold.start_line == 3 && fold.end_line == 5),
-            "LU quotation must fold: {folds:?}"
-        );
-        assert!(
-            folds.iter().all(|fold| fold.start_line != 6),
+            folds.iter().all(|fold| fold.start_line != 8),
             "single-line final paragraph must not fold: {folds:?}"
+        );
+        assert!(
+            folds.iter().all(|fold| fold.start_line != 5),
+            "NIhO quoted inside LOhU must not start a fold: {folds:?}"
         );
     }
 
@@ -771,11 +773,14 @@ mod tests {
             "nu'i mi\n",
             "ce'e do nu'u cu klama\n",
             "le ke melbi\n",
-            "xunre ke'e rozgu cu se viska",
+            "xunre ke'e rozgu cu se viska\n",
+            "ni'o mi viska le prenu poi\n",
+            "ke'a tavla\n",
+            "ku'o",
         );
         let folds = DocumentSnapshot::new(source.to_owned(), 1).folding_ranges();
 
-        for expected in [(0, 2), (3, 4), (5, 6), (7, 8)] {
+        for expected in [(0, 2), (3, 4), (5, 6), (7, 8), (9, 11)] {
             assert!(
                 folds
                     .iter()

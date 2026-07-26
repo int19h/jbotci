@@ -311,6 +311,8 @@ fn initialize_with_options(
         result["capabilities"]["inlayHintProvider"]["resolveProvider"],
         false,
     );
+    assert_eq!(result["capabilities"]["selectionRangeProvider"], true);
+    assert_eq!(result["capabilities"]["foldingRangeProvider"], true);
     client.notify("initialized", json!({}));
     result
 }
@@ -360,6 +362,27 @@ fn hover(client: &mut LspClient, uri: &str, character: u64) -> Value {
             "textDocument": { "uri": uri },
             "position": { "line": 0, "character": character }
         }),
+    )
+}
+
+#[requires(!uri.is_empty() && positions.is_array())]
+#[ensures(ret.is_array())]
+fn selection_ranges(client: &mut LspClient, uri: &str, positions: Value) -> Value {
+    client.request(
+        "textDocument/selectionRange",
+        json!({
+            "textDocument": { "uri": uri },
+            "positions": positions,
+        }),
+    )
+}
+
+#[requires(!uri.is_empty())]
+#[ensures(ret.is_array())]
+fn folding_ranges(client: &mut LspClient, uri: &str) -> Value {
+    client.request(
+        "textDocument/foldingRange",
+        json!({ "textDocument": { "uri": uri } }),
     )
 }
 
@@ -490,6 +513,75 @@ fn assert_hover_ranges(position_encoding: &str, le_start: u64, nu_start: u64) {
             "end": { "line": 0, "character": nu_start + 2 }
         })
     );
+    client.shutdown();
+}
+
+#[requires(matches!(position_encoding, "utf-8" | "utf-16"))]
+#[ensures(true)]
+fn assert_selection_range_encoding(position_encoding: &str) {
+    const URI: &str = "file:///selection-encoding.jbo";
+    const TEXT: &str = "mi cusku zoi gy 𝙰«a gy .i do tavla";
+
+    let tavla_byte_start = TEXT.find("tavla").expect("fixture contains selection word");
+    let prefix = &TEXT[..tavla_byte_start];
+    let tavla_start = match position_encoding {
+        "utf-8" => prefix.len(),
+        "utf-16" => prefix.encode_utf16().count(),
+        _ => unreachable!("precondition limits position encodings"),
+    } as u64;
+    let document_end = match position_encoding {
+        "utf-8" => TEXT.len(),
+        "utf-16" => TEXT.encode_utf16().count(),
+        _ => unreachable!("precondition limits position encodings"),
+    } as u64;
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, position_encoding, true);
+    open_document_text(&mut client, URI, 1, TEXT);
+    let result = selection_ranges(
+        &mut client,
+        URI,
+        json!([
+            { "line": 0, "character": tavla_start + 1 },
+            { "line": 0, "character": 1 },
+        ]),
+    );
+    let ranges = result.as_array().expect("selection range array");
+
+    assert_eq!(
+        ranges.len(),
+        2,
+        "request order and cardinality are preserved"
+    );
+    assert_eq!(
+        ranges[0]["range"],
+        json!({
+            "start": { "line": 0, "character": tavla_start },
+            "end": { "line": 0, "character": tavla_start + 5 },
+        }),
+    );
+    assert_eq!(
+        ranges[1]["range"],
+        json!({
+            "start": { "line": 0, "character": 0 },
+            "end": { "line": 0, "character": 2 },
+        }),
+    );
+
+    for range in ranges {
+        let mut outermost = range;
+        while let Some(parent) = outermost.get("parent") {
+            outermost = parent;
+        }
+        assert_eq!(
+            outermost["range"],
+            json!({
+                "start": { "line": 0, "character": 0 },
+                "end": { "line": 0, "character": document_end },
+            }),
+            "every selection chain must end at the completed document snapshot",
+        );
+    }
     client.shutdown();
 }
 
@@ -842,6 +934,60 @@ fn hover_uses_utf8_ranges_for_a_spaceless_sequence() {
 #[ensures(true)]
 fn hover_uses_utf16_ranges_for_a_spaceless_sequence() {
     assert_hover_ranges("utf-16", 15, 17);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn selection_ranges_round_trip_multibyte_utf8_positions() {
+    assert_selection_range_encoding("utf-8");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn selection_ranges_round_trip_multibyte_utf16_positions() {
+    assert_selection_range_encoding("utf-16");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn folding_ranges_are_plain_encoding_independent_lines_on_recovered_text() {
+    const URI: &str = "file:///folding-encoding.jbo";
+    const TEXT: &str = concat!(
+        "mi cusku zoi gy 𝙰«a gy .i mi cusku lu\n",
+        "do tavla\n",
+        "li'u\n",
+        ".i ku cu klama",
+    );
+
+    let mut results = Vec::new();
+    for position_encoding in ["utf-8", "utf-16"] {
+        let mut client = LspClient::spawn();
+        initialize(&mut client, position_encoding, true);
+        open_document_text(&mut client, URI, 1, TEXT);
+        results.push(folding_ranges(&mut client, URI));
+        client.shutdown();
+    }
+
+    assert_eq!(results[0], results[1]);
+    let ranges = results[0].as_array().expect("folding range array");
+    assert!(
+        ranges
+            .iter()
+            .any(|range| range["startLine"] == 0 && range["endLine"] == 2),
+        "the real LU quotation must remain foldable despite later recovery: {ranges:?}",
+    );
+    assert!(
+        ranges.iter().all(|range| {
+            range.get("startCharacter").is_none()
+                && range.get("endCharacter").is_none()
+                && range.get("kind").is_none()
+                && range.get("collapsedText").is_none()
+        }),
+        "folds must remain plain line ranges without invented semantic kinds",
+    );
 }
 
 #[test]
