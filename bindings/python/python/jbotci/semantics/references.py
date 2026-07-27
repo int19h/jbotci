@@ -8,7 +8,7 @@ secondary, stable-shaped projections for corpus fixtures and debugging.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, TypeAlias, cast, final
 
 from jbotci import _native as _rust
@@ -168,8 +168,8 @@ class MissingRootNodeError(
 class FixtureSpanKey:
     """Visible byte range used by reference fixtures."""
 
-    offset: int
-    length: int
+    offset: int = field(metadata={"doc": "Inclusive UTF-8 byte offset."})
+    length: int = field(metadata={"doc": "UTF-8 byte length."})
 
 
 @final
@@ -281,12 +281,18 @@ FixturePlaceSlot: TypeAlias = (
 class FixturePlaceFrame:
     """One fixture/debug projection of a selbri place frame."""
 
-    index: int
-    node: FixtureSpanKey
-    kind: PlaceFrameKind
-    selbri: FixtureSpanKey | None
-    tanru_unit: FixtureSpanKey | None
-    propagation: FixturePlaceFramePropagation
+    index: int = field(metadata={"doc": "Stable fixture frame index."})
+    node: FixtureSpanKey = field(metadata={"doc": "Owning syntax-node span."})
+    kind: PlaceFrameKind = field(metadata={"doc": "Place-frame kind."})
+    selbri: FixtureSpanKey | None = field(
+        metadata={"doc": "Associated selbri span when present."}
+    )
+    tanru_unit: FixtureSpanKey | None = field(
+        metadata={"doc": "Associated tanru-unit span when present."}
+    )
+    propagation: FixturePlaceFramePropagation = field(
+        metadata={"doc": "Typed place-frame propagation."}
+    )
 
 
 @final
@@ -294,14 +300,22 @@ class FixturePlaceFrame:
 class FixtureSumtiAssignment:
     """One fixture/debug projection of a sumti-place assignment."""
 
-    frame: int
-    frame_node: FixtureSpanKey
-    selbri: FixtureSpanKey | None
-    tanru_unit: FixtureSpanKey | None
-    slot: FixturePlaceSlot
-    sumti: FixtureSpanKey
-    term: FixtureSpanKey | None
-    source: AssignmentSource
+    frame: int = field(metadata={"doc": "Target frame index."})
+    frame_node: FixtureSpanKey = field(metadata={"doc": "Target frame-node span."})
+    selbri: FixtureSpanKey | None = field(
+        metadata={"doc": "Associated selbri span when present."}
+    )
+    tanru_unit: FixtureSpanKey | None = field(
+        metadata={"doc": "Associated tanru-unit span when present."}
+    )
+    slot: FixturePlaceSlot = field(metadata={"doc": "Assigned typed place slot."})
+    sumti: FixtureSpanKey = field(metadata={"doc": "Assigned sumti span."})
+    term: FixtureSpanKey | None = field(
+        metadata={"doc": "Originating term span when present."}
+    )
+    source: AssignmentSource = field(
+        metadata={"doc": "Rule source that established the assignment."}
+    )
 
 
 @final
@@ -309,10 +323,10 @@ class FixtureSumtiAssignment:
 class FixtureSelbriPlace:
     """One fixture/debug relation-place projection."""
 
-    frame: int
-    selbri: FixtureSpanKey
-    place: int
-    sumti: FixtureSpanKey
+    frame: int = field(metadata={"doc": "Target frame index."})
+    selbri: FixtureSpanKey = field(metadata={"doc": "Selbri span."})
+    place: int = field(metadata={"doc": "One-based numbered place."})
+    sumti: FixtureSpanKey = field(metadata={"doc": "Assigned sumti span."})
 
 
 @final
@@ -370,9 +384,11 @@ FixtureReferenceTarget: TypeAlias = (
 class FixtureReferenceEdge:
     """One fixture/debug projection of a discourse-reference edge."""
 
-    kind: ReferenceKind
-    source: FixtureSpanKey
-    target: FixtureReferenceTarget
+    kind: ReferenceKind = field(metadata={"doc": "Reference kind."})
+    source: FixtureSpanKey = field(metadata={"doc": "Reference source span."})
+    target: FixtureReferenceTarget = field(
+        metadata={"doc": "Typed reference target."}
+    )
 
 
 @final
@@ -380,10 +396,18 @@ class FixtureReferenceEdge:
 class ReferenceFixtureProjection:
     """Immutable fixture/debug projection; not the primary analysis model."""
 
-    frames: tuple[FixturePlaceFrame, ...]
-    assignments: tuple[FixtureSumtiAssignment, ...]
-    selbri_places: tuple[FixtureSelbriPlace, ...]
-    references: tuple[FixtureReferenceEdge, ...]
+    frames: tuple[FixturePlaceFrame, ...] = field(
+        metadata={"doc": "Place frames in stable fixture order."}
+    )
+    assignments: tuple[FixtureSumtiAssignment, ...] = field(
+        metadata={"doc": "Sumti assignments in stable fixture order."}
+    )
+    selbri_places: tuple[FixtureSelbriPlace, ...] = field(
+        metadata={"doc": "Derived selbri-place relations."}
+    )
+    references: tuple[FixtureReferenceEdge, ...] = field(
+        metadata={"doc": "Discourse-reference edges."}
+    )
 
 
 def _mapping(value: object) -> dict[str, object]:

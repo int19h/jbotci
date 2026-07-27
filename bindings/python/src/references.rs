@@ -259,7 +259,7 @@ fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<
 }
 
 /// Opaque identity shared by every ID produced by one analysis.
-#[invariant(true, "Arc identity is unique while any scoped ID remains alive")]
+#[invariant(true, "every Arc<()> value is a valid opaque identity token")]
 #[derive(Debug, Clone)]
 struct AnalysisToken(Arc<()>);
 
@@ -290,8 +290,12 @@ impl Hash for AnalysisToken {
 }
 
 macro_rules! define_scoped_id {
-    ($rust_name:ident, $python_name:literal) => {
-        #[invariant(true, "the opaque token scopes the integer to one analysis")]
+    ($rust_name:ident, $python_name:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[invariant(
+            true,
+            "every usize paired with an opaque AnalysisToken is a valid scoped ID"
+        )]
         #[pyclass(name = $python_name, frozen, eq, hash, module = "jbotci.semantics.references", skip_from_py_object)]
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         struct $rust_name {
@@ -319,6 +323,7 @@ macro_rules! define_scoped_id {
             #[requires(true)]
             #[ensures(ret == self.value)]
             #[getter]
+            /// Return the analysis-local numeric index.
             fn value(&self) -> usize {
                 self.value
             }
@@ -332,14 +337,34 @@ macro_rules! define_scoped_id {
     };
 }
 
-define_scoped_id!(PyRawSyntaxNodeId, "RawSyntaxNodeId");
-define_scoped_id!(PySelbriPlaceFrameId, "SelbriPlaceFrameId");
-define_scoped_id!(PySumtiPlaceAssignmentId, "SumtiPlaceAssignmentId");
-define_scoped_id!(PyReferenceEdgeId, "ReferenceEdgeId");
+define_scoped_id!(
+    PyRawSyntaxNodeId,
+    "RawSyntaxNodeId",
+    "Analysis-scoped generated syntax node identifier."
+);
+define_scoped_id!(
+    PySelbriPlaceFrameId,
+    "SelbriPlaceFrameId",
+    "Analysis-scoped selbri place-frame identifier."
+);
+define_scoped_id!(
+    PySumtiPlaceAssignmentId,
+    "SumtiPlaceAssignmentId",
+    "Analysis-scoped sumti place-assignment identifier."
+);
+define_scoped_id!(
+    PyReferenceEdgeId,
+    "ReferenceEdgeId",
+    "Analysis-scoped discourse-reference edge identifier."
+);
 
 macro_rules! define_typed_syntax_id {
-    ($rust_name:ident, $python_name:literal) => {
-        #[invariant(true, "the opaque token scopes the typed node index to one analysis")]
+    ($rust_name:ident, $python_name:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[invariant(
+            true,
+            "every usize paired with an opaque AnalysisToken is a valid typed node ID"
+        )]
         #[pyclass(name = $python_name, frozen, eq, hash, module = "jbotci.semantics.references", skip_from_py_object)]
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         struct $rust_name {
@@ -367,6 +392,7 @@ macro_rules! define_typed_syntax_id {
             #[requires(true)]
             #[ensures(ret == self.value)]
             #[getter]
+            /// Return the analysis-local numeric node index.
             fn value(&self) -> usize {
                 self.value
             }
@@ -388,19 +414,71 @@ macro_rules! define_typed_syntax_id {
     };
 }
 
-define_typed_syntax_id!(PyTextNodeId, "TextNodeId");
-define_typed_syntax_id!(PyParagraphNodeId, "ParagraphNodeId");
-define_typed_syntax_id!(PyStatementNodeId, "StatementNodeId");
-define_typed_syntax_id!(PyBridiNodeId, "BridiNodeId");
-define_typed_syntax_id!(PyBridiTailNodeId, "BridiTailNodeId");
-define_typed_syntax_id!(PySelbriNodeId, "SelbriNodeId");
-define_typed_syntax_id!(PyTanruUnitNodeId, "TanruUnitNodeId");
-define_typed_syntax_id!(PyTermNodeId, "TermNodeId");
-define_typed_syntax_id!(PySumtiNodeId, "SumtiNodeId");
-define_typed_syntax_id!(PyFreeModifierNodeId, "FreeModifierNodeId");
-define_typed_syntax_id!(PyAbstractionNodeId, "AbstractionNodeId");
-define_typed_syntax_id!(PyMeksoNodeId, "MeksoNodeId");
-define_typed_syntax_id!(PyMeksoOperatorNodeId, "MeksoOperatorNodeId");
+define_typed_syntax_id!(
+    PyTextNodeId,
+    "TextNodeId",
+    "Typed text-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyParagraphNodeId,
+    "ParagraphNodeId",
+    "Typed paragraph-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyStatementNodeId,
+    "StatementNodeId",
+    "Typed statement-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyBridiNodeId,
+    "BridiNodeId",
+    "Typed bridi-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyBridiTailNodeId,
+    "BridiTailNodeId",
+    "Typed bridi-tail-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PySelbriNodeId,
+    "SelbriNodeId",
+    "Typed selbri-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyTanruUnitNodeId,
+    "TanruUnitNodeId",
+    "Typed tanru-unit-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyTermNodeId,
+    "TermNodeId",
+    "Typed term-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PySumtiNodeId,
+    "SumtiNodeId",
+    "Typed sumti-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyFreeModifierNodeId,
+    "FreeModifierNodeId",
+    "Typed free-modifier-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyAbstractionNodeId,
+    "AbstractionNodeId",
+    "Typed abstraction-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyMeksoNodeId,
+    "MeksoNodeId",
+    "Typed mekso-syntax node identifier."
+);
+define_typed_syntax_id!(
+    PyMeksoOperatorNodeId,
+    "MeksoOperatorNodeId",
+    "Typed mekso-operator-syntax node identifier."
+);
 
 /// Borrowed core analysis tied to the exact generated text owner.
 #[invariant(true, "GeneratedReferenceAnalysis borrows the self-cell owner")]
@@ -556,6 +634,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(ret.value == self.value.id.0)]
     #[getter]
+    /// Return this node's raw ID.
     fn id(&self) -> PyRawSyntaxNodeId {
         PyRawSyntaxNodeId::scoped(self.value.id.0, &self.token)
     }
@@ -563,6 +642,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the parent node ID, or None for the root.
     fn parent(&self) -> Option<PyRawSyntaxNodeId> {
         self.value
             .parent
@@ -572,6 +652,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(ret == self.value.preorder)]
     #[getter]
+    /// Return the node's preorder index.
     fn preorder(&self) -> usize {
         self.value.preorder
     }
@@ -579,6 +660,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(ret == self.value.depth)]
     #[getter]
+    /// Return the node's tree depth.
     fn depth(&self) -> usize {
         self.value.depth
     }
@@ -586,6 +668,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(ret == self.value.leaf_start)]
     #[getter]
+    /// Return the inclusive leaf-order start.
     fn leaf_start(&self) -> usize {
         self.value.leaf_start
     }
@@ -593,6 +676,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(ret == self.value.leaf_end)]
     #[getter]
+    /// Return the exclusive leaf-order end.
     fn leaf_end(&self) -> usize {
         self.value.leaf_end
     }
@@ -600,6 +684,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the first source span below this node.
     fn first_source_span(&self) -> Option<PySourceSpan> {
         self.value
             .first_source_span
@@ -610,6 +695,7 @@ impl PySyntaxNodeMetadata {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the last source span below this node.
     fn last_source_span(&self) -> Option<PySourceSpan> {
         self.value
             .last_source_span
@@ -653,12 +739,14 @@ impl PyNumberedPlaceSlot {
     #[requires(true)]
     #[ensures(ret == self.place)]
     #[getter]
+    /// Return the one-based numbered place.
     fn place(&self) -> u8 {
         self.place
     }
 
     #[requires(true)]
     #[ensures(ret == Some(self.place))]
+    /// Return the one-based numbered place.
     fn numbered_index(&self) -> Option<u8> {
         Some(self.place)
     }
@@ -698,19 +786,22 @@ impl PyModalPlaceSlot {
     #[requires(true)]
     #[ensures(ret == self.tag)]
     #[getter]
+    /// Return the indexed modal tag node when one exists.
     fn tag(&self) -> Option<PyRawSyntaxNodeId> {
         self.tag.clone()
     }
 
     #[requires(true)]
     #[ensures(ret.is_none())]
+    /// Return None because modal slots are not numbered.
     fn numbered_index(&self) -> Option<u8> {
         None
     }
 }
 
 macro_rules! define_unit_place_slot {
-    ($rust_name:ident, $python_name:literal) => {
+    ($rust_name:ident, $python_name:literal, $doc:literal) => {
+        #[doc = $doc]
         #[invariant(true, "fieldless payload variant carries no invalid state")]
         #[pyclass(name = $python_name, frozen, eq, hash, module = "jbotci.semantics.references", skip_from_py_object)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -731,6 +822,7 @@ macro_rules! define_unit_place_slot {
 
             #[requires(true)]
             #[ensures(ret.is_none())]
+            /// Return None because this slot is not numbered.
             fn numbered_index(&self) -> Option<u8> {
                 None
             }
@@ -738,8 +830,16 @@ macro_rules! define_unit_place_slot {
     };
 }
 
-define_unit_place_slot!(PyPlaceQuestionPlaceSlot, "PlaceQuestionPlaceSlot");
-define_unit_place_slot!(PyFaiPlaceSlot, "FaiPlaceSlot");
+define_unit_place_slot!(
+    PyPlaceQuestionPlaceSlot,
+    "PlaceQuestionPlaceSlot",
+    "Place-question slot introduced by a place-question word."
+);
+define_unit_place_slot!(
+    PyFaiPlaceSlot,
+    "FaiPlaceSlot",
+    "Unnumbered place slot introduced by FA'a class fai."
+);
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
@@ -793,7 +893,8 @@ fn place_slot_to_python(
 }
 
 macro_rules! define_single_frame_propagation {
-    ($rust_name:ident, $python_name:literal, $field:ident) => {
+    ($rust_name:ident, $python_name:literal, $field:ident, $doc:literal) => {
+        #[doc = $doc]
         #[invariant(true, "the typed ID carries the analysis scope")]
         #[pyclass(name = $python_name, frozen, eq, module = "jbotci.semantics.references", skip_from_py_object)]
         #[derive(Debug, Clone, PartialEq, Eq)]
@@ -810,6 +911,7 @@ macro_rules! define_single_frame_propagation {
             #[requires(true)]
             #[ensures(ret == self.$field)]
             #[getter]
+            /// Return the inner frame ID.
             fn $field(&self) -> PySelbriPlaceFrameId {
                 self.$field.clone()
             }
@@ -839,12 +941,14 @@ impl PyNoPlaceFramePropagation {
 define_single_frame_propagation!(
     PyForwardPlaceFramePropagation,
     "ForwardPlaceFramePropagation",
-    inner
+    inner,
+    "Place-frame propagation forwarded from one inner frame."
 );
 define_single_frame_propagation!(
     PyJaiPlaceFramePropagation,
     "JaiPlaceFramePropagation",
-    inner
+    inner,
+    "JAI place-frame propagation from one inner frame."
 );
 
 /// SE conversion of one inner place frame.
@@ -871,6 +975,7 @@ impl PyConversionPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret == self.inner)]
     #[getter]
+    /// Return the converted inner frame.
     fn inner(&self) -> PySelbriPlaceFrameId {
         self.inner.clone()
     }
@@ -878,6 +983,7 @@ impl PyConversionPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret == self.converted_place)]
     #[getter]
+    /// Return the one-based converted place.
     fn converted_place(&self) -> u8 {
         self.converted_place
     }
@@ -906,6 +1012,7 @@ impl PyConnectiveBranchesPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return branch frame IDs in source order.
     fn branches(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(py, self.branches.iter().cloned()).map(Bound::unbind)
     }
@@ -935,6 +1042,7 @@ impl PyCompoundPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret == self.head)]
     #[getter]
+    /// Return the compound's head frame.
     fn head(&self) -> PySelbriPlaceFrameId {
         self.head.clone()
     }
@@ -942,6 +1050,7 @@ impl PyCompoundPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return modifier frame IDs in source order.
     fn modifiers(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(py, self.modifiers.iter().cloned()).map(Bound::unbind)
     }
@@ -971,6 +1080,7 @@ impl PyCoPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret == self.leading)]
     #[getter]
+    /// Return the leading frame before CO inversion.
     fn leading(&self) -> PySelbriPlaceFrameId {
         self.leading.clone()
     }
@@ -978,6 +1088,7 @@ impl PyCoPlaceFramePropagation {
     #[requires(true)]
     #[ensures(ret == self.trailing)]
     #[getter]
+    /// Return the trailing frame before CO inversion.
     fn trailing(&self) -> PySelbriPlaceFrameId {
         self.trailing.clone()
     }
@@ -1141,6 +1252,7 @@ impl PySelbriPlaceFrame {
     #[requires(true)]
     #[ensures(ret.value == self.handle.value)]
     #[getter]
+    /// Return this frame's analysis-scoped ID.
     fn id(&self) -> PySelbriPlaceFrameId {
         PySelbriPlaceFrameId::scoped(self.handle.value, &self.handle.state.token)
     }
@@ -1148,6 +1260,7 @@ impl PySelbriPlaceFrame {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the syntax node that owns the frame.
     fn node(&self) -> PyRawSyntaxNodeId {
         let value = self.with_frame(|frame| frame.node.0);
         PyRawSyntaxNodeId::scoped(value, &self.handle.state.token)
@@ -1156,6 +1269,7 @@ impl PySelbriPlaceFrame {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the frame kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.with_frame(|frame| frame.kind))
     }
@@ -1163,6 +1277,7 @@ impl PySelbriPlaceFrame {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the associated selbri node when present.
     fn selbri(&self) -> Option<PySelbriNodeId> {
         self.with_frame(|frame| frame.selbri)
             .map(|id| PySelbriNodeId::scoped(id.0.0, &self.handle.state.token))
@@ -1171,6 +1286,7 @@ impl PySelbriPlaceFrame {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the associated tanru-unit node when present.
     fn tanru_unit(&self) -> Option<PyTanruUnitNodeId> {
         self.with_frame(|frame| frame.tanru_unit)
             .map(|id| PyTanruUnitNodeId::scoped(id.0.0, &self.handle.state.token))
@@ -1179,8 +1295,28 @@ impl PySelbriPlaceFrame {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the typed place-frame propagation rule.
     fn propagation(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         self.with_frame(|frame| propagation_to_python(py, &self.handle.state, &frame.propagation))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with("jbotci.semantics.references.SelbriPlaceFrame("))]
+    fn __repr__(&self) -> String {
+        self.with_frame(|frame| {
+            format!(
+                "{PUBLIC_MODULE}.SelbriPlaceFrame(\
+                 id={PUBLIC_MODULE}.SelbriPlaceFrameId({}), \
+                 node={PUBLIC_MODULE}.RawSyntaxNodeId({}), \
+                 kind={:?}, selbri={:?}, tanru_unit={:?}, propagation={:?})",
+                self.handle.value,
+                frame.node.0,
+                frame.kind,
+                frame.selbri.map(|id| id.0.0),
+                frame.tanru_unit.map(|id| id.0.0),
+                frame.propagation,
+            )
+        })
     }
 }
 
@@ -1239,6 +1375,7 @@ impl PySumtiPlaceAssignment {
     #[requires(true)]
     #[ensures(ret.value == self.handle.value)]
     #[getter]
+    /// Return this assignment's analysis-scoped ID.
     fn id(&self) -> PySumtiPlaceAssignmentId {
         PySumtiPlaceAssignmentId::scoped(self.handle.value, &self.handle.state.token)
     }
@@ -1246,6 +1383,7 @@ impl PySumtiPlaceAssignment {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the assigned frame ID.
     fn frame(&self) -> PySelbriPlaceFrameId {
         let value = self.with_assignment(|assignment| assignment.frame.0);
         PySelbriPlaceFrameId::scoped(value, &self.handle.state.token)
@@ -1254,6 +1392,7 @@ impl PySumtiPlaceAssignment {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the typed place slot.
     fn slot(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         place_slot_to_python(
             py,
@@ -1265,6 +1404,7 @@ impl PySumtiPlaceAssignment {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the assigned sumti node ID.
     fn sumti(&self) -> PySumtiNodeId {
         let value = self.with_assignment(|assignment| assignment.sumti.0.0);
         PySumtiNodeId::scoped(value, &self.handle.state.token)
@@ -1273,6 +1413,7 @@ impl PySumtiPlaceAssignment {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the source term node when assignment came from a term.
     fn term(&self) -> Option<PyTermNodeId> {
         self.with_assignment(|assignment| assignment.term)
             .map(|id| PyTermNodeId::scoped(id.0.0, &self.handle.state.token))
@@ -1281,8 +1422,28 @@ impl PySumtiPlaceAssignment {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return how the assignment was established.
     fn source(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.with_assignment(|assignment| assignment.source))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with("jbotci.semantics.references.SumtiPlaceAssignment("))]
+    fn __repr__(&self) -> String {
+        self.with_assignment(|assignment| {
+            format!(
+                "{PUBLIC_MODULE}.SumtiPlaceAssignment(\
+                 id={PUBLIC_MODULE}.SumtiPlaceAssignmentId({}), \
+                 frame={PUBLIC_MODULE}.SelbriPlaceFrameId({}), \
+                 slot={:?}, sumti={}, term={:?}, source={:?})",
+                self.handle.value,
+                assignment.frame.0,
+                assignment.slot,
+                assignment.sumti.0.0,
+                assignment.term.map(|id| id.0.0),
+                assignment.source,
+            )
+        })
     }
 }
 
@@ -1309,6 +1470,7 @@ impl PyResolvedNodeReferenceTarget {
     #[requires(true)]
     #[ensures(ret == self.node)]
     #[getter]
+    /// Return the resolved syntax node ID.
     fn node(&self) -> PyRawSyntaxNodeId {
         self.node.clone()
     }
@@ -1345,6 +1507,7 @@ impl PyResolvedFrameReferenceTarget {
     #[requires(true)]
     #[ensures(ret == self.frame)]
     #[getter]
+    /// Return the resolved place-frame ID.
     fn frame(&self) -> PySelbriPlaceFrameId {
         self.frame.clone()
     }
@@ -1381,6 +1544,7 @@ impl PyAmbiguousNodesReferenceTarget {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return all exact candidate node IDs.
     fn nodes(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(py, self.nodes.iter().cloned()).map(Bound::unbind)
     }
@@ -1417,6 +1581,7 @@ impl PyUnresolvedReferenceTarget {
     #[requires(true)]
     #[ensures(ret == self.reason.as_str())]
     #[getter]
+    /// Return why resolution was not possible.
     fn reason(&self) -> &str {
         &self.reason
     }
@@ -1453,6 +1618,7 @@ impl PyVagueReferenceTarget {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the intentional vague-reference kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.kind)
     }
@@ -1682,6 +1848,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed text-node ID when the handle has that grammar family.
     fn text_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyTextNodeId>> {
         typed_node_id(
             &self.state,
@@ -1693,6 +1860,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed paragraph-node ID when the handle has that grammar family.
     fn paragraph_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyParagraphNodeId>> {
         typed_node_id(
             &self.state,
@@ -1704,6 +1872,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed statement-node ID when the handle has that grammar family.
     fn statement_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyStatementNodeId>> {
         typed_node_id(
             &self.state,
@@ -1715,6 +1884,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed bridi-node ID when the handle has that grammar family.
     fn bridi_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyBridiNodeId>> {
         typed_node_id(
             &self.state,
@@ -1726,6 +1896,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed bridi-tail-node ID when the handle has that grammar family.
     fn bridi_tail_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyBridiTailNodeId>> {
         typed_node_id(
             &self.state,
@@ -1737,6 +1908,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed selbri-node ID when the handle has that grammar family.
     fn selbri_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PySelbriNodeId>> {
         typed_node_id(
             &self.state,
@@ -1748,6 +1920,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed tanru-unit-node ID when the handle has that grammar family.
     fn tanru_unit_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyTanruUnitNodeId>> {
         typed_node_id(
             &self.state,
@@ -1759,6 +1932,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed term-node ID when the handle has that grammar family.
     fn term_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyTermNodeId>> {
         typed_node_id(
             &self.state,
@@ -1770,6 +1944,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed sumti-node ID when the handle has that grammar family.
     fn sumti_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PySumtiNodeId>> {
         typed_node_id(
             &self.state,
@@ -1781,6 +1956,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed free-modifier-node ID when the handle has that grammar family.
     fn free_modifier_node_id(
         &self,
         node: &Bound<'_, PyAny>,
@@ -1795,6 +1971,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed abstraction-node ID when the handle has that grammar family.
     fn abstraction_node_id(
         &self,
         node: &Bound<'_, PyAny>,
@@ -1809,6 +1986,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed mekso-node ID when the handle has that grammar family.
     fn mekso_node_id(&self, node: &Bound<'_, PyAny>) -> PyResult<Option<PyMeksoNodeId>> {
         typed_node_id(
             &self.state,
@@ -1820,6 +1998,7 @@ impl PyGeneratedSyntaxIndex {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return a typed mekso-operator-node ID for a matching handle.
     fn mekso_operator_node_id(
         &self,
         node: &Bound<'_, PyAny>,
@@ -1850,6 +2029,7 @@ struct PyPlaceAnalysis {
 impl PyPlaceAnalysis {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return every place frame in stable analysis order.
     fn frames(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let count = self
             .state
@@ -1863,6 +2043,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Resolve one analysis-scoped frame ID.
     fn frame(&self, id: PyRef<'_, PySelbriPlaceFrameId>) -> PyResult<Option<PySelbriPlaceFrame>> {
         let value = frame_id_value(&self.state, &id)?;
         let exists = self.state.with_analysis(|_, analysis| {
@@ -1876,6 +2057,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return frame IDs associated with one syntax node.
     fn frames_for_node(
         &self,
         py: Python<'_>,
@@ -1895,6 +2077,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return every sumti assignment in stable analysis order.
     fn assignments(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let count = self
             .state
@@ -1908,6 +2091,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Resolve one analysis-scoped assignment ID.
     fn assignment(
         &self,
         id: PyRef<'_, PySumtiPlaceAssignmentId>,
@@ -1924,6 +2108,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return assignment IDs for one typed sumti node.
     fn assignments_for_sumti(
         &self,
         py: Python<'_>,
@@ -1945,6 +2130,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return assignment IDs originating from one typed term node.
     fn assignments_for_term(
         &self,
         py: Python<'_>,
@@ -1966,6 +2152,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return assignment IDs targeting one place frame.
     fn assignments_for_frame(
         &self,
         py: Python<'_>,
@@ -1985,6 +2172,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return assignment IDs targeting one exact frame and slot.
     fn assignments_for_frame_slot(
         &self,
         py: Python<'_>,
@@ -2009,6 +2197,7 @@ impl PyPlaceAnalysis {
 
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return the first sumti argument assigned to one frame and slot.
     fn first_argument_for_place(
         &self,
         frame: PyRef<'_, PySelbriPlaceFrameId>,
@@ -2045,6 +2234,7 @@ struct PyDiscourseReferences {
 impl PyDiscourseReferences {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
+    /// Return every discourse-reference edge in stable analysis order.
     fn edges(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let count = self
             .state
@@ -2132,6 +2322,7 @@ impl PyReferenceAnalysis {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the generated-syntax index facade.
     fn syntax_index(&self) -> PyGeneratedSyntaxIndex {
         PyGeneratedSyntaxIndex {
             state: Arc::clone(&self.state),
@@ -2141,6 +2332,7 @@ impl PyReferenceAnalysis {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the place-frame and assignment query facade.
     fn place_analysis(&self) -> PyPlaceAnalysis {
         PyPlaceAnalysis {
             state: Arc::clone(&self.state),
@@ -2150,6 +2342,7 @@ impl PyReferenceAnalysis {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the discourse-reference edge query facade.
     fn discourse_references(&self) -> PyDiscourseReferences {
         PyDiscourseReferences {
             state: Arc::clone(&self.state),
@@ -2295,6 +2488,7 @@ impl PyReferenceEdge {
     #[requires(true)]
     #[ensures(ret.value == self.handle.value)]
     #[getter]
+    /// Return this edge's analysis-scoped ID.
     fn id(&self) -> PyReferenceEdgeId {
         PyReferenceEdgeId::scoped(self.handle.value, &self.handle.state.token)
     }
@@ -2302,6 +2496,7 @@ impl PyReferenceEdge {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the reference kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.with_edge(|edge| edge.kind))
     }
@@ -2309,6 +2504,7 @@ impl PyReferenceEdge {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the source syntax node.
     fn source(&self) -> PyRawSyntaxNodeId {
         let value = self.with_edge(|edge| edge.source.0);
         PyRawSyntaxNodeId::scoped(value, &self.handle.state.token)
@@ -2317,6 +2513,7 @@ impl PyReferenceEdge {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the typed resolved, ambiguous, unresolved, or vague target.
     fn target(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         self.with_edge(|edge| reference_target_to_python(py, &self.handle.state, &edge.target))
     }
@@ -2324,7 +2521,22 @@ impl PyReferenceEdge {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the exact resolution rule.
     fn rule(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.with_edge(|edge| edge.rule))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with("jbotci.semantics.references.ReferenceEdge("))]
+    fn __repr__(&self) -> String {
+        self.with_edge(|edge| {
+            format!(
+                "{PUBLIC_MODULE}.ReferenceEdge(\
+                 id={PUBLIC_MODULE}.ReferenceEdgeId({}), \
+                 kind={:?}, source={PUBLIC_MODULE}.RawSyntaxNodeId({}), \
+                 target={:?}, rule={:?})",
+                self.handle.value, edge.kind, edge.source.0, edge.target, edge.rule,
+            )
+        })
     }
 }

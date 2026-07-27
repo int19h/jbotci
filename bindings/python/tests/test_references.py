@@ -411,6 +411,25 @@ def test_every_place_and_discourse_query_matches_owned_records() -> None:
         )
 
 
+def test_analysis_record_reprs_are_field_rich_and_address_free() -> None:
+    analysis = jbotci.analyze(
+        "mi tavla do .i ko'a goi le broda cu klama .i ko'a cadzu"
+    ).reference_analysis
+    records = (
+        *analysis.place_analysis.frames(),
+        *analysis.place_analysis.assignments(),
+        *analysis.discourse_references.edges(),
+    )
+    assert records
+    for record in records:
+        rendered = repr(record)
+        assert rendered.startswith(
+            f"jbotci.semantics.references.{type(record).__name__}("
+        )
+        assert " object at 0x" not in rendered
+        assert "=" in rendered
+
+
 def test_analysis_and_every_nested_wrapper_retain_the_original_owner() -> None:
     parsed = jbotci.parse("mi tavla do .i ra cadzu")
     tree = parsed.parse_tree

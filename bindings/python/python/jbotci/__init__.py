@@ -82,38 +82,47 @@ class ParsedText:
 
     @property
     def source(self) -> str:
+        """Return the original source text."""
         return self._source
 
     @property
     def source_id(self) -> SourceId | None:
+        """Return the optional caller-supplied source identifier."""
         return self._source_id
 
     @property
     def words(self) -> tuple[WordLike, ...]:
+        """Return the strict morphology words consumed by syntax parsing."""
         return self._words
 
     @property
     def morphology_warnings(self) -> tuple[MorphologyWarning, ...]:
+        """Return morphology warnings in source order."""
         return self._morphology_warnings
 
     @property
     def morphology_trace(self) -> TraceReport | None:
+        """Return the optional morphology trace report."""
         return self._morphology_trace
 
     @property
     def syntax(self) -> SyntaxParse:
+        """Return the complete strict syntax parse result."""
         return self._syntax
 
     @property
     def syntax_trace(self) -> TraceReport | None:
+        """Return the optional syntax trace report."""
         return self._syntax_trace
 
     @property
     def parse_tree(self) -> StrictTextSyntax:
+        """Return the typed strict syntax root."""
         return self._syntax.parse_tree
 
     @property
     def warnings(self) -> tuple[SyntaxWarning, ...]:
+        """Return syntax warnings in source order."""
         return self._syntax.warnings
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -147,38 +156,47 @@ class AnalyzedText:
 
     @property
     def source(self) -> str:
+        """Return the original source text."""
         return self._parsed.source
 
     @property
     def source_id(self) -> SourceId | None:
+        """Return the optional caller-supplied source identifier."""
         return self._parsed.source_id
 
     @property
     def words(self) -> tuple[WordLike, ...]:
+        """Return the strict morphology words consumed by syntax parsing."""
         return self._parsed.words
 
     @property
     def morphology_warnings(self) -> tuple[MorphologyWarning, ...]:
+        """Return morphology warnings in source order."""
         return self._parsed.morphology_warnings
 
     @property
     def morphology_trace(self) -> TraceReport | None:
+        """Return the optional morphology trace report."""
         return self._parsed.morphology_trace
 
     @property
     def syntax(self) -> SyntaxParse:
+        """Return the complete strict syntax parse result."""
         return self._parsed.syntax
 
     @property
     def syntax_trace(self) -> TraceReport | None:
+        """Return the optional syntax trace report."""
         return self._parsed.syntax_trace
 
     @property
     def parse_tree(self) -> StrictTextSyntax:
+        """Return the typed strict syntax root retained by the analysis."""
         return self._parsed.parse_tree
 
     @property
     def warnings(self) -> tuple[SyntaxWarning, ...]:
+        """Return syntax warnings in source order."""
         return self._parsed.warnings
 
     @property
@@ -231,46 +249,57 @@ class RecoveredParsedText:
 
     @property
     def source(self) -> str:
+        """Return the original source text."""
         return self._source
 
     @property
     def source_id(self) -> SourceId | None:
+        """Return the optional caller-supplied source identifier."""
         return self._source_id
 
     @property
     def morphology(self) -> RecoveredMorphologySegmentation:
+        """Return the recovered morphology result."""
         return self._morphology
 
     @property
     def morphology_trace(self) -> TraceReport | None:
+        """Return the optional morphology trace report."""
         return self._morphology_trace
 
     @property
     def words(self) -> tuple[WordLike, ...]:
+        """Return recovered words accepted by syntax parsing."""
         return self._morphology.words
 
     @property
     def morphology_errors(self) -> tuple[MorphologyErrorValue, ...]:
+        """Return typed morphology recovery errors."""
         return self._morphology.errors
 
     @property
     def syntax(self) -> RecoveredSyntaxParse:
+        """Return the complete recovered syntax parse result."""
         return self._syntax
 
     @property
     def syntax_trace(self) -> TraceReport | None:
+        """Return the optional syntax trace report."""
         return self._syntax_trace
 
     @property
     def parse_tree(self) -> RecoveredTextSyntax:
+        """Return the typed recovered syntax root."""
         return self._syntax.parse_tree
 
     @property
     def syntax_errors(self) -> tuple[SyntaxErrorValue, ...]:
+        """Return typed syntax recovery errors."""
         return self._syntax.errors
 
     @property
     def warnings(self) -> tuple[SyntaxWarning, ...]:
+        """Return syntax warnings in source order."""
         return self._syntax.warnings
 
     def __setattr__(self, name: str, value: object) -> None:

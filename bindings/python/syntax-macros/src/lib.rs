@@ -21,6 +21,21 @@ pub fn generate_syntax_bindings(input: TokenStream) -> TokenStream {
     }
 }
 
+/// Consume schema version 1 and generate the Rust/Python parity inventory.
+///
+/// This shares the parser and normalized model representation with
+/// `generate_syntax_bindings`, so grammar additions cannot be hidden by a
+/// separately maintained generated-model list.
+#[requires(true)]
+#[ensures(true)]
+#[proc_macro]
+pub fn generate_syntax_parity_inventory(input: TokenStream) -> TokenStream {
+    match parse_schema(input.into()).and_then(expand_parity_inventory) {
+        Ok(output) => output.into(),
+        Err(error) => error.into_compile_error().into(),
+    }
+}
+
 #[invariant(true, "every token stream has a valid cursor position")]
 #[derive(Debug)]
 struct Cursor {
@@ -3744,6 +3759,238 @@ fn expand_field_projection(schema: &Schema) -> TokenStream2 {
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn expand_parity_inventory(schema: Schema) -> Result<TokenStream2> {
+    let mut entries = Vec::<(String, String, String, String)>::new();
+    for mode in [ProjectionMode::Strict, ProjectionMode::Recovered] {
+        let rust_module = match mode {
+            ProjectionMode::Strict => "jbotci_syntax::generated_model",
+            ProjectionMode::Recovered => "jbotci_syntax::generated_model::recovered",
+        };
+        let python_module = match mode {
+            ProjectionMode::Strict => "jbotci.syntax.strict",
+            ProjectionMode::Recovered => "jbotci.syntax.recovered",
+        };
+        for model in &schema.models {
+            let model_name = mode_model_name(model, mode);
+            let rust_model = format!("{rust_module}::{model_name}");
+            let python_model = format!("{python_module}.{model_name}");
+            let model_signature = match model.as_data() {
+                data!(Model::Product { .. }) => "product",
+                data!(Model::Sum { .. }) => "sum",
+            };
+            entries.push((
+                rust_model.clone(),
+                "type".to_owned(),
+                model_signature.to_owned(),
+                python_model.clone(),
+            ));
+            entries.push((
+                format!("{rust_module}::NodeRef::{model_name}"),
+                "variant".to_owned(),
+                format!("&{model_name}"),
+                python_model.clone(),
+            ));
+            let walk_name = parity_walk_name(model_name);
+            entries.push((
+                format!("{rust_module}::TreeWalker::walk_{walk_name}"),
+                "trait-method".to_owned(),
+                format!("&{model_name}"),
+                python_model.clone(),
+            ));
+            entries.push((
+                format!("{rust_module}::walk::{walk_name}"),
+                "function".to_owned(),
+                format!("&{model_name}"),
+                python_model.clone(),
+            ));
+            if mode == ProjectionMode::Recovered {
+                for method in ["from_valid", "from_valid_boxed", "try_into_valid"] {
+                    entries.push((
+                        format!("{rust_model}::{method}"),
+                        "method".to_owned(),
+                        method.to_owned(),
+                        python_model.clone(),
+                    ));
+                }
+            }
+            match model.as_data() {
+                data!(Model::Product { fields, .. }) => {
+                    for field in fields {
+                        entries.push((
+                            format!("{rust_model}::{}", field.source_name),
+                            "field".to_owned(),
+                            mode_fields(field, mode).annotation(false),
+                            format!("{python_model}.{}", field.source_name),
+                        ));
+                    }
+                }
+                data!(Model::Sum { variants, .. }) => {
+                    for variant in variants {
+                        let python_variant_name = variant_class_name(model_name, &variant.name);
+                        let python_variant = format!("{python_module}.{python_variant_name}");
+                        entries.push((
+                            format!("{rust_model}::{}", variant.name),
+                            "variant".to_owned(),
+                            format!("{:?}", variant.shape),
+                            python_variant.clone(),
+                        ));
+                        let variant_walk_name =
+                            format!("{walk_name}_{}", parity_snake_case(&variant.name));
+                        entries.push((
+                            format!("{rust_module}::TreeWalker::walk_{variant_walk_name}"),
+                            "trait-method".to_owned(),
+                            format!("{model_name}::{}", variant.name),
+                            python_variant.clone(),
+                        ));
+                        entries.push((
+                            format!("{rust_module}::walk::{variant_walk_name}"),
+                            "function".to_owned(),
+                            format!("{model_name}::{}", variant.name),
+                            python_variant.clone(),
+                        ));
+                        for field in &variant.fields {
+                            entries.push((
+                                format!("{rust_model}::{}::{}", variant.name, field.source_name),
+                                "field".to_owned(),
+                                mode_fields(field, mode).annotation(false),
+                                format!("{python_variant}.{}", field.source_name),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        let fixed = [
+            ("NodeRef", "type", "generated node reference"),
+            ("AtomRef", "type", "generated atom reference"),
+            ("AtomRef::Token", "variant", "&Token"),
+            ("TreeNode", "trait", "generated in-order traversal"),
+            (
+                "TreeNode::as_node_ref",
+                "trait-method",
+                "&self -> Option<NodeRef>",
+            ),
+            ("TreeNode::visit_in_order", "trait-method", "&self, visitor"),
+            (
+                "TreeNode::path_to_node",
+                "trait-method",
+                "&self, NodeRef -> Option<TreePath>",
+            ),
+            (
+                "TreeNode::node_at_path",
+                "trait-method",
+                "&self, &TreePath -> Option<NodeRef>",
+            ),
+            (
+                "TreeNode::path_to_node_from",
+                "trait-method",
+                "&self, NodeRef, &mut TreePath -> bool",
+            ),
+            (
+                "TreeNode::node_at_path_steps",
+                "trait-method",
+                "&self, &[TreePathStep] -> Option<NodeRef>",
+            ),
+            ("TreeWalker", "trait", "generated recursive traversal"),
+            ("TreeWalker::walk_atom", "trait-method", "AtomRef"),
+            ("TreeWalkable", "trait", "generated recursive dispatch"),
+            ("TreeWalkable::walk_with", "trait-method", "&self, walker"),
+            ("walk", "module", "generated free descent functions"),
+        ];
+        for (suffix, kind, signature) in fixed {
+            entries.push((
+                format!("{rust_module}::{suffix}"),
+                kind.to_owned(),
+                signature.to_owned(),
+                python_module.to_owned(),
+            ));
+        }
+        for function in [
+            "with_free_modifiers",
+            "boxed",
+            "arc",
+            "option",
+            "tuple2",
+            "chain_vec",
+            "chain_vec1",
+            "vec",
+            "vec1",
+            "small_vec",
+            "small_vec1",
+        ] {
+            entries.push((
+                format!("{rust_module}::walk::{function}"),
+                "function".to_owned(),
+                "generic generated descent".to_owned(),
+                python_module.to_owned(),
+            ));
+        }
+        if mode == ProjectionMode::Recovered {
+            entries.push((
+                format!("{rust_module}::TreeWalker::walk_recovered_error"),
+                "trait-method".to_owned(),
+                "&RecoveryTreeItem".to_owned(),
+                "jbotci.syntax.RecoveredError".to_owned(),
+            ));
+            entries.push((
+                format!("{rust_module}::walk::recovered"),
+                "function".to_owned(),
+                "&Recovered<T>".to_owned(),
+                "jbotci.syntax.RecoveredField".to_owned(),
+            ));
+            for alias in ["Recovered", "RecoveryError"] {
+                entries.push((
+                    format!("{rust_module}::{alias}"),
+                    "type-alias".to_owned(),
+                    alias.to_owned(),
+                    "jbotci.syntax.RecoveredField".to_owned(),
+                ));
+            }
+        }
+    }
+    entries.sort();
+    let entries = entries.into_iter().map(|(rust, kind, signature, python)| {
+        let rust = LitStr::new(&rust, proc_macro2::Span::call_site());
+        let kind = LitStr::new(&kind, proc_macro2::Span::call_site());
+        let signature = LitStr::new(&signature, proc_macro2::Span::call_site());
+        let python = LitStr::new(&python, proc_macro2::Span::call_site());
+        quote!((#rust, #kind, #signature, #python))
+    });
+    Ok(quote! {
+        const GENERATED_SYNTAX_API: &[(&str, &str, &str, &str)] = &[#(#entries),*];
+    })
+}
+
+#[requires(!name.is_empty())]
+#[ensures(!ret.is_empty())]
+fn parity_walk_name(name: &str) -> String {
+    parity_snake_case(name.strip_suffix("Syntax").unwrap_or(name))
+}
+
+#[requires(!name.is_empty())]
+#[ensures(!ret.is_empty())]
+fn parity_snake_case(name: &str) -> String {
+    let mut output = String::new();
+    let mut previous_is_lower_or_digit = false;
+    let mut chars = name.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch.is_ascii_uppercase() {
+            let next_is_lower = chars.peek().is_some_and(|next| next.is_ascii_lowercase());
+            if !output.is_empty() && (previous_is_lower_or_digit || next_is_lower) {
+                output.push('_');
+            }
+            output.push(ch.to_ascii_lowercase());
+            previous_is_lower_or_digit = false;
+        } else {
+            output.push(ch);
+            previous_is_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        }
+    }
+    output
 }
 
 #[requires(true)]
