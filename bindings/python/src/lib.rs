@@ -12,6 +12,7 @@ mod dictionary;
 mod jvozba;
 mod morphology;
 mod parser;
+mod references;
 mod source;
 mod support;
 mod syntax;
@@ -59,6 +60,7 @@ const NATIVE_EXPORT_GROUPS: &[&[&str]] = &[
     morphology::NATIVE_EXPORTS,
     syntax::NATIVE_EXPORTS,
     parser::NATIVE_EXPORTS,
+    references::NATIVE_EXPORTS,
 ];
 
 /// Structured errors produced inside the binding layer.
@@ -254,6 +256,7 @@ fn native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     morphology::register(module)?;
     syntax::register(module)?;
     parser::register(module)?;
+    references::register(module)?;
     register_metadata(module)?;
     Ok(())
 }

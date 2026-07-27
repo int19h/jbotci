@@ -124,6 +124,77 @@ class ParsedText:
 
 
 @final
+class AnalyzedText:
+    """Successful high-level parse plus owning reference analysis."""
+
+    __slots__ = ("_parsed", "_references")
+    _parsed: ParsedText
+    _references: semantics.references.ReferenceAnalysis
+
+    def __init__(
+        self,
+        parsed: ParsedText,
+        references: semantics.references.ReferenceAnalysis,
+    ) -> None:
+        object.__setattr__(self, "_parsed", parsed)
+        object.__setattr__(self, "_references", references)
+
+    @property
+    def parsed(self) -> ParsedText:
+        """Return the complete morphology and syntax parse result."""
+
+        return self._parsed
+
+    @property
+    def source(self) -> str:
+        return self._parsed.source
+
+    @property
+    def source_id(self) -> SourceId | None:
+        return self._parsed.source_id
+
+    @property
+    def words(self) -> tuple[WordLike, ...]:
+        return self._parsed.words
+
+    @property
+    def morphology_warnings(self) -> tuple[MorphologyWarning, ...]:
+        return self._parsed.morphology_warnings
+
+    @property
+    def morphology_trace(self) -> TraceReport | None:
+        return self._parsed.morphology_trace
+
+    @property
+    def syntax(self) -> SyntaxParse:
+        return self._parsed.syntax
+
+    @property
+    def syntax_trace(self) -> TraceReport | None:
+        return self._parsed.syntax_trace
+
+    @property
+    def parse_tree(self) -> StrictTextSyntax:
+        return self._parsed.parse_tree
+
+    @property
+    def warnings(self) -> tuple[SyntaxWarning, ...]:
+        return self._parsed.warnings
+
+    @property
+    def reference_analysis(self) -> semantics.references.ReferenceAnalysis:
+        """Return place assignment and discourse-reference results."""
+
+        return self._references
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("AnalyzedText is immutable")
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("AnalyzedText is final")
+
+
+@final
 class RecoveredParsedText:
     """High-level recovered morphology and syntax result."""
 
@@ -280,6 +351,24 @@ def parse_recovered(
         syntax_attempt.trace,
     )
 
+
+def analyze(
+    text: str,
+    morphology_options: morphology.MorphologyOptions | None = None,
+    parse_options: syntax.ParseOptions | None = None,
+    source_id: source.SourceId | str | None = None,
+) -> AnalyzedText:
+    """Run the real strict parse pipeline and reference analysis."""
+
+    parsed = parse(
+        text,
+        morphology_options=morphology_options,
+        parse_options=parse_options,
+        source_id=source_id,
+    )
+    references = semantics.references.analyze_references(parsed.syntax)
+    return AnalyzedText(parsed, references)
+
 __all__: tuple[str, ...] = (
     "__version__",
     "dictionary",
@@ -293,6 +382,7 @@ __all__: tuple[str, ...] = (
     "InvalidInputError",
     "JbotciError",
     "ParsedText",
+    "AnalyzedText",
     "RecoveredParsedText",
     "Sample",
     "SampleMode",
@@ -301,4 +391,5 @@ __all__: tuple[str, ...] = (
     "smoke",
     "parse",
     "parse_recovered",
+    "analyze",
 )

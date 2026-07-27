@@ -604,7 +604,7 @@ def test_structured_error_conversion_uses_public_hierarchy() -> None:
         ("dictionary", None),
         ("jvozba", None),
         ("semantics", ("references",)),
-        ("semantics.references", ()),
+        ("semantics.references", None),
     ],
 )
 def test_typed_namespace_is_importable(
@@ -670,6 +670,10 @@ def test_native_stub_exports_match_runtime() -> None:
         if isinstance(node, ast.AnnAssign)
         and isinstance(node.target, ast.Name)
         and node.target.id != "__all__"
+        and not (
+            isinstance(node.annotation, ast.Name)
+            and node.annotation.id == "TypeAlias"
+        )
     )
     assert declaration_names == (
         set(native.__all__) | INTENTIONAL_STUB_ONLY_NATIVE_DECLARATIONS
@@ -1502,6 +1506,7 @@ def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
         "_morphology_",
         "_syntax_parser_",
         "_jvozba_",
+        "_references_",
     )
     runtime_enums = {
         name
