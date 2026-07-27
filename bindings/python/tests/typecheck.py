@@ -3,18 +3,179 @@
 from typing import assert_never, assert_type
 
 from jbotci import (
+    ParsedText,
+    RecoveredParsedText,
     Sample,
     SampleMode,
     dictionary,
     diagnostics,
     dialect,
     morphology,
+    parse,
+    parse_recovered,
     sample_mode,
     semantics,
     smoke,
     source,
     syntax,
 )
+
+
+def exhaustive_syntax_expected_token(value: syntax.SyntaxExpectedToken) -> str:
+    """Prove completion-token payloads narrow through the closed public union."""
+
+    if isinstance(value, syntax.SyntaxExpectedTokenCmavo):
+        assert_type(value.cmavo, morphology.Cmavo)
+        return value.cmavo.value
+    if isinstance(value, syntax.SyntaxExpectedTokenSelmaho):
+        assert_type(value.selmaho, morphology.Selmaho)
+        return value.selmaho.value
+    if isinstance(value, syntax.SyntaxExpectedTokenWordCategory):
+        assert_type(value.category, syntax.SyntaxWordCategory)
+        return value.category.value
+    if isinstance(value, syntax.SyntaxExpectedTokenEndOfInput):
+        return "end"
+    if isinstance(value, syntax.SyntaxExpectedTokenNamed):
+        assert_type(value.name, str)
+        return value.name
+    assert_never(value)
+
+
+def exhaustive_syntax_expectation_reason(
+    value: syntax.SyntaxExpectationReason,
+) -> str:
+    """Prove all concrete expectation reasons retain their typed payloads."""
+
+    if isinstance(value, syntax.SyntaxExpectationReasonContinueCurrent):
+        assert_type(value.construct, str)
+        return value.construct
+    if isinstance(value, syntax.SyntaxExpectationReasonStartNested):
+        assert_type(value.construct, str)
+        return value.construct
+    if isinstance(value, syntax.SyntaxExpectationReasonEndThenStart):
+        assert_type(value.starts, str)
+        assert_type(value.ends, tuple[str, ...])
+        return value.starts
+    assert_never(value)
+
+
+def exhaustive_syntax_recovery_parse(value: syntax.SyntaxRecoveryParse) -> int:
+    """Prove strict success and recovered success remain distinct variants."""
+
+    match value:
+        case syntax.SyntaxRecoveryParseValid(parse=result):
+            assert_type(result, syntax.SyntaxParse)
+            assert_type(result.parse_tree, syntax.strict.TextSyntax)
+            return len(result.warnings)
+        case syntax.SyntaxRecoveryParseRecovered(parse=result):
+            assert_type(result, syntax.RecoveredSyntaxParse)
+            assert_type(result.parse_tree, syntax.recovered.TextSyntax)
+            return len(result.errors)
+    assert_never(value)
+
+
+def typed_parser_surface(text: str, cursor: int) -> ParsedText | RecoveredParsedText:
+    """Exercise high- and low-level strict/recovered/completion declarations."""
+
+    options = syntax.ParseOptions.default()
+    assert_type(options.dialect, dialect.DialectDefinition)
+    assert_type(options.trace, diagnostics.TraceOptions)
+    assert_type(options.error_context_depth, int)
+    assert_type(options.max_recovery_errors, int)
+    assert_type(options.with_dialect(dialect.DialectDefinition()), syntax.ParseOptions)
+    assert_type(
+        options.with_trace(diagnostics.TraceOptions()), syntax.ParseOptions
+    )
+    assert_type(options.with_error_context_depth(2), syntax.ParseOptions)
+    assert_type(options.with_max_recovery_errors(2), syntax.ParseOptions)
+
+    strict_result = parse(text, parse_options=options, source_id="typed")
+    assert_type(strict_result, ParsedText)
+    assert_type(strict_result.parse_tree, syntax.strict.TextSyntax)
+    assert_type(strict_result.syntax, syntax.SyntaxParse)
+    assert_type(strict_result.warnings, tuple[syntax.SyntaxWarning, ...])
+    recovered_result = parse_recovered(text, parse_options=options)
+    assert_type(recovered_result, RecoveredParsedText)
+    assert_type(recovered_result.parse_tree, syntax.recovered.TextSyntax)
+    assert_type(recovered_result.syntax_errors, tuple[syntax.SyntaxErrorValue, ...])
+
+    words = morphology.segment(text)
+    tokens = syntax.normalize_syntax_tokens(words, options=options)
+    assert_type(tokens, tuple[syntax.Token, ...])
+    assert_type(
+        syntax.partition_syntax_text_units(
+            tokens, syntax.SyntaxTextUnitGranularity.PARAGRAPH
+        ),
+        tuple[syntax.SyntaxTextUnit, ...],
+    )
+    assert_type(
+        syntax.syntax_text_structure(tokens),
+        tuple[syntax.SyntaxTextStructureEvent, ...],
+    )
+    assert_type(syntax.parse_text(words, options=options), syntax.strict.TextSyntax)
+    assert_type(
+        syntax.parse_text_attempt(words, options=options),
+        syntax.SyntaxParseAttempt,
+    )
+    assert_type(
+        syntax.parse_syntax_tree(
+            words, source_text=text, options=options, source_id=source.SourceId("typed")
+        ),
+        syntax.SyntaxParse,
+    )
+    assert_type(
+        syntax.parse_syntax_tree_attempt(words, source_text=text, options=options),
+        syntax.SyntaxParseAttempt,
+    )
+    assert_type(
+        syntax.parse_syntax_tree_recovered(
+            words, source_text=text, options=options
+        ),
+        syntax.RecoveredSyntaxParse,
+    )
+    assert_type(
+        syntax.parse_syntax_tree_recovered_attempt(
+            words, source_text=text, options=options
+        ),
+        syntax.RecoveredSyntaxParseAttempt,
+    )
+    assert_type(
+        syntax.parse_syntax_tree_with_recovery(
+            words, source_text=text, options=options
+        ),
+        syntax.SyntaxRecoveryParse,
+    )
+    assert_type(
+        syntax.parse_syntax_tree_with_recovery_attempt(
+            words, source_text=text, options=options
+        ),
+        syntax.SyntaxRecoveryParseAttempt,
+    )
+    assert_type(
+        syntax.expected_continuations(words, options=options),
+        tuple[syntax.SyntaxExpectation, ...],
+    )
+    assert_type(
+        syntax.expected_continuations_with_time_limit(words, 0.1, options=options),
+        tuple[syntax.SyntaxExpectation, ...],
+    )
+    assert_type(
+        syntax.expected_continuations_at_cursor(
+            text, cursor, parse_options=options
+        ),
+        tuple[syntax.SyntaxExpectation, ...],
+    )
+    assert_type(
+        syntax.expected_continuations_for_text(text, parse_options=options),
+        tuple[syntax.SyntaxExpectation, ...],
+    )
+    assert_type(
+        syntax.syntax_tree_eq_ignoring_spans(
+            strict_result.parse_tree, strict_result.parse_tree
+        ),
+        bool,
+    )
+    return strict_result if cursor <= len(text) else recovered_result
 
 
 def exhaustive_linked_sumti(value: syntax.strict.LinkedSumtiSyntax) -> str:

@@ -6,6 +6,8 @@ from collections.abc import Sequence
 from typing import Callable, Generic, Self, TypeAlias, TypeVar, cast, final
 
 from jbotci import _native as _rust
+from jbotci import diagnostics, dialect, morphology, source
+from jbotci._errors import _StructuredError
 
 _T = TypeVar("_T")
 _F = TypeVar("_F")
@@ -246,7 +248,401 @@ RecoveredField: TypeAlias = (
 
 from . import recovered, strict
 
+SYNTAX_TRACE_FILTERS: tuple[str, ...] = _rust._syntax_parser_SYNTAX_TRACE_FILTERS
+PARSER_ENUM_INVENTORY: tuple[str, ...] = _rust._syntax_parser_ENUM_INVENTORY
+
+SyntaxTextUnitGranularity = _rust._syntax_parser_SyntaxTextUnitGranularity
+SyntaxTextBoundaryKind = _rust._syntax_parser_SyntaxTextBoundaryKind
+SyntaxErrorKind = _rust._syntax_parser_SyntaxErrorKind
+SyntaxWordCategory = _rust._syntax_parser_SyntaxWordCategory
+ExperimentalConstruct = _rust._syntax_parser_ExperimentalConstruct
+ParseOptions = _rust._syntax_parser_ParseOptions
+SyntaxTextUnit = _rust._syntax_parser_SyntaxTextUnit
+SyntaxTextStructureEventBoundary = (
+    _rust._syntax_parser_SyntaxTextStructureEventBoundary
+)
+SyntaxTextStructureEventContainerOpen = (
+    _rust._syntax_parser_SyntaxTextStructureEventContainerOpen
+)
+SyntaxTextStructureEventContainerClose = (
+    _rust._syntax_parser_SyntaxTextStructureEventContainerClose
+)
+SyntaxConstructContext = _rust._syntax_parser_SyntaxConstructContext
+SyntaxExpectedTokenCmavo = _rust._syntax_parser_SyntaxExpectedTokenCmavo
+SyntaxExpectedTokenSelmaho = _rust._syntax_parser_SyntaxExpectedTokenSelmaho
+SyntaxExpectedTokenWordCategory = _rust._syntax_parser_SyntaxExpectedTokenWordCategory
+SyntaxExpectedTokenEndOfInput = _rust._syntax_parser_SyntaxExpectedTokenEndOfInput
+SyntaxExpectedTokenNamed = _rust._syntax_parser_SyntaxExpectedTokenNamed
+SyntaxExpectationReasonContinueCurrent = (
+    _rust._syntax_parser_SyntaxExpectationReasonContinueCurrent
+)
+SyntaxExpectationReasonStartNested = (
+    _rust._syntax_parser_SyntaxExpectationReasonStartNested
+)
+SyntaxExpectationReasonEndThenStart = (
+    _rust._syntax_parser_SyntaxExpectationReasonEndThenStart
+)
+SyntaxExpectation = _rust._syntax_parser_SyntaxExpectation
+SyntaxErrorNotImplemented = _rust._syntax_parser_SyntaxErrorNotImplemented
+SyntaxErrorParse = _rust._syntax_parser_SyntaxErrorParse
+SyntaxWarning = _rust._syntax_parser_SyntaxWarning
+SyntaxWarningDisplay = _rust._syntax_parser_SyntaxWarningDisplay
+SyntaxParse = _rust._syntax_parser_SyntaxParse
+SyntaxParseAttempt = _rust._syntax_parser_SyntaxParseAttempt
+RecoveredSyntaxParse = _rust._syntax_parser_RecoveredSyntaxParse
+RecoveredSyntaxParseAttempt = _rust._syntax_parser_RecoveredSyntaxParseAttempt
+SyntaxRecoveryParseValid = _rust._syntax_parser_SyntaxRecoveryParseValid
+SyntaxRecoveryParseRecovered = _rust._syntax_parser_SyntaxRecoveryParseRecovered
+SyntaxRecoveryParseAttempt = _rust._syntax_parser_SyntaxRecoveryParseAttempt
+
+SyntaxTextStructureEvent: TypeAlias = (
+    SyntaxTextStructureEventBoundary
+    | SyntaxTextStructureEventContainerOpen
+    | SyntaxTextStructureEventContainerClose
+)
+SyntaxExpectedToken: TypeAlias = (
+    SyntaxExpectedTokenCmavo
+    | SyntaxExpectedTokenSelmaho
+    | SyntaxExpectedTokenWordCategory
+    | SyntaxExpectedTokenEndOfInput
+    | SyntaxExpectedTokenNamed
+)
+SyntaxExpectationReason: TypeAlias = (
+    SyntaxExpectationReasonContinueCurrent
+    | SyntaxExpectationReasonStartNested
+    | SyntaxExpectationReasonEndThenStart
+)
+SyntaxErrorValue: TypeAlias = SyntaxErrorNotImplemented | SyntaxErrorParse
+SyntaxRecoveryParse: TypeAlias = (
+    SyntaxRecoveryParseValid | SyntaxRecoveryParseRecovered
+)
+
+
+@final
+class SyntaxError(_StructuredError[SyntaxErrorValue]):
+    """Strict syntax failure retaining the typed Rust error and parse context."""
+
+    __slots__ = (
+        "_original_source",
+        "_source_id",
+        "_diagnostic",
+        "_spans",
+        "_trace",
+    )
+
+    _original_source: str | None
+    _source_id: source.SourceId | None
+    _diagnostic: diagnostics.Diagnostic | None
+    _spans: tuple[source.SourceSpan, ...]
+    _trace: diagnostics.TraceReport | None
+
+    def __init__(
+        self,
+        value: SyntaxErrorValue,
+        original_source: str | None = None,
+        source_id: source.SourceId | None = None,
+        trace: diagnostics.TraceReport | None = None,
+    ) -> None:
+        if not isinstance(value, (SyntaxErrorNotImplemented, SyntaxErrorParse)):
+            raise TypeError("value must be a SyntaxErrorValue variant")
+        if original_source is not None and not isinstance(original_source, str):
+            raise TypeError("original_source must be a str or None")
+        if source_id is not None and not isinstance(source_id, source.SourceId):
+            raise TypeError("source_id must be a SourceId or None")
+        if trace is not None and not isinstance(trace, diagnostics.TraceReport):
+            raise TypeError("trace must be a TraceReport or None")
+        diagnostic = (
+            value.to_diagnostic(original_source, source_id)
+            if original_source is not None
+            else None
+        )
+        super().__init__(value)
+        object.__setattr__(self, "_original_source", original_source)
+        object.__setattr__(self, "_source_id", source_id)
+        object.__setattr__(self, "_diagnostic", diagnostic)
+        object.__setattr__(
+            self,
+            "_spans",
+            ()
+            if diagnostic is None
+            else tuple(label.span for label in diagnostic.labels),
+        )
+        object.__setattr__(self, "_trace", trace)
+
+    @property
+    def original_source(self) -> str | None:
+        return self._original_source
+
+    @property
+    def source_id(self) -> source.SourceId | None:
+        return self._source_id
+
+    @property
+    def code(self) -> str:
+        return self.value.code
+
+    @property
+    def diagnostic(self) -> diagnostics.Diagnostic | None:
+        return self._diagnostic
+
+    @property
+    def spans(self) -> tuple[source.SourceSpan, ...]:
+        return self._spans
+
+    @property
+    def trace(self) -> diagnostics.TraceReport | None:
+        return self._trace
+
+    def __init_subclass__(cls) -> None:
+        raise TypeError("SyntaxError is final")
+
+
+def syntax_tokens_with_options(
+    words: Sequence[morphology.WordLike],
+    *,
+    options: ParseOptions | None = None,
+) -> tuple[Token, ...]:
+    """Normalize morphology values into the exact Rust syntax-token stream."""
+
+    return _rust._syntax_parser_syntax_tokens_with_options(words, options=options)
+
+
+normalize_syntax_tokens = syntax_tokens_with_options
+
+
+def partition_syntax_text_units(
+    tokens: Sequence[Token],
+    granularity: SyntaxTextUnitGranularity,
+) -> tuple[SyntaxTextUnit, ...]:
+    """Partition normalized tokens at formal top-level text boundaries."""
+
+    return _rust._syntax_parser_partition_syntax_text_units(tokens, granularity)
+
+
+def syntax_text_structure(
+    tokens: Sequence[Token],
+) -> tuple[SyntaxTextStructureEvent, ...]:
+    """Return formal boundary and text-container events."""
+
+    return _rust._syntax_parser_syntax_text_structure(tokens)
+
+
+def _raise_strict_attempt(
+    attempt: SyntaxParseAttempt,
+    source_text: str | None,
+    source_id: source.SourceId | None,
+) -> SyntaxParse:
+    if attempt.error is not None:
+        raise SyntaxError(attempt.error, source_text, source_id, attempt.trace)
+    assert attempt.result is not None
+    return attempt.result
+
+
+def parse_text_attempt(
+    words: Sequence[morphology.WordLike],
+    *,
+    options: ParseOptions | None = None,
+) -> SyntaxParseAttempt:
+    """Attempt direct strict text parsing without raising."""
+
+    return _rust._syntax_parser_parse_text_attempt(words, options=options)
+
+
+def parse_text(
+    words: Sequence[morphology.WordLike],
+    *,
+    options: ParseOptions | None = None,
+) -> strict.TextSyntax:
+    """Run the direct strict Rust text parser and return its typed root."""
+
+    return _raise_strict_attempt(parse_text_attempt(words, options=options), None, None).parse_tree
+
+
+def parse_syntax_tree_attempt(
+    words: Sequence[morphology.WordLike],
+    *,
+    source_text: str | None = None,
+    options: ParseOptions | None = None,
+) -> SyntaxParseAttempt:
+    """Attempt strict parsing while retaining its structured error and trace."""
+
+    return _rust._syntax_parser_parse_syntax_tree_attempt(
+        words, source=source_text, options=options
+    )
+
+
+def parse_syntax_tree(
+    words: Sequence[morphology.WordLike],
+    *,
+    source_text: str | None = None,
+    options: ParseOptions | None = None,
+    source_id: source.SourceId | None = None,
+) -> SyntaxParse:
+    """Parse presegmented morphology values strictly."""
+
+    return _raise_strict_attempt(
+        parse_syntax_tree_attempt(words, source_text=source_text, options=options),
+        source_text,
+        source_id,
+    )
+
+
+def parse_syntax_tree_recovered_attempt(
+    words: Sequence[morphology.WordLike],
+    *,
+    source_text: str,
+    options: ParseOptions | None = None,
+) -> RecoveredSyntaxParseAttempt:
+    """Attempt recovered parsing, retaining exact error-slot indices and trace."""
+
+    return _rust._syntax_parser_parse_syntax_tree_recovered_attempt(
+        words, source=source_text, options=options
+    )
+
+
+def parse_syntax_tree_recovered(
+    words: Sequence[morphology.WordLike],
+    *,
+    source_text: str,
+    options: ParseOptions | None = None,
+) -> RecoveredSyntaxParse:
+    """Parse presegmented values with syntax recovery."""
+
+    return parse_syntax_tree_recovered_attempt(
+        words, source_text=source_text, options=options
+    ).result
+
+
+def parse_syntax_tree_with_recovery_attempt(
+    words: Sequence[morphology.WordLike],
+    *,
+    source_text: str,
+    options: ParseOptions | None = None,
+) -> SyntaxRecoveryParseAttempt:
+    """Attempt strict-or-recovered parsing without converting valid strict trees."""
+
+    return _rust._syntax_parser_parse_syntax_tree_with_recovery_attempt(
+        words, source=source_text, options=options
+    )
+
+
+def parse_syntax_tree_with_recovery(
+    words: Sequence[morphology.WordLike],
+    *,
+    source_text: str,
+    options: ParseOptions | None = None,
+) -> SyntaxRecoveryParse:
+    """Return the exact strict-success or recovered-result variant."""
+
+    return parse_syntax_tree_with_recovery_attempt(
+        words, source_text=source_text, options=options
+    ).result
+
+
+def expected_continuations(
+    words: Sequence[morphology.WordLike],
+    *,
+    options: ParseOptions | None = None,
+) -> tuple[SyntaxExpectation, ...]:
+    """Return typed grammar expectations after a morphology word prefix."""
+
+    return _rust._syntax_parser_expected_continuations(words, options=options)
+
+
+def expected_continuations_with_time_limit(
+    words: Sequence[morphology.WordLike],
+    time_limit: float,
+    *,
+    options: ParseOptions | None = None,
+) -> tuple[SyntaxExpectation, ...]:
+    """Return typed grammar expectations under a finite nonnegative time limit."""
+
+    return _rust._syntax_parser_expected_continuations_with_time_limit(
+        words, time_limit, options=options
+    )
+
+
+def expected_continuations_at_cursor(
+    text: str,
+    cursor: int,
+    *,
+    morphology_options: morphology.MorphologyOptions | None = None,
+    parse_options: ParseOptions | None = None,
+    source_id: source.SourceId | None = None,
+    time_limit: float | None = None,
+) -> tuple[SyntaxExpectation, ...]:
+    """Segment exactly ``text[:cursor]`` and return its grammar expectations."""
+
+    if cursor < 0 or cursor > len(text):
+        raise ValueError("cursor must satisfy 0 <= cursor <= len(text)")
+    prefix = text[:cursor]
+    words = morphology.segment(
+        prefix, options=morphology_options, source_id=source_id
+    )
+    if time_limit is None:
+        return expected_continuations(words, options=parse_options)
+    return expected_continuations_with_time_limit(
+        words, time_limit, options=parse_options
+    )
+
+
+def expected_continuations_for_text(
+    text: str,
+    *,
+    morphology_options: morphology.MorphologyOptions | None = None,
+    parse_options: ParseOptions | None = None,
+    source_id: source.SourceId | None = None,
+    time_limit: float | None = None,
+) -> tuple[SyntaxExpectation, ...]:
+    """Return grammar expectations at the Unicode-character end of ``text``."""
+
+    return expected_continuations_at_cursor(
+        text,
+        len(text),
+        morphology_options=morphology_options,
+        parse_options=parse_options,
+        source_id=source_id,
+        time_limit=time_limit,
+    )
+
+
+def syntax_tree_eq_ignoring_spans(
+    left: strict.TextSyntax,
+    right: strict.TextSyntax,
+) -> bool:
+    """Compare strict generated trees while ignoring source-span fields."""
+
+    return _rust._syntax_tree_eq_ignoring_spans(left, right)
+
+
+def syntax_warning_display(
+    source_label: str,
+    source_text: str,
+    tokens: Sequence[Token],
+    warning: SyntaxWarning,
+) -> SyntaxWarningDisplay:
+    """Render one typed syntax warning for terminal-oriented display."""
+
+    return _rust._syntax_parser_syntax_warning_display(
+        source_label, source_text, tokens, warning
+    )
+
+
+def syntax_warning_displays(
+    source_label: str,
+    source_text: str,
+    tokens: Sequence[Token],
+    warnings: Sequence[SyntaxWarning],
+) -> tuple[SyntaxWarningDisplay, ...]:
+    """Render an immutable sequence of typed syntax warnings."""
+
+    return _rust._syntax_parser_syntax_warning_displays(
+        source_label, source_text, tokens, warnings
+    )
+
 __all__: tuple[str, ...] = (
+    "SYNTAX_TRACE_FILTERS",
+    "PARSER_ENUM_INVENTORY",
     "Chain",
     "EmphasizedWithIndicators",
     "IndicatorWithIndicators",
@@ -261,6 +657,62 @@ __all__: tuple[str, ...] = (
     "Token",
     "WithFreeModifiers",
     "WithIndicators",
+    "ExperimentalConstruct",
+    "ParseOptions",
+    "RecoveredSyntaxParse",
+    "RecoveredSyntaxParseAttempt",
+    "SyntaxConstructContext",
+    "SyntaxError",
+    "SyntaxErrorKind",
+    "SyntaxErrorNotImplemented",
+    "SyntaxErrorParse",
+    "SyntaxErrorValue",
+    "SyntaxExpectation",
+    "SyntaxExpectationReason",
+    "SyntaxExpectationReasonContinueCurrent",
+    "SyntaxExpectationReasonEndThenStart",
+    "SyntaxExpectationReasonStartNested",
+    "SyntaxExpectedToken",
+    "SyntaxExpectedTokenCmavo",
+    "SyntaxExpectedTokenEndOfInput",
+    "SyntaxExpectedTokenNamed",
+    "SyntaxExpectedTokenSelmaho",
+    "SyntaxExpectedTokenWordCategory",
+    "SyntaxParse",
+    "SyntaxParseAttempt",
+    "SyntaxRecoveryParse",
+    "SyntaxRecoveryParseAttempt",
+    "SyntaxRecoveryParseRecovered",
+    "SyntaxRecoveryParseValid",
+    "SyntaxTextBoundaryKind",
+    "SyntaxTextStructureEvent",
+    "SyntaxTextStructureEventBoundary",
+    "SyntaxTextStructureEventContainerClose",
+    "SyntaxTextStructureEventContainerOpen",
+    "SyntaxTextUnit",
+    "SyntaxTextUnitGranularity",
+    "SyntaxWarning",
+    "SyntaxWarningDisplay",
+    "SyntaxWordCategory",
+    "expected_continuations",
+    "expected_continuations_at_cursor",
+    "expected_continuations_for_text",
+    "expected_continuations_with_time_limit",
+    "normalize_syntax_tokens",
+    "parse_syntax_tree",
+    "parse_syntax_tree_attempt",
+    "parse_syntax_tree_recovered",
+    "parse_syntax_tree_recovered_attempt",
+    "parse_syntax_tree_with_recovery",
+    "parse_syntax_tree_with_recovery_attempt",
+    "parse_text",
+    "parse_text_attempt",
+    "partition_syntax_text_units",
     "recovered",
+    "syntax_text_structure",
+    "syntax_tokens_with_options",
+    "syntax_tree_eq_ignoring_spans",
+    "syntax_warning_display",
+    "syntax_warning_displays",
     "strict",
 )
