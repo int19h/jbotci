@@ -996,10 +996,11 @@ mod tests {
                 .expect("the factory root resolves"),
             SyntaxRoot::Recovered { .. } => unreachable!("the factory is strict"),
         };
+        let class_id = strict_class_id(node);
         new!(SyntaxHandle {
             owner,
             path: TreePath::new(),
-            class_id: strict_class_id(node),
+            class_id,
         })
     }
 
@@ -1023,7 +1024,10 @@ mod tests {
         })
         .expect("the fixture indicator tree is valid");
         let value = jbotci_syntax::generated_model::WordTanruUnitSyntax(
-            jbotci_syntax::tree::WithFreeModifiers::new(indicators, Vec::new()),
+            jbotci_syntax::tree::WithFreeModifiers::new(
+                Token::from_indicators(indicators),
+                Vec::new(),
+            ),
         );
         let owner = Arc::new(SyntaxOwner {
             root: SyntaxRoot::Strict {
@@ -1037,10 +1041,11 @@ mod tests {
                 .expect("the fixture root resolves"),
             SyntaxRoot::Recovered { .. } => unreachable!("the fixture is strict"),
         };
+        let class_id = strict_class_id(node);
         new!(SyntaxHandle {
             owner,
             path: TreePath::new(),
-            class_id: strict_class_id(node),
+            class_id,
         })
     }
 
@@ -1069,22 +1074,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn direct_with_indicators_projection_retains_exact_owner_path_and_lifetime() {
+    fn token_indicator_projection_retains_exact_leaf_identity_and_lifetime() {
         let root = word_tanru_unit_factory();
         assert_eq!(root.class_name(), "WordTanruUnitSyntax");
-        let lens = vec![
-            root.class_id(),
-            0,
-            SYNTAX_LENS_WITH_FREE_VALUE,
-            SYNTAX_LENS_WITH_INDICATORS,
-        ];
-        let first_owner = root.owner.clone();
-        let second_owner = root.owner.clone();
-        let first =
-            WithIndicatorsHandle::from_projection(first_owner, root.path.clone(), lens.clone())
-                .expect("the generated fixture lens resolves");
-        let second = WithIndicatorsHandle::from_projection(second_owner, root.path.clone(), lens)
-            .expect("the repeated generated fixture lens resolves");
+        let token = match &root.owner.root {
+            SyntaxRoot::Strict { value } => {
+                let node = value
+                    .node_at_path(&root.path)
+                    .expect("the generated fixture root resolves");
+                let jbotci_syntax::generated_model::NodeRef::WordTanruUnitSyntax(word) = node
+                else {
+                    panic!("the fixture root retains its word tanru unit type");
+                };
+                word.0.value.clone()
+            }
+            SyntaxRoot::Recovered { .. } => unreachable!("the fixture is strict"),
+        };
+        let first = TokenHandle::from_rust(token.clone()).indicators();
+        let second = TokenHandle::from_rust(token).indicators();
         assert!(first.same_identity(&second));
         assert!(std::ptr::eq(first.get(), second.get()));
 

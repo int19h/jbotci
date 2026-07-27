@@ -11,7 +11,7 @@ use jbotci_morphology::{
     CompiledDialectWord, ConsonantPairClass, DialectCompilationError, DialectCompilationErrorData,
     ExpectedWordDetailKind, GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoBuildMode,
     LujvoBuildPart, LujvoBuildPartData, LujvoCandidate, LujvoParseExpectation, LujvoPart,
-    MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextKind,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextData, MorphologyContextKind,
     MorphologyError as RustMorphologyError, MorphologyErrorDetail, MorphologyErrorDetailData,
     MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning,
     MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS, PhonemeRenderOptions,
