@@ -6926,12 +6926,22 @@ mod tests {
             .len();
 
         let errors = recovered_error_blocks(&success);
-        assert_eq!(errors.len(), 1, "{errors:#?}");
-        assert_eq!(web_block_byte_range(errors[0]), (82, 83));
-        assert_eq!(success.diagnostics.len(), 1, "{:#?}", success.diagnostics);
+        assert_eq!(errors.len(), 2, "{errors:#?}");
         assert_eq!(
-            diagnostic_primary_byte_range(&success.diagnostics[0]),
-            (82, 83)
+            errors
+                .iter()
+                .map(|error| web_block_byte_range(error))
+                .collect::<Vec<_>>(),
+            [(62, 81), (107, 110)]
+        );
+        assert_eq!(success.diagnostics.len(), 2, "{:#?}", success.diagnostics);
+        assert_eq!(
+            success
+                .diagnostics
+                .iter()
+                .map(diagnostic_primary_byte_range)
+                .collect::<Vec<_>>(),
+            [(82, 83), (107, 110)]
         );
         assert!(success.blocks_layout.blocks.len() < 200);
         assert!(success.tree_rows.len() < 200);
