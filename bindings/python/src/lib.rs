@@ -10,6 +10,7 @@ mod diagnostics;
 mod dialect;
 mod dictionary;
 mod morphology;
+mod parser;
 mod source;
 mod support;
 mod syntax;
@@ -55,6 +56,7 @@ const NATIVE_EXPORT_GROUPS: &[&[&str]] = &[
     dialect::NATIVE_EXPORTS,
     morphology::NATIVE_EXPORTS,
     syntax::NATIVE_EXPORTS,
+    parser::NATIVE_EXPORTS,
 ];
 
 /// Structured errors produced inside the binding layer.
@@ -248,6 +250,7 @@ fn native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     dialect::register(module)?;
     morphology::register(module)?;
     syntax::register(module)?;
+    parser::register(module)?;
     register_metadata(module)?;
     Ok(())
 }

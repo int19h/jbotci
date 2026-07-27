@@ -23,6 +23,20 @@ use crate::support::{register_private_object, register_type, sequence_to_tuple};
 
 jbotci_syntax::__jbotci_syntax_binding_schema!(generate_syntax_bindings);
 
+/// Typed strict `TextSyntax` owner boundary for parser bindings.
+#[invariant(handle.path.is_empty(), "the handle always selects the complete text root")]
+#[derive(Debug, Clone)]
+pub(crate) struct StrictTextRootHandle {
+    handle: SyntaxHandle,
+}
+
+/// Typed recovered `TextSyntax` owner boundary for parser bindings.
+#[invariant(handle.path.is_empty(), "the handle always selects the complete text root")]
+#[derive(Debug, Clone)]
+pub(crate) struct RecoveredTextRootHandle {
+    handle: SyntaxHandle,
+}
+
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_syntax_STRICT_SOURCE",
     "_syntax_RECOVERED_SOURCE",
@@ -44,7 +58,84 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_syntax_SkippedTokens",
     "_syntax_MissingRequiredField",
     "_syntax_construct",
+    "_syntax_tree_eq_ignoring_spans",
 ];
+
+/// Consume one strict generated text root into the canonical shared owner.
+#[requires(true)]
+#[ensures(ret.handle.path.is_empty())]
+pub(crate) fn strict_text_root(
+    value: jbotci_syntax::generated_model::TextSyntax,
+) -> StrictTextRootHandle {
+    let owner = Arc::new(SyntaxOwner {
+        root: SyntaxRoot::Strict {
+            value: StrictSyntaxRoot::TextSyntax(Arc::new(value)),
+        },
+        projections: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let class_id = match &owner.root {
+        SyntaxRoot::Strict { value } => value
+            .node_at_path(&TreePath::new())
+            .map(strict_class_id)
+            .expect("the complete strict text root resolves"),
+        SyntaxRoot::Recovered { .. } => unreachable!("the owner was constructed as strict"),
+    };
+    new!(StrictTextRootHandle {
+        handle: new!(SyntaxHandle {
+            owner,
+            path: TreePath::new(),
+            class_id,
+        }),
+    })
+}
+
+/// Consume one recovered generated text root into the canonical shared owner.
+#[requires(true)]
+#[ensures(ret.handle.path.is_empty())]
+pub(crate) fn recovered_text_root(
+    value: jbotci_syntax::generated_model::recovered::TextSyntax,
+) -> RecoveredTextRootHandle {
+    let owner = Arc::new(SyntaxOwner {
+        root: SyntaxRoot::Recovered {
+            value: RecoveredSyntaxRoot::TextSyntax(Arc::new(value)),
+        },
+        projections: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let class_id = match &owner.root {
+        SyntaxRoot::Recovered { value } => value
+            .node_at_path(&TreePath::new())
+            .map(recovered_class_id)
+            .expect("the complete recovered text root resolves"),
+        SyntaxRoot::Strict { .. } => unreachable!("the owner was constructed as recovered"),
+    };
+    new!(RecoveredTextRootHandle {
+        handle: new!(SyntaxHandle {
+            owner,
+            path: TreePath::new(),
+            class_id,
+        }),
+    })
+}
+
+/// Project a strict text root through the generated Python model.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn strict_text_to_python(
+    py: Python<'_>,
+    value: &StrictTextRootHandle,
+) -> PyResult<Py<PyAny>> {
+    wrap_syntax_value(py, value.handle.clone())
+}
+
+/// Project a recovered text root through the generated Python model.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn recovered_text_to_python(
+    py: Python<'_>,
+    value: &RecoveredTextRootHandle,
+) -> PyResult<Py<PyAny>> {
+    wrap_syntax_value(py, value.handle.clone())
+}
 
 #[invariant(!lens.is_empty(), "projected wrapper identities retain a generated field lens")]
 #[derive(Debug, Clone)]
@@ -466,6 +557,23 @@ fn extract_with_indicators(value: &Bound<'_, PyAny>) -> PyResult<WithIndicatorsH
     Err(PyTypeError::new_err(
         "expected a jbotci.syntax WithIndicators variant",
     ))
+}
+
+/// Extract the canonical Arc-backed syntax token from its public Python wrapper.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn extract_syntax_token(value: &Bound<'_, PyAny>) -> PyResult<TokenHandle> {
+    value
+        .extract::<PyRef<'_, PySyntaxToken>>()
+        .map(|value| value.handle.clone())
+        .map_err(|_| PyTypeError::new_err("expected a jbotci.syntax.Token"))
+}
+
+/// Project one canonical Arc-backed syntax token to Python.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn syntax_token_to_python(py: Python<'_>, handle: TokenHandle) -> PyResult<Py<PyAny>> {
+    Ok(Py::new(py, PySyntaxToken { handle })?.into_any())
 }
 
 #[requires(true)]
@@ -904,6 +1012,36 @@ fn extract_syntax_value(value: &Bound<'_, PyAny>) -> PyResult<SyntaxHandle> {
     Ok(native.handle.clone())
 }
 
+/// Compare two strict generated text roots while ignoring all source spans.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction(name = "_syntax_tree_eq_ignoring_spans")]
+fn syntax_tree_eq_ignoring_spans(
+    left: &Bound<'_, PyAny>,
+    right: &Bound<'_, PyAny>,
+) -> PyResult<bool> {
+    let left = extract_syntax_value(left)?;
+    let right = extract_syntax_value(right)?;
+    if !left.path.is_empty() || !right.path.is_empty() {
+        return Err(PyTypeError::new_err(
+            "syntax_tree_eq_ignoring_spans expects complete strict TextSyntax roots",
+        ));
+    }
+    match (&left.owner.root, &right.owner.root) {
+        (
+            SyntaxRoot::Strict {
+                value: StrictSyntaxRoot::TextSyntax(left),
+            },
+            SyntaxRoot::Strict {
+                value: StrictSyntaxRoot::TextSyntax(right),
+            },
+        ) => Ok(jbotci_syntax::syntax_tree_eq_ignoring_spans(left, right)),
+        _ => Err(PyTypeError::new_err(
+            "syntax_tree_eq_ignoring_spans expects complete strict TextSyntax roots",
+        )),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -916,6 +1054,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PySkippedTokens>(module, "_syntax_SkippedTokens")?;
     register_type::<PyMissingRequiredField>(module, "_syntax_MissingRequiredField")?;
     module.add_function(wrap_pyfunction!(syntax_construct, module)?)?;
+    module.add_function(wrap_pyfunction!(syntax_tree_eq_ignoring_spans, module)?)?;
     register_private_object(
         module,
         "_syntax_STRICT_SOURCE",

@@ -1779,6 +1779,120 @@ class _morphology_Selmaho(StrEnum):
     ZOHU = 'ZOhU'
     ZOI = 'ZOI'
 
+@final
+class _syntax_parser_SyntaxTextUnitGranularity(StrEnum):
+    PARAGRAPH = 'paragraph'
+    STATEMENT = 'statement'
+
+@final
+class _syntax_parser_SyntaxTextBoundaryKind(StrEnum):
+    I = 'i'
+    NIHO = 'niho'
+
+@final
+class _syntax_parser_SyntaxErrorKind(StrEnum):
+    UNEXPECTED_END = 'unexpected-end'
+    UNEXPECTED_CMAVO = 'unexpected-cmavo'
+    UNEXPECTED_BRIVLA = 'unexpected-brivla'
+    UNEXPECTED_CMEVLA = 'unexpected-cmevla'
+    UNEXPECTED_QUOTE = 'unexpected-quote'
+    UNEXPECTED_LERFU = 'unexpected-lerfu'
+    UNEXPECTED_ZEI_COMPOUND = 'unexpected-zei-compound'
+    UNEXPECTED_WORD = 'unexpected-word'
+    INCOMPLETE_TEXT = 'incomplete-text'
+    INCOMPLETE_STATEMENT = 'incomplete-statement'
+    INCOMPLETE_BRIDI = 'incomplete-bridi'
+    INCOMPLETE_TERM = 'incomplete-term'
+    INCOMPLETE_SUMTI = 'incomplete-sumti'
+    INCOMPLETE_SELBRI = 'incomplete-selbri'
+    INCOMPLETE_FREE_MODIFIER = 'incomplete-free-modifier'
+    INCOMPLETE_MEKSO = 'incomplete-mekso'
+    INCOMPLETE_QUOTE = 'incomplete-quote'
+    INCOMPLETE_FORETHOUGHT_CONNECTION = 'incomplete-forethought-connection'
+    INVALID_BRIDI_TAIL_CONNECTION = 'invalid-bridi-tail-connection'
+    INVALID_CONSTRUCT = 'invalid-construct'
+
+@final
+class _syntax_parser_SyntaxWordCategory(StrEnum):
+    BRIVLA = 'brivla'
+    CMEVLA = 'cmevla'
+    SELBRI_WORD = 'selbri-word'
+    PRO_SUMTI = 'pro-sumti'
+    LETTER_WORD = 'letter-word'
+    QUOTE = 'quote'
+
+@final
+class _syntax_parser_ExperimentalConstruct(StrEnum):
+    EXPERIMENTAL_CMAVO = 'experimental-cmavo'
+    EXPERIMENTAL_ZOH_OI_QUOTE = 'experimental-zoh-oi-quote'
+    EXPERIMENTAL_MEH_OI_QUOTE = 'experimental-meh-oi-quote'
+    EXPERIMENTAL_MEH_OI_SELBRI_UNIT = 'experimental-meh-oi-selbri-unit'
+    EXPERIMENTAL_LOH_OI_BRIDI_DESCRIPTION = 'experimental-loh-oi-bridi-description'
+    EXPERIMENTAL_LOH_AI_REPLACEMENT_FREE = 'experimental-loh-ai-replacement-free'
+    EXPERIMENTAL_JACU_PREDICATE_TAIL_CONNECTIVE = 'experimental-jacu-predicate-tail-connective'
+    EXPERIMENTAL_JE_I_STATEMENT_CONNECTIVE = 'experimental-je-i-statement-connective'
+    EXPERIMENTAL_MULTIPLE_NA_FRAGMENT = 'experimental-multiple-na-fragment'
+    EXPERIMENTAL_EMPTY_PRENEX = 'experimental-empty-prenex'
+    EXPERIMENTAL_BARE_CU_PREDICATE = 'experimental-bare-cu-predicate'
+    EXPERIMENTAL_NAHE_ARGUMENT_WITHOUT_BO = 'experimental-nahe-argument-without-bo'
+    EXPERIMENTAL_VUHO_SCOPED_ATTACHMENT = 'experimental-vuho-scoped-attachment'
+    EXPERIMENTAL_NOHOI_SELBRI_RELATIVE_CLAUSE = 'experimental-nohoi-selbri-relative-clause'
+    EXPERIMENTAL_SIMPLER_SUMTI_CONNECTIVE = 'experimental-simpler-sumti-connective'
+    EXPERIMENTAL_EXPLICIT_CU_PREDICATE_TAIL_STARTER = 'experimental-explicit-cu-predicate-tail-starter'
+    EXPERIMENTAL_RELATIVE_CLAUSE_CONNECTIVE = 'experimental-relative-clause-connective'
+    EXPERIMENTAL_SIMPLER_FORETHOUGHT_CONNECTIVE = 'experimental-simpler-forethought-connective'
+    EXPERIMENTAL_SIMPLER_TERM_CONNECTIVE = 'experimental-simpler-term-connective'
+    EXPERIMENTAL_SIMPLER_MEX_OPERAND_CONNECTIVE = 'experimental-simpler-mex-operand-connective'
+    EXPERIMENTAL_SIMPLER_DESCRIPTOR_HEAD_CONNECTIVE = 'experimental-simpler-descriptor-head-connective'
+    EXPERIMENTAL_JI_AS_JA_CONNECTIVE = 'experimental-ji-as-ja-connective'
+    EXPERIMENTAL_GADGANZU_GADRI = 'experimental-gadganzu-gadri'
+    EXPERIMENTAL_IAU_RESET = 'experimental-iau-reset'
+    EXPERIMENTAL_GOHOI_SELBRI_UNIT = 'experimental-gohoi-selbri-unit'
+    EXPERIMENTAL_KE_TERMSET = 'experimental-ke-termset'
+    EXPERIMENTAL_CU_TERMS_SELBRI = 'experimental-cu-terms-selbri'
+    EXPERIMENTAL_LAHE_NAHE_TERM_WRAPPER = 'experimental-lahe-nahe-term-wrapper'
+    EXPERIMENTAL_FORETHOUGHT_RELATIVE_CLAUSE_CONNECTIVE = 'experimental-forethought-relative-clause-connective'
+    EXPERIMENTAL_BROAD_A_CONNECTIVE = 'experimental-broad-a-connective'
+    EXPERIMENTAL_VUHU_CONNECTIVE = 'experimental-vuhu-connective'
+    EXPERIMENTAL_NAHU_PREDICATE_CONNECTIVE = 'experimental-nahu-predicate-connective'
+    EXPERIMENTAL_FA_AS_TAG = 'experimental-fa-as-tag'
+    EXPERIMENTAL_FLATTENED_TAG = 'experimental-flattened-tag'
+    EXPERIMENTAL_CBM_CMEVLA_SELBRI_WORD = 'experimental-cbm-cmevla-selbri-word'
+    EXPERIMENTAL_CBM_LA_NAME_AS_DESCRIPTOR = 'experimental-cbm-la-name-as-descriptor'
+    EXPERIMENTAL_DICTIONARY_DOI_VOCATIVE = 'experimental-dictionary-doi-vocative'
+    EXPERIMENTAL_DICTIONARY_COI_VOCATIVE = 'experimental-dictionary-coi-vocative'
+    EXPERIMENTAL_DICTIONARY_SEI_FREE_MODIFIER = 'experimental-dictionary-sei-free-modifier'
+    EXPERIMENTAL_DICTIONARY_PA_NUMBER = 'experimental-dictionary-pa-number'
+    EXPERIMENTAL_DICTIONARY_FAHA_TAG = 'experimental-dictionary-faha-tag'
+    EXPERIMENTAL_DICTIONARY_UI_INDICATOR = 'experimental-dictionary-ui-indicator'
+    EXPERIMENTAL_NOIHA_ADVERBIAL = 'experimental-noiha-adverbial'
+    EXPERIMENTAL_FIHOI_ADVERBIAL = 'experimental-fihoi-adverbial'
+    EXPERIMENTAL_SOI_ADVERBIAL = 'experimental-soi-adverbial'
+    EXPERIMENTAL_PREPOSED_LINKARGS = 'experimental-preposed-linkargs'
+    EXPERIMENTAL_EMPTY_LINKARGS = 'experimental-empty-linkargs'
+    EXPERIMENTAL_BROAD_BO_STATEMENT_CONNECTIVE = 'experimental-broad-bo-statement-connective'
+    EXPERIMENTAL_BROAD_KE_PREDICATE_CONTINUATION = 'experimental-broad-ke-predicate-continuation'
+    EXPERIMENTAL_TERM_HIERARCHY_BO_CONNECTION = 'experimental-term-hierarchy-bo-connection'
+    EXPERIMENTAL_BARE_NA_TERM = 'experimental-bare-na-term'
+    EXPERIMENTAL_XOHI_TAG_SELBRI = 'experimental-xohi-tag-selbri'
+    EXPERIMENTAL_ZANTUFA_CMAVO = 'experimental-zantufa-cmavo'
+    EXPERIMENTAL_ZANTUFA_FORETHOUGHT_GIHI = 'experimental-zantufa-forethought-gihi'
+    EXPERIMENTAL_ZANTUFA_NARY_FORETHOUGHT = 'experimental-zantufa-nary-forethought'
+    EXPERIMENTAL_ZANTUFA_GEK = 'experimental-zantufa-gek'
+    EXPERIMENTAL_ZANTUFA_POIHA_BRIGAHI = 'experimental-zantufa-poiha-brigahi'
+    EXPERIMENTAL_ZANTUFA_JAI_TAG_TERM = 'experimental-zantufa-jai-tag-term'
+    EXPERIMENTAL_ZANTUFA_RECURSIVE_TAG = 'experimental-zantufa-recursive-tag'
+    EXPERIMENTAL_ZANTUFA_GROUPED_BRIDI_TAIL = 'experimental-zantufa-grouped-bridi-tail'
+    EXPERIMENTAL_ZANTUFA_STATEMENT_TERMS = 'experimental-zantufa-statement-terms'
+    EXPERIMENTAL_ZANTUFA_STATEMENT_RELATIVE_CLAUSE = 'experimental-zantufa-statement-relative-clause'
+    EXPERIMENTAL_ZANTUFA_STATEMENT_FREE_MODIFIER = 'experimental-zantufa-statement-free-modifier'
+    EXPERIMENTAL_ZANTUFA_STATEMENT_ABSTRACTION = 'experimental-zantufa-statement-abstraction'
+    EXPERIMENTAL_ZANTUFA_MEX = 'experimental-zantufa-mex'
+    EXPERIMENTAL_ZANTUFA_RAHOI_QUOTE = 'experimental-zantufa-rahoi-quote'
+    EXPERIMENTAL_ZANTUFA_MUHOI_SELBRI_UNIT = 'experimental-zantufa-muhoi-selbri-unit'
+    EXPERIMENTAL_ZANTUFA_LUHEI_SELBRI_UNIT = 'experimental-zantufa-luhei-selbri-unit'
+    CLL_PROHIBITED_FREE_MODIFIER_PLACEMENT = 'cll-prohibited-free-modifier-placement'
+
 from typing import final
 
 @final
@@ -3262,6 +3376,9 @@ class _syntax_Identity:
     def _same_identity(self, other: _syntax_Identity) -> bool: ...
 
 def _syntax_construct(module_name: str, class_id: int, fields: tuple[object, ...]) -> _syntax_Value: ...
+def _syntax_tree_eq_ignoring_spans(
+    left: _StrictTextSyntax, right: _StrictTextSyntax
+) -> bool: ...
 
 @final
 class _syntax_Token:
@@ -3368,3 +3485,416 @@ class _syntax_MissingRequiredField:
     def expected(self) -> str: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
+
+from collections.abc import Sequence
+from typing import ClassVar, Final, final
+
+from .syntax.strict import TextSyntax as _StrictTextSyntax
+from .syntax.recovered import TextSyntax as _RecoveredTextSyntax
+
+_syntax_parser_SYNTAX_TRACE_FILTERS: Final[tuple[str, ...]]
+_syntax_parser_ENUM_INVENTORY: Final[tuple[str, ...]]
+
+@final
+class _syntax_parser_ParseOptions:
+    def __new__(
+        cls,
+        *,
+        dialect: _dialect_DialectDefinition | None = ...,
+        trace: _diagnostics_TraceOptions | None = ...,
+        error_context_depth: int | None = ...,
+        max_recovery_errors: int | None = ...,
+    ) -> _syntax_parser_ParseOptions: ...
+    @staticmethod
+    def default() -> _syntax_parser_ParseOptions: ...
+    def with_dialect(
+        self, dialect: _dialect_DialectDefinition
+    ) -> _syntax_parser_ParseOptions: ...
+    def with_trace(
+        self, trace: _diagnostics_TraceOptions
+    ) -> _syntax_parser_ParseOptions: ...
+    def with_error_context_depth(self, depth: int) -> _syntax_parser_ParseOptions: ...
+    def with_max_recovery_errors(self, limit: int) -> _syntax_parser_ParseOptions: ...
+    @property
+    def dialect(self) -> _dialect_DialectDefinition: ...
+    @property
+    def trace(self) -> _diagnostics_TraceOptions: ...
+    @property
+    def error_context_depth(self) -> int: ...
+    @property
+    def max_recovery_errors(self) -> int: ...
+
+@final
+class _syntax_parser_SyntaxTextUnit:
+    __match_args__: ClassVar[tuple[str, str]]
+    def __new__(
+        cls, token_start: int, token_end: int
+    ) -> _syntax_parser_SyntaxTextUnit: ...
+    @property
+    def token_start(self) -> int: ...
+    @property
+    def token_end(self) -> int: ...
+
+@final
+class _syntax_parser_SyntaxTextStructureEventBoundary:
+    __match_args__: ClassVar[tuple[str, str]]
+    def __new__(
+        cls, kind: _syntax_parser_SyntaxTextBoundaryKind, depth: int
+    ) -> _syntax_parser_SyntaxTextStructureEventBoundary: ...
+    @property
+    def kind(self) -> _syntax_parser_SyntaxTextBoundaryKind: ...
+    @property
+    def depth(self) -> int: ...
+
+@final
+class _syntax_parser_SyntaxTextStructureEventContainerOpen:
+    __match_args__: ClassVar[tuple[str, str]]
+    def __new__(
+        cls, opener: _morphology_Cmavo, depth: int
+    ) -> _syntax_parser_SyntaxTextStructureEventContainerOpen: ...
+    @property
+    def opener(self) -> _morphology_Cmavo: ...
+    @property
+    def depth(self) -> int: ...
+
+@final
+class _syntax_parser_SyntaxTextStructureEventContainerClose:
+    __match_args__: ClassVar[tuple[str, str, str]]
+    def __new__(
+        cls, closer: _morphology_Cmavo, depth: int, matched: bool
+    ) -> _syntax_parser_SyntaxTextStructureEventContainerClose: ...
+    @property
+    def closer(self) -> _morphology_Cmavo: ...
+    @property
+    def depth(self) -> int: ...
+    @property
+    def matched(self) -> bool: ...
+
+_SyntaxTextStructureEvent = (
+    _syntax_parser_SyntaxTextStructureEventBoundary
+    | _syntax_parser_SyntaxTextStructureEventContainerOpen
+    | _syntax_parser_SyntaxTextStructureEventContainerClose
+)
+
+@final
+class _syntax_parser_SyntaxConstructContext:
+    __match_args__: ClassVar[tuple[str, str, str]]
+    def __new__(
+        cls, construct: str, byte_start: int, byte_end: int
+    ) -> _syntax_parser_SyntaxConstructContext: ...
+    @property
+    def construct(self) -> str: ...
+    @property
+    def byte_start(self) -> int: ...
+    @property
+    def byte_end(self) -> int: ...
+
+@final
+class _syntax_parser_SyntaxExpectedTokenCmavo:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, cmavo: _morphology_Cmavo
+    ) -> _syntax_parser_SyntaxExpectedTokenCmavo: ...
+    @property
+    def cmavo(self) -> _morphology_Cmavo: ...
+    def summary_text(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxExpectedTokenSelmaho:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, selmaho: _morphology_Selmaho
+    ) -> _syntax_parser_SyntaxExpectedTokenSelmaho: ...
+    @property
+    def selmaho(self) -> _morphology_Selmaho: ...
+    def summary_text(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxExpectedTokenWordCategory:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, category: _syntax_parser_SyntaxWordCategory
+    ) -> _syntax_parser_SyntaxExpectedTokenWordCategory: ...
+    @property
+    def category(self) -> _syntax_parser_SyntaxWordCategory: ...
+    def summary_text(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxExpectedTokenEndOfInput:
+    __match_args__: ClassVar[tuple[()]]
+    def __new__(cls) -> _syntax_parser_SyntaxExpectedTokenEndOfInput: ...
+    def summary_text(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxExpectedTokenNamed:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(cls, name: str) -> _syntax_parser_SyntaxExpectedTokenNamed: ...
+    @property
+    def name(self) -> str: ...
+    def summary_text(self) -> str: ...
+
+_SyntaxExpectedToken = (
+    _syntax_parser_SyntaxExpectedTokenCmavo
+    | _syntax_parser_SyntaxExpectedTokenSelmaho
+    | _syntax_parser_SyntaxExpectedTokenWordCategory
+    | _syntax_parser_SyntaxExpectedTokenEndOfInput
+    | _syntax_parser_SyntaxExpectedTokenNamed
+)
+
+@final
+class _syntax_parser_SyntaxExpectationReasonContinueCurrent:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, construct: str
+    ) -> _syntax_parser_SyntaxExpectationReasonContinueCurrent: ...
+    @property
+    def construct(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxExpectationReasonStartNested:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, construct: str
+    ) -> _syntax_parser_SyntaxExpectationReasonStartNested: ...
+    @property
+    def construct(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxExpectationReasonEndThenStart:
+    __match_args__: ClassVar[tuple[str, str]]
+    def __new__(
+        cls, starts: str, ends: Sequence[str]
+    ) -> _syntax_parser_SyntaxExpectationReasonEndThenStart: ...
+    @property
+    def starts(self) -> str: ...
+    @property
+    def ends(self) -> tuple[str, ...]: ...
+
+_SyntaxExpectationReason = (
+    _syntax_parser_SyntaxExpectationReasonContinueCurrent
+    | _syntax_parser_SyntaxExpectationReasonStartNested
+    | _syntax_parser_SyntaxExpectationReasonEndThenStart
+)
+
+@final
+class _syntax_parser_SyntaxExpectation:
+    __match_args__: ClassVar[tuple[str, str]]
+    def __new__(
+        cls,
+        tokens: Sequence[_SyntaxExpectedToken],
+        reason: _SyntaxExpectationReason,
+    ) -> _syntax_parser_SyntaxExpectation: ...
+    @property
+    def tokens(self) -> tuple[_SyntaxExpectedToken, ...]: ...
+    @property
+    def reason(self) -> _SyntaxExpectationReason: ...
+
+@final
+class _syntax_parser_SyntaxErrorNotImplemented:
+    __match_args__: ClassVar[tuple[()]]
+    def __new__(cls) -> _syntax_parser_SyntaxErrorNotImplemented: ...
+    @property
+    def code(self) -> str: ...
+    def to_diagnostic(
+        self, source: str, source_id: _source_SourceId | None = ...
+    ) -> _diagnostics_Diagnostic: ...
+    def __str__(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxErrorParse:
+    __match_args__: ClassVar[tuple[str, str, str, str, str, str, str]]
+    def __new__(
+        cls,
+        kind: _syntax_parser_SyntaxErrorKind,
+        byte_start: int,
+        byte_end: int,
+        reason: str,
+        expected: Sequence[str],
+        expectations: Sequence[_syntax_parser_SyntaxExpectation],
+        contexts: Sequence[_syntax_parser_SyntaxConstructContext],
+    ) -> _syntax_parser_SyntaxErrorParse: ...
+    @property
+    def kind(self) -> _syntax_parser_SyntaxErrorKind: ...
+    @property
+    def code(self) -> str: ...
+    @property
+    def byte_start(self) -> int: ...
+    @property
+    def byte_end(self) -> int: ...
+    @property
+    def reason(self) -> str: ...
+    @property
+    def expected(self) -> tuple[str, ...]: ...
+    @property
+    def expectations(self) -> tuple[_syntax_parser_SyntaxExpectation, ...]: ...
+    @property
+    def contexts(self) -> tuple[_syntax_parser_SyntaxConstructContext, ...]: ...
+    def to_diagnostic(
+        self, source: str, source_id: _source_SourceId | None = ...
+    ) -> _diagnostics_Diagnostic: ...
+    def __str__(self) -> str: ...
+
+_SyntaxErrorValue = (
+    _syntax_parser_SyntaxErrorNotImplemented | _syntax_parser_SyntaxErrorParse
+)
+
+@final
+class _syntax_parser_SyntaxWarning:
+    __match_args__: ClassVar[tuple[str, str, str]]
+    @property
+    def kind(self) -> _syntax_parser_ExperimentalConstruct: ...
+    @property
+    def anchor_index(self) -> int: ...
+    @property
+    def anchor(self) -> _syntax_Token: ...
+    @property
+    def code(self) -> str: ...
+    @property
+    def message(self) -> str: ...
+    def to_diagnostic(
+        self, source: str, source_id: _source_SourceId | None = ...
+    ) -> _diagnostics_Diagnostic: ...
+
+@final
+class _syntax_parser_SyntaxWarningDisplay:
+    @property
+    def source_label(self) -> str: ...
+    @property
+    def kind(self) -> _syntax_parser_ExperimentalConstruct: ...
+    @property
+    def message(self) -> str: ...
+    @property
+    def line(self) -> int: ...
+    @property
+    def column(self) -> int: ...
+    @property
+    def selection_start(self) -> int: ...
+    @property
+    def selection_length(self) -> int: ...
+    @property
+    def experimental_cmavo(self) -> str | None: ...
+    @property
+    def context(self) -> str: ...
+
+@final
+class _syntax_parser_SyntaxParse:
+    @property
+    def parse_tree(self) -> _StrictTextSyntax: ...
+    @property
+    def warnings(self) -> tuple[_syntax_parser_SyntaxWarning, ...]: ...
+
+@final
+class _syntax_parser_SyntaxParseAttempt:
+    @property
+    def succeeded(self) -> bool: ...
+    @property
+    def result(self) -> _syntax_parser_SyntaxParse | None: ...
+    @property
+    def error(self) -> _SyntaxErrorValue | None: ...
+    @property
+    def trace(self) -> _diagnostics_TraceReport | None: ...
+
+@final
+class _syntax_parser_RecoveredSyntaxParse:
+    @property
+    def parse_tree(self) -> _RecoveredTextSyntax: ...
+    @property
+    def errors(self) -> tuple[_SyntaxErrorValue, ...]: ...
+    @property
+    def warnings(self) -> tuple[_syntax_parser_SyntaxWarning, ...]: ...
+
+@final
+class _syntax_parser_RecoveredSyntaxParseAttempt:
+    @property
+    def result(self) -> _syntax_parser_RecoveredSyntaxParse: ...
+    @property
+    def trace(self) -> _diagnostics_TraceReport | None: ...
+
+@final
+class _syntax_parser_SyntaxRecoveryParseValid:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, parse: _syntax_parser_SyntaxParse
+    ) -> _syntax_parser_SyntaxRecoveryParseValid: ...
+    @property
+    def parse(self) -> _syntax_parser_SyntaxParse: ...
+
+@final
+class _syntax_parser_SyntaxRecoveryParseRecovered:
+    __match_args__: ClassVar[tuple[str]]
+    def __new__(
+        cls, parse: _syntax_parser_RecoveredSyntaxParse
+    ) -> _syntax_parser_SyntaxRecoveryParseRecovered: ...
+    @property
+    def parse(self) -> _syntax_parser_RecoveredSyntaxParse: ...
+
+_SyntaxRecoveryParse = (
+    _syntax_parser_SyntaxRecoveryParseValid
+    | _syntax_parser_SyntaxRecoveryParseRecovered
+)
+
+@final
+class _syntax_parser_SyntaxRecoveryParseAttempt:
+    @property
+    def result(self) -> _SyntaxRecoveryParse: ...
+    @property
+    def trace(self) -> _diagnostics_TraceReport | None: ...
+
+def _syntax_parser_syntax_tokens_with_options(
+    words: Sequence[_MorphologyWordLike],
+    *,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> tuple[_syntax_Token, ...]: ...
+def _syntax_parser_partition_syntax_text_units(
+    tokens: Sequence[_syntax_Token],
+    granularity: _syntax_parser_SyntaxTextUnitGranularity,
+) -> tuple[_syntax_parser_SyntaxTextUnit, ...]: ...
+def _syntax_parser_syntax_text_structure(
+    tokens: Sequence[_syntax_Token],
+) -> tuple[_SyntaxTextStructureEvent, ...]: ...
+def _syntax_parser_parse_text_attempt(
+    words: Sequence[_MorphologyWordLike],
+    *,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> _syntax_parser_SyntaxParseAttempt: ...
+def _syntax_parser_parse_syntax_tree_attempt(
+    words: Sequence[_MorphologyWordLike],
+    *,
+    source: str | None = ...,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> _syntax_parser_SyntaxParseAttempt: ...
+def _syntax_parser_parse_syntax_tree_recovered_attempt(
+    words: Sequence[_MorphologyWordLike],
+    *,
+    source: str,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> _syntax_parser_RecoveredSyntaxParseAttempt: ...
+def _syntax_parser_parse_syntax_tree_with_recovery_attempt(
+    words: Sequence[_MorphologyWordLike],
+    *,
+    source: str,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> _syntax_parser_SyntaxRecoveryParseAttempt: ...
+def _syntax_parser_expected_continuations(
+    words: Sequence[_MorphologyWordLike],
+    *,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> tuple[_syntax_parser_SyntaxExpectation, ...]: ...
+def _syntax_parser_expected_continuations_with_time_limit(
+    words: Sequence[_MorphologyWordLike],
+    time_limit: float,
+    *,
+    options: _syntax_parser_ParseOptions | None = ...,
+) -> tuple[_syntax_parser_SyntaxExpectation, ...]: ...
+def _syntax_parser_syntax_warning_display(
+    source_label: str,
+    source: str,
+    tokens: Sequence[_syntax_Token],
+    warning: _syntax_parser_SyntaxWarning,
+) -> _syntax_parser_SyntaxWarningDisplay: ...
+def _syntax_parser_syntax_warning_displays(
+    source_label: str,
+    source: str,
+    tokens: Sequence[_syntax_Token],
+    warnings: Sequence[_syntax_parser_SyntaxWarning],
+) -> tuple[_syntax_parser_SyntaxWarningDisplay, ...]: ...
