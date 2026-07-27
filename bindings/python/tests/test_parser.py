@@ -353,7 +353,7 @@ def test_completion_uses_exact_unicode_cursor_prefix_and_checked_timeout() -> No
     with pytest.raises(morphology.MorphologyError):
         syntax.expected_continuations_at_cursor(text, 4)
     for cursor in (-1, len(text) + 1):
-        with pytest.raises(ValueError, match="0 <= cursor <= len"):
+        with pytest.raises(jbotci.InvalidInputError, match="0 <= cursor <= len"):
             syntax.expected_continuations_at_cursor(text, cursor)
 
     words = morphology.segment("mi klama")

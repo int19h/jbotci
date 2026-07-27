@@ -7,6 +7,7 @@ from typing import Callable, Generic, Self, TypeAlias, TypeVar, cast, final
 
 from jbotci import _native as _rust
 from jbotci import diagnostics, dialect, morphology, source
+from jbotci._native import InvalidInputError
 from jbotci._errors import _StructuredError
 
 _T = TypeVar("_T")
@@ -574,7 +575,7 @@ def expected_continuations_at_cursor(
     """Segment exactly ``text[:cursor]`` and return its grammar expectations."""
 
     if cursor < 0 or cursor > len(text):
-        raise ValueError("cursor must satisfy 0 <= cursor <= len(text)")
+        raise InvalidInputError("cursor must satisfy 0 <= cursor <= len(text)")
     prefix = text[:cursor]
     words = morphology.segment(
         prefix, options=morphology_options, source_id=source_id
