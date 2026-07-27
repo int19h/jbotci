@@ -74,12 +74,12 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, requires};
 
+use super::render::SmusniConfig;
 use crate::completeness::model::DispositionData;
 use crate::completeness::{
-    render_field_inventory, source_link_surfaces, source_provenance_reason, CompletenessContract,
-    Disposition, EntryKind, InventoryEntry,
+    CompletenessContract, Disposition, EntryKind, InventoryEntry, render_field_inventory,
+    source_link_surfaces, source_provenance_reason,
 };
-use super::render::SmusniConfig;
 
 /// The one document-level NOT COMPUTED fact the `smusni` renderer declares.
 const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
@@ -295,7 +295,10 @@ mod tests {
             .iter()
             .filter(|entry| is_source_provenance(entry) && source_rendered_under_provenance(entry))
             .count();
-        assert!(expected_flipped > 0, "some nested/object sources must render under provenance");
+        assert!(
+            expected_flipped > 0,
+            "some nested/object sources must render under provenance"
+        );
         assert_eq!(
             disagreements.len(),
             expected_flipped,
@@ -311,10 +314,14 @@ mod tests {
             assert!(is_source_provenance(entry) && source_rendered_under_provenance(entry));
         }
         // A non-rendered source struct (e.g. ModalArgument.source) does NOT flip.
-        let unrendered = inventory.entries().iter().any(|entry| {
-            is_source_provenance(entry) && !source_rendered_under_provenance(entry)
-        });
-        assert!(unrendered, "the corpus inventory includes a non-rendered source struct");
+        let unrendered = inventory
+            .entries()
+            .iter()
+            .any(|entry| is_source_provenance(entry) && !source_rendered_under_provenance(entry));
+        assert!(
+            unrendered,
+            "the corpus inventory includes a non-rendered source struct"
+        );
     }
 
     /// The corpus-presence split is surfaced and consistent (Codex 5): some
@@ -326,8 +333,14 @@ mod tests {
     #[ensures(true)]
     fn corpus_presence_partitions_the_inventory() {
         let (corpus_present, corpus_absent) = corpus_presence_coverage();
-        assert_eq!(corpus_present + corpus_absent, render_field_inventory().len());
-        assert!(corpus_present > 0, "some coordinates must be corpus-present");
+        assert_eq!(
+            corpus_present + corpus_absent,
+            render_field_inventory().len()
+        );
+        assert!(
+            corpus_present > 0,
+            "some coordinates must be corpus-present"
+        );
         assert!(
             corpus_absent > 0,
             "the corpus-absent set must be surfaced, not hidden"

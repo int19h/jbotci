@@ -2324,7 +2324,10 @@ fn repeated_redeclaration_while_awaiting_confirmation_bumps_sequence_and_retains
             )
         })
         .count();
-    assert_eq!(submissions, 1, "the candidate is retained across both re-declarations");
+    assert_eq!(
+        submissions, 1,
+        "the candidate is retained across both re-declarations"
+    );
 
     let registrations = runner
         .events()
@@ -2345,12 +2348,17 @@ fn repeated_redeclaration_while_awaiting_confirmation_bumps_sequence_and_retains
         .iter()
         .find_map(|event| match event.as_data() {
             bityzba::data!(ProtocolEvent::MeaningConfirmed {
-                intent_sequence, ..
+                intent_sequence,
+                ..
             }) => Some(*intent_sequence),
             _ => None,
         })
         .expect("a confirm event");
-    assert_eq!(confirm, Some(2), "the confirm names the latest re-declaration");
+    assert_eq!(
+        confirm,
+        Some(2),
+        "the confirm names the latest re-declaration"
+    );
     assert_eq!(runner.visible_chat().len(), 1);
 }
 
@@ -2388,7 +2396,9 @@ fn intent_revision_cap_forfeits_at_awaiting_confirmation_after_the_exact_cap_is_
     let listener = ScriptedModel::new("bob", Vec::new());
     let mut runner = runner(vec![speaker, listener], caps(3, 1, 1)).expect("valid runner");
 
-    runner.run().expect("awaiting-confirmation revision-cap run");
+    runner
+        .run()
+        .expect("awaiting-confirmation revision-cap run");
 
     assert!(runner.visible_chat().is_empty());
     // The candidate was accepted before the forfeit, and nothing was posted.
@@ -2520,7 +2530,8 @@ fn legacy_meaning_confirmed_without_intent_sequence_deserializes_as_none() {
         serde_json::from_value(legacy).expect("legacy confirm event deserializes");
     match event.as_data() {
         bityzba::data!(ProtocolEvent::MeaningConfirmed {
-            intent_sequence, ..
+            intent_sequence,
+            ..
         }) => assert_eq!(*intent_sequence, None),
         _ => panic!("expected a meaning-confirmed event"),
     }

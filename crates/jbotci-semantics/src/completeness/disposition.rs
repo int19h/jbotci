@@ -38,8 +38,7 @@ use super::model::{
     RenderFieldInventory,
 };
 
-const SOURCE_PROVENANCE_REASON: &str =
-    "source provenance; smusni renders semantic content, not source spans (absent from every frozen smusni sample output)";
+const SOURCE_PROVENANCE_REASON: &str = "source provenance; smusni renders semantic content, not source spans (absent from every frozen smusni sample output)";
 
 /// The single document-level `NOT COMPUTED` fact `smusni` declares rather than
 /// computes. (ALL HOLD / ROLE FOR are rendered wordings, not NOT COMPUTED.)

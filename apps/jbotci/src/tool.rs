@@ -1859,7 +1859,9 @@ mod tests {
             .collect();
         assert_eq!(
             values,
-            ["json", "smusni"].into_iter().collect::<std::collections::BTreeSet<_>>(),
+            ["json", "smusni"]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
             "schema must expose only the surviving tersmu formats"
         );
     }

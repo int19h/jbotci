@@ -608,11 +608,17 @@ fn confirm_intent_sequence_must_name_the_latest_preceding_registration() {
     let error = read_transcript(&mismatch).expect_err("stale intent_sequence must fail");
     assert_eq!(error.line, 9);
     assert!(
-        error.to_string().contains("confirm intent-sequence mismatch"),
+        error
+            .to_string()
+            .contains("confirm intent-sequence mismatch"),
         "unexpected error: {error}"
     );
     assert!(error.to_string().contains("revision 0"));
-    assert!(error.to_string().contains("latest registered intent is revision 1"));
+    assert!(
+        error
+            .to_string()
+            .contains("latest registered intent is revision 1")
+    );
 
     for path in [unmodified, matching, mismatch] {
         fs::remove_file(path).expect("remove temporary transcript");
@@ -658,11 +664,17 @@ fn confirm_intent_sequence_validation_is_isolated_per_turn_and_speaker() {
     let error = read_transcript(&isolated).expect_err("cross-key intent_sequence must fail");
     assert_eq!(error.line, 20, "the failure is at bob's turn-2 confirm");
     assert!(
-        error.to_string().contains("confirm intent-sequence mismatch"),
+        error
+            .to_string()
+            .contains("confirm intent-sequence mismatch"),
         "unexpected error: {error}"
     );
     assert!(error.to_string().contains("turn 2"));
-    assert!(error.to_string().contains("latest registered intent is revision 1"));
+    assert!(
+        error
+            .to_string()
+            .contains("latest registered intent is revision 1")
+    );
 
     for path in [legacy, per_key, isolated] {
         fs::remove_file(path).expect("remove temporary transcript");

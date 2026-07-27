@@ -44,7 +44,11 @@ const DERIVED_EDGES: &[(&str, &str, &str)] = &[
     ("Eventuality", "scopeDependence", "ScopeDependence"),
     ("Eventuality", "sort", "SemanticSort"),
     ("Eventuality", "intervalModifiers", "IntervalModifier"),
-    ("Eventuality", "spatialIntervalModifiers", "IntervalModifier"),
+    (
+        "Eventuality",
+        "spatialIntervalModifiers",
+        "IntervalModifier",
+    ),
     ("Referent", "sort", "SemanticSort"),
     ("Referent", "scopeDependence", "ScopeDependence"),
     ("Sign", "sort", "SemanticSort"),
@@ -52,7 +56,11 @@ const DERIVED_EDGES: &[(&str, &str, &str)] = &[
     ("Predication", "relation", "RelationLabel"),
     ("MathExpression", "operator", "MathOperator"),
     ("MathExpression", "literal", "MathLiteral"),
-    ("MathExpression", "endpointInclusion", "IntervalEndpointInclusion"),
+    (
+        "MathExpression",
+        "endpointInclusion",
+        "IntervalEndpointInclusion",
+    ),
     ("MathExpression", "scalarNegation", "ScalarNegation"),
     ("Formula", "operator", "FormulaOperator"),
     ("Formula", "domainImport", "DomainImport"),
@@ -111,17 +119,26 @@ impl TypeGraph {
         for (node, node_struct) in NODE_TYPES {
             if let Some((fields, _)) = model.structs.get(*node_struct) {
                 for field in fields {
-                    edges.insert(((*node).to_owned(), field.key.clone()), field.base_type.clone());
+                    edges.insert(
+                        ((*node).to_owned(), field.key.clone()),
+                        field.base_type.clone(),
+                    );
                 }
             }
-            edges.insert(((*node).to_owned(), "source".to_owned()), "SemanticSource".to_owned());
+            edges.insert(
+                ((*node).to_owned(), "source".to_owned()),
+                "SemanticSource".to_owned(),
+            );
             edges.insert(
                 ((*node).to_owned(), "diagnostics".to_owned()),
                 "SemanticDiagnostic".to_owned(),
             );
         }
         // Formula also carries source/diagnostics (its `*Node` structs vary).
-        edges.insert(("Formula".to_owned(), "source".to_owned()), "SemanticSource".to_owned());
+        edges.insert(
+            ("Formula".to_owned(), "source".to_owned()),
+            "SemanticSource".to_owned(),
+        );
         edges.insert(
             ("Formula".to_owned(), "diagnostics".to_owned()),
             "SemanticDiagnostic".to_owned(),
@@ -150,7 +167,9 @@ impl TypeGraph {
     #[requires(!owner.is_empty() && !key.is_empty())]
     #[ensures(true)]
     fn edge(&self, owner: &str, key: &str) -> Option<&str> {
-        self.edges.get(&(owner.to_owned(), key.to_owned())).map(String::as_str)
+        self.edges
+            .get(&(owner.to_owned(), key.to_owned()))
+            .map(String::as_str)
     }
 
     /// The declared base type of `owner.key`, if known. Public so a test can
@@ -170,7 +189,11 @@ impl TypeGraph {
         match self.edge(owner, key)? {
             ASPECT_OR_RECURRENCE => {
                 let next = next_segment?;
-                if self.struct_fields.get("Aspect").is_some_and(|fields| fields.contains(next)) {
+                if self
+                    .struct_fields
+                    .get("Aspect")
+                    .is_some_and(|fields| fields.contains(next))
+                {
                     Some("Aspect".to_owned())
                 } else {
                     Some("Recurrence".to_owned())
@@ -206,9 +229,10 @@ impl TypeGraph {
             owner = self.child_owner(&owner, key, next)?;
         }
         let key = segments[segments.len() - 1].to_owned();
-        let leaf_type = self.edge(&owner, &key).map(|ty| ty.to_owned()).filter(|ty| {
-            ty != ASPECT_OR_RECURRENCE && ty != MATH_LITERAL_VALUE && ty != "__ID__"
-        });
+        let leaf_type = self
+            .edge(&owner, &key)
+            .map(|ty| ty.to_owned())
+            .filter(|ty| ty != ASPECT_OR_RECURRENCE && ty != MATH_LITERAL_VALUE && ty != "__ID__");
         Some(Resolved {
             owner,
             key,

@@ -104,7 +104,10 @@ mod tests {
             let disposition = baseline_disposition(entry);
             if entry.surface.name == "SemanticSource" {
                 assert!(
-                    matches!(disposition.as_data(), data!(Disposition::ExcludedWithReason(_))),
+                    matches!(
+                        disposition.as_data(),
+                        data!(Disposition::ExcludedWithReason(_))
+                    ),
                     "source provenance must be excluded with a reason"
                 );
                 saw_excluded = true;
@@ -145,7 +148,10 @@ mod tests {
         assert_eq!(not_computed, 1, "NOT COMPUTED disposition count drifted");
         // Source provenance: SemanticSource(3) + SourceByteSpan(2) + one `source`
         // link per object kind (13) and per source-bearing value struct (12).
-        assert_eq!(excluded, 30, "source-provenance ExcludedWithReason count drifted");
+        assert_eq!(
+            excluded, 30,
+            "source-provenance ExcludedWithReason count drifted"
+        );
         assert_eq!(renders + not_computed + excluded, inventory.len());
     }
 
@@ -164,11 +170,19 @@ mod tests {
                 .find(|entry| entry.surface.name == surface && entry.field == field)
                 .map(|entry| baseline_disposition(entry))
         };
-        for surface in ["ArgumentValue", "RelativeClause", "AssignedName", "QuantifierBinding"] {
+        for surface in [
+            "ArgumentValue",
+            "RelativeClause",
+            "AssignedName",
+            "QuantifierBinding",
+        ] {
             let disposition = disposition_of(surface, "source")
                 .unwrap_or_else(|| panic!("{surface}.source not inventoried"));
             assert!(
-                matches!(disposition.as_data(), data!(Disposition::ExcludedWithReason(_))),
+                matches!(
+                    disposition.as_data(),
+                    data!(Disposition::ExcludedWithReason(_))
+                ),
                 "{surface}.source (SemanticSource) must be excluded"
             );
         }
@@ -188,9 +202,19 @@ mod tests {
         let inventory = render_field_inventory();
         let first = inventory.entries()[0];
         let mut contract = CompletenessContract::new();
-        assert!(contract.try_register(first.key(), baseline_disposition(&first)).is_ok());
-        assert_eq!(contract.try_register(first.key(), baseline_disposition(&first)), Err(first.key()));
+        assert!(
+            contract
+                .try_register(first.key(), baseline_disposition(&first))
+                .is_ok()
+        );
+        assert_eq!(
+            contract.try_register(first.key(), baseline_disposition(&first)),
+            Err(first.key())
+        );
         assert_eq!(contract.iter().count(), 1);
-        assert_eq!(contract.iter().next().map(|(key, _)| *key), Some(first.key()));
+        assert_eq!(
+            contract.iter().next().map(|(key, _)| *key),
+            Some(first.key())
+        );
     }
 }

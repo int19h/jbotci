@@ -265,12 +265,22 @@ pub fn read_transcript(path: &Path) -> Result<Vec<TranscriptRecord>, TranscriptE
 #[invariant(::Truncated => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TranscriptErrorKind {
-    Io { message: String },
-    BadJson { message: String },
+    Io {
+        message: String,
+    },
+    BadJson {
+        message: String,
+    },
     MissingRunHeader,
     UnexpectedRunHeader,
-    SequenceGap { expected: u64, actual: u64 },
-    TurnContextMismatch { expected: usize, actual: usize },
+    SequenceGap {
+        expected: u64,
+        actual: u64,
+    },
+    TurnContextMismatch {
+        expected: usize,
+        actual: usize,
+    },
     /// A confirm's `intent_sequence` did not name the latest intent registered so
     /// far for its turn/speaker; `governing` is that latest revision, or `None` if
     /// no intent was registered before the confirm.

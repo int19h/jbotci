@@ -20,8 +20,8 @@ use support::fixtures::{
     ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
     TersmuOutputExpectation, TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation,
     filter_fixtures, fixture_paths, import_export_file, load_fixture_file, load_fixture_path,
-    load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel,
-    validate_fixture_tree, write_fixture_file,
+    load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree,
+    write_fixture_file,
 };
 
 #[test]

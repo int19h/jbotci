@@ -857,7 +857,10 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
     // Round-1 review (Codex 3): the delivered CLI surface must be
     // oracle-identical — `render_smusni` already ends in one newline, and the
     // command must not double it.
-    let run = run_cli_capture(&["jbotci", "tersmu", "--format", "smusni", "mi klama"], false);
+    let run = run_cli_capture(
+        &["jbotci", "tersmu", "--format", "smusni", "mi klama"],
+        false,
+    );
     assert_eq!(run.status, CliStatus::Success);
     assert!(
         run.stdout.starts_with("SEMANTIC DOCUMENT document_1 {\n"),
@@ -866,8 +869,14 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
     );
     assert!(run.stdout.contains("ID PREFIXES: r=reference"));
     // Exactly one trailing newline (the closing `}` then a single `\n`).
-    assert!(run.stdout.ends_with("}\n"), "must end with the closing brace and one newline");
-    assert!(!run.stdout.ends_with("}\n\n"), "must not double the renderer's trailing newline");
+    assert!(
+        run.stdout.ends_with("}\n"),
+        "must end with the closing brace and one newline"
+    );
+    assert!(
+        !run.stdout.ends_with("}\n\n"),
+        "must not double the renderer's trailing newline"
+    );
 }
 
 #[test]
@@ -1576,8 +1585,7 @@ fn gentufa_mahoi_quotes_have_exact_bracket_output() {
             // `ma'oi` is experimental syntax: a valid parse stays successful but
             // must still surface the experimental-cmavo warning on stderr.
             assert!(
-                run.stderr
-                    .contains("syntax.warning.experimental-cmavo"),
+                run.stderr.contains("syntax.warning.experimental-cmavo"),
                 "{args:?}: {}",
                 run.stderr
             );

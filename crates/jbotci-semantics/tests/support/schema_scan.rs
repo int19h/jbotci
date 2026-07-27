@@ -173,7 +173,9 @@ fn parse_field(line: &str, prev_has_skip: bool, prev_rename: Option<&str>) -> Op
     if ty.is_empty() {
         return None;
     }
-    let key = prev_rename.map(str::to_owned).unwrap_or_else(|| camel_case(name));
+    let key = prev_rename
+        .map(str::to_owned)
+        .unwrap_or_else(|| camel_case(name));
     Some(Field {
         key,
         base_type: base_type(ty),
@@ -230,10 +232,13 @@ fn parse_source(
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
-        if let Some(name) = line.strip_prefix("pub struct ").filter(|_| line.contains('{')) {
+        if let Some(name) = line
+            .strip_prefix("pub struct ")
+            .filter(|_| line.contains('{'))
+        {
             let name = name.split(['<', ' ', '{']).next().unwrap_or("").to_owned();
-            let serialize = preceding_derives_serialize(&lines, i)
-                || has_manual_serialize(source, &name);
+            let serialize =
+                preceding_derives_serialize(&lines, i) || has_manual_serialize(source, &name);
             let (fields, next) = parse_struct_body(&lines, i + 1);
             structs.insert(name, (fields, serialize));
             i = next;
@@ -398,7 +403,9 @@ fn parse_node_keys(source: &str) -> BTreeMap<String, Vec<String>> {
             .find(|(name, _)| line.starts_with(&format!("fn {name}<")));
         if let Some((_, node)) = matched {
             // advance to the signature-closing `{`
-            while i < lines.len() && !(lines[i].contains("-> Result") && lines[i].trim_end().ends_with('{')) {
+            while i < lines.len()
+                && !(lines[i].contains("-> Result") && lines[i].trim_end().ends_with('{'))
+            {
                 i += 1;
             }
             i += 1;
@@ -434,10 +441,11 @@ fn first_string_literal(line: &str) -> Option<String> {
     let close = rest.find('"')?;
     let literal = &rest[..close];
     if !literal.is_empty()
+        && literal.chars().all(|c| c.is_ascii_alphanumeric())
         && literal
             .chars()
-            .all(|c| c.is_ascii_alphanumeric())
-        && literal.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic())
     {
         Some(literal.to_owned())
     } else {
@@ -530,7 +538,10 @@ impl SerializedSurface {
             }
             // Discriminant enums are inventoried by their Rust variant names.
             if !ENUM_EXCLUDE.contains(&name.as_str()) {
-                enums.insert(name.clone(), def.variants.iter().map(|v| v.name.clone()).collect());
+                enums.insert(
+                    name.clone(),
+                    def.variants.iter().map(|v| v.name.clone()).collect(),
+                );
             }
             // Enums that serialize as a JSON object also contribute a value-struct
             // member set the inventory must cover. Manually-serialized enums
@@ -606,7 +617,10 @@ mod tests {
         let model = Model::from_source();
         // Known landmarks the parser must find (guards against a silent parse break).
         assert!(model.structs.contains_key("Composition"));
-        assert!(model.structs["Composition"].1, "Composition must be Serialize");
+        assert!(
+            model.structs["Composition"].1,
+            "Composition must be Serialize"
+        );
         assert!(model.structs.contains_key("SemanticDiagnostic"));
         assert!(model.structs.contains_key("IntervalEndpointInclusion"));
         assert!(model.enums.contains_key("QuestionKind"));
@@ -615,8 +629,16 @@ mod tests {
 
         let surface = SerializedSurface::from_source();
         // Blocker-1 surfaces must all be present as value structs / enums.
-        for name in ["Composition", "SemanticDiagnostic", "IntervalEndpointInclusion", "QuestionSlot"] {
-            assert!(surface.value_structs.contains_key(name), "value struct {name} missing");
+        for name in [
+            "Composition",
+            "SemanticDiagnostic",
+            "IntervalEndpointInclusion",
+            "QuestionSlot",
+        ] {
+            assert!(
+                surface.value_structs.contains_key(name),
+                "value struct {name} missing"
+            );
         }
         assert!(surface.enums.contains_key("MathLiteralValue"));
         // Node keys must include Formula's variant fields.

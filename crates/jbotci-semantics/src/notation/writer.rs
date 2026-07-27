@@ -312,7 +312,11 @@ fn is_group_opener(text: &str) -> bool {
 /// of the oracle's `_count_direct_units`.
 #[requires(indent_width > 0)]
 #[ensures(true)]
-pub fn count_direct_units(body_lines: &[String], child_indent: usize, indent_width: usize) -> usize {
+pub fn count_direct_units(
+    body_lines: &[String],
+    child_indent: usize,
+    indent_width: usize,
+) -> usize {
     let mut count = 0;
     let mut i = 0;
     let n = body_lines.len();

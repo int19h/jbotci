@@ -342,10 +342,9 @@ impl Ctx<'_> {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn id(&self, key: &str) -> &str {
-        self.id_map
-            .get(key)
-            .map(String::as_str)
-            .unwrap_or_else(|| panic!("graph pointer `{key}` has no generated id (malformed graph)"))
+        self.id_map.get(key).map(String::as_str).unwrap_or_else(|| {
+            panic!("graph pointer `{key}` has no generated id (malformed graph)")
+        })
     }
 
     /// The generated ID for a graph key held in a JSON string value.
@@ -520,7 +519,10 @@ fn render_source(w: &mut Writer, ctx: &Ctx, obj: &Value) {
     w.heading("PROVENANCE", |w| {
         if let Some(span) = src.get("span").filter(|s| !s.is_null()) {
             if let (Some(start), Some(end)) = (span.get("byteStart"), span.get("byteEnd")) {
-                w.field("BYTE SPAN", &format!("{}..{}", number_str(start), number_str(end)));
+                w.field(
+                    "BYTE SPAN",
+                    &format!("{}..{}", number_str(start), number_str(end)),
+                );
             }
         }
         if let Some(text) = field_str(src, "text") {
@@ -618,7 +620,11 @@ const UNOBSERVED_DIMENSION_FIELDS: &[(&str, &str)] = &[
 fn recurrence_item_text(ctx: &Ctx, item: &Value) -> String {
     let kind = req_str(item, "kind");
     let introduced_by = req_str(item, "introducedBy");
-    let mut text = format!("{} INTRODUCED BY {}", enum_render(kind), lexical(introduced_by));
+    let mut text = format!(
+        "{} INTRODUCED BY {}",
+        enum_render(kind),
+        lexical(introduced_by)
+    );
     if kind == "occurrenceCount" || kind == "ordinalOccurrence" {
         match item.get("quantity") {
             Some(quantity) => text.push_str(&format!(" QUANTITY {}", ctx.id_of(quantity))),
@@ -648,7 +654,11 @@ fn interval_modifier_text(ctx: &Ctx, modifier: &Value) -> String {
             Some(contour) => format!("{} {}", enum_render(kind), enum_render(contour)),
             None => "NOT COMPUTED: interval-modifier-shape(aspect)".to_string(),
         },
-        "recurrence" => format!("{} {}", enum_render(kind), recurrence_item_text(ctx, &value)),
+        "recurrence" => format!(
+            "{} {}",
+            enum_render(kind),
+            recurrence_item_text(ctx, &value)
+        ),
         other => format!("NOT COMPUTED: interval-modifier-shape({other})"),
     }
 }
@@ -658,7 +668,11 @@ fn interval_modifier_text(ctx: &Ctx, modifier: &Value) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn render_interval_modifiers(w: &mut Writer, ctx: &Ctx, obj: &Value) {
-    if let Some(mods) = obj.get("intervalModifiers").and_then(Value::as_array).filter(|m| !m.is_empty()) {
+    if let Some(mods) = obj
+        .get("intervalModifiers")
+        .and_then(Value::as_array)
+        .filter(|m| !m.is_empty())
+    {
         w.collection("INTERVAL MODIFIERS", |w| {
             for modifier in mods {
                 w.entry(&interval_modifier_text(ctx, modifier));
@@ -679,7 +693,11 @@ fn render_interval_modifiers(w: &mut Writer, ctx: &Ctx, obj: &Value) {
 #[requires(true)]
 #[ensures(true)]
 fn render_assigned_names(w: &mut Writer, ctx: &Ctx, obj: &Value) {
-    if let Some(names) = obj.get("assignedNames").and_then(Value::as_array).filter(|n| !n.is_empty()) {
+    if let Some(names) = obj
+        .get("assignedNames")
+        .and_then(Value::as_array)
+        .filter(|n| !n.is_empty())
+    {
         w.collection("ASSIGNED NAMES", |w| {
             for name in names {
                 w.heading("ASSIGNED NAME", |w| {
@@ -721,10 +739,7 @@ fn render_eventuality_dimensions(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Val
     }
 
     match obj.get("actuality").filter(|a| !a.is_null()) {
-        Some(a) => pairs.push((
-            "actuality".to_string(),
-            enum_render(req_str(a, "kind")),
-        )),
+        Some(a) => pairs.push(("actuality".to_string(), enum_render(req_str(a, "kind")))),
         None => pairs.push(("actuality".to_string(), "UNSPECIFIED".to_string())),
     }
 
@@ -742,7 +757,11 @@ fn render_eventuality_dimensions(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Val
         None => pairs.push(("aspect".to_string(), "UNSPECIFIED".to_string())),
     }
 
-    match obj.get("recurrence").and_then(Value::as_array).filter(|r| !r.is_empty()) {
+    match obj
+        .get("recurrence")
+        .and_then(Value::as_array)
+        .filter(|r| !r.is_empty())
+    {
         Some(recurrence) => {
             let items = recurrence
                 .iter()
@@ -789,7 +808,11 @@ fn render_descriptor(w: &mut Writer, ctx: &Ctx, d: &Value) {
         if let Some(name) = field_str(d, "name") {
             w.field("NAME", &quote(name));
         }
-        if let Some(clauses) = d.get("relativeClauses").and_then(Value::as_array).filter(|c| !c.is_empty()) {
+        if let Some(clauses) = d
+            .get("relativeClauses")
+            .and_then(Value::as_array)
+            .filter(|c| !c.is_empty())
+        {
             render_relative_clauses(w, ctx, clauses);
         }
     });
@@ -837,7 +860,11 @@ fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                 w.field("PLACE", &ctx.id_of(req_val(dg, "place")));
             });
         }
-        if let Some(asides) = obj.get("asides").and_then(Value::as_array).filter(|a| !a.is_empty()) {
+        if let Some(asides) = obj
+            .get("asides")
+            .and_then(Value::as_array)
+            .filter(|a| !a.is_empty())
+        {
             w.collection("ASIDES", |w| {
                 for a in asides {
                     w.entry(&ctx.id_of(a));
@@ -875,7 +902,11 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         if let Some(eventuality) = obj.get("eventuality") {
             w.field("EVENTUALITY", &ctx.id_of(eventuality));
         }
-        if let Some(args) = obj.get("arguments").and_then(Value::as_object).filter(|a| !a.is_empty()) {
+        if let Some(args) = obj
+            .get("arguments")
+            .and_then(Value::as_object)
+            .filter(|a| !a.is_empty())
+        {
             // opt_terse_labels: ARGS; opt_bracket_keys: [N]:. Canonical x1..xn
             // emission order.
             let mut keys: Vec<&String> = args.keys().collect();
@@ -929,7 +960,10 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             w.heading("TANRU LINK", |w| {
                 w.field("HEAD", &ctx.id_of(req_val(tanru_link, "head")));
                 w.field("MODIFIER", &ctx.id_of(req_val(tanru_link, "modifier")));
-                w.field("RELATION LABEL", &lexical(req_str(tanru_link, "relationLabel")));
+                w.field(
+                    "RELATION LABEL",
+                    &lexical(req_str(tanru_link, "relationLabel")),
+                );
             });
         }
         render_source(w, ctx, obj);
@@ -966,8 +1000,10 @@ fn render_place_questions(w: &mut Writer, ctx: &Ctx, questions: &[Value]) {
                     .get("relativeClauses")
                     .and_then(Value::as_array)
                     .filter(|clauses| !clauses.is_empty());
-                let show_source =
-                    ctx.provenance && argument.get("source").is_some_and(|source| !source.is_null());
+                let show_source = ctx.provenance
+                    && argument
+                        .get("source")
+                        .is_some_and(|source| !source.is_null());
                 if relative_clauses.is_some() || show_source {
                     w.heading(&format!("ARGUMENT: {operand}"), |w| {
                         if let Some(clauses) = relative_clauses {
@@ -1070,7 +1106,11 @@ fn render_formula(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         if !rendered_body {
             w.field("NOT COMPUTED", &format!("formula-shape({op})"));
         }
-        if let Some(be) = obj.get("boundEventualities").and_then(Value::as_array).filter(|b| !b.is_empty()) {
+        if let Some(be) = obj
+            .get("boundEventualities")
+            .and_then(Value::as_array)
+            .filter(|b| !b.is_empty())
+        {
             w.collection("BOUND EVENTUALITIES", |w| {
                 for e in be {
                     w.entry(&ctx.id_of(e));
@@ -1130,10 +1170,7 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let key = key.to_string();
     w.declaration("REFERENCE", &vid, None, true, |w| {
         // opt_terse_labels: the tested-winner reference-sort header.
-        w.annotate(
-            "DENOTES VALUES OF SORT",
-            &title_sort(req_str(obj, "sort")),
-        );
+        w.annotate("DENOTES VALUES OF SORT", &title_sort(req_str(obj, "sort")));
         // opt_collapse_notcomputed: the per-reference denotation-multiplicity
         // note is collapsed to the one document-level NOT COMPUTED block, so no
         // per-reference marker here.
@@ -1175,7 +1212,11 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_relation_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("RELATION EXPRESSION", &vid, None, true, |w| {
-        if let Some(params) = obj.get("parameters").and_then(Value::as_array).filter(|p| !p.is_empty()) {
+        if let Some(params) = obj
+            .get("parameters")
+            .and_then(Value::as_array)
+            .filter(|p| !p.is_empty())
+        {
             // opt_terse_labels: PARAMETERS IN CALLABLE ORDER -> PARAMS.
             w.ordered("PARAMS", |w| {
                 for p in params {
@@ -1265,14 +1306,22 @@ fn render_sequence(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                 w.entry(&ctx.id_of(it));
             }
         });
-        if let Some(cc) = obj.get("connectionClaims").and_then(Value::as_array).filter(|c| !c.is_empty()) {
+        if let Some(cc) = obj
+            .get("connectionClaims")
+            .and_then(Value::as_array)
+            .filter(|c| !c.is_empty())
+        {
             w.collection("CONNECTION CLAIMS", |w| {
                 for c in cc {
                     w.entry(&ctx.id_of(c));
                 }
             });
         }
-        if let Some(be) = obj.get("boundEventualities").and_then(Value::as_array).filter(|b| !b.is_empty()) {
+        if let Some(be) = obj
+            .get("boundEventualities")
+            .and_then(Value::as_array)
+            .filter(|b| !b.is_empty())
+        {
             w.collection("BOUND EVENTUALITIES", |w| {
                 for e in be {
                     w.entry(&ctx.id_of(e));
@@ -1284,7 +1333,10 @@ fn render_sequence(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             w.heading("NONLOGICAL CONNECTION", |w| {
                 let operator = req_str(nc, "operator");
                 if let Some(rest) = operator.strip_prefix("nonlogical:") {
-                    w.field("OPERATOR", &format!("{} {}", enum_render("nonlogical"), lexical(rest)));
+                    w.field(
+                        "OPERATOR",
+                        &format!("{} {}", enum_render("nonlogical"), lexical(rest)),
+                    );
                 } else {
                     w.field("OPERATOR", &enum_render(operator));
                 }
@@ -1351,7 +1403,10 @@ fn render_math_expression(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
             }
         } else if operator.is_some() {
             let empty = Vec::new();
-            let operands = obj.get("operands").and_then(Value::as_array).unwrap_or(&empty);
+            let operands = obj
+                .get("operands")
+                .and_then(Value::as_array)
+                .unwrap_or(&empty);
             w.ordered("OPERANDS IN ORDER", |w| {
                 for (index, operand) in operands.iter().enumerate() {
                     w.entry(&format!("[{}]: {}", index + 1, ctx.id_of(operand)));
