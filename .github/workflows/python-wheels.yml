@@ -1,0 +1,570 @@
+name: Python wheels
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/python-wheels.yml"
+      - "bindings/python/**"
+      - "crates/**"
+      - "tools/python-api-parity/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+  pull_request:
+    paths:
+      - ".github/workflows/python-wheels.yml"
+      - "bindings/python/**"
+      - "crates/**"
+      - "tools/python-api-parity/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-wheels-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  MATURIN_VERSION: v1.14.1
+  UV_VERSION: 0.9.17
+
+jobs:
+  generated:
+    name: Generated syntax and stubs
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.github-cache/python-wheels/cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/python-wheels/generated
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
+      - name: Capture Rust version
+        id: rustc
+        run: |
+          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
+          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore Python-lane Cargo home
+        id: cargo-home-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/python-wheels/cargo
+          key: jbotci-python-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            jbotci-python-cargo-home-${{ runner.os }}-
+
+      - name: Restore generated-check target
+        id: target-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/cargo-target/python-wheels/generated
+          key: jbotci-python-generated-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            jbotci-python-generated-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-python-generated-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+
+      - name: Normalize generated-check target mtimes
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: restore
+          target-dir: .github-cache/cargo-target/python-wheels/generated
+
+      - name: Build the editable extension
+        working-directory: bindings/python
+        run: uv run --locked --project . --group dev maturin develop
+
+      - name: Check generated syntax models
+        working-directory: bindings/python
+        run: uv run --locked --project . python tools/generate_syntax_models.py --check
+
+      - name: Check generated domain enum stubs
+        working-directory: bindings/python
+        run: uv run --locked --project . python tools/generate_domain_enum_stubs.py --check
+
+      - name: Check composed native stub
+        working-directory: bindings/python
+        run: uv run --locked --project . python tools/compose_stubs.py --check
+
+      - name: Check Python API parity inventory
+        working-directory: bindings/python
+        run: uv run --locked --project . python tools/generate_api_matrix.py --check
+
+      - name: Stamp generated-check target
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: stamp
+          target-dir: .github-cache/cargo-target/python-wheels/generated
+
+      - name: Save Python-lane Cargo home
+        if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/python-wheels/cargo
+          key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
+
+      - name: Save generated-check target
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/cargo-target/python-wheels/generated
+          key: ${{ steps.target-cache.outputs.cache-primary-key }}
+
+  build-wheels:
+    name: Build ${{ matrix.platform }}
+    needs: generated
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            interpreter: python3.11
+            manylinux: "2_28"
+          - platform: linux-aarch64
+            runner: ubuntu-24.04
+            target: aarch64-unknown-linux-gnu
+            interpreter: python3.11
+            manylinux: "2_28"
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            interpreter: python
+            manylinux: "off"
+          - platform: macos-aarch64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            interpreter: python
+            manylinux: "off"
+          - platform: windows-x86_64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            interpreter: python
+            manylinux: "off"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install build-floor Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Capture Rust version
+        id: rustc
+        shell: bash
+        run: |
+          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
+          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore Python-lane Cargo home
+        id: cargo-home-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/python-wheels/cargo
+          key: jbotci-python-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            jbotci-python-cargo-home-${{ runner.os }}-
+
+      - name: Restore wheel target
+        id: target-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/cargo-target/python-wheels/${{ matrix.platform }}
+          key: jbotci-python-wheel-${{ matrix.platform }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            jbotci-python-wheel-${{ matrix.platform }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-python-wheel-${{ matrix.platform }}-${{ steps.rustc.outputs.version }}-
+
+      - name: Normalize wheel target mtimes
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: restore
+          target-dir: .github-cache/cargo-target/python-wheels/${{ matrix.platform }}
+
+      - name: Configure isolated Python-lane Cargo paths
+        shell: bash
+        run: |
+          mkdir -p \
+            "${GITHUB_WORKSPACE}/.github-cache/python-wheels/cargo/registry" \
+            "${GITHUB_WORKSPACE}/.github-cache/python-wheels/cargo/git"
+          if [[ "${{ runner.os }}" != "Linux" ]]; then
+            echo "CARGO_HOME=${GITHUB_WORKSPACE}/.github-cache/python-wheels/cargo" >> "${GITHUB_ENV}"
+          fi
+          echo "CARGO_TARGET_DIR=${GITHUB_WORKSPACE}/.github-cache/cargo-target/python-wheels/${{ matrix.platform }}" >> "${GITHUB_ENV}"
+
+      - name: Build first wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          maturin-version: ${{ env.MATURIN_VERSION }}
+          rust-toolchain: stable
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: bindings/python
+          docker-options: >-
+            -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/registry:/root/.cargo/registry
+            -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/git:/root/.cargo/git
+          args: >-
+            --release --locked --strip
+            -i ${{ matrix.interpreter }}
+            --out ../../dist/python-wheels/${{ matrix.platform }}/first
+
+      - name: Build second wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          maturin-version: ${{ env.MATURIN_VERSION }}
+          rust-toolchain: stable
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          working-directory: bindings/python
+          docker-options: >-
+            -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/registry:/root/.cargo/registry
+            -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/git:/root/.cargo/git
+          args: >-
+            --release --locked --strip
+            -i ${{ matrix.interpreter }}
+            --out ../../dist/python-wheels/${{ matrix.platform }}/second
+
+      - name: Compare and inspect wheel
+        shell: bash
+        run: |
+          first=(dist/python-wheels/${{ matrix.platform }}/first/*.whl)
+          second=(dist/python-wheels/${{ matrix.platform }}/second/*.whl)
+          [[ "${#first[@]}" -eq 1 && "${#second[@]}" -eq 1 ]]
+          python bindings/python/tools/python_artifacts.py compare \
+            --left "${first[0]}" \
+            --right "${second[0]}"
+          python bindings/python/tools/python_artifacts.py inspect \
+            --artifact "${first[0]}" \
+            --kind wheel \
+            --platform "${{ matrix.platform }}" \
+            --forbid-path "${GITHUB_WORKSPACE}" \
+            --receipt "dist/receipts/${{ matrix.platform }}.json"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v6
+        with:
+          name: python-wheel-${{ matrix.platform }}
+          path: |
+            dist/python-wheels/${{ matrix.platform }}/first/*.whl
+            dist/receipts/${{ matrix.platform }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stamp wheel target
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: stamp
+          target-dir: .github-cache/cargo-target/python-wheels/${{ matrix.platform }}
+
+      - name: Save Python-lane Cargo home
+        if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/python-wheels/cargo
+          key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
+
+      - name: Save wheel target
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/cargo-target/python-wheels/${{ matrix.platform }}
+          key: ${{ steps.target-cache.outputs.cache-primary-key }}
+
+  test-wheels:
+    name: Test ${{ matrix.platform }} on CPython ${{ matrix.python }}
+    needs: build-wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux-x86_64
+          - linux-aarch64
+          - macos-x86_64
+          - macos-aarch64
+          - windows-x86_64
+        python:
+          - "3.11"
+          - "3.14"
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - platform: macos-x86_64
+            runner: macos-15-intel
+          - platform: macos-aarch64
+            runner: macos-15
+          - platform: windows-x86_64
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install test Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Download wheel
+        uses: actions/download-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.platform }}
+          path: ${{ runner.temp }}/jbotci-wheel
+
+      - name: Test wheel in a clean outside-tree environment
+        shell: bash
+        run: |
+          wheels=($(find "${RUNNER_TEMP}/jbotci-wheel" -type f -name '*.whl'))
+          [[ "${#wheels[@]}" -eq 1 ]]
+          python bindings/python/tools/run_wheel_tests.py \
+            --wheel "${wheels[0]}" \
+            --package-root "${GITHUB_WORKSPACE}/bindings/python" \
+            --workspace-root "${GITHUB_WORKSPACE}" \
+            --venv "${RUNNER_TEMP}/jbotci-test-${{ matrix.platform }}-${{ matrix.python }}"
+
+  sdist:
+    name: Source distribution round trip
+    needs: generated
+    runs-on: ubuntu-24.04
+    env:
+      SDIST_CARGO_HOME: ${{ runner.temp }}/jbotci-sdist-cargo-home
+      SDIST_TARGET_DIR: ${{ runner.temp }}/jbotci-sdist-target
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
+      - name: Restore sdist Cargo registry
+        id: cargo-home-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.SDIST_CARGO_HOME }}
+          key: jbotci-python-sdist-cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            jbotci-python-sdist-cargo-${{ runner.os }}-
+
+      - name: Build source distributions twice
+        working-directory: bindings/python
+        run: |
+          uv run --locked --project . --group dev maturin sdist \
+            --out ../../dist/python-sdist/raw-first
+          uv run --locked --project . --group dev maturin sdist \
+            --out ../../dist/python-sdist/raw-second
+          raw_first=(../../dist/python-sdist/raw-first/*.tar.gz)
+          raw_second=(../../dist/python-sdist/raw-second/*.tar.gz)
+          [[ "${#raw_first[@]}" -eq 1 && "${#raw_second[@]}" -eq 1 ]]
+          mkdir -p ../../dist/python-sdist/first ../../dist/python-sdist/second
+          CARGO_HOME="${SDIST_CARGO_HOME}" \
+            python tools/python_artifacts.py normalize-sdist \
+            --input "${raw_first[0]}" \
+            --output "../../dist/python-sdist/first/${raw_first[0]##*/}"
+          CARGO_HOME="${SDIST_CARGO_HOME}" \
+            python tools/python_artifacts.py normalize-sdist \
+            --input "${raw_second[0]}" \
+            --output "../../dist/python-sdist/second/${raw_second[0]##*/}"
+
+      - name: Compare and inspect source distribution
+        shell: bash
+        run: |
+          first=(dist/python-sdist/first/*.tar.gz)
+          second=(dist/python-sdist/second/*.tar.gz)
+          [[ "${#first[@]}" -eq 1 && "${#second[@]}" -eq 1 ]]
+          python bindings/python/tools/python_artifacts.py compare \
+            --left "${first[0]}" \
+            --right "${second[0]}"
+          python bindings/python/tools/python_artifacts.py inspect \
+            --artifact "${first[0]}" \
+            --kind sdist \
+            --forbid-path "${GITHUB_WORKSPACE}" \
+            --receipt "${RUNNER_TEMP}/jbotci-sdist-receipts/sdist.json"
+          mkdir -p "${RUNNER_TEMP}/jbotci-sdist-artifact"
+          cp "${first[0]}" "${RUNNER_TEMP}/jbotci-sdist-artifact/"
+
+      - name: Prepare isolated sdist build
+        shell: bash
+        run: |
+          sdist=("${RUNNER_TEMP}"/jbotci-sdist-artifact/*.tar.gz)
+          [[ "${#sdist[@]}" -eq 1 ]]
+          mkdir -p "${RUNNER_TEMP}/jbotci-sdist-source"
+          tar -xzf "${sdist[0]}" -C "${RUNNER_TEMP}/jbotci-sdist-source"
+          sources=("${RUNNER_TEMP}"/jbotci-sdist-source/*)
+          [[ "${#sources[@]}" -eq 1 && -d "${sources[0]}" ]]
+          echo "SDIST_SOURCE=${sources[0]}" >> "${GITHUB_ENV}"
+          python -m venv "${RUNNER_TEMP}/jbotci-sdist-builder"
+          "${RUNNER_TEMP}/jbotci-sdist-builder/bin/python" -m pip \
+            --disable-pip-version-check install "maturin==${MATURIN_VERSION#v}"
+          CARGO_HOME="${SDIST_CARGO_HOME}" \
+            cargo fetch --locked --manifest-path "${sources[0]}/Cargo.toml"
+
+      - name: Make the original checkout inaccessible
+        shell: bash
+        run: |
+          cd "${RUNNER_TEMP}"
+          original_checkout="${RUNNER_TEMP}/jbotci-original-checkout"
+          mv "${GITHUB_WORKSPACE}" "${original_checkout}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          chmod a-rwx "${original_checkout}"
+          echo "ORIGINAL_CHECKOUT=${original_checkout}" >> "${GITHUB_ENV}"
+          test ! -e "${GITHUB_WORKSPACE}/Cargo.toml"
+          if test -r "${original_checkout}/Cargo.toml"; then
+            echo "original checkout is still readable" >&2
+            exit 1
+          fi
+
+      - name: Build two wheels offline from the unpacked sdist
+        shell: bash
+        run: |
+          cd "${SDIST_SOURCE}"
+          CARGO_HOME="${SDIST_CARGO_HOME}" \
+          CARGO_TARGET_DIR="${SDIST_TARGET_DIR}" \
+          CARGO_NET_OFFLINE=true \
+            "${RUNNER_TEMP}/jbotci-sdist-builder/bin/maturin" build \
+              --release --locked --offline --strip --compatibility pypi \
+              -i python \
+              --out "${RUNNER_TEMP}/jbotci-sdist-wheel/first"
+          CARGO_HOME="${SDIST_CARGO_HOME}" \
+          CARGO_TARGET_DIR="${SDIST_TARGET_DIR}" \
+          CARGO_NET_OFFLINE=true \
+            "${RUNNER_TEMP}/jbotci-sdist-builder/bin/maturin" build \
+              --release --locked --offline --strip --compatibility pypi \
+              -i python \
+              --out "${RUNNER_TEMP}/jbotci-sdist-wheel/second"
+
+      - name: Compare, inspect, and test the sdist-built wheel
+        shell: bash
+        run: |
+          first=("${RUNNER_TEMP}"/jbotci-sdist-wheel/first/*.whl)
+          second=("${RUNNER_TEMP}"/jbotci-sdist-wheel/second/*.whl)
+          [[ "${#first[@]}" -eq 1 && "${#second[@]}" -eq 1 ]]
+          python_tool="${SDIST_SOURCE}/bindings/python/tools/python_artifacts.py"
+          python "${python_tool}" compare \
+            --left "${first[0]}" \
+            --right "${second[0]}"
+          python "${python_tool}" inspect \
+            --artifact "${first[0]}" \
+            --kind wheel \
+            --platform sdist-wheel-x86_64 \
+            --forbid-path "${GITHUB_WORKSPACE}" \
+            --forbid-path "${ORIGINAL_CHECKOUT}" \
+            --forbid-path "${SDIST_SOURCE}" \
+            --receipt "${RUNNER_TEMP}/jbotci-sdist-receipts/sdist-wheel-x86_64.json"
+          python "${SDIST_SOURCE}/bindings/python/tools/run_wheel_tests.py" \
+            --wheel "${first[0]}" \
+            --package-root "${SDIST_SOURCE}/bindings/python" \
+            --workspace-root "${SDIST_SOURCE}" \
+            --venv "${RUNNER_TEMP}/jbotci-sdist-wheel-test"
+          cp "${first[0]}" "${RUNNER_TEMP}/jbotci-sdist-artifact/"
+
+      - name: Restore checkout for action cleanup
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          test -d "${ORIGINAL_CHECKOUT}"
+          chmod 755 "${ORIGINAL_CHECKOUT}"
+          cd "${RUNNER_TEMP}"
+          rmdir "${GITHUB_WORKSPACE}"
+          mv "${ORIGINAL_CHECKOUT}" "${GITHUB_WORKSPACE}"
+
+      - name: Upload sdist proof
+        uses: actions/upload-artifact@v6
+        with:
+          name: python-sdist-roundtrip
+          path: |
+            ${{ runner.temp }}/jbotci-sdist-artifact/*
+            ${{ runner.temp }}/jbotci-sdist-receipts/*.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Save sdist Cargo registry
+        if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.SDIST_CARGO_HOME }}
+          key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
+
+  acceptance:
+    name: Python artifact acceptance
+    if: ${{ always() }}
+    needs:
+      - generated
+      - build-wheels
+      - test-wheels
+      - sdist
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every job and matrix leg
+        shell: bash
+        run: |
+          [[ "${{ needs.generated.result }}" == "success" ]]
+          [[ "${{ needs.build-wheels.result }}" == "success" ]]
+          [[ "${{ needs.test-wheels.result }}" == "success" ]]
+          [[ "${{ needs.sdist.result }}" == "success" ]]
+
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Download artifact receipts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: python-*
+          path: ${{ runner.temp }}/jbotci-python-artifacts
+          merge-multiple: true
+
+      - name: Publish artifact size table
+        shell: bash
+        run: |
+          receipts=($(find "${RUNNER_TEMP}/jbotci-python-artifacts" -type f -name '*.json'))
+          [[ "${#receipts[@]}" -eq 7 ]]
+          python bindings/python/tools/python_artifacts.py size-table \
+            "${receipts[@]}" \
+            --output "${RUNNER_TEMP}/python-artifact-sizes.md"
+          cat "${RUNNER_TEMP}/python-artifact-sizes.md" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload artifact size table
+        uses: actions/upload-artifact@v6
+        with:
+          name: python-artifact-sizes
+          path: ${{ runner.temp }}/python-artifact-sizes.md
+          if-no-files-found: error
+          retention-days: 14
