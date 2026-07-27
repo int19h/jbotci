@@ -1468,10 +1468,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "nonzero trial and frame components make every identity pair structurally valid",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoFailure",
-        "memo failures pair a valid parser error with independently optional replay and observation payloads",
-    ),
-    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",
         "memo replay position and side effects are independently valid after typed output validation",
     ),
@@ -1550,6 +1546,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/lib.rs:SyntaxParseAttempt",
         "parse attempt combines parser result with optional trace report without extra cross-field constraints",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxRecoveryErrorPolicy",
+        "both limits are nonzero by type and independently configurable; an explicit global hard-cap override may be smaller than the locality limit",
     ),
     (
         "crates/jbotci-syntax/src/lib.rs:SyntaxRecoveryParseAttempt",
