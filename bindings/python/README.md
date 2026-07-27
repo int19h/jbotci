@@ -52,6 +52,9 @@ representations, strict and recovered parsing, traversal, dictionary and
 jvozba use, references, diagnostics, ownership, and current non-goals. The
 [Rust API parity matrix](docs/api-parity.md) documents exactly how every
 in-scope public Rust item is represented or intentionally excluded.
+[Python distribution artifacts](docs/artifacts.md) documents the wheel matrix,
+clean installed-package tests, isolated sdist round trip, size ratchet,
+reproducibility comparison, trigger policy, and owner reproduction commands.
 
 Contributors extending the package should also read the
 [binding conventions](docs/binding-conventions.md), including the pyclass,
