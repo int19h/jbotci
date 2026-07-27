@@ -355,9 +355,6 @@ jobs:
     name: Source distribution round trip
     needs: generated
     runs-on: ubuntu-24.04
-    env:
-      SDIST_CARGO_HOME: ${{ runner.temp }}/jbotci-sdist-cargo-home
-      SDIST_TARGET_DIR: ${{ runner.temp }}/jbotci-sdist-target
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -374,6 +371,12 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
+
+      - name: Configure isolated sdist paths
+        shell: bash
+        run: |
+          echo "SDIST_CARGO_HOME=${RUNNER_TEMP}/jbotci-sdist-cargo-home" >> "${GITHUB_ENV}"
+          echo "SDIST_TARGET_DIR=${RUNNER_TEMP}/jbotci-sdist-target" >> "${GITHUB_ENV}"
 
       - name: Restore sdist Cargo registry
         id: cargo-home-cache
