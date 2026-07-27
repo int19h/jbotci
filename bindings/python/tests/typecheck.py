@@ -10,6 +10,7 @@ from jbotci import (
     dictionary,
     diagnostics,
     dialect,
+    jvozba,
     morphology,
     parse,
     parse_recovered,
@@ -19,6 +20,90 @@ from jbotci import (
     source,
     syntax,
 )
+
+
+def exhaustive_jvozba_input(value: jvozba.JvozbaInput) -> str:
+    """Prove dictionary words and exact rafsi remain a closed input union."""
+
+    if isinstance(value, jvozba.Word):
+        assert_type(value.value, str)
+        return value.value
+    if isinstance(value, jvozba.FixedRafsi):
+        assert_type(value.value, str)
+        return value.value
+    assert_never(value)
+
+
+def exhaustive_jvozba_error(value: jvozba.JvozbaErrorValue) -> str:
+    """Prove all eight structured Rust errors narrow without a fallback."""
+
+    if isinstance(value, jvozba.RequiresAtLeastTwoInputs):
+        return str(value)
+    if isinstance(value, jvozba.FixedRafsiEmpty):
+        return str(value)
+    if isinstance(value, jvozba.NonFinalUniversalLongRafsi):
+        assert_type(value.offending, str)
+        return value.offending
+    if isinstance(value, jvozba.FinalConsonant):
+        assert_type(value.offending, str)
+        assert_type(value.is_fixed_rafsi, bool)
+        return value.offending
+    if isinstance(value, jvozba.NoRafsiAvailable):
+        assert_type(value.offending, str)
+        return value.offending
+    if isinstance(value, jvozba.NoDictionaryEntry):
+        assert_type(value.offending, str)
+        return value.offending
+    if isinstance(value, jvozba.CouldNotBuildLujvo):
+        return str(value)
+    if isinstance(value, jvozba.CouldNotBuildCompound):
+        return str(value)
+    assert_never(value)
+
+
+def typed_jvozba_surface() -> jvozba.JvozbaBuildResult:
+    """Exercise composition, decomposition, provenance, and typed exceptions."""
+
+    word = jvozba.Word("lojbo")
+    fixed = jvozba.FixedRafsi("bau")
+    inputs: tuple[jvozba.JvozbaInput, ...] = (word, fixed)
+    result = jvozba.build(inputs)
+    detailed = jvozba.build_best_jvozba_detailed(
+        jvozba.JvozbaMode.LUJVO, dictionary.english, list(inputs)
+    )
+    assert_type(result, jvozba.JvozbaBuildResult)
+    assert_type(detailed, jvozba.JvozbaBuildResult)
+    assert_type(result.word, str)
+    assert_type(result.segments, tuple[jvozba.JvozbaSegment, ...])
+    for segment in result.segments:
+        assert_type(segment.kind, jvozba.JvozbaSegmentKind)
+        assert_type(segment.text, str)
+
+    assert_type(
+        jvozba.word_can_enter_jvozba_pane(dictionary.english, "lojbo"),
+        bool,
+    )
+    assert_type(jvozba.can_use_word("lojbo"), bool)
+    decomposition = jvozba.decompose_lujvo_like("jetcybolxada")
+    assert_type(decomposition, jvozba.LujvoDecomposition | None)
+    if decomposition is not None:
+        assert_type(
+            decomposition.segments, tuple[jvozba.LujvoSegmentInfo, ...]
+        )
+        assert_type(decomposition.source_words, tuple[str, ...])
+        for info in decomposition.segments:
+            assert_type(info.segment, morphology.LujvoPart)
+            assert_type(info.source, str | None)
+
+    try:
+        jvozba.build([jvozba.Word("missing"), jvozba.Word("also-missing")])
+    except jvozba.NoDictionaryEntryError as error:
+        assert_type(error.value, jvozba.NoDictionaryEntry)
+        assert_type(error.offending, str)
+
+    assert exhaustive_jvozba_input(word)
+    assert exhaustive_jvozba_error(jvozba.NoDictionaryEntry("missing"))
+    return result
 
 
 def exhaustive_syntax_expected_token(value: syntax.SyntaxExpectedToken) -> str:

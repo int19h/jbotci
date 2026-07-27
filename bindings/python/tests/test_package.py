@@ -19,7 +19,7 @@ import pytest
 
 import jbotci
 import jbotci._native as native
-from jbotci import diagnostics, dialect, morphology, source
+from jbotci import diagnostics, dialect, jvozba, morphology, source
 from tools.compose_stubs import FRAGMENTS, OUTPUT
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -133,6 +133,20 @@ NON_MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_diagnostics_InvalidTraceLevel": ("value",),
     "_dialect_CmavoSwap": ("left", "right"),
     "_dialect_CmavoExpansion": ("source", "replacement"),
+    "_jvozba_Word": ("value",),
+    "_jvozba_FixedRafsi": ("value",),
+    "_jvozba_JvozbaSegment": ("kind", "text"),
+    "_jvozba_JvozbaBuildResult": ("word", "segments"),
+    "_jvozba_LujvoSegmentInfo": ("segment", "source"),
+    "_jvozba_LujvoDecomposition": ("segments", "source_words"),
+    "_jvozba_RequiresAtLeastTwoInputs": (),
+    "_jvozba_FixedRafsiEmpty": (),
+    "_jvozba_NonFinalUniversalLongRafsi": ("offending",),
+    "_jvozba_FinalConsonant": ("offending", "is_fixed_rafsi"),
+    "_jvozba_NoRafsiAvailable": ("offending",),
+    "_jvozba_NoDictionaryEntry": ("offending",),
+    "_jvozba_CouldNotBuildLujvo": (),
+    "_jvozba_CouldNotBuildCompound": (),
 }
 
 _OPAQUE_PYO3_DEFAULT = object()
@@ -245,6 +259,7 @@ MANUAL_CALLABLE_DEFAULTS: dict[str, dict[str, object]] = {
         "custom_dialects": _OPAQUE_PYO3_DEFAULT,
         "hidden_builtin_gentufa_dialects": _OPAQUE_PYO3_DEFAULT,
     },
+    "_jvozba_LujvoSegmentInfo.__new__": {"source": None},
     **MORPHOLOGY_CALLABLE_DEFAULTS,
 }
 
@@ -253,6 +268,7 @@ MANUAL_STUB_FRAGMENTS: dict[str, str] = {
     "_diagnostics_": "diagnostics.pyi",
     "_dialect_": "dialect.pyi",
     "_morphology_": "morphology.pyi",
+    "_jvozba_": "jvozba.pyi",
 }
 
 PUBLIC_RUST_CONSTANTS: dict[str, dict[str, str]] = {
@@ -586,7 +602,7 @@ def test_structured_error_conversion_uses_public_hierarchy() -> None:
         ("syntax.strict", None),
         ("syntax.recovered", None),
         ("dictionary", None),
-        ("jvozba", ()),
+        ("jvozba", None),
         ("semantics", ("references",)),
         ("semantics.references", ()),
     ],
@@ -1485,6 +1501,7 @@ def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
         "_dialect_",
         "_morphology_",
         "_syntax_parser_",
+        "_jvozba_",
     )
     runtime_enums = {
         name
@@ -1496,7 +1513,9 @@ def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
     assert runtime_enums == {declaration.name for declaration in declarations}
 
 
-@pytest.mark.parametrize("module", (source, diagnostics, dialect, morphology))
+@pytest.mark.parametrize(
+    "module", (source, diagnostics, dialect, morphology, jvozba)
+)
 def test_public_callables_have_stable_introspection_and_pickle_identity(
     module: ModuleType,
 ) -> None:
@@ -1509,7 +1528,9 @@ def test_public_callables_have_stable_introspection_and_pickle_identity(
         assert getattr(module, export_name) is pickle.loads(pickle.dumps(exported))
 
 
-@pytest.mark.parametrize("module", (source, diagnostics, dialect, morphology))
+@pytest.mark.parametrize(
+    "module", (source, diagnostics, dialect, morphology, jvozba)
+)
 def test_domain_api_has_complete_runtime_docstrings(module: ModuleType) -> None:
     """Keep native documentation attached to every public consumer surface."""
 
