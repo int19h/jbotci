@@ -2240,7 +2240,7 @@ impl PyLujvoHyphen {
 
 #[requires(true)]
 #[ensures(true)]
-fn lujvo_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoPart> {
+pub(crate) fn clone_lujvo_part_from_python(value: &Bound<'_, PyAny>) -> PyResult<LujvoPart> {
     if let Ok(value) = value.extract::<PyRef<'_, PyLujvoRafsi>>() {
         return Ok(value.value.clone_rust());
     }
@@ -2936,7 +2936,7 @@ impl PyLujvoWord {
     #[new]
     fn new(parts: &Bound<'_, PyAny>, span: PyRef<'_, PySourceSpan>) -> PyResult<Self> {
         validate_nonempty_word_span(&span)?;
-        let parts = extract_sequence(parts, "parts", lujvo_part_from_python)?;
+        let parts = extract_sequence(parts, "parts", clone_lujvo_part_from_python)?;
         let parts = vec1::Vec1::try_from_vec(parts)
             .map_err(|_| InvalidInputError::new_err("lujvo parts must not be empty"))?;
         Ok(PyLujvoWord {
@@ -6789,7 +6789,7 @@ fn one_unicode_scalar(text: &str, parameter: &str) -> PyResult<char> {
 
 #[requires(true)]
 #[ensures(true)]
-fn owned_lujvo_part_to_python(py: Python<'_>, part: LujvoPart) -> PyResult<Py<PyAny>> {
+pub(crate) fn owned_lujvo_part_to_python(py: Python<'_>, part: LujvoPart) -> PyResult<Py<PyAny>> {
     let value = LujvoPartStorage::Owned {
         value: Arc::new(part),
     };

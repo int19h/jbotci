@@ -152,3 +152,69 @@ def test_omitted_parser_payload_fails_exhaustive_match_in_strict_mypy() -> None:
     assert len(diagnostics) == 1, result.stdout
     assert "[arg-type]" in diagnostics[0]
     assert "SyntaxExpectedTokenNamed" in diagnostics[0]
+
+
+def test_jvozba_misuse_is_rejected_by_strict_mypy() -> None:
+    """Typed inputs reject strings, unordered iterables, generators, and enum text."""
+
+    fixture = PACKAGE_ROOT / "tests" / "typing_failures" / "jvozba_misuse.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+            str(fixture),
+        ],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    diagnostics = tuple(
+        line for line in result.stdout.splitlines() if ": error:" in line
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert diagnostics
+    assert all(
+        "[arg-type]" in line or "[list-item]" in line
+        for line in diagnostics
+    )
+    assert any(
+        "Sequence[" in line and "FixedRafsi" in line
+        for line in diagnostics
+    )
+    assert any("JvozbaMode" in line for line in diagnostics)
+
+
+def test_omitted_jvozba_error_fails_closed_union_narrowing() -> None:
+    """The closed error union reports its unhandled compound-failure variant."""
+
+    fixture = (
+        PACKAGE_ROOT
+        / "tests"
+        / "typing_failures"
+        / "jvozba_non_exhaustive.py"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+            str(fixture),
+        ],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    diagnostics = tuple(
+        line for line in result.stdout.splitlines() if ": error:" in line
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert diagnostics
+    assert all("[arg-type]" in line for line in diagnostics)
+    assert all("CouldNotBuildCompound" in line for line in diagnostics)

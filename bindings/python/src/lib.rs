@@ -9,6 +9,7 @@
 mod diagnostics;
 mod dialect;
 mod dictionary;
+mod jvozba;
 mod morphology;
 mod parser;
 mod source;
@@ -51,6 +52,7 @@ const ROOT_NATIVE_EXPORTS: &[&str] = &[
 const NATIVE_EXPORT_GROUPS: &[&[&str]] = &[
     ROOT_NATIVE_EXPORTS,
     dictionary::NATIVE_EXPORTS,
+    jvozba::NATIVE_EXPORTS,
     source::NATIVE_EXPORTS,
     diagnostics::NATIVE_EXPORTS,
     dialect::NATIVE_EXPORTS,
@@ -245,6 +247,7 @@ fn register_metadata(module: &Bound<'_, PyModule>) -> PyResult<()> {
 fn native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_root(module)?;
     dictionary::register(module)?;
+    jvozba::register(module)?;
     source::register(module)?;
     diagnostics::register(module)?;
     dialect::register(module)?;

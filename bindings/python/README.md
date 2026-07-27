@@ -124,6 +124,40 @@ The explicit fragment manifest in the compositor is the ordering authority.
 The test suite verifies that composition is reproducible and that the composed
 public declarations match the native module's runtime exports.
 
+## Jvozba composition and decomposition
+
+`jbotci.jvozba` keeps dictionary words and exact rafsi as distinct input
+variants. The ergonomic builder uses the embedded English dictionary and lujvo
+mode by default:
+
+```python
+from jbotci import jvozba
+
+result = jvozba.build(
+    [jvozba.Word("lojbo"), jvozba.FixedRafsi("bau")],
+    mode=jvozba.JvozbaMode.LUJVO,
+)
+assert result.word == "jbobau"
+```
+
+Use `build_best_jvozba_detailed(mode, dictionary, raw_inputs)` for the exact
+low-level Rust argument order. Both functions accept ordered Python sequences
+of `Word | FixedRafsi`; raw strings and arbitrary iterables are rejected.
+`word_can_enter_jvozba_pane(dictionary, word)` preserves the direct Rust
+predicate, while `can_use_word(word, dictionary=english)` supplies ergonomic
+argument order and defaults.
+
+`decompose_lujvo_like(word, dictionary=english)` returns exact
+`morphology.LujvoRafsi` and `morphology.LujvoHyphen` values with optional
+dictionary source words. All collections are immutable tuples, hyphens always
+have `source=None`, and source strings are owned before detached Rust work
+returns to Python.
+
+Every Rust `JvozbaError` variant has a distinct immutable value class and a
+final exception class. Exceptions retain the complete value in `.value`;
+payload exceptions also expose fields such as `.offending` and
+`.is_fixed_rafsi`.
+
 ## Syntax parsing and completion
 
 Use the package-root conveniences when starting from source text:
