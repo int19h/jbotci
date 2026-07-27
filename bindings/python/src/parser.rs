@@ -1323,16 +1323,6 @@ impl PySyntaxExpectation {
     }
 }
 
-#[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn expectation_to_python(
-    py: Python<'_>,
-    value: SyntaxExpectation,
-) -> PyResult<PySyntaxExpectation> {
-    let _ = py;
-    Ok(PySyntaxExpectation { value })
-}
-
 #[invariant(true, "private construction fixes the retained Rust error variant")]
 #[pyclass(
     name = "SyntaxErrorNotImplemented",
@@ -1756,6 +1746,7 @@ impl PySyntaxWarningDisplay {
     }
 }
 
+/// Successful strict syntax parse retaining the typed tree and all warnings.
 #[invariant(true, "the root handle and warnings retain all Rust-owned parser data")]
 #[pyclass(
     name = "SyntaxParse",
@@ -1828,6 +1819,7 @@ enum StrictParseOutcome {
     Error { error: Arc<RustSyntaxError> },
 }
 
+/// Non-raising strict parse attempt with an exact result, error, and optional trace.
 #[invariant(true, "the outcome retains exactly one strict parse or typed error")]
 #[pyclass(
     name = "SyntaxParseAttempt",
@@ -1916,6 +1908,7 @@ impl PySyntaxParseAttempt {
     }
 }
 
+/// Recovered syntax parse retaining typed recovery fields, errors, and warnings.
 #[invariant(true, "the root and errors retain the exact recovered parser result")]
 #[pyclass(
     name = "RecoveredSyntaxParse",
@@ -1943,6 +1936,7 @@ impl PyRecoveredSyntaxParse {
     }
 }
 
+/// Recovered parse result paired with its optional trace report.
 #[invariant(
     true,
     "the recovered result and optional trace are immutable Rust values"
@@ -1987,6 +1981,7 @@ impl PyRecoveredSyntaxParseAttempt {
     }
 }
 
+/// Strict-success alternative returned by a strict-or-recovered parse attempt.
 #[invariant(true, "the payload is a strict parser success")]
 #[pyclass(
     name = "SyntaxRecoveryParseValid",
@@ -2022,6 +2017,7 @@ impl PySyntaxRecoveryParseValid {
     }
 }
 
+/// Recovered alternative returned by a strict-or-recovered parse attempt.
 #[invariant(true, "the payload is the exact recovered parser result")]
 #[pyclass(
     name = "SyntaxRecoveryParseRecovered",
@@ -2065,6 +2061,7 @@ enum RecoveryParseOutcome {
     Recovered { parse: PyRecoveredSyntaxParse },
 }
 
+/// Non-raising parse attempt returning a closed strict-or-recovered result.
 #[invariant(true, "the outcome retains the exact strict-or-recovered Rust variant")]
 #[pyclass(
     name = "SyntaxRecoveryParseAttempt",

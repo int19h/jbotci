@@ -4050,6 +4050,7 @@ class _syntax_parser_SyntaxWarningDisplay:
 
 @final
 class _syntax_parser_SyntaxParse:
+    'Successful strict syntax parse retaining the typed tree and all warnings.'
     @property
     def parse_tree(self) -> _StrictTextSyntax: ...
     @property
@@ -4057,6 +4058,7 @@ class _syntax_parser_SyntaxParse:
 
 @final
 class _syntax_parser_SyntaxParseAttempt:
+    'Non-raising strict parse attempt with an exact result, error, and optional trace.'
     @property
     def succeeded(self) -> bool: ...
     @property
@@ -4068,6 +4070,7 @@ class _syntax_parser_SyntaxParseAttempt:
 
 @final
 class _syntax_parser_RecoveredSyntaxParse:
+    'Recovered syntax parse retaining typed recovery fields, errors, and warnings.'
     @property
     def parse_tree(self) -> _RecoveredTextSyntax: ...
     @property
@@ -4077,6 +4080,7 @@ class _syntax_parser_RecoveredSyntaxParse:
 
 @final
 class _syntax_parser_RecoveredSyntaxParseAttempt:
+    'Recovered parse result paired with its optional trace report.'
     @property
     def result(self) -> _syntax_parser_RecoveredSyntaxParse: ...
     @property
@@ -4084,6 +4088,7 @@ class _syntax_parser_RecoveredSyntaxParseAttempt:
 
 @final
 class _syntax_parser_SyntaxRecoveryParseValid:
+    'Strict-success alternative returned by a strict-or-recovered parse attempt.'
     __match_args__: ClassVar[tuple[str]]
     def __new__(
         cls, parse: _syntax_parser_SyntaxParse
@@ -4093,6 +4098,7 @@ class _syntax_parser_SyntaxRecoveryParseValid:
 
 @final
 class _syntax_parser_SyntaxRecoveryParseRecovered:
+    'Recovered alternative returned by a strict-or-recovered parse attempt.'
     __match_args__: ClassVar[tuple[str]]
     def __new__(
         cls, parse: _syntax_parser_RecoveredSyntaxParse
@@ -4107,6 +4113,7 @@ _SyntaxRecoveryParse = (
 
 @final
 class _syntax_parser_SyntaxRecoveryParseAttempt:
+    'Non-raising parse attempt returning a closed strict-or-recovered result.'
     @property
     def result(self) -> _SyntaxRecoveryParse: ...
     @property
@@ -4518,6 +4525,7 @@ class _references_SelbriPlaceFrame:
     def tanru_unit(self) -> _references_TanruUnitNodeId | None: ...
     @property
     def propagation(self) -> _PlaceFramePropagation: ...
+    def __repr__(self) -> str: ...
     def __eq__(self, value: object, /) -> bool: ...
     def __hash__(self) -> int: ...
 
@@ -4543,6 +4551,7 @@ class _references_SumtiPlaceAssignment:
     def term(self) -> _references_TermNodeId | None: ...
     @property
     def source(self) -> _references_AssignmentSource: ...
+    def __repr__(self) -> str: ...
     def __eq__(self, value: object, /) -> bool: ...
     def __hash__(self) -> int: ...
 
@@ -4607,6 +4616,7 @@ class _references_ReferenceEdge:
     def target(self) -> _ReferenceTarget: ...
     @property
     def rule(self) -> _references_ReferenceRule: ...
+    def __repr__(self) -> str: ...
     def __eq__(self, value: object, /) -> bool: ...
     def __hash__(self) -> int: ...
 

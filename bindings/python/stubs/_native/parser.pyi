@@ -290,6 +290,7 @@ class _syntax_parser_SyntaxWarningDisplay:
 
 @final
 class _syntax_parser_SyntaxParse:
+    """@rust-doc:SyntaxParse"""
     @property
     def parse_tree(self) -> _StrictTextSyntax: ...
     @property
@@ -297,6 +298,7 @@ class _syntax_parser_SyntaxParse:
 
 @final
 class _syntax_parser_SyntaxParseAttempt:
+    """@rust-doc:SyntaxParseAttempt"""
     @property
     def succeeded(self) -> bool: ...
     @property
@@ -308,6 +310,7 @@ class _syntax_parser_SyntaxParseAttempt:
 
 @final
 class _syntax_parser_RecoveredSyntaxParse:
+    """@rust-doc:RecoveredSyntaxParse"""
     @property
     def parse_tree(self) -> _RecoveredTextSyntax: ...
     @property
@@ -317,6 +320,7 @@ class _syntax_parser_RecoveredSyntaxParse:
 
 @final
 class _syntax_parser_RecoveredSyntaxParseAttempt:
+    """@rust-doc:RecoveredSyntaxParseAttempt"""
     @property
     def result(self) -> _syntax_parser_RecoveredSyntaxParse: ...
     @property
@@ -324,6 +328,7 @@ class _syntax_parser_RecoveredSyntaxParseAttempt:
 
 @final
 class _syntax_parser_SyntaxRecoveryParseValid:
+    """@rust-doc:SyntaxRecoveryParseValid"""
     __match_args__: ClassVar[tuple[str]]
     def __new__(
         cls, parse: _syntax_parser_SyntaxParse
@@ -333,6 +338,7 @@ class _syntax_parser_SyntaxRecoveryParseValid:
 
 @final
 class _syntax_parser_SyntaxRecoveryParseRecovered:
+    """@rust-doc:SyntaxRecoveryParseRecovered"""
     __match_args__: ClassVar[tuple[str]]
     def __new__(
         cls, parse: _syntax_parser_RecoveredSyntaxParse
@@ -347,6 +353,7 @@ _SyntaxRecoveryParse = (
 
 @final
 class _syntax_parser_SyntaxRecoveryParseAttempt:
+    """@rust-doc:SyntaxRecoveryParseAttempt"""
     @property
     def result(self) -> _SyntaxRecoveryParse: ...
     @property

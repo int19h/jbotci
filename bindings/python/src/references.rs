@@ -259,7 +259,7 @@ fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<
 }
 
 /// Opaque identity shared by every ID produced by one analysis.
-#[invariant(true, "Arc identity is unique while any scoped ID remains alive")]
+#[invariant(true, "every Arc<()> value is a valid opaque identity token")]
 #[derive(Debug, Clone)]
 struct AnalysisToken(Arc<()>);
 
@@ -291,7 +291,10 @@ impl Hash for AnalysisToken {
 
 macro_rules! define_scoped_id {
     ($rust_name:ident, $python_name:literal) => {
-        #[invariant(true, "the opaque token scopes the integer to one analysis")]
+        #[invariant(
+            true,
+            "every usize paired with an opaque AnalysisToken is a valid scoped ID"
+        )]
         #[pyclass(name = $python_name, frozen, eq, hash, module = "jbotci.semantics.references", skip_from_py_object)]
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         struct $rust_name {
@@ -339,7 +342,10 @@ define_scoped_id!(PyReferenceEdgeId, "ReferenceEdgeId");
 
 macro_rules! define_typed_syntax_id {
     ($rust_name:ident, $python_name:literal) => {
-        #[invariant(true, "the opaque token scopes the typed node index to one analysis")]
+        #[invariant(
+            true,
+            "every usize paired with an opaque AnalysisToken is a valid typed node ID"
+        )]
         #[pyclass(name = $python_name, frozen, eq, hash, module = "jbotci.semantics.references", skip_from_py_object)]
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         struct $rust_name {
@@ -1182,6 +1188,25 @@ impl PySelbriPlaceFrame {
     fn propagation(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         self.with_frame(|frame| propagation_to_python(py, &self.handle.state, &frame.propagation))
     }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with("jbotci.semantics.references.SelbriPlaceFrame("))]
+    fn __repr__(&self) -> String {
+        self.with_frame(|frame| {
+            format!(
+                "{PUBLIC_MODULE}.SelbriPlaceFrame(\
+                 id={PUBLIC_MODULE}.SelbriPlaceFrameId({}), \
+                 node={PUBLIC_MODULE}.RawSyntaxNodeId({}), \
+                 kind={:?}, selbri={:?}, tanru_unit={:?}, propagation={:?})",
+                self.handle.value,
+                frame.node.0,
+                frame.kind,
+                frame.selbri.map(|id| id.0.0),
+                frame.tanru_unit.map(|id| id.0.0),
+                frame.propagation,
+            )
+        })
+    }
 }
 
 /// One sumti-to-place assignment produced by the core resolver.
@@ -1283,6 +1308,25 @@ impl PySumtiPlaceAssignment {
     #[getter]
     fn source(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.with_assignment(|assignment| assignment.source))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with("jbotci.semantics.references.SumtiPlaceAssignment("))]
+    fn __repr__(&self) -> String {
+        self.with_assignment(|assignment| {
+            format!(
+                "{PUBLIC_MODULE}.SumtiPlaceAssignment(\
+                 id={PUBLIC_MODULE}.SumtiPlaceAssignmentId({}), \
+                 frame={PUBLIC_MODULE}.SelbriPlaceFrameId({}), \
+                 slot={:?}, sumti={}, term={:?}, source={:?})",
+                self.handle.value,
+                assignment.frame.0,
+                assignment.slot,
+                assignment.sumti.0.0,
+                assignment.term.map(|id| id.0.0),
+                assignment.source,
+            )
+        })
     }
 }
 
@@ -2326,5 +2370,19 @@ impl PyReferenceEdge {
     #[getter]
     fn rule(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.with_edge(|edge| edge.rule))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with("jbotci.semantics.references.ReferenceEdge("))]
+    fn __repr__(&self) -> String {
+        self.with_edge(|edge| {
+            format!(
+                "{PUBLIC_MODULE}.ReferenceEdge(\
+                 id={PUBLIC_MODULE}.ReferenceEdgeId({}), \
+                 kind={:?}, source={PUBLIC_MODULE}.RawSyntaxNodeId({}), \
+                 target={:?}, rule={:?})",
+                self.handle.value, edge.kind, edge.source.0, edge.target, edge.rule,
+            )
+        })
     }
 }
