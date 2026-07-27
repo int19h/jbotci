@@ -625,6 +625,20 @@ impl OpenRouterClientConfig {
         })
     }
 
+    /// Replace the API base URL while preserving all other client settings.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|config| config.base_url == base_url) || ret.is_err())]
+    pub fn with_base_url(self, base_url: &str) -> Result<Self, OpenRouterError> {
+        let data = self.into_data();
+        Self::try_from_data(bityzba::data!(OpenRouterClientConfig {
+            base_url: base_url.to_owned(),
+            ..data
+        }))
+        .map_err(|error| OpenRouterError::InvalidConfiguration {
+            message: error.to_string(),
+        })
+    }
+
     /// Load the real OpenRouter API key at runtime.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|value| value.api_key.is_some()) || ret.is_err())]
@@ -817,9 +831,24 @@ impl OpenRouterClient {
     #[requires(timeout > Duration::ZERO)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn from_env_with_timeout(timeout: Duration) -> Result<Self, OpenRouterError> {
+        Self::from_env_with_timeout_and_base_url(timeout, None)
+    }
+
+    /// Construct the real OpenRouter client with run-configured HTTP settings.
+    #[requires(timeout > Duration::ZERO)]
+    #[requires(base_url.is_none_or(|value| !value.trim().is_empty()))]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn from_env_with_timeout_and_base_url(
+        timeout: Duration,
+        base_url: Option<&str>,
+    ) -> Result<Self, OpenRouterError> {
         let config = OpenRouterClientConfig::from_env()?.with_data(bityzba::data! {
             timeout: timeout,
         });
+        let config = match base_url {
+            Some(base_url) => config.with_base_url(base_url)?,
+            None => config,
+        };
         Ok(Self::new(config))
     }
 

@@ -416,7 +416,10 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
             "listener-mode = \"blind-then-reveal\"",
             "listener-mode = \"blind-then-reveal\"\nallow-degraded-search = true",
         )
-        .replace("[caps]", "[client]\nhttp-timeout-seconds = 90\n\n[caps]")
+        .replace(
+            "[caps]",
+            "[client]\nbase-url = \"http://127.0.0.1:1234/v1\"\nhttp-timeout-seconds = 90\n\n[caps]",
+        )
         .replace(
             "model = \"mock/alice\"",
             "model = \"mock/alice\"\ntool-choice = \"auto\"",
@@ -431,7 +434,7 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
 
     let summary = run_with_preflight(
         &config_path,
-        |timeout| {
+        |timeout, base_url| {
             assert!(
                 warning_seen.get(),
                 "the degraded-search warning must be surfaced before client initialization"
@@ -440,6 +443,11 @@ fn real_run_path_composes_mock_runtime_protocol_scenario_transcript_and_report()
                 timeout,
                 Duration::from_secs(90),
                 "the run-configured timeout must reach the client factory"
+            );
+            assert_eq!(
+                base_url,
+                Some("http://127.0.0.1:1234/v1"),
+                "the run-configured base URL must reach the client factory"
             );
             Ok(client(server.base_url.clone()))
         },
@@ -719,7 +727,7 @@ fn participant_mismatch_and_missing_scenario_are_typed() {
     let factory_called = Cell::new(false);
     let error = run_with_preflight(
         &config_path,
-        |_| {
+        |_, _| {
             factory_called.set(true);
             Ok(client("http://127.0.0.1:1".to_owned()))
         },
@@ -741,7 +749,7 @@ fn participant_mismatch_and_missing_scenario_are_typed() {
     fs::write(&config_path, config_source("does-not-exist.toml", "bob")).expect("replace config");
     let error = run_with_preflight(
         &config_path,
-        |_| Ok(client("http://127.0.0.1:1".to_owned())),
+        |_, _| Ok(client("http://127.0.0.1:1".to_owned())),
         || Ok(()),
         |_| {},
     )
@@ -776,7 +784,7 @@ fn mid_run_model_death_flushes_an_accepted_runtime_failure_transcript() {
 
     let error = run_with_preflight(
         &config_path,
-        |_| Ok(client(server.base_url.clone())),
+        |_, _| Ok(client(server.base_url.clone())),
         || Ok(()),
         |_| {},
     )
@@ -822,7 +830,7 @@ fn config_private_brief_is_rejected_before_any_model_call() {
     let factory_called = Cell::new(false);
     let error = run_with_preflight(
         &config_path,
-        |_| {
+        |_, _| {
             factory_called.set(true);
             Ok(client("http://127.0.0.1:1".to_owned()))
         },
@@ -853,7 +861,7 @@ fn embedding_preflight_fails_before_client_initialization_by_default() {
 
     let error = run_with_preflight(
         &config_path,
-        |_| {
+        |_, _| {
             factory_called.set(true);
             Ok(client("http://127.0.0.1:1".to_owned()))
         },
