@@ -10,20 +10,20 @@ use jbotci_morphology::{
     Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectEntryData,
     CompiledDialectWord, ConsonantPairClass, DialectCompilationError, DialectCompilationErrorData,
     ExpectedWordDetailKind, GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoBuildMode,
-    LujvoBuildPart, LujvoBuildPartData, LujvoCandidate, LujvoCandidateData, LujvoParseExpectation,
-    LujvoPart, MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextData,
-    MorphologyContextKind, MorphologyError as RustMorphologyError, MorphologyErrorDetail,
-    MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt,
-    MorphologyWarning, MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
-    PhonemeRenderOptions, Phonemes, PhonotacticDetailKind, PlainWordClassification,
-    PlainWordClassificationData, RafsiShape, RecoveredMorphologySegmentAttempt,
-    RecoveredMorphologySegmentation, Selmaho, StressMark, StringEnumMetadata, ValsiAnalysis,
-    ValsiAnalysisResult, ValsiAnalysisStatus, ValsiClassification, ValsiClassificationData,
-    ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartData,
-    ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word, WordKey, WordKeyData, WordKind,
+    LujvoBuildPart, LujvoBuildPartData, LujvoCandidate, LujvoParseExpectation, LujvoPart,
+    MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextData, MorphologyContextKind,
+    MorphologyError as RustMorphologyError, MorphologyErrorDetail, MorphologyErrorDetailData,
+    MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning,
+    MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS, PhonemeRenderOptions,
+    Phonemes, PhonotacticDetailKind, PlainWordClassification, RafsiShape,
+    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, StressMark,
+    StringEnumMetadata, ValsiAnalysis, ValsiAnalysisResult, ValsiAnalysisStatus,
+    ValsiClassification, ValsiClassificationData, ValsiClassificationKind, ValsiFuhivlaStage,
+    ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word, WordKey, WordKind,
     WordLike, WordLikeData, ZoiDelimiterDetailKind,
 };
 use jbotci_syntax::{Token, WithIndicators, WithIndicatorsData};
+use jbotci_tree::TreePath;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyModule};
 
@@ -358,13 +358,16 @@ fn native_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn enum_from_python<E: PythonStringEnum>(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<E> {
+pub(crate) fn enum_from_python<E: PythonStringEnum>(
+    py: Python<'_>,
+    value: &Bound<'_, PyAny>,
+) -> PyResult<E> {
     extract_string_enum(&native_module(py)?, value)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<PyAny>> {
+pub(crate) fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<PyAny>> {
     string_enum_member(&native_module(py)?, value).map(Bound::unbind)
 }
 
@@ -1336,6 +1339,11 @@ enum WithIndicatorsStep {
 
 #[invariant(::Owned { .. } => true)]
 #[invariant(::Token { .. } => true)]
+#[invariant(::Projected { owner, path, lens } =>
+    !lens.is_empty() && owner.with_indicators_at(path, lens).is_some())]
+// `new!` constructs the generated data variant, which rustc's dead-code lint
+// cannot attribute back to this wrapper declaration.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum WithIndicatorsRoot {
     Owned {
@@ -1344,24 +1352,33 @@ enum WithIndicatorsRoot {
     Token {
         token: TokenHandle,
     },
+    Projected {
+        owner: Arc<crate::syntax::SyntaxOwner>,
+        path: TreePath,
+        lens: Vec<usize>,
+    },
 }
 
 impl WithIndicatorsRoot {
     #[requires(true)]
     #[ensures(true)]
     fn get(&self) -> &WithIndicators<WordLike> {
-        match self {
-            WithIndicatorsRoot::Owned { value } => value.as_ref(),
-            WithIndicatorsRoot::Token { token } => token.get().as_indicators(),
+        match self.as_data() {
+            data!(WithIndicatorsRoot::Owned { value }) => value.as_ref(),
+            data!(WithIndicatorsRoot::Token { token }) => token.get().as_indicators(),
+            data!(WithIndicatorsRoot::Projected { owner, path, lens }) => owner
+                .with_indicators_at(path, lens)
+                .expect("projected indicator owner is valid by construction"),
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.is_none() || matches!(self, WithIndicatorsRoot::Token { .. }))]
+    #[ensures(ret.is_none() || matches!(self.as_data(), data!(WithIndicatorsRoot::Token { .. })))]
     fn root_token(&self) -> Option<&TokenHandle> {
-        match self {
-            WithIndicatorsRoot::Owned { .. } => None,
-            WithIndicatorsRoot::Token { token } => Some(token),
+        match self.as_data() {
+            data!(WithIndicatorsRoot::Owned { .. }) => None,
+            data!(WithIndicatorsRoot::Token { token }) => Some(token),
+            data!(WithIndicatorsRoot::Projected { .. }) => None,
         }
     }
 }
@@ -1385,15 +1402,22 @@ impl PartialEq for WithIndicatorsHandle {
 impl Eq for WithIndicatorsHandle {}
 
 impl WithIndicatorsHandle {
+    #[cfg(test)]
+    #[requires(true)]
+    #[ensures(ret == self.steps.is_empty())]
+    pub(crate) fn has_empty_steps(&self) -> bool {
+        self.steps.is_empty()
+    }
+
     /// Own a standalone indicator tree created at a Python construction boundary.
     #[requires(true)]
     #[ensures(ret.steps.is_empty())]
     #[expensive_ensures(ret.get() == &old(value.clone()))]
     pub(crate) fn from_owned(value: WithIndicators<WordLike>) -> Self {
         new!(WithIndicatorsHandle {
-            root: WithIndicatorsRoot::Owned {
+            root: new!(WithIndicatorsRoot::Owned {
                 value: Arc::new(value),
-            },
+            }),
             steps: Vec::new(),
         })
     }
@@ -1407,9 +1431,25 @@ impl WithIndicatorsHandle {
     )]
     pub(crate) fn from_token(token: TokenHandle) -> Self {
         new!(WithIndicatorsHandle {
-            root: WithIndicatorsRoot::Token { token },
+            root: new!(WithIndicatorsRoot::Token { token }),
             steps: Vec::new(),
         })
+    }
+
+    /// Retain a generated syntax root and its schema-derived direct-field lens.
+    #[requires(!lens.is_empty())]
+    #[ensures(ret.is_some() == old(owner.with_indicators_at(&path, &lens).is_some()))]
+    #[ensures(ret.as_ref().is_none_or(|handle| handle.steps.is_empty()))]
+    pub(crate) fn from_projection(
+        owner: Arc<crate::syntax::SyntaxOwner>,
+        path: TreePath,
+        lens: Vec<usize>,
+    ) -> Option<Self> {
+        owner.with_indicators_at(&path, &lens)?;
+        Some(new!(WithIndicatorsHandle {
+            root: new!(WithIndicatorsRoot::Projected { owner, path, lens }),
+            steps: Vec::new(),
+        }))
     }
 
     /// Locate the recursive base of an indicator layer when one exists.
@@ -1436,6 +1476,42 @@ impl WithIndicatorsHandle {
     pub(crate) fn get(&self) -> &WithIndicators<WordLike> {
         project_with_indicators(self.root.get(), &self.steps)
             .expect("indicator handle is valid by construction")
+    }
+
+    /// Compare exact owner-and-path identity without conflating equal source spans.
+    #[requires(true)]
+    #[ensures(ret -> self.steps == other.steps)]
+    pub(crate) fn same_identity(&self, other: &Self) -> bool {
+        if self.steps != other.steps {
+            return false;
+        }
+        match (self.root.as_data(), other.root.as_data()) {
+            (
+                data!(WithIndicatorsRoot::Owned { value: left }),
+                data!(WithIndicatorsRoot::Owned { value: right }),
+            ) => Arc::ptr_eq(left, right),
+            (
+                data!(WithIndicatorsRoot::Token { token: left }),
+                data!(WithIndicatorsRoot::Token { token: right }),
+            ) => left == right,
+            (
+                data!(WithIndicatorsRoot::Projected {
+                    owner: left_owner,
+                    path: left_path,
+                    lens: left_lens,
+                }),
+                data!(WithIndicatorsRoot::Projected {
+                    owner: right_owner,
+                    path: right_path,
+                    lens: right_lens,
+                }),
+            ) => {
+                Arc::ptr_eq(left_owner, right_owner)
+                    && left_path == right_path
+                    && left_lens == right_lens
+            }
+            _ => false,
+        }
     }
 
     /// Return the exact token that owns this locator, when it is token-backed.

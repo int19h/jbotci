@@ -1,6 +1,6 @@
 """Strict-type-check smoke coverage for packaged public declarations."""
 
-from typing import assert_type
+from typing import assert_never, assert_type
 
 from jbotci import (
     Sample,
@@ -13,7 +13,23 @@ from jbotci import (
     semantics,
     smoke,
     source,
+    syntax,
 )
+
+
+def exhaustive_linked_sumti(value: syntax.strict.LinkedSumtiSyntax) -> str:
+    """Prove the packaged closed union supports exhaustive class matching."""
+
+    match value:
+        case syntax.strict.LinkedSumtiSyntaxPlaceTaggedLinkedSumti():
+            return "place"
+        case syntax.strict.LinkedSumtiSyntaxTenseTaggedLinkedSumti():
+            return "tense"
+        case syntax.strict.LinkedSumtiSyntaxPlainLinkedSumti():
+            return "plain"
+        case syntax.strict.LinkedSumtiSyntaxEmptyLinkedSumti():
+            return "empty"
+    assert_never(value)
 
 
 def sample_text(value: str | None) -> tuple[str, str | None]:

@@ -90,3 +90,34 @@ def test_returned_only_domain_classes_reject_construction_in_strict_mypy() -> No
     assert result.returncode == 1, result.stdout + result.stderr
     assert len(diagnostics) == 8, result.stdout
     assert all("[call-arg]" in line for line in diagnostics)
+
+
+def test_omitted_syntax_variant_fails_exhaustive_match_in_strict_mypy() -> None:
+    """The closed generated union reports an unhandled concrete variant."""
+    fixture = (
+        PACKAGE_ROOT
+        / "tests"
+        / "typing_failures"
+        / "syntax_non_exhaustive.py"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+            str(fixture),
+        ],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    diagnostics = tuple(
+        line for line in result.stdout.splitlines() if ": error:" in line
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert len(diagnostics) == 1, result.stdout
+    assert "[arg-type]" in diagnostics[0]
+    assert "LinkedSumtiSyntaxEmptyLinkedSumti" in diagnostics[0]

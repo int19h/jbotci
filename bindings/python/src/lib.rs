@@ -1,4 +1,10 @@
+#![recursion_limit = "1024"]
+
 //! Private native implementation for the `jbotci` Python package.
+
+// The Python syntax owner can retain any generated grammar root. Proving the normal PyO3
+// `Send + Sync` boundary therefore walks the complete recursive model and needs more trait-solver
+// depth than rustc's default; the bound itself remains fully enforced.
 
 mod diagnostics;
 mod dialect;
@@ -6,6 +12,7 @@ mod dictionary;
 mod morphology;
 mod source;
 mod support;
+mod syntax;
 
 use bityzba::{contract_trait, invariant, requires};
 use pyo3::exceptions::PyException;
@@ -47,6 +54,7 @@ const NATIVE_EXPORT_GROUPS: &[&[&str]] = &[
     diagnostics::NATIVE_EXPORTS,
     dialect::NATIVE_EXPORTS,
     morphology::NATIVE_EXPORTS,
+    syntax::NATIVE_EXPORTS,
 ];
 
 /// Structured errors produced inside the binding layer.
@@ -239,6 +247,7 @@ fn native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     diagnostics::register(module)?;
     dialect::register(module)?;
     morphology::register(module)?;
+    syntax::register(module)?;
     register_metadata(module)?;
     Ok(())
 }

@@ -8,9 +8,8 @@ use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticNoteMode,
     DiagnosticPhase, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
     DiagnosticTextLinkData, DiagnosticTextRole, DiagnosticTextSegment, TraceContext, TraceEvent,
-    TraceEventData, TraceEventKind, TraceFailureBranch, TraceFailureSummary,
-    TraceFailureSummaryData, TraceFilter, TraceLevel, TraceOptionError, TraceOptions,
-    TraceOptionsData, TracePhase, TraceReport, TraceReportData,
+    TraceEventKind, TraceFailureBranch, TraceFailureSummary, TraceFilter, TraceLevel,
+    TraceOptionError, TraceOptions, TracePhase, TraceReport,
     diagnostic_text_segments as rust_diagnostic_text_segments,
     diagnostic_text_segments_text as rust_diagnostic_text_segments_text,
 };
