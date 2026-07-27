@@ -189,6 +189,57 @@ FUNCTION_ALIASES: dict[tuple[str, str], str] = {
     ),
 }
 
+SUBSUMED_STRING_CARRIERS: dict[str, tuple[str, str]] = {
+    "jbotci_morphology::MorphologyContextKind::label": (
+        "jbotci.morphology.MorphologyContext.label",
+        "MorphologyContext.label returns the exact human-readable label derived from its MorphologyContextKind.",
+    ),
+    "jbotci_morphology::MorphologyErrorKind::code": (
+        "jbotci.morphology.InvalidMorphology.code",
+        "InvalidMorphology.code returns the exact diagnostic code for the MorphologyErrorKind carried by that error value.",
+    ),
+    "jbotci_morphology::MorphologyErrorKind::message": (
+        "jbotci.morphology.InvalidMorphology.message",
+        "InvalidMorphology.message returns the exact human-readable message for the MorphologyErrorKind carried by that error value.",
+    ),
+    "jbotci_morphology::MorphologyWarningKind::code": (
+        "jbotci.morphology.MorphologyWarning.code",
+        "MorphologyWarning.code returns the exact diagnostic code for its MorphologyWarningKind.",
+    ),
+    "jbotci_morphology::MorphologyWarningKind::detail_reason": (
+        "jbotci.diagnostics.Diagnostic.note_segments",
+        "MorphologyWarning.to_diagnostic preserves the kind's exact detail reason in the diagnostic note segments.",
+    ),
+    "jbotci_morphology::MorphologyWarningKind::label": (
+        "jbotci.diagnostics.DiagnosticLabel.message",
+        "MorphologyWarning.to_diagnostic preserves the kind's exact source label in DiagnosticLabel.message.",
+    ),
+    "jbotci_morphology::MorphologyWarningKind::message": (
+        "jbotci.morphology.MorphologyWarning.message",
+        "MorphologyWarning.message returns the exact human-readable message for its MorphologyWarningKind.",
+    ),
+    "jbotci_syntax::ExperimentalConstruct::code": (
+        "jbotci.syntax.SyntaxWarning.code",
+        "SyntaxWarning.code returns the exact diagnostic code for its ExperimentalConstruct.",
+    ),
+    "jbotci_syntax::ExperimentalConstruct::message": (
+        "jbotci.syntax.SyntaxWarning.message",
+        "SyntaxWarning.message returns the exact human-readable message for its ExperimentalConstruct.",
+    ),
+    "jbotci_syntax::SyntaxErrorKind::code": (
+        "jbotci.syntax.SyntaxErrorParse.code",
+        "SyntaxErrorParse.code returns the exact diagnostic code for its SyntaxErrorKind.",
+    ),
+    "jbotci_syntax::SyntaxErrorKind::message": (
+        "jbotci.diagnostics.Diagnostic.message",
+        "SyntaxErrorParse.to_diagnostic preserves the SyntaxErrorKind's exact human-readable message in Diagnostic.message.",
+    ),
+    "jbotci_syntax::SyntaxWordCategory::display_name": (
+        "jbotci.syntax.SyntaxExpectedTokenWordCategory.summary_text",
+        "SyntaxExpectedTokenWordCategory.summary_text returns the exact display name for its SyntaxWordCategory.",
+    ),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class InventoryItem:
@@ -273,6 +324,42 @@ def rust_only(exclusion_kind: str, rationale: str) -> Disposition:
     return Disposition("rust-only", exclusion_kind=exclusion_kind, rationale=rationale)
 
 
+def python_api(
+    item: InventoryItem,
+    name: str,
+    python_path: str,
+    *,
+    rationale: str = "",
+) -> Disposition:
+    """Build a Python-facing classification only for a live public symbol."""
+    if name not in {"direct", "python-equivalent", "subsumed"}:
+        raise RuntimeError(
+            f"invalid Python disposition {name!r} for {item.rust_path} [{item.kind}]"
+        )
+    if not python_path or resolve(python_path) is None:
+        raise RuntimeError(
+            f"non-resolving public Python path {python_path!r} for "
+            f"{item.rust_path} [{item.kind}]; add an explicit classification"
+        )
+    return Disposition(name, python_path, rationale=rationale)
+
+
+def validate_disposition(item: InventoryItem, disposition: Disposition) -> None:
+    """Enforce the resolution invariant at the final emission boundary."""
+    if disposition.name in {"direct", "python-equivalent", "subsumed"}:
+        if not disposition.python_path or resolve(disposition.python_path) is None:
+            raise RuntimeError(
+                f"non-resolving public Python path {disposition.python_path!r} for "
+                f"{item.rust_path} [{item.kind}]; add an explicit classification"
+            )
+        return
+    if disposition.name != "rust-only":
+        raise RuntimeError(
+            f"unknown disposition {disposition.name!r} for "
+            f"{item.rust_path} [{item.kind}]"
+        )
+
+
 def classify_generated(item: InventoryItem) -> Disposition:
     """Classify generator-owned strict/recovered syntax declarations."""
     path = item.rust_path
@@ -282,13 +369,15 @@ def classify_generated(item: InventoryItem) -> Disposition:
             "SHA-256 drift sentinel for generator-owned public output; it is tooling metadata, not a runtime domain value.",
         )
     if path.endswith("::generated_model"):
-        return Disposition(
+        return python_api(
+            item,
             "python-equivalent",
             "jbotci.syntax.strict",
             rationale="Python splits strict and recovered generated models into explicit public namespaces.",
         )
     if "::NodeRef::" in path or path.endswith("::AtomRef::Token"):
-        return Disposition(
+        return python_api(
+            item,
             "subsumed",
             item.suggested_python,
             rationale="Python returns the concrete immutable typed node or Token directly; the Rust borrowed reference tag carries no additional information.",
@@ -333,41 +422,54 @@ def classify_generated(item: InventoryItem) -> Disposition:
             "Generic descent adapter for Rust Box, Arc, Option, tuple, or sequence wrappers; Python erases those ownership wrappers.",
         )
     if item.kind in {"trait-method", "function"}:
-        target = item.suggested_python
-        if not target or resolve(target) is None:
-            target = (
-                "jbotci.syntax.recovered"
-                if "::recovered::" in path
-                else "jbotci.syntax.strict"
-            )
-        return Disposition(
+        module = (
+            "jbotci.syntax.recovered"
+            if "::recovered::" in path
+            else "jbotci.syntax.strict"
+        )
+        member = path.rsplit("::", 1)[-1]
+        target = (
+            module
+            if not item.suggested_python
+            or member in {"visit_in_order", "walk_with", "walk_atom"}
+            or path
+            == "jbotci_syntax::generated_model_text_syntax_leaf_spans_match_words"
+            else item.suggested_python
+        )
+        return python_api(
+            item,
             "subsumed",
             target,
             rationale="Typed Python fields and structural pattern matching provide the same grammar-directed child traversal.",
         )
+    if path.endswith("::TextSyntax::visit_source_spans"):
+        return python_api(item, "direct", "jbotci.syntax.source_spans")
     if item.kind == "method" and path.rsplit("::", 1)[-1] in {
         "from_valid",
         "from_valid_boxed",
         "try_into_valid",
     }:
-        return Disposition(
+        return python_api(
+            item,
             "subsumed",
             "jbotci.syntax.parse_syntax_tree_with_recovery",
             rationale="The public strict-or-recovered parse operation performs the same validated boundary conversion without exposing Rust ownership conversions.",
         )
     if item.kind == "variant":
-        return Disposition(
+        return python_api(
+            item,
             "python-equivalent",
             item.suggested_python,
             rationale="Rust enum alternative is an immutable final Python variant class in the generated closed union.",
         )
     if item.kind in {"type-alias"}:
-        return Disposition(
+        return python_api(
+            item,
             "python-equivalent",
             item.suggested_python,
             rationale="Python's closed recovered-field union erases the Rust generic alias while preserving every alternative.",
         )
-    return Disposition("direct", item.suggested_python)
+    return python_api(item, "direct", item.suggested_python)
 
 
 def classify_import_build_item(item: InventoryItem) -> Disposition | None:
@@ -390,7 +492,8 @@ def classify_import_build_item(item: InventoryItem) -> Disposition | None:
             "Borrowed static-index row; Python exposes the corresponding typed Dictionary lookup operation and immutable results.",
         )
     if name == "RafsiIndexTarget":
-        return Disposition(
+        return python_api(
+            item,
             "subsumed",
             "jbotci.dictionary.Dictionary.lookup_rafsi",
             rationale="lookup_rafsi returns RafsiMatch values containing the referenced DictionaryEntry and the same RafsiSource provenance, replacing the storage-only entry index without losing domain information.",
@@ -448,7 +551,8 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
     """Classify hand-written source-backed syntax token helpers."""
     path = item.rust_path
     if path == "jbotci_syntax::tree":
-        return Disposition(
+        return python_api(
+            item,
             "python-equivalent",
             "jbotci.syntax",
             rationale="Python exposes the hand-written tree helpers in its public syntax namespace.",
@@ -460,13 +564,15 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
     member = parts[-1]
     if name == "SyntaxRecoveryItem":
         if item.kind == "enum":
-            return Disposition(
+            return python_api(
+                item,
                 "python-equivalent",
                 "jbotci.syntax.SyntaxRecoveryItem",
                 rationale="The Rust enum is the named closed Python union of its two immutable variants.",
             )
         if member == "skipped_tokens":
-            return Disposition(
+            return python_api(
+                item,
                 "subsumed",
                 "jbotci.syntax.SkippedTokens.tokens",
                 rationale="The concrete Python recovery variant exposes the same optional payload as its immutable tokens field.",
@@ -478,14 +584,15 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
         }[variant]
         if item.kind == "field":
             target = f"{target}.{member}"
-        return Disposition(
+        return python_api(
+            item,
             "subsumed" if item.kind == "method" else "python-equivalent",
             target,
             rationale="Python's immutable recovery variant and typed fields preserve the exact alternative and all result data.",
         )
     if name == "Token":
         if item.kind == "struct":
-            return Disposition("direct", "jbotci.syntax.Token")
+            return python_api(item, "direct", "jbotci.syntax.Token")
         equivalent_target = {
             "0": "jbotci.syntax.Token.indicators",
             "as_indicators": "jbotci.syntax.Token.indicators",
@@ -495,7 +602,8 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
             "from_indicators": "jbotci.syntax.Token",
         }.get(member)
         if equivalent_target is not None:
-            return Disposition(
+            return python_api(
+                item,
                 "python-equivalent",
                 equivalent_target,
                 rationale="Python uses immutable properties, its constructor, and same_identity for the corresponding Rust token operation.",
@@ -505,16 +613,20 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
             if member == "source_spans_into"
             else "jbotci.syntax.Token.core_word"
         )
-        return Disposition(
+        return python_api(
+            item,
             "subsumed",
             target,
             rationale="The immutable core_word or source_spans projection preserves the information used by this Rust convenience constructor, predicate, or caller-owned accumulator helper.",
         )
     if name == "WithFreeModifiers":
-        target = f"jbotci.syntax.WithFreeModifiers.{member}"
-        if resolve(target) is None:
-            target = "jbotci.syntax.WithFreeModifiers"
-        return Disposition(
+        target = (
+            f"jbotci.syntax.WithFreeModifiers.{member}"
+            if member in {"free_modifiers", "value"}
+            else "jbotci.syntax.WithFreeModifiers"
+        )
+        return python_api(
+            item,
             "subsumed",
             target,
             rationale="The immutable generic Python wrapper exposes the same value and free_modifiers fields; its value projection subsumes token convenience predicates.",
@@ -526,7 +638,8 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
             "WithIndicator": "jbotci.syntax.IndicatorWithIndicators",
         }
         if item.kind == "enum":
-            return Disposition(
+            return python_api(
+                item,
                 "python-equivalent",
                 "jbotci.syntax.WithIndicators",
                 rationale="The generic Rust enum is a named closed Python union of immutable final variant classes.",
@@ -537,12 +650,14 @@ def classify_syntax_tree_item(item: InventoryItem) -> Disposition | None:
             if item.kind == "field":
                 field_alias = "word_like" if member == "0" else member
                 target = f"{target}.{field_alias}"
-            return Disposition(
+            return python_api(
+                item,
                 "python-equivalent",
                 target,
                 rationale="The Rust alternative and its fields are represented by the named immutable Python variant class.",
             )
-        return Disposition(
+        return python_api(
+            item,
             "subsumed",
             "jbotci.syntax.WithIndicators",
             rationale="Named variant constructors preserve the validated structure; their typed fields recursively expose core words, cmavo classification, quote markers, modifiers, and source spans without losing information.",
@@ -582,7 +697,8 @@ def classify(item: InventoryItem) -> Disposition:
     if syntax_tree is not None:
         return syntax_tree
     if item.rust_path == "jbotci_morphology::tree":
-        return Disposition(
+        return python_api(
+            item,
             "python-equivalent",
             "jbotci.morphology",
             rationale="Python exposes the source-backed morphology tree values in the public morphology namespace.",
@@ -590,14 +706,19 @@ def classify(item: InventoryItem) -> Disposition:
     excluded = classify_import_build_item(item) or classify_other_rust_only(item)
     if excluded is not None:
         return excluded
+    string_carrier = SUBSUMED_STRING_CARRIERS.get(item.rust_path)
+    if string_carrier is not None:
+        target, rationale = string_carrier
+        return python_api(item, "subsumed", target, rationale=rationale)
     if item.suggested_python and resolve(item.suggested_python) is not None:
         if item.kind == "variant":
-            return Disposition(
+            return python_api(
+                item,
                 "python-equivalent",
                 item.suggested_python,
                 rationale="Rust enum alternative is represented by the named closed-union variant or exact StrEnum member.",
             )
-        return Disposition("direct", item.suggested_python)
+        return python_api(item, "direct", item.suggested_python)
     target = public_concept_path(item)
     if resolve(target) is None:
         raise RuntimeError(
@@ -616,7 +737,7 @@ def classify(item: InventoryItem) -> Disposition:
             "The Rust error contains only its rendered message; the Python operation "
             "raises InvalidInputError with that exact message and no domain field is lost."
         )
-    return Disposition("subsumed", target, rationale=rationale)
+    return python_api(item, "subsumed", target, rationale=rationale)
 
 
 def render(items: tuple[InventoryItem, ...]) -> str:
@@ -626,6 +747,7 @@ def render(items: tuple[InventoryItem, ...]) -> str:
     for item in items:
         try:
             disposition = classify(item)
+            validate_disposition(item, disposition)
         except RuntimeError as error:
             unresolved.append(str(error))
             continue

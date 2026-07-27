@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import csv
 import dataclasses
 import enum
 import importlib
@@ -705,6 +706,42 @@ def test_rust_api_parity_matrix_is_current_and_rejects_unclassified_items(
     )
     assert rejected.returncode != 0
     assert "unclassified Rust API item:" in rejected.stderr
+
+
+def test_every_python_facing_api_parity_path_resolves_at_runtime() -> None:
+    """Reject every checked-in Python-facing matrix path that is not live."""
+    matrix = PACKAGE_ROOT / "docs" / "api-parity.tsv"
+    unresolved: list[str] = []
+    with matrix.open(newline="", encoding="utf-8") as stream:
+        for row in csv.DictReader(stream, delimiter="\t"):
+            if row["disposition"] == "rust-only":
+                continue
+            path = row["python_path"]
+            parts = path.split(".")
+            value: object | None = None
+            suffix: list[str] = []
+            for prefix_length in range(len(parts), 0, -1):
+                module_name = ".".join(parts[:prefix_length])
+                try:
+                    value = importlib.import_module(module_name)
+                except ModuleNotFoundError as error:
+                    if error.name is None or not module_name.startswith(error.name):
+                        raise
+                    continue
+                suffix = parts[prefix_length:]
+                break
+            for part in suffix:
+                if value is None or not hasattr(value, part):
+                    value = None
+                    break
+                value = getattr(value, part)
+            if value is None:
+                unresolved.append(
+                    f"{row['rust_path']} [{row['kind']}] -> {path!r}"
+                )
+    assert not unresolved, "non-resolving Python API parity paths:\n" + "\n".join(
+        unresolved
+    )
 
 
 def test_syntax_model_generation_is_current() -> None:
