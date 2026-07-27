@@ -105,12 +105,18 @@ impl Cursor {
     }
 
     #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn take_lit_string(&mut self) -> Result<LitStr> {
+        let literal = self.take_literal()?;
+        syn::parse_str::<LitStr>(&literal.to_string())
+            .map_err(|_| Error::new_spanned(&literal, "expected schema string literal"))
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty()) || ret.is_err())]
     fn take_string(&mut self) -> Result<String> {
-        let literal = self.take_literal()?;
-        let value = syn::parse_str::<LitStr>(&literal.to_string())
-            .map(|literal| literal.value())
-            .map_err(|_| Error::new_spanned(&literal, "expected schema string literal"))?;
+        let literal = self.take_lit_string()?;
+        let value = literal.value();
         if value.is_empty() {
             Err(Error::new_spanned(
                 literal,
@@ -794,7 +800,7 @@ fn parse_docs(cursor: &mut Cursor) -> Result<Vec<String>> {
     let mut docs = Cursor::new(cursor.take_group(Delimiter::Bracket)?);
     let mut values = Vec::new();
     while !docs.is_done() {
-        values.push(docs.take_string()?);
+        values.push(docs.take_lit_string()?.value());
         if !docs.is_done() {
             docs.expect_punct(',')?;
         }
@@ -3944,6 +3950,38 @@ mod tests {
         };
         let error = parse_schema(input).expect_err("unknown root field must fail");
         assert!(error.to_string().contains("unsupported trailing"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn blank_documentation_lines_are_preserved() {
+        let input: TokenStream2 = quote! {
+            syntax_binding_schema {
+                version(1),
+                models [product {
+                    names(strict("UnitSyntax"), recovered("UnitSyntax")),
+                    rule("unit"),
+                    docs ["First paragraph.", "", "Second paragraph."],
+                    constructor(name("Unit"), label(none)),
+                    shape(named),
+                    fields []
+                }],
+                metadata {
+                    transparent_constructors [],
+                    transparent_fields [],
+                    chain_link_element_fields [],
+                    constructor_labels [],
+                    elidable_terminators [],
+                    field_orders []
+                }
+            }
+        };
+        let schema = parse_schema(input).expect("blank documentation separators are valid");
+        let data!(Model::Product { common, .. }) = schema.models[0].as_data() else {
+            panic!("fixture is a product model");
+        };
+        assert_eq!(common.docs, ["First paragraph.", "", "Second paragraph."]);
     }
 
     #[test]
