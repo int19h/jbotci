@@ -218,3 +218,35 @@ def test_omitted_jvozba_error_fails_closed_union_narrowing() -> None:
     assert diagnostics
     assert all("[arg-type]" in line for line in diagnostics)
     assert all("CouldNotBuildCompound" in line for line in diagnostics)
+
+
+def test_omitted_reference_target_fails_closed_union_narrowing() -> None:
+    """The closed target union reports its unhandled vague variant."""
+
+    fixture = (
+        PACKAGE_ROOT
+        / "tests"
+        / "typing_failures"
+        / "references_non_exhaustive.py"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+            str(fixture),
+        ],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    diagnostics = tuple(
+        line for line in result.stdout.splitlines() if ": error:" in line
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert len(diagnostics) == 1, result.stdout
+    assert "[arg-type]" in diagnostics[0]
+    assert "VagueReferenceTarget" in diagnostics[0]

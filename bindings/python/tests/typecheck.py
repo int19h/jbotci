@@ -3,10 +3,12 @@
 from typing import assert_never, assert_type
 
 from jbotci import (
+    AnalyzedText,
     ParsedText,
     RecoveredParsedText,
     Sample,
     SampleMode,
+    analyze,
     dictionary,
     diagnostics,
     dialect,
@@ -20,6 +22,8 @@ from jbotci import (
     source,
     syntax,
 )
+
+references = semantics.references
 
 
 def exhaustive_jvozba_input(value: jvozba.JvozbaInput) -> str:
@@ -276,6 +280,229 @@ def exhaustive_linked_sumti(value: syntax.strict.LinkedSumtiSyntax) -> str:
         case syntax.strict.LinkedSumtiSyntaxEmptyLinkedSumti():
             return "empty"
     assert_never(value)
+
+
+def exhaustive_place_slot(value: references.PlaceSlot) -> int | None:
+    """Prove all native PlaceSlot payload variants narrow exhaustively."""
+
+    if isinstance(value, references.NumberedPlaceSlot):
+        assert_type(value.place, int)
+        assert_type(value.numbered_index(), int)
+        return value.place
+    if isinstance(value, references.ModalPlaceSlot):
+        assert_type(value.tag, references.RawSyntaxNodeId | None)
+        assert_type(value.numbered_index(), None)
+        return None
+    if isinstance(value, references.PlaceQuestionPlaceSlot):
+        assert_type(value.numbered_index(), None)
+        return None
+    if isinstance(value, references.FaiPlaceSlot):
+        assert_type(value.numbered_index(), None)
+        return None
+    assert_never(value)
+
+
+def exhaustive_place_propagation(
+    value: references.PlaceFramePropagation,
+) -> int:
+    """Prove all native place-frame propagation variants remain distinct."""
+
+    if isinstance(value, references.NoPlaceFramePropagation):
+        return 0
+    if isinstance(value, references.ForwardPlaceFramePropagation):
+        assert_type(value.inner, references.SelbriPlaceFrameId)
+        return value.inner.value
+    if isinstance(value, references.ConversionPlaceFramePropagation):
+        assert_type(value.inner, references.SelbriPlaceFrameId)
+        assert_type(value.converted_place, int)
+        return value.converted_place
+    if isinstance(value, references.JaiPlaceFramePropagation):
+        assert_type(value.inner, references.SelbriPlaceFrameId)
+        return value.inner.value
+    if isinstance(value, references.ConnectiveBranchesPlaceFramePropagation):
+        assert_type(
+            value.branches, tuple[references.SelbriPlaceFrameId, ...]
+        )
+        return len(value.branches)
+    if isinstance(value, references.CompoundPlaceFramePropagation):
+        assert_type(value.head, references.SelbriPlaceFrameId)
+        assert_type(
+            value.modifiers, tuple[references.SelbriPlaceFrameId, ...]
+        )
+        return value.head.value
+    if isinstance(value, references.CoPlaceFramePropagation):
+        assert_type(value.leading, references.SelbriPlaceFrameId)
+        assert_type(value.trailing, references.SelbriPlaceFrameId)
+        return value.leading.value
+    assert_never(value)
+
+
+def exhaustive_reference_target(value: references.ReferenceTarget) -> int:
+    """Prove every native discourse-reference target retains its payload."""
+
+    if isinstance(value, references.ResolvedNodeReferenceTarget):
+        assert_type(value.node, references.RawSyntaxNodeId)
+        return value.node.value
+    if isinstance(value, references.ResolvedFrameReferenceTarget):
+        assert_type(value.frame, references.SelbriPlaceFrameId)
+        return value.frame.value
+    if isinstance(value, references.AmbiguousNodesReferenceTarget):
+        assert_type(value.nodes, tuple[references.RawSyntaxNodeId, ...])
+        return len(value.nodes)
+    if isinstance(value, references.UnresolvedReferenceTarget):
+        assert_type(value.reason, str)
+        return len(value.reason)
+    if isinstance(value, references.VagueReferenceTarget):
+        assert_type(value.kind, references.VagueReferenceKind)
+        return len(value.kind.value)
+    assert_never(value)
+
+
+def exhaustive_reference_error(
+    value: references.ReferenceAnalysisErrorValue,
+) -> str:
+    """Prove the structured core error union is closed."""
+
+    if isinstance(value, references.MissingRootNode):
+        return str(value)
+    assert_never(value)
+
+
+def typed_reference_surface(
+    text: str,
+    tree: syntax.strict.TextSyntax,
+    syntax_parse: syntax.SyntaxParse,
+) -> references.ReferenceAnalysis:
+    """Exercise the high- and low-level owning reference-analysis APIs."""
+
+    high_level = analyze(text)
+    assert_type(high_level, AnalyzedText)
+    assert_type(high_level.parsed, ParsedText)
+    assert_type(high_level.reference_analysis, references.ReferenceAnalysis)
+    assert_type(high_level.parse_tree, syntax.strict.TextSyntax)
+
+    from_tree = references.analyze_references(tree)
+    from_parse = references.analyze_references(syntax_parse)
+    assert_type(from_tree, references.ReferenceAnalysis)
+    assert_type(from_parse, references.ReferenceAnalysis)
+    assert_type(from_tree.syntax, syntax.strict.TextSyntax)
+
+    index = from_tree.syntax_index
+    root = index.root()
+    assert_type(root, references.TextNodeId)
+    assert_type(root.value, int)
+    assert_type(root.raw_id, references.RawSyntaxNodeId)
+    assert_type(index.node_count(), int)
+    assert_type(index.node(root.raw_id), references.SyntaxNode | None)
+    assert_type(
+        index.metadata(root.raw_id), references.SyntaxNodeMetadata | None
+    )
+    assert_type(index.id_of(tree), references.RawSyntaxNodeId | None)
+    assert_type(index.text_node_id(tree), references.TextNodeId | None)
+
+    places = from_tree.place_analysis
+    assert_type(places.frames(), tuple[references.SelbriPlaceFrame, ...])
+    assert_type(
+        places.assignments(), tuple[references.SumtiPlaceAssignment, ...]
+    )
+    for frame in places.frames():
+        assert_type(
+            places.frame(frame.id), references.SelbriPlaceFrame | None
+        )
+        assert_type(
+            places.frames_for_node(frame.node),
+            tuple[references.SelbriPlaceFrameId, ...],
+        )
+        assert_type(
+            places.assignments_for_frame(frame.id),
+            tuple[references.SumtiPlaceAssignmentId, ...],
+        )
+    for assignment in places.assignments():
+        assert_type(
+            places.assignment(assignment.id),
+            references.SumtiPlaceAssignment | None,
+        )
+        assert_type(
+            places.assignments_for_sumti(assignment.sumti),
+            tuple[references.SumtiPlaceAssignmentId, ...],
+        )
+        if assignment.term is not None:
+            assert_type(
+                places.assignments_for_term(assignment.term),
+                tuple[references.SumtiPlaceAssignmentId, ...],
+            )
+        assert_type(
+            places.assignments_for_frame_slot(
+                assignment.frame, assignment.slot
+            ),
+            tuple[references.SumtiPlaceAssignmentId, ...],
+        )
+        assert_type(
+            places.first_argument_for_place(
+                assignment.frame, assignment.slot
+            ),
+            references.SumtiNodeId | None,
+        )
+    assert_type(
+        from_tree.discourse_references.edges(),
+        tuple[references.ReferenceEdge, ...],
+    )
+    assert_type(
+        references.fixture_projection(from_tree),
+        references.ReferenceFixtureProjection,
+    )
+    assert_type(references.fixture_projection_json(from_tree), str)
+    return from_tree
+
+
+def typed_reference_node_lookups(
+    index: references.GeneratedSyntaxIndex,
+    paragraph: syntax.strict.ParagraphSyntax,
+    statement: syntax.strict.StatementSyntax,
+    bridi: syntax.strict.BridiSyntax,
+    bridi_tail: syntax.strict.BridiTailSyntax,
+    selbri: syntax.strict.SelbriSyntax,
+    tanru_unit: syntax.strict.TanruUnitSyntax,
+    term: syntax.strict.TermSyntax,
+    sumti: syntax.strict.SumtiSyntax,
+    free_modifier: syntax.strict.FreeModifierSyntax,
+    abstraction: syntax.strict.AbstractionTanruUnitSyntax,
+    mekso: syntax.strict.MeksoSyntax,
+    mekso_operator: syntax.strict.MeksoOperatorSyntax,
+) -> None:
+    """Exercise every family-specific generated-syntax ID lookup."""
+
+    assert_type(
+        index.paragraph_node_id(paragraph), references.ParagraphNodeId | None
+    )
+    assert_type(
+        index.statement_node_id(statement), references.StatementNodeId | None
+    )
+    assert_type(index.bridi_node_id(bridi), references.BridiNodeId | None)
+    assert_type(
+        index.bridi_tail_node_id(bridi_tail),
+        references.BridiTailNodeId | None,
+    )
+    assert_type(index.selbri_node_id(selbri), references.SelbriNodeId | None)
+    assert_type(
+        index.tanru_unit_node_id(tanru_unit),
+        references.TanruUnitNodeId | None,
+    )
+    assert_type(index.term_node_id(term), references.TermNodeId | None)
+    assert_type(index.sumti_node_id(sumti), references.SumtiNodeId | None)
+    assert_type(
+        index.free_modifier_node_id(free_modifier),
+        references.FreeModifierNodeId | None,
+    )
+    assert_type(
+        index.abstraction_node_id(abstraction),
+        references.AbstractionNodeId | None,
+    )
+    assert_type(index.mekso_node_id(mekso), references.MeksoNodeId | None)
+    assert_type(
+        index.mekso_operator_node_id(mekso_operator),
+        references.MeksoOperatorNodeId | None,
+    )
 
 
 def sample_text(value: str | None) -> tuple[str, str | None]:

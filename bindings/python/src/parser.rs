@@ -1769,6 +1769,22 @@ struct PySyntaxParse {
     warnings: Arc<[SyntaxWarning]>,
 }
 
+/// Extract the exact strict root owner retained by a successful parse result.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn strict_parse_root_from_python(
+    value: &Bound<'_, PyAny>,
+) -> PyResult<StrictTextRootHandle> {
+    value
+        .extract::<PyRef<'_, PySyntaxParse>>()
+        .map(|parse| parse.root.clone())
+        .map_err(|_| {
+            pyo3::exceptions::PyTypeError::new_err(
+                "expected jbotci.syntax.SyntaxParse or strict TextSyntax",
+            )
+        })
+}
+
 impl PySyntaxParse {
     #[requires(true)]
     #[ensures(true)]

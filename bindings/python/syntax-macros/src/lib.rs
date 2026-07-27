@@ -1934,6 +1934,14 @@ fn expand_native_roots(schema: &Schema) -> TokenStream2 {
         let ident = format_ident!("{}", model.strict_name());
         quote!(#ident(::std::sync::Arc<::jbotci_syntax::generated_model::#ident>))
     });
+    let strict_model_invariants = schema.models.iter().map(|model| {
+        let ident = format_ident!("{}", model.strict_name());
+        quote!(#[bityzba::invariant(::#ident => true)])
+    });
+    let strict_model_variants = schema.models.iter().map(|model| {
+        let ident = format_ident!("{}", model.strict_name());
+        quote!(#ident)
+    });
     let recovered_root_variants = schema.models.iter().map(|model| {
         let ident = format_ident!("{}", model.recovered_name());
         quote!(#ident(::std::sync::Arc<::jbotci_syntax::generated_model::recovered::#ident>))
@@ -1955,6 +1963,7 @@ fn expand_native_roots(schema: &Schema) -> TokenStream2 {
         }
     });
     let mut strict_class_arms = Vec::new();
+    let mut strict_model_arms = Vec::new();
     let mut recovered_class_arms = Vec::new();
     let mut strict_equality_arms = Vec::new();
     let mut recovered_equality_arms = Vec::new();
@@ -1975,6 +1984,10 @@ fn expand_native_roots(schema: &Schema) -> TokenStream2 {
                         ::jbotci_syntax::generated_model::NodeRef::#strict_ident(left),
                         ::jbotci_syntax::generated_model::NodeRef::#strict_ident(right),
                     ) => left == right
+                ));
+                strict_model_arms.push(quote!(
+                    ::jbotci_syntax::generated_model::NodeRef::#strict_ident(..) =>
+                        StrictSyntaxModel::#strict_ident
                 ));
                 recovered_equality_arms.push(quote!(
                     (
@@ -2001,6 +2014,10 @@ fn expand_native_roots(schema: &Schema) -> TokenStream2 {
                             ::jbotci_syntax::generated_model::NodeRef::#strict_node(right),
                         ) => left == right
                     ));
+                    strict_model_arms.push(quote!(
+                        ::jbotci_syntax::generated_model::NodeRef::#strict_node(..) =>
+                            StrictSyntaxModel::#strict_ident
+                    ));
                     recovered_equality_arms.push(quote!(
                         (
                             ::jbotci_syntax::generated_model::recovered::NodeRef::#recovered_node(left),
@@ -2013,6 +2030,12 @@ fn expand_native_roots(schema: &Schema) -> TokenStream2 {
         }
     }
     quote! {
+        #(#strict_model_invariants)*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub(crate) enum StrictSyntaxModel {
+            #(#strict_model_variants,)*
+        }
+
         #(#strict_root_invariants)*
         #[derive(Debug)]
         enum StrictSyntaxRoot {
@@ -2093,6 +2116,16 @@ fn expand_native_roots(schema: &Schema) -> TokenStream2 {
         ) -> usize {
             match node {
                 #(#strict_class_arms,)*
+            }
+        }
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn strict_syntax_model(
+            node: ::jbotci_syntax::generated_model::NodeRef<'_>,
+        ) -> StrictSyntaxModel {
+            match node {
+                #(#strict_model_arms,)*
             }
         }
 

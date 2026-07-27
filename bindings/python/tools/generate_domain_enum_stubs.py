@@ -157,6 +157,36 @@ def jvozba_binding_enums(source: str) -> list[tuple[str, list[tuple[str, str]]]]
     return values
 
 
+def reference_binding_enums(
+    source: str,
+) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Read exhaustive reference binding enums from their one macro source."""
+
+    values: list[tuple[str, list[tuple[str, str]]]] = []
+    invocation = re.compile(
+        r'define_reference_string_enum_binding!\s*\(\s*[\w:]+\s*,\s*"[^"]+"\s*,\s*"([^"]+)"\s*,\s*"[^"]+"\s*,\s*\{'
+    )
+    for match in invocation.finditer(source):
+        type_name = match.group(1)
+        body = braced_body(source, match.end() - 1)
+        entries = re.findall(
+            r'^\s*[\w:]+::\w+\s*=>\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)',
+            body,
+            re.MULTILINE,
+        )
+        declared = re.findall(r"^\s*[\w:]+::\w+\s*=>", body, re.MULTILINE)
+        if len(declared) != len(entries):
+            raise ValueError(
+                f"reference enum extraction omitted a variant of {type_name}"
+            )
+        if not entries:
+            raise ValueError(
+                f"no reference enum entries found for {type_name}"
+            )
+        values.append((type_name, entries))
+    return values
+
+
 def cmavo_pairs(source: str) -> list[tuple[str, str]]:
     """Extract Python member/canonical spelling pairs from the single cmavo table."""
 
@@ -229,6 +259,7 @@ def generate() -> str:
     cmavo = (REPOSITORY_ROOT / "crates/jbotci-morphology/src/cmavo.rs").read_text()
     syntax_parser = (PACKAGE_ROOT / "src/parser.rs").read_text()
     jvozba = (PACKAGE_ROOT / "src/jvozba.rs").read_text()
+    references = (PACKAGE_ROOT / "src/references.rs").read_text()
 
     enums: list[tuple[str, str, list[tuple[str, str]]]] = []
     enums.extend(
@@ -255,6 +286,10 @@ def generate() -> str:
     enums.extend(
         ("jvozba", type_name, pairs)
         for type_name, pairs in jvozba_binding_enums(jvozba)
+    )
+    enums.extend(
+        ("references", type_name, pairs)
+        for type_name, pairs in reference_binding_enums(references)
     )
 
     return HEADER + "\n\n".join(

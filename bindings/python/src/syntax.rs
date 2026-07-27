@@ -30,6 +30,60 @@ pub(crate) struct StrictTextRootHandle {
     handle: SyntaxHandle,
 }
 
+impl StrictTextRootHandle {
+    /// Recover the canonical strict text root boundary from a projected handle.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|root| root.handle.path.is_empty()))]
+    pub(crate) fn from_handle(handle: SyntaxHandle) -> Option<Self> {
+        if !handle.path.is_empty() {
+            return None;
+        }
+        if !matches!(
+            &handle.owner.root,
+            SyntaxRoot::Strict {
+                value: StrictSyntaxRoot::TextSyntax(_),
+            }
+        ) {
+            return None;
+        }
+        Some(new!(StrictTextRootHandle { handle }))
+    }
+
+    /// Borrow the exact generated strict text root retained by this handle.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn root(&self) -> &jbotci_syntax::generated_model::TextSyntax {
+        match &self.handle.owner.root {
+            SyntaxRoot::Strict {
+                value: StrictSyntaxRoot::TextSyntax(value),
+            } => value,
+            _ => unreachable!("StrictTextRootHandle always retains a strict TextSyntax root"),
+        }
+    }
+
+    /// Return whether a syntax handle belongs to this exact root owner.
+    #[requires(true)]
+    #[ensures(ret == Arc::ptr_eq(&self.handle.owner, &handle.owner))]
+    pub(crate) fn owns(&self, handle: &SyntaxHandle) -> bool {
+        Arc::ptr_eq(&self.handle.owner, &handle.owner)
+    }
+
+    /// Project an indexed Rust node through the original generated-tree owner.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|handle| self.owns(handle)))]
+    pub(crate) fn handle_for_node(
+        &self,
+        node: jbotci_syntax::generated_model::NodeRef<'_>,
+    ) -> Option<SyntaxHandle> {
+        let path = jbotci_syntax::generated_model::TreeNode::path_to_node(self.root(), node)?;
+        Some(new!(SyntaxHandle {
+            owner: Arc::clone(&self.handle.owner),
+            path,
+            class_id: strict_class_id(node),
+        }))
+    }
+}
+
 /// Typed recovered `TextSyntax` owner boundary for parser bindings.
 #[invariant(handle.path.is_empty(), "the handle always selects the complete text root")]
 #[derive(Debug, Clone)]
@@ -860,13 +914,40 @@ fn extract_recovery_item(value: &Bound<'_, PyAny>) -> PyResult<SyntaxRecoveryIte
     "every handle path resolves to its generated concrete class"
 )]
 #[derive(Debug, Clone)]
-struct SyntaxHandle {
+pub(crate) struct SyntaxHandle {
     owner: Arc<SyntaxOwner>,
     path: TreePath,
     class_id: usize,
 }
 
 impl SyntaxHandle {
+    /// Borrow the exact generated tree path selected by this handle.
+    #[requires(true)]
+    #[ensures(ret == &self.path)]
+    pub(crate) fn path(&self) -> &TreePath {
+        &self.path
+    }
+
+    /// Return the canonical generated grammar model selected by this handle.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn strict_model(&self) -> Option<StrictSyntaxModel> {
+        match &self.owner.root {
+            SyntaxRoot::Strict { value } => value.node_at_path(&self.path).map(strict_syntax_model),
+            SyntaxRoot::Recovered { .. } => None,
+        }
+    }
+
+    /// Resolve this handle to its strict generated node.
+    #[requires(true)]
+    #[ensures(ret.is_some() == self.strict_model().is_some())]
+    pub(crate) fn strict_node(&self) -> Option<jbotci_syntax::generated_model::NodeRef<'_>> {
+        match &self.owner.root {
+            SyntaxRoot::Strict { value } => value.node_at_path(&self.path),
+            SyntaxRoot::Recovered { .. } => None,
+        }
+    }
+
     #[requires(true)]
     #[ensures(ret == self.class_id)]
     fn class_id(&self) -> usize {
@@ -964,7 +1045,7 @@ impl PySyntaxValue {
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-fn wrap_syntax_value(py: Python<'_>, handle: SyntaxHandle) -> PyResult<Py<PyAny>> {
+pub(crate) fn wrap_syntax_value(py: Python<'_>, handle: SyntaxHandle) -> PyResult<Py<PyAny>> {
     let module = py.import(handle.module_name())?;
     let class = module.getattr(handle.class_name())?;
     let native = Py::new(py, PySyntaxValue { handle })?;
@@ -1002,7 +1083,7 @@ fn call_projected_syntax_wrapper(
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-fn extract_syntax_value(value: &Bound<'_, PyAny>) -> PyResult<SyntaxHandle> {
+pub(crate) fn extract_syntax_value(value: &Bound<'_, PyAny>) -> PyResult<SyntaxHandle> {
     let native = value
         .getattr("_native")
         .map_err(|_| PyTypeError::new_err("expected a generated jbotci syntax value"))?;

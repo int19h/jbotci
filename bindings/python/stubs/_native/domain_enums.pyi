@@ -1426,3 +1426,88 @@ class _jvozba_JvozbaMode(StrEnum):
 class _jvozba_JvozbaSegmentKind(StrEnum):
     RAFSI = 'rafsi'
     HYPHEN = 'hyphen'
+
+@final
+class _references_PlaceFrameKind(StrEnum):
+    BRIDI = 'bridi'
+    BRIDI_TAIL = 'bridi-tail'
+    BASE_SELBRI = 'base-selbri'
+    TANRU_UNIT = 'tanru-unit'
+    CONVERTED = 'converted'
+    JAI_CONVERTED = 'jai-converted'
+    LINKED_UNIT = 'linked-unit'
+    CONNECTIVE_BRANCHING = 'connective-branching'
+    COMPOUND = 'compound'
+    CO_INVERTED = 'co-inverted'
+    FORWARDING = 'forwarding'
+    ABSTRACTION = 'abstraction'
+    PRO_BRIDI = 'pro-bridi'
+    UNKNOWN = 'unknown'
+
+@final
+class _references_AssignmentSource(StrEnum):
+    SEQUENTIAL_TERM = 'sequential-term'
+    FA_TERM = 'fa-term'
+    MODAL_TERM = 'modal-term'
+    LINKED_SUMTI = 'linked-sumti'
+    CO_SELTAU_TERM = 'co-seltau-term'
+    TERMSET_BRANCH = 'termset-branch'
+    SHARED_HEAD_TERM = 'shared-head-term'
+    SHARED_TAIL_TERM = 'shared-tail-term'
+    PROPAGATED = 'propagated'
+
+@final
+class _references_ReferenceKind(StrEnum):
+    SUMTI_ASSOCIATION = 'sumti-association'
+    RELATIVE_PHRASE_HEAD = 'relative-phrase-head'
+    RELATIVE_PHRASE_ARGUMENT = 'relative-phrase-argument'
+    PRO_BRIDI_ASSIGNMENT = 'pro-bridi-assignment'
+    KOHA = 'koha'
+    RI = 'ri'
+    CEHU = 'cehu'
+    LETTER = 'letter'
+    RA = 'ra'
+    RU = 'ru'
+    KEHA = 'keha'
+    VOHA_SERIES = 'voha-series'
+    DA_SERIES = 'da-series'
+    BRODA_SERIES = 'broda-series'
+    GOHA_SERIES = 'goha-series'
+    UTTERANCE = 'utterance'
+
+@final
+class _references_VagueReferenceKind(StrEnum):
+    DISTANT_SUMTI = 'distant-sumti'
+    RECENT_SUMTI = 'recent-sumti'
+    BRIDI = 'bridi'
+
+@final
+class _references_ReferenceRule(StrEnum):
+    DIHE_FOLLOWING_WHEN_PRESENT = "di'e refers to the following utterance when one is present"
+    DIHE_FOLLOWING = "di'e refers to the following utterance"
+    PRENEX_CEI_ASSIGNMENT = 'prenex CEI assignment binds the following bridi'
+    LETTERAL_PRO_SUMTI_LATEST_INITIAL = 'letteral pro-sumti resolves to the latest sumti with the same initial string'
+    GOI_EQUATES_HEAD = 'GOI relative clause equates its sumti with the relative-clause head'
+    GOI_ASSIGNS_HEAD_PRO_SUMTI = 'GOI assigns the relative-clause head pro-sumti to its sumti'
+    GOI_X1_RELATIVE_HEAD = 'GOI relative phrase marker relates x1 to the relative-clause head'
+    GOI_X2_ATTACHED_SUMTI = 'GOI relative phrase marker relates x2 to the attached sumti'
+    CEI_ASSIGNS_ENCLOSING_BRIDI = 'CEI assigns a pro-bridi word to the enclosing bridi'
+    WRAPPED_RI_REFERENCE_SOURCE = 'wrapped ri exposes the complete sumti as a reference source'
+    WRAPPED_KEHA_REFERENCE_SOURCE = "wrapped ke'a exposes the complete sumti as a reference source"
+    RI_PREVIOUS_SUMTI = 'ri repeats the previous complete sumti'
+    CEHU_CURRENT_ABSTRACTION = "ce'u refers to the current abstraction"
+    RA_VAGUE = 'ra is intentionally vague and is not resolved heuristically'
+    RU_VAGUE = 'ru is intentionally vague and is not resolved heuristically'
+    KEHA_CURRENT_RELATIVE_HEAD = "ke'a refers to the current relative-clause head"
+    NEIGHBOR_UTTERANCE_BY_FORM = 'utterance pro-sumti resolves to a neighboring utterance when determined by form'
+    VOHA_CURRENT_BRIDI_PLACE = "vo'a-series refers to a place of the current bridi"
+    DA_ACTIVE_VARIABLE_BINDING = 'later da/de/di mentions refer to the active variable binding'
+    KOHA_GOI_BINDING = 'KOhA resolves through an explicit GOI binding'
+    GOHI_PREVIOUS_BRIDI = "go'i repeats the previous bridi"
+    GOHE_SECOND_PRIOR_BRIDI = "go'e repeats the second-prior bridi"
+    GOHA_UNRESOLVED_CONTEXT_SENSITIVE = 'this GOhA form is context-sensitive and is not resolved heuristically'
+    NEI_CURRENT_BRIDI = 'nei refers to the current bridi'
+    NOHA_OUTER_BRIDI = "no'a refers to an outer bridi"
+    PRENEX_BINDING_PRO_SELBRI = 'prenex binding resolves this pro-selbri word'
+    CEI_BINDING_PRO_BRIDI = 'CEI binding resolves this pro-bridi word'
+    CEI_BINDING_BRODA = 'CEI binding resolves this broda-series bridi'

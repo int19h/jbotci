@@ -180,6 +180,51 @@ callers that already retain `WordLike` values. Parse trees are immutable lazy
 projections over one retained native owner; repeated field projections preserve
 owner/path identity.
 
+## Place assignment and discourse references
+
+`jbotci.analyze` runs the same strict morphology and syntax pipeline as
+`jbotci.parse`, then runs the Rust place-assignment and discourse-reference
+analysis over that typed tree:
+
+```python
+import jbotci
+
+result = jbotci.analyze("mi tavla do")
+analysis = result.reference_analysis
+
+for assignment in analysis.place_analysis.assignments():
+    frame = analysis.place_analysis.frame(assignment.frame)
+    sumti = analysis.syntax_index.node(assignment.sumti.raw_id)
+    assert frame is not None
+    assert sumti is not None
+```
+
+`AnalyzedText` retains the morphology result, strict syntax result, warnings,
+traces, and reference analysis. For an existing `SyntaxParse` or strict
+`TextSyntax`, use
+`jbotci.semantics.references.analyze_references(tree_or_parse)`. This lower-level
+form consumes the typed Rust tree directly: it never serializes, reparses, or
+constructs a `tersmu` semantic model.
+
+`ReferenceAnalysis` owns one strong handle to the original strict syntax root
+and keeps the core borrowed analysis in a Rust owning cell. Its syntax index,
+frames, assignments, reference edges, and reference-target values retain that
+same owner, so they remain valid after the original parse or tree Python object
+is dropped. Node lookup projects lazily through the retained owner and original
+tree path; it does not clone the tree or compare source spans as identity.
+
+Syntax-node, place-frame, assignment, and edge IDs are distinct immutable
+classes with an explicit integer `.value`; typed syntax IDs also expose
+`.raw_id`. IDs are scoped to one analysis. Equality and hashing include that
+analysis identity, and passing an ID to a different analysis raises
+`jbotci.InvalidInputError`. All query collections are immutable tuples.
+
+`fixture_projection(analysis)` and `fixture_projection_json(analysis)` are
+secondary projections for corpus fixtures and debugging. They intentionally
+use the core resolver's canonical fixture representation and are not the
+primary object model; normal consumers should use `syntax_index`,
+`place_analysis`, and `discourse_references`.
+
 Completion accepts either typed morphology words or source text. Cursor-based
 completion interprets `cursor` as a Python Unicode-character index and parses
 exactly `text[:cursor]`:
