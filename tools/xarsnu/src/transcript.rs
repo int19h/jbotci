@@ -1,5 +1,6 @@
 //! Append-only typed JSONL transcripts for protocol runs.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -9,6 +10,7 @@ use std::path::Path;
 use bityzba::{ensures, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 
+use crate::protocol::ProtocolEventData;
 use crate::{ProtocolEvent, RunConfig, ScenarioConfigError, ScenarioInstance};
 
 /// Current on-disk transcript schema version.
@@ -147,6 +149,9 @@ pub fn read_transcript(path: &Path) -> Result<Vec<TranscriptRecord>, TranscriptE
     let file = File::open(path).map_err(|error| TranscriptError::io(0, error))?;
     let mut records = Vec::new();
     let mut current_turn = 0usize;
+    // Latest `IntentRegistered` revision number seen per (turn, speaker), used to
+    // check that each confirm's `intent_sequence` names its governing intent.
+    let mut latest_intent: HashMap<(usize, String), usize> = HashMap::new();
     for (index, line) in BufReader::new(file).lines().enumerate() {
         let line_number = index + 1;
         let line = line.map_err(|error| TranscriptError::io(line_number, error))?;
@@ -189,6 +194,46 @@ pub fn read_transcript(path: &Path) -> Result<Vec<TranscriptRecord>, TranscriptE
                 }));
             }
         }
+        // A confirm's `intent_sequence`, when present, must name the latest intent
+        // registered so far for the same turn and speaker (issue #612). `None` marks
+        // a legacy transcript and is accepted without a governing intent.
+        //
+        // This is a targeted link check, deliberately NOT a full state-machine replay:
+        // it confirms the intent↔confirm reference is internally consistent, not that
+        // the whole protocol run was legal. It intentionally does not catch every
+        // fabricated shape — e.g. a confirm forged after a forfeit, or one whose
+        // `intent_sequence` is `None`, passes here. Full replay validation, if ever
+        // needed, belongs in a separate pass; the audit tooling that scores drift is
+        // the consumer that reconstructs run state.
+        match record.event.as_data() {
+            bityzba::data!(ProtocolEvent::IntentRegistered {
+                turn_number,
+                speaker,
+                revision_number,
+                ..
+            }) => {
+                latest_intent.insert((*turn_number, speaker.clone()), *revision_number);
+            }
+            bityzba::data!(ProtocolEvent::MeaningConfirmed {
+                turn_number,
+                speaker,
+                intent_sequence: Some(sequence),
+                ..
+            }) => {
+                let governing = latest_intent.get(&(*turn_number, speaker.clone())).copied();
+                if governing != Some(*sequence) {
+                    return Err(new!(TranscriptError {
+                        line: line_number,
+                        kind: new!(TranscriptErrorKind::ConfirmIntentSequenceMismatch {
+                            turn: *turn_number,
+                            confirm_sequence: *sequence,
+                            governing,
+                        }),
+                    }));
+                }
+            }
+            _ => {}
+        }
         records.push(record);
     }
     if records.is_empty() {
@@ -216,15 +261,34 @@ pub fn read_transcript(path: &Path) -> Result<Vec<TranscriptRecord>, TranscriptE
 #[invariant(::UnexpectedRunHeader => true)]
 #[invariant(::SequenceGap { .. } => true)]
 #[invariant(::TurnContextMismatch { .. } => true)]
+#[invariant(::ConfirmIntentSequenceMismatch { confirm_sequence, governing, .. } => governing.as_ref().is_none_or(|latest| *latest != *confirm_sequence), "the mismatch is only raised when the confirm names a non-latest or absent intent")]
 #[invariant(::Truncated => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TranscriptErrorKind {
-    Io { message: String },
-    BadJson { message: String },
+    Io {
+        message: String,
+    },
+    BadJson {
+        message: String,
+    },
     MissingRunHeader,
     UnexpectedRunHeader,
-    SequenceGap { expected: u64, actual: u64 },
-    TurnContextMismatch { expected: usize, actual: usize },
+    SequenceGap {
+        expected: u64,
+        actual: u64,
+    },
+    TurnContextMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    /// A confirm's `intent_sequence` did not name the latest intent registered so
+    /// far for its turn/speaker; `governing` is that latest revision, or `None` if
+    /// no intent was registered before the confirm.
+    ConfirmIntentSequenceMismatch {
+        turn: usize,
+        confirm_sequence: usize,
+        governing: Option<usize>,
+    },
     Truncated,
 }
 
@@ -299,6 +363,20 @@ impl fmt::Display for TranscriptError {
                 write!(
                     formatter,
                     "transcript turn context mismatch {location}: expected {expected}, found {actual}"
+                )
+            }
+            bityzba::data!(TranscriptErrorKind::ConfirmIntentSequenceMismatch {
+                turn,
+                confirm_sequence,
+                governing,
+            }) => {
+                let governing = match governing {
+                    Some(latest) => format!("latest registered intent is revision {latest}"),
+                    None => "no intent was registered for this turn/speaker".to_owned(),
+                };
+                write!(
+                    formatter,
+                    "transcript confirm intent-sequence mismatch {location}: turn {turn} confirm names intent revision {confirm_sequence}, but {governing}"
                 )
             }
             bityzba::data!(TranscriptErrorKind::Truncated) => {

@@ -892,6 +892,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
+        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::NotComputedDeclared",
+        "unit disposition marking an entry the renderer declares uncomputed; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::Renders",
+        "unit disposition marking a rendered entry; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/completeness/model.rs:Witness::NoCorpusWitness",
+        "unit witness marker for a field the frozen corpus does not exercise; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/completeness/model.rs:WitnessExpect::Present",
+        "unit expectation asserting the coordinate is populated (present and non-null); no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/mod.rs:NotationProfile::Smusni",
+        "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservation::Candidate",
         "diagnostic candidates delegate validity to the private copy-on-write SyntaxParseError payload",
     ),

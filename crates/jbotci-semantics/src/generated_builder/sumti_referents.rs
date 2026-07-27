@@ -77,9 +77,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term,
                 leading_term.as_ref(),
             ),
-            _ => Err(invalid_graph(
-                "connected term reached simple-term assignment lowering".to_owned(),
-            )),
+            // Shared choke point: a direct term connection (a `ConnectedTerm` with continuations or
+            // a `BoundTermConnection`) reaches here only on lowering paths that no upstream guard
+            // could build (e.g. terms shared across a `gi'e` bridi connection, which carry
+            // preassigned arguments the branch builder cannot thread through the connection).
+            // Report the graceful unsupported-construct error rather than tripping the invariant, so
+            // no path crashes: nonlogical connections are unsupported everywhere, and logical
+            // connections combined with shared arguments are unsupported (a separate feature).
+            _ => Err(
+                generated_direct_term_connection_unsupported_error(std::slice::from_ref(&term))
+                    .unwrap_or_else(|| {
+                        invalid_graph(
+                            "connected term reached simple-term assignment lowering".to_owned(),
+                        )
+                    }),
+            ),
         }
     }
 
@@ -7202,6 +7214,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.build_implicit_existential_variable(pro_sumti)
                 }
             }
+            Some(cmavo @ (Cmavo::Voha | Cmavo::Vohe | Cmavo::Vohi | Cmavo::Voho | Cmavo::Vohu)) => {
+                // Reaching here means the referenced place of the local bridi was not already
+                // filled by an explicit term (which `insert_generated_simple_term_assignment`
+                // would have resolved inline), e.g. an implicit `ke'a` relative-clause head, an
+                // elided place, a description's `ce'u` slot, or an abstraction subject. Build a
+                // placeholder referent and record the place it refers to; it is resolved against
+                // the finished predication arguments in `resolve_pending_voha_references`, per
+                // CLL 7.8 (the vo'a-series denotes the places of the bridi it appears in).
+                let referent = self.build_generated_pro_sumti_fallback_referent(
+                    pro_sumti,
+                    ReferentCategory::Constant,
+                )?;
+                if let Some(place) = voha_place_for_cmavo(cmavo) {
+                    self.pending_voha_places.insert(referent, place);
+                }
+                Ok(referent)
+            }
             _ => self
                 .build_generated_pro_sumti_fallback_referent(pro_sumti, ReferentCategory::Constant),
         }
@@ -8996,7 +9025,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             object.set_predication_attachments(branch_modal_arguments, Vec::new());
             object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                object,
+                |surface_place| {
+                    mapped_place_for_generated_conversions(surface_place, &atom.conversions)
+                },
+            )?;
+            self.record_voha_direct_target(predication, 1, referent)?;
             let formula = self.next_formula_id();
             self.insert(
                 formula,

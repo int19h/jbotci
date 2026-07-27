@@ -1,10 +1,11 @@
 //! Lojban semantic model and builder facade.
 
+pub mod completeness;
 pub mod facade;
 pub mod generated_builder;
 pub mod model;
+pub mod notation;
 pub mod references;
-pub mod render;
 
 pub use facade::{SemanticBuildOptions, SemanticsError, dictionary_relation_place_count};
 pub use generated_builder::{
@@ -19,4 +20,4 @@ pub use model::{
     semantic_graph_references_are_defined, semantic_object_domain_imports_are_valid,
     semantic_object_scope_dependences_are_derived,
 };
-pub use render::{render_tree, render_tree_proj};
+pub use notation::{NotationProfile, SmusniConfig, render_notation, render_smusni};

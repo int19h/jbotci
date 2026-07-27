@@ -1486,12 +1486,10 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
     }
 }
 
-/// Output format for a `tersmu` semantic analysis. `tree+proj` is the default
-/// human projection, `tree` is its bare structural spine, and `json` is the
-/// canonical interchange graph.
+/// Output format for a `tersmu` semantic analysis. `smusni` is the default,
+/// model-facing notation, and `json` is the canonical interchange graph.
 #[invariant(::Json => true)]
-#[invariant(::Tree => true)]
-#[invariant(::TreeProj => true)]
+#[invariant(::Smusni => true)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -1499,29 +1497,26 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 pub enum ToolTersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph.
     Json,
-    /// Indented utterance/formula structure showing quantifier, negation, and
-    /// connective nesting with referent ids inlined.
-    Tree,
-    /// The default: structural tree followed by only displaced projective
-    /// commitments, with frame and implicit-constant boilerplate grouped.
-    /// `+proj` is the format-feature suffix added to the `tree` base format.
-    #[serde(rename = "tree+proj")]
-    TreeProj,
+    /// The default: the model-facing `smusni` notation — a flat, self-describing
+    /// declaration listing of the same graph tuned for language models.
+    Smusni,
 }
 
 impl Default for ToolTersmuFormat {
     #[requires(true)]
-    #[ensures(ret == ToolTersmuFormat::TreeProj)]
+    #[ensures(ret == ToolTersmuFormat::Smusni)]
     fn default() -> Self {
-        Self::TreeProj
+        Self::Smusni
     }
 }
 
 impl ToolTersmuFormat {
     #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Tree | Self::TreeProj))]
+    #[ensures(ret == matches!(self, Self::Smusni))]
     fn supports_definitions(self) -> bool {
-        matches!(self, Self::Tree | Self::TreeProj)
+        // Dictionary definitions ground every human-readable rendering; only the
+        // canonical JSON graph suppresses them so it stays a pure JSON document.
+        matches!(self, Self::Smusni)
     }
 
     #[requires(true)]
@@ -1529,8 +1524,7 @@ impl ToolTersmuFormat {
     fn command_format(self) -> TersmuFormat {
         match self {
             Self::Json => TersmuFormat::Json,
-            Self::Tree => TersmuFormat::Tree,
-            Self::TreeProj => TersmuFormat::TreeProj,
+            Self::Smusni => TersmuFormat::Smusni,
         }
     }
 
@@ -1539,7 +1533,7 @@ impl ToolTersmuFormat {
     fn content_type(self) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Tree | Self::TreeProj => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
         }
     }
 }
@@ -1554,12 +1548,10 @@ impl ToolTersmuFormat {
 pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
-    /// How to render the graph. Defaults to `tree+proj`: a logical nesting tree
-    /// plus only commitments displaced from their structural site. Use `tree`
-    /// for the bare spine or `json` for the canonical graph. The `+proj` suffix
-    /// follows the `base+feature` convention for format features. Human formats
-    /// obey the tersmu interpretation contract documented in the tool
-    /// description.
+    /// How to render the graph. Defaults to `smusni`: the model-facing notation,
+    /// a flat, self-describing declaration listing of the graph. Use `json` for
+    /// the canonical interchange graph. The `smusni` output obeys the tersmu
+    /// interpretation contract documented in the tool description.
     #[serde(default)]
     pub format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
@@ -1567,10 +1559,10 @@ pub struct ToolTersmuRequest {
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
-    /// Prepend full dictionary definitions to the human-readable `tree` and
-    /// `tree+proj` formats. Definitions ground the interpretation and are on
-    /// by default; set this to `false` to save tokens. The flag is suppressed
-    /// for `json` so the canonical graph remains a pure JSON document.
+    /// Prepend full dictionary definitions to the human-readable `smusni`
+    /// format. Definitions ground the interpretation and are on by default; set
+    /// this to `false` to save tokens. The flag is suppressed for `json` so the
+    /// canonical graph remains a pure JSON document.
     #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative "story
@@ -1823,6 +1815,57 @@ mod tests {
         }
     }
 
+    // The `smusni` format renamed the earlier `lean3` working name with no
+    // deprecated alias: the serde boundary accepts `smusni` and rejects `lean3`.
+    // The retired `tree` / `tree+proj` renderers are likewise removed with no
+    // alias, so the boundary must reject their format strings too.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_format_serde_accepts_smusni_and_json_and_rejects_removed_values() {
+        assert_eq!(
+            serde_json::from_str::<ToolTersmuFormat>("\"smusni\"").expect("smusni deserializes"),
+            ToolTersmuFormat::Smusni
+        );
+        assert_eq!(
+            serde_json::from_str::<ToolTersmuFormat>("\"json\"").expect("json deserializes"),
+            ToolTersmuFormat::Json
+        );
+        for retired in ["lean3", "tree", "tree+proj"] {
+            assert!(
+                serde_json::from_str::<ToolTersmuFormat>(&format!("\"{retired}\"")).is_err(),
+                "the retired `{retired}` value must not deserialize"
+            );
+        }
+    }
+
+    // The tersmu format schema must enumerate exactly the surviving values so a
+    // removed renderer can never be requested through the MCP surface.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_format_schema_enumerates_only_smusni_and_json() {
+        let schema = tool_request_schema::<ToolTersmuRequest>();
+        let variants = schema["properties"]["format"]["oneOf"]
+            .as_array()
+            .expect("format is a documented oneOf enum");
+        let values: std::collections::BTreeSet<&str> = variants
+            .iter()
+            .map(|variant| {
+                variant["const"]
+                    .as_str()
+                    .expect("each format variant is a const string")
+            })
+            .collect();
+        assert_eq!(
+            values,
+            ["json", "smusni"]
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            "schema must expose only the surviving tersmu formats"
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1886,7 +1929,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn tersmu_human_formats_prepend_definitions() {
-        for format in [ToolTersmuFormat::Tree, ToolTersmuFormat::TreeProj] {
+        for format in [ToolTersmuFormat::Smusni] {
             let grounded = run_tool_tersmu(tersmu_request(format, true))
                 .expect("grounded human tersmu output");
             let ungrounded = run_tool_tersmu(tersmu_request(format, false))

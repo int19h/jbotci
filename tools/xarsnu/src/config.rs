@@ -192,16 +192,15 @@ impl ClientConfig {
 }
 
 /// Semantic rendering selected for the jbotci gate.
-#[invariant(::TreeProj => true)]
-#[invariant(::Tree => true)]
 #[invariant(::Json => true)]
+#[invariant(::Smusni => true)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
+    /// Model-facing `smusni` notation: a flat, self-describing declaration
+    /// listing of the semantic graph (the default).
     #[default]
-    #[serde(rename = "tree+proj")]
-    TreeProj,
-    Tree,
+    Smusni,
     Json,
 }
 
@@ -302,9 +301,9 @@ system-prompt = "Speak only Lojban."
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn config_defaults_to_tree_proj() {
+    fn config_defaults_to_smusni() {
         let config = RunConfig::from_toml(VALID_CONFIG).expect("valid config");
-        assert_eq!(config.tersmu_format, TersmuFormat::TreeProj);
+        assert_eq!(config.tersmu_format, TersmuFormat::Smusni);
         assert_eq!(config.listener_mode, ListenerMode::Informed);
         assert!(!config.allow_degraded_search);
         assert_eq!(config.caps.max_reference_calls_per_phase, 30);
@@ -335,6 +334,43 @@ system-prompt = "Speak only Lojban."
                 .iter()
                 .all(|participant| participant.reasoning.is_none())
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_format_is_explicitly_selectable() {
+        for (configured, expected) in [
+            ("json", TersmuFormat::Json),
+            ("smusni", TersmuFormat::Smusni),
+        ] {
+            let source = VALID_CONFIG.replace(
+                "scenario = \"schedule-negotiation\"",
+                &format!("scenario = \"schedule-negotiation\"\ntersmu-format = \"{configured}\""),
+            );
+            let config = RunConfig::from_toml(&source).expect("valid tersmu format");
+            assert_eq!(config.tersmu_format, expected);
+        }
+
+        let invalid = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\ntersmu-format = \"lean4\"",
+        );
+        assert!(RunConfig::from_toml(&invalid).is_err());
+
+        // The `smusni` format renamed the earlier `lean3` working name, and the
+        // legacy `tree` / `tree+proj` renderers were removed, all with no
+        // deprecated alias, so none of the retired values may deserialize.
+        for retired in ["lean3", "tree", "tree+proj"] {
+            let source = VALID_CONFIG.replace(
+                "scenario = \"schedule-negotiation\"",
+                &format!("scenario = \"schedule-negotiation\"\ntersmu-format = \"{retired}\""),
+            );
+            assert!(
+                RunConfig::from_toml(&source).is_err(),
+                "retired tersmu format `{retired}` must not deserialize"
+            );
+        }
     }
 
     #[test]

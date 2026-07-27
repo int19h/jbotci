@@ -292,7 +292,7 @@ fn posted_message_steps(meaning_en: &str, paraphrase_en: &str) -> Vec<ScriptStep
             json!({ "text": "mi klama" }),
         ),
         step(
-            &["confirm_meaning"],
+            &["register_intent", "confirm_meaning"],
             "confirm_meaning",
             json!({ "matches": true, "paraphrase_en": paraphrase_en }),
         ),
@@ -368,7 +368,7 @@ fn runner(
         participants,
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
     )
 }
@@ -444,7 +444,7 @@ fn reference_budget_withdraws_tools_on_the_wire_and_preserves_turn_forfeit() {
         vec![speaker, listener],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -516,7 +516,7 @@ fn duplicate_reference_lookup_reuses_prior_payload_byte_for_byte() {
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -588,7 +588,7 @@ fn disabling_reference_dedupe_reexecutes_exact_repeats() {
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -647,7 +647,7 @@ fn idle_reference_nudge_fires_once_at_threshold_in_each_phase() {
         vec![speaker, ScriptedModel::new("bob", Vec::new())],
         caps,
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         dispatcher,
     )
     .expect("valid runner");
@@ -706,7 +706,7 @@ fn happy_path_posts_then_completes_two_blind_listener_flows() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({
                     "matches": true,
@@ -805,7 +805,7 @@ fn informed_listener_receives_rendering_from_the_start_and_acknowledges_once() {
         vec![speaker, listener],
         caps(3, 2, 1),
         ListenerMode::Informed,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
     )
     .expect("valid informed runner");
@@ -875,7 +875,7 @@ fn automatic_tool_choice_rejects_prose_then_recovers_within_the_existing_cap() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -957,7 +957,7 @@ fn automatic_listener_rejects_prose_then_completes_the_blind_flow() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1034,7 +1034,7 @@ fn automatic_listener_exhaustion_abandons_only_that_listener_flow() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1167,7 +1167,7 @@ fn parse_failures_keep_composing_and_record_diagnostics_before_success() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1234,7 +1234,7 @@ fn confirmation_mismatch_returns_to_composing_then_posts_new_candidate() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({
                     "matches": false,
@@ -1248,7 +1248,7 @@ fn confirmation_mismatch_returns_to_composing_then_posts_new_candidate() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1308,7 +1308,7 @@ fn intent_revision_is_recorded_without_resetting_the_turn() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1374,7 +1374,7 @@ fn submit_without_registered_intent_is_rejected_before_gate() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1404,7 +1404,7 @@ fn submit_without_registered_intent_is_rejected_before_gate() {
         1
     );
     assert!(runner.participants()[0].tool_results.iter().any(|result| {
-        result.tool_name == "submit_lojban" && result.content.contains("not legal")
+        result.tool_name == "submit_lojban" && result.content.contains("is not available")
     }));
     let submissions = runner
         .events()
@@ -1444,7 +1444,7 @@ fn confirmation_without_current_success_is_rejected_before_posting() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1474,7 +1474,7 @@ fn confirmation_without_current_success_is_rejected_before_posting() {
         1
     );
     assert!(runner.participants()[0].tool_results.iter().any(|result| {
-        result.tool_name == "confirm_meaning" && result.content.contains("not legal")
+        result.tool_name == "confirm_meaning" && result.content.contains("is not available")
     }));
     let accepted_index = runner
         .events()
@@ -1598,7 +1598,7 @@ fn round_robin_starts_next_speaker_only_after_listener_acknowledges() {
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1638,7 +1638,7 @@ fn round_robin_starts_next_speaker_only_after_listener_acknowledges() {
                 json!({ "text": "mi ji'a klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I also go." }),
             ),
@@ -1717,7 +1717,7 @@ fn referential_answers_close_dialog_and_are_collected_from_one_frozen_boundary()
         ],
         caps(2, 2, 8),
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
         scenario,
     )
@@ -1828,7 +1828,7 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
         scenario: "debate-consciousness-1.toml".to_owned(),
         caps: caps(3, 2, 12),
         client: xarsnu::ClientConfig::default(),
-        tersmu_format: TersmuFormat::TreeProj,
+        tersmu_format: TersmuFormat::Smusni,
         listener_mode: ListenerMode::BlindThenReveal,
         allow_degraded_search: false,
     });
@@ -1838,7 +1838,7 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
         participants,
         run_config.caps.clone(),
         run_config.listener_mode,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
         scenario,
     )
@@ -1899,7 +1899,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1929,7 +1929,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1959,7 +1959,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                 json!({ "text": "mi klama" }),
             ),
             step(
-                &["confirm_meaning"],
+                &["register_intent", "confirm_meaning"],
                 "confirm_meaning",
                 json!({ "matches": true, "paraphrase_en": "I go." }),
             ),
@@ -1988,7 +1988,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
             scenario: "schedule-negotiation-1.toml".to_owned(),
             caps: caps(3, 2, 6),
             client: xarsnu::ClientConfig::default(),
-            tersmu_format: TersmuFormat::TreeProj,
+            tersmu_format: TersmuFormat::Smusni,
             listener_mode: ListenerMode::BlindThenReveal,
             allow_degraded_search: false,
         }),
@@ -2000,7 +2000,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
         vec![alice, bob],
         caps(3, 2, 6),
         ListenerMode::BlindThenReveal,
-        TersmuFormat::TreeProj,
+        TersmuFormat::Smusni,
         ReferenceToolDispatcher,
         scenario,
     )
@@ -2052,4 +2052,487 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
         u64::try_from(records.len() - 1).unwrap()
     );
     std::fs::remove_file(transcript_path).expect("remove runtime transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn redeclaring_intent_while_awaiting_confirmation_retains_candidate_and_records_sequence() {
+    // Legitimate retreat, NOT post-hoc laundering: the original intent is a
+    // two-part message ("go to the market" AND "to buy fish"); the speaker can only
+    // get the parser to accept the first conjunct, so it drops the purpose clause it
+    // could not express and keeps a sub-message it independently wanted to send. The
+    // retained candidate genuinely expresses that narrowed goal. The wording — not
+    // the harness — is what forbids the laundering variant, where a speaker would
+    // instead read the revised intent off the rendering to force a match; the state
+    // machine cannot tell the two apart, so this test only exercises the mechanical
+    // retain-and-confirm path.
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I am going to the market to buy fish." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama le zarci" }),
+            ),
+            // Register ONLY the narrowed message the retained candidate actually
+            // expresses. The rationale for the retreat (dropping the "to buy fish"
+            // purpose clause that could not be parsed) stays in this comment, never in
+            // the declared intent, so the confirm is a genuine match — not a mismatch
+            // against unexpressed meta-text.
+            step(
+                &["register_intent", "confirm_meaning"],
+                "register_intent",
+                json!({ "meaning_en": "I am going to the market." }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I am going to the market." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes to the market." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes to the market." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("re-declaration run");
+
+    // Re-declaring intent while awaiting confirmation is legal, not an error.
+    assert_eq!(
+        count_protocol_errors(runner.events(), ProtocolTool::RegisterIntent),
+        0
+    );
+
+    // The candidate was submitted and accepted exactly once: the re-declaration
+    // retained it rather than forcing a re-submit.
+    let submissions = runner
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateSubmitted { .. })
+            )
+        })
+        .count();
+    assert_eq!(submissions, 1);
+    let accepted = runner
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateAccepted { .. })
+            )
+        })
+        .count();
+    assert_eq!(accepted, 1);
+
+    // Original declaration (sequence 0) then the revised one (sequence 1).
+    let registrations = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::IntentRegistered {
+                revision,
+                revision_number,
+                ..
+            }) => Some((*revision, *revision_number)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(registrations, [(false, 0), (true, 1)]);
+
+    // The confirm was measured against the revised intent (sequence 1) and posted.
+    let confirm = runner
+        .events()
+        .iter()
+        .find_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::MeaningConfirmed {
+                matches,
+                intent_sequence,
+                ..
+            }) => Some((*matches, *intent_sequence)),
+            _ => None,
+        })
+        .expect("a confirm event");
+    assert_eq!(confirm, (true, Some(1)));
+    assert_eq!(runner.visible_chat().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn submit_lojban_while_awaiting_confirmation_names_state_and_legal_calls() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            // Deliberately submit again while awaiting confirmation: the classic
+            // out-of-order trip point from issue #609.
+            step(
+                &["register_intent", "confirm_meaning"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("out-of-order submit recovery run");
+
+    assert_eq!(
+        count_protocol_errors(runner.events(), ProtocolTool::SubmitLojban),
+        1
+    );
+    // Two submit_lojban results exist: the accepted candidate's tersmu rendering
+    // and the out-of-order rejection. Select the rejection by its diagnostic text.
+    let error = runner.participants()[0]
+        .tool_results
+        .iter()
+        .find(|result| {
+            result.tool_name == "submit_lojban" && result.content.contains("is not available")
+        })
+        .expect("out-of-order submit_lojban rejection");
+    assert!(error.content.contains("speaker/awaiting-confirmation"));
+    assert!(error.content.contains("`register_intent`"));
+    assert!(error.content.contains("`confirm_meaning`"));
+
+    // The out-of-order submit did not fabricate a new candidate.
+    let submissions = runner
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateSubmitted { .. })
+            )
+        })
+        .count();
+    assert_eq!(submissions, 1);
+    assert_eq!(runner.visible_chat().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn repeated_redeclaration_while_awaiting_confirmation_bumps_sequence_and_retains_candidate() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I am going to the market to buy fish for the festival." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama le zarci" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "register_intent",
+                json!({ "meaning_en": "I am going to the market to buy fish." }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "register_intent",
+                json!({ "meaning_en": "I am going to the market." }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I am going to the market." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes to the market." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes to the market." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 3, 1)).expect("valid runner");
+
+    runner.run().expect("repeated re-declaration run");
+
+    let submissions = runner
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateSubmitted { .. })
+            )
+        })
+        .count();
+    assert_eq!(
+        submissions, 1,
+        "the candidate is retained across both re-declarations"
+    );
+
+    let registrations = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::IntentRegistered {
+                revision,
+                revision_number,
+                ..
+            }) => Some((*revision, *revision_number)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(registrations, [(false, 0), (true, 1), (true, 2)]);
+
+    let confirm = runner
+        .events()
+        .iter()
+        .find_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::MeaningConfirmed {
+                intent_sequence,
+                ..
+            }) => Some(*intent_sequence),
+            _ => None,
+        })
+        .expect("a confirm event");
+    assert_eq!(
+        confirm,
+        Some(2),
+        "the confirm names the latest re-declaration"
+    );
+    assert_eq!(runner.visible_chat().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn intent_revision_cap_forfeits_at_awaiting_confirmation_after_the_exact_cap_is_used() {
+    // Cap = 1: the first re-declaration (revision 1) is allowed even though a
+    // candidate awaits confirmation; the second (which would be revision 2) forfeits.
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "First intent." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama le zarci" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "register_intent",
+                json!({ "meaning_en": "Allowed revision at the cap." }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "register_intent",
+                json!({ "meaning_en": "One revision too many." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new("bob", Vec::new());
+    let mut runner = runner(vec![speaker, listener], caps(3, 1, 1)).expect("valid runner");
+
+    runner
+        .run()
+        .expect("awaiting-confirmation revision-cap run");
+
+    assert!(runner.visible_chat().is_empty());
+    // The candidate was accepted before the forfeit, and nothing was posted.
+    assert!(runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::CandidateAccepted { .. })
+    )));
+    assert!(!runner.events().iter().any(|event| matches!(
+        event.as_data(),
+        bityzba::data!(ProtocolEvent::MessagePosted { .. })
+    )));
+    assert!(runner.events().iter().any(|event| {
+        matches!(
+            event.as_data(),
+            bityzba::data!(ProtocolEvent::TurnForfeited { reason, .. })
+                if matches!(
+                    reason.as_data(),
+                    bityzba::data!(TurnForfeitReason::IntentRevisions { maximum: 1 })
+                )
+        )
+    }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn redeclare_then_mismatch_resubmits_and_confirms_against_the_revised_intent() {
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I am going to the market to buy fish." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama le zarci" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "register_intent",
+                json!({ "meaning_en": "I am going home." }),
+            ),
+            // The retained candidate ("to the market") does not express the revised
+            // intent ("going home"), so this is an honest mismatch, not a match.
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": false, "paraphrase_en": "I am going to the market." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama le zdani" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I am going home." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes home." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes home." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("re-declare then mismatch run");
+
+    let submissions = runner
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateSubmitted { .. })
+            )
+        })
+        .count();
+    assert_eq!(submissions, 2, "the mismatch forced a fresh candidate");
+
+    // Both confirms were measured against the revised intent (revision 1), which
+    // survived the mismatch-driven return to composing.
+    let confirms = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::MeaningConfirmed {
+                matches,
+                intent_sequence,
+                ..
+            }) => Some((*matches, *intent_sequence)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(confirms, [(false, Some(1)), (true, Some(1))]);
+    assert_eq!(runner.visible_chat().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn legacy_meaning_confirmed_without_intent_sequence_deserializes_as_none() {
+    // A transcript event written before the intent_sequence field existed must
+    // still deserialize, with the field distinctly absent (None), never Some(0).
+    let legacy = json!({
+        "kind": "meaning-confirmed",
+        "turn_number": 1,
+        "speaker": "alice",
+        "matches": true,
+        "paraphrase_en": "I go.",
+        "discrepancies": null
+    });
+    let event: ProtocolEvent =
+        serde_json::from_value(legacy).expect("legacy confirm event deserializes");
+    match event.as_data() {
+        bityzba::data!(ProtocolEvent::MeaningConfirmed {
+            intent_sequence,
+            ..
+        }) => assert_eq!(*intent_sequence, None),
+        _ => panic!("expected a meaning-confirmed event"),
+    }
 }

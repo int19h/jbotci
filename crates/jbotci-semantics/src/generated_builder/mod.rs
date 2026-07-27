@@ -226,6 +226,71 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     pending_negated_selbri_argument_scope_reservations: usize,
     suppress_prenex_bound_implicit_existential_recording: usize,
     pending_after_eventuality_reservations: usize,
+    // vo'a-series (CLL 7.8) placeholders that could not be resolved inline because the referenced
+    // place of the local bridi was not yet filled when the pro-sumti was built (an implicit `ke'a`
+    // relative-clause head, an elided place, a description's `ce'u` slot, an abstraction subject).
+    // Maps the placeholder referent to the surface local-bridi place index it refers to; resolved
+    // against the finished predication arguments in `resolve_pending_voha_references` before
+    // pruning.
+    pending_voha_places: BTreeMap<SemanticObjectId, usize>,
+    // Each underlying predication produced for a converted surface selbri needs its own place map.
+    // This cannot be stored once per placeholder: a tanru argument is shared by all component
+    // predications, while SE can convert only one component (CLL 5.11).
+    pending_voha_place_maps: BTreeMap<SemanticObjectId, GeneratedVohaPlaceMap>,
+    // Cumulative place maps already applied before recursively lowering a grouped or delegated
+    // selbri. The eventual underlying predication composes this context with its own local SE.
+    active_voha_place_maps: Vec<GeneratedVohaPlaceMap>,
+    // JAI can promote a modal or raised participant into surface x1 without assigning it an
+    // underlying numbered place (CLL 9.12). Record that direct target per predication and surface
+    // place rather than pretending JAI is an SE permutation.
+    pending_voha_direct_targets: BTreeMap<(SemanticObjectId, usize), SemanticObjectId>,
+}
+
+#[invariant(surface_to_underlying.iter().all(|place| *place > 0))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GeneratedVohaPlaceMap {
+    surface_to_underlying: [usize; 5],
+}
+
+impl GeneratedVohaPlaceMap {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|mapping| mapping.surface_to_underlying.iter().all(|place| *place > 0)) || ret.is_err())]
+    fn try_from_mapper(
+        mut mapper: impl FnMut(usize) -> Result<usize, SemanticsError>,
+    ) -> Result<Self, SemanticsError> {
+        let surface_to_underlying = [mapper(1)?, mapper(2)?, mapper(3)?, mapper(4)?, mapper(5)?];
+        Ok(new!(GeneratedVohaPlaceMap {
+            surface_to_underlying,
+        }))
+    }
+
+    #[requires((1..=5).contains(&surface_place))]
+    #[ensures(ret > 0)]
+    fn underlying_place(&self, surface_place: usize) -> usize {
+        self.surface_to_underlying[surface_place - 1]
+    }
+}
+
+#[invariant(::Numbered { place } => place.get() > 0)]
+#[invariant(::Modal { place, .. } => place.get() > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GeneratedVohaUpdateLocation {
+    Numbered {
+        place: PlaceIndex,
+    },
+    Modal {
+        modal_index: usize,
+        place: PlaceIndex,
+    },
+}
+
+#[invariant(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+#[invariant(resolved.object_kind() == crate::model::SemanticObjectKind::Referent || resolved.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GeneratedVohaUpdate {
+    predication: SemanticObjectId,
+    location: GeneratedVohaUpdateLocation,
+    resolved: SemanticObjectId,
 }
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
@@ -1560,6 +1625,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             pending_negated_selbri_argument_scope_reservations: 0,
             suppress_prenex_bound_implicit_existential_recording: 0,
             pending_after_eventuality_reservations: 0,
+            pending_voha_places: BTreeMap::new(),
+            pending_voha_place_maps: BTreeMap::new(),
+            active_voha_place_maps: Vec::new(),
+            pending_voha_direct_targets: BTreeMap::new(),
         };
         builder.insert_deictics();
         builder
@@ -6047,13 +6116,64 @@ fn generated_sumti_is_deleted(sumti: &SumtiSyntax) -> bool {
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| (1..=5).contains(&place)))]
 fn generated_voha_place_for_sumti(sumti: &SumtiSyntax) -> Option<usize> {
-    match generated_sumti_spine_cmavo(sumti)? {
+    voha_place_for_cmavo(generated_sumti_spine_cmavo(sumti)?)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| (1..=5).contains(&place)))]
+fn voha_place_for_cmavo(cmavo: Cmavo) -> Option<usize> {
+    match cmavo {
         Cmavo::Voha => Some(1),
         Cmavo::Vohe => Some(2),
         Cmavo::Vohi => Some(3),
         Cmavo::Voho => Some(4),
         Cmavo::Vohu => Some(5),
         _ => None,
+    }
+}
+
+/// Resolve a vo'a-series placeholder to the referent filling its target place within the same
+/// predication, following chains when the target place is itself filled by another vo'a placeholder
+/// and bailing out on cycles. Returns `None` when the target place is absent or unfilled (a
+/// vo'a-series place that is not filled in the local bridi), leaving the placeholder as-is.
+#[requires(true)]
+#[ensures(true)]
+fn resolve_voha_placeholder(
+    arguments: &BTreeMap<PlaceIndex, ArgumentValue>,
+    predication: SemanticObjectId,
+    placeholder: SemanticObjectId,
+    pending: &BTreeMap<SemanticObjectId, usize>,
+    place_map: Option<&GeneratedVohaPlaceMap>,
+    direct_targets: &BTreeMap<(SemanticObjectId, usize), SemanticObjectId>,
+    visited: &mut BTreeSet<SemanticObjectId>,
+) -> Option<SemanticObjectId> {
+    if !visited.insert(placeholder) {
+        return None;
+    }
+    let surface_place = *pending.get(&placeholder)?;
+    let target_place = place_map
+        .map(|mapping| mapping.underlying_place(surface_place))
+        .unwrap_or(surface_place);
+    let filler = direct_targets
+        .get(&(predication, surface_place))
+        .copied()
+        .or_else(|| {
+            arguments
+                .get(&argument_key(target_place))
+                .and_then(|argument| argument.value)
+        })?;
+    if pending.contains_key(&filler) {
+        resolve_voha_placeholder(
+            arguments,
+            predication,
+            filler,
+            pending,
+            place_map,
+            direct_targets,
+            visited,
+        )
+    } else {
+        Some(filler)
     }
 }
 
@@ -8532,6 +8652,67 @@ mod tests {
             .collect()
     }
 
+    #[requires(!relation.is_empty() && place > 0)]
+    #[ensures(graph.objects.contains_key(&ret))]
+    fn named_predication_place_value(
+        graph: &SemanticGraph,
+        relation: &str,
+        place: usize,
+    ) -> SemanticObjectId {
+        let ids = named_predication_ids(graph, relation);
+        let [id] = ids.as_slice() else {
+            panic!(
+                "expected exactly one `{relation}` predication, found {}",
+                ids.len()
+            );
+        };
+        graph
+            .objects
+            .get(id)
+            .and_then(SemanticObject::as_predication)
+            .and_then(|predication| predication.arguments.get(&argument_key(place)))
+            .and_then(|argument| argument.value)
+            .unwrap_or_else(|| panic!("`{relation}` x{place} has no filled value"))
+    }
+
+    #[requires(!relation.is_empty() && !modal_relation.is_empty() && place > 0)]
+    #[ensures(graph.objects.contains_key(&ret))]
+    fn named_predication_modal_place_value(
+        graph: &SemanticGraph,
+        relation: &str,
+        modal_relation: &str,
+        place: usize,
+    ) -> SemanticObjectId {
+        let ids = named_predication_ids(graph, relation);
+        let [id] = ids.as_slice() else {
+            panic!(
+                "expected exactly one `{relation}` predication, found {}",
+                ids.len()
+            );
+        };
+        let predication = graph.objects[id]
+            .as_predication()
+            .expect("named object must remain a predication");
+        let modals = predication
+            .modal_arguments
+            .iter()
+            .filter(|modal| modal.relation.as_deref() == Some(modal_relation))
+            .collect::<Vec<_>>();
+        let [modal] = modals.as_slice() else {
+            panic!(
+                "expected exactly one `{modal_relation}` modal on `{relation}`, found {}",
+                modals.len()
+            );
+        };
+        modal
+            .arguments
+            .get(&argument_key(place))
+            .and_then(|argument| argument.value)
+            .unwrap_or_else(|| {
+                panic!("`{modal_relation}` modal on `{relation}` has no filled x{place}")
+            })
+    }
+
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[ensures(true)]
@@ -9281,254 +9462,6 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn derived_renderings_descend_into_formula_valued_arguments() {
-        let graph = semantic_graph_for("gy prane cukla .i se ni'i bo lo nabmi cu nadycai");
-        let sequence = graph
-            .objects
-            .get(&graph.root)
-            .and_then(SemanticObject::as_sequence)
-            .expect("modal statement connection builds a sequence");
-        let claim_formula = sequence.connection_claims[0];
-        let claim_predication = graph
-            .objects
-            .get(&claim_formula)
-            .and_then(SemanticObject::formula_predication)
-            .expect("modal statement connection claim is atomic");
-        let claim = graph
-            .objects
-            .get(&claim_predication)
-            .and_then(SemanticObject::as_predication)
-            .expect("modal statement connection has a predication");
-        let branch_formulas = [
-            claim.arguments[&argument_key(1)]
-                .value
-                .expect("connection x1 is present"),
-            claim.arguments[&argument_key(2)]
-                .value
-                .expect("connection x2 is present"),
-        ];
-        assert_ne!(branch_formulas[0], branch_formulas[1]);
-        assert!(branch_formulas.iter().all(|id| {
-            id.object_kind() == SemanticObjectKind::Formula && graph.objects.contains_key(id)
-        }));
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            let lines: Vec<_> = rendered.lines().collect();
-            let claim_index = lines
-                .iter()
-                .position(|line| line.contains(&format!("[{claim_predication}]")))
-                .expect("connection claim predication is rendered");
-            let claim_indent = lines[claim_index]
-                .bytes()
-                .take_while(|byte| *byte == b' ')
-                .count();
-            let descendants: Vec<_> = lines[claim_index + 1..]
-                .iter()
-                .take_while(|line| {
-                    line.bytes().take_while(|byte| *byte == b' ').count() > claim_indent
-                })
-                .copied()
-                .collect();
-            for branch in branch_formulas {
-                assert!(descendants.iter().any(|line| {
-                    line.trim_start().starts_with("formula argument: ")
-                        && line.ends_with(&format!(" [{branch}]"))
-                }));
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_descend_eventuality_content_as_nonclaim_structure() {
-        let graph = semantic_graph_for("mi nitcu lo nu mi klama");
-        let (abstraction, content) = graph
-            .objects
-            .iter()
-            .find_map(|(&id, object)| {
-                let eventuality = object.as_eventuality()?;
-                (eventuality
-                    .descriptor
-                    .as_ref()
-                    .is_some_and(|descriptor| descriptor.word == "lo"))
-                .then_some((id, eventuality.content?))
-            })
-            .expect("lo nu introduces a content-bearing eventuality");
-        let content_predication = graph
-            .objects
-            .get(&content)
-            .and_then(SemanticObject::formula_predication)
-            .expect("the probe abstraction content is atomic");
-        let expected_label = format!("lo klama[{abstraction}]");
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            assert!(rendered.contains(&format!("x2={expected_label}")));
-            assert!(rendered.lines().any(|line| {
-                line.trim_start().starts_with("abstraction content: atom ")
-                    && line.ends_with(&format!(" [{content}]"))
-            }));
-            assert!(rendered.contains(&format!("[{content_predication}]")));
-            assert!(!rendered.contains("content=formula:"));
-        }
-
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        let (_, projected) = tree_proj
-            .split_once("\n\nprojected:\n")
-            .expect("tree+proj has a projected section");
-        assert!(projected.contains(&format!("denotes {expected_label}")));
-        assert!(projected.contains("details=unspecified"));
-        assert!(
-            !projected.contains(&format!("[{content_predication}]")),
-            "intensional abstraction content must not become a displaced commitment"
-        );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_eventuality_content_descent_is_cycle_safe() {
-        let graph = semantic_graph_for("do nelci mi .ibabo mi nelci do");
-        let content_edges = graph
-            .objects
-            .iter()
-            .filter_map(|(&id, object)| {
-                object
-                    .as_eventuality()?
-                    .content
-                    .map(|content| (id, content))
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            content_edges.len(),
-            2,
-            "the temporal connection reifies both bridi"
-        );
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            for (eventuality, content) in &content_edges {
-                let expected = format!("abstraction content: atom [{content}]");
-                assert_eq!(
-                    rendered.matches(&expected).count(),
-                    1,
-                    "event {eventuality} content must expand once without recursing through itself"
-                );
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_reach_content_through_questions_and_parsed_quotations() {
-        let question = semantic_graph_for(
-            "ca ku la .alis. co'a sipydji lifri gi'e di'a senva sezysku lu xu lo mlatu cu \
-             citka lo volratcu .i xu lo mlatu cu citka lo volratcu li'u .e su'o roi bo lu \
-             xu lo volratcu cu citka lo mlatu li'u",
-        );
-        assert!(question.objects.values().any(|object| {
-            object
-                .as_question()
-                .is_some_and(|question| question.mode == QuestionMode::Direct)
-        }));
-        assert_eq!(
-            question
-                .objects
-                .values()
-                .filter(|object| object
-                    .as_eventuality()
-                    .is_some_and(|eventuality| eventuality.content.is_some()))
-                .count(),
-            2
-        );
-
-        let quotation = semantic_graph_for(
-            "la'e di'u madni'i la'e lu ko kurji lo smuni .i se va'o bo lo sance cu kurji \
-             vo'a li'u",
-        );
-        assert_eq!(
-            quotation
-                .objects
-                .values()
-                .filter(|object| object
-                    .as_eventuality()
-                    .is_some_and(|eventuality| eventuality.content.is_some()))
-                .count(),
-            2
-        );
-
-        for (graph, required_branch) in [
-            (&question, "question body:"),
-            (&quotation, "descriptor operand: sign quotation mode=parsed"),
-        ] {
-            for render in [
-                crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-                crate::render::render_tree,
-            ] {
-                let rendered = render(graph);
-                assert!(rendered.contains(required_branch));
-                assert_eq!(
-                    crate::render::missing_eventuality_content_edges(graph, &rendered),
-                    Vec::new()
-                );
-            }
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_descend_sequence_typed_eventuality_content() {
-        let dialect =
-            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
-        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
-        let graph = semantic_result_for_with_parse_options(
-            "mi na me la .mabel. .i ki'u bo ge mi djuno lo so'i vrici gi my .y djuno lo \
-             tolmutce",
-            &options,
-        )
-        .expect("Zantufa statement connection should build semantics");
-        let sequence_content = graph
-            .objects
-            .values()
-            .find_map(|object| {
-                object
-                    .as_eventuality()?
-                    .content
-                    .filter(|content| content.object_kind() == SemanticObjectKind::Sequence)
-            })
-            .expect("the statement connection reifies a sequence");
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let rendered = render(&graph);
-            assert!(rendered.contains(&format!(
-                "abstraction content: sequence [{sequence_content}]"
-            )));
-            assert_eq!(
-                crate::render::missing_eventuality_content_edges(&graph, &rendered),
-                Vec::new()
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn generated_atom_event_is_typed_bound_and_not_projected() {
         let graph = semantic_graph_for("mi klama");
         let event = generated_event_for_relation(&graph, "klama");
@@ -9548,142 +9481,6 @@ mod tests {
         assert_eq!(json["denotation"], serde_json::json!("generated-bound"));
         assert!(json.get("category").is_none());
         assert!(json.get("scopeDependence").is_none());
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        assert!(tree_proj.contains(&format!("binds=exists eventuality[{event}]")));
-        assert!(tree_proj.contains(&format!("event=eventuality[{event}]")));
-        assert!(!tree_proj.contains(&format!("denotes eventuality[{event}]")));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_renderings_project_event_conditions_and_explicit_absence() {
-        let tenseless = semantic_graph_for("mi klama");
-        let past = semantic_graph_for("mi pu klama");
-        let actual = semantic_graph_for("mi ca'a klama");
-        let interval = semantic_graph_for("mi pu ze'a klama");
-        let aspect = semantic_graph_for("mi ca'o klama");
-        let spatial = semantic_graph_for("mi vi klama");
-
-        for render in [
-            crate::render::render_tree_proj as fn(&SemanticGraph) -> String,
-            crate::render::render_tree,
-        ] {
-            let tenseless = render(&tenseless);
-            let past = render(&past);
-            assert_ne!(tenseless, past);
-            assert!(tenseless.contains("time=unspecified; actuality=unspecified"));
-            assert!(past.contains("time=before(anchor=now[eventuality:3]"));
-            assert!(render(&actual).contains("actuality=actual"));
-            assert!(render(&interval).contains("time-interval=medium(anchor=unspecified)"));
-            assert!(render(&aspect).contains("aspect=continuative(anchor=unspecified"));
-            assert!(render(&spatial).contains(
-                "space=distanceFrom(anchor=here[entity:4]; sticky=false; details={distance=short"
-            ));
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tree_proj_format_partitions_tree_and_displaced_commitments() {
-        let graph = semantic_graph_for("mi nitcu lo tanxe");
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        let (tree, projected) = tree_proj
-            .split_once("\n\nprojected:\n")
-            .expect("tree+proj format has a tree spine and projected section");
-
-        assert!(tree.starts_with("utterance assert "));
-        assert!(tree.contains("descriptor body: atom"));
-        assert!(projected.contains("tanxe("));
-        assert!(projected.contains("[mode=restrictive]"));
-        assert!(!tree_proj.contains("at-issue commitments:"));
-        assert!(!tree_proj.contains("presupposed/projected:"));
-        assert!(!tree_proj.contains("context="));
-
-        let elided = graph
-            .objects
-            .iter()
-            .filter_map(|(&id, object)| {
-                (object.referent_category() == Some(ReferentCategory::Constant)
-                    && object
-                        .descriptor()
-                        .is_some_and(|descriptor| descriptor.kind == DescriptorKind::Elided))
-                .then_some(id)
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(elided.len(), 3, "the probe has three implicit places");
-        let grouped = projected
-            .lines()
-            .find(|line| line.contains("descriptor-kind=elided"))
-            .expect("elided constants share one projected line");
-        assert_eq!(
-            projected
-                .lines()
-                .filter(|line| line.contains("descriptor-kind=elided"))
-                .count(),
-            1,
-            "the shared implicit-constant template must not be split"
-        );
-        for id in elided {
-            assert_eq!(
-                grouped.matches(&format!("[{id}]")).count(),
-                1,
-                "each grouped constant must be retained exactly once"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tree_proj_format_renders_each_event_condition_block_once() {
-        let graph = semantic_graph_for("mi pu klama");
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        let tree = crate::render::render_tree(&graph);
-        let event = generated_event_for_relation(&graph, "klama");
-
-        assert!(tree.matches(&format!("[{event}]; time=")).count() >= 1);
-        assert!(tree.matches(&format!("[{event}] {{time=")).count() >= 1);
-        for (&id, object) in &graph.objects {
-            if object.as_eventuality().is_none() {
-                continue;
-            }
-            let condition_sites = tree_proj.matches(&format!("[{id}]; time=")).count()
-                + tree_proj.matches(&format!("[{id}] {{time=")).count();
-            assert_eq!(
-                condition_sites, 1,
-                "event {id} must have exactly one tree+proj condition site"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn derived_traversal_surfaces_scoped_connective_event() {
-        let graph = semantic_graph_for("mi na pu na ca klama le zarci");
-        let eventuality = graph
-            .objects
-            .values()
-            .find_map(|object| match object.as_formula()?.as_data() {
-                data!(FormulaNode::Connective(node)) if node.eventuality.is_some() => {
-                    node.eventuality
-                }
-                _ => None,
-            })
-            .expect("scoped tense formula has its own eventuality");
-        let expected_use = format!("scoped {{event=eventuality[{eventuality}]");
-        let expected_binding = format!(
-            "binds=exists eventuality[{eventuality}] {{time=before(anchor=now[eventuality:3]"
-        );
-        for rendering in [
-            crate::render::render_tree_proj(&graph),
-            crate::render::render_tree(&graph),
-        ] {
-            assert!(rendering.contains(&expected_use));
-            assert!(rendering.contains(&expected_binding));
-        }
     }
 
     #[test]
@@ -9704,8 +9501,6 @@ mod tests {
             object.formula_operator() == Some(FormulaOperator::Not)
                 && object.formula_children().contains(&owner)
         }));
-        let tree = crate::render::render_tree(&graph);
-        assert!(tree.contains(&format!("child: atom binds=exists eventuality[{event}]")));
     }
 
     #[test]
@@ -9721,10 +9516,6 @@ mod tests {
                 .get(&owner)
                 .and_then(SemanticObject::formula_operator),
             Some(FormulaOperator::And)
-        );
-        assert!(
-            crate::render::render_tree(&graph)
-                .contains(&format!("and binds=exists eventuality[{event}]"))
         );
     }
 
@@ -11170,13 +10961,6 @@ mod tests {
         for constant in &constants {
             assert_underspecified_scope(&graph, *constant, &[variable]);
         }
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        assert!(tree_proj.contains("binder-dependence=underspecified; may-depend-on="));
-        for constant in constants {
-            assert!(!tree_proj.lines().any(|line| {
-                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
-            }));
-        }
     }
 
     #[test]
@@ -11193,12 +10977,6 @@ mod tests {
         );
         for constant in &constants {
             assert_underspecified_scope(&graph, *constant, &[variable]);
-        }
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        for constant in constants {
-            assert!(!tree_proj.lines().any(|line| {
-                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
-            }));
         }
     }
 
@@ -11223,13 +11001,6 @@ mod tests {
                 serde_json::to_value(object).expect("constant should serialize")["scopeDependence"],
                 serde_json::json!({ "kind": "fixed" })
             );
-        }
-        let tree_proj = crate::render::render_tree_proj(&graph);
-        assert!(tree_proj.contains("binder-dependence=fixed; constant"));
-        for constant in constants {
-            assert!(!tree_proj.lines().any(|line| {
-                line.starts_with("- exists ") && line.contains(&format!("[{constant}]"))
-            }));
         }
     }
 
@@ -13403,6 +13174,72 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn nonlogical_direct_term_connection_is_graceful_in_every_bridi_context() {
+        // Issue #603: a nonlogical direct term connection (`bi'o`) between tagged terms is an
+        // unsupported construct. It must report the same graceful undefined-semantics error
+        // whether it appears in a top-level bridi or inside an abstraction body (a relation-only
+        // bridi). Previously the abstraction-body path bypassed the direct-term-connection guard
+        // and instead tripped the "connected term reached simple-term assignment lowering" graph
+        // invariant, which is unactionable for callers.
+        for source in [
+            // top-level bridi (already graceful before the fix)
+            "mi casnu ca lo reldei ti'u li so bi'o ti'u li pano",
+            // inside an abstraction body — the regression from #603
+            "mi kakne lo nu casnu ca lo reldei ti'u li so pi'e no pi'e no bi'o ti'u li pano pi'e no pi'e no",
+            // terms shared across a gi'e bridi connection — the preassigned-arguments path, which
+            // bypasses the choke-point guards and is caught in insert_generated_term_assignment
+            "mi casnu gi'e tavla ti'u li so bi'o ti'u li pano",
+        ] {
+            let error = semantic_result_for(source).expect_err(
+                "a nonlogical direct term connection is an undefined experimental construct",
+            );
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                "semantic interpretation is undefined for an experimental nonlogical direct term connection"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_tagged_direct_term_connection_lowers_inside_an_abstraction_body() {
+        // Unifying the direct-term-connection guard at the shared choke point means a *logical*
+        // direct term connection between *tagged* terms (`ti'u li so .e ti'u li pano`, a genuine
+        // ConnectedTerm/BoundTermConnection rather than a sumti connection) inside a relation-only
+        // abstraction body now lowers to a conjunction through the branch builder instead of
+        // tripping the simple-term-assignment invariant. Guard against a regression to the crash.
+        let graph = semantic_graph_for("mi kakne lo nu casnu ti'u li so .e ti'u li pano");
+        assert!(
+            graph
+                .objects
+                .values()
+                .any(|object| object.formula_operator() == Some(FormulaOperator::And)),
+            "the logical `.e` tagged-term connection inside the abstraction should build a conjunction"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn logical_direct_term_connection_sharing_bridi_terms_is_graceful() {
+        // A logical direct term connection among terms shared across a `gi'e` bridi connection
+        // carries preassigned arguments the branch builder cannot thread through the connection.
+        // It must report a graceful unsupported-construct error at the shared choke point rather
+        // than tripping the "connected term reached simple-term assignment lowering" invariant.
+        let error = semantic_result_for("mi casnu gi'e tavla ti'u li so .e ti'u li pano")
+            .expect_err("a logical direct term connection with shared bridi terms is unsupported");
+        assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+        assert_eq!(
+            error.message,
+            "semantic interpretation is undefined for a direct term connection that shares terms with a connected bridi"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn preposed_joi_statement_connection_is_a_typed_nonlogical_mass() {
         let graph = semantic_graph_for("mi klama joi i do klama");
         let sequence = graph.objects[&graph.root]
@@ -13743,5 +13580,211 @@ mod tests {
         );
         assert!(graph.objects.contains_key(&state));
         assert!(graph.objects.contains_key(&event));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_in_relative_clause_resolves_to_the_relativized_head() {
+        // Issue #600 / CLL 7.8: `vo'a` denotes x1 of its own bridi. In `poi terpa vo'a` the terpa
+        // clause's x1 is the implicit `ke'a` (the relativized cat), so `vo'a` (terpa x2) must be
+        // that same referent — "a cat that fears itself", not a fresh unbound pro-sumti.
+        let graph = semantic_graph_for("mi viska lo mlatu poi terpa vo'a");
+        let terpa_x1 = named_predication_place_value(&graph, "terpa", 1);
+        let terpa_x2 = named_predication_place_value(&graph, "terpa", 2);
+        assert_eq!(
+            terpa_x1, terpa_x2,
+            "vo'a must corefer with the relative clause's own x1"
+        );
+        // That x1 is exactly the relativized sumti, i.e. the cat viska sees (viska x2).
+        let viska_x2 = named_predication_place_value(&graph, "viska", 2);
+        assert_eq!(
+            terpa_x1, viska_x2,
+            "the clause x1 is the relativized cat, so vo'a is the cat"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_same_bridi_control_still_resolves_to_x1() {
+        // The already-working same-bridi controls, including a converted selbri whose x1 is
+        // already available when `vo'a` is built, must keep resolving inline.
+        let graph = semantic_graph_for("su'o lo mlatu cu terpa vo'a");
+        assert_eq!(
+            named_predication_place_value(&graph, "terpa", 1),
+            named_predication_place_value(&graph, "terpa", 2),
+        );
+        let converted = semantic_graph_for("mi se terpa vo'a");
+        assert_eq!(
+            named_predication_place_value(&converted, "terpa", 1),
+            named_predication_place_value(&converted, "terpa", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_in_abstraction_body_resolves_to_the_local_x1() {
+        // Subordinate context: inside a `nu` abstraction body `vo'a` refers to the abstraction
+        // bridi's own (elided) x1, so broda x1 and x2 share the same referent.
+        let graph = semantic_graph_for("mi kakne lo nu broda vo'a");
+        assert_eq!(
+            named_predication_place_value(&graph, "broda", 1),
+            named_predication_place_value(&graph, "broda", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voha_in_description_linked_sumti_resolves_to_the_local_x1() {
+        // #51 context (linked `be` sumti): `le prami be vo'a` = "the self-lover"; prami x1 (the
+        // described `ce'u` slot) must equal prami x2 (`vo'a`).
+        let graph = semantic_graph_for("le prami be vo'a cu blanu");
+        assert_eq!(
+            named_predication_place_value(&graph, "prami", 1),
+            named_predication_place_value(&graph, "prami", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_voha_in_relative_clause_resolves_to_the_surface_x1_head() {
+        // Issue #627 / CLL 7.8, 9.4: `vo'a` names surface x1 of `se terpa`. The implicit `ke'a`
+        // head fills that surface x1 (underlying terpa x2), while the spoken x2 `vo'a` fills
+        // underlying terpa x1. Both underlying places must therefore contain the relativized cat.
+        for text in [
+            "mi viska lo mlatu poi se terpa vo'a",
+            "mi viska lo mlatu poi se ke cadzu terpa ke'e vo'a",
+        ] {
+            let graph = semantic_graph_for(text);
+            let terpa_x1 = named_predication_place_value(&graph, "terpa", 1);
+            let terpa_x2 = named_predication_place_value(&graph, "terpa", 2);
+            let viska_x2 = named_predication_place_value(&graph, "viska", 2);
+            assert_eq!(terpa_x1, terpa_x2, "{text}");
+            assert_eq!(terpa_x1, viska_x2, "{text}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_voha_in_description_linked_sumti_resolves_to_surface_x1() {
+        // Issue #627 / CLL 7.8, 9.4: the implicit description head is surface x1 of `se klama`
+        // (underlying klama x2); linked `be vo'a` is surface x2 (underlying x1) and must share it.
+        let graph = semantic_graph_for("le se klama be vo'a cu blanu");
+        assert_eq!(
+            named_predication_place_value(&graph, "klama", 1),
+            named_predication_place_value(&graph, "klama", 2),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_voha_series_uses_surface_places() {
+        // Each vo'a-series member is built before the FA-tagged filler of the surface place it
+        // names, forcing post-build resolution. SE then moves the placeholder and target to
+        // different underlying places.
+        for (text, placeholder_place, target_place) in [
+            ("fe vo'a fa mi cu se klama", 1, 2),
+            ("fa vo'e fe mi cu se klama", 2, 1),
+            ("fa vo'i fi mi cu te klama", 3, 1),
+            ("fa vo'o fo mi cu ve klama", 4, 1),
+            ("fa vo'u fu mi cu xe klama", 5, 1),
+        ] {
+            let graph = semantic_graph_for(text);
+            assert_eq!(
+                named_predication_place_value(&graph, "klama", placeholder_place),
+                named_predication_place_value(&graph, "klama", target_place),
+                "{text}",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested_se_conversions_compose_for_voha_resolution() {
+        // CLL 9.4: inner conversions apply before outer conversions. For `se te klama`, surface
+        // x1 maps to underlying x2 and surface x2 maps to underlying x3.
+        let graph = semantic_graph_for("fa vo'e fe mi cu se te klama");
+        assert_eq!(
+            named_predication_place_value(&graph, "klama", 2),
+            named_predication_place_value(&graph, "klama", 3),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tanru_local_conversions_map_voha_per_underlying_predication() {
+        // CLL 5.11: an ungrouped SE converts only its following tanru unit, while the bridi place
+        // structure comes from the final unit. A non-final conversion therefore does not permute
+        // the bridi's klama places, while a conversion of the final unit or the entire grouped
+        // tanru does.
+        for text in [
+            "fa vo'e fe mi cu se cadzu klama",
+            "fa vo'e fe mi cu cadzu se klama",
+            "fa vo'e fe mi cu se ke cadzu klama ke'e",
+        ] {
+            let graph = semantic_graph_for(text);
+            assert_eq!(
+                named_predication_place_value(&graph, "klama", 1),
+                named_predication_place_value(&graph, "klama", 2),
+                "{text}: klama surface x1 and x2 must corefer",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_jai_surface_x1_resolves_voha_to_the_promoted_modal_sumti() {
+        // CLL 9.12 explicitly makes the JAI modal place surface x1. Whether that x1 is supplied
+        // by a description head or an explicit FA-tagged sumti, `vo'a` in surface x2 of `cusku`
+        // must resolve to the promoted bangu argument rather than to underlying cusku x1.
+        for text in [
+            "le jai bau cusku be vo'a cu blanu",
+            "fe vo'a fa mi cu jai bau cusku",
+        ] {
+            let graph = semantic_graph_for(text);
+            assert_eq!(
+                named_predication_modal_place_value(&graph, "cusku", "bangu", 1),
+                named_predication_place_value(&graph, "cusku", 2),
+                "{text}",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_jai_resolves_grounded_slots_without_guessing_bare_jai() {
+        // `vo'e` occupies JAI's promoted surface x1 and denotes surface x2. Building the modal
+        // argument moves the placeholder out of the numbered cusku arguments, so the post-build
+        // resolver must update the invariant-bearing ModalArgument itself.
+        let graph = semantic_graph_for("fa vo'e fe mi cu jai bau cusku");
+        assert_eq!(
+            named_predication_modal_place_value(&graph, "cusku", "bangu", 1),
+            named_predication_place_value(&graph, "cusku", 2),
+        );
+        // CLL 9.12 describes bare JAI as raising an unspecified sumti from an abstract sub-bridi
+        // and calls the construction vague. Preserve `vo'a` as the operand of that vague
+        // abstraction instead of inventing which unspoken abstraction place it fills.
+        let bare = semantic_graph_for("fa vo'a cu jai broda");
+        let raised = named_predication_place_value(&bare, "broda", 1);
+        let placeholder = bare.objects[&raised]
+            .descriptor()
+            .and_then(|descriptor| descriptor.operand)
+            .expect("bare JAI keeps the raised pro-sumti as the abstraction operand");
+        assert_eq!(
+            bare.objects[&placeholder]
+                .descriptor()
+                .map(|descriptor| descriptor.word.as_str()),
+            Some("vo'a"),
+        );
     }
 }

@@ -1,0 +1,267 @@
+{
+ "version": "lojban-semantics-json-1",
+ "root": "utterance:5",
+ "objects": {
+  "utterance:5": {
+   "type": "utterance",
+   "force": "assert",
+   "speaker": "entity:1",
+   "audience": "entity:2",
+   "eventuality": "eventuality/locution:17",
+   "content": "formula:16",
+   "deicticGround": {
+    "time": "eventuality:3",
+    "place": "entity:4"
+   },
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "mi ba klama lo zarci",
+    "construct": "bridi"
+   }
+  },
+  "predication:10": {
+   "type": "predication",
+   "relation": "zarci",
+   "arguments": {
+    "x1": {
+     "kind": "filled",
+     "value": "entity:7"
+    },
+    "x2": {
+     "kind": "elided",
+     "value": "entity:8",
+     "introducedBy": "zo'e"
+    },
+    "x3": {
+     "kind": "elided",
+     "value": "entity:9",
+     "introducedBy": "zo'e"
+    }
+   },
+   "mode": "restrictive",
+   "source": {
+    "span": {
+     "byteStart": 15,
+     "byteEnd": 20
+    },
+    "text": "zarci",
+    "construct": "restrictive-predication"
+   }
+  },
+  "predication:15": {
+   "type": "predication",
+   "eventuality": "eventuality:6",
+   "relation": "klama",
+   "arguments": {
+    "x1": {
+     "kind": "filled",
+     "value": "entity:1"
+    },
+    "x2": {
+     "kind": "filled",
+     "value": "entity:7"
+    },
+    "x3": {
+     "kind": "elided",
+     "value": "entity:12",
+     "introducedBy": "zo'e"
+    },
+    "x4": {
+     "kind": "elided",
+     "value": "entity:13",
+     "introducedBy": "zo'e"
+    },
+    "x5": {
+     "kind": "elided",
+     "value": "entity:14",
+     "introducedBy": "zo'e"
+    }
+   },
+   "mode": "asserted",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "mi ba klama lo zarci",
+    "construct": "predication"
+   }
+  },
+  "formula:11": {
+   "type": "formula",
+   "operator": "atom",
+   "predication": "predication:10",
+   "source": {
+    "span": {
+     "byteStart": 15,
+     "byteEnd": 20
+    },
+    "text": "zarci",
+    "construct": "restrictive-formula"
+   }
+  },
+  "formula:16": {
+   "type": "formula",
+   "operator": "atom",
+   "predication": "predication:15",
+   "boundEventualities": [
+    "eventuality:6"
+   ],
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "mi ba klama lo zarci",
+    "construct": "bridi-formula"
+   }
+  },
+  "entity:1": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "speaker"
+  },
+  "entity:2": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "audience"
+  },
+  "entity:4": {
+   "type": "referent",
+   "category": "indexical",
+   "sort": "entity",
+   "indexical": "here"
+  },
+  "entity:7": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "veridicalDescription",
+    "word": "lo",
+    "speaker": "entity:1",
+    "body": "formula:11"
+   },
+   "source": {
+    "span": {
+     "byteStart": 12,
+     "byteEnd": 20
+    },
+    "text": "lo zarci",
+    "construct": "description"
+   }
+  },
+  "entity:8": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "elided",
+    "word": "zo'e"
+   }
+  },
+  "entity:9": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "elided",
+    "word": "zo'e"
+   }
+  },
+  "entity:12": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "elided",
+    "word": "zo'e"
+   }
+  },
+  "entity:13": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "elided",
+    "word": "zo'e"
+   }
+  },
+  "entity:14": {
+   "type": "referent",
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "entity",
+   "descriptor": {
+    "kind": "elided",
+    "word": "zo'e"
+   }
+  },
+  "eventuality:3": {
+   "type": "referent",
+   "denotation": "referential",
+   "category": "indexical",
+   "sort": "eventuality",
+   "indexical": "now"
+  },
+  "eventuality:6": {
+   "type": "referent",
+   "denotation": "generated-bound",
+   "time": {
+    "relation": "after",
+    "anchor": "eventuality:3"
+   },
+   "sort": "eventuality",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "mi ba klama lo zarci",
+    "construct": "predication"
+   }
+  },
+  "eventuality/locution:17": {
+   "type": "referent",
+   "denotation": "referential",
+   "actuality": {
+    "kind": "actual"
+   },
+   "category": "constant",
+   "scopeDependence": {
+    "kind": "fixed"
+   },
+   "sort": "eventuality/locution",
+   "source": {
+    "span": {
+     "byteStart": 0,
+     "byteEnd": 20
+    },
+    "text": "mi ba klama lo zarci",
+    "construct": "bridi"
+   }
+  }
+ }
+}

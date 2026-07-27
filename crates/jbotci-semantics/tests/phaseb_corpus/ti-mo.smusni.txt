@@ -1,0 +1,72 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content qu=question;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASK;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r12;
+      CONTENT: qu11;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+    }
+    PARAMETER x6 { SORT: Relation; ROLE: RELATION QUESTION; INTRODUCED BY: mo; }
+    PREDICATION p9 { RELATION: VALUE x6; EVENTUALITY: r7; ARGS ( [1]: REFERENCE DENOTATION r8; ) MODE: ASSERTED; }
+    FORMULA f10 IS ATOM { PREDICATION: p9; BOUND EVENTUALITIES { r7; } }
+    QUESTION qu11 {
+      BODY: f10;
+      KIND: RELATION;
+      MODE: DIRECT;
+      ASKER: r1;
+      RESPONDENT: r2;
+      DOMAIN: Relation;
+      SLOTS (
+        [1]:
+          PARAMETER: x6;
+          ROLE: ANSWER;
+      )
+    }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r8 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: PROXIMAL DEMONSTRATIVE; }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r7 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r7.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } }
+    REFERENCE r12 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r12.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+  }
+}

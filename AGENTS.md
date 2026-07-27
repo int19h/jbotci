@@ -9,6 +9,20 @@ jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a sin
 The project is hosted at GitHub (https://github.com/int19h/jbotci) with a mirror on Codeberg (https://codeberg.org/int_19h/jbotci). Issues and PRs should be created on GitHub. If Codeberg access is required, use token in ~/git/.codeberg/jbotci.token to access it using forjego-cli to browse or create issues.
 
 
+# Autonomous agent coordination
+
+When a session is dispatched through `~/git/agent-ops`, read and follow that
+repository's `docs/protocol.md` in addition to this file. Lead, implementation,
+and review are duties rather than model-specific roles; use only the explicitly
+assigned IRC identity, never a shared default identity.
+
+Every autonomously implemented work item requires a separate adversarial review
+by a dispatcher-backed run from a different model family than the implementer,
+even when lead and implementation were performed by different models. Review
+verdict, reviewer-run checks, lead approval, clean worktree, and final acceptance
+must all name the same exact commit before merge.
+
+
 # Porting guide
 
 We're going to be working on jbotci v1.

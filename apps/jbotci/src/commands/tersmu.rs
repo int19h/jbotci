@@ -181,8 +181,19 @@ fn render_tersmu(
                 ..JsonRenderOptions::default()
             },
         )?,
-        TersmuFormat::Tree => render_tree(&graph),
-        TersmuFormat::TreeProj => render_tree_proj(&graph),
+        TersmuFormat::Smusni => {
+            // `render_smusni` already terminates with a single newline; the
+            // shared `stdout.push('\n')` below would double it. Drop the
+            // renderer's own trailing newline so the delivered CLI/MCP surface
+            // is byte-identical to the oracle's single-newline output
+            // (round-1 review, Codex 3).
+            let mut rendered =
+                render_smusni(&graph, jbotci_semantics::SmusniConfig { provenance: false });
+            if rendered.ends_with('\n') {
+                rendered.pop();
+            }
+            rendered
+        }
     };
     stdout.push_str(&rendered);
     stdout.push('\n');

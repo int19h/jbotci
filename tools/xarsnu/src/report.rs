@@ -1575,9 +1575,8 @@ const fn abort_reason(kind: AbortKind) -> &'static str {
 #[ensures(!ret.is_empty())]
 const fn tersmu_format_name(format: crate::TersmuFormat) -> &'static str {
     match format {
-        crate::TersmuFormat::TreeProj => "tree+proj",
-        crate::TersmuFormat::Tree => "tree",
         crate::TersmuFormat::Json => "json",
+        crate::TersmuFormat::Smusni => "smusni",
     }
 }
 

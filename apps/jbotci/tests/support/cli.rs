@@ -853,32 +853,52 @@ fn parses_gentufa_formats_and_flags() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn parses_tersmu_formats_with_tree_proj_default() {
+fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
+    // Round-1 review (Codex 3): the delivered CLI surface must be
+    // oracle-identical — `render_smusni` already ends in one newline, and the
+    // command must not double it.
+    let run = run_cli_capture(
+        &["jbotci", "tersmu", "--format", "smusni", "mi klama"],
+        false,
+    );
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(
+        run.stdout.starts_with("SEMANTIC DOCUMENT document_1 {\n"),
+        "smusni CLI output should be the notation document, got: {:?}",
+        &run.stdout[..run.stdout.len().min(48)]
+    );
+    assert!(run.stdout.contains("ID PREFIXES: r=reference"));
+    // Exactly one trailing newline (the closing `}` then a single `\n`).
+    assert!(
+        run.stdout.ends_with("}\n"),
+        "must end with the closing brace and one newline"
+    );
+    assert!(
+        !run.stdout.ends_with("}\n\n"),
+        "must not double the renderer's trailing newline"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn parses_tersmu_formats_with_smusni_default() {
     let Command::Tersmu(default_input) = Cli::try_parse_from(["jbotci", "tersmu", "coi"])
         .expect("default tersmu")
         .command
     else {
         panic!("expected tersmu command")
     };
-    assert_eq!(default_input.format, TersmuFormat::TreeProj);
+    assert_eq!(default_input.format, TersmuFormat::Smusni);
     assert!(!default_input.show_defs);
 
-    let Command::Tersmu(json_input) =
-        Cli::try_parse_from(["jbotci", "tersmu", "--format", "json", "coi"])
-            .expect("explicit json tersmu")
-            .command
-    else {
-        panic!("expected tersmu command")
-    };
-    assert_eq!(json_input.format, TersmuFormat::Json);
-
     for (name, expected) in [
-        ("tree", TersmuFormat::Tree),
-        ("tree+proj", TersmuFormat::TreeProj),
+        ("json", TersmuFormat::Json),
+        ("smusni", TersmuFormat::Smusni),
     ] {
         let Command::Tersmu(input) =
             Cli::try_parse_from(["jbotci", "tersmu", "--format", name, "coi"])
-                .expect("derived tersmu format")
+                .expect("supported tersmu format")
                 .command
         else {
             panic!("expected tersmu command")
@@ -886,12 +906,22 @@ fn parses_tersmu_formats_with_tree_proj_default() {
         assert_eq!(input.format, expected);
     }
 
+    // The `lean3` working name was renamed to `smusni`, and the legacy `tree` /
+    // `tree+proj` renderers were removed, all with no deprecated alias, so the
+    // CLI must reject each retired value as an unknown format.
+    for removed in ["lean3", "tree", "tree+proj", "claims", "combined"] {
+        assert!(
+            Cli::try_parse_from(["jbotci", "tersmu", "--format", removed, "coi"]).is_err(),
+            "removed format {removed:?} must be rejected"
+        );
+    }
+
     let Command::Tersmu(defs_input) = Cli::try_parse_from([
         "jbotci",
         "tersmu",
         "--show-defs",
         "--format",
-        "tree+proj",
+        "smusni",
         "coi",
     ])
     .expect("tersmu definitions")
@@ -900,31 +930,21 @@ fn parses_tersmu_formats_with_tree_proj_default() {
         panic!("expected tersmu command")
     };
     assert!(defs_input.show_defs);
-
-    for removed in ["claims", "combined"] {
-        assert!(
-            Cli::try_parse_from(["jbotci", "tersmu", "--format", removed, "coi"]).is_err(),
-            "removed format {removed:?} must be rejected"
-        );
-    }
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_help_pins_the_interpretation_contract() {
+fn tersmu_help_describes_the_smusni_default() {
     let error = Cli::try_parse_from(["jbotci", "tersmu", "--help"]).expect_err("help");
     assert_eq!(error.kind(), ErrorKind::DisplayHelp);
     let help = error.to_string();
     for marker in [
-        "default tree+proj format",
-        "indentation and `>` mean structural descent",
-        "entries under `projected:` take widest commitment scope",
-        "`mode=` is exact graph vocabulary",
-        "`binder-dependence=underspecified`",
-        "Generated-bound events",
-        "`binds=exists` is not a projected claim",
-        "`unspecified` is explicit absence of information",
+        "default `smusni` format",
+        "flat, self-describing declaration listing",
+        "ID-prefix legend",
+        "NOT COMPUTED",
+        "canonical interchange graph",
     ] {
         assert!(
             help.contains(marker),
@@ -958,57 +978,48 @@ fn tersmu_show_defs_rejects_json_cli_output() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_show_defs_tree_proj_snapshot_includes_full_place_structure() {
+fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
     let output = run_success_stdout(&[
         "jbotci",
         "tersmu",
         "--show-defs",
         "--format",
-        "tree+proj",
+        "smusni",
         "--color=never",
         "ti",
         "klupe",
     ]);
 
-    assert_eq!(
-        output,
-        r#"1. ti | by: officialdata | cmavo: KOhA6 | similarity: 100% | votes: ∞
-  rafsi: tif
-  glosses:
-    this here
-  definitions:
-    pro-sumti: this here; immediate demonstrative it; indicated thing/place near speaker.
-
-2. klupe | by: officialdata | gismu | similarity: 100% | votes: ∞
-  rafsi: lup lu'e
-  glosses:
-    screw
-  definitions:
-    ⟨1⟩ is a screw [fastener] for purpose ⟨2⟩, threads [pitch, material] ⟨3⟩, frame [size, material] ⟨4⟩.
-  notes:
-    Also bolt.  See also {korcu}, {sarlu}, {tutci}.
-
-utterance assert {event=eventuality/locution[eventuality/locution:13]; time=unspecified; actuality=actual; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [utterance:5]
-  content: atom binds=exists eventuality[eventuality:6] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified} [formula:12]
-    klupe(x1=proximal-demonstrative[entity:7], x2=zo'e[entity:8], x3=zo'e[entity:9], x4=zo'e[entity:10]) {event=eventuality[eventuality:6]} [predication:11]
-
-projected:
-- frame: indexicals=[speaker[entity:1], audience[entity:2], now[eventuality:3] {time=unspecified; actuality=unspecified; aspect=unspecified; recurrence=unspecified; space=unspecified; spatial-aspect=unspecified; spatial-recurrence=unspecified; details=unspecified}, here[entity:4], proximal-demonstrative[entity:7]] [binder-dependence=fixed]; locutions=[eventuality/locution[eventuality/locution:13]] [binder-dependence=fixed]
-- denotes [zo'e[entity:8], zo'e[entity:9], zo'e[entity:10]] [binder-dependence=fixed; constant; descriptor-kind=elided]
-"#
+    // The dictionary definitions are prepended, in order, ahead of the smusni
+    // semantic document that the default format renders.
+    let (definitions, document) = output
+        .split_once("SEMANTIC DOCUMENT ")
+        .expect("smusni document follows the prepended definitions");
+    assert!(
+        definitions.starts_with("1. ti | by: officialdata | cmavo: KOhA6"),
+        "definitions must lead: {definitions:?}"
     );
+    assert!(
+        definitions.contains("\n2. klupe | by: officialdata | gismu"),
+        "each word is defined in order: {definitions:?}"
+    );
+    assert!(
+        document.contains("ID PREFIXES: r=reference"),
+        "the smusni document legend must follow the definitions"
+    );
+    assert!(document.contains("RELATION: klupe"));
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_outputs_tree_proj_by_default() {
+fn tersmu_outputs_smusni_by_default() {
     let run = run_cli_capture(&["jbotci", "tersmu", "mi", "klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty());
-    assert!(run.stdout.starts_with("utterance assert "));
-    assert!(run.stdout.contains("\n\nprojected:\n- frame: "));
-    assert!(run.stdout.contains("klama(x1=speaker[entity:1]"));
+    assert!(run.stdout.starts_with("SEMANTIC DOCUMENT "));
+    assert!(run.stdout.contains("ID PREFIXES: r=reference"));
+    assert!(run.stdout.contains("RELATION: klama"));
 }
 
 #[test]
@@ -1571,7 +1582,14 @@ fn gentufa_mahoi_quotes_have_exact_bracket_output() {
             let run = run_cli_capture(args, false);
             assert_eq!(run.status, CliStatus::Success, "{args:?}");
             assert_eq!(run.stdout, expected_stdout, "{args:?}");
-            assert!(run.stderr.is_empty(), "{args:?}: {}", run.stderr);
+            // `ma'oi` is experimental syntax: a valid parse stays successful but
+            // must still surface the experimental-cmavo warning on stderr.
+            assert!(
+                run.stderr.contains("syntax.warning.experimental-cmavo"),
+                "{args:?}: {}",
+                run.stderr
+            );
+            assert!(run.stderr.contains("ma'oi"), "{args:?}: {}", run.stderr);
         }
     });
 }
@@ -2428,7 +2446,6 @@ fn gentufa_indent_zero_makes_json_single_line() {
 }
 
 #[test]
-#[ignore = "generated syntax CLI output temporarily has no generated syntax warnings"]
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_warnings_go_to_stderr() {
@@ -2449,6 +2466,35 @@ fn gentufa_warnings_go_to_stderr() {
         assert!(stderr.contains("syntax.warning.experimental-fihoi-adverbial"));
         assert!(stderr.contains("FIhOI bridi/subbridi adverbial term"));
         assert!(stderr.contains("fi'oi"));
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_bare_nahe_sumti_without_bo_warning_goes_to_stderr() {
+    run_on_normal_stack(|| {
+        // Bare `na'e <sumti>` without `bo` is a valid parse (Success) that carries the
+        // experimental without-`bo` warning; the warning must surface on stderr.
+        let cli = Cli::try_parse_from([
+            "jbotci", "gentufa", "--format", "brackets", "mi", "viska", "na'e", "lo", "mlatu",
+        ])
+        .expect("gentufa nahe warning parse");
+        let mut output = Vec::new();
+        let mut error = Vec::new();
+        let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa nahe run");
+        assert_eq!(status, CliStatus::Success);
+
+        let stdout = String::from_utf8(output).expect("stdout utf8");
+        let stderr = String::from_utf8(error).expect("stderr utf8");
+        assert!(!stdout.contains("warning:"));
+        assert!(stderr.contains("experimental syntax"), "{stderr}");
+        assert!(
+            stderr.contains("syntax.warning.experimental-nahe-sumti-without-bo"),
+            "{stderr}"
+        );
+        assert!(stderr.contains("NAhE before sumti without BO"), "{stderr}");
+        assert!(stderr.contains("na'e"), "{stderr}");
     });
 }
 
@@ -2830,7 +2876,6 @@ fn vlasei_trace_writes_morphology_stderr() {
 }
 
 #[test]
-#[ignore = "generated syntax CLI output temporarily has no generated syntax warnings"]
 #[requires(true)]
 #[ensures(true)]
 fn warning_context_includes_verbatim_quote_text() {

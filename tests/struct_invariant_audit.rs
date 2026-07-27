@@ -944,12 +944,56 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word classifications are produced from morphology segmentation of a single word-like token",
     ),
     (
+        "crates/jbotci-semantics/src/completeness/model.rs:CompletenessContract",
+        "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
+        "test-only parsed enum record; any combination of rename/tagging/variants is a valid parse result",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Field",
+        "test-only parsed field record whose fields are populated valid by the source scanner",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Model",
+        "test-only parsed-model aggregate; any parsed structs/enums/node-keys are a valid scan result",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:SerializedSurface",
+        "test-only classified surface aggregate; any value-struct/enum/node-key maps are a valid derivation",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Variant",
+        "test-only parsed enum-variant record whose fields are populated valid by the source scanner",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/type_graph.rs:Resolved",
+        "test-only resolution result whose owner/key are populated valid by the resolver",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/type_graph.rs:TypeGraph",
+        "test-only edge/field maps derived from the source scan; any consistent maps are a valid graph",
+    ),
+    (
         "crates/jbotci-semantics/src/facade.rs:SemanticBuildOptions",
         "semantic build options are caller transport state with no invalid combination beyond lifetimes",
     ),
     (
         "crates/jbotci-semantics/src/facade.rs:SemanticsError",
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/render.rs:Ctx",
+        "smusni render context is borrowed views (object map, id map) built together over one graph plus a bool toggle; every field combination is a valid context",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/render.rs:SmusniConfig",
+        "smusni render config is a single bool provenance toggle; every value is a valid configuration",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/writer.rs:Writer",
+        "notation Writer is a mutable line-accumulating builder, not a validated model type; its structural discipline is enforced by the RAII body closures, not a field invariant",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgument",
@@ -1078,22 +1122,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/model.rs:SourceByteSpan",
         "source byte spans are projected from validated SourceSpan values",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TreeProjProjectedVisitor",
-        "tree+proj projected visitor is transient mutable accumulator state; typed group keys and exact projection tests enforce its output partition",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TraversalLocation",
-        "traversal location is the unrestricted product of closed commitment-placement and role enums with a nesting depth",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TraversalState",
-        "traversal state is transient mutable cycle and visited-set bookkeeping initialized and owned by DerivedTraversal",
-    ),
-    (
-        "crates/jbotci-semantics/src/render.rs:TreeVisitor",
-        "tree visitor is transient mutable output state over a validated graph and every output prefix is representationally valid",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:AbstractionNodeId",

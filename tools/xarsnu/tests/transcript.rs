@@ -582,6 +582,119 @@ fn corrupted_transcripts_report_the_exact_line() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn confirm_intent_sequence_must_name_the_latest_preceding_registration() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut lines = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid transcript line"))
+        .collect::<Vec<_>>();
+    // The fixture's only alice turn-1 registration is revision 1; its confirm is at
+    // index 8 and carries no intent_sequence (legacy). That legacy shape must read.
+    let unmodified = temp_path("intent-seq-legacy");
+    write_records(&unmodified, &lines);
+    read_transcript(&unmodified).expect("legacy confirm without intent_sequence validates");
+
+    // Naming the latest registration (revision 1) is accepted.
+    lines[8]["event"]["intent_sequence"] = serde_json::json!(1);
+    let matching = temp_path("intent-seq-match");
+    write_records(&matching, &lines);
+    read_transcript(&matching).expect("confirm naming the latest intent validates");
+
+    // Naming a non-latest revision (0 when the latest is 1) is rejected at that line.
+    lines[8]["event"]["intent_sequence"] = serde_json::json!(0);
+    let mismatch = temp_path("intent-seq-mismatch");
+    write_records(&mismatch, &lines);
+    let error = read_transcript(&mismatch).expect_err("stale intent_sequence must fail");
+    assert_eq!(error.line, 9);
+    assert!(
+        error
+            .to_string()
+            .contains("confirm intent-sequence mismatch"),
+        "unexpected error: {error}"
+    );
+    assert!(error.to_string().contains("revision 0"));
+    assert!(
+        error
+            .to_string()
+            .contains("latest registered intent is revision 1")
+    );
+
+    for path in [unmodified, matching, mismatch] {
+        fs::remove_file(path).expect("remove temporary transcript");
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn confirm_intent_sequence_validation_is_isolated_per_turn_and_speaker() {
+    // The debate fixture is a two-turn run: turn 1 alice registers revision 0 and
+    // confirms; turn 2 bob registers revision 0 and confirms. Every confirm carries
+    // no intent_sequence (legacy), so the multi-turn legacy shape must read as-is.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(DEBATE_FIXTURE)).expect("read debate fixture");
+    let mut lines = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid transcript line"))
+        .collect::<Vec<_>>();
+    // Indices (0-based): 3 = alice/turn-1 registration, 6 = alice/turn-1 confirm,
+    // 16 = bob/turn-2 registration, 19 = bob/turn-2 confirm.
+    assert_eq!(lines[6]["event"]["kind"], "meaning-confirmed");
+    assert_eq!(lines[19]["event"]["kind"], "meaning-confirmed");
+    let legacy = temp_path("intent-seq-multi-legacy");
+    write_records(&legacy, &lines);
+    read_transcript(&legacy).expect("multi-turn legacy transcript validates");
+
+    // Each confirm names revision 0, which is correct for its OWN (turn, speaker).
+    lines[6]["event"]["intent_sequence"] = serde_json::json!(0);
+    lines[19]["event"]["intent_sequence"] = serde_json::json!(0);
+    let per_key = temp_path("intent-seq-per-key");
+    write_records(&per_key, &lines);
+    read_transcript(&per_key).expect("each confirm validates against its own key");
+
+    // Isolation: give bob's turn-2 registration revision 1, but leave bob's confirm
+    // naming 0 — the value alice registered in turn 1. Keyed only on turn or globally
+    // this could be mistaken as valid; keyed on (turn, speaker) it is a mismatch,
+    // because bob's latest is 1 and alice's revision 0 does not carry across.
+    lines[16]["event"]["revision_number"] = serde_json::json!(1);
+    lines[16]["event"]["revision"] = serde_json::json!(true);
+    let isolated = temp_path("intent-seq-isolated");
+    write_records(&isolated, &lines);
+    let error = read_transcript(&isolated).expect_err("cross-key intent_sequence must fail");
+    assert_eq!(error.line, 20, "the failure is at bob's turn-2 confirm");
+    assert!(
+        error
+            .to_string()
+            .contains("confirm intent-sequence mismatch"),
+        "unexpected error: {error}"
+    );
+    assert!(error.to_string().contains("turn 2"));
+    assert!(
+        error
+            .to_string()
+            .contains("latest registered intent is revision 1")
+    );
+
+    for path in [legacy, per_key, isolated] {
+        fs::remove_file(path).expect("remove temporary transcript");
+    }
+}
+
+#[requires(!records.is_empty())]
+#[ensures(true)]
+fn write_records(path: &Path, records: &[serde_json::Value]) {
+    let body = records
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("serialize transcript record"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(path, format!("{body}\n")).expect("write transcript records");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn report_subcommand_is_offline_and_matches_the_library() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let output = Command::new(env!("CARGO_BIN_EXE_xarsnu"))

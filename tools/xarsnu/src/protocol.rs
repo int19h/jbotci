@@ -35,7 +35,7 @@ const STANDING_PROTOCOL_RULES: &str = concat!(
     "When composing or checking any bridi, attend closely to argument assignment: verify from the definition the precise meaning AND TYPE of every place of the selbri you use (object, agent, event, property, proposition, quantity), and ensure each sumti matches its place's expected type — a place expecting conduct-as-event or a property cannot take the entity affected. A type-mismatched place is a mismatch at confirm time even if a reader would understand. ",
     "Use the reference tools whenever they help, and finish each phase by calling the protocol tool currently offered.",
 );
-const SPEAKER_TURN_INSTRUCTION: &str = "You are the speaker for this turn. First register your intended meaning in English. Then submit candidate Lojban until jbotci accepts one. Finally compare the returned tersmu rendering with your intent and call confirm_meaning with a mandatory English paraphrase. Call confirm_meaning with matches=true only when the tersmu rendering captures the registered intent precisely: every predicate relation as rendered, under its dictionary place structure, must be the intended relation. Calques or idioms from other languages (malgli) are mismatches even when a listener would get the gist. For example, if the rendering literally says that one person physically chases another, it does not express the colloquial English sense of following or agreeing with someone: call matches=false and recompose. Clear enough in context and the gist is right are not the standard; the rendering is the meaning that will be scored. The discrepancies field is only for renderings that match precisely but have caveats worth recording, not for waiving a known mismatch. A mismatch requires revision; a match posts the Lojban and tersmu rendering.";
+const SPEAKER_TURN_INSTRUCTION: &str = "You are the speaker for this turn. First register your intended meaning in English with register_intent. Then submit candidate Lojban until jbotci accepts one. Finally compare the returned tersmu rendering with what you intend to say and call confirm_meaning with a mandatory English paraphrase. Call confirm_meaning with matches=true only when the tersmu rendering precisely expresses your currently intended message: every predicate relation as rendered, under its dictionary place structure, must be the intended relation. Calques or idioms from other languages (malgli) are mismatches even when a listener would get the gist. For example, if the rendering literally says that one person physically chases another, it does not express the colloquial English sense of following or agreeing with someone: call matches=false and recompose. Clear enough in context and the gist is right are not the standard; the rendering is the meaning that will be scored. If what you want to say has changed since you registered it — a simplification, a retreat to something you can express cleanly, or an outright pivot, all of which are legitimate — you MUST call register_intent again with the revised meaning BEFORE confirming; re-declaring is cheap and encouraged, it is simply the honest bookkeeping of a revised message, not a penalty, and it keeps the accepted candidate so you can confirm it against the new intent. matches=true then asserts that the rendering precisely expresses that revised message. The revised intent must be a message you independently want to say — a target you would have been willing to commit to before you saw this rendering — not a description read back off the rendering. Deriving the new intent FROM the tersmu output so that it will match is not a revision, it is a mismatch: if the only reason the revised meaning agrees with the rendering is that you paraphrased what the parser produced, report matches=false and recompose. Re-declaration records an honest change of what you want to say; it is never a way to make a wrong rendering count as right. Confirming while noting a discrepancy between your intent and the rendering is a contradiction: either report matches=false and record the discrepancy, or re-declare your intent and then confirm. The discrepancies field is only for renderings that match precisely but have caveats worth recording, never for waiving a known mismatch. A mismatch requires revision; a match posts the Lojban and tersmu rendering.";
 const LISTENER_BLIND_INSTRUCTION: &str = "Interpret the following visible Lojban message without access to its tersmu rendering. Think privately, then call interpret_blind with your English interpretation.";
 const LISTENER_REVEAL_INSTRUCTION: &str = "The tersmu rendering is now revealed. Compare it with your blind reading, then call acknowledge with your final English understanding and any discrepancies.";
 const LISTENER_INFORMED_INSTRUCTION: &str = "Interpret the following visible Lojban message with its tersmu rendering and definitions available from the start. Think privately, then call acknowledge with your final English understanding and any discrepancies.";
@@ -127,6 +127,12 @@ impl SpeakerPhase {
                 (Self::AwaitingIntent, ProtocolTool::RegisterIntent)
                     | (Self::Composing, ProtocolTool::RegisterIntent)
                     | (Self::Composing, ProtocolTool::SubmitLojban)
+                    // Re-declaring intent while a candidate awaits confirmation is the
+                    // honest path when the intended message has changed (issue #612):
+                    // it retains the accepted candidate so the speaker can confirm it
+                    // against the revised intent instead of confirming against a stale
+                    // target or fabricating a mismatch.
+                    | (Self::AwaitingConfirmation, ProtocolTool::RegisterIntent)
                     | (Self::AwaitingConfirmation, ProtocolTool::ConfirmMeaning)
             )
     }
@@ -235,7 +241,9 @@ impl ProtocolPhase {
             } => "compose or revise Lojban for the registered intent and submit it",
             Self::Speaker {
                 phase: SpeakerPhase::AwaitingConfirmation,
-            } => "compare the accepted tersmu rendering with the registered intent",
+            } => {
+                "compare the accepted tersmu rendering with your currently intended message, re-declaring intent first if it has changed"
+            }
             Self::Speaker {
                 phase: SpeakerPhase::Posted,
             } => "complete any available scenario answer",
@@ -253,6 +261,50 @@ impl ProtocolPhase {
             } => "complete any available scenario answer",
             Self::Answer => "submit the independently scored scenario answer",
         }
+    }
+
+    /// Stable role/phase label used to name the current state in corrective errors.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Speaker {
+                phase: SpeakerPhase::AwaitingIntent,
+            } => "speaker/awaiting-intent",
+            Self::Speaker {
+                phase: SpeakerPhase::Composing,
+            } => "speaker/composing",
+            Self::Speaker {
+                phase: SpeakerPhase::AwaitingConfirmation,
+            } => "speaker/awaiting-confirmation",
+            Self::Speaker {
+                phase: SpeakerPhase::Posted,
+            } => "speaker/posted",
+            Self::Listener {
+                phase: ListenerPhase::InformedInterpretation,
+            } => "listener/informed-interpretation",
+            Self::Listener {
+                phase: ListenerPhase::BlindInterpretation,
+            } => "listener/blind-interpretation",
+            Self::Listener {
+                phase: ListenerPhase::TersmuRevealed,
+            } => "listener/tersmu-revealed",
+            Self::Listener {
+                phase: ListenerPhase::Acknowledged,
+            } => "listener/acknowledged",
+            Self::Answer => "answer",
+        }
+    }
+
+    /// Names of the protocol tools legal in this state, in canonical tool order.
+    #[requires(true)]
+    #[ensures(ret.iter().all(|name| !name.is_empty()))]
+    fn legal_tool_names(self, submit_answer_available: bool) -> Vec<&'static str> {
+        ProtocolTool::ALL
+            .into_iter()
+            .filter(|tool| self.allows(*tool, submit_answer_available))
+            .map(ProtocolTool::name)
+            .collect()
     }
 }
 
@@ -394,6 +446,87 @@ impl SpeakerState {
                 SpeakerPhase::AwaitingConfirmation
             }
             bityzba::data!(SpeakerState::Posted { .. }) => SpeakerPhase::Posted,
+        }
+    }
+
+    /// The accepted candidate awaiting confirmation, if the speaker is in that phase.
+    #[requires(true)]
+    #[ensures(ret.is_some() == (self.phase() == SpeakerPhase::AwaitingConfirmation))]
+    fn pending_candidate(&self) -> Option<&VisibleMessage> {
+        match self.as_data() {
+            bityzba::data!(SpeakerState::AwaitingConfirmation { candidate, .. }) => Some(candidate),
+            _ => None,
+        }
+    }
+
+    /// Parse attempts consumed while composing this turn. Zero in the phases that
+    /// carry no counter: before any composition (`AwaitingIntent`) and after the
+    /// message is posted (`Posted`).
+    #[requires(true)]
+    #[ensures(matches!(self.phase(), SpeakerPhase::AwaitingIntent | SpeakerPhase::Posted) -> ret == 0)]
+    fn parse_attempts(&self) -> usize {
+        match self.as_data() {
+            bityzba::data!(SpeakerState::Composing { parse_attempts, .. })
+            | bityzba::data!(SpeakerState::AwaitingConfirmation { parse_attempts, .. }) => {
+                *parse_attempts
+            }
+            _ => 0,
+        }
+    }
+
+    /// Intent revisions applied while composing this turn. Zero in the phases that
+    /// carry no counter: before any registration (`AwaitingIntent`) and after the
+    /// message is posted (`Posted`).
+    #[requires(true)]
+    #[ensures(matches!(self.phase(), SpeakerPhase::AwaitingIntent | SpeakerPhase::Posted) -> ret == 0)]
+    fn intent_revisions(&self) -> usize {
+        match self.as_data() {
+            bityzba::data!(SpeakerState::Composing {
+                intent_revisions,
+                ..
+            })
+            | bityzba::data!(SpeakerState::AwaitingConfirmation {
+                intent_revisions,
+                ..
+            }) => *intent_revisions,
+            _ => 0,
+        }
+    }
+
+    /// Apply a (re-)declared intent, deriving the turn's revision counter itself so
+    /// no caller can stamp an arbitrary sequence: the first declaration of a turn is
+    /// revision 0 and every later re-declaration is exactly one more than the
+    /// previous.
+    ///
+    /// When a candidate awaits confirmation it is retained and the speaker stays in
+    /// `AwaitingConfirmation`, so the accepted rendering is measured against the
+    /// revised intent instead of a stale target (issue #612); otherwise the speaker
+    /// composes anew. The parse-attempt budget is always preserved. A posted turn is
+    /// terminal and cannot re-declare, so `Posted` is rejected as a source.
+    #[requires(!meaning_en.trim().is_empty())]
+    #[requires(self.phase() != SpeakerPhase::Posted, "a posted turn is terminal and cannot re-declare intent")]
+    #[ensures((self.phase() == SpeakerPhase::AwaitingConfirmation) == (ret.phase() == SpeakerPhase::AwaitingConfirmation), "re-declaration preserves an awaiting-confirmation phase and never invents one")]
+    #[ensures(ret.pending_candidate() == self.pending_candidate(), "any accepted candidate is retained across re-declaration")]
+    #[ensures(ret.parse_attempts() == self.parse_attempts(), "the parse-attempt budget is preserved")]
+    #[ensures((self.phase() == SpeakerPhase::AwaitingIntent) -> ret.intent_revisions() == 0, "the first registration of a turn is revision 0")]
+    #[ensures((self.phase() != SpeakerPhase::AwaitingIntent) -> ret.intent_revisions() == self.intent_revisions() + 1, "each re-declaration increments the turn's revision counter by exactly one")]
+    fn with_redeclared_intent(&self, meaning_en: String) -> Self {
+        let revision_number = match self.phase() {
+            SpeakerPhase::AwaitingIntent => 0,
+            _ => self.intent_revisions() + 1,
+        };
+        match self.pending_candidate() {
+            Some(candidate) => new!(SpeakerState::AwaitingConfirmation {
+                meaning_en,
+                intent_revisions: revision_number,
+                parse_attempts: self.parse_attempts(),
+                candidate: candidate.clone(),
+            }),
+            None => new!(SpeakerState::Composing {
+                meaning_en,
+                intent_revisions: revision_number,
+                parse_attempts: self.parse_attempts(),
+            }),
         }
     }
 }
@@ -596,6 +729,15 @@ pub enum ProtocolEvent {
         matches: bool,
         paraphrase_en: String,
         discrepancies: Option<String>,
+        /// Which registered intent this confirm was measured against: `Some` of the
+        /// `revision_number` of the governing `IntentRegistered` event (0 for the
+        /// original declaration, incremented by each re-declaration). `None` marks a
+        /// legacy transcript written before the field existed — distinct from
+        /// `Some(0)`, which positively names the original intent. A mechanical audit
+        /// field; `read_transcript` checks that `Some` values name the latest
+        /// preceding registration for the turn/speaker (issue #612).
+        #[serde(default)]
+        intent_sequence: Option<usize>,
     },
     MessagePosted {
         turn_number: usize,
@@ -856,7 +998,7 @@ impl ProtocolTools {
                 ProtocolTool::ConfirmMeaning,
                 definition::<ConfirmMeaningArguments>(
                     ProtocolTool::ConfirmMeaning,
-                    "Compare an accepted tersmu rendering with the registered intent and either revise or post.",
+                    "Compare the accepted tersmu rendering with your currently intended message. matches=true asserts the rendering precisely expresses what you now intend to say; if your intent has changed since register_intent (a simplification, retreat, or pivot are all legitimate), call register_intent again with the revised meaning before confirming. The revised intent must be a message you independently want to say, not one paraphrased from this rendering: deriving the new intent FROM the tersmu output so it matches is a mismatch, not a revision — report matches=false and recompose. Reporting matches=true while noting an intent-vs-rendering discrepancy is a contradiction: report matches=false to revise, or re-declare intent and then confirm.",
                 )?,
             ),
             (
@@ -929,7 +1071,8 @@ struct SubmitLojbanArguments {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct ConfirmMeaningArguments {
-    /// True only when the tersmu rendering matches the registered intent.
+    /// True only when the tersmu rendering precisely expresses the currently
+    /// intended message; re-declare intent via register_intent first if it changed.
     matches: bool,
     /// Mandatory English paraphrase of the tersmu rendering.
     paraphrase_en: String,
@@ -2694,14 +2837,17 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         }));
                     }
                 };
-                let (revision, revision_number, parse_attempts) = match state.as_data() {
-                    bityzba::data!(SpeakerState::AwaitingIntent) => (false, 0, 0),
-                    bityzba::data!(SpeakerState::Composing {
-                        intent_revisions,
-                        parse_attempts,
-                        ..
-                    }) => {
-                        if *intent_revisions >= self.caps.max_intent_revisions_per_turn {
+                // The first registration starts a fresh turn; any later call is a
+                // revision, which is capped. A candidate awaiting confirmation is
+                // retained across the revision (see `with_redeclared_intent`) so the
+                // honest "re-declare then confirm" path (issue #612) measures the
+                // accepted rendering against the revised message, not a stale target.
+                // The revision counter is derived inside `with_redeclared_intent`; we
+                // read it back for the event after the transition.
+                let revision = match state.phase() {
+                    SpeakerPhase::AwaitingIntent => false,
+                    SpeakerPhase::Composing | SpeakerPhase::AwaitingConfirmation => {
+                        if state.intent_revisions() >= self.caps.max_intent_revisions_per_turn {
                             self.events.push(new!(ProtocolEvent::TurnForfeited {
                                 turn_number,
                                 speaker: speaker.to_owned(),
@@ -2716,16 +2862,25 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                                 ),
                             }));
                         }
-                        (true, *intent_revisions + 1, *parse_attempts)
+                        true
                     }
-                    _ => unreachable!("tool legality was validated against the state"),
+                    SpeakerPhase::Posted => {
+                        unreachable!("tool legality was validated against the state")
+                    }
                 };
                 let RegisterIntentArguments { meaning_en } = arguments;
-                *state = new!(SpeakerState::Composing {
-                    meaning_en: meaning_en.clone(),
-                    intent_revisions: revision_number,
-                    parse_attempts,
-                });
+                let retained_candidate = state.pending_candidate().is_some();
+                *state = state.with_redeclared_intent(meaning_en.clone());
+                let revision_number = state.intent_revisions();
+                let content = phase_instruction(
+                    if retained_candidate {
+                        "Intent re-declared; the accepted candidate is retained. Compare its tersmu rendering with the revised intent and call confirm_meaning (matches=true to post, matches=false to revise the Lojban)."
+                    } else {
+                        "Intent registered. Compose Lojban and call submit_lojban."
+                    },
+                    None,
+                    self.answer_affordance(turn_number, speaker),
+                );
                 self.events.push(new!(ProtocolEvent::IntentRegistered {
                     turn_number,
                     speaker: speaker.to_owned(),
@@ -2733,13 +2888,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     revision,
                     revision_number,
                 }));
-                Ok(new!(SpeakerAction::Continue {
-                    content: phase_instruction(
-                        "Intent registered. Compose Lojban and call submit_lojban.",
-                        None,
-                        self.answer_affordance(turn_number, speaker),
-                    ),
-                }))
+                Ok(new!(SpeakerAction::Continue { content }))
             }
             ProtocolTool::SubmitLojban => {
                 let arguments = match decode_arguments::<SubmitLojbanArguments>(call) {
@@ -2899,6 +3048,12 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     matches,
                     paraphrase_en,
                     discrepancies,
+                    // The confirm is measured against the intent in effect for this
+                    // candidate: `intent_revisions` is the `revision_number` of the
+                    // governing `IntentRegistered` event. Always `Some` for runs the
+                    // harness produces; `None` is reserved for legacy transcripts
+                    // that predate the field (issue #612).
+                    intent_sequence: Some(intent_revisions),
                 }));
                 if matches {
                     *state = new!(SpeakerState::Posted {
@@ -3290,14 +3445,29 @@ fn validate_protocol_tool(
     if phase.allows(tool, submit_answer_available) {
         return Ok(());
     }
+    let legal = phase.legal_tool_names(submit_answer_available);
+    let next_call = match legal.as_slice() {
+        [] => "No protocol tool is available in this state.".to_owned(),
+        [only] => format!("The only legal next call is `{only}`."),
+        names => {
+            let quoted = names
+                .iter()
+                .map(|name| format!("`{name}`"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("The legal next calls are {quoted}.")
+        }
+    };
     Err(record_protocol_error(
         events,
         participant,
         phase,
         tool.name(),
         format!(
-            "Protocol tool `{}` is not legal in state {phase:?}; call one of the currently offered tools.",
-            tool.name()
+            "`{}` is not available in protocol state {} ({}). {next_call}",
+            tool.name(),
+            phase.label(),
+            phase.intent(),
         ),
     ))
 }
@@ -3637,7 +3807,10 @@ mod tests {
             }
         }
         assert_eq!(examined, 216);
-        assert_eq!(rejected, 170);
+        // (AwaitingConfirmation, RegisterIntent) is now a legal re-declaration pair
+        // (issue #612), legal across all four submit-answer/reference combinations,
+        // so four formerly-rejected pairs are now accepted (170 - 4).
+        assert_eq!(rejected, 166);
     }
 
     #[test]

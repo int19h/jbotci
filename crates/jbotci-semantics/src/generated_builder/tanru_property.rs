@@ -216,13 +216,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &[conversions.as_slice()],
                 &visible_arguments,
             )?;
-            let result = self
-                .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
-                    &grouped.selbri,
-                    visible_arguments,
-                    formula_source,
-                    eventuality,
-                )?;
+            let result = self.with_voha_place_map(
+                |surface_place| {
+                    let place =
+                        mapped_place_for_generated_conversions(surface_place, &atom.conversions)?;
+                    mapped_place_for_generated_conversions(place, inner_conversions)
+                },
+                |builder| {
+                    builder.build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
+                        &grouped.selbri,
+                        visible_arguments,
+                        formula_source,
+                        eventuality,
+                    )
+                },
+            )?;
             let formula = result.formula;
             self.attach_generated_diagnostics(formula, conversion_diagnostics);
             self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
@@ -265,13 +273,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &[atom.conversions.as_slice()],
                 &visible_arguments,
             )?;
-            let result = self
-                .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
-                    &grouped.selbri,
-                    visible_arguments,
-                    formula_source,
-                    eventuality,
-                )?;
+            let result = self.with_voha_place_map(
+                |surface_place| {
+                    mapped_place_for_generated_conversions(surface_place, &atom.conversions)
+                },
+                |builder| {
+                    builder.build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
+                        &grouped.selbri,
+                        visible_arguments,
+                        formula_source,
+                        eventuality,
+                    )
+                },
+            )?;
             let formula = result.formula;
             self.attach_generated_diagnostics(formula, conversion_diagnostics);
             self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
@@ -618,6 +632,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &relation_text,
             predication_source.clone(),
         )?;
+        let jai_surface_x1 = jai_modal_visible_arguments
+            .as_ref()
+            .and_then(|arguments| arguments.get(&1))
+            .and_then(|argument| argument.value);
         let mut branch_formulas = Vec::with_capacity(visible_argument_branches.len());
         for visible_arguments in visible_argument_branches {
             let mut arguments = BTreeMap::new();
@@ -675,7 +693,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_attachments(modal_arguments, place_questions);
             predication_object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| {
+                    mapped_place_for_generated_conversions(surface_place, &atom.conversions)
+                },
+            )?;
+            if let Some(target) = jai_surface_x1 {
+                self.record_voha_direct_target(predication, 1, target)?;
+            }
             if let Some(scalar_unit) = scalar_unit {
                 let scalar_negation_scope =
                     if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
@@ -3327,7 +3354,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_modal_arguments(modal_arguments);
             predication_object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| {
+                    mapped_place_for_generated_conversions(surface_place, atom.conversions())
+                },
+            )?;
             head_predication.get_or_insert(predication);
             if let Some(scalar_unit) = scalar_unit {
                 let scalar_negation_scope =
@@ -5495,6 +5528,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 arguments,
                 jai_visible_arguments,
             }) = prepared_branch.into_data();
+            let jai_surface_x1 = jai_visible_arguments
+                .as_ref()
+                .and_then(|arguments| arguments.get(&1))
+                .and_then(|argument| argument.value);
             let branch_eventuality = if let Some(eventuality) = single_branch_eventuality {
                 Some(eventuality)
             } else if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none()
@@ -5529,7 +5566,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_modal_arguments(branch_modal_arguments);
             predication_object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| {
+                    let place =
+                        mapped_place_for_generated_conversions(surface_place, atom.conversions())?;
+                    match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
+                        Some(inner_atom) => {
+                            mapped_place_for_generated_conversions(place, &inner_atom.conversions)
+                        }
+                        None => Ok(place),
+                    }
+                },
+            )?;
+            if let Some(target) = jai_surface_x1 {
+                self.record_voha_direct_target(predication, 1, target)?;
+            }
             if let Some(scalar_negation) = scalar_negation.clone() {
                 self.set_scalar_negation(predication, scalar_negation)?;
             }
@@ -5767,6 +5820,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 arguments,
                 jai_visible_arguments,
             }) = prepared_branch.into_data();
+            let jai_surface_x1 = jai_visible_arguments
+                .as_ref()
+                .and_then(|arguments| arguments.get(&1))
+                .and_then(|argument| argument.value);
             let predication_eventuality = if let Some(eventuality) = single_branch_eventuality {
                 Some(eventuality)
             } else if jai_modal.is_some() || !event_modifiers.is_empty() {
@@ -5796,7 +5853,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_modal_arguments(branch_modal_arguments);
             predication_object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| {
+                    let place =
+                        mapped_place_for_generated_conversions(surface_place, atom.conversions())?;
+                    match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
+                        Some(inner_atom) => {
+                            mapped_place_for_generated_conversions(place, &inner_atom.conversions)
+                        }
+                        None => Ok(place),
+                    }
+                },
+            )?;
+            if let Some(target) = jai_surface_x1 {
+                self.record_voha_direct_target(predication, 1, target)?;
+            }
             if let Some(scalar_negation) = scalar_negation.clone() {
                 self.set_scalar_negation(predication, scalar_negation)?;
             }
@@ -5861,12 +5934,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &atom.conversions,
         )?;
         let visible_arguments = self.materialize_grouped_conversion_holes(visible_arguments)?;
-        self.build_property_formula_for_connected_selbri_with_visible_arguments(
-            &grouped.selbri,
-            visible_arguments,
-            source,
-            GeneratedPropertyTanruContext::PropertyAbstraction,
-            None,
+        self.with_voha_place_map(
+            |surface_place| {
+                mapped_place_for_generated_conversions(surface_place, &atom.conversions)
+            },
+            |builder| {
+                builder.build_property_formula_for_connected_selbri_with_visible_arguments(
+                    &grouped.selbri,
+                    visible_arguments,
+                    source,
+                    GeneratedPropertyTanruContext::PropertyAbstraction,
+                    None,
+                )
+            },
         )
     }
 
@@ -6180,6 +6260,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 arguments,
                 jai_visible_arguments,
             }) = prepared_branch.into_data();
+            let jai_surface_x1 = jai_visible_arguments
+                .as_ref()
+                .and_then(|arguments| arguments.get(&1))
+                .and_then(|argument| argument.value);
             let branch_eventuality = if let Some(eventuality) = single_branch_eventuality {
                 Some(eventuality)
             } else if (jai_modal.is_some() || !event_modifiers.is_empty()) && eventuality.is_none()
@@ -6213,7 +6297,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
             predication_object.set_predication_modal_arguments(branch_modal_arguments);
             predication_object.set_predication_relation_metadata(relation_metadata);
-            self.insert(predication, predication_object)?;
+            self.insert_converted_predication_with_voha_place_map(
+                predication,
+                predication_object,
+                |surface_place| {
+                    let place =
+                        mapped_place_for_generated_conversions(surface_place, &atom.conversions)?;
+                    match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
+                        Some(inner_atom) => {
+                            mapped_place_for_generated_conversions(place, &inner_atom.conversions)
+                        }
+                        None => Ok(place),
+                    }
+                },
+            )?;
+            if let Some(target) = jai_surface_x1 {
+                self.record_voha_direct_target(predication, 1, target)?;
+            }
             if let Some(scalar_negation) = scalar_negation.clone() {
                 self.set_scalar_negation(predication, scalar_negation)?;
             }

@@ -2041,13 +2041,13 @@ mod tests {
         let app = router(test_config(test_static_dir()));
         for (format, body, content_type) in [
             (
-                jbotci_cli::ToolTersmuFormat::TreeProj,
+                jbotci_cli::ToolTersmuFormat::Smusni,
                 serde_json::json!({ "text": "mi nitcu lo tanxe" }),
                 "text/plain; charset=utf-8",
             ),
             (
-                jbotci_cli::ToolTersmuFormat::Tree,
-                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "tree" }),
+                jbotci_cli::ToolTersmuFormat::Smusni,
+                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "smusni" }),
                 "text/plain; charset=utf-8",
             ),
             (
@@ -2222,7 +2222,7 @@ mod tests {
         let instructions = initialize_json["result"]["instructions"]
             .as_str()
             .expect("server instructions");
-        assert!(instructions.contains("`tersmu` defaults to `tree+proj`"));
+        assert!(instructions.contains("`tersmu` defaults to `smusni`"));
         assert!(instructions.contains("Request `json` explicitly"));
 
         let tools = post_json(
@@ -2444,28 +2444,38 @@ mod tests {
         assert!(tersmu_schema["properties"]["text"].is_object());
         assert_eq!(
             tersmu_schema["properties"]["format"]["default"],
-            serde_json::json!("tree+proj")
+            serde_json::json!("smusni")
+        );
+        let tersmu_format_schema = tersmu_schema["properties"]["format"].to_string();
+        // The MCP format enumeration offers exactly the surviving values and must
+        // not leak the retired `lean3` working name or the removed `tree`/
+        // `tree+proj` renderers (no deprecated aliases).
+        assert!(
+            tersmu_format_schema.contains("smusni"),
+            "tersmu format enumeration must advertise `smusni`: {tersmu_format_schema}"
         );
         assert!(
-            tersmu_schema["properties"]["format"]
-                .to_string()
-                .contains("tree+proj")
+            tersmu_format_schema.contains("json"),
+            "tersmu format enumeration must advertise `json`: {tersmu_format_schema}"
         );
+        for retired in ["lean3", "tree+proj", "\"tree\""] {
+            assert!(
+                !tersmu_format_schema.contains(retired),
+                "tersmu format enumeration must not expose retired value {retired}: {tersmu_format_schema}"
+            );
+        }
         let tersmu_description = tools_array
             .iter()
             .find(|tool| tool["name"] == "tersmu")
             .and_then(|tool| tool["description"].as_str())
             .expect("tersmu tool description");
         for marker in [
-            "default `tree+proj`",
-            "literal string `tree+proj`",
-            "indentation and `>` mean structural descent",
-            "entries under `projected:` take widest commitment scope",
-            "`mode=` is exact graph vocabulary",
-            "`binder-dependence=underspecified`",
-            "Generated-bound events",
-            "`binds=exists` is not itself projected",
-            "`unspecified` means absent information",
+            "default `smusni`",
+            "flat, self-describing declaration listing",
+            "ID-prefix legend",
+            "`NOT COMPUTED` block",
+            "The uppercase field labels and declaration keywords are exact graph vocabulary",
+            "never a negative claim",
         ] {
             assert!(
                 tersmu_description.contains(marker),
@@ -2774,42 +2784,43 @@ mod tests {
         assert_eq!(tersmu.status(), StatusCode::OK);
         let tersmu_json = response_json(tersmu).await;
         assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        // tersmu defaults to definition-grounded, readable tree+proj text only.
+        // tersmu defaults to definition-grounded, readable `smusni` text only.
         assert!(tersmu_json["result"]["structuredContent"].is_null());
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu tree+proj text");
+            .expect("tersmu smusni text");
         assert!(tersmu_text.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
-        assert!(tersmu_text.contains("\n\nutterance assert "));
-        assert!(tersmu_text.contains("\n\nprojected:\n- frame: "));
+        assert!(tersmu_text.contains("\n\nSEMANTIC DOCUMENT "));
+        assert!(tersmu_text.contains("ID PREFIXES: r=reference"));
 
-        let tersmu_tree_proj = post_json(
+        // An explicit `smusni` request with definitions off returns the pure
+        // notation document with no prepended dictionary block.
+        let tersmu_smusni = post_json(
             app.clone(),
             "/mcp",
             serde_json::json!({
                 "jsonrpc": "2.0",
-                "id": "tersmu-tree-proj",
+                "id": "tersmu-smusni",
                 "method": "tools/call",
                 "params": {
                     "name": "tersmu",
                     "arguments": {
                         "text": "mi nitcu lo tanxe",
-                        "format": "tree+proj"
+                        "format": "smusni",
+                        "show-defs": false
                     }
                 }
             }),
         )
         .await;
-        assert_eq!(tersmu_tree_proj.status(), StatusCode::OK);
-        let tersmu_tree_proj_json = response_json(tersmu_tree_proj).await;
-        let tree_proj_text = tersmu_tree_proj_json["result"]["content"][0]["text"]
+        assert_eq!(tersmu_smusni.status(), StatusCode::OK);
+        let tersmu_smusni_json = response_json(tersmu_smusni).await;
+        let smusni_text = tersmu_smusni_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu tree+proj text");
-        assert!(tree_proj_text.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
-        assert!(tree_proj_text.contains("\n\nutterance assert "));
-        assert!(tree_proj_text.contains("\n\nprojected:\n- frame: "));
-        assert!(!tree_proj_text.contains("context="));
-        assert!(!tree_proj_text.contains("at-issue commitments:"));
+            .expect("tersmu smusni text");
+        assert!(smusni_text.starts_with("SEMANTIC DOCUMENT "));
+        assert!(smusni_text.contains("ID PREFIXES: r=reference"));
+        assert!(smusni_text.contains("RELATION: nitcu"));
 
         let tersmu_json = post_json(
             app.clone(),

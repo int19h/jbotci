@@ -5,7 +5,7 @@ pub mod import;
 
 use std::collections::BTreeMap;
 
-use bityzba::{expensive_invariant, invariant, requires};
+use bityzba::{invariant, requires};
 use jbotci_morphology::fold_lojban_diacritic;
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, Copy)]
 #[invariant(
     true,
-    "dictionary-wide validity is checked by validate and the expensive impl invariant"
+    "dictionary-wide validity is established by generation-time and explicit validation"
 )]
 pub struct Dictionary<'a> {
     entries: &'a [DictionaryEntry<'a>],
@@ -88,7 +88,15 @@ impl<'a> Dictionary<'a> {
     }
 }
 
-#[expensive_invariant(self.validate().is_ok(), "dictionary lookup indexes must match entries")]
+// Deliberately no impl invariant: bityzba copies impl invariants onto every method taking `self`.
+// `validate()` rebuilds the corpus-wide lookup indexes in O(n), so checking it per method makes
+// full-corpus suites that perform O(n) dictionary calls take O(n²) time (#635). Coverage instead
+// lives in generation-time validation in jbotci-dictionary-data's build.rs, its
+// `embedded_dictionary_validates()` unit test, and explicit `validate()` calls in this crate's
+// tests. Any future runtime `Dictionary` constructor must carry
+// `#[expensive_ensures(ret.validate().is_ok())]` at the construction boundary. The existing
+// `from_static_slices` constructor is const and used in a static initializer, so it cannot carry
+// runtime contracts.
 impl<'a> Dictionary<'a> {
     /// Return all entries in source order.
     #[requires(true)]
@@ -172,8 +180,8 @@ impl<'a> Dictionary<'a> {
     /// Return the first non-empty gloss keyword for each lookup word.
     ///
     /// This is the batch counterpart to repeatedly calling [`Self::lookup_words`].
-    /// Keeping the loop inside one dictionary operation also means the
-    /// dictionary-wide expensive invariant is checked once for the batch.
+    /// Dictionary-wide validity is established at generation and explicit
+    /// validation boundaries rather than by individual lookup operations.
     #[requires(true)]
     #[ensures(ret.len() == words.len())]
     pub fn first_gloss_keywords_for_words(&self, words: &[&str]) -> Vec<Option<&'a str>> {

@@ -194,8 +194,7 @@ use jbotci_search::vlacku::{
     normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options, render_tree,
-    render_tree_proj,
+    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -255,7 +254,7 @@ pub enum Command {
     #[command(
         name = "tersmu",
         about = "Build and render a typed semantic graph",
-        long_about = "Build and render a typed semantic graph. The default tree+proj format is a structural scope tree plus only commitments projected out of their structural site. Bare tree is the same spine without the projected section; JSON is the canonical interchange graph.\n\nInterpretation contract: indentation and `>` mean structural descent. The tree spine is authoritative where commitment follows structural position; entries under `projected:` take widest commitment scope. `mode=` is exact graph vocabulary. `denotes` states referential identity; `binder-dependence=underspecified` names possible binders, not proven dependence. Generated-bound events co-vary through structural `binds=exists`; referential events use denotation commitments, and `binds=exists` is not a projected claim. Event suffixes always name time, actuality, aspect, recurrence, space, spatial aspect, spatial recurrence, and details; `unspecified` is explicit absence of information, never a negative claim."
+        long_about = "Build and render a typed semantic graph. The default `smusni` format is a flat, self-describing declaration listing: the document opens with its root, an ID-prefix legend (r=reference, p=predication, f=formula, u=utterance, ...) and a `NOT COMPUTED` block naming what was left underived, then lists every utterance, predication, formula, reference, and eventuality as an id-tagged `DECLARATION`. JSON is the canonical interchange graph (the same objects as a flat id-graph)."
     )]
     Tersmu(TersmuInput),
     #[command(name = "vlacku", visible_alias = "dict")]
@@ -368,11 +367,12 @@ pub enum TersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph.
     #[value(alias = "djeisone")]
     Json,
-    /// Derived indented view of utterance and formula nesting.
-    Tree,
-    /// Structural tree plus only commitments displaced from their tree site.
-    #[value(name = "tree+proj")]
-    TreeProj,
+    /// Model-facing `smusni` notation: a flat, self-describing declaration
+    /// listing of the semantic graph (the default).
+    /// Provenance (source spans) renders off; the provenance opt-in is
+    /// library-only for now (`jbotci_semantics::render_smusni` with
+    /// `SmusniConfig { provenance: true }`), not exposed as a CLI/MCP flag.
+    Smusni,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -739,9 +739,9 @@ pub struct TersmuInput {
     pub file: Option<PathBuf>,
     #[arg(
         long = "format",
-        default_value_t = TersmuFormat::TreeProj,
+        default_value_t = TersmuFormat::Smusni,
         value_enum,
-        help = "Output tree+proj (default), bare tree, or canonical JSON; `+proj` names the projected-commitments feature added to the tree base format"
+        help = "Output the model-facing `smusni` notation (default) or the canonical JSON interchange graph"
     )]
     pub format: TersmuFormat,
     #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]

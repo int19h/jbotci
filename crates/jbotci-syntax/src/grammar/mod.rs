@@ -5237,6 +5237,109 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn bare_nahe_sumti_without_bo_warns() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("mi viska na'e lo mlatu", &ParseOptions::default());
+            assert!(format!("{:?}", parsed.parse_tree).contains("ScalarNegatedSumti"));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalNaheArgumentWithoutBo
+            ));
+            // The bare form is the sumti-oriented extension, not a term wrapper.
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalLaheNaheTermWrapper
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nahe_bo_sumti_does_not_warn() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("mi viska na'e bo lo mlatu", &ParseOptions::default());
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalNaheArgumentWithoutBo
+            ));
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalLaheNaheTermWrapper
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_nahe_sumti_without_bo_warning_anchors_nahe() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("mi viska na'e lo mlatu", &ParseOptions::default());
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| {
+                    warning.kind == ExperimentalConstruct::ExperimentalNaheArgumentWithoutBo
+                })
+                .expect("NAhE-without-BO warning");
+
+            // Anchor covers the `na'e` token at offset 9..13 in "mi viska na'e lo mlatu".
+            assert_eq!(warning_span(warning), [9, 13]);
+            assert!(warning.anchor.is_selmaho(Selmaho::Nahe));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lahe_nahe_term_wrappers_warn() {
+        run_on_normal_stack(|| {
+            // Each of these wraps a bare term (a FA-tagged sumti or a termset) rather
+            // than a sumti, which is the non-CLL term-wrapper extension. Following v0,
+            // the no-`bo` NAhE term wrapper carries only the term-wrapper warning, never
+            // the sumti-oriented without-`bo` warning.
+            //
+            // The no-`bo` case uses a termset payload (`nu'i ... nu'u`): unlike v0, v1
+            // routes bare `na'e` before a FA-tagged sumti (`na'e fa do`) through the
+            // flattened-tag path rather than the term wrapper, so the term wrapper is
+            // reached here via a term that cannot be reinterpreted as a tag.
+            for (source, anchor) in [
+                ("mi tavla la'e fa do", Selmaho::Lahe),
+                ("mi tavla na'e bo fa do", Selmaho::Nahe),
+                ("mi tavla na'e nu'i do de nu'u", Selmaho::Nahe),
+            ] {
+                let parsed = parse_source(source, &ParseOptions::default());
+                assert!(
+                    has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalLaheNaheTermWrapper
+                    ),
+                    "{source}"
+                );
+                assert!(
+                    !has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalNaheArgumentWithoutBo
+                    ),
+                    "{source}"
+                );
+
+                let warning = parsed
+                    .warnings
+                    .iter()
+                    .find(|warning| {
+                        warning.kind == ExperimentalConstruct::ExperimentalLaheNaheTermWrapper
+                    })
+                    .unwrap_or_else(|| panic!("term-wrapper warning for {source}"));
+                assert!(warning.anchor.is_selmaho(anchor), "{source}");
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn parses_zantufa_xoi_and_fihoi_statement_payloads() {
         run_on_normal_stack(|| {
             for source in [

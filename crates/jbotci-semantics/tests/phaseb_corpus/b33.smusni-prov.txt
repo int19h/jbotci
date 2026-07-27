@@ -1,0 +1,94 @@
+SEMANTIC DOCUMENT document_1 {
+  ROOT: u5;
+  ID PREFIXES: r=reference p=predication f=formula q=quantity u=utterance s=sequence m=mathExpression x=parameter l=relation_expression d=displayed_content qu=question;
+  NOT COMPUTED {
+    denotation-multiplicity;
+  }
+  DECLARATIONS {
+    UTTERANCE u5 {
+      FORCE: ASSERT;
+      SPEAKER: r1;
+      AUDIENCE: r2;
+      EVENTUALITY: r14;
+      CONTENT: f13;
+      DEICTIC GROUND
+        TIME: r3;
+        PLACE: r4;
+      PROVENANCE
+        BYTE SPAN: 0..20;
+        TEXT: "lo ci mlatu cu blabi";
+        CONSTRUCT: "bridi";
+    }
+    PREDICATION p9 { RELATION: mlatu; ARGS ( [1]: REFERENCE DENOTATION r7; [2]: REFERENCE DENOTATION r8; ) MODE: RESTRICTIVE; PROVENANCE { BYTE SPAN: 6..11; TEXT: "mlatu"; CONSTRUCT: "restrictive-predication"; } }
+    PREDICATION p12 {
+      RELATION: blabi;
+      EVENTUALITY: r6;
+      ARGS (
+        [1]: REFERENCE DENOTATION r7;
+      )
+      MODE: ASSERTED;
+      PROVENANCE
+        BYTE SPAN: 0..20;
+        TEXT: "lo ci mlatu cu blabi";
+        CONSTRUCT: "predication";
+    }
+    FORMULA f10 IS ATOM { PREDICATION: p9; PROVENANCE { BYTE SPAN: 6..11; TEXT: "mlatu"; CONSTRUCT: "restrictive-formula"; } }
+    FORMULA f13 IS ATOM { PREDICATION: p12; BOUND EVENTUALITIES { r6; } PROVENANCE { BYTE SPAN: 0..20; TEXT: "lo ci mlatu cu blabi"; CONSTRUCT: "bridi-formula"; } }
+    QUANTITY q11 { FORM: EXACT; VALUE: 3; SCALE: COUNT; PROVENANCE { BYTE SPAN: 3..5; TEXT: "ci"; CONSTRUCT: "quantity"; } }
+    REFERENCE r1 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: SPEAKER; }
+    REFERENCE r2 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: AUDIENCE; }
+    REFERENCE r4 { DENOTES VALUES OF SORT Entity; BINDING: INDEXICAL; INDEXICAL: HERE; }
+    REFERENCE r7 {
+      DENOTES VALUES OF SORT Entity
+      BINDING: CONSTANT;
+      SCOPE DEPENDENCE: FIXED;
+      DESCRIPTOR IS VERIDICAL DESCRIPTION
+        WORD: lo;
+        SPEAKER: r1;
+        BODY: f10;
+        QUANTITY: q11;
+      PROVENANCE
+        BYTE SPAN: 0..11;
+        TEXT: "lo ci mlatu";
+        CONSTRUCT: "description";
+    }
+    REFERENCE r8 { DENOTES VALUES OF SORT Entity; BINDING: CONSTANT; SCOPE DEPENDENCE: FIXED; DESCRIPTOR IS ELIDED { WORD: zo'e; } }
+    REFERENCE r3 {
+      DENOTES VALUES OF SORT Eventuality
+      BINDING: INDEXICAL;
+      INDEXICAL: NOW;
+      DENOTATION: REFERENTIAL;
+      r3.{
+        time = UNSPECIFIED,
+        actuality = UNSPECIFIED,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+    }
+    REFERENCE r6 { DENOTES VALUES OF SORT Eventuality; DENOTATION: GENERATED BOUND; r6.{ time = UNSPECIFIED; actuality = UNSPECIFIED; aspect = UNSPECIFIED; recurrence = UNSPECIFIED; space = UNSPECIFIED; spatial_aspect = UNSPECIFIED; spatial_recurrence = UNSPECIFIED; details = UNSPECIFIED; } PROVENANCE { BYTE SPAN: 0..20; TEXT: "lo ci mlatu cu blabi"; CONSTRUCT: "predication"; } }
+    REFERENCE r14 {
+      DENOTES VALUES OF SORT Eventuality/Locution
+      BINDING: CONSTANT;
+      DENOTATION: REFERENTIAL;
+      SCOPE DEPENDENCE: FIXED;
+      r14.{
+        time = UNSPECIFIED,
+        actuality = ACTUAL,
+        aspect = UNSPECIFIED,
+        recurrence = UNSPECIFIED,
+        space = UNSPECIFIED,
+        spatial_aspect = UNSPECIFIED,
+        spatial_recurrence = UNSPECIFIED,
+        details = UNSPECIFIED
+      }
+      PROVENANCE
+        BYTE SPAN: 0..20;
+        TEXT: "lo ci mlatu cu blabi";
+        CONSTRUCT: "bridi";
+    }
+  }
+}

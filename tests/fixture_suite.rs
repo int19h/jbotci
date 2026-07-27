@@ -20,8 +20,8 @@ use support::fixtures::{
     ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
     TersmuOutputExpectation, TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation,
     filter_fixtures, fixture_paths, import_export_file, load_fixture_file, load_fixture_path,
-    load_fixture_tree, load_profile, run_fixture_facets, run_fixture_facets_parallel,
-    validate_fixture_tree, write_fixture_file,
+    load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree,
+    write_fixture_file,
 };
 
 #[test]
@@ -1365,7 +1365,7 @@ fn writer_round_trips_jvozba_expectation() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn writer_round_trips_tersmu_projection_expectations_and_facets() {
+fn writer_round_trips_tersmu_expectations_and_facets() {
     let case = TestCase {
         id: "adhoc.tree".into(),
         lojban: "coi".into(),
@@ -1389,14 +1389,6 @@ fn writer_round_trips_tersmu_projection_expectations_and_facets() {
                         text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
                         sha256: None,
                     }),
-                    tree: Some(TextExpectation {
-                        text: "utterance utterance:1".into(),
-                        sha256: None,
-                    }),
-                    tree_proj: Some(TextExpectation {
-                        text: "utterance utterance:1\n\nprojected:\n- (none)".into(),
-                        sha256: None,
-                    }),
                     ..TersmuOutputExpectation::default()
                 }),
                 ..OutputExpectations::default()
@@ -1407,8 +1399,6 @@ fn writer_round_trips_tersmu_projection_expectations_and_facets() {
     let facets = case.available_facets();
     assert!(facets.contains(&Facet::GentufaTree));
     assert!(facets.contains(&Facet::TersmuJson));
-    assert!(facets.contains(&Facet::TersmuTree));
-    assert!(facets.contains(&Facet::TersmuTreeProj));
     assert!(!facets.contains(&Facet::GentufaBrackets));
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
@@ -1418,39 +1408,24 @@ fn writer_round_trips_tersmu_projection_expectations_and_facets() {
         "tersmu-json".parse::<Facet>().expect("tersmu facet"),
         Facet::TersmuJson
     );
-    assert_eq!(
-        "tersmu-tree".parse::<Facet>().expect("tersmu tree facet"),
-        Facet::TersmuTree
-    );
-    assert_eq!(
-        "tersmu-tree+proj"
-            .parse::<Facet>()
-            .expect("tersmu tree+proj facet"),
-        Facet::TersmuTreeProj
-    );
+    // The legacy tree/tree+proj tersmu renderers were removed with no alias, so
+    // their fixture facet strings must no longer parse.
+    assert!("tersmu-tree".parse::<Facet>().is_err());
+    assert!("tersmu-tree+proj".parse::<Facet>().is_err());
     assert!("tersmu-claims".parse::<Facet>().is_err());
     assert!("tersmu-combined".parse::<Facet>().is_err());
 
-    let temp_root = temp_root("jbotci-fixtures-tersmu-projection-writer-test");
+    let temp_root = temp_root("jbotci-fixtures-tersmu-writer-test");
     fs::create_dir_all(&temp_root).expect("temp root");
     let fixture_path = temp_root.join("fixture.toml");
     write_fixture_file(&fixture_path, &case).expect("write fixture");
     let text = fs::read_to_string(&fixture_path).expect("read fixture");
-    assert!(text.contains("\n\"tree+proj\" = \"\"\"\n"));
+    assert!(!text.contains("tree+proj"));
     assert_eq!(
         load_fixture_file(&fixture_path).expect("load fixture"),
         case
     );
     let _ = fs::remove_dir_all(temp_root);
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn all_profile_deserializes_tree_proj_facet_with_literal_plus() {
-    let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let profile = load_profile(fixture_root, "all").expect("all fixture profile");
-    assert!(profile.facets.contains(&Facet::TersmuTreeProj));
 }
 
 #[test]
