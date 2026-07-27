@@ -174,6 +174,13 @@ impl DocumentSnapshot {
                 Some(new!(CmavoSequenceDocumentation { cards, span }))
             })
     }
+
+    #[requires(index < self.words.words.len())]
+    #[ensures(ret.as_ref().is_none_or(|span| span.char_start <= self.word_spans[index].char_start && self.word_spans[index].char_end <= span.char_end))]
+    pub(super) fn attested_cmavo_sequence_span(&self, index: usize) -> Option<SourceSpan> {
+        self.cmavo_sequence_documentation(index)
+            .map(|documentation| documentation.span.clone())
+    }
 }
 
 /// Enumerate every word-stream-contiguous cmavo sequence containing

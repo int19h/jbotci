@@ -9,9 +9,9 @@ pub use line_index::{
 pub use snapshot::{
     CompletionCancellationToken, CompletionDocumentationHandle, CompletionInterpretation,
     CompletionItem, CompletionKind, CompletionProvenance, DecorationProfile, DiagnosticSnapshot,
-    DocumentSnapshot, HoverContent, IncrementalAnalysisTimings, IncrementalDiagnosticGate, Inlay,
-    InlayKind, InlayOptions, PreparedDocumentAnalysis, RawBracketsOptions, ResolvedDiagnostic,
-    ResolvedLabel, SemanticToken, SemanticTokenKind, StructureBracketInlayOptions,
-    StructureConstructFilter, StructureInlay, StructureInlayKind, WordAt,
-    completion_documentation_markdown,
+    DocumentSnapshot, FoldingRange, FoldingRangeKind, HoverContent, IncrementalAnalysisTimings,
+    IncrementalDiagnosticGate, Inlay, InlayKind, InlayOptions, PreparedDocumentAnalysis,
+    RawBracketsOptions, ResolvedDiagnostic, ResolvedLabel, SelectionRangeChain, SemanticToken,
+    SemanticTokenKind, StructureBracketInlayOptions, StructureConstructFilter, StructureInlay,
+    StructureInlayKind, WordAt, completion_documentation_markdown,
 };
