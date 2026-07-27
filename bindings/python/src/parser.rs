@@ -302,7 +302,7 @@ pub(crate) struct PyParseOptions {
 }
 
 impl PyParseOptions {
-    #[requires(value.max_recovery_errors.get() > 0)]
+    #[requires(value.recovery_error_policy.global_hard_cap().get() > 0)]
     #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
     fn from_rust(value: ParseOptions) -> Self {
         Self {
@@ -407,7 +407,7 @@ impl PyParseOptions {
 
     /// Return a copy using a checked non-zero syntax recovery limit.
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|value| i128::try_from(value.rust().max_recovery_errors.get()).ok() == Some(limit)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|value| i128::try_from(value.rust().recovery_error_policy.global_hard_cap().get()).ok() == Some(limit)) || ret.is_err())]
     fn with_max_recovery_errors(&self, limit: i128) -> PyResult<Self> {
         if limit <= 0 {
             return Err(InvalidInputError::new_err(
@@ -448,10 +448,10 @@ impl PyParseOptions {
 
     /// Return the non-zero maximum recovered syntax-error count.
     #[requires(true)]
-    #[ensures(ret == self.value.max_recovery_errors.get())]
+    #[ensures(ret == self.value.recovery_error_policy.global_hard_cap().get())]
     #[getter]
     fn max_recovery_errors(&self) -> usize {
-        self.value.max_recovery_errors.get()
+        self.value.recovery_error_policy.global_hard_cap().get()
     }
 }
 
