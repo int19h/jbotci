@@ -402,7 +402,9 @@ pub enum GentufaWebError {
 /// Syntax analysis is retained even when morphology reports errors so immutable editor
 /// snapshots always have a tree-shaped analysis substrate. In that case `diagnostics`
 /// intentionally contains only morphology diagnostics, matching the web facade's
-/// morphology-first behavior.
+/// morphology-first behavior. Otherwise diagnostics preserve phase-sensitive recovery
+/// order: syntax errors, morphology diagnostics, then syntax warnings. Valid parses have
+/// no syntax errors, so their morphology diagnostics precede their syntax warnings.
 #[invariant(morphology.errors.is_empty() || diagnostics.len() >= morphology.errors.len())]
 #[derive(Debug, Clone)]
 pub struct GentufaSourceAnalysis {
@@ -514,22 +516,9 @@ pub fn complete_gentufa_source_analysis(
     )
     .result;
 
-    if morphology.errors.is_empty()
-        && let data!(SyntaxRecoveryParse::Recovered { parse }) = parse.as_data()
-    {
-        let mut recovered_diagnostics = parse
-            .errors
-            .iter()
-            .map(|error| error.to_diagnostic(source_id.clone(), source))
-            .collect::<Vec<_>>();
-        recovered_diagnostics.append(&mut diagnostics);
-        recovered_diagnostics.extend(
-            parse
-                .warnings
-                .iter()
-                .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
-        );
-        diagnostics = recovered_diagnostics;
+    if morphology.errors.is_empty() {
+        diagnostics =
+            assemble_gentufa_diagnostics_for_parse(&parse, source_id, source, diagnostics);
     }
 
     new!(GentufaSourceAnalysis {
@@ -540,11 +529,55 @@ pub fn complete_gentufa_source_analysis(
     })
 }
 
+/// Merge parser diagnostics without losing the phase-sensitive recovery order.
+///
+/// A recovered parse contributes its syntax errors before `morphology_diagnostics`
+/// and its syntax warnings after them. A valid parse contributes only syntax warnings,
+/// after morphology diagnostics. Passing an empty morphology slice therefore produces
+/// the corresponding syntax-only order.
+#[requires(morphology_diagnostics.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Morphology))]
+#[ensures(ret.len() >= old(morphology_diagnostics.len()))]
+#[ensures(ret.iter().all(|diagnostic| matches!(diagnostic.phase, DiagnosticPhase::Morphology | DiagnosticPhase::Syntax)))]
+fn assemble_gentufa_diagnostics_for_parse(
+    parse: &SyntaxRecoveryParse,
+    source_id: Option<SourceId>,
+    source: &str,
+    mut morphology_diagnostics: Vec<Diagnostic>,
+) -> Vec<Diagnostic> {
+    match parse.as_data() {
+        data!(SyntaxRecoveryParse::Valid { parse }) => {
+            morphology_diagnostics.extend(
+                parse
+                    .warnings
+                    .iter()
+                    .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
+            );
+            morphology_diagnostics
+        }
+        data!(SyntaxRecoveryParse::Recovered { parse }) => {
+            let mut diagnostics = parse
+                .errors
+                .iter()
+                .map(|error| error.to_diagnostic(source_id.clone(), source))
+                .collect::<Vec<_>>();
+            diagnostics.append(&mut morphology_diagnostics);
+            diagnostics.extend(
+                parse
+                    .warnings
+                    .iter()
+                    .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
+            );
+            diagnostics
+        }
+    }
+}
+
 /// Parse one morphology-owned word slice and return its syntax diagnostics.
 ///
 /// The source remains the complete document so every diagnostic span stays in
 /// document coordinates. Callers are responsible for offsetting the returned
-/// word indices when `words` is not the document prefix.
+/// word indices when `words` is not the document prefix. Recovered syntax errors
+/// precede syntax warnings; a valid parse returns its syntax warnings alone.
 #[requires(morphology.morphology.errors.is_empty())]
 #[ensures(ret.iter().all(|diagnostic| diagnostic.phase == DiagnosticPhase::Syntax))]
 pub fn analyze_gentufa_syntax_diagnostics_for_words(
@@ -563,21 +596,7 @@ pub fn analyze_gentufa_syntax_diagnostics_for_words(
         &parse_options,
     )
     .result;
-    let data!(SyntaxRecoveryParse::Recovered { parse }) = parse.as_data() else {
-        return Vec::new();
-    };
-    let mut diagnostics = parse
-        .errors
-        .iter()
-        .map(|error| error.to_diagnostic(source_id.clone(), source))
-        .collect::<Vec<_>>();
-    diagnostics.extend(
-        parse
-            .warnings
-            .iter()
-            .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
-    );
-    diagnostics
+    assemble_gentufa_diagnostics_for_parse(&parse, source_id, source, Vec::new())
 }
 
 #[requires(true)]
@@ -6522,6 +6541,184 @@ mod tests {
         assert!(!success.tree_rows.is_empty());
         assert!(success.ipa_text.contains("ˈkla.ma"));
         assert!(success.surface_text.contains("mi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_zohoi_warning_uses_the_parser_mapping_in_analysis_and_web_success() {
+        const SOURCE: &str = "mi cusku zo'oi kitten";
+
+        let analysis = analyze_gentufa_source(SOURCE, &GentufaWebOptions::default())
+            .expect("the built-in default dialect must compile");
+        let expected = match analysis.parse.as_data() {
+            data!(SyntaxRecoveryParse::Valid { parse }) => {
+                assert_eq!(parse.warnings.len(), 1);
+                assert_eq!(
+                    parse.warnings[0].kind,
+                    jbotci_syntax::ExperimentalConstruct::ExperimentalZohOiQuote,
+                );
+                parse.warnings[0].to_diagnostic(Some(SourceId("<web-input>".to_owned())), SOURCE)
+            }
+            data!(SyntaxRecoveryParse::Recovered { parse }) => {
+                panic!(
+                    "warning-bearing source must parse cleanly: {:?}",
+                    parse.errors
+                )
+            }
+        };
+
+        assert_eq!(analysis.diagnostics, vec![expected.clone()]);
+        assert_eq!(parse_success(SOURCE).diagnostics, vec![expected]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn valid_diagnostics_order_morphology_before_generated_syntax_warnings() {
+        const SOURCE: &str = "mi cusku zo'oi kitten la kuenias";
+        let options = GentufaWebOptions::default();
+        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
+            .expect("the built-in default dialect must compile");
+        assert!(morphology.morphology.errors.is_empty());
+        assert_eq!(
+            morphology
+                .diagnostics()
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            vec!["morphology.warning.experimental-cgv"],
+        );
+
+        let syntax_only = analyze_gentufa_syntax_diagnostics_for_words(
+            SOURCE,
+            &options,
+            &morphology,
+            &morphology.morphology.words,
+        );
+        assert_eq!(
+            syntax_only
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            vec!["syntax.warning.experimental-zoh-oi-quote"],
+        );
+
+        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        assert!(matches!(
+            analysis.parse.as_data(),
+            data!(SyntaxRecoveryParse::Valid { .. })
+        ));
+        assert_eq!(
+            analysis
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "morphology.warning.experimental-cgv",
+                "syntax.warning.experimental-zoh-oi-quote",
+            ],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn warning_free_valid_source_keeps_all_diagnostic_surfaces_empty() {
+        const SOURCE: &str = "mi klama";
+        let options = GentufaWebOptions::default();
+        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
+            .expect("the built-in default dialect must compile");
+        assert!(morphology.diagnostics().is_empty());
+        assert!(
+            analyze_gentufa_syntax_diagnostics_for_words(
+                SOURCE,
+                &options,
+                &morphology,
+                &morphology.morphology.words,
+            )
+            .is_empty()
+        );
+
+        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        let data!(SyntaxRecoveryParse::Valid { parse }) = analysis.parse.as_data() else {
+            panic!("warning-free source must parse cleanly")
+        };
+        assert!(parse.warnings.is_empty());
+        assert!(analysis.diagnostics.is_empty());
+        assert!(parse_success(SOURCE).diagnostics.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_diagnostics_keep_errors_then_morphology_then_syntax_warnings() {
+        const SOURCE: &str = "mi ku i do .i mi cusku zo'oi kitten .i la kuenias cu klama";
+        let options = GentufaWebOptions::default();
+        let morphology = analyze_gentufa_morphology_source(SOURCE, &options)
+            .expect("the built-in default dialect must compile");
+        assert!(morphology.morphology.errors.is_empty());
+        assert_eq!(
+            morphology
+                .diagnostics()
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            vec!["morphology.warning.experimental-cgv"],
+        );
+
+        let syntax_only = analyze_gentufa_syntax_diagnostics_for_words(
+            SOURCE,
+            &options,
+            &morphology,
+            &morphology.morphology.words,
+        );
+        let syntax_warning_index = syntax_only
+            .iter()
+            .position(|diagnostic| diagnostic.code == "syntax.warning.experimental-zoh-oi-quote")
+            .expect("recovery must preserve the generated syntax warning");
+        assert!(syntax_warning_index > 0);
+        assert!(
+            syntax_only[..syntax_warning_index]
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.phase == DiagnosticPhase::Syntax
+                        && diagnostic.severity == DiagnosticSeverity::Error
+                })
+        );
+        assert!(
+            syntax_only[syntax_warning_index..]
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.phase == DiagnosticPhase::Syntax
+                        && diagnostic.severity == DiagnosticSeverity::Warning
+                })
+        );
+
+        let syntax_error_count = syntax_warning_index;
+        let analysis = complete_gentufa_source_analysis(SOURCE, &options, morphology);
+        assert!(matches!(
+            analysis.parse.as_data(),
+            data!(SyntaxRecoveryParse::Recovered { .. })
+        ));
+        assert!(
+            analysis.diagnostics[..syntax_error_count]
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.phase == DiagnosticPhase::Syntax
+                        && diagnostic.severity == DiagnosticSeverity::Error
+                })
+        );
+        assert_eq!(
+            analysis.diagnostics[syntax_error_count].code,
+            "morphology.warning.experimental-cgv",
+        );
+        assert_eq!(
+            analysis.diagnostics[syntax_error_count + 1].code,
+            "syntax.warning.experimental-zoh-oi-quote",
+        );
+        assert_eq!(analysis.diagnostics.len(), syntax_error_count + 2);
     }
 
     #[test]

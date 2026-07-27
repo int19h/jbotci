@@ -255,6 +255,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn valid_generated_syntax_warning_preserves_snapshot_web_equivalence() {
+        const SOURCE: &str = "mi cusku zo'oi kitten";
+        let snapshot = DocumentSnapshot::new(SOURCE.to_owned(), 17);
+        let web = web_diagnostics(SOURCE);
+
+        assert_eq!(snapshot.diagnostics, web);
+        assert_eq!(snapshot.diagnostics.len(), 1);
+        assert_eq!(
+            snapshot.diagnostics[0].code,
+            "syntax.warning.experimental-zoh-oi-quote",
+        );
+        assert_eq!(
+            snapshot.diagnostics[0].severity,
+            jbotci_diagnostics::DiagnosticSeverity::Warning,
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn diagnostics_resolve_primary_and_secondary_labels() {
         let snapshot = DocumentSnapshot::new("mi ku i do".to_owned(), 1);
         let resolved = snapshot
