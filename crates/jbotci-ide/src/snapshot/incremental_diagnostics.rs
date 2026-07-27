@@ -290,6 +290,7 @@ fn provisional_diagnostics(
         return (IncrementalDiagnosticGate::FlankMismatch, None);
     };
     let mut retained_syntax = Vec::new();
+    let mut has_following_syntax_error = false;
     for diagnostic in confirmed
         .diagnostics
         .iter()
@@ -311,6 +312,8 @@ fn provisional_diagnostics(
         if side == DiagnosticParagraphSide::CrossesBoundary {
             return (IncrementalDiagnosticGate::CrossParagraphDiagnostic, None);
         }
+        has_following_syntax_error |= side == DiagnosticParagraphSide::After
+            && diagnostic.severity == DiagnosticSeverity::Error;
         let word_index_delta = (side == DiagnosticParagraphSide::After)
             .then_some(word_delta)
             .unwrap_or(0);
@@ -330,6 +333,18 @@ fn provisional_diagnostics(
     } else {
         Vec::new()
     };
+    // A later syntax error makes the document-wide parser switch to recovery
+    // after this locally valid paragraph. Some strict-only warnings are not
+    // present in that recovered result. A local parse cannot prove which
+    // warning set the later recovery will preserve, so confirmation must own
+    // the complete diagnostic set in this case.
+    if has_following_syntax_error
+        && local_syntax
+            .iter()
+            .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Warning)
+    {
+        return (IncrementalDiagnosticGate::CrossParagraphDiagnostic, None);
+    }
     let mut global_local_syntax = Vec::with_capacity(local_syntax.len());
     for diagnostic in local_syntax {
         let Some(word_index) = diagnostic.word_index else {
@@ -787,6 +802,29 @@ mod tests {
             IncrementalDiagnosticGate::CrossParagraphDiagnostic
         );
         assert!(prepared.provisional().is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_only_local_warning_before_following_recovery_error_fails_the_gate() {
+        let prepared = prepare_replacement(
+            "mi klama\nni'o\nsu'i re\nni'o\nmi ku i do",
+            "su'i re",
+            "su'i re ui",
+        );
+        assert_eq!(
+            prepared.gate(),
+            IncrementalDiagnosticGate::CrossParagraphDiagnostic,
+        );
+        assert!(prepared.provisional().is_none());
+        let confirmed = prepared.confirm();
+        assert!(
+            confirmed
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code != "syntax.warning.experimental-zantufa-mex")
+        );
     }
 
     #[test]

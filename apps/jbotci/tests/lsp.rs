@@ -775,6 +775,48 @@ fn pull_diagnostics_fall_back_to_utf16_and_apply_utf16_edits() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn pull_diagnostics_surface_valid_syntax_warnings_through_the_shared_severity_table() {
+    const URI: &str = "file:///valid-syntax-warning.jbo";
+    const TEXT: &str = "mi cusku zo'oi kitten";
+
+    let mut client = LspClient::spawn();
+    initialize(&mut client, "utf-16", true);
+    open_document_text(&mut client, URI, 1, TEXT);
+    let report = client.request(
+        "textDocument/diagnostic",
+        json!({
+            "textDocument": { "uri": URI },
+            "identifier": "jbotci",
+            "previousResultId": null
+        }),
+    );
+
+    assert_eq!(report["kind"], "full");
+    let diagnostics = report["items"].as_array().expect("diagnostic items");
+    assert_eq!(diagnostics.len(), 1);
+    let diagnostic = &diagnostics[0];
+    assert_eq!(
+        diagnostic["code"],
+        "syntax.warning.experimental-zoh-oi-quote",
+    );
+    assert_eq!(
+        diagnostic["severity"], 2,
+        "the established diagnostic-to-LSP table maps Warning to LSP Warning",
+    );
+    assert_eq!(diagnostic["source"], "jbotci/syntax");
+    assert_eq!(
+        diagnostic["range"],
+        json!({
+            "start": { "line": 0, "character": 9 },
+            "end": { "line": 0, "character": 21 }
+        }),
+    );
+    client.shutdown();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn pull_diagnostics_expose_provisional_then_confirmed_generations() {
     const URI: &str = "file:///incremental-diagnostics.jbo";
     const OLD_TEXT: &str = "mi klama\nni'o\ndo cadzu\nni'o\nmi ku i do";
