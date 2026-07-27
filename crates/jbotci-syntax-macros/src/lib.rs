@@ -189,6 +189,7 @@ impl SyntaxGrammar {
                 pub name: &'static str,
                 pub parser: &'static str,
                 pub recovery: SyntaxGrammarRecoveryExpr,
+                pub recovery_boundary: bool,
                 pub conditions: &'static [SyntaxGrammarCondition],
             }
 
@@ -271,6 +272,7 @@ impl SyntaxGrammar {
                 pub start_tokens: &'static [SyntaxGrammarAnchorToken],
                 pub resume_field: usize,
                 pub origin: SyntaxGrammarAnchorOrigin,
+                pub boundary_resync: bool,
                 pub conditions: &'static [SyntaxGrammarCondition],
             }
 
@@ -3163,6 +3165,7 @@ impl AliasRule {
                     name: "",
                     parser: #parser,
                     recovery: #recovery,
+                    recovery_boundary: false,
                     conditions: &[],
                     }
                 ],
@@ -3415,6 +3418,7 @@ impl EnumRule {
                     name: #branch_name,
                     parser: #branch_name,
                     recovery: SyntaxGrammarRecoveryExpr::Rule(#branch_name),
+                    recovery_boundary: false,
                     conditions: &[#(#conditions),*],
                 }
             });
@@ -4574,6 +4578,7 @@ fn recovered_sequence_parser_tokens(
         recovered_field_parser_expr_tokens(
             rule_name,
             0usize,
+            first.recovery_boundary()?,
             &first.parser,
             arguments,
             generation,
@@ -4595,6 +4600,7 @@ fn recovered_sequence_parser_tokens(
             recovered_field_parser_expr_tokens(
                 rule_name,
                 field_index,
+                field.recovery_boundary()?,
                 &field.parser,
                 arguments,
                 generation,
@@ -4622,6 +4628,7 @@ fn recovered_sequence_parser_tokens(
 fn recovered_field_parser_expr_tokens(
     rule_name: &str,
     field_index: usize,
+    recovery_boundary: bool,
     parser: &ParserExpr,
     arguments: &BTreeSet<String>,
     generation: &RecoveredParserGeneration<'_>,
@@ -4644,6 +4651,7 @@ fn recovered_field_parser_expr_tokens(
                             #rule_name,
                             #field_index,
                             0usize,
+                            #recovery_boundary,
                             #inner.boxed()
                         )
                     })
@@ -4661,6 +4669,7 @@ fn recovered_field_parser_expr_tokens(
                             #rule_name,
                             #field_index,
                             0usize,
+                            #recovery_boundary,
                             #inner.boxed()
                         )
                         .map(|__chunks| {
@@ -4685,6 +4694,7 @@ fn recovered_field_parser_expr_tokens(
                             #rule_name,
                             #field_index,
                             1usize,
+                            #recovery_boundary,
                             #inner.boxed()
                         )
                         .map(|__items| {
@@ -4706,6 +4716,7 @@ fn recovered_field_parser_expr_tokens(
                             #rule_name,
                             #field_index,
                             1usize,
+                            #recovery_boundary,
                             #inner.boxed()
                         )
                         .map(|__chunks| {
@@ -7914,6 +7925,7 @@ impl FieldItem {
             .map_or_else(String::new, Ident::to_string);
         let parser = self.parser.compact_tokens();
         let recovery = classify_parser_expr(&self.parser, arguments, type_env)?.expand();
+        let recovery_boundary = self.recovery_boundary()?;
         let conditions = self.conditions.iter().map(Condition::expand);
         Ok(quote! {
             SyntaxGrammarField {
@@ -7921,6 +7933,7 @@ impl FieldItem {
                 name: #name,
                 parser: #parser,
                 recovery: #recovery,
+                recovery_boundary: #recovery_boundary,
                 conditions: &[#(#conditions),*],
             }
         })
@@ -7944,6 +7957,7 @@ impl FieldItem {
         let name = self.name.clone().ok_or_else(|| {
             syn::Error::new_spanned(self.parser.to_token_stream(), "model fields need a name")
         })?;
+        self.recovery_boundary()?;
         let ty = match (&self.ty, &self.kind) {
             (Some(ty), _) => ty.clone(),
             (None, FieldKind::Field) => {
@@ -7971,10 +7985,47 @@ impl FieldItem {
             }
         };
         Ok(new!(GeneratedFieldModel {
-            attrs: self.attrs.clone(),
+            attrs: self
+                .attrs
+                .iter()
+                .filter(|attr| !attr.path().is_ident("recovery_boundary"))
+                .cloned()
+                .collect(),
             name,
             ty,
         }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok())]
+    fn recovery_boundary(&self) -> Result<bool> {
+        let attrs = self
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("recovery_boundary"))
+            .collect::<Vec<_>>();
+        if attrs.len() > 1 {
+            return Err(syn::Error::new_spanned(
+                attrs[1],
+                "duplicate recovery_boundary annotation",
+            ));
+        }
+        let Some(attr) = attrs.first() else {
+            return Ok(false);
+        };
+        if !matches!(self.kind, FieldKind::Field) {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "recovery_boundary is only valid on parser fields",
+            ));
+        }
+        if !matches!(attr.meta, Meta::Path(_)) {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "recovery_boundary does not take arguments",
+            ));
+        }
+        Ok(true)
     }
 
     #[requires(true)]
@@ -8861,6 +8912,7 @@ struct AnchorRunSpec {
     start_tokens: BTreeSet<AnchorToken>,
     resume_field: usize,
     origin: AnchorRunOrigin,
+    boundary_resync: bool,
     conditions: Vec<AnchorCondition>,
 }
 
@@ -8871,12 +8923,14 @@ impl AnchorRunSpec {
         start_tokens: BTreeSet<AnchorToken>,
         resume_field: usize,
         origin: AnchorRunOrigin,
+        boundary_resync: bool,
         conditions: Vec<AnchorCondition>,
     ) -> Self {
         Self::from_data(data!(AnchorRunSpec {
             start_tokens,
             resume_field,
             origin,
+            boundary_resync,
             conditions,
         }))
     }
@@ -8887,12 +8941,14 @@ impl AnchorRunSpec {
         let start_tokens = expand_anchor_token_slice(&self.start_tokens);
         let resume_field = self.resume_field;
         let origin = self.origin.expand();
+        let boundary_resync = self.boundary_resync;
         let conditions = expand_anchor_condition_slice(&self.conditions);
         quote! {
             SyntaxGrammarAnchorRun {
                 start_tokens: #start_tokens,
                 resume_field: #resume_field,
                 origin: #origin,
+                boundary_resync: #boundary_resync,
                 conditions: #conditions,
             }
         }
@@ -9127,6 +9183,7 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
             let conditions = anchor_conditions_from(&field.conditions);
             if literal_start_tokens(&expr).is_some() {
+                let boundary_resync = field.recovery_boundary()?;
                 let (literal_entries, after_run) =
                     self.literal_run_first_entries(rule, argument_names, field_index)?;
                 for entry in literal_entries {
@@ -9136,6 +9193,7 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                         entry.tokens,
                         field_index,
                         AnchorRunOrigin::LiteralRun,
+                        boundary_resync,
                         entry.conditions,
                     );
                 }
@@ -9143,6 +9201,7 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                 continue;
             }
             let origin = anchor_origin_for_non_literal_expr(&expr);
+            let boundary_resync = field.recovery_boundary()?;
             for entry in self.expr_first_entries(&expr)? {
                 let entry = entry.into_data();
                 push_anchor_run(
@@ -9150,6 +9209,7 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                     entry.tokens,
                     field_index,
                     origin,
+                    boundary_resync,
                     combine_anchor_conditions(&conditions, &entry.conditions),
                 );
             }
@@ -9611,11 +9671,13 @@ fn push_anchor_run(
     tokens: BTreeSet<AnchorToken>,
     resume_field: usize,
     origin: AnchorRunOrigin,
+    boundary_resync: bool,
     conditions: Vec<AnchorCondition>,
 ) {
     let existing_index = runs.iter().position(|existing| {
         existing.resume_field == resume_field
             && existing.origin == origin
+            && existing.boundary_resync == boundary_resync
             && existing.conditions == conditions
     });
     if let Some(existing_index) = existing_index {
@@ -9628,11 +9690,18 @@ fn push_anchor_run(
                 start_tokens,
                 resume_field: existing.resume_field,
                 origin: existing.origin,
+                boundary_resync: existing.boundary_resync,
                 conditions: existing.conditions,
             })),
         );
     } else {
-        runs.push(AnchorRunSpec::new(tokens, resume_field, origin, conditions));
+        runs.push(AnchorRunSpec::new(
+            tokens,
+            resume_field,
+            origin,
+            boundary_resync,
+            conditions,
+        ));
     }
 }
 

@@ -744,8 +744,8 @@ pub struct TersmuInput {
         help = "Output the model-facing `smusni` notation (default) or the canonical JSON interchange graph"
     )]
     pub format: TersmuFormat,
-    #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]
-    pub max_errors: NonZeroUsize,
+    #[arg(long = "max-errors")]
+    pub max_errors: Option<NonZeroUsize>,
     #[arg(
         long = "trace",
         alias = "plivei",
@@ -791,8 +791,8 @@ pub struct GentufaInput {
     pub detailed_errors: bool,
     #[arg(long = "error-context", default_value_t = 1)]
     pub error_context: usize,
-    #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]
-    pub max_errors: NonZeroUsize,
+    #[arg(long = "max-errors")]
+    pub max_errors: Option<NonZeroUsize>,
     #[arg(long = "trace-phase", value_enum)]
     pub trace_phase: Option<CliTracePhase>,
     #[arg(long = "trace-limit")]

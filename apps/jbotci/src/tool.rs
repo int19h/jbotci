@@ -350,7 +350,7 @@ impl From<ToolGentufaRequest> for Command {
             ascii: false,
             detailed_errors: true,
             error_context: 1,
-            max_errors: DEFAULT_MAX_ERRORS,
+            max_errors: None,
             trace_phase: None,
             trace_limit: None,
             trace_list: false,
@@ -1584,7 +1584,7 @@ impl From<ToolTersmuRequest> for Command {
         Self::Tersmu(TersmuInput {
             file: None,
             format: request.format.command_format(),
-            max_errors: DEFAULT_MAX_ERRORS,
+            max_errors: None,
             trace: None,
             dialect: request.dialect,
             show_defs,

@@ -117,6 +117,7 @@ pub mod generated_model {
                 .ignore_then(text_leading_connective),
         );
         /// I-led statement prefixes that occur before the paragraph tree.
+        #[recovery_boundary]
         field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
         #[tree_child(primary)]
         /// The primary paragraph subtree, absent when the text contains only leading material.
@@ -141,12 +142,14 @@ pub mod generated_model {
         /// The initial paragraph before zero or more NIhO-led paragraph continuations.
         field first <- paragraph;
         /// Ordered sequence of zero or more additional niho components.
+        #[recovery_boundary]
         field additional_niho <- [zero_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
     /// Transparent product node for paragraphs; preserves the `paragraphs` component.
     rule "paragraphs" text_niho_paragraphs(statement_or_fragment, free_modifier) -> struct {
         /// Non-empty ordered sequence of paragraphs components.
+        #[recovery_boundary]
         field paragraphs <- [one_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
@@ -181,6 +184,7 @@ pub mod generated_model {
         /// The initial paragraph statement before following I-led or trailing-connective entries.
         field initial <- initial_paragraph_statement(statement_or_fragment);
         /// Ordered sequence of zero or more following components.
+        #[recovery_boundary]
         field following <- [zero_or_more following_paragraph_statement(statement_or_fragment, free_modifier)];
         /// Ordered sequence of zero or more trailing components.
         field trailing <- [zero_or_more trailing_ijek_paragraph_statement()];
@@ -379,6 +383,7 @@ pub mod generated_model {
         /// The shared leading statement child syntax node.
         field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
         /// Non-empty ordered sequence of continuations components.
+        #[recovery_boundary]
         field continuations <- [one_or_more i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens)];
     }
 
@@ -4830,6 +4835,7 @@ pub mod generated_model {
         pub unconsumed_directives: usize,
         pub recovery_directives: Vec<RecoveryDirective>,
         pub effective_fail_token_indices: Vec<usize>,
+        pub completed_recovery_boundary_location: Option<usize>,
         pub continuation_expectations: Vec<crate::SyntaxExpectation>,
     }
 
@@ -5127,6 +5133,7 @@ pub mod generated_model {
             unconsumed_directives: finish.unconsumed_recovery_directives,
             recovery_directives: finish.recovery_directives,
             effective_fail_token_indices: finish.effective_fail_token_indices,
+            completed_recovery_boundary_location: finish.completed_recovery_boundary_location,
             continuation_expectations,
         })
     }

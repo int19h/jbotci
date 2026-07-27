@@ -315,7 +315,7 @@ where
                 .state()
                 .replay_syntax_diagnostic_observations(failure.diagnostic_observations.as_ref());
             input.state().finish_syntax_memo_rule_frame();
-            return Err(failure.error);
+            return Err(failure.into_error());
         }
         if !input
             .state()
@@ -1211,6 +1211,9 @@ where
                     "required abandoned recovery fields carry a recovery item",
                 )));
             }
+            Some((super::RecoveryFieldActionKind::BoundaryResync, _, _)) => {
+                unreachable!("boundary resync actions are produced only after a field failure")
+            }
             Some((super::RecoveryFieldActionKind::Resume, item, Some(resume_token_index))) => {
                 advance_to_location(input, resume_token_index);
                 item
@@ -1220,7 +1223,61 @@ where
             }
             None => None,
         };
-        let mut value = input.parse(&parser)?;
+        let parse_checkpoint = input.save();
+        let parse_start_location = ParserInput::cursor_location(parse_checkpoint.cursor().inner());
+        let mut value = match input.parse(&parser) {
+            Ok(value) => value,
+            Err(error) => {
+                if !input.state().boundary_resync_catches_field_failure(
+                    rule,
+                    instance_byte_start,
+                    field_index,
+                    parse_start_location,
+                ) {
+                    return Err(error);
+                }
+                input.rewind(parse_checkpoint);
+                let action = input
+                    .state()
+                    .boundary_resync_field_action_after_failure(
+                        rule,
+                        instance_byte_start,
+                        field_index,
+                        parse_start_location,
+                    )
+                    .into_parts();
+                match action {
+                    (
+                        super::RecoveryFieldActionKind::BoundaryResync,
+                        Some(item),
+                        Some(resume_token_index),
+                    ) => {
+                        advance_to_location(input, resume_token_index);
+                        return Ok(O::from_recovery_item(item));
+                    }
+                    (super::RecoveryFieldActionKind::Resume, item, Some(resume_token_index)) => {
+                        advance_to_location(input, resume_token_index);
+                        let mut value = input.parse(&parser)?;
+                        if let Some(item) = item {
+                            value = value.prepend_recovery_item(item);
+                        }
+                        value
+                    }
+                    (super::RecoveryFieldActionKind::BoundaryResync, None, _) => {
+                        unreachable!("boundary resync of a failed field carries a skipped item")
+                    }
+                    (super::RecoveryFieldActionKind::Abandon, _, _) => {
+                        unreachable!("failed-field boundary recovery never returns local abandon")
+                    }
+                    (super::RecoveryFieldActionKind::BoundaryResync, _, None) => {
+                        unreachable!("boundary resync actions carry a resume token index")
+                    }
+                    (super::RecoveryFieldActionKind::Resume, _, None) => {
+                        unreachable!("resume recovery actions carry a resume token index")
+                    }
+                }
+            }
+        };
         if let Some(item) = item {
             value = value.prepend_recovery_item(item);
         }
@@ -1246,6 +1303,7 @@ pub(crate) fn recovered_greedy_many_field_parser<'tokens, O, P>(
     rule: &'static str,
     field_index: usize,
     min_count: usize,
+    recovery_boundary: bool,
     parser: P,
 ) -> BoxedParser<'tokens, Vec<O>>
 where
@@ -1283,6 +1341,11 @@ where
                         break;
                     }
                 }
+                Some((super::RecoveryFieldActionKind::BoundaryResync, _, _)) => {
+                    unreachable!(
+                        "boundary resync actions are produced only after a repetition item failure"
+                    )
+                }
                 Some((super::RecoveryFieldActionKind::Resume, item, Some(resume_token_index))) => {
                     advance_to_location(input, resume_token_index);
                     if let Some(item) = item {
@@ -1304,10 +1367,74 @@ where
                         input.rewind(checkpoint);
                         break;
                     }
+                    if recovery_boundary {
+                        input
+                            .state()
+                            .record_completed_recovery_boundary(start_location);
+                    }
                     values.push(output);
                 }
                 Err(error) => {
                     input.rewind(checkpoint);
+                    if input.state().boundary_resync_catches_field_failure(
+                        rule,
+                        instance_byte_start,
+                        field_index,
+                        start_location,
+                    ) {
+                        let action = input
+                            .state()
+                            .boundary_resync_field_action_after_failure(
+                                rule,
+                                instance_byte_start,
+                                field_index,
+                                start_location,
+                            )
+                            .into_parts();
+                        match action {
+                            (
+                                super::RecoveryFieldActionKind::BoundaryResync,
+                                Some(item),
+                                Some(resume_token_index),
+                            ) => {
+                                advance_to_location(input, resume_token_index);
+                                values.push(O::from_recovery_item(item));
+                                break;
+                            }
+                            (
+                                super::RecoveryFieldActionKind::Resume,
+                                Some(item),
+                                Some(resume_token_index),
+                            ) => {
+                                advance_to_location(input, resume_token_index);
+                                values.push(O::from_recovery_item(item));
+                                continue;
+                            }
+                            (
+                                super::RecoveryFieldActionKind::BoundaryResync
+                                | super::RecoveryFieldActionKind::Resume,
+                                None,
+                                _,
+                            ) => {
+                                unreachable!(
+                                    "boundary resync of a failed repetition item carries a skipped item"
+                                )
+                            }
+                            (super::RecoveryFieldActionKind::Abandon, _, _) => {
+                                unreachable!(
+                                    "failed repetition boundary recovery never returns local abandon"
+                                )
+                            }
+                            (super::RecoveryFieldActionKind::BoundaryResync, _, None) => {
+                                unreachable!(
+                                    "boundary resync actions carry a resume token index"
+                                )
+                            }
+                            (super::RecoveryFieldActionKind::Resume, _, None) => {
+                                unreachable!("resume recovery actions carry a resume token index")
+                            }
+                        }
+                    }
                     let action = input.state().recovery_field_action_at_natural_stop(
                         rule,
                         instance_byte_start,
@@ -1334,6 +1461,11 @@ where
                                 values.push(O::from_recovery_item(item));
                             }
                             continue;
+                        }
+                        Some((super::RecoveryFieldActionKind::BoundaryResync, _, _)) => {
+                            unreachable!(
+                                "boundary resync actions are produced only after a repetition item failure"
+                            )
                         }
                         Some((super::RecoveryFieldActionKind::Resume, _, None)) => {
                             unreachable!("resume recovery actions carry a resume token index")

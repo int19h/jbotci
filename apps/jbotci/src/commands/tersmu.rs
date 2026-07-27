@@ -43,10 +43,12 @@ fn render_tersmu(
     let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
     let text = input.read_text_with_stdin(stdin_text)?;
     let dialect = input.dialect_definition()?;
-    let morphology_options = MorphologyOptions::default()
+    let mut morphology_options = MorphologyOptions::default()
         .with_dialect_definition(&dialect)
-        .with_max_recovery_errors(input.max_errors.get())
         .with_trace_options(morphology_trace_options);
+    if let Some(max_errors) = input.max_errors {
+        morphology_options = morphology_options.with_max_recovery_errors(max_errors.get());
+    }
     let morphology_attempt =
         segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
             &text,
@@ -86,10 +88,12 @@ fn render_tersmu(
         }));
     }
     let words = morphology.words;
-    let parse_options = ParseOptions::default()
+    let mut parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
-        .with_trace_options(syntax_trace_options)
-        .with_max_recovery_errors(input.max_errors.get());
+        .with_trace_options(syntax_trace_options);
+    if let Some(max_errors) = input.max_errors {
+        parse_options = parse_options.with_max_recovery_errors(max_errors.get());
+    }
     let parsed = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
         &words,
         &text,

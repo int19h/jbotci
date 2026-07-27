@@ -444,13 +444,67 @@ fn is_indicator_word(word: &Word) -> bool {
     })
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyntaxRecoveryErrorPolicy {
+    per_statement: NonZeroUsize,
+    global_hard_cap: NonZeroUsize,
+}
+
+impl SyntaxRecoveryErrorPolicy {
+    pub const DEFAULT_PER_STATEMENT: NonZeroUsize =
+        NonZeroUsize::new(4).expect("the default per-statement cap is non-zero");
+    pub const DEFAULT_GLOBAL_HARD_CAP: NonZeroUsize =
+        NonZeroUsize::new(128).expect("the default global hard cap is non-zero");
+
+    #[requires(true)]
+    #[ensures(ret == self.per_statement)]
+    pub fn per_statement(&self) -> NonZeroUsize {
+        self.per_statement
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.global_hard_cap)]
+    pub fn global_hard_cap(&self) -> NonZeroUsize {
+        self.global_hard_cap
+    }
+
+    #[requires(limit > 0)]
+    #[ensures(ret.per_statement().get() == limit)]
+    pub fn with_per_statement_limit(mut self, limit: usize) -> Self {
+        self.per_statement =
+            NonZeroUsize::new(limit).expect("the per-statement cap precondition excludes zero");
+        self
+    }
+
+    #[requires(limit > 0)]
+    #[ensures(ret.global_hard_cap().get() == limit)]
+    pub fn with_global_hard_cap(mut self, limit: usize) -> Self {
+        self.global_hard_cap =
+            NonZeroUsize::new(limit).expect("the global hard cap precondition excludes zero");
+        self
+    }
+}
+
+impl Default for SyntaxRecoveryErrorPolicy {
+    #[requires(true)]
+    #[ensures(ret.per_statement() == SyntaxRecoveryErrorPolicy::DEFAULT_PER_STATEMENT)]
+    #[ensures(ret.global_hard_cap() == SyntaxRecoveryErrorPolicy::DEFAULT_GLOBAL_HARD_CAP)]
+    fn default() -> Self {
+        Self {
+            per_statement: Self::DEFAULT_PER_STATEMENT,
+            global_hard_cap: Self::DEFAULT_GLOBAL_HARD_CAP,
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParseOptions {
     pub trace: TraceOptions,
     pub dialect: DialectDefinition,
     pub error_context_depth: usize,
-    pub max_recovery_errors: NonZeroUsize,
+    pub recovery_error_policy: SyntaxRecoveryErrorPolicy,
 }
 
 impl Default for ParseOptions {
@@ -461,8 +515,7 @@ impl Default for ParseOptions {
             trace: TraceOptions::default(),
             dialect: DialectDefinition::default(),
             error_context_depth: 1,
-            max_recovery_errors: NonZeroUsize::new(20)
-                .expect("the default recovery error cap is non-zero"),
+            recovery_error_policy: SyntaxRecoveryErrorPolicy::default(),
         }
     }
 }
@@ -586,10 +639,20 @@ impl ParseOptions {
     }
 
     #[requires(max_recovery_errors > 0)]
-    #[ensures(ret.max_recovery_errors.get() == max_recovery_errors)]
+    #[ensures(ret.recovery_error_policy.global_hard_cap().get() == max_recovery_errors)]
     pub fn with_max_recovery_errors(mut self, max_recovery_errors: usize) -> Self {
-        self.max_recovery_errors = NonZeroUsize::new(max_recovery_errors)
-            .expect("the recovery error cap precondition excludes zero");
+        self.recovery_error_policy = self
+            .recovery_error_policy
+            .with_global_hard_cap(max_recovery_errors);
+        self
+    }
+
+    #[requires(max_recovery_errors > 0)]
+    #[ensures(ret.recovery_error_policy.per_statement().get() == max_recovery_errors)]
+    pub fn with_max_recovery_errors_per_statement(mut self, max_recovery_errors: usize) -> Self {
+        self.recovery_error_policy = self
+            .recovery_error_policy
+            .with_per_statement_limit(max_recovery_errors);
         self
     }
 }
@@ -4296,10 +4359,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_syntax_required_child_unwind_remains_issue_517_known_limit() {
-        // The #526 driver fixes deliberately do not implement the typed
-        // recovery unwind needed to escape an already-entered required child.
-        // Keep this collapsed tree documented for #517's separate design round.
+    fn recovered_syntax_required_child_unwind_preserves_following_statement() {
         let source = "mi zo'u do .i mi klama";
         let words =
             jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
@@ -4319,15 +4379,81 @@ mod tests {
             jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
             1,
         );
-        assert!(
-            visitor.valid_tokens.is_empty(),
-            "the known-limit tree is still expected to collapse, got {:?}",
+        assert_eq!(
             visitor.valid_tokens,
+            ["mi", "zo'u", "i", "mi", "kláma"],
+            "the broken first statement retains its valid prenex and the second statement is intact",
         );
+        assert_eq!(visitor.recovery_spans, [(8, 10)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn repeated_failures_before_one_boundary_form_one_resync_group() {
+        let source = "mi zo'u do ku ko'a ku .i mi klama";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        );
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+
+        assert_eq!(recovered.errors.len(), 1);
+        assert_eq!(
+            jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
+            1,
+        );
+        assert_eq!(visitor.valid_tokens, ["mi", "zo'u", "i", "mi", "kláma"],);
         assert_eq!(
             visitor.recovery_spans,
-            [(0, 2), (3, 7), (8, 10), (12, 13), (14, 16), (17, 22)],
+            [(8, 10), (11, 13), (14, 18), (19, 21)],
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_recovery_error_policy_defaults_to_two_tier_limits() {
+        let policy = ParseOptions::default().recovery_error_policy;
+        assert_eq!(policy.per_statement().get(), 4);
+        assert_eq!(policy.global_hard_cap().get(), 128);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completed_boundary_resync_resets_per_statement_budget() {
+        let source = "mi zo'u do .i mi zo'u do .i mi klama";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default().with_max_recovery_errors_per_statement(1),
+        );
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+
+        assert_eq!(recovered.errors.len(), 2);
+        assert_eq!(
+            jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
+            2,
+        );
+        assert_eq!(
+            visitor.valid_tokens,
+            ["mi", "zo'u", "i", "mi", "zo'u", "i", "mi", "kláma"],
+        );
+        assert_eq!(visitor.recovery_spans, [(8, 10), (22, 24)]);
     }
 
     #[test]

@@ -444,6 +444,7 @@ mod anchor_metadata {
         /// Syntax model for repeated item parsed by the `repeated_item` grammar rule.
         rule "repeated item" repeated_item(item) -> struct {
             /// The source-ordered `items` component retained by the `repeated_item` syntax node.
+            #[recovery_boundary]
             field items <- [zero_or_more item];
         }
 
@@ -500,6 +501,15 @@ mod anchor_metadata {
         assert_eq!(
             SYNTAX_GRAMMAR_RECOVERY_ANCHORS.len(),
             SYNTAX_GRAMMAR_RULES.len()
+        );
+        let repeated_rule =
+            syntax_grammar_rule_by_name("repeated_item").expect("repeated rule exists");
+        assert!(repeated_rule.fields[0].recovery_boundary);
+        assert!(
+            anchors_for("repeated_item").fields[0]
+                .anchors
+                .iter()
+                .all(|anchor| anchor.boundary_resync),
         );
 
         let literal = anchors_for("literal_item");
