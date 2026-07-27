@@ -621,6 +621,15 @@ def expected_continuations_for_text(
     )
 
 
+def source_spans(
+    tree: strict.TextSyntax | recovered.TextSyntax,
+    /,
+) -> tuple[source.SourceSpan, ...]:
+    """Return every source span in the core Rust tree visit order."""
+
+    return _rust._syntax_source_spans(tree)
+
+
 def syntax_tree_eq_ignoring_spans(
     left: strict.TextSyntax,
     right: strict.TextSyntax,
@@ -724,6 +733,7 @@ __all__: tuple[str, ...] = (
     "parse_text_attempt",
     "partition_syntax_text_units",
     "recovered",
+    "source_spans",
     "syntax_text_structure",
     "syntax_tokens_with_options",
     "syntax_tree_eq_ignoring_spans",

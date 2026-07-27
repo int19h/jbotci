@@ -70,6 +70,23 @@ def _projection_count(node: object) -> int:
     return node._debug_projection_count()
 
 
+def _token_source_spans(value: object) -> tuple[source.SourceSpan, ...]:
+    """Collect spans by recursively following typed fields until syntax tokens."""
+    if isinstance(value, syntax.Token):
+        return value.source_spans
+    if isinstance(value, tuple):
+        return tuple(
+            span
+            for element in value
+            for span in _token_source_spans(element)
+        )
+    return tuple(
+        span
+        for field_name in getattr(type(value), "__match_args__", ())
+        for span in _token_source_spans(getattr(value, field_name))
+    )
+
+
 def _plain_word(text: str) -> morphology.Word:
     word_like = morphology.segment(text)
     assert len(word_like) == 1
@@ -344,6 +361,31 @@ def test_token_owner_bridge_spans_quotations_and_equal_span_siblings() -> None:
         for index, left in enumerate(expanded_tokens)
         for right in expanded_tokens[index + 1 :]
     )
+
+
+def test_root_source_spans_use_core_visit_order_for_strict_and_recovered_trees() -> None:
+    text = "mi cusku zoi gy café gy .i do tavla mi"
+    source_id = source.SourceId("source-span-projection")
+    words = morphology.segment(text, source_id=source_id)
+    strict_root = syntax.parse_syntax_tree(
+        words,
+        source_text=text,
+        source_id=source_id,
+    ).parse_tree
+    recovered_parse = syntax.parse_syntax_tree_recovered(
+        words,
+        source_text=text,
+    )
+    assert recovered_parse.errors == ()
+    recovered_root = recovered_parse.parse_tree
+
+    strict_spans = syntax.source_spans(strict_root)
+    recovered_spans = syntax.source_spans(recovered_root)
+    assert strict_spans == _token_source_spans(strict_root)
+    assert recovered_spans == _token_source_spans(recovered_root)
+    assert recovered_spans == strict_spans
+    assert all(span.source_id == source_id for span in strict_spans)
+    assert any(span.byte_range != span.char_range for span in strict_spans)
 
 
 def test_all_with_indicators_variants_validate_and_preserve_typed_children() -> None:

@@ -112,6 +112,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_syntax_SkippedTokens",
     "_syntax_MissingRequiredField",
     "_syntax_construct",
+    "_syntax_source_spans",
     "_syntax_tree_eq_ignoring_spans",
 ];
 
@@ -1093,6 +1094,39 @@ pub(crate) fn extract_syntax_value(value: &Bound<'_, PyAny>) -> PyResult<SyntaxH
     Ok(native.handle.clone())
 }
 
+/// Return the exact in-order source-span projection of a complete syntax root.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction(name = "_syntax_source_spans")]
+fn syntax_source_spans(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Py<PyTuple>> {
+    let handle = extract_syntax_value(value)?;
+    if !handle.path.is_empty() {
+        return Err(PyTypeError::new_err(
+            "source_spans expects a complete strict or recovered TextSyntax root",
+        ));
+    }
+
+    let mut spans = Vec::new();
+    match &handle.owner.root {
+        SyntaxRoot::Strict {
+            value: StrictSyntaxRoot::TextSyntax(value),
+        } => value.visit_source_spans(&mut |span| {
+            spans.push(PySourceSpan::from_rust(span.clone()));
+        }),
+        SyntaxRoot::Recovered {
+            value: RecoveredSyntaxRoot::TextSyntax(value),
+        } => value.visit_source_spans(&mut |span| {
+            spans.push(PySourceSpan::from_rust(span.clone()));
+        }),
+        _ => {
+            return Err(PyTypeError::new_err(
+                "source_spans expects a complete strict or recovered TextSyntax root",
+            ));
+        }
+    }
+    sequence_to_tuple(py, spans).map(Bound::unbind)
+}
+
 /// Compare two strict generated text roots while ignoring all source spans.
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
@@ -1135,6 +1169,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PySkippedTokens>(module, "_syntax_SkippedTokens")?;
     register_type::<PyMissingRequiredField>(module, "_syntax_MissingRequiredField")?;
     module.add_function(wrap_pyfunction!(syntax_construct, module)?)?;
+    module.add_function(wrap_pyfunction!(syntax_source_spans, module)?)?;
     module.add_function(wrap_pyfunction!(syntax_tree_eq_ignoring_spans, module)?)?;
     register_private_object(
         module,
