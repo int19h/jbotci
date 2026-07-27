@@ -471,6 +471,38 @@ impl ToolDispatcher for FirstCallFails {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn base_url_override_routes_completion_to_configured_server() {
+    let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
+    let retry_policy = RetryPolicy::new(0, Duration::from_millis(1)).expect("valid retry policy");
+    let config = OpenRouterClientConfig::new(
+        "http://127.0.0.1:1".to_owned(),
+        None,
+        retry_policy,
+        0,
+        Duration::from_secs(2),
+    )
+    .expect("valid initial client config")
+    .with_base_url(&server.base_url)
+    .expect("valid base URL override");
+    let client = OpenRouterClient::new(config);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+
+    conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("completion reaches overridden base URL");
+
+    assert_eq!(server.finish().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn happy_tool_call_accounts_usage_and_threads_exact_result() {
     let server = MockServer::start(vec![tool_call_response("alpha", 0.125)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);

@@ -164,19 +164,24 @@ pub struct CapsConfig {
 }
 
 /// HTTP settings for OpenRouter requests made during one run.
+#[invariant(base_url.as_ref().is_none_or(|value| !value.trim().is_empty()), "client base URL cannot be empty")]
 #[invariant(*http_timeout_seconds > 0, "HTTP timeout must be positive")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ClientConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
     #[serde(default = "default_http_timeout_seconds")]
     pub http_timeout_seconds: u64,
 }
 
 impl Default for ClientConfig {
     #[requires(true)]
+    #[ensures(ret.base_url.is_none())]
     #[ensures(ret.http_timeout_seconds == DEFAULT_HTTP_TIMEOUT_SECONDS)]
     fn default() -> Self {
         Self::from_data(bityzba::data!(ClientConfig {
+            base_url: None,
             http_timeout_seconds: DEFAULT_HTTP_TIMEOUT_SECONDS,
         }))
     }
@@ -309,6 +314,7 @@ system-prompt = "Speak only Lojban."
         assert_eq!(config.caps.max_reference_calls_per_phase, 30);
         assert!(config.caps.reference_dedupe);
         assert_eq!(config.caps.reference_nudge_after, 10);
+        assert_eq!(config.client.base_url, None);
         assert_eq!(config.client.http_timeout(), Duration::from_secs(60));
         assert!(
             config
@@ -468,17 +474,35 @@ system-prompt = "Speak only Lojban."
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn client_http_timeout_is_configurable_and_positive() {
+    fn client_settings_are_configurable_and_validated() {
         let configured = VALID_CONFIG.replace(
             "scenario = \"schedule-negotiation\"",
-            "scenario = \"schedule-negotiation\"\n\n[client]\nhttp-timeout-seconds = 180",
+            "scenario = \"schedule-negotiation\"\n\n[client]\nbase-url = \"http://127.0.0.1:1234/v1\"\nhttp-timeout-seconds = 180",
         );
-        let config = RunConfig::from_toml(&configured).expect("valid client timeout");
+        let config = RunConfig::from_toml(&configured).expect("valid client settings");
+        assert_eq!(
+            config.client.base_url.as_deref(),
+            Some("http://127.0.0.1:1234/v1")
+        );
         assert_eq!(config.client.http_timeout(), Duration::from_secs(180));
 
         let invalid = configured.replace("http-timeout-seconds = 180", "http-timeout-seconds = 0");
         let error = RunConfig::from_toml(&invalid).expect_err("zero timeout must be rejected");
         assert!(error.to_string().contains("HTTP timeout must be positive"));
+
+        for empty in ["", "   "] {
+            let invalid = configured.replace(
+                "base-url = \"http://127.0.0.1:1234/v1\"",
+                &format!("base-url = \"{empty}\""),
+            );
+            let error =
+                RunConfig::from_toml(&invalid).expect_err("empty base URL must be rejected");
+            assert!(
+                error
+                    .to_string()
+                    .contains("client base URL cannot be empty")
+            );
+        }
     }
 
     #[test]

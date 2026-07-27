@@ -255,12 +255,12 @@ struct LoadedRun {
 ///
 /// Loading and validation happen before the factory is called. Injection keeps
 /// the conductor offline-testable; production passes the environment-backed
-/// OpenRouter constructor and receives the validated run timeout.
+/// OpenRouter constructor and receives the validated run HTTP settings.
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run<F>(config_path: &Path, client_factory: F) -> Result<RunSummary, RunError>
 where
-    F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
+    F: FnOnce(Duration, Option<&str>) -> Result<OpenRouterClient, OpenRouterError>,
 {
     run_with_preflight(
         config_path,
@@ -279,7 +279,7 @@ pub fn run_with_warning_handler<F, W>(
     warning_handler: W,
 ) -> Result<RunSummary, RunError>
 where
-    F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
+    F: FnOnce(Duration, Option<&str>) -> Result<OpenRouterClient, OpenRouterError>,
     W: FnMut(&RunWarning),
 {
     run_with_preflight(
@@ -300,7 +300,7 @@ pub fn run_with_preflight<F, P, W>(
     mut warning_handler: W,
 ) -> Result<RunSummary, RunError>
 where
-    F: FnOnce(Duration) -> Result<OpenRouterClient, OpenRouterError>,
+    F: FnOnce(Duration, Option<&str>) -> Result<OpenRouterClient, OpenRouterError>,
     P: FnOnce() -> Result<(), EmbeddingSearchPreflightError>,
     W: FnMut(&RunWarning),
 {
@@ -320,7 +320,11 @@ where
             }));
         }
     };
-    let client = client_factory(loaded.config.client.http_timeout()).map_err(|error| {
+    let client = client_factory(
+        loaded.config.client.http_timeout(),
+        loaded.config.client.base_url.as_deref(),
+    )
+    .map_err(|error| {
         new!(RunError::Client {
             message: error.to_string(),
         })

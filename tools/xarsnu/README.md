@@ -24,6 +24,10 @@ tersmu-format = "smusni"
 listener-mode = "informed"
 allow-degraded-search = false
 
+[client]
+# base-url = "http://127.0.0.1:1234/v1"
+http-timeout-seconds = 60
+
 [caps]
 max-parse-attempts-per-turn = 3
 max-intent-revisions-per-turn = 2
@@ -70,6 +74,11 @@ mix per participant so routing drift is visible.
 The `scenario` value is a path, including its extension. An absolute path is
 used directly. A relative path is first resolved against the run config's
 directory, then against this crate's `tools/xarsnu/scenarios/` directory.
+
+The `[client]` table is optional. `http-timeout-seconds` defaults to 60, and
+`base-url` defaults to OpenRouter's API. Set `base-url` to a local
+OpenAI-compatible endpoint or routing proxy; xarsnu still reads and sends
+`OPENROUTER_API_KEY` unchanged.
 
 Scenario instances may set `answers-close-dialog = true|false`. It defaults to
 `true` for referential games and `false` for negotiation and deduction. When
