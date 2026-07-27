@@ -6539,7 +6539,7 @@ class LaheTermWrapperSyntax:
     ) -> LaheTermWrapperSyntax: ...
     @property
     def lahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Lahe`.'
+        'A word from selmaho `Lahe`.\n\nWrapping a bare term (rather than a sumti) in `LAhE` is a non-CLL extension:\nstandard grammar only allows `LAhE` over a sumti, so the term-wrapper form warns.'
         ...
     @property
     def inner_term(self) -> TermSyntax:
@@ -6567,7 +6567,7 @@ class ScalarNegatedTermWrapperWithBoSyntax:
     ) -> ScalarNegatedTermWrapperWithBoSyntax: ...
     @property
     def nahe(self) -> Token:
-        'A word from selmaho `Nahe`.'
+        'A word from selmaho `Nahe`.\n\n`NAhE BO` wrapping a bare term (rather than a sumti) is a non-CLL extension:\neven with `bo`, the standard grammar only allows `NAhE BO` over a sumti, so the\nterm-wrapper form warns. The warning anchors on `na\'e` to match the v0 behavior.'
         ...
     @property
     def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
@@ -6598,7 +6598,7 @@ class ScalarNegatedTermWrapperSyntax:
     ) -> ScalarNegatedTermWrapperSyntax: ...
     @property
     def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Nahe`.'
+        'A word from selmaho `Nahe`.\n\nBare `na\'e` wrapping a term (rather than a sumti) without `bo` is a non-CLL\nextension. Following v0, this carries only the term-wrapper warning\n(`ExperimentalLaheNaheTermWrapper`), not the sumti-oriented without-`bo`\nwarning: the distinguishing property here is the term payload, not the missing `bo`.'
         ...
     @property
     def inner_term(self) -> TermSyntax:
@@ -6657,7 +6657,7 @@ class ScalarNegatedSumtiSyntax:
     ) -> ScalarNegatedSumtiSyntax: ...
     @property
     def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Nahe`.'
+        'A word from selmaho `Nahe`.\n\nBare `na\'e` before a sumti without `bo` is a non-CLL extension (standard\n`sumti-6` permits only `NAhE BO` before a sumti), so it warns; the `bo`-ful\nsibling `scalar_negated_sumti_with_bo` is standard grammar and does not warn.'
         ...
     @property
     def inner_sumti(self) -> SumtiSyntax:
