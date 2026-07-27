@@ -45,6 +45,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
 
       - name: Install Python
@@ -167,6 +168,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
 
       - name: Install build-floor Python
@@ -328,6 +330,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install test Python
         uses: actions/setup-python@v6
@@ -359,6 +363,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
 
       - name: Install Python
@@ -546,6 +551,8 @@ jobs:
 
       - name: Check out source
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Download artifact receipts
         uses: actions/download-artifact@v7
