@@ -1416,3 +1416,13 @@ class _syntax_parser_ExperimentalConstruct(StrEnum):
     EXPERIMENTAL_ZANTUFA_MUHOI_SELBRI_UNIT = 'experimental-zantufa-muhoi-selbri-unit'
     EXPERIMENTAL_ZANTUFA_LUHEI_SELBRI_UNIT = 'experimental-zantufa-luhei-selbri-unit'
     CLL_PROHIBITED_FREE_MODIFIER_PLACEMENT = 'cll-prohibited-free-modifier-placement'
+
+@final
+class _jvozba_JvozbaMode(StrEnum):
+    LUJVO = 'lujvo'
+    CMEVLA = 'cmevla'
+
+@final
+class _jvozba_JvozbaSegmentKind(StrEnum):
+    RAFSI = 'rafsi'
+    HYPHEN = 'hyphen'

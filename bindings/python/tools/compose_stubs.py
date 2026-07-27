@@ -17,6 +17,7 @@ FRAGMENTS = (
     PACKAGE_ROOT / "stubs" / "_native" / "diagnostics.pyi",
     PACKAGE_ROOT / "stubs" / "_native" / "dialect.pyi",
     PACKAGE_ROOT / "stubs" / "_native" / "morphology.pyi",
+    PACKAGE_ROOT / "stubs" / "_native" / "jvozba.pyi",
     PACKAGE_ROOT / "stubs" / "_native" / "syntax.pyi",
     PACKAGE_ROOT / "stubs" / "_native" / "parser.pyi",
 )

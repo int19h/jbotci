@@ -1156,7 +1156,7 @@ impl PyDictionaryUser {
     skip_from_py_object
 )]
 #[derive(Debug, Clone)]
-struct PyDictionary {
+pub(crate) struct PyDictionary {
     owner: Arc<DictionaryOwner>,
 }
 
@@ -1167,6 +1167,13 @@ impl PyDictionary {
         Self {
             owner: Arc::new(DictionaryOwner::english()),
         }
+    }
+
+    /// Borrow the validated embedded dictionary without exposing binding ownership.
+    #[requires(true)]
+    #[ensures(std::ptr::eq(ret, self.owner.dictionary()))]
+    pub(crate) fn dictionary(&self) -> &'static Dictionary<'static> {
+        self.owner.dictionary()
     }
 }
 
