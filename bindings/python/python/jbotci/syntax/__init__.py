@@ -75,10 +75,12 @@ class WithFreeModifiers(_ImmutableValue, Generic[_T, _F]):
 
     @property
     def value(self) -> _T:
+        """Return the wrapped syntax value."""
         return self._value
 
     @property
     def free_modifiers(self) -> tuple[_F, ...]:
+        """Return following free modifiers in source order."""
         return self._free_modifiers
 
     def __repr__(self) -> str:
@@ -114,10 +116,12 @@ class Chain(_ImmutableValue, Generic[_T, _L]):
 
     @property
     def first(self) -> _T:
+        """Return the first chain element."""
         return self._first
 
     @property
     def links(self) -> tuple[_L, ...]:
+        """Return following chain links in source order."""
         return self._links
 
     def __repr__(self) -> str:
@@ -148,6 +152,7 @@ class RecoveredValid(_ImmutableValue, Generic[_T]):
 
     @property
     def value(self) -> _T:
+        """Return the valid recovered-field value."""
         return self._value
 
     def __repr__(self) -> str:
@@ -176,6 +181,7 @@ class RecoveredError(_ImmutableValue):
 
     @property
     def error(self) -> SyntaxRecoveryItem:
+        """Return the recovery item replacing the absent value."""
         return self._error
 
     def __repr__(self) -> str:
@@ -212,10 +218,12 @@ class RecoveredPrefix(_ImmutableValue, Generic[_T]):
 
     @property
     def errors(self) -> tuple[SyntaxRecoveryItem, ...]:
+        """Return recovery items preceding the retained value."""
         return self._errors
 
     @property
     def value(self) -> _T:
+        """Return the valid value following the recovery prefix."""
         return self._value
 
     def __repr__(self) -> str:
@@ -372,26 +380,32 @@ class SyntaxError(_StructuredError[SyntaxErrorValue]):
 
     @property
     def original_source(self) -> str | None:
+        """Return the source text supplied when constructing the exception."""
         return self._original_source
 
     @property
     def source_id(self) -> source.SourceId | None:
+        """Return the optional source identifier."""
         return self._source_id
 
     @property
     def code(self) -> str:
+        """Return the stable diagnostic code."""
         return self.value.code
 
     @property
     def diagnostic(self) -> diagnostics.Diagnostic | None:
+        """Return the rendered diagnostic when source text was supplied."""
         return self._diagnostic
 
     @property
     def spans(self) -> tuple[source.SourceSpan, ...]:
+        """Return every diagnostic source span."""
         return self._spans
 
     @property
     def trace(self) -> diagnostics.TraceReport | None:
+        """Return the optional parser trace."""
         return self._trace
 
     def __init_subclass__(cls) -> None:

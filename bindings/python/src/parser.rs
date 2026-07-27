@@ -288,6 +288,7 @@ define_syntax_string_enum_binding!(
     }
 );
 
+/// Immutable strict/recovered syntax parser configuration.
 #[invariant(true, "the Rust options value enforces its non-zero recovery limit")]
 #[pyclass(
     name = "ParseOptions",
@@ -455,6 +456,7 @@ impl PyParseOptions {
     }
 }
 
+/// Non-empty token range treated as one syntax text unit.
 #[invariant(
     true,
     "the retained Rust text unit enforces its ordered non-empty range"
@@ -480,6 +482,7 @@ impl PySyntaxTextUnit {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
+    /// Construct a checked half-open token range.
     fn new(token_start: usize, token_end: usize) -> PyResult<Self> {
         if token_start >= token_end {
             return Err(InvalidInputError::new_err(
@@ -497,6 +500,7 @@ impl PySyntaxTextUnit {
     #[requires(true)]
     #[ensures(ret == self.value.token_start)]
     #[getter]
+    /// Return the inclusive token start index.
     fn token_start(&self) -> usize {
         self.value.token_start
     }
@@ -504,6 +508,7 @@ impl PySyntaxTextUnit {
     #[requires(true)]
     #[ensures(ret == self.value.token_end)]
     #[getter]
+    /// Return the exclusive token end index.
     fn token_end(&self) -> usize {
         self.value.token_end
     }
@@ -527,6 +532,7 @@ fn enum_to_python<E: PythonStringEnum>(py: Python<'_>, value: E) -> PyResult<Py<
     string_enum_member(&native_module(py)?, value).map(Bound::unbind)
 }
 
+/// Boundary event emitted while partitioning syntax text.
 #[invariant(true, "private construction fixes the retained Rust event variant")]
 #[pyclass(
     name = "SyntaxTextStructureEventBoundary",
@@ -561,6 +567,7 @@ impl PySyntaxTextStructureEventBoundary {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the boundary kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(SyntaxTextStructureEvent::Boundary { kind, .. }) = self.value.as_data() else {
             unreachable!("private class fixes the event variant")
@@ -571,6 +578,7 @@ impl PySyntaxTextStructureEventBoundary {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the container nesting depth.
     fn depth(&self) -> usize {
         let data!(SyntaxTextStructureEvent::Boundary { depth, .. }) = self.value.as_data() else {
             unreachable!("private class fixes the event variant")
@@ -579,6 +587,7 @@ impl PySyntaxTextStructureEventBoundary {
     }
 }
 
+/// Container-open event emitted while partitioning syntax text.
 #[invariant(true, "private construction fixes the retained Rust event variant")]
 #[pyclass(
     name = "SyntaxTextStructureEventContainerOpen",
@@ -621,6 +630,7 @@ impl PySyntaxTextStructureEventContainerOpen {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the opening cmavo.
     fn opener(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(SyntaxTextStructureEvent::ContainerOpen { opener, .. }) = self.value.as_data()
         else {
@@ -632,6 +642,7 @@ impl PySyntaxTextStructureEventContainerOpen {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the new container nesting depth.
     fn depth(&self) -> usize {
         let data!(SyntaxTextStructureEvent::ContainerOpen { depth, .. }) = self.value.as_data()
         else {
@@ -641,6 +652,7 @@ impl PySyntaxTextStructureEventContainerOpen {
     }
 }
 
+/// Container-close event emitted while partitioning syntax text.
 #[invariant(true, "private construction fixes the retained Rust event variant")]
 #[pyclass(
     name = "SyntaxTextStructureEventContainerClose",
@@ -693,6 +705,7 @@ impl PySyntaxTextStructureEventContainerClose {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the closing cmavo.
     fn closer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(SyntaxTextStructureEvent::ContainerClose { closer, .. }) = self.value.as_data()
         else {
@@ -704,6 +717,7 @@ impl PySyntaxTextStructureEventContainerClose {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the resulting container nesting depth.
     fn depth(&self) -> usize {
         let data!(SyntaxTextStructureEvent::ContainerClose { depth, .. }) = self.value.as_data()
         else {
@@ -715,6 +729,7 @@ impl PySyntaxTextStructureEventContainerClose {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return whether the closer matched an open container.
     fn matched(&self) -> bool {
         let data!(SyntaxTextStructureEvent::ContainerClose { matched, .. }) = self.value.as_data()
         else {
@@ -743,6 +758,7 @@ fn structure_event_to_python(
     }
 }
 
+/// Named parser construct and the source range active at failure.
 #[invariant(true, "the retained Rust context enforces its name and byte range")]
 #[pyclass(
     name = "SyntaxConstructContext",
@@ -784,6 +800,7 @@ impl PySyntaxConstructContext {
     #[requires(true)]
     #[ensures(ret == self.value.construct.as_str())]
     #[getter]
+    /// Return the grammar construct name.
     fn construct(&self) -> &str {
         &self.value.construct
     }
@@ -791,6 +808,7 @@ impl PySyntaxConstructContext {
     #[requires(true)]
     #[ensures(ret == self.value.byte_start)]
     #[getter]
+    /// Return the inclusive UTF-8 byte start.
     fn byte_start(&self) -> usize {
         self.value.byte_start
     }
@@ -798,11 +816,13 @@ impl PySyntaxConstructContext {
     #[requires(true)]
     #[ensures(ret == self.value.byte_end)]
     #[getter]
+    /// Return the exclusive UTF-8 byte end.
     fn byte_end(&self) -> usize {
         self.value.byte_end
     }
 }
 
+/// Expected concrete cmavo alternative.
 #[invariant(
     true,
     "private construction fixes the retained Rust expected-token variant"
@@ -838,6 +858,7 @@ impl PySyntaxExpectedTokenCmavo {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the expected cmavo.
     fn cmavo(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(SyntaxExpectedToken::Cmavo(cmavo)) = self.value.as_data() else {
             unreachable!("private class fixes the expected-token variant")
@@ -847,11 +868,13 @@ impl PySyntaxExpectedTokenCmavo {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
+    /// Return a compact human-readable expectation.
     fn summary_text(&self) -> String {
         self.value.summary_text()
     }
 }
 
+/// Expected selma'o alternative.
 #[invariant(
     true,
     "private construction fixes the retained Rust expected-token variant"
@@ -889,6 +912,7 @@ impl PySyntaxExpectedTokenSelmaho {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the expected selma'o.
     fn selmaho(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(SyntaxExpectedToken::Selmaho(selmaho)) = self.value.as_data() else {
             unreachable!("private class fixes the expected-token variant")
@@ -898,11 +922,13 @@ impl PySyntaxExpectedTokenSelmaho {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
+    /// Return a compact human-readable expectation.
     fn summary_text(&self) -> String {
         self.value.summary_text()
     }
 }
 
+/// Expected morphology word-category alternative.
 #[invariant(
     true,
     "private construction fixes the retained Rust expected-token variant"
@@ -940,6 +966,7 @@ impl PySyntaxExpectedTokenWordCategory {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the expected word category.
     fn category(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data!(SyntaxExpectedToken::WordCategory(category)) = self.value.as_data() else {
             unreachable!("private class fixes the expected-token variant")
@@ -949,11 +976,13 @@ impl PySyntaxExpectedTokenWordCategory {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
+    /// Return a compact human-readable expectation.
     fn summary_text(&self) -> String {
         self.value.summary_text()
     }
 }
 
+/// Expected end-of-input alternative.
 #[invariant(
     true,
     "private construction fixes the retained Rust expected-token variant"
@@ -992,11 +1021,13 @@ impl PySyntaxExpectedTokenEndOfInput {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
+    /// Return a compact human-readable expectation.
     fn summary_text(&self) -> String {
         self.value.summary_text()
     }
 }
 
+/// Expected named grammar token alternative.
 #[invariant(
     true,
     "private construction fixes the retained Rust expected-token variant"
@@ -1035,6 +1066,7 @@ impl PySyntaxExpectedTokenNamed {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the expected grammar token name.
     fn name(&self) -> &str {
         let data!(SyntaxExpectedToken::Named(name)) = self.value.as_data() else {
             unreachable!("private class fixes the expected-token variant")
@@ -1044,6 +1076,7 @@ impl PySyntaxExpectedTokenNamed {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
+    /// Return a compact human-readable expectation.
     fn summary_text(&self) -> String {
         self.value.summary_text()
     }
@@ -1094,6 +1127,7 @@ fn expected_token_to_python(py: Python<'_>, value: SyntaxExpectedToken) -> PyRes
     }
 }
 
+/// Expectation reason that continues the current construct.
 #[invariant(true, "private construction fixes the retained Rust reason variant")]
 #[pyclass(
     name = "SyntaxExpectationReasonContinueCurrent",
@@ -1129,11 +1163,13 @@ impl PySyntaxExpectationReasonContinueCurrent {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the current grammar construct.
     fn construct(&self) -> &str {
         self.value.construct()
     }
 }
 
+/// Expectation reason that starts one nested construct.
 #[invariant(true, "private construction fixes the retained Rust reason variant")]
 #[pyclass(
     name = "SyntaxExpectationReasonStartNested",
@@ -1169,11 +1205,13 @@ impl PySyntaxExpectationReasonStartNested {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the nested grammar construct.
     fn construct(&self) -> &str {
         self.value.construct()
     }
 }
 
+/// Expectation reason that ends constructs before starting another.
 #[invariant(true, "private construction fixes the retained Rust reason variant")]
 #[pyclass(
     name = "SyntaxExpectationReasonEndThenStart",
@@ -1215,6 +1253,7 @@ impl PySyntaxExpectationReasonEndThenStart {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the construct that would start.
     fn starts(&self) -> &str {
         self.value.construct()
     }
@@ -1222,6 +1261,7 @@ impl PySyntaxExpectationReasonEndThenStart {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return constructs that would end first.
     fn ends(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let data!(SyntaxExpectationReason::EndThenStart { ends, .. }) = self.value.as_data() else {
             unreachable!("private class fixes the expectation-reason variant")
@@ -1266,6 +1306,7 @@ fn expectation_reason_to_python(
     }
 }
 
+/// One parser continuation expectation with a non-empty token set.
 #[invariant(true, "the retained Rust expectation enforces a non-empty token set")]
 #[pyclass(
     name = "SyntaxExpectation",
@@ -1304,6 +1345,7 @@ impl PySyntaxExpectation {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the non-empty expected-token alternatives.
     fn tokens(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let values = self
             .value
@@ -1318,11 +1360,13 @@ impl PySyntaxExpectation {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return why the parser expects these tokens.
     fn reason(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         expectation_reason_to_python(py, self.value.reason.clone())
     }
 }
 
+/// Typed error indicating that syntax parsing is not implemented for the input.
 #[invariant(true, "private construction fixes the retained Rust error variant")]
 #[pyclass(
     name = "SyntaxErrorNotImplemented",
@@ -1358,6 +1402,7 @@ impl PySyntaxErrorNotImplemented {
     #[requires(true)]
     #[ensures(ret == "syntax.not-implemented")]
     #[getter]
+    /// Return the stable diagnostic code.
     fn code(&self) -> &'static str {
         "syntax.not-implemented"
     }
@@ -1371,6 +1416,7 @@ impl PySyntaxErrorNotImplemented {
     #[requires(true)]
     #[ensures(true)]
     #[pyo3(signature = (source, source_id=None))]
+    /// Convert this typed error to a source-aware diagnostic.
     fn to_diagnostic(
         &self,
         source: &str,
@@ -1383,6 +1429,7 @@ impl PySyntaxErrorNotImplemented {
     }
 }
 
+/// Typed syntax parse failure with continuations and construct context.
 #[invariant(true, "private construction fixes the retained Rust error variant")]
 #[pyclass(
     name = "SyntaxErrorParse",
@@ -1466,6 +1513,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the stable parse-error kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let RustSyntaxError::Parse { kind, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1476,6 +1524,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the stable diagnostic code.
     fn code(&self) -> &'static str {
         let RustSyntaxError::Parse { kind, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1486,6 +1535,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the inclusive UTF-8 failure byte start.
     fn byte_start(&self) -> usize {
         let RustSyntaxError::Parse { byte_start, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1496,6 +1546,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the exclusive UTF-8 failure byte end.
     fn byte_end(&self) -> usize {
         let RustSyntaxError::Parse { byte_end, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1506,6 +1557,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the parser's human-readable failure reason.
     fn reason(&self) -> &str {
         let RustSyntaxError::Parse { reason, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1516,6 +1568,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return compact expected-token summaries.
     fn expected(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let RustSyntaxError::Parse { expected, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1526,6 +1579,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return structured continuation expectations.
     fn expectations(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let RustSyntaxError::Parse { expectations, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1540,6 +1594,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return nested parser construct contexts.
     fn contexts(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let RustSyntaxError::Parse { contexts, .. } = self.value.as_ref() else {
             unreachable!("private class fixes the syntax-error variant")
@@ -1563,6 +1618,7 @@ impl PySyntaxErrorParse {
     #[requires(true)]
     #[ensures(true)]
     #[pyo3(signature = (source, source_id=None))]
+    /// Convert this typed error to a source-aware diagnostic.
     fn to_diagnostic(
         &self,
         source: &str,
@@ -1594,6 +1650,7 @@ fn syntax_error_to_python(py: Python<'_>, value: Arc<RustSyntaxError>) -> PyResu
     }
 }
 
+/// Typed non-fatal syntax warning with an exact anchor token.
 #[invariant(true, "the retained Rust warning enforces source attribution")]
 #[pyclass(
     name = "SyntaxWarning",
@@ -1617,6 +1674,7 @@ impl PySyntaxWarning {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the warning kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.value.kind)
     }
@@ -1624,6 +1682,7 @@ impl PySyntaxWarning {
     #[requires(true)]
     #[ensures(ret == self.value.anchor_index)]
     #[getter]
+    /// Return the warning anchor token index.
     fn anchor_index(&self) -> usize {
         self.value.anchor_index
     }
@@ -1631,6 +1690,7 @@ impl PySyntaxWarning {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the exact anchor token.
     fn anchor(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         syntax_token_to_python(py, TokenHandle::from_rust(self.value.anchor.clone()))
     }
@@ -1638,6 +1698,7 @@ impl PySyntaxWarning {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the stable diagnostic code.
     fn code(&self) -> &'static str {
         self.value.kind.code()
     }
@@ -1645,6 +1706,7 @@ impl PySyntaxWarning {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the warning message.
     fn message(&self) -> &'static str {
         self.value.message()
     }
@@ -1652,6 +1714,7 @@ impl PySyntaxWarning {
     #[requires(true)]
     #[ensures(true)]
     #[pyo3(signature = (source, source_id=None))]
+    /// Convert this warning to a source-aware diagnostic.
     fn to_diagnostic(
         &self,
         source: &str,
@@ -1664,6 +1727,7 @@ impl PySyntaxWarning {
     }
 }
 
+/// Source-rendered syntax warning coordinates and display text.
 #[invariant(
     true,
     "the retained Rust display enforces non-empty labels and messages"
@@ -1685,6 +1749,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the source label used for display.
     fn source_label(&self) -> &str {
         &self.value.source_label
     }
@@ -1692,6 +1757,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the warning kind.
     fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         enum_to_python(py, self.value.kind)
     }
@@ -1699,6 +1765,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the display message.
     fn message(&self) -> &str {
         &self.value.message
     }
@@ -1706,6 +1773,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(ret > 0)]
     #[getter]
+    /// Return the one-based display line.
     fn line(&self) -> usize {
         self.value.line
     }
@@ -1713,6 +1781,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(ret > 0)]
     #[getter]
+    /// Return the one-based display column.
     fn column(&self) -> usize {
         self.value.column
     }
@@ -1720,6 +1789,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the zero-based selection start within the display line.
     fn selection_start(&self) -> usize {
         self.value.selection_start
     }
@@ -1727,6 +1797,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the selected display length.
     fn selection_length(&self) -> usize {
         self.value.selection_length
     }
@@ -1734,6 +1805,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the experimental cmavo associated with the warning, if any.
     fn experimental_cmavo(&self) -> Option<&str> {
         self.value.experimental_cmavo.as_deref()
     }
@@ -1741,6 +1813,7 @@ impl PySyntaxWarningDisplay {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     #[getter]
+    /// Return the rendered source context.
     fn context(&self) -> &str {
         &self.value.context
     }
@@ -1793,6 +1866,7 @@ impl PySyntaxParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the typed strict syntax root.
     fn parse_tree(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         strict_text_to_python(py, &self.root)
     }
@@ -1800,6 +1874,7 @@ impl PySyntaxParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return syntax warnings in source order.
     fn warnings(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,
@@ -1874,6 +1949,7 @@ impl PySyntaxParseAttempt {
     #[requires(true)]
     #[ensures(ret == matches!(&self.outcome, StrictParseOutcome::Success { .. }))]
     #[getter]
+    /// Return whether strict parsing succeeded.
     fn succeeded(&self) -> bool {
         matches!(&self.outcome, StrictParseOutcome::Success { .. })
     }
@@ -1881,6 +1957,7 @@ impl PySyntaxParseAttempt {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the strict parse on success.
     fn result(&self) -> Option<PySyntaxParse> {
         match &self.outcome {
             StrictParseOutcome::Success { parse } => Some(parse.clone()),
@@ -1891,6 +1968,7 @@ impl PySyntaxParseAttempt {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the typed syntax error on failure.
     fn error(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
         match &self.outcome {
             StrictParseOutcome::Success { .. } => Ok(None),
@@ -1903,6 +1981,7 @@ impl PySyntaxParseAttempt {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the optional parser trace.
     fn trace(&self) -> Option<PyTraceReport> {
         self.trace.clone().map(PyTraceReport::from_rust)
     }
@@ -1969,6 +2048,7 @@ impl PyRecoveredSyntaxParseAttempt {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the recovered parse result.
     fn result(&self) -> PyRecoveredSyntaxParse {
         self.result.clone()
     }
@@ -1976,6 +2056,7 @@ impl PyRecoveredSyntaxParseAttempt {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the optional parser trace.
     fn trace(&self) -> Option<PyTraceReport> {
         self.trace.clone().map(PyTraceReport::from_rust)
     }
@@ -2012,6 +2093,7 @@ impl PySyntaxRecoveryParseValid {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the strict-success parse payload.
     fn parse(&self) -> PySyntaxParse {
         self.parse.clone()
     }
@@ -2048,6 +2130,7 @@ impl PySyntaxRecoveryParseRecovered {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the recovered parse payload.
     fn parse(&self) -> PyRecoveredSyntaxParse {
         self.parse.clone()
     }
@@ -2099,6 +2182,7 @@ impl PySyntaxRecoveryParseAttempt {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the closed strict-success or recovered result variant.
     fn result(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match &self.outcome {
             RecoveryParseOutcome::Valid { parse } => Ok(Py::new(
@@ -2121,6 +2205,7 @@ impl PySyntaxRecoveryParseAttempt {
     #[requires(true)]
     #[ensures(true)]
     #[getter]
+    /// Return the optional parser trace.
     fn trace(&self) -> Option<PyTraceReport> {
         self.trace.clone().map(PyTraceReport::from_rust)
     }
@@ -2520,6 +2605,7 @@ impl PyRecoveredSyntaxParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return the typed recovered syntax root.
     fn parse_tree(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         recovered_text_to_python(py, &self.root)
     }
@@ -2527,6 +2613,7 @@ impl PyRecoveredSyntaxParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return typed recovery errors in parser order.
     fn errors(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         let values = self
             .errors
@@ -2541,6 +2628,7 @@ impl PyRecoveredSyntaxParse {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[getter]
+    /// Return syntax warnings in source order.
     fn warnings(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
         sequence_to_tuple(
             py,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import dataclasses
 import enum
 import importlib
 import importlib.metadata
@@ -19,8 +20,23 @@ import pytest
 
 import jbotci
 import jbotci._native as native
-from jbotci import diagnostics, dialect, jvozba, morphology, source
-from tools.compose_stubs import FRAGMENTS, OUTPUT
+from jbotci import (
+    diagnostics,
+    dialect,
+    dictionary,
+    jvozba,
+    morphology,
+    semantics,
+    source,
+    syntax,
+)
+from jbotci.semantics import references
+from tools.compose_stubs import (
+    FRAGMENTS,
+    OUTPUT,
+    RUST_DOC_MARKER,
+    rust_pyclass_docs,
+)
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = PACKAGE_ROOT.parents[1]
@@ -626,6 +642,30 @@ def test_stub_composition_is_current() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_parser_result_docs_share_the_rust_declaration_source() -> None:
+    """Keep runtime and composed-stub parser result docs byte-for-byte aligned."""
+    parser_fragment = next(path for path in FRAGMENTS if path.name == "parser.pyi")
+    result_names = set(
+        RUST_DOC_MARKER.findall(parser_fragment.read_text(encoding="utf-8"))
+    )
+    rust_docs = rust_pyclass_docs()
+    stub_tree = ast.parse(
+        OUTPUT.read_text(encoding="utf-8"), filename=str(OUTPUT)
+    )
+    stub_docs = {
+        declaration.name.removeprefix("_syntax_parser_"): ast.get_docstring(
+            declaration, clean=False
+        )
+        for declaration in stub_tree.body
+        if isinstance(declaration, ast.ClassDef)
+        and declaration.name.removeprefix("_syntax_parser_") in result_names
+    }
+    assert set(stub_docs) == result_names
+    for name in result_names:
+        assert stub_docs[name] == rust_docs[name]
+        assert inspect.getdoc(getattr(syntax, name)) == rust_docs[name]
 
 
 def test_rust_api_parity_matrix_is_current_and_rejects_unclassified_items(
@@ -1573,11 +1613,24 @@ def test_public_callables_have_stable_introspection_and_pickle_identity(
 
 
 @pytest.mark.parametrize(
-    "module", (source, diagnostics, dialect, morphology, jvozba)
+    "module",
+    (
+        jbotci,
+        source,
+        diagnostics,
+        dialect,
+        morphology,
+        syntax,
+        dictionary,
+        jvozba,
+        semantics,
+        references,
+    ),
 )
 def test_domain_api_has_complete_runtime_docstrings(module: ModuleType) -> None:
     """Keep native documentation attached to every public consumer surface."""
 
+    assert inspect.getdoc(module), module.__name__
     for export_name in module.__all__:
         exported = getattr(module, export_name)
         if not (inspect.isroutine(exported) or isinstance(exported, type)):
@@ -1585,10 +1638,20 @@ def test_domain_api_has_complete_runtime_docstrings(module: ModuleType) -> None:
         assert inspect.getdoc(exported), f"{module.__name__}.{export_name}"
         if not isinstance(exported, type):
             continue
+        dataclass_fields = (
+            {field.name: field for field in dataclasses.fields(exported)}
+            if dataclasses.is_dataclass(exported)
+            else {}
+        )
         for member_name, member in vars(exported).items():
             if member_name.startswith("_"):
                 continue
             if inspect.isroutine(member) or inspect.isdatadescriptor(member):
+                if member_name in dataclass_fields:
+                    assert dataclass_fields[member_name].metadata.get("doc"), (
+                        f"{module.__name__}.{export_name}.{member_name}"
+                    )
+                    continue
                 assert inspect.getdoc(member), (
                     f"{module.__name__}.{export_name}.{member_name}"
                 )

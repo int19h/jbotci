@@ -160,6 +160,7 @@ impl PySample {
     #[requires(true)]
     #[ensures(ret == self.value.as_str())]
     #[getter]
+    /// Return the retained sample string.
     fn value(&self) -> &str {
         &self.value
     }

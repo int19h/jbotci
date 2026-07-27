@@ -9,6 +9,54 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_variant_immutability_and_scoped_id_misuse_are_rejected() -> None:
+    """Match every marked misuse to its exact strict-mypy diagnostic."""
+    fixture = (
+        PACKAGE_ROOT
+        / "tests"
+        / "typing_failures"
+        / "binding_contract_misuse.py"
+    )
+    expected = {}
+    for line_number, line in enumerate(
+        fixture.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        if "# E: " not in line:
+            continue
+        code, fragment = line.split("# E: ", 1)[1].split(" ", 1)
+        expected[line_number] = (code, fragment)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+            str(fixture),
+        ],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    actual = {}
+    for diagnostic in result.stdout.splitlines():
+        if ": error: " not in diagnostic:
+            continue
+        location, message = diagnostic.split(": error: ", 1)
+        line_number = int(location.rsplit(":", 1)[1])
+        message, bracketed_code = message.rsplit("  [", 1)
+        actual[line_number] = (bracketed_code.removesuffix("]"), message)
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert set(actual) == set(expected), result.stdout
+    for line_number, (code, fragment) in expected.items():
+        actual_code, message = actual[line_number]
+        assert actual_code == code
+        assert fragment in message
+
+
 def test_dictionary_misuse_is_rejected_by_strict_mypy() -> None:
     """Keep native protocol stubs from claiming missing runtime operations."""
     fixture = PACKAGE_ROOT / "tests" / "typing_failures" / "dictionary_misuse.py"
