@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_syntax::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
     SyntaxConstructContext, SyntaxError as RustSyntaxError, SyntaxErrorKind, SyntaxExpectation,
@@ -303,7 +303,7 @@ pub(crate) struct PyParseOptions {
 
 impl PyParseOptions {
     #[requires(value.max_recovery_errors.get() > 0)]
-    #[ensures(ret.value.as_ref() == &old(value.clone()))]
+    #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
     fn from_rust(value: ParseOptions) -> Self {
         Self {
             value: Arc::new(value),
@@ -1587,7 +1587,7 @@ impl PySyntaxErrorParse {
 
 impl From<SyntaxExpectation> for PySyntaxExpectation {
     #[requires(true)]
-    #[ensures(ret.value == old(value.clone()))]
+    #[expensive_ensures(ret.value == old(value.clone()))]
     fn from(value: SyntaxExpectation) -> Self {
         Self { value }
     }
