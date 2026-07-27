@@ -25,7 +25,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use jbotci_dialect::DialectDefinition;
-use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id};
+use jbotci_morphology::{
+    MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
+};
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::completeness::model::{EntryKind, SurfaceCategory};
 use jbotci_semantics::completeness::{
@@ -65,11 +67,15 @@ fn graph_for(doc: &str) -> SemanticGraph {
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let source_id = Some(SourceId(format!("<phaseb:{doc}>")));
-    let words =
-        segment_words_with_modifiers_with_options_and_source_id(text, &morphology_options, source_id)
-            .unwrap_or_else(|error| panic!("morphology {doc}: {error}"));
-    let parsed = parse_syntax_tree_generated_model_with_source_and_options(&words, text, &syntax_options)
-        .unwrap_or_else(|error| panic!("syntax {doc}: {error}"));
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        text,
+        &morphology_options,
+        source_id,
+    )
+    .unwrap_or_else(|error| panic!("morphology {doc}: {error}"));
+    let parsed =
+        parse_syntax_tree_generated_model_with_source_and_options(&words, text, &syntax_options)
+            .unwrap_or_else(|error| panic!("syntax {doc}: {error}"));
     build_generated_semantic_graph_with_dictionary_and_options(
         &parsed,
         SemanticBuildOptions {
@@ -119,7 +125,11 @@ fn canonical_key(key: &str) -> String {
     let is_place = key.len() > 1
         && key.starts_with('x')
         && key[1..].chars().all(|character| character.is_ascii_digit());
-    if is_place { "x*".to_owned() } else { key.to_owned() }
+    if is_place {
+        "x*".to_owned()
+    } else {
+        key.to_owned()
+    }
 }
 
 /// A serialized graph as a `serde_json::Value`.
@@ -133,7 +143,9 @@ fn graph_json(doc: &str) -> serde_json::Value {
 /// The `"<NodeType>:<path>"` coordinate set and the scalar values seen at each.
 #[requires(true)]
 #[ensures(true)]
-fn walk_document(value: &serde_json::Value) -> (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>) {
+fn walk_document(
+    value: &serde_json::Value,
+) -> (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>) {
     let objects = value
         .get("objects")
         .and_then(serde_json::Value::as_object)
@@ -141,7 +153,10 @@ fn walk_document(value: &serde_json::Value) -> (BTreeSet<String>, BTreeMap<Strin
     let mut coords = BTreeSet::new();
     let mut values: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for (id, object) in objects {
-        let json_type = object.get("type").and_then(serde_json::Value::as_str).unwrap_or("");
+        let json_type = object
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
         let node = node_type(id, json_type);
         walk_value(&node, "", object, &mut coords, &mut values);
     }
@@ -235,7 +250,10 @@ fn drift_guard() {
         .iter()
         .filter(|entry| entry.kind == EntryKind::Field)
         .filter(|entry| {
-            matches!(entry.surface.category, SurfaceCategory::Object | SurfaceCategory::ValueStruct)
+            matches!(
+                entry.surface.category,
+                SurfaceCategory::Object | SurfaceCategory::ValueStruct
+            )
         })
         .map(|entry| (entry.surface.name.to_owned(), entry.field.to_owned()))
         .collect();
@@ -298,7 +316,12 @@ fn witness_verification() {
         //     "witness" this entry. Derived facts are skipped: their `field` is a
         //     synthetic fact name, not a JSON key, so only presence is checked.
         if entry.kind != EntryKind::DerivedFact
-            && !graph.path_matches_entry(path, entry.surface.category, entry.surface.name, entry.field)
+            && !graph.path_matches_entry(
+                path,
+                entry.surface.category,
+                entry.surface.name,
+                entry.field,
+            )
         {
             failures.push(format!(
                 "{:?} {}::{} — witness path {path} does not resolve to this surface/field",
@@ -452,9 +475,9 @@ fn is_object_id(text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_provenance_coord(graph: &type_graph::TypeGraph, coord: &str) -> bool {
-    graph
-        .resolve(coord)
-        .is_some_and(|resolved| matches!(resolved.owner.as_str(), "SemanticSource" | "SourceByteSpan"))
+    graph.resolve(coord).is_some_and(|resolved| {
+        matches!(resolved.owner.as_str(), "SemanticSource" | "SourceByteSpan")
+    })
 }
 
 #[test]
@@ -488,7 +511,13 @@ fn frozen_divergence_report() {
             let normalize = |set: Option<&BTreeSet<String>>| -> BTreeSet<String> {
                 set.map(|s| {
                     s.iter()
-                        .map(|v| if is_object_id(v) { "<ID>".to_owned() } else { v.clone() })
+                        .map(|v| {
+                            if is_object_id(v) {
+                                "<ID>".to_owned()
+                            } else {
+                                v.clone()
+                            }
+                        })
                         .collect()
                 })
                 .unwrap_or_default()
@@ -496,7 +525,9 @@ fn frozen_divergence_report() {
             let built_set = normalize(built_values.get(coord));
             let frozen_set = normalize(frozen_values.get(coord));
             if built_set != frozen_set {
-                value_diffs.push(format!("    {coord}: this={built_set:?} frozen={frozen_set:?}"));
+                value_diffs.push(format!(
+                    "    {coord}: this={built_set:?} frozen={frozen_set:?}"
+                ));
             }
         }
 
@@ -514,7 +545,10 @@ fn frozen_divergence_report() {
             }
         }
     }
-    eprintln!("frozen-divergence report: {diverging} of {} documents diverge", CORPUS_DOCS.len());
+    eprintln!(
+        "frozen-divergence report: {diverging} of {} documents diverge",
+        CORPUS_DOCS.len()
+    );
     assert_eq!(
         diverging, FROZEN_DIVERGENCE_BASELINE,
         "frozen divergence changed from the pinned baseline; if this build's graph intentionally \

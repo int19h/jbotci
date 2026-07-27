@@ -348,13 +348,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     if let Some(resolved) = resolve_voha_placeholder(
                         &predication.arguments,
                         *id,
-                    value,
-                    &self.pending_voha_places,
+                        value,
+                        &self.pending_voha_places,
                         self.pending_voha_place_maps.get(id),
                         &self.pending_voha_direct_targets,
-                    &mut BTreeSet::new(),
-                ) && resolved != value
-                {
+                        &mut BTreeSet::new(),
+                    ) && resolved != value
+                    {
                         updates.push(new!(GeneratedVohaUpdate {
                             predication: *id,
                             location: new!(GeneratedVohaUpdateLocation::Modal {
@@ -363,9 +363,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             }),
                             resolved,
                         }));
+                    }
                 }
             }
-        }
         }
         for update in updates {
             if let Some(object) = self.objects.get_mut(&update.predication) {
@@ -373,7 +373,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     let data = node.into_data();
                     match update.location.as_data() {
                         data!(GeneratedVohaUpdateLocation::Numbered { place }) => {
-                    let mut arguments = data.arguments;
+                            let mut arguments = data.arguments;
                             if let Some(argument) = arguments.get(place).cloned() {
                                 arguments.insert(
                                     *place,
@@ -398,11 +398,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                         arguments,
                                         ..modal_data
                                     }));
-                    }
-                    PredicationNode::from_data(data!(PredicationNode {
+                            }
+                            PredicationNode::from_data(data!(PredicationNode {
                                 modal_arguments,
-                        ..data
-                    }))
+                                ..data
+                            }))
                         }
                     }
                 });

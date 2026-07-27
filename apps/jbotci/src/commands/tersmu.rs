@@ -187,7 +187,8 @@ fn render_tersmu(
             // renderer's own trailing newline so the delivered CLI/MCP surface
             // is byte-identical to the oracle's single-newline output
             // (round-1 review, Codex 3).
-            let mut rendered = render_smusni(&graph, jbotci_semantics::SmusniConfig { provenance: false });
+            let mut rendered =
+                render_smusni(&graph, jbotci_semantics::SmusniConfig { provenance: false });
             if rendered.ends_with('\n') {
                 rendered.pop();
             }

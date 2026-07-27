@@ -241,7 +241,9 @@ impl ProtocolPhase {
             } => "compose or revise Lojban for the registered intent and submit it",
             Self::Speaker {
                 phase: SpeakerPhase::AwaitingConfirmation,
-            } => "compare the accepted tersmu rendering with your currently intended message, re-declaring intent first if it has changed",
+            } => {
+                "compare the accepted tersmu rendering with your currently intended message, re-declaring intent first if it has changed"
+            }
             Self::Speaker {
                 phase: SpeakerPhase::Posted,
             } => "complete any available scenario answer",
@@ -479,10 +481,14 @@ impl SpeakerState {
     #[ensures(matches!(self.phase(), SpeakerPhase::AwaitingIntent | SpeakerPhase::Posted) -> ret == 0)]
     fn intent_revisions(&self) -> usize {
         match self.as_data() {
-            bityzba::data!(SpeakerState::Composing { intent_revisions, .. })
-            | bityzba::data!(SpeakerState::AwaitingConfirmation { intent_revisions, .. }) => {
-                *intent_revisions
-            }
+            bityzba::data!(SpeakerState::Composing {
+                intent_revisions,
+                ..
+            })
+            | bityzba::data!(SpeakerState::AwaitingConfirmation {
+                intent_revisions,
+                ..
+            }) => *intent_revisions,
             _ => 0,
         }
     }

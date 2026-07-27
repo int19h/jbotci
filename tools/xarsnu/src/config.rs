@@ -364,9 +364,7 @@ system-prompt = "Speak only Lojban."
         for retired in ["lean3", "tree", "tree+proj"] {
             let source = VALID_CONFIG.replace(
                 "scenario = \"schedule-negotiation\"",
-                &format!(
-                    "scenario = \"schedule-negotiation\"\ntersmu-format = \"{retired}\""
-                ),
+                &format!("scenario = \"schedule-negotiation\"\ntersmu-format = \"{retired}\""),
             );
             assert!(
                 RunConfig::from_toml(&source).is_err(),

@@ -233,7 +233,10 @@ pub struct EntryKey {
 /// Constructed only through [`RenderFieldInventory::new`], which enforces that
 /// entry identities are unique — a duplicated field/variant would let a renderer
 /// register one disposition and silently leave another uncovered.
-#[invariant(entries_have_unique_keys(entries), "inventory entries must have unique identities")]
+#[invariant(
+    entries_have_unique_keys(entries),
+    "inventory entries must have unique identities"
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderFieldInventory {
     entries: Vec<InventoryEntry>,

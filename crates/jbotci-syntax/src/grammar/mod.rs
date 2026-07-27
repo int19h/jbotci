@@ -5240,9 +5240,7 @@ mod tests {
     fn bare_nahe_sumti_without_bo_warns() {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi viska na'e lo mlatu", &ParseOptions::default());
-            assert!(
-                format!("{:?}", parsed.parse_tree).contains("ScalarNegatedSumti")
-            );
+            assert!(format!("{:?}", parsed.parse_tree).contains("ScalarNegatedSumti"));
             assert!(has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalNaheArgumentWithoutBo

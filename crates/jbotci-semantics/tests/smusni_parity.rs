@@ -23,10 +23,12 @@ use bityzba::{ensures, requires};
 use std::path::PathBuf;
 
 use jbotci_dialect::DialectDefinition;
-use jbotci_morphology::{MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id};
+use jbotci_morphology::{
+    MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
+};
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::{
-    SmusniConfig, SemanticBuildOptions, SemanticGraph,
+    SemanticBuildOptions, SemanticGraph, SmusniConfig,
     build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
 };
 use jbotci_source::SourceId;
@@ -54,9 +56,12 @@ fn graph_for(doc: &str) -> SemanticGraph {
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
     let source_id = Some(SourceId(format!("<phaseb:{doc}>")));
-    let words =
-        segment_words_with_modifiers_with_options_and_source_id(text, &morphology_options, source_id)
-            .unwrap_or_else(|error| panic!("morphology {doc}: {error}"));
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        text,
+        &morphology_options,
+        source_id,
+    )
+    .unwrap_or_else(|error| panic!("morphology {doc}: {error}"));
     let parsed =
         parse_syntax_tree_generated_model_with_source_and_options(&words, text, &syntax_options)
             .unwrap_or_else(|error| panic!("syntax {doc}: {error}"));
@@ -148,7 +153,11 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
         hasher.update(b"\n");
         hasher.update(&bytes);
     }
-    hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
+    hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// Should-fix 7 (round-1 review, Codex 4): pin the aggregate hash of BOTH
@@ -191,7 +200,8 @@ fn smusni_hostile_witness_regression() {
             .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
         let actual = render_smusni(&graph_for(doc), config);
         assert_eq!(
-            expected, actual,
+            expected,
+            actual,
             "{doc} ({suffix}) diverges from the oracle at {:?}",
             first_diff(&expected, &actual)
         );
@@ -222,7 +232,8 @@ fn smusni_relation_question_indirect_regression() {
             .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
         let actual = render_smusni(&graph_for(doc), config);
         assert_eq!(
-            expected, actual,
+            expected,
+            actual,
             "{doc} ({suffix}) diverges from the oracle at {:?}",
             first_diff(&expected, &actual)
         );

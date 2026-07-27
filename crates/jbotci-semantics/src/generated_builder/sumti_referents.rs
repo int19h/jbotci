@@ -84,10 +84,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             // Report the graceful unsupported-construct error rather than tripping the invariant, so
             // no path crashes: nonlogical connections are unsupported everywhere, and logical
             // connections combined with shared arguments are unsupported (a separate feature).
-            _ => Err(generated_direct_term_connection_unsupported_error(std::slice::from_ref(&term))
-                .unwrap_or_else(|| {
-                    invalid_graph("connected term reached simple-term assignment lowering".to_owned())
-                })),
+            _ => Err(
+                generated_direct_term_connection_unsupported_error(std::slice::from_ref(&term))
+                    .unwrap_or_else(|| {
+                        invalid_graph(
+                            "connected term reached simple-term assignment lowering".to_owned(),
+                        )
+                    }),
+            ),
         }
     }
 
@@ -7210,9 +7214,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.build_implicit_existential_variable(pro_sumti)
                 }
             }
-            Some(
-                cmavo @ (Cmavo::Voha | Cmavo::Vohe | Cmavo::Vohi | Cmavo::Voho | Cmavo::Vohu),
-            ) => {
+            Some(cmavo @ (Cmavo::Voha | Cmavo::Vohe | Cmavo::Vohi | Cmavo::Voho | Cmavo::Vohu)) => {
                 // Reaching here means the referenced place of the local bridi was not already
                 // filled by an explicit term (which `insert_generated_simple_term_assignment`
                 // would have resolved inline), e.g. an implicit `ke'a` relative-clause head, an
