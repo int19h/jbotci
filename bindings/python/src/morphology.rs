@@ -1402,6 +1402,13 @@ impl PartialEq for WithIndicatorsHandle {
 impl Eq for WithIndicatorsHandle {}
 
 impl WithIndicatorsHandle {
+    #[cfg(test)]
+    #[requires(true)]
+    #[ensures(ret == self.steps.is_empty())]
+    pub(crate) fn has_empty_steps(&self) -> bool {
+        self.steps.is_empty()
+    }
+
     /// Own a standalone indicator tree created at a Python construction boundary.
     #[requires(true)]
     #[ensures(ret.steps.is_empty())]

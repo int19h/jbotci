@@ -3148,9 +3148,21 @@ fn resolve_with_indicators_expression(
     lens: &TokenStream2,
 ) -> TokenStream2 {
     match binding.as_data() {
-        data!(BindingType::ModelReference { .. }) | data!(BindingType::LeafReference { .. }) => {
-            quote!(None)
+        data!(BindingType::ModelReference { .. }) => quote!(None),
+        data!(BindingType::LeafReference {
+            kind: LeafKind::SyntaxToken,
+            ..
+        }) => {
+            let tag = LENS_WITH_INDICATORS;
+            quote!({
+                if #lens == [#tag] {
+                    Some((#value).as_indicators())
+                } else {
+                    None
+                }
+            })
         }
+        data!(BindingType::LeafReference { .. }) => quote!(None),
         data!(BindingType::Optional { value: inner }) => {
             let tag = LENS_OPTION_VALUE;
             let inner = resolve_with_indicators_expression(inner, &quote!(value), &quote!(rest));
@@ -3450,6 +3462,10 @@ fn with_indicators_resolution_arms_for_fields(
 fn binding_contains_with_indicators(binding: &BindingType) -> bool {
     match binding.as_data() {
         data!(BindingType::WithIndicators { .. }) => true,
+        data!(BindingType::LeafReference {
+            kind: LeafKind::SyntaxToken,
+            ..
+        }) => true,
         data!(BindingType::ModelReference { .. }) | data!(BindingType::LeafReference { .. }) => {
             false
         }

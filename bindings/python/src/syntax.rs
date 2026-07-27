@@ -1099,4 +1099,60 @@ mod tests {
         assert!(first.get().core_word().is_brivla());
         assert!(first.base().is_some());
     }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn direct_with_indicators_projection_covers_resolution_identity_and_rejection() {
+        let root = word_tanru_unit_factory();
+        let lens = vec![
+            root.class_id(),
+            0,
+            16, // SYNTAX_LENS_WITH_FREE_VALUE
+            15, // SYNTAX_LENS_WITH_INDICATORS
+        ];
+        let projected = root
+            .owner
+            .with_indicators_at(&root.path, &lens)
+            .expect("the generated fixture lens resolves");
+        let first = WithIndicatorsHandle::from_projection(
+            Arc::clone(&root.owner),
+            root.path.clone(),
+            lens.clone(),
+        )
+        .expect("a resolving owner lens constructs a handle");
+        let second = WithIndicatorsHandle::from_projection(
+            Arc::clone(&root.owner),
+            root.path.clone(),
+            lens.clone(),
+        )
+        .expect("the repeated owner lens constructs a handle");
+
+        assert!(first.has_empty_steps());
+        assert!(second.has_empty_steps());
+        assert!(first.same_identity(&second));
+        assert!(std::ptr::eq(first.get(), projected));
+        assert!(std::ptr::eq(first.get(), second.get()));
+
+        let non_resolving_lens = vec![
+            root.class_id(),
+            0,
+            16, // SYNTAX_LENS_WITH_FREE_VALUE
+            15, // SYNTAX_LENS_WITH_INDICATORS
+            15, // an indicator tree has no nested projection at this lens
+        ];
+        assert!(
+            root.owner
+                .with_indicators_at(&root.path, &non_resolving_lens)
+                .is_none()
+        );
+        assert!(
+            WithIndicatorsHandle::from_projection(
+                Arc::clone(&root.owner),
+                root.path.clone(),
+                non_resolving_lens,
+            )
+            .is_none()
+        );
+    }
 }
