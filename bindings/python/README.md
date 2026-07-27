@@ -123,3 +123,40 @@ uv run python tools/compose_stubs.py --check
 The explicit fragment manifest in the compositor is the ordering authority.
 The test suite verifies that composition is reproducible and that the composed
 public declarations match the native module's runtime exports.
+
+## Syntax parsing and completion
+
+Use the package-root conveniences when starting from source text:
+
+```python
+import jbotci
+
+parsed = jbotci.parse("mi tavla do", source_id="example")
+tree = parsed.parse_tree  # jbotci.syntax.strict.TextSyntax
+
+recovered = jbotci.parse_recovered("mi tavla vau vau do")
+for error in recovered.syntax_errors:
+    print(error.code)
+```
+
+These functions run morphology first and pass its typed Rust word values
+directly to the syntax parser. `jbotci.syntax` exposes the corresponding
+low-level strict, recovered, strict-or-recovered, and non-raising APIs for
+callers that already retain `WordLike` values. Parse trees are immutable lazy
+projections over one retained native owner; repeated field projections preserve
+owner/path identity.
+
+Completion accepts either typed morphology words or source text. Cursor-based
+completion interprets `cursor` as a Python Unicode-character index and parses
+exactly `text[:cursor]`:
+
+```python
+from jbotci import syntax
+
+expected = syntax.expected_continuations_at_cursor("mi klama le", 11)
+```
+
+It does not guess partial words or scan backwards. An invalid exact prefix
+therefore raises the ordinary typed morphology error. Time limits are seconds,
+must be finite and nonnegative, and return only the expectations produced
+within the Rust operation; there is no synthetic timeout flag.

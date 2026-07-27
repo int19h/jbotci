@@ -109,6 +109,30 @@ def declared_string_enums(source: str) -> list[tuple[str, list[tuple[str, str]]]
     return values
 
 
+def syntax_binding_enums(source: str) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Read exhaustive syntax binding enum declarations from their one macro source."""
+
+    values: list[tuple[str, list[tuple[str, str]]]] = []
+    invocation = re.compile(
+        r'define_syntax_string_enum_binding!\s*\(\s*[\w:]+\s*,\s*"[^"]+"\s*,\s*"([^"]+)"\s*,\s*\{'
+    )
+    for match in invocation.finditer(source):
+        type_name = match.group(1)
+        body = braced_body(source, match.end() - 1)
+        entries = re.findall(
+            r'^\s*[\w:]+::\w+\s*=>\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)',
+            body,
+            re.MULTILINE,
+        )
+        declared = re.findall(r"^\s*[\w:]+::\w+\s*=>", body, re.MULTILINE)
+        if len(declared) != len(entries):
+            raise ValueError(f"syntax enum extraction omitted a variant of {type_name}")
+        if not entries:
+            raise ValueError(f"no syntax enum entries found for {type_name}")
+        values.append((type_name, entries))
+    return values
+
+
 def cmavo_pairs(source: str) -> list[tuple[str, str]]:
     """Extract Python member/canonical spelling pairs from the single cmavo table."""
 
@@ -179,6 +203,7 @@ def generate() -> str:
         path.read_text() for path in sorted(morphology_root.rglob("*.rs"))
     ]
     cmavo = (REPOSITORY_ROOT / "crates/jbotci-morphology/src/cmavo.rs").read_text()
+    syntax_parser = (PACKAGE_ROOT / "src/parser.rs").read_text()
 
     enums: list[tuple[str, str, list[tuple[str, str]]]] = []
     enums.extend(
@@ -198,6 +223,10 @@ def generate() -> str:
     )
     enums.append(("morphology", "Cmavo", cmavo_pairs(cmavo)))
     enums.append(("morphology", "Selmaho", selmaho_pairs(cmavo)))
+    enums.extend(
+        ("syntax_parser", type_name, pairs)
+        for type_name, pairs in syntax_binding_enums(syntax_parser)
+    )
 
     return HEADER + "\n\n".join(
         render_enum(prefix, type_name, pairs) for prefix, type_name, pairs in enums

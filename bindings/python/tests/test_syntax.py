@@ -504,9 +504,14 @@ def test_generated_namespace_imports_outside_repository(tmp_path: Path) -> None:
             sys.executable,
             "-c",
             (
+                "import jbotci; "
                 "from jbotci.syntax import strict, recovered; "
                 "assert strict.EmptyLinkedSumtiSyntax(); "
-                "assert recovered.EmptyLinkedSumtiSyntax()"
+                "assert recovered.EmptyLinkedSumtiSyntax(); "
+                "assert isinstance("
+                "jbotci.parse('mi tavla do').parse_tree, "
+                "strict.TextSyntaxRegularText"
+                ")"
             ),
         ],
         cwd=tmp_path,

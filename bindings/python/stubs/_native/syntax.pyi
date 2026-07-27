@@ -25,6 +25,9 @@ class _syntax_Identity:
     def _same_identity(self, other: _syntax_Identity) -> bool: ...
 
 def _syntax_construct(module_name: str, class_id: int, fields: tuple[object, ...]) -> _syntax_Value: ...
+def _syntax_tree_eq_ignoring_spans(
+    left: _StrictTextSyntax, right: _StrictTextSyntax
+) -> bool: ...
 
 @final
 class _syntax_Token:

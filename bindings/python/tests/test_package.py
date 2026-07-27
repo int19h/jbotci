@@ -582,27 +582,7 @@ def test_structured_error_conversion_uses_public_hierarchy() -> None:
         ("diagnostics", None),
         ("dialect", None),
         ("morphology", None),
-        (
-            "syntax",
-            (
-                "Chain",
-                "EmphasizedWithIndicators",
-                "IndicatorWithIndicators",
-                "MissingRequiredField",
-                "PlainWithIndicators",
-                "RecoveredError",
-                "RecoveredField",
-                "RecoveredPrefix",
-                "RecoveredValid",
-                "SkippedTokens",
-                "SyntaxRecoveryItem",
-                "Token",
-                "WithFreeModifiers",
-                "WithIndicators",
-                "recovered",
-                "strict",
-            ),
-        ),
+        ("syntax", None),
         ("syntax.strict", None),
         ("syntax.recovered", None),
         ("dictionary", None),
@@ -1500,7 +1480,12 @@ def test_generated_domain_enum_members_match_runtime_rust_metadata() -> None:
                 for name in stub_types
             }
             assert normalized_runtime_hints == stub_types, qualified_name
-    domain_prefixes = ("_diagnostics_", "_dialect_", "_morphology_")
+    domain_prefixes = (
+        "_diagnostics_",
+        "_dialect_",
+        "_morphology_",
+        "_syntax_parser_",
+    )
     runtime_enums = {
         name
         for name in native.__all__
