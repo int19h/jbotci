@@ -87,6 +87,7 @@ pub(super) struct ParserStateFinish {
     pub unconsumed_recovery_directives: usize,
     pub recovery_directives: Vec<RecoveryDirective>,
     pub effective_fail_token_indices: Vec<usize>,
+    pub completed_recovery_boundary_location: Option<usize>,
 }
 
 #[invariant(true)]
@@ -104,6 +105,8 @@ pub(crate) struct ParserCheckpoint {
 struct ParserRecoveryCheckpoint {
     consumed_recovery_directives: usize,
     active_recovery_directive: Option<ActiveRecoveryDirective>,
+    abandoned_range_count: usize,
+    completed_recovery_boundary_location: Option<usize>,
 }
 
 #[invariant(!construct.is_empty())]
@@ -179,8 +182,15 @@ impl SyntaxRuleFrame {
 
 #[invariant(!rule.is_empty())]
 #[invariant(fail_token_index <= resume_token_index)]
+#[invariant(match (kind, boundary_unwind_start_token_index) {
+    (RecoveryDirectiveKind::Local, None) => true,
+    (RecoveryDirectiveKind::BoundaryResync, Some(start)) => *start < *resume_token_index,
+    _ => false,
+})]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RecoveryDirective {
+    kind: RecoveryDirectiveKind,
+    boundary_unwind_start_token_index: Option<usize>,
     rule: &'static str,
     instance_byte_start: usize,
     fail_token_index: usize,
@@ -191,8 +201,16 @@ pub(super) struct RecoveryDirective {
     error: SyntaxError,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecoveryDirectiveKind {
+    Local,
+    BoundaryResync,
+}
+
 #[invariant(*effective_fail_token_index <= directive.fail_token_index)]
-#[invariant(directive.fail_token_index < directive.resume_token_index || *effective_fail_token_index == directive.fail_token_index)]
+#[invariant(*effective_fail_token_index <= directive.resume_token_index)]
+#[invariant(matches!(directive.kind, RecoveryDirectiveKind::Local) || *effective_fail_token_index < directive.resume_token_index)]
 #[invariant(*skipped_item_emitted -> directive.error_index < usize::MAX)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ActiveRecoveryDirective {
@@ -205,13 +223,15 @@ struct ActiveRecoveryDirective {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum RecoveryFieldActionKind {
     Abandon,
+    BoundaryResync,
     Resume,
 }
 
 #[invariant(item.as_ref().is_none_or(|item| item.recovery_error_index().is_some()))]
 #[invariant(match kind {
     RecoveryFieldActionKind::Abandon => resume_token_index.is_none(),
-    RecoveryFieldActionKind::Resume => resume_token_index.is_some_and(|index| index < usize::MAX),
+    RecoveryFieldActionKind::BoundaryResync | RecoveryFieldActionKind::Resume =>
+        resume_token_index.is_some_and(|index| index < usize::MAX),
 })]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RecoveryFieldAction {
@@ -228,6 +248,16 @@ impl RecoveryFieldAction {
             kind: RecoveryFieldActionKind::Abandon,
             item,
             resume_token_index: None,
+        })
+    }
+
+    #[requires(resume_token_index < usize::MAX)]
+    #[ensures(ret.kind == RecoveryFieldActionKind::BoundaryResync)]
+    pub(super) fn boundary_resync(item: SyntaxRecoveryItem, resume_token_index: usize) -> Self {
+        new!(RecoveryFieldAction {
+            kind: RecoveryFieldActionKind::BoundaryResync,
+            item: Some(item),
+            resume_token_index: Some(resume_token_index),
         })
     }
 
@@ -276,6 +306,8 @@ impl RecoveryDirective {
         error: SyntaxError,
     ) -> Self {
         new!(RecoveryDirective {
+            kind: RecoveryDirectiveKind::Local,
+            boundary_unwind_start_token_index: None,
             rule,
             instance_byte_start,
             fail_token_index,
@@ -284,6 +316,16 @@ impl RecoveryDirective {
             resume_field,
             error_index,
             error,
+        })
+    }
+
+    #[requires(unwind_start_token_index < self.resume_token_index)]
+    #[ensures(ret.kind == RecoveryDirectiveKind::BoundaryResync)]
+    #[ensures(ret.boundary_unwind_start_token_index == Some(unwind_start_token_index))]
+    fn into_boundary_resync(self, unwind_start_token_index: usize) -> Self {
+        self.with_data(data! {
+            kind: RecoveryDirectiveKind::BoundaryResync,
+            boundary_unwind_start_token_index: Some(unwind_start_token_index),
         })
     }
 
@@ -344,12 +386,51 @@ pub(super) struct SyntaxMemoSuccess<'tokens> {
     rule_observation_node: Option<usize>,
 }
 
-#[invariant(true)]
+#[invariant(start_location <= end_location)]
 #[derive(Debug, Clone)]
 struct SyntaxMemoFailure<'tokens> {
+    start_location: usize,
+    end_location: usize,
     error: SyntaxParseError<'tokens>,
     diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
     rule_observation_node: Option<usize>,
+}
+
+impl<'tokens> SyntaxMemoFailure<'tokens> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn into_error(self) -> SyntaxParseError<'tokens> {
+        self.into_data().error
+    }
+}
+
+#[invariant(start_location < end_location)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BoundaryAbandonedRange {
+    start_location: usize,
+    end_location: usize,
+}
+
+impl BoundaryAbandonedRange {
+    #[requires(start_location < end_location)]
+    #[ensures(ret.start_location == start_location)]
+    #[ensures(ret.end_location == end_location)]
+    fn new(start_location: usize, end_location: usize) -> Self {
+        new!(BoundaryAbandonedRange {
+            start_location,
+            end_location,
+        })
+    }
+
+    #[requires(start_location <= end_location)]
+    #[ensures(true)]
+    fn intersects(self, start_location: usize, end_location: usize) -> bool {
+        if start_location == end_location {
+            self.start_location <= start_location && start_location < self.end_location
+        } else {
+            start_location < self.end_location && self.start_location < end_location
+        }
+    }
 }
 
 #[invariant(true)]
@@ -536,6 +617,8 @@ pub(super) struct ParserState<'tokens> {
     active_syntax_rules: Vec<SyntaxRuleFrame>,
     recovery_directives: Vec<RecoveryDirective>,
     recovery_rule_parser_targets: HashSet<(&'static str, usize)>,
+    recovery_rule_target_last_indices: HashMap<SyntaxRuleObservation, usize>,
+    syntax_rule_observation_latest_recovery_target_indices: RefCell<HashMap<usize, Option<usize>>>,
     consumed_recovery_directives: usize,
     // This is a consumption stack parallel to `recovery_directives`; each
     // entry records where its directive actually fired. Checkpoint rewind can
@@ -543,6 +626,8 @@ pub(super) struct ParserState<'tokens> {
     // rewriting every remaining directive.
     effective_fail_token_indices: Vec<usize>,
     active_recovery_directive: Option<ActiveRecoveryDirective>,
+    abandoned_recovery_ranges: Vec<BoundaryAbandonedRange>,
+    completed_recovery_boundary_location: Option<usize>,
     recovery_tokens: Vec<Token>,
     recovery_source: Option<Arc<str>>,
     track_recovery_branches: bool,
@@ -562,6 +647,12 @@ pub(super) struct ParserState<'tokens> {
 #[expensive_invariant(
     true,
     "syntax memo keys are protected by ParserState's private mutation APIs"
+)]
+#[expensive_invariant(
+    self.abandoned_recovery_ranges
+        .windows(2)
+        .all(|ranges| ranges[0].end_location <= ranges[1].start_location),
+    "abandoned recovery ranges are ordered and disjoint"
 )]
 impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
@@ -589,9 +680,13 @@ impl<'tokens> ParserState<'tokens> {
             active_syntax_rules: Vec::new(),
             recovery_directives: Vec::new(),
             recovery_rule_parser_targets: HashSet::new(),
+            recovery_rule_target_last_indices: HashMap::new(),
+            syntax_rule_observation_latest_recovery_target_indices: RefCell::new(HashMap::new()),
             consumed_recovery_directives: 0,
             effective_fail_token_indices: Vec::new(),
             active_recovery_directive: None,
+            abandoned_recovery_ranges: Vec::new(),
+            completed_recovery_boundary_location: None,
             recovery_tokens: Vec::new(),
             recovery_source: None,
             track_recovery_branches: false,
@@ -646,6 +741,15 @@ impl<'tokens> ParserState<'tokens> {
             .iter()
             .map(|directive| (directive.rule, directive.instance_byte_start))
             .collect();
+        for (index, directive) in directives.iter().enumerate() {
+            state.recovery_rule_target_last_indices.insert(
+                new!(SyntaxRuleObservation {
+                    rule: directive.rule,
+                    instance_byte_start: directive.instance_byte_start,
+                }),
+                index,
+            );
+        }
         state.recovery_tokens = words.to_vec();
         state.recovery_source = source.map(Arc::<str>::from);
         state.recovery_memo_trial = Some(memo_trial);
@@ -871,16 +975,68 @@ impl<'tokens> ParserState<'tokens> {
         {
             return false;
         }
-        self.recovery_directives[self.consumed_recovery_directives..]
-            .iter()
-            .all(|directive| {
-                !self.syntax_rule_observation_contains(
-                    store,
-                    node,
-                    directive.rule,
-                    directive.instance_byte_start,
-                )
-            })
+        self.syntax_rule_observation_latest_recovery_target_index(store, node)
+            .is_none_or(|index| index < self.consumed_recovery_directives)
+    }
+
+    #[requires(node < store.rule_observation_nodes.len())]
+    #[ensures(ret.is_none_or(|index| index < self.recovery_directives.len()))]
+    fn syntax_rule_observation_latest_recovery_target_index(
+        &self,
+        store: &SyntaxRecoveryMemoStore<'tokens>,
+        node: usize,
+    ) -> Option<usize> {
+        if let Some(cached) = self
+            .syntax_rule_observation_latest_recovery_target_indices
+            .borrow()
+            .get(&node)
+        {
+            return *cached;
+        }
+
+        let observation = &store.rule_observation_nodes[node].observation;
+        let mut latest = self
+            .recovery_rule_target_last_indices
+            .get(observation)
+            .copied();
+        for child_index in 0..store.rule_observation_nodes[node].children.len() {
+            let child = store.rule_observation_nodes[node].children[child_index];
+            if let Some(child_latest) =
+                self.syntax_rule_observation_latest_recovery_target_index(store, child)
+            {
+                latest = Some(latest.map_or(child_latest, |index| index.max(child_latest)));
+            }
+        }
+        self.syntax_rule_observation_latest_recovery_target_indices
+            .borrow_mut()
+            .insert(node, latest);
+        latest
+    }
+
+    #[requires(start_location <= end_location)]
+    #[ensures(true)]
+    fn memo_range_is_reusable(&self, start_location: usize, end_location: usize) -> bool {
+        let first_possible = self
+            .abandoned_recovery_ranges
+            .partition_point(|range| range.end_location <= start_location);
+        self.abandoned_recovery_ranges
+            .get(first_possible)
+            .is_none_or(|range| !range.intersects(start_location, end_location))
+    }
+
+    #[requires(self.abandoned_recovery_ranges.last().is_none_or(|previous| previous.end_location <= range.start_location))]
+    #[ensures(self.abandoned_recovery_ranges.last() == Some(&range))]
+    fn record_abandoned_recovery_range(&mut self, range: BoundaryAbandonedRange) {
+        self.abandoned_recovery_ranges.push(range);
+    }
+
+    #[requires(location < self.anchor_token_identities.len())]
+    #[ensures(self.completed_recovery_boundary_location.is_some_and(|completed| completed >= location))]
+    pub(super) fn record_completed_recovery_boundary(&mut self, location: usize) {
+        self.completed_recovery_boundary_location = Some(
+            self.completed_recovery_boundary_location
+                .map_or(location, |completed| completed.max(location)),
+        );
     }
 
     #[requires(node < store.rule_observation_nodes.len())]
@@ -1077,11 +1233,12 @@ impl<'tokens> ParserState<'tokens> {
                         .insensitive_successes
                         .get(&(rule_name, start_location))
                         .filter(|memo| {
-                            self.syntax_rule_observations_are_insensitive(
-                                &store,
-                                memo.rule_observation_node
-                                    .expect("recovery memo entries record rule observations"),
-                            )
+                            self.memo_range_is_reusable(memo.start_location, memo.end_location)
+                                && self.syntax_rule_observations_are_insensitive(
+                                    &store,
+                                    memo.rule_observation_node
+                                        .expect("recovery memo entries record rule observations"),
+                                )
                         })
                         .cloned()
                 })
@@ -1157,7 +1314,10 @@ impl<'tokens> ParserState<'tokens> {
                         .insensitive_failures
                         .get(&(rule_name, start_location))
                         .filter(|failure| {
-                            self.syntax_rule_observations_are_insensitive(
+                            self.memo_range_is_reusable(
+                                failure.start_location,
+                                failure.end_location,
+                            ) && self.syntax_rule_observations_are_insensitive(
                                 &store,
                                 failure
                                     .rule_observation_node
@@ -1194,10 +1354,15 @@ impl<'tokens> ParserState<'tokens> {
         self.syntax_failure_memo
             .get(&(rule_name, start_location))
             .cloned()
-            .map(|error| SyntaxMemoFailure {
-                error,
-                diagnostic_observations: None,
-                rule_observation_node: None,
+            .map(|error| {
+                let end_location = self.memo_failure_end_location(start_location, &error);
+                new!(SyntaxMemoFailure {
+                    start_location,
+                    end_location,
+                    error,
+                    diagnostic_observations: None,
+                    rule_observation_node: None,
+                })
             })
     }
 
@@ -1290,11 +1455,14 @@ impl<'tokens> ParserState<'tokens> {
         if let Some(trial) = &self.recovery_memo_trial {
             let (rule_observation_node, diagnostic_observations) =
                 observations.expect("recovery memo observations were finalized");
-            let failure = SyntaxMemoFailure {
+            let end_location = self.memo_failure_end_location(start_location, &error);
+            let failure = new!(SyntaxMemoFailure {
+                start_location,
+                end_location,
                 error,
                 diagnostic_observations,
                 rule_observation_node,
-            };
+            });
             let mut store = trial.store.borrow_mut();
             if sensitive {
                 let trial_id = context
@@ -1658,6 +1826,25 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(true)]
+    #[ensures(ret < self.syntax_location_byte_offsets.len().max(1))]
+    fn location_for_byte_offset(&self, byte_offset: usize) -> usize {
+        self.syntax_location_byte_offsets
+            .partition_point(|offset| *offset < byte_offset)
+            .min(self.syntax_location_byte_offsets.len().saturating_sub(1))
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= start_location)]
+    fn memo_failure_end_location(
+        &self,
+        start_location: usize,
+        error: &SyntaxParseError<'_>,
+    ) -> usize {
+        self.location_for_byte_offset(error.span().start.max(error.span().end))
+            .max(start_location)
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     pub(super) fn active_syntax_contexts(&self) -> &[SyntaxContextFrame] {
         &self.active_syntax_contexts
@@ -1710,6 +1897,73 @@ impl<'tokens> ParserState<'tokens> {
             field_can_be_absent,
             true,
         )
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(ret -> self.active_recovery_directive.is_none())]
+    pub(super) fn boundary_resync_catches_field_failure(
+        &self,
+        rule: &'static str,
+        instance_byte_start: usize,
+        field_index: usize,
+        field_start_location: usize,
+    ) -> bool {
+        if self.active_recovery_directive.is_some() {
+            return false;
+        }
+        self.recovery_directives
+            .get(self.consumed_recovery_directives)
+            .is_some_and(|directive| {
+                directive.kind == RecoveryDirectiveKind::BoundaryResync
+                    && directive.rule == rule
+                    && directive.instance_byte_start == instance_byte_start
+                    && field_index <= directive.resume_field
+                    && directive
+                        .boundary_unwind_start_token_index
+                        .is_some_and(|unwind_start| unwind_start <= field_start_location)
+                    && field_start_location < directive.resume_token_index
+                    && field_start_location <= directive.fail_token_index
+            })
+    }
+
+    #[requires(!rule.is_empty())]
+    #[requires(self.boundary_resync_catches_field_failure(
+        rule,
+        instance_byte_start,
+        field_index,
+        field_start_location,
+    ))]
+    #[ensures(matches!(
+        ret.kind,
+        RecoveryFieldActionKind::BoundaryResync | RecoveryFieldActionKind::Resume
+    ))]
+    pub(super) fn boundary_resync_field_action_after_failure(
+        &mut self,
+        rule: &'static str,
+        instance_byte_start: usize,
+        field_index: usize,
+        field_start_location: usize,
+    ) -> RecoveryFieldAction {
+        self.observe_recovery_directive_state();
+        let directive = self.recovery_directives[self.consumed_recovery_directives].clone();
+        self.effective_fail_token_indices.push(field_start_location);
+        self.consumed_recovery_directives += 1;
+        self.active_recovery_directive = Some(new!(ActiveRecoveryDirective {
+            directive: directive.clone(),
+            effective_fail_token_index: field_start_location,
+            skipped_item_emitted: true,
+        }));
+        self.record_abandoned_recovery_range(BoundaryAbandonedRange::new(
+            field_start_location,
+            directive.resume_token_index,
+        ));
+        let item = self.recovery_item_for_directive(&directive, field_start_location);
+        if field_index < directive.resume_field {
+            RecoveryFieldAction::boundary_resync(item, directive.resume_token_index)
+        } else {
+            self.active_recovery_directive = None;
+            RecoveryFieldAction::resume(Some(item), directive.resume_token_index)
+        }
     }
 
     #[requires(!rule.is_empty())]
@@ -1862,7 +2116,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(directive.fail_token_index <= directive.resume_token_index)]
     #[requires(effective_fail_token_index <= directive.fail_token_index)]
-    #[requires(directive.fail_token_index < directive.resume_token_index || effective_fail_token_index == directive.fail_token_index)]
+    #[requires(effective_fail_token_index <= directive.resume_token_index)]
     #[ensures(true)]
     pub(super) fn recovery_item_for_directive(
         &self,
@@ -1949,6 +2203,20 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(ret.trace.as_ref().is_none_or(|report| report.phase == TracePhase::Syntax))]
     #[ensures(ret.effective_fail_token_indices.len() + ret.unconsumed_recovery_directives == ret.recovery_directives.len())]
     pub(super) fn finish(mut self) -> ParserStateFinish {
+        if self
+            .active_recovery_directive
+            .as_ref()
+            .is_some_and(|active| active.directive.kind == RecoveryDirectiveKind::BoundaryResync)
+        {
+            self.active_recovery_directive = None;
+            self.consumed_recovery_directives = self
+                .consumed_recovery_directives
+                .checked_sub(1)
+                .expect("an active boundary directive has fired");
+            self.effective_fail_token_indices
+                .pop()
+                .expect("a fired boundary directive records its effective failure");
+        }
         let unconsumed_recovery_directives = self.unconsumed_recovery_directives();
         let effective_fail_token_indices = std::mem::take(&mut self.effective_fail_token_indices);
         self.consumed_recovery_directives = 0;
@@ -1965,6 +2233,7 @@ impl<'tokens> ParserState<'tokens> {
             unconsumed_recovery_directives,
             recovery_directives: self.recovery_directives,
             effective_fail_token_indices,
+            completed_recovery_boundary_location: self.completed_recovery_boundary_location,
         }
     }
 
@@ -2156,6 +2425,8 @@ impl<'tokens> Inspector<'tokens> for ParserState<'tokens> {
                 new!(ParserRecoveryCheckpoint {
                     consumed_recovery_directives: self.consumed_recovery_directives,
                     active_recovery_directive: self.active_recovery_directive.clone(),
+                    abandoned_range_count: self.abandoned_recovery_ranges.len(),
+                    completed_recovery_boundary_location: self.completed_recovery_boundary_location,
                 })
             }),
             trace_save: self.trace_should_record(TraceLevel::Primitives, "save"),
@@ -2193,6 +2464,10 @@ impl<'tokens> Inspector<'tokens> for ParserState<'tokens> {
             self.effective_fail_token_indices
                 .truncate(self.consumed_recovery_directives);
             self.active_recovery_directive = recovery.active_recovery_directive.clone();
+            self.abandoned_recovery_ranges
+                .truncate(recovery.abandoned_range_count);
+            self.completed_recovery_boundary_location =
+                recovery.completed_recovery_boundary_location;
         }
     }
 }
@@ -2485,7 +2760,8 @@ fn recover_after_strict_failure(
     continuation_sentinel_index: Option<usize>,
     continuation_time_limit: Option<ContinuationTimeLimit>,
 ) -> RecoveryParseOutcome {
-    let cap = options.max_recovery_errors.get();
+    let global_hard_cap = options.recovery_error_policy.global_hard_cap().get();
+    let per_statement_cap = options.recovery_error_policy.per_statement().get();
     let parser_tokens = tokens::spanned_tokens(&tokens);
     let recovery_token_scan = RecoveryTokenScan::new(&tokens);
     // Recovery selection depends only on parse results. Keep its memo session
@@ -2502,21 +2778,30 @@ fn recover_after_strict_failure(
     let mut continuation_expectations = Vec::new();
     let mut continuation_cut_reached = false;
     let mut continuation_time_limit_exhausted = false;
+    let mut errors_in_statement = 1usize;
 
-    'recovery_errors: while errors.len() < cap {
+    'recovery_errors: while errors.len() < global_hard_cap {
         if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
             continuation_time_limit_exhausted = true;
             break;
         }
-        let candidates = select_recovery_directives(
+        let mut candidates = select_recovery_directives(
             &tokens,
             &recovery_token_scan,
             &failure,
             options,
             errors.len() - 1,
         );
+        let local_cap_exhausted = errors_in_statement >= per_statement_cap;
+        if local_cap_exhausted {
+            candidates.retain(|directive| directive.kind == RecoveryDirectiveKind::BoundaryResync);
+        }
         let candidates = if candidates.is_empty() {
-            select_final_recovery_directives(&tokens, &failure, errors.len() - 1)
+            if local_cap_exhausted {
+                Vec::new()
+            } else {
+                select_final_recovery_directives(&tokens, &failure, errors.len() - 1)
+            }
         } else {
             candidates
         };
@@ -2534,10 +2819,10 @@ fn recover_after_strict_failure(
             };
             let mut trial_count = 0usize;
             for directive in candidates.iter().cloned() {
-                if directives
-                    .iter()
-                    .any(|existing| same_recovery_site(existing, &directive))
-                {
+                if directives.iter().any(|existing| {
+                    same_recovery_site(existing, &directive)
+                        || same_boundary_resync_group(existing, &directive)
+                }) {
                     continue;
                 }
                 if trial_count >= trial_limit {
@@ -2575,6 +2860,7 @@ fn recover_after_strict_failure(
                         unconsumed_directives,
                         recovery_directives: applied_directives,
                         effective_fail_token_indices: applied_effective_fail_token_indices,
+                        completed_recovery_boundary_location,
                         continuation_expectations: _,
                     }
                 ) = attempt.into_data();
@@ -2644,7 +2930,7 @@ fn recover_after_strict_failure(
                             trace = attempt_trace;
                             continue;
                         }
-                        if errors.len() >= cap {
+                        if errors.len() >= global_hard_cap {
                             break;
                         }
                         let next_error_start = syntax_error_start(&next_failure.public_error);
@@ -2661,6 +2947,7 @@ fn recover_after_strict_failure(
                                 failure: next_failure,
                                 trace: attempt_trace,
                                 effective_fail_token_indices: applied_effective_fail_token_indices,
+                                completed_recovery_boundary_location,
                             }));
                         }
                         if !natural_stop_enabled {
@@ -2721,6 +3008,7 @@ fn recover_after_strict_failure(
             failure: next_failure,
             trace: progress_trace,
             effective_fail_token_indices,
+            completed_recovery_boundary_location,
         }) = progress.into_data();
         let trial_reached_continuation_cut =
             continuation_sentinel_index.is_some_and(|sentinel_index| {
@@ -2751,6 +3039,21 @@ fn recover_after_strict_failure(
         }
         directives = trial_directives;
         errors.push(next_failure.public_error.clone());
+        let previous_failure_token_index =
+            token_index_for_byte_start(&tokens, syntax_error_start(&failure.public_error));
+        let crossed_completed_boundary = completed_recovery_boundary_location
+            .is_some_and(|location| location >= previous_failure_token_index);
+        if crossed_completed_boundary
+            || directives
+                .last()
+                .is_some_and(|directive| directive.kind == RecoveryDirectiveKind::BoundaryResync)
+        {
+            errors_in_statement = 1;
+        } else {
+            errors_in_statement = errors_in_statement
+                .checked_add(1)
+                .expect("the per-statement recovery error count does not overflow");
+        }
         failure = next_failure;
         trace = progress_trace;
         if trial_reached_continuation_cut {
@@ -2759,7 +3062,11 @@ fn recover_after_strict_failure(
         }
     }
 
-    if !continuation_time_limit_exhausted && !continuation_cut_reached && !directives.is_empty() {
+    if !continuation_time_limit_exhausted
+        && !continuation_cut_reached
+        && !directives.is_empty()
+        && errors_in_statement < per_statement_cap
+    {
         if let Some(recovered) = try_final_recovery_from_current_failure(
             &tokens,
             source,
@@ -2991,6 +3298,7 @@ fn try_final_recovery_from_current_failure<'tokens>(
                 continuation_expectations: _,
                 recovery_directives,
                 effective_fail_token_indices,
+                completed_recovery_boundary_location: _,
             }
         ) = attempt.into_data();
         if let Ok(parsed) = result
@@ -3034,18 +3342,39 @@ fn try_final_recovery_from_current_failure<'tokens>(
 #[requires(true)]
 #[ensures(true)]
 fn same_recovery_site(left: &RecoveryDirective, right: &RecoveryDirective) -> bool {
-    left.fail_token_index == right.fail_token_index
+    left.kind == right.kind
+        && left.fail_token_index == right.fail_token_index
         && left.resume_token_index == right.resume_token_index
         && left.resume_field == right.resume_field
         && left.rule == right.rule
         && left.instance_byte_start == right.instance_byte_start
+        && left.boundary_unwind_start_token_index == right.boundary_unwind_start_token_index
+}
+
+#[requires(true)]
+#[ensures(ret -> left.kind == RecoveryDirectiveKind::BoundaryResync)]
+#[ensures(ret -> right.kind == RecoveryDirectiveKind::BoundaryResync)]
+fn same_boundary_resync_group(left: &RecoveryDirective, right: &RecoveryDirective) -> bool {
+    left.kind == RecoveryDirectiveKind::BoundaryResync
+        && right.kind == RecoveryDirectiveKind::BoundaryResync
+        && left.rule == right.rule
+        && left.instance_byte_start == right.instance_byte_start
+        && left.resume_token_index == right.resume_token_index
+        && left.resume_field == right.resume_field
 }
 
 #[invariant(!rule.is_empty())]
+#[invariant(match (kind, boundary_unwind_start_token_index) {
+    (RecoveryDirectiveKind::Local, None) => true,
+    (RecoveryDirectiveKind::BoundaryResync, Some(start)) => *start < *resume_token_index,
+    _ => false,
+})]
 #[derive(Debug, Clone)]
 struct RecoveryClaim {
     branch_index: usize,
     inner_rank: usize,
+    kind: RecoveryDirectiveKind,
+    boundary_unwind_start_token_index: Option<usize>,
     rule: &'static str,
     instance_byte_start: usize,
     resume_token_index: usize,
@@ -3059,6 +3388,7 @@ struct RecoveryProgressTrial {
     failure: generated::generated_model::GeneratedParseFailure,
     trace: Option<TraceReport>,
     effective_fail_token_indices: Vec<usize>,
+    completed_recovery_boundary_location: Option<usize>,
 }
 
 #[invariant(!directives.is_empty())]
@@ -3188,6 +3518,14 @@ fn select_recovery_directives(
                     let claim = new!(RecoveryClaim {
                         branch_index,
                         inner_rank,
+                        kind: if anchor.boundary_resync && frame_token_index < resume_token_index {
+                            RecoveryDirectiveKind::BoundaryResync
+                        } else {
+                            RecoveryDirectiveKind::Local
+                        },
+                        boundary_unwind_start_token_index: (anchor.boundary_resync
+                            && frame_token_index < resume_token_index)
+                            .then_some(frame_token_index),
                         rule: metadata.rule,
                         instance_byte_start: frame.byte_start(),
                         resume_token_index,
@@ -3211,6 +3549,14 @@ fn select_recovery_directives(
             error_index,
             failure.public_error.clone(),
         );
+        let directive = match selected.kind {
+            RecoveryDirectiveKind::Local => directive,
+            RecoveryDirectiveKind::BoundaryResync => directive.into_boundary_resync(
+                selected
+                    .boundary_unwind_start_token_index
+                    .expect("boundary claims carry their owning rule start"),
+            ),
+        };
         if directives
             .iter()
             .any(|existing| same_recovery_site(existing, &directive))
@@ -3248,6 +3594,8 @@ fn select_final_recovery_directives(
             claims.push(new!(RecoveryClaim {
                 branch_index,
                 inner_rank,
+                kind: RecoveryDirectiveKind::Local,
+                boundary_unwind_start_token_index: None,
                 rule: metadata.rule,
                 instance_byte_start: frame.byte_start(),
                 resume_token_index: tokens.len(),
@@ -3280,10 +3628,15 @@ fn select_final_recovery_directives(
 
 #[requires(true)]
 #[ensures(true)]
-fn recovery_claim_sort_key(claim: &RecoveryClaim) -> (usize, usize, usize) {
+fn recovery_claim_sort_key(claim: &RecoveryClaim) -> (usize, usize, bool, usize) {
+    // A boundary at an enclosing text layer must not preempt a more precise
+    // claim from the grammar construct that actually owns the same token
+    // (notably connective I inside a statement). Boundary resync wins only
+    // after locality has selected the innermost active owner.
     (
         claim.resume_token_index,
         claim.inner_rank,
+        matches!(claim.kind, RecoveryDirectiveKind::Local),
         claim.branch_index,
     )
 }
@@ -3502,7 +3855,7 @@ fn fallback_recovery_item(
 }
 
 #[requires(effective_fail_token_index <= directive.fail_token_index)]
-#[requires(directive.fail_token_index < directive.resume_token_index || effective_fail_token_index == directive.fail_token_index)]
+#[requires(effective_fail_token_index <= directive.resume_token_index)]
 #[ensures(true)]
 fn skipped_recovery_item(
     error_index: usize,
@@ -3923,6 +4276,7 @@ mod tests {
         fmt::Write as _,
         fs,
         path::Path,
+        rc::Rc,
         time::{Duration, Instant},
     };
     use vec1::Vec1;
@@ -3935,6 +4289,212 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/recovery-anchor-metadata.snapshot.txt"
     );
+
+    #[requires(true)]
+    #[ensures(ret.0.recovery_directives.len() == 1)]
+    fn boundary_recovery_test_state() -> (
+        ParserState<'static>,
+        Rc<RefCell<SyntaxRecoveryMemoStore<'static>>>,
+    ) {
+        let source = "mi zo'u do .i mi klama";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let directive = RecoveryDirective::new("owner", 0, 3, 3, 2, 0, SyntaxError::NotImplemented)
+            .into_boundary_resync(0);
+        let mut session = SyntaxRecoveryMemoSession::new();
+        let trial = session.begin_trial();
+        let store = Rc::clone(&trial.store);
+        (
+            ParserState::new_with_recovery(
+                &tokens,
+                Some(source),
+                &ParseOptions::default(),
+                &[directive],
+                trial,
+                None,
+                None,
+            ),
+            store,
+        )
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn incomplete_boundary_resync_is_retracted_before_driver_acceptance() {
+        let (mut state, _store) = boundary_recovery_test_state();
+        let action = state.boundary_resync_field_action_after_failure("owner", 0, 0, 0);
+        let (kind, item, resume_token_index) = action.into_parts();
+        assert_eq!(kind, RecoveryFieldActionKind::BoundaryResync);
+        assert!(item.is_some());
+        assert_eq!(resume_token_index, Some(3));
+        assert_eq!(state.consumed_recovery_directives, 1);
+        assert!(state.active_recovery_directive.is_some());
+
+        // Model a second failure before generated traversal reaches the resume
+        // field. Finishing the failed attempt makes the fired directive pending
+        // again, so #533 cannot accept a stranded half-consumed chain.
+        let finish = state.finish();
+        assert_eq!(finish.unconsumed_recovery_directives, 1);
+        assert!(finish.effective_fail_token_indices.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn consumed_boundary_resync_rejects_intersecting_insensitive_sibling_memo() {
+        let (mut state, store) = boundary_recovery_test_state();
+        let mut store = store.borrow_mut();
+        store
+            .rule_observation_nodes
+            .push(SyntaxRuleObservationNode {
+                observation: new!(SyntaxRuleObservation {
+                    rule: "sibling",
+                    instance_byte_start: 0,
+                }),
+                children: Vec::new(),
+            });
+        let memo = |start_location, end_location| {
+            new!(SyntaxMemoSuccess {
+                start_location,
+                end_location,
+                recovery_index: 0,
+                consumed_recovery_directives: 0,
+                effective_fail_token_indices: Vec::new(),
+                value: SyntaxMemoValue::from_shared(Rc::new(())),
+                side_effects: SyntaxMemoSideEffects {
+                    warnings: Rc::from([]),
+                    diagnostic_observations: None,
+                },
+                rule_observation_node: Some(0),
+            })
+        };
+        store
+            .insensitive_successes
+            .insert(("intersecting", 1), memo(1, 2));
+        store
+            .insensitive_successes
+            .insert(("disjoint", 3), memo(3, 4));
+        drop(store);
+
+        state.consumed_recovery_directives = 1;
+        state.effective_fail_token_indices.push(0);
+        state
+            .abandoned_recovery_ranges
+            .push(BoundaryAbandonedRange::new(0, 3));
+        state.begin_syntax_memo_rule_frame();
+        let context = state.syntax_memo_context();
+        assert!(
+            state
+                .syntax_memo_success("intersecting", 1, context)
+                .is_none(),
+            "a sibling memo evaluated inside the abandoned range is stale",
+        );
+        assert!(
+            state.syntax_memo_success("disjoint", 3, context).is_some(),
+            "memo reuse outside the abandoned range remains available",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_observation_target_index_cache_tracks_pending_suffix() {
+        let source = "mi klama";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let directives = [
+            RecoveryDirective::new("a", 0, 0, 1, 0, 0, SyntaxError::NotImplemented),
+            RecoveryDirective::new("b", 0, 0, 1, 0, 1, SyntaxError::NotImplemented),
+            RecoveryDirective::new("a", 0, 0, 1, 0, 2, SyntaxError::NotImplemented),
+        ];
+        let mut session = SyntaxRecoveryMemoSession::new();
+        let trial = session.begin_trial();
+        let store = Rc::clone(&trial.store);
+        let mut state = ParserState::new_with_recovery(
+            &tokens,
+            Some(source),
+            &ParseOptions::default(),
+            &directives,
+            trial,
+            None,
+            None,
+        );
+        let mut store = store.borrow_mut();
+        store.rule_observation_nodes.extend([
+            SyntaxRuleObservationNode {
+                observation: new!(SyntaxRuleObservation {
+                    rule: "a",
+                    instance_byte_start: 0,
+                }),
+                children: vec![1],
+            },
+            SyntaxRuleObservationNode {
+                observation: new!(SyntaxRuleObservation {
+                    rule: "b",
+                    instance_byte_start: 0,
+                }),
+                children: Vec::new(),
+            },
+            SyntaxRuleObservationNode {
+                observation: new!(SyntaxRuleObservation {
+                    rule: "c",
+                    instance_byte_start: 0,
+                }),
+                children: Vec::new(),
+            },
+        ]);
+
+        assert_eq!(
+            state.syntax_rule_observation_latest_recovery_target_index(&store, 0),
+            Some(2),
+        );
+        assert_eq!(
+            state.syntax_rule_observation_latest_recovery_target_index(&store, 1),
+            Some(1),
+        );
+        assert_eq!(
+            state.syntax_rule_observation_latest_recovery_target_index(&store, 2),
+            None,
+        );
+        assert!(!state.syntax_rule_observations_are_insensitive(&store, 0));
+        state.consumed_recovery_directives = 3;
+        state.effective_fail_token_indices = vec![0; 3];
+        assert!(state.syntax_rule_observations_are_insensitive(&store, 0));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn boundary_scan_does_not_escape_through_nested_tuhe_i() {
+        let source = "tu'e mi ku .i do tu'u .i mi klama";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let scan = RecoveryTokenScan::new(&tokens);
+        let i_anchor = [generated::generated_model::SyntaxGrammarAnchorToken::Cmavo(
+            Cmavo::I,
+        )];
+        let inner_i = tokens
+            .iter()
+            .position(|token| token.is_cmavo(Cmavo::I))
+            .expect("nested I exists");
+        let outer_i = tokens
+            .iter()
+            .rposition(|token| token.is_cmavo(Cmavo::I))
+            .expect("outer I exists");
+        assert_ne!(inner_i, outer_i);
+
+        assert_eq!(
+            scan_for_recovery_anchor(&scan, 1, 0, &i_anchor),
+            Some(outer_i),
+            "an outer owner must ignore the I inside TUhE",
+        );
+        assert_eq!(
+            scan_for_recovery_anchor(&scan, 1, 1, &i_anchor),
+            Some(inner_i),
+            "the nested text owner may use its same-depth I",
+        );
+    }
 
     #[test]
     #[requires(true)]
@@ -4297,11 +4857,17 @@ mod tests {
                 )
                 .expect("writing to string cannot fail");
                 for anchor in field.anchors {
+                    let boundary = if anchor.boundary_resync {
+                        " boundary-resync"
+                    } else {
+                        ""
+                    };
                     writeln!(
                         &mut snapshot,
-                        "    resume {} origin {:?} start {} conditions {}",
+                        "    resume {} origin {:?}{} start {} conditions {}",
                         anchor.resume_field,
                         anchor.origin,
+                        boundary,
                         format_anchor_tokens(anchor.start_tokens),
                         format_anchor_conditions(anchor.conditions),
                     )
@@ -4435,6 +5001,28 @@ mod tests {
     }
 
     #[requires(!rule.is_empty())]
+    #[requires(!field.is_empty())]
+    #[ensures(true)]
+    fn assert_field_anchor_is_boundary(
+        rule: &str,
+        field: &str,
+        token: generated::generated_model::SyntaxGrammarAnchorToken,
+    ) {
+        let metadata = generated_anchor_metadata(rule);
+        let field_metadata = metadata
+            .fields
+            .iter()
+            .find(|field_metadata| field_metadata.field_name == field)
+            .expect("field metadata exists");
+        assert!(
+            field_metadata.anchors.iter().any(|anchor| {
+                anchor.boundary_resync && anchor_tokens_contain(anchor.start_tokens, token)
+            }),
+            "{rule}.{field} does not mark anchor token {token:?} as a recovery boundary",
+        );
+    }
+
+    #[requires(!rule.is_empty())]
     #[requires(!condition.is_empty())]
     #[ensures(true)]
     fn assert_first_contains_condition(rule: &str, condition: &str) {
@@ -4525,6 +5113,11 @@ mod tests {
         assert_field_anchor_contains(
             "paragraph_statement_sequence",
             "following",
+            AnchorCmavo(Cmavo::I),
+        );
+        assert_field_anchor_is_boundary(
+            "paragraph_statement_sequence",
+            "initial",
             AnchorCmavo(Cmavo::I),
         );
         assert_field_anchor_contains(

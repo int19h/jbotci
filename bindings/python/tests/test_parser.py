@@ -39,7 +39,7 @@ def test_parse_options_use_rust_defaults_and_checked_copying_updates() -> None:
     constructed = syntax.ParseOptions()
 
     assert constructed.error_context_depth == defaults.error_context_depth == 1
-    assert constructed.max_recovery_errors == defaults.max_recovery_errors == 20
+    assert constructed.max_recovery_errors == defaults.max_recovery_errors == 128
     assert constructed.dialect == defaults.dialect
     assert constructed.trace == defaults.trace
 
@@ -56,7 +56,7 @@ def test_parse_options_use_rust_defaults_and_checked_copying_updates() -> None:
     assert changed.error_context_depth == 4
     assert changed.max_recovery_errors == 7
     assert defaults.error_context_depth == 1
-    assert defaults.max_recovery_errors == 20
+    assert defaults.max_recovery_errors == 128
 
     operations: tuple[Callable[[], object], ...] = (
         lambda: syntax.ParseOptions(error_context_depth=-1),

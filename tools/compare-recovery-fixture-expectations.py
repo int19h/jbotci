@@ -6,13 +6,17 @@ facet-aware ``fixture-rewrite`` mode, limited to fixtures that contain a
 recovered syntax expectation.  Do not use ``--syntax-only``: that specialized
 mode refreshes strict syntax failures but does not regenerate their recovered
 expectations.
-This comparator only auto-accepts the narrow #526 mechanical improvement:
+This comparator only auto-accepts the narrow #517 boundary-unwind improvement:
 
 * all expectation data outside ``expectations.syntax.recovered`` is unchanged;
 * existing diagnostics are preserved or narrowed, in order;
-* previously valid tokens remain in order and more tokens become valid; and
+* every old valid token remains in order, every remaining invalid token keeps
+  its exact source span, and invalid-token losses exactly equal valid-token
+  gains;
 * a recovered skip is split into more recovery items with strictly less
-  positive-width byte coverage.
+  positive-width byte coverage; and
+* at least one zero-width ``missing`` item is synthesized and attached to the
+  same diagnostic as a positive-width invalid item.
 
 Everything else is residue for individual manual review.  In particular,
 format-only rewrites are not copied into the worktree.
@@ -46,6 +50,10 @@ class FixtureClassification:
     new_valid_token_count: int | None = None
     old_recovery_item_count: int | None = None
     new_recovery_item_count: int | None = None
+    old_invalid_token_count: int | None = None
+    new_invalid_token_count: int | None = None
+    old_missing_item_count: int | None = None
+    new_missing_item_count: int | None = None
     old_recovered_bytes: int | None = None
     new_recovered_bytes: int | None = None
 
@@ -157,9 +165,13 @@ def recovery_items(tree: JsonObject) -> list[JsonObject] | None:
     return items
 
 
-def positive_recovery_spans(items: Iterable[JsonObject]) -> list[ByteSpan] | None:
+def recovery_spans(
+    items: Iterable[JsonObject], kind: str
+) -> list[ByteSpan] | None:
     spans: list[ByteSpan] = []
     for item in items:
+        if item.get("kind") != kind:
+            continue
         item_spans = item.get("byte-spans")
         if not isinstance(item_spans, list):
             return None
@@ -170,6 +182,70 @@ def positive_recovery_spans(items: Iterable[JsonObject]) -> list[ByteSpan] | Non
             if span[0] < span[1]:
                 spans.append(span)
     return spans
+
+
+def recovery_items_are_well_formed(
+    items: Sequence[JsonObject], diagnostic_count: int
+) -> bool:
+    for item in items:
+        kind = item.get("kind")
+        error_index = item.get("error-index")
+        spans = item.get("byte-spans")
+        if kind not in {"invalid", "missing"}:
+            return False
+        if (
+            not isinstance(error_index, int)
+            or isinstance(error_index, bool)
+            or not 0 <= error_index < diagnostic_count
+        ):
+            return False
+        if not isinstance(spans, list) or not spans:
+            return False
+        parsed_spans = [byte_span(span) for span in spans]
+        if any(span is None for span in parsed_spans):
+            return False
+        if kind == "invalid" and any(
+            span is not None and span[0] == span[1] for span in parsed_spans
+        ):
+            return False
+        if kind == "missing" and any(
+            span is not None and span[0] != span[1] for span in parsed_spans
+        ):
+            return False
+    return True
+
+
+def spans_are_strictly_ordered(spans: Sequence[ByteSpan]) -> bool:
+    return all(left[1] <= right[0] for left, right in zip(spans, spans[1:]))
+
+
+def newly_synthesized_missing_items(
+    old_items: Sequence[JsonObject], new_items: Sequence[JsonObject]
+) -> list[JsonObject]:
+    old_missing = [item for item in old_items if item.get("kind") == "missing"]
+    remaining = old_missing.copy()
+    synthesized: list[JsonObject] = []
+    for item in new_items:
+        if item.get("kind") != "missing":
+            continue
+        try:
+            matching_index = remaining.index(item)
+        except ValueError:
+            synthesized.append(item)
+        else:
+            remaining.pop(matching_index)
+    return synthesized
+
+
+def missing_items_share_invalid_diagnostics(
+    missing_items: Sequence[JsonObject], all_items: Sequence[JsonObject]
+) -> bool:
+    invalid_error_indexes = {
+        item.get("error-index")
+        for item in all_items
+        if item.get("kind") == "invalid"
+    }
+    return all(item.get("error-index") in invalid_error_indexes for item in missing_items)
 
 
 def merge_spans(spans: Iterable[ByteSpan]) -> list[ByteSpan]:
@@ -185,14 +261,6 @@ def merge_spans(spans: Iterable[ByteSpan]) -> list[ByteSpan]:
 
 def covered_bytes(spans: Iterable[ByteSpan]) -> int:
     return sum(end - start for start, end in merge_spans(spans))
-
-
-def spans_are_within(inner: Iterable[ByteSpan], outer: Iterable[ByteSpan]) -> bool:
-    outer_merged = merge_spans(outer)
-    return all(
-        any(outer_start <= start and end <= outer_end for outer_start, outer_end in outer_merged)
-        for start, end in inner
-    )
 
 
 def classify_changed_fixture(
@@ -229,8 +297,10 @@ def classify_changed_fixture(
     new_valid: list[Any] = []
     old_items: list[JsonObject] = []
     new_items: list[JsonObject] = []
-    old_spans: list[ByteSpan] = []
-    new_spans: list[ByteSpan] = []
+    old_invalid_spans: list[ByteSpan] = []
+    new_invalid_spans: list[ByteSpan] = []
+    old_missing_items: list[JsonObject] = []
+    new_missing_items: list[JsonObject] = []
     if not isinstance(old_tree, dict) or not isinstance(new_tree, dict):
         reasons.append("recovered trees are not both tables")
     else:
@@ -265,23 +335,64 @@ def classify_changed_fixture(
         else:
             old_items = old_items_value
             new_items = new_items_value
+            old_items_well_formed = recovery_items_are_well_formed(
+                old_items, len(old_diagnostics)
+            )
+            new_items_well_formed = recovery_items_are_well_formed(
+                new_items, len(new_diagnostics)
+            )
+            if not old_items_well_formed or not new_items_well_formed:
+                reasons.append(
+                    "recovery items have invalid kinds, error indexes, or byte spans"
+                )
             if len(new_items) <= len(old_items):
                 reasons.append("recovered skip was not split into more recovery items")
-            old_spans_value = positive_recovery_spans(old_items)
-            new_spans_value = positive_recovery_spans(new_items)
-            if old_spans_value is None or new_spans_value is None:
-                reasons.append("recovery byte-spans are malformed")
+            old_invalid_value = recovery_spans(old_items, "invalid")
+            new_invalid_value = recovery_spans(new_items, "invalid")
+            if old_invalid_value is None or new_invalid_value is None:
+                reasons.append("invalid recovery byte-spans are malformed")
             else:
-                old_spans = old_spans_value
-                new_spans = new_spans_value
-                if not old_spans:
-                    reasons.append("baseline has no positive-width recovered byte coverage")
-                elif not spans_are_within(new_spans, old_spans):
-                    reasons.append("candidate recovery extends outside baseline recovered coverage")
-                if covered_bytes(new_spans) >= covered_bytes(old_spans):
+                old_invalid_spans = old_invalid_value
+                new_invalid_spans = new_invalid_value
+                if not old_invalid_spans:
+                    reasons.append("baseline has no invalid recovered tokens")
+                if not spans_are_strictly_ordered(old_invalid_spans):
+                    reasons.append("baseline invalid token spans overlap or are out of order")
+                if not spans_are_strictly_ordered(new_invalid_spans):
+                    reasons.append("candidate invalid token spans overlap or are out of order")
+                if not is_ordered_subsequence(new_invalid_spans, old_invalid_spans):
+                    reasons.append(
+                        "candidate invalid tokens are not an exact ordered subset of baseline"
+                    )
+                if (
+                    len(old_valid) + len(old_invalid_spans)
+                    != len(new_valid) + len(new_invalid_spans)
+                ):
+                    reasons.append(
+                        "valid and invalid token projections do not conserve token count"
+                    )
+                if len(new_invalid_spans) >= len(old_invalid_spans):
+                    reasons.append("candidate does not recover fewer invalid tokens")
+                if covered_bytes(new_invalid_spans) >= covered_bytes(old_invalid_spans):
                     reasons.append("candidate does not strictly reduce recovered byte coverage")
 
-    category = "mechanical-improvement" if not reasons else "residue"
+            old_missing_items = [
+                item for item in old_items if item.get("kind") == "missing"
+            ]
+            new_missing_items = [
+                item for item in new_items if item.get("kind") == "missing"
+            ]
+            synthesized_missing = newly_synthesized_missing_items(old_items, new_items)
+            if len(new_missing_items) <= len(old_missing_items) or not synthesized_missing:
+                reasons.append("candidate does not synthesize additional missing items")
+            elif not missing_items_share_invalid_diagnostics(
+                synthesized_missing, new_items
+            ):
+                reasons.append(
+                    "synthesized missing items do not share a diagnostic with an invalid item"
+                )
+
+    category = "recovery-unwind" if not reasons else "residue"
     return FixtureClassification(
         path=relative_path.as_posix(),
         category=category,
@@ -292,8 +403,12 @@ def classify_changed_fixture(
         new_valid_token_count=len(new_valid),
         old_recovery_item_count=len(old_items),
         new_recovery_item_count=len(new_items),
-        old_recovered_bytes=covered_bytes(old_spans),
-        new_recovered_bytes=covered_bytes(new_spans),
+        old_invalid_token_count=len(old_invalid_spans),
+        new_invalid_token_count=len(new_invalid_spans),
+        old_missing_item_count=len(old_missing_items),
+        new_missing_item_count=len(new_missing_items),
+        old_recovered_bytes=covered_bytes(old_invalid_spans),
+        new_recovered_bytes=covered_bytes(new_invalid_spans),
     )
 
 
@@ -344,7 +459,7 @@ def classify_roots(baseline_root: Path, candidate_root: Path) -> list[FixtureCla
 def report_value(classifications: Sequence[FixtureClassification], applied: int) -> JsonObject:
     counts = {
         category: sum(item.category == category for item in classifications)
-        for category in ("mechanical-improvement", "residue", "format-only")
+        for category in ("recovery-unwind", "residue", "format-only")
     }
     counts["changed"] = len(classifications)
     counts["applied"] = applied
@@ -365,7 +480,7 @@ def main() -> int:
     applied = 0
     if args.apply:
         for item in classifications:
-            if item.category != "mechanical-improvement":
+            if item.category != "recovery-unwind":
                 continue
             source = args.candidate_root / item.path
             destination = args.baseline_root / item.path

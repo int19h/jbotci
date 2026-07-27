@@ -267,7 +267,7 @@ fn max_errors_one_caps_both_recovery_phases_at_the_first_diagnostic() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn max_errors_defaults_to_twenty_and_rejects_zero_for_every_parsing_command() {
+fn max_errors_uses_parser_defaults_and_rejects_zero_for_every_parsing_command() {
     for command in ["gentufa", "tersmu", "vlasei"] {
         let error = Cli::try_parse_from(["jbotci", command, "--max-errors", "0", "mi"])
             .expect_err("zero recovery error cap must be rejected");
@@ -289,14 +289,14 @@ fn max_errors_defaults_to_twenty_and_rejects_zero_for_every_parsing_command() {
     let Command::Gentufa(gentufa) = gentufa.command else {
         panic!("gentufa command should parse as gentufa");
     };
-    assert_eq!(gentufa.max_errors.get(), 20);
+    assert_eq!(gentufa.max_errors, None);
 
     let tersmu = Cli::try_parse_from(["jbotci", "tersmu", "mi"])
         .expect("default tersmu arguments should parse");
     let Command::Tersmu(tersmu) = tersmu.command else {
         panic!("tersmu command should parse as tersmu");
     };
-    assert_eq!(tersmu.max_errors.get(), 20);
+    assert_eq!(tersmu.max_errors, None);
 
     let vlasei = Cli::try_parse_from(["jbotci", "vlasei", "mi"])
         .expect("default vlasei arguments should parse");
