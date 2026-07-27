@@ -326,6 +326,17 @@ For the web app, all processing should happen on the client in the browser and s
 If you have made any product changes, always build the `jbotci` debug binary and do a debug `dx build` before you wrap up your work.
 
 
+# Disk and build layout
+
+On the dev box, all transient artifacts live on the dedicated `/build` partition (fast, directly mounted XFS); the full protocol is `~/git/agent-ops/docs/storage.md`. The invariant: everything under `/build` must be safe to wipe — build output, caches, scratch, logs. Anything that must survive belongs in a repository, the issue tracker, or `~/artifacts`.
+
+- The canonical checkout's `target` is a symlink to `/build/jbotci/target/main`; a plain `cargo build` already lands in the right place. Do not replace the symlink with a real directory, and never let build output land under `~/git` (a slow, chronically near-full virtiofs share).
+- Builds in worktrees set `CARGO_TARGET_DIR=/build/jbotci/target/<lane>`, where `<lane>` names the worktree or work item (e.g. `issue-642`).
+- Transient test artifacts, pipeline intermediates, and per-issue work areas go to `/build/jbotci/scratch/<topic>`; long run logs (e.g. codex exec logs) go to `/build/jbotci/logs/`.
+- `/tmp` is a small RAM tmpfs shared by every session — never write large files there; use `/build/tmp` or `/build/jbotci/scratch` instead.
+- After a heavy all-targets test gate (e.g. expensive contracts), purge that lane's `target/<lane>/debug` — debug trees run to ~50G each.
+
+
 # Test suite
 
 If you've made any product changes, always run at least `cargo test -r`.
