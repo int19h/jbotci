@@ -628,6 +628,45 @@ def test_stub_composition_is_current() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_rust_api_parity_matrix_is_current_and_rejects_unclassified_items(
+    tmp_path: Path,
+) -> None:
+    """Keep the reviewed matrix exact and prove that an omitted Rust item fails."""
+    matrix = PACKAGE_ROOT / "docs" / "api-parity.tsv"
+    generator = PACKAGE_ROOT / "tools" / "generate_api_matrix.py"
+    generated = subprocess.run(
+        [sys.executable, str(generator), "--check"],
+        cwd=PACKAGE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert generated.returncode == 0, generated.stdout + generated.stderr
+
+    missing = tmp_path / "api-parity-missing.tsv"
+    lines = matrix.read_text(encoding="utf-8").splitlines(keepends=True)
+    assert len(lines) > 1
+    missing.write_text("".join((lines[0], *lines[2:])), encoding="utf-8")
+    rejected = subprocess.run(
+        [
+            "cargo",
+            "run",
+            "--quiet",
+            "-p",
+            "jbotci-python-api-parity",
+            "--",
+            "check",
+            str(missing),
+        ],
+        cwd=WORKSPACE_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert "unclassified Rust API item:" in rejected.stderr
+
+
 def test_syntax_model_generation_is_current() -> None:
     result = subprocess.run(
         [
