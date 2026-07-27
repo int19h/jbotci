@@ -55,6 +55,153 @@ type BoxedParser<'tokens, O> = Boxed<'tokens, O>;
 const LEGACY_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR: usize = 8;
 const MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR: usize = 64;
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RecoveryReachabilityKindTelemetry {
+    pub exact_considered: u64,
+    pub exact_run: u64,
+    pub exact_skipped: u64,
+    pub exact_wins: u64,
+    pub natural_wins: u64,
+    pub both_fail: u64,
+    pub exact_run_rejected: u64,
+    pub skip_verified_rejected: u64,
+    pub skip_false_positive: u64,
+    pub cap_retained_away: u64,
+}
+
+impl RecoveryReachabilityKindTelemetry {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn add_assign(&mut self, other: Self) {
+        self.exact_considered += other.exact_considered;
+        self.exact_run += other.exact_run;
+        self.exact_skipped += other.exact_skipped;
+        self.exact_wins += other.exact_wins;
+        self.natural_wins += other.natural_wins;
+        self.both_fail += other.both_fail;
+        self.exact_run_rejected += other.exact_run_rejected;
+        self.skip_verified_rejected += other.skip_verified_rejected;
+        self.skip_false_positive += other.skip_false_positive;
+        self.cap_retained_away += other.cap_retained_away;
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RecoveryReachabilityTelemetry {
+    pub local: RecoveryReachabilityKindTelemetry,
+    pub boundary_resync: RecoveryReachabilityKindTelemetry,
+}
+
+impl RecoveryReachabilityTelemetry {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn add_assign(&mut self, other: Self) {
+        self.local.add_assign(other.local);
+        self.boundary_resync.add_assign(other.boundary_resync);
+    }
+}
+
+#[cfg(feature = "expensive_contracts")]
+thread_local! {
+    static RECOVERY_REACHABILITY_FILTER_DISABLED: Cell<bool> = const { Cell::new(false) };
+    static RECOVERY_REACHABILITY_TELEMETRY:
+        RefCell<Option<RecoveryReachabilityTelemetry>> = const { RefCell::new(None) };
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(true)]
+pub fn with_recovery_reachability_instrumentation<T>(
+    filter_enabled: bool,
+    operation: impl FnOnce() -> T,
+) -> (T, RecoveryReachabilityTelemetry) {
+    RECOVERY_REACHABILITY_FILTER_DISABLED.with(|disabled| {
+        assert!(
+            !disabled.replace(!filter_enabled),
+            "recovery reachability instrumentation cannot be nested"
+        );
+    });
+    RECOVERY_REACHABILITY_TELEMETRY.with(|telemetry| {
+        assert!(
+            telemetry
+                .replace(Some(RecoveryReachabilityTelemetry::default()))
+                .is_none(),
+            "recovery reachability telemetry capture cannot be nested"
+        );
+    });
+    let result = operation();
+    let telemetry = RECOVERY_REACHABILITY_TELEMETRY.with(|telemetry| {
+        telemetry
+            .take()
+            .expect("recovery reachability telemetry capture is active")
+    });
+    RECOVERY_REACHABILITY_FILTER_DISABLED.with(|disabled| disabled.set(false));
+    (result, telemetry)
+}
+
+#[invariant(true)]
+#[cfg_attr(not(feature = "expensive_contracts"), allow(dead_code))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecoveryReachabilityTelemetryEvent {
+    ExactConsidered,
+    ExactRun,
+    ExactSkipped,
+    ExactWins,
+    NaturalWins,
+    BothFail,
+    ExactRunRejected,
+    SkipVerifiedRejected,
+    SkipFalsePositive,
+    CapRetainedAway,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn record_recovery_reachability_telemetry(
+    kind: RecoveryDirectiveKind,
+    event: RecoveryReachabilityTelemetryEvent,
+    count: usize,
+) {
+    #[cfg(feature = "expensive_contracts")]
+    RECOVERY_REACHABILITY_TELEMETRY.with(|telemetry| {
+        let mut telemetry = telemetry.borrow_mut();
+        let Some(telemetry) = telemetry.as_mut() else {
+            return;
+        };
+        let counters = match kind {
+            RecoveryDirectiveKind::Local => &mut telemetry.local,
+            RecoveryDirectiveKind::BoundaryResync => &mut telemetry.boundary_resync,
+        };
+        let count = u64::try_from(count).expect("telemetry counts fit in u64");
+        let counter = match event {
+            RecoveryReachabilityTelemetryEvent::ExactConsidered => &mut counters.exact_considered,
+            RecoveryReachabilityTelemetryEvent::ExactRun => &mut counters.exact_run,
+            RecoveryReachabilityTelemetryEvent::ExactSkipped => &mut counters.exact_skipped,
+            RecoveryReachabilityTelemetryEvent::ExactWins => &mut counters.exact_wins,
+            RecoveryReachabilityTelemetryEvent::NaturalWins => &mut counters.natural_wins,
+            RecoveryReachabilityTelemetryEvent::BothFail => &mut counters.both_fail,
+            RecoveryReachabilityTelemetryEvent::ExactRunRejected => {
+                &mut counters.exact_run_rejected
+            }
+            RecoveryReachabilityTelemetryEvent::SkipVerifiedRejected => {
+                &mut counters.skip_verified_rejected
+            }
+            RecoveryReachabilityTelemetryEvent::SkipFalsePositive => {
+                &mut counters.skip_false_positive
+            }
+            RecoveryReachabilityTelemetryEvent::CapRetainedAway => &mut counters.cap_retained_away,
+        };
+        *counter = counter
+            .checked_add(count)
+            .expect("recovery reachability telemetry does not overflow");
+    });
+
+    #[cfg(not(feature = "expensive_contracts"))]
+    let _ = (kind, event, count);
+}
+
 #[invariant(!duration.is_zero(), "an active continuation time limit is nonzero")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ContinuationTimeLimit {
@@ -88,6 +235,7 @@ pub(super) struct ParserStateFinish {
     pub recovery_directives: Vec<RecoveryDirective>,
     pub effective_fail_token_indices: Vec<usize>,
     pub completed_recovery_boundary_location: Option<usize>,
+    pub recovery_checkpoints: Vec<RecoveryCheckpoint>,
 }
 
 #[invariant(true)]
@@ -206,6 +354,62 @@ pub(super) struct RecoveryDirective {
 enum RecoveryDirectiveKind {
     Local,
     BoundaryResync,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum RecoveryCheckpointKind {
+    FieldStart,
+    Trailing,
+}
+
+#[invariant(!rule.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) struct RecoveryCheckpoint {
+    rule: &'static str,
+    instance_byte_start: usize,
+    token_index: usize,
+    field_index: usize,
+    kind: RecoveryCheckpointKind,
+}
+
+impl RecoveryCheckpoint {
+    #[requires(!rule.is_empty())]
+    #[ensures(ret.rule == rule)]
+    #[ensures(ret.instance_byte_start == instance_byte_start)]
+    #[ensures(ret.token_index == token_index)]
+    #[ensures(ret.field_index == field_index)]
+    #[ensures(ret.kind == kind)]
+    fn new(
+        rule: &'static str,
+        instance_byte_start: usize,
+        token_index: usize,
+        field_index: usize,
+        kind: RecoveryCheckpointKind,
+    ) -> Self {
+        new!(RecoveryCheckpoint {
+            rule,
+            instance_byte_start,
+            token_index,
+            field_index,
+            kind,
+        })
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    fn matches_local_exact_site(
+        &self,
+        rule: &'static str,
+        instance_byte_start: usize,
+        token_index: usize,
+        resume_field: usize,
+    ) -> bool {
+        self.rule == rule
+            && self.instance_byte_start == instance_byte_start
+            && self.token_index == token_index
+            && self.field_index <= resume_field
+    }
 }
 
 #[invariant(*effective_fail_token_index <= directive.fail_token_index)]
@@ -392,6 +596,7 @@ struct SyntaxMemoFailure<'tokens> {
     start_location: usize,
     end_location: usize,
     error: SyntaxParseError<'tokens>,
+    recovery_checkpoints: Rc<[RecoveryCheckpoint]>,
     diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
     rule_observation_node: Option<usize>,
 }
@@ -437,6 +642,7 @@ impl BoundaryAbandonedRange {
 #[derive(Debug, Clone)]
 struct SyntaxMemoSideEffects<'tokens> {
     warnings: Rc<[SyntaxWarning]>,
+    recovery_checkpoints: Rc<[RecoveryCheckpoint]>,
     diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
 }
 
@@ -568,6 +774,7 @@ impl<'tokens> SyntaxRecoveryMemoSession<'tokens> {
 pub(super) struct SyntaxMemoContext {
     recovery_trial_id: Option<usize>,
     recovery_index: usize,
+    recovery_checkpoint_index: usize,
 }
 
 #[invariant(true)]
@@ -628,6 +835,8 @@ pub(super) struct ParserState<'tokens> {
     active_recovery_directive: Option<ActiveRecoveryDirective>,
     abandoned_recovery_ranges: Vec<BoundaryAbandonedRange>,
     completed_recovery_boundary_location: Option<usize>,
+    recovery_checkpoints: Option<HashSet<RecoveryCheckpoint>>,
+    recovery_checkpoint_order: Vec<RecoveryCheckpoint>,
     recovery_tokens: Vec<Token>,
     recovery_source: Option<Arc<str>>,
     track_recovery_branches: bool,
@@ -644,6 +853,7 @@ pub(super) struct ParserState<'tokens> {
 )]
 #[invariant(self.effective_fail_token_indices.len() == self.consumed_recovery_directives)]
 #[invariant(self.continuation_sentinel_index.is_some() || self.continuation_diagnostic_candidates.is_empty())]
+#[invariant(self.recovery_checkpoints.is_some() || self.recovery_checkpoint_order.is_empty())]
 #[expensive_invariant(
     true,
     "syntax memo keys are protected by ParserState's private mutation APIs"
@@ -687,6 +897,8 @@ impl<'tokens> ParserState<'tokens> {
             active_recovery_directive: None,
             abandoned_recovery_ranges: Vec::new(),
             completed_recovery_boundary_location: None,
+            recovery_checkpoints: None,
+            recovery_checkpoint_order: Vec::new(),
             recovery_tokens: Vec::new(),
             recovery_source: None,
             track_recovery_branches: false,
@@ -719,6 +931,7 @@ impl<'tokens> ParserState<'tokens> {
     pub(super) fn new_with_recovery_branches(words: &[Token], options: &ParseOptions) -> Self {
         let mut state = Self::new(words, options);
         state.track_recovery_branches = true;
+        state.recovery_checkpoints = Some(HashSet::new());
         state
     }
 
@@ -832,6 +1045,7 @@ impl<'tokens> ParserState<'tokens> {
                 .as_ref()
                 .map(|trial| trial.trial_id.get()),
             recovery_index: self.consumed_recovery_directives,
+            recovery_checkpoint_index: self.recovery_checkpoint_order.len(),
         })
     }
 
@@ -1349,6 +1563,7 @@ impl<'tokens> ParserState<'tokens> {
                     "only sensitive memo entries omit rule observations"
                 );
             }
+            self.replay_recovery_checkpoints(&failure.recovery_checkpoints);
             return Some(failure);
         }
         self.syntax_failure_memo
@@ -1360,6 +1575,7 @@ impl<'tokens> ParserState<'tokens> {
                     start_location,
                     end_location,
                     error,
+                    recovery_checkpoints: Rc::from([]),
                     diagnostic_observations: None,
                     rule_observation_node: None,
                 })
@@ -1369,6 +1585,7 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule_name.is_empty())]
     #[requires(end_location >= start_location)]
     #[requires(context.recovery_index <= self.consumed_recovery_directives)]
+    #[requires(context.recovery_checkpoint_index <= self.recovery_checkpoint_order.len())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
@@ -1411,6 +1628,9 @@ impl<'tokens> ParserState<'tokens> {
             value,
             side_effects: SyntaxMemoSideEffects {
                 warnings: warnings.into(),
+                recovery_checkpoints: Rc::from(
+                    &self.recovery_checkpoint_order[context.recovery_checkpoint_index..],
+                ),
                 diagnostic_observations,
             },
             rule_observation_node,
@@ -1438,6 +1658,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[requires(context.recovery_checkpoint_index <= self.recovery_checkpoint_order.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
     pub(super) fn store_syntax_memo_failure(
@@ -1460,6 +1681,9 @@ impl<'tokens> ParserState<'tokens> {
                 start_location,
                 end_location,
                 error,
+                recovery_checkpoints: Rc::from(
+                    &self.recovery_checkpoint_order[context.recovery_checkpoint_index..],
+                ),
                 diagnostic_observations,
                 rule_observation_node,
             });
@@ -1544,7 +1768,22 @@ impl<'tokens> ParserState<'tokens> {
         side_effects: &SyntaxMemoSideEffects<'tokens>,
     ) {
         self.warnings.extend_from_slice(&side_effects.warnings);
+        self.replay_recovery_checkpoints(&side_effects.recovery_checkpoints);
         self.replay_syntax_diagnostic_observations(side_effects.diagnostic_observations.as_ref());
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn replay_recovery_checkpoints(&mut self, checkpoints: &[RecoveryCheckpoint]) {
+        for checkpoint in checkpoints {
+            self.record_recovery_checkpoint(
+                checkpoint.rule,
+                checkpoint.instance_byte_start,
+                checkpoint.token_index,
+                checkpoint.field_index,
+                checkpoint.kind,
+            );
+        }
     }
 
     #[requires(true)]
@@ -2227,6 +2466,7 @@ impl<'tokens> ParserState<'tokens> {
                 deduped.push(warning);
             }
         }
+        let recovery_checkpoints = std::mem::take(&mut self.recovery_checkpoint_order);
         ParserStateFinish {
             warnings: deduped,
             trace,
@@ -2234,6 +2474,43 @@ impl<'tokens> ParserState<'tokens> {
             recovery_directives: self.recovery_directives,
             effective_fail_token_indices,
             completed_recovery_boundary_location: self.completed_recovery_boundary_location,
+            recovery_checkpoints,
+        }
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    pub(super) fn recovery_rule_instance_byte_start(
+        &self,
+        rule: &'static str,
+        token_index: usize,
+    ) -> usize {
+        self.active_syntax_rules
+            .iter()
+            .rev()
+            .find(|frame| frame.rule() == rule)
+            .map_or_else(
+                || self.byte_offset_for_location(token_index),
+                SyntaxRuleFrame::byte_start,
+            )
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    pub(super) fn record_recovery_checkpoint(
+        &mut self,
+        rule: &'static str,
+        instance_byte_start: usize,
+        token_index: usize,
+        field_index: usize,
+        kind: RecoveryCheckpointKind,
+    ) {
+        if let Some(checkpoints) = &mut self.recovery_checkpoints {
+            let checkpoint =
+                RecoveryCheckpoint::new(rule, instance_byte_start, token_index, field_index, kind);
+            if checkpoints.insert(checkpoint.clone()) {
+                self.recovery_checkpoint_order.push(checkpoint);
+            }
         }
     }
 
@@ -2779,6 +3056,8 @@ fn recover_after_strict_failure(
     let mut continuation_cut_reached = false;
     let mut continuation_time_limit_exhausted = false;
     let mut errors_in_statement = 1usize;
+    let reachability_filter_enabled =
+        recovery_reachability_filter_enabled(options, continuation_time_limit);
 
     'recovery_errors: while errors.len() < global_hard_cap {
         if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
@@ -2794,6 +3073,15 @@ fn recover_after_strict_failure(
         );
         let local_cap_exhausted = errors_in_statement >= per_statement_cap;
         if local_cap_exhausted {
+            let local_candidates = candidates
+                .iter()
+                .filter(|directive| directive.kind == RecoveryDirectiveKind::Local)
+                .count();
+            record_recovery_reachability_telemetry(
+                RecoveryDirectiveKind::Local,
+                RecoveryReachabilityTelemetryEvent::CapRetainedAway,
+                local_candidates,
+            );
             candidates.retain(|directive| directive.kind == RecoveryDirectiveKind::BoundaryResync);
         }
         let candidates = if candidates.is_empty() {
@@ -2811,6 +3099,7 @@ fn recover_after_strict_failure(
 
         let mut accepted_progress = None;
         let mut exact_position_success = None;
+        let mut rejected_exact_sites = Vec::new();
         'recovery_phases: for natural_stop_enabled in [false, true] {
             let trial_limit = if natural_stop_enabled {
                 MAX_NATURAL_STOP_DIRECTIVE_TRIALS_PER_ERROR
@@ -2841,37 +3130,114 @@ fn recover_after_strict_failure(
                 let mut trial_directives = directives.clone();
                 trial_directives.push(directive.clone());
 
-                let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
+                if !natural_stop_enabled {
+                    record_recovery_reachability_telemetry(
+                        directive.kind,
+                        RecoveryReachabilityTelemetryEvent::ExactConsidered,
+                        1,
+                    );
+                }
+                let paired_rejected_exact = natural_stop_enabled
+                    && rejected_exact_sites
+                        .iter()
+                        .any(|exact| same_recovery_site(exact, &directive));
+                if !natural_stop_enabled
+                    && reachability_filter_enabled
+                    && !exact_trial_reachable(&failure, &directive)
+                {
+                    record_recovery_reachability_telemetry(
+                        directive.kind,
+                        RecoveryReachabilityTelemetryEvent::ExactSkipped,
+                        1,
+                    );
+                    #[cfg(feature = "expensive_contracts")]
+                    {
+                        let verification = run_recovery_trial(
+                            &tokens,
+                            &parser_tokens,
+                            source,
+                            options,
+                            &trial_directives,
+                            &directive,
+                            &mut recovery_session,
+                            errors.len(),
+                            global_hard_cap,
+                            errors.last().map_or(0, syntax_error_start),
+                        );
+                        if matches!(verification, RecoveryTrialClassification::Rejected { .. }) {
+                            record_recovery_reachability_telemetry(
+                                directive.kind,
+                                RecoveryReachabilityTelemetryEvent::SkipVerifiedRejected,
+                                1,
+                            );
+                        } else {
+                            record_recovery_reachability_telemetry(
+                                directive.kind,
+                                RecoveryReachabilityTelemetryEvent::SkipFalsePositive,
+                                1,
+                            );
+                            let related_checkpoints = failure
+                                .checkpoints
+                                .iter()
+                                .filter(|checkpoint| checkpoint.rule == directive.rule)
+                                .collect::<Vec<_>>();
+                            panic!(
+                                "exact-site reachability skipped a trial accepted by the #533 classifier: {directive:?}; same-rule checkpoints: {related_checkpoints:?}"
+                            );
+                        }
+                    }
+                    rejected_exact_sites.push(directive);
+                    continue;
+                }
+                if !natural_stop_enabled {
+                    record_recovery_reachability_telemetry(
+                        directive.kind,
+                        RecoveryReachabilityTelemetryEvent::ExactRun,
+                        1,
+                    );
+                }
+                let classification = run_recovery_trial(
                     &tokens,
                     &parser_tokens,
                     source,
                     options,
                     &trial_directives,
+                    &directive,
                     &mut recovery_session,
+                    errors.len(),
+                    global_hard_cap,
+                    errors.last().map_or(0, syntax_error_start),
                 );
                 if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
                     continuation_time_limit_exhausted = true;
                     break 'recovery_errors;
                 }
-                let data!(
-                    generated::generated_model::GeneratedRecoveredParsedTextAttempt {
-                        result,
-                        trace: attempt_trace,
-                        unconsumed_directives,
-                        recovery_directives: applied_directives,
-                        effective_fail_token_indices: applied_effective_fail_token_indices,
-                        completed_recovery_boundary_location,
-                        continuation_expectations: _,
-                    }
-                ) = attempt.into_data();
-                let fired_left_of_declared_failure = applied_directives
-                    .last()
-                    .zip(applied_effective_fail_token_indices.last())
-                    .is_some_and(|(directive, effective_fail_token_index)| {
-                        effective_fail_token_index < &directive.fail_token_index
-                    });
-                match result {
-                    Ok(parsed) if unconsumed_directives == 0 => {
+                match classification {
+                    RecoveryTrialClassification::AcceptedSuccess {
+                        trial,
+                        fired_left_of_declared_failure,
+                    } => {
+                        if natural_stop_enabled {
+                            if paired_rejected_exact {
+                                record_recovery_reachability_telemetry(
+                                    directive.kind,
+                                    RecoveryReachabilityTelemetryEvent::NaturalWins,
+                                    1,
+                                );
+                            }
+                        } else {
+                            record_recovery_reachability_telemetry(
+                                directive.kind,
+                                RecoveryReachabilityTelemetryEvent::ExactWins,
+                                1,
+                            );
+                        }
+                        let data!(RecoverySuccessTrial {
+                            parsed,
+                            trace: attempt_trace,
+                            directives: applied_directives,
+                            effective_fail_token_indices: applied_effective_fail_token_indices,
+                        }) = trial.into_data();
                         if !natural_stop_enabled || fired_left_of_declared_failure {
                             let winning_expectations =
                                 if let Some(sentinel_index) = continuation_sentinel_index {
@@ -2916,43 +3282,49 @@ fn recover_after_strict_failure(
                             }));
                         }
                     }
-                    Ok(_) => {
-                        trace = attempt_trace;
-                    }
-                    Err(next_failure) => {
-                        // A directive that never fired cannot be credited with
-                        // changing where the parser failed. Keeping it would
-                        // install a dead obligation ahead of later trials and
-                        // eventually prevent otherwise executable anchors from
-                        // firing. Accepted progress therefore consists only of
-                        // fully consumed directive chains.
-                        if unconsumed_directives != 0 {
-                            trace = attempt_trace;
-                            continue;
-                        }
-                        if errors.len() >= global_hard_cap {
-                            break;
-                        }
-                        let next_error_start = syntax_error_start(&next_failure.public_error);
-                        if next_error_start
-                            <= recovery_byte_at(&tokens, directive.resume_token_index)
-                            || next_error_start <= errors.last().map_or(0, syntax_error_start)
-                        {
-                            trace = attempt_trace;
-                            continue;
+                    RecoveryTrialClassification::AcceptedProgress { trial } => {
+                        if natural_stop_enabled {
+                            if paired_rejected_exact {
+                                record_recovery_reachability_telemetry(
+                                    directive.kind,
+                                    RecoveryReachabilityTelemetryEvent::NaturalWins,
+                                    1,
+                                );
+                            }
+                        } else {
+                            record_recovery_reachability_telemetry(
+                                directive.kind,
+                                RecoveryReachabilityTelemetryEvent::ExactWins,
+                                1,
+                            );
                         }
                         if accepted_progress.is_none() {
-                            accepted_progress = Some(new!(RecoveryProgressTrial {
-                                directives: applied_directives,
-                                failure: next_failure,
-                                trace: attempt_trace,
-                                effective_fail_token_indices: applied_effective_fail_token_indices,
-                                completed_recovery_boundary_location,
-                            }));
+                            accepted_progress = Some(trial);
                         }
                         if !natural_stop_enabled {
                             break 'recovery_phases;
                         }
+                    }
+                    RecoveryTrialClassification::Rejected {
+                        trace: attempt_trace,
+                    } => {
+                        if natural_stop_enabled {
+                            if paired_rejected_exact {
+                                record_recovery_reachability_telemetry(
+                                    directive.kind,
+                                    RecoveryReachabilityTelemetryEvent::BothFail,
+                                    1,
+                                );
+                            }
+                        } else {
+                            record_recovery_reachability_telemetry(
+                                directive.kind,
+                                RecoveryReachabilityTelemetryEvent::ExactRunRejected,
+                                1,
+                            );
+                            rejected_exact_sites.push(directive);
+                        }
+                        trace = attempt_trace;
                     }
                 }
             }
@@ -3256,6 +3628,100 @@ fn replay_winning_continuation_attempt<'tokens>(
     )
 }
 
+#[requires(!trial_directives.is_empty())]
+#[requires(current_error_count > 0)]
+#[ensures(true)]
+fn run_recovery_trial<'tokens>(
+    tokens: &[Token],
+    parser_tokens: &'tokens [SpannedToken],
+    source: Option<&str>,
+    options: &ParseOptions,
+    trial_directives: &[RecoveryDirective],
+    directive: &RecoveryDirective,
+    recovery_session: &mut generated::generated_model::GeneratedRecoveryParseSession<'tokens>,
+    current_error_count: usize,
+    global_hard_cap: usize,
+    previous_error_start: usize,
+) -> RecoveryTrialClassification {
+    let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
+        tokens,
+        parser_tokens,
+        source,
+        options,
+        trial_directives,
+        recovery_session,
+    );
+    classify_recovery_trial(
+        tokens,
+        directive,
+        attempt,
+        current_error_count,
+        global_hard_cap,
+        previous_error_start,
+    )
+}
+
+#[requires(current_error_count > 0)]
+#[ensures(true)]
+fn classify_recovery_trial(
+    tokens: &[Token],
+    directive: &RecoveryDirective,
+    attempt: generated::generated_model::GeneratedRecoveredParsedTextAttempt,
+    current_error_count: usize,
+    global_hard_cap: usize,
+    previous_error_start: usize,
+) -> RecoveryTrialClassification {
+    let data!(
+        generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+            result,
+            trace,
+            unconsumed_directives,
+            recovery_directives,
+            effective_fail_token_indices,
+            completed_recovery_boundary_location,
+            continuation_expectations: _,
+        }
+    ) = attempt.into_data();
+    let fired_left_of_declared_failure = recovery_directives
+        .last()
+        .zip(effective_fail_token_indices.last())
+        .is_some_and(|(directive, effective_fail_token_index)| {
+            effective_fail_token_index < &directive.fail_token_index
+        });
+    match result {
+        Ok(parsed) if unconsumed_directives == 0 => RecoveryTrialClassification::AcceptedSuccess {
+            trial: new!(RecoverySuccessTrial {
+                parsed,
+                trace,
+                directives: recovery_directives,
+                effective_fail_token_indices,
+            }),
+            fired_left_of_declared_failure,
+        },
+        Ok(_) => RecoveryTrialClassification::Rejected { trace },
+        Err(failure) => {
+            let next_error_start = syntax_error_start(&failure.public_error);
+            if unconsumed_directives == 0
+                && current_error_count < global_hard_cap
+                && next_error_start > recovery_byte_at(tokens, directive.resume_token_index)
+                && next_error_start > previous_error_start
+            {
+                RecoveryTrialClassification::AcceptedProgress {
+                    trial: new!(RecoveryProgressTrial {
+                        directives: recovery_directives,
+                        failure,
+                        trace,
+                        effective_fail_token_indices,
+                        completed_recovery_boundary_location,
+                    }),
+                }
+            } else {
+                RecoveryTrialClassification::Rejected { trace }
+            }
+        }
+    }
+}
+
 #[requires(!errors.is_empty())]
 #[requires(!directives.is_empty())]
 #[requires(directives.len() + 1 == errors.len())]
@@ -3278,33 +3744,32 @@ fn try_final_recovery_from_current_failure<'tokens>(
             return None;
         }
         let mut trial_directives = directives.to_vec();
-        trial_directives.push(directive);
-        let attempt = generated::generated_model::parse_recovered_text_attempt_with_session(
+        trial_directives.push(directive.clone());
+        let classification = run_recovery_trial(
             tokens,
             parser_tokens,
             source,
             options,
             &trial_directives,
+            &directive,
             recovery_session,
+            errors.len(),
+            options.recovery_error_policy.global_hard_cap().get(),
+            errors.last().map_or(0, syntax_error_start),
         );
         if continuation_time_limit.is_some_and(ContinuationTimeLimit::exhausted) {
             return None;
         }
-        let data!(
-            generated::generated_model::GeneratedRecoveredParsedTextAttempt {
-                result,
+        let RecoveryTrialClassification::AcceptedSuccess { trial, .. } = classification else {
+            continue;
+        };
+        if trial.directives == trial_directives {
+            let data!(RecoverySuccessTrial {
+                parsed,
                 trace,
-                unconsumed_directives,
-                continuation_expectations: _,
-                recovery_directives,
+                directives: recovery_directives,
                 effective_fail_token_indices,
-                completed_recovery_boundary_location: _,
-            }
-        ) = attempt.into_data();
-        if let Ok(parsed) = result
-            && unconsumed_directives == 0
-            && recovery_directives == trial_directives
-        {
+            }) = trial.into_data();
             let continuation_expectations =
                 if let Some(sentinel_index) = continuation_sentinel_index {
                     let expectations = replay_winning_continuation_success_expectations(
@@ -3363,6 +3828,41 @@ fn same_boundary_resync_group(left: &RecoveryDirective, right: &RecoveryDirectiv
         && left.resume_field == right.resume_field
 }
 
+#[requires(true)]
+#[ensures(continuation_time_limit.is_some() -> !ret)]
+fn recovery_reachability_filter_enabled(
+    options: &ParseOptions,
+    continuation_time_limit: Option<ContinuationTimeLimit>,
+) -> bool {
+    if options.trace.includes(TracePhase::Syntax) || continuation_time_limit.is_some() {
+        return false;
+    }
+
+    #[cfg(feature = "expensive_contracts")]
+    if RECOVERY_REACHABILITY_FILTER_DISABLED.with(Cell::get) {
+        return false;
+    }
+
+    true
+}
+
+#[requires(true)]
+#[ensures(directive.kind == RecoveryDirectiveKind::BoundaryResync -> ret)]
+fn exact_trial_reachable(
+    failure: &generated::generated_model::GeneratedParseFailure,
+    directive: &RecoveryDirective,
+) -> bool {
+    directive.kind == RecoveryDirectiveKind::BoundaryResync
+        || failure.checkpoints.iter().any(|checkpoint| {
+            checkpoint.matches_local_exact_site(
+                directive.rule,
+                directive.instance_byte_start,
+                directive.fail_token_index,
+                directive.resume_field,
+            )
+        })
+}
+
 #[invariant(!rule.is_empty())]
 #[invariant(match (kind, boundary_unwind_start_token_index) {
     (RecoveryDirectiveKind::Local, None) => true,
@@ -3398,6 +3898,22 @@ struct RecoverySuccessTrial {
     trace: Option<TraceReport>,
     directives: Vec<RecoveryDirective>,
     effective_fail_token_indices: Vec<usize>,
+}
+
+#[invariant(::AcceptedSuccess => true)]
+#[invariant(::AcceptedProgress => true)]
+#[invariant(::Rejected => true)]
+enum RecoveryTrialClassification {
+    AcceptedSuccess {
+        trial: RecoverySuccessTrial,
+        fired_left_of_declared_failure: bool,
+    },
+    AcceptedProgress {
+        trial: RecoveryProgressTrial,
+    },
+    Rejected {
+        trace: Option<TraceReport>,
+    },
 }
 
 #[invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
@@ -4290,6 +4806,27 @@ mod tests {
         "/tests/recovery-anchor-metadata.snapshot.txt"
     );
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reachability_filter_observability_guards_are_explicit() {
+        let ordinary = ParseOptions::default();
+        assert!(recovery_reachability_filter_enabled(&ordinary, None));
+
+        let traced = ordinary
+            .clone()
+            .with_trace_options(crate::TraceOptions::enabled(
+                TraceLevel::Top,
+                None,
+                TracePhase::Syntax,
+                1,
+            ));
+        assert!(!recovery_reachability_filter_enabled(&traced, None));
+
+        let deadline = Some(ContinuationTimeLimit::new(Duration::from_secs(1)));
+        assert!(!recovery_reachability_filter_enabled(&ordinary, deadline));
+    }
+
     #[requires(true)]
     #[ensures(ret.0.recovery_directives.len() == 1)]
     fn boundary_recovery_test_state() -> (
@@ -4364,6 +4901,7 @@ mod tests {
                 value: SyntaxMemoValue::from_shared(Rc::new(())),
                 side_effects: SyntaxMemoSideEffects {
                     warnings: Rc::from([]),
+                    recovery_checkpoints: Rc::from([]),
                     diagnostic_observations: None,
                 },
                 rule_observation_node: Some(0),

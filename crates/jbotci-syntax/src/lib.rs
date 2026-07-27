@@ -9,6 +9,11 @@ pub use tree::{
 };
 
 mod grammar;
+#[cfg(feature = "expensive_contracts")]
+#[doc(hidden)]
+pub use grammar::with_recovery_reachability_instrumentation;
+#[doc(hidden)]
+pub use grammar::{RecoveryReachabilityKindTelemetry, RecoveryReachabilityTelemetry};
 
 extern crate self as jbotci_syntax;
 

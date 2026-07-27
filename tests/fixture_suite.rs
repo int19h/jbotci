@@ -389,6 +389,309 @@ fn recovered_syntax_contract_fixture_range(
     Ok(checked)
 }
 
+#[cfg(feature = "expensive_contracts")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovery_reachability_filter_matches_disabled_fixture_corpus() {
+    run_on_fixture_worker_stack(recovery_reachability_filter_matches_disabled_fixture_corpus_inner);
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[test]
+#[ignore = "requires JBOTCI_RECOVERY_EQUIVALENCE_DOCUMENT"]
+#[requires(true)]
+#[ensures(true)]
+fn recovery_reachability_external_document_matches_disabled() {
+    let path = std::env::var("JBOTCI_RECOVERY_EQUIVALENCE_DOCUMENT")
+        .expect("JBOTCI_RECOVERY_EQUIVALENCE_DOCUMENT must name the external document");
+    let source = fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("external recovery document {path} should load: {error}"));
+    let telemetry =
+        recovery_reachability_telemetry_values(assert_recovery_reachability_equivalent(
+            &path,
+            &source,
+            &jbotci_dialect::DialectDefinition::default(),
+            None,
+        ));
+    println!(
+        "external_recovery_document={path} \
+         local(exact_considered={},exact_run={},exact_skipped={},exact_wins={},natural_wins={},both_fail={},exact_run_rejected={},skip_verified_rejected={},skip_false_positive={},cap_retained_away={}) \
+         boundary_resync(exact_considered={},exact_run={},exact_skipped={},exact_wins={},natural_wins={},both_fail={},exact_run_rejected={},skip_verified_rejected={},skip_false_positive={},cap_retained_away={})",
+        telemetry[0],
+        telemetry[1],
+        telemetry[2],
+        telemetry[3],
+        telemetry[4],
+        telemetry[5],
+        telemetry[6],
+        telemetry[7],
+        telemetry[8],
+        telemetry[9],
+        telemetry[10],
+        telemetry[11],
+        telemetry[12],
+        telemetry[13],
+        telemetry[14],
+        telemetry[15],
+        telemetry[16],
+        telemetry[17],
+        telemetry[18],
+        telemetry[19],
+    );
+    assert_eq!(telemetry[8], 0);
+    assert_eq!(telemetry[18], 0);
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(true)]
+fn recovery_reachability_filter_matches_disabled_fixture_corpus_inner() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let paths = fixture_paths(&root).expect("fixture paths should load");
+    if let Some((start, end)) = recovery_reachability_worker_range() {
+        let (checked, telemetry) = recovery_reachability_fixture_range(&paths, start, end)
+            .expect("fixture chunk should load");
+        println!("checked={checked}");
+        println!(
+            "recovery_reachability_telemetry={}",
+            serde_json::to_string(&recovery_reachability_telemetry_values(telemetry))
+                .expect("telemetry array serializes")
+        );
+        return;
+    }
+
+    let current_exe = std::env::current_exe().expect("current test binary path");
+    let mut checked = 0usize;
+    let mut telemetry_values = [0u64; 20];
+    for start in (0..paths.len()).step_by(RECOVERY_REACHABILITY_CHUNK_SIZE) {
+        let end = paths.len().min(start + RECOVERY_REACHABILITY_CHUNK_SIZE);
+        let output = Command::new(&current_exe)
+            .arg("recovery_reachability_filter_matches_disabled_fixture_corpus")
+            .arg("--exact")
+            .arg("--nocapture")
+            .env("RECOVERY_REACHABILITY_START", start.to_string())
+            .env("RECOVERY_REACHABILITY_END", end.to_string())
+            .output()
+            .expect("fixture chunk process should run");
+        if !output.status.success() {
+            panic!(
+                "fixture chunk {start}..{end} failed with status {:?}\nstdout:\n{}\nstderr:\n{}",
+                output.status.code(),
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+        }
+        checked += checked_count_from_test_stdout(&output.stdout);
+        let chunk_values = recovery_reachability_values_from_test_stdout(&output.stdout);
+        for (total, chunk) in telemetry_values.iter_mut().zip(chunk_values) {
+            *total = total
+                .checked_add(chunk)
+                .expect("corpus telemetry does not overflow");
+        }
+    }
+
+    if let Ok(path) = std::env::var("JBOTCI_RECOVERY_EQUIVALENCE_DOCUMENT") {
+        let source = fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!("external recovery document {path} should load: {error}")
+        });
+        let external_telemetry = assert_recovery_reachability_equivalent(
+            &path,
+            &source,
+            &jbotci_dialect::DialectDefinition::default(),
+            None,
+        );
+        for (total, external) in telemetry_values
+            .iter_mut()
+            .zip(recovery_reachability_telemetry_values(external_telemetry))
+        {
+            *total = total
+                .checked_add(external)
+                .expect("external-document telemetry does not overflow");
+        }
+        checked += 1;
+    }
+
+    println!(
+        "filter_off_fixture_corpus checked={checked} \
+         local(exact_considered={},exact_run={},exact_skipped={},exact_wins={},natural_wins={},both_fail={},exact_run_rejected={},skip_verified_rejected={},skip_false_positive={},cap_retained_away={}) \
+         boundary_resync(exact_considered={},exact_run={},exact_skipped={},exact_wins={},natural_wins={},both_fail={},exact_run_rejected={},skip_verified_rejected={},skip_false_positive={},cap_retained_away={})",
+        telemetry_values[0],
+        telemetry_values[1],
+        telemetry_values[2],
+        telemetry_values[3],
+        telemetry_values[4],
+        telemetry_values[5],
+        telemetry_values[6],
+        telemetry_values[7],
+        telemetry_values[8],
+        telemetry_values[9],
+        telemetry_values[10],
+        telemetry_values[11],
+        telemetry_values[12],
+        telemetry_values[13],
+        telemetry_values[14],
+        telemetry_values[15],
+        telemetry_values[16],
+        telemetry_values[17],
+        telemetry_values[18],
+        telemetry_values[19],
+    );
+    assert!(checked > 0);
+    assert_eq!(
+        telemetry_values[8], 0,
+        "Local skip false positives must remain zero"
+    );
+    assert_eq!(
+        telemetry_values[18], 0,
+        "BoundaryResync skip false positives must remain zero"
+    );
+}
+
+#[cfg(feature = "expensive_contracts")]
+const RECOVERY_REACHABILITY_CHUNK_SIZE: usize = 500;
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(ret.is_none_or(|(start, end)| start <= end))]
+fn recovery_reachability_worker_range() -> Option<(usize, usize)> {
+    let start = std::env::var("RECOVERY_REACHABILITY_START")
+        .ok()?
+        .parse()
+        .ok()?;
+    let end = std::env::var("RECOVERY_REACHABILITY_END")
+        .ok()?
+        .parse()
+        .ok()?;
+    (start <= end).then_some((start, end))
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(start <= end)]
+#[ensures(ret.as_ref().is_ok_and(|(checked, _)| *checked <= paths.len()) || ret.is_err())]
+fn recovery_reachability_fixture_range(
+    paths: &[PathBuf],
+    start: usize,
+    end: usize,
+) -> Result<(usize, jbotci_syntax::RecoveryReachabilityTelemetry), FixtureError> {
+    let start = start.min(paths.len());
+    let end = end.min(paths.len());
+    let mut checked = 0usize;
+    let mut telemetry = jbotci_syntax::RecoveryReachabilityTelemetry::default();
+    for path in &paths[start..end] {
+        let fixture = load_fixture_path(path)?;
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .unwrap_or_else(|error| panic!("{} dialect error: {error}", fixture.test_case.id));
+        let max_errors = fixture
+            .test_case
+            .expectations
+            .syntax
+            .as_ref()
+            .and_then(|syntax| syntax.recovered.as_ref())
+            .and_then(|recovered| recovered.max_errors);
+        telemetry.add_assign(assert_recovery_reachability_equivalent(
+            &fixture.test_case.id,
+            &fixture.test_case.lojban,
+            &dialect,
+            max_errors,
+        ));
+        checked += 1;
+    }
+    Ok((checked, telemetry))
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(!id.is_empty())]
+#[ensures(true)]
+fn assert_recovery_reachability_equivalent(
+    id: &str,
+    source: &str,
+    dialect: &jbotci_dialect::DialectDefinition,
+    max_errors: Option<usize>,
+) -> jbotci_syntax::RecoveryReachabilityTelemetry {
+    let morphology_options =
+        jbotci_morphology::MorphologyOptions::default().with_dialect_definition(dialect);
+    let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+        source,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    ) else {
+        return jbotci_syntax::RecoveryReachabilityTelemetry::default();
+    };
+    let mut syntax_options =
+        jbotci_syntax::ParseOptions::default().with_dialect_definition(dialect);
+    if let Some(max_errors) = max_errors {
+        syntax_options = syntax_options.with_max_recovery_errors(max_errors);
+    }
+    let (filtered, telemetry) =
+        jbotci_syntax::with_recovery_reachability_instrumentation(true, || {
+            jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+                &words,
+                source,
+                &syntax_options,
+            )
+        });
+    let (unfiltered, _) = jbotci_syntax::with_recovery_reachability_instrumentation(false, || {
+        jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &syntax_options,
+        )
+    });
+    let filtered_bytes = format!("{filtered:#?}").into_bytes();
+    let unfiltered_bytes = format!("{unfiltered:#?}").into_bytes();
+    assert_eq!(
+        filtered_bytes, unfiltered_bytes,
+        "{id}: filtered and filter-disabled recovered syntax fixtures differ"
+    );
+    telemetry
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(ret.len() == 20)]
+fn recovery_reachability_telemetry_values(
+    telemetry: jbotci_syntax::RecoveryReachabilityTelemetry,
+) -> [u64; 20] {
+    [
+        telemetry.local.exact_considered,
+        telemetry.local.exact_run,
+        telemetry.local.exact_skipped,
+        telemetry.local.exact_wins,
+        telemetry.local.natural_wins,
+        telemetry.local.both_fail,
+        telemetry.local.exact_run_rejected,
+        telemetry.local.skip_verified_rejected,
+        telemetry.local.skip_false_positive,
+        telemetry.local.cap_retained_away,
+        telemetry.boundary_resync.exact_considered,
+        telemetry.boundary_resync.exact_run,
+        telemetry.boundary_resync.exact_skipped,
+        telemetry.boundary_resync.exact_wins,
+        telemetry.boundary_resync.natural_wins,
+        telemetry.boundary_resync.both_fail,
+        telemetry.boundary_resync.exact_run_rejected,
+        telemetry.boundary_resync.skip_verified_rejected,
+        telemetry.boundary_resync.skip_false_positive,
+        telemetry.boundary_resync.cap_retained_away,
+    ]
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(ret.len() == 20)]
+fn recovery_reachability_values_from_test_stdout(stdout: &[u8]) -> [u64; 20] {
+    let stdout = String::from_utf8_lossy(stdout);
+    let values = stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("recovery_reachability_telemetry="))
+        .unwrap_or_else(|| panic!("worker stdout is missing telemetry: {stdout}"));
+    serde_json::from_str(values)
+        .unwrap_or_else(|error| panic!("worker telemetry should be a 20-value array: {error}"))
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn checked_count_from_test_stdout(stdout: &[u8]) -> usize {
