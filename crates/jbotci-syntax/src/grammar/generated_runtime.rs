@@ -8,7 +8,8 @@ use std::{any::Any, cell::Cell, rc::Rc};
 
 pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
-    BoxedParser, ParserInput, Span, SyntaxFound, SyntaxFoundData, SyntaxParseError,
+    BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
+    SyntaxParseError,
     parser_core::{InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end},
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
@@ -643,6 +644,157 @@ pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
     .boxed()
 }
 
+#[requires(!rule.is_empty())]
+#[ensures(true)]
+pub(crate) fn recovery_checkpoint_field_parser<'tokens, O, P>(
+    rule: &'static str,
+    field_index: usize,
+    parser: P,
+) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let start_location = ParserInput::cursor_location(input.cursor().inner());
+        let instance_byte_start = input
+            .state()
+            .recovery_rule_instance_byte_start(rule, start_location);
+        input.state().record_recovery_checkpoint(
+            rule,
+            instance_byte_start,
+            start_location,
+            field_index,
+            RecoveryCheckpointKind::FieldStart,
+        );
+        let value = input.parse(&parser)?;
+        let end_location = ParserInput::cursor_location(input.cursor().inner());
+        input.state().record_recovery_checkpoint(
+            rule,
+            instance_byte_start,
+            end_location,
+            field_index,
+            RecoveryCheckpointKind::Trailing,
+        );
+        Ok(value)
+    })
+    .boxed()
+}
+
+#[requires(!rule.is_empty())]
+#[requires(min_count <= 1)]
+#[ensures(true)]
+pub(crate) fn recovery_checkpoint_greedy_many_field_parser<'tokens, O, P>(
+    rule: &'static str,
+    field_index: usize,
+    min_count: usize,
+    parser: P,
+) -> BoxedParser<'tokens, Vec<O>>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let mut values = Vec::new();
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            let instance_byte_start = input
+                .state()
+                .recovery_rule_instance_byte_start(rule, start_location);
+            input.state().record_recovery_checkpoint(
+                rule,
+                instance_byte_start,
+                start_location,
+                field_index,
+                RecoveryCheckpointKind::FieldStart,
+            );
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    if end_location == start_location {
+                        debug_assert!(false, "generated repetition parser accepted empty input");
+                        input.rewind(checkpoint);
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    if values.len() < min_count {
+                        return Err(error);
+                    }
+                    input.state().record_diagnostic_candidate(error);
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    })
+    .boxed()
+}
+
+#[requires(!rule.is_empty())]
+#[requires(min_count <= 1)]
+#[ensures(true)]
+pub(crate) fn recovery_checkpoint_recovered_greedy_many_field_parser<'tokens, O, P>(
+    rule: &'static str,
+    field_index: usize,
+    min_count: usize,
+    parser: P,
+) -> BoxedParser<'tokens, Vec<O>>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let mut values = Vec::new();
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            let instance_byte_start = input
+                .state()
+                .recovery_rule_instance_byte_start(rule, start_location);
+            input.state().record_recovery_checkpoint(
+                rule,
+                instance_byte_start,
+                start_location,
+                field_index,
+                RecoveryCheckpointKind::FieldStart,
+            );
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    let end_checkpoint = input.save();
+                    if end_location == start_location
+                        && !end_checkpoint.recovery_state_changed_since(&checkpoint)
+                    {
+                        input.rewind(checkpoint);
+                        if values.len() < min_count {
+                            return Err(expected_found_at_current(
+                                input,
+                                "non-empty recovered repetition item",
+                            ));
+                        }
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    if values.len() < min_count {
+                        return Err(error);
+                    }
+                    input.state().record_diagnostic_candidate(error);
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    })
+    .boxed()
+}
+
 /// Repeat a recovered parser while either input or recovery-directive state
 /// advances. A recovered required field may synthesize an item without
 /// consuming a token, so input position alone cannot establish progress.
@@ -1184,17 +1336,17 @@ where
     custom::<_, _>(move |input| {
         let checkpoint = input.save();
         let location = ParserInput::cursor_location(checkpoint.cursor().inner());
-        let active_frame = input
+        let instance_byte_start = input
             .state()
-            .active_syntax_rules()
-            .iter()
-            .rev()
-            .find(|frame| frame.rule() == rule);
-        let instance_byte_start = match active_frame {
-            Some(frame) => frame.byte_start(),
-            None => input.state().byte_offset_for_location(location),
-        };
+            .recovery_rule_instance_byte_start(rule, location);
         let empty_slot = O::empty_recovery_slot();
+        input.state().record_recovery_checkpoint(
+            rule,
+            instance_byte_start,
+            location,
+            field_index,
+            RecoveryCheckpointKind::FieldStart,
+        );
         let action = input.state().recovery_field_action(
             rule,
             instance_byte_start,
@@ -1282,6 +1434,13 @@ where
             value = value.prepend_recovery_item(item);
         }
         let location = ParserInput::cursor_location(input.cursor().inner());
+        input.state().record_recovery_checkpoint(
+            rule,
+            instance_byte_start,
+            location,
+            field_index,
+            RecoveryCheckpointKind::Trailing,
+        );
         if let Some((item, resume_token_index)) = input.state().trailing_recovery_field_action(
             rule,
             instance_byte_start,
@@ -1315,16 +1474,16 @@ where
         loop {
             let checkpoint = input.save();
             let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
-            let active_frame = input
+            let instance_byte_start = input
                 .state()
-                .active_syntax_rules()
-                .iter()
-                .rev()
-                .find(|frame| frame.rule() == rule);
-            let instance_byte_start = match active_frame {
-                Some(frame) => frame.byte_start(),
-                None => input.state().byte_offset_for_location(start_location),
-            };
+                .recovery_rule_instance_byte_start(rule, start_location);
+            input.state().record_recovery_checkpoint(
+                rule,
+                instance_byte_start,
+                start_location,
+                field_index,
+                RecoveryCheckpointKind::FieldStart,
+            );
             let action = input.state().recovery_field_action(
                 rule,
                 instance_byte_start,

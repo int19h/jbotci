@@ -912,6 +912,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",
+        "accepted-progress payload validity is enforced by the invariant-bearing RecoveryProgressTrial type",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedSuccess",
+        "accepted-success payload validity is enforced by the invariant-bearing RecoverySuccessTrial type, while the observation flag accepts both values",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::Rejected",
+        "rejected trials carry only an optional invariant-bearing trace report, so every payload state is valid",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservation::Candidate",
         "diagnostic candidates delegate validity to the private copy-on-write SyntaxParseError payload",
     ),

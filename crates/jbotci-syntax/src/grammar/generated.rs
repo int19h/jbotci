@@ -11,8 +11,8 @@ use super::tokens::{
     syntax_error_with_diagnostic_candidate,
 };
 use super::{
-    BoxedParser, ContinuationTimeLimit, ParserState, RecoveryDirective, SpannedToken,
-    SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
+    BoxedParser, ContinuationTimeLimit, ParserState, RecoveryCheckpointIndex, RecoveryDirective,
+    SpannedToken, SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
 };
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
@@ -4813,6 +4813,7 @@ pub mod generated_model {
     pub(crate) struct GeneratedParseFailure {
         pub public_error: crate::SyntaxError,
         pub branches: Vec<GeneratedRecoveryBranch>,
+        pub checkpoints: RecoveryCheckpointIndex,
     }
 
     #[bityzba::invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
@@ -4996,7 +4997,7 @@ pub mod generated_model {
         } else {
             ParserState::new_with_recovery_branches(words, options)
         };
-        let result = strict_generated_text_parser_with_eof()
+        let result = recovery_checkpoint_strict_generated_text_parser_with_eof()
             .parse_with_state(
                 tokens
                     .as_slice()
@@ -5033,6 +5034,9 @@ pub mod generated_model {
                 Err(GeneratedParseFailure {
                     public_error,
                     branches,
+                    checkpoints: RecoveryCheckpointIndex::from_checkpoints(
+                        finish.recovery_checkpoints,
+                    ),
                 })
             }
         };
@@ -5124,6 +5128,9 @@ pub mod generated_model {
                 Err(GeneratedParseFailure {
                     public_error,
                     branches,
+                    checkpoints: RecoveryCheckpointIndex::from_checkpoints(
+                        finish.recovery_checkpoints,
+                    ),
                 })
             }
         };
@@ -5168,6 +5175,17 @@ pub mod generated_model {
     -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
         custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
             let text = input.parse(&strict_generated_text_shared_parser())?;
+            input.parse(end()).map(|()| text)
+        })
+        .boxed()
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovery_checkpoint_strict_generated_text_parser_with_eof<'tokens>()
+    -> BoxedParser<'tokens, generated_runtime::SharedSyntaxOutput<TextSyntax>> {
+        custom::<_, _>(move |input: &mut InputRef<'tokens, '_>| {
+            let text = input.parse(&recovery_checkpoint_strict_generated_text_shared_parser())?;
             input.parse(end()).map(|()| text)
         })
         .boxed()

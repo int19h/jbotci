@@ -119,6 +119,35 @@ impl SyntaxGrammar {
                         self.model_path.as_ref(),
                         rule.output(&type_env)
                             .is_some_and(|output| self.generates_model_output(output)),
+                        StrictParserFlavor::Normal,
+                    )
+                })
+                .collect::<Result<Vec<_>>>()
+            {
+                Ok(functions) => functions,
+                Err(error) => return error.into_compile_error(),
+            }
+        } else {
+            Vec::new()
+        };
+        let recovery_checkpoint_parser_functions = if self.generate_parsers && self.generate_model {
+            match self
+                .rules
+                .iter()
+                .filter(|rule| {
+                    rule.output(&type_env)
+                        .is_some_and(|output| self.rule_has_local_parser(output))
+                })
+                .map(|rule| {
+                    rule.expand_strict_parser(
+                        &type_env,
+                        self.generate_model,
+                        &model_outputs,
+                        model_all_rules_local,
+                        self.model_path.as_ref(),
+                        rule.output(&type_env)
+                            .is_some_and(|output| self.generates_model_output(output)),
+                        StrictParserFlavor::RecoveryCheckpoint,
                     )
                 })
                 .collect::<Result<Vec<_>>>()
@@ -159,7 +188,15 @@ impl SyntaxGrammar {
             Vec::new()
         };
         let recursive_family = if self.generate_parsers {
-            match self.expand_strict_recursive_family() {
+            match self.expand_strict_recursive_family(StrictParserFlavor::Normal) {
+                Ok(family) => family,
+                Err(error) => return error.into_compile_error(),
+            }
+        } else {
+            None
+        };
+        let recovery_checkpoint_recursive_family = if self.generate_parsers && self.generate_model {
+            match self.expand_strict_recursive_family(StrictParserFlavor::RecoveryCheckpoint) {
                 Ok(family) => family,
                 Err(error) => return error.into_compile_error(),
             }
@@ -302,8 +339,10 @@ impl SyntaxGrammar {
 
             pub(crate) const SYNTAX_GRAMMAR_ENV: &str = #env;
             #(#parser_functions)*
+            #(#recovery_checkpoint_parser_functions)*
             #(#recovered_parser_functions)*
             #recursive_family
+            #recovery_checkpoint_recursive_family
             #recovered_recursive_family
 
             pub(crate) const SYNTAX_GRAMMAR_RECURSIVE_RULES: &[SyntaxGrammarRecursiveRule] = &[
@@ -2326,7 +2365,10 @@ fn expand_binding_schema_hook(name: &Ident, schema: &TokenStream2) -> TokenStrea
 impl SyntaxGrammar {
     #[requires(true)]
     #[ensures(true)]
-    fn expand_strict_recursive_family(&self) -> Result<Option<TokenStream2>> {
+    fn expand_strict_recursive_family(
+        &self,
+        flavor: StrictParserFlavor,
+    ) -> Result<Option<TokenStream2>> {
         if self.recursive.is_empty() {
             return Ok(None);
         }
@@ -2347,7 +2389,8 @@ impl SyntaxGrammar {
             .iter()
             .map(|rule| rule.name.to_string())
             .collect::<BTreeSet<_>>();
-        let family_ident = format_ident!("StrictGeneratedParserFamily");
+        let family_ident = flavor.recursive_family_type();
+        let family_function = flavor.recursive_family_function();
         let fields = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
             let output = self.parser_type_tokens(&rule.output);
@@ -2370,7 +2413,7 @@ impl SyntaxGrammar {
                             "recursive parser declaration has no matching rule",
                         )
                     })?;
-                let parser_name = format_ident!("strict_{}_parser", rule.name());
+                let parser_name = flavor.rule_parser_name(&rule.name().to_string());
                 let parser_arguments = rule
                     .arguments()
                     .iter()
@@ -2381,7 +2424,7 @@ impl SyntaxGrammar {
                                 generated_runtime::SharedSyntaxOutput::into_owned
                             )))
                         } else if all_recursive_names.contains(&argument_name) {
-                            Ok(quote!(super::strict_generated_parser_family()
+                            Ok(quote!(super::#family_function()
                                 .#argument
                                 .map(generated_runtime::SharedSyntaxOutput::into_owned)))
                         } else {
@@ -2399,7 +2442,7 @@ impl SyntaxGrammar {
                     ).boxed())
                 } else if all_recursive_names.contains("free_modifier") {
                     quote!(
-                        super::strict_generated_parser_family()
+                        super::#family_function()
                             .free_modifier
                             .map(generated_runtime::SharedSyntaxOutput::into_owned)
                             .boxed()
@@ -2422,8 +2465,8 @@ impl SyntaxGrammar {
         });
         let root_functions = recursive_rules.iter().map(|rule| {
             let root_name = &rule.name;
-            let function = format_ident!("strict_generated_{}_parser", root_name);
-            let shared_function = format_ident!("strict_generated_{}_shared_parser", root_name);
+            let function = flavor.recursive_root_function(&root_name.to_string());
+            let shared_function = flavor.recursive_shared_root_function(&root_name.to_string());
             let output = self.parser_type_tokens(&rule.output);
             quote! {
                 #[allow(dead_code, unused_variables)]
@@ -2431,7 +2474,7 @@ impl SyntaxGrammar {
                     'tokens,
                     generated_runtime::SharedSyntaxOutput<#output>,
                 > {
-                    strict_generated_parser_family().#root_name
+                    #family_function().#root_name
                 }
 
                 #[allow(dead_code, unused_variables)]
@@ -2450,7 +2493,7 @@ impl SyntaxGrammar {
             }
 
             #[allow(dead_code)]
-            pub(crate) fn strict_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
+            pub(crate) fn #family_function<'tokens>() -> #family_ident<'tokens> {
                 let __generated_recursive_family = RecursiveFamily::new();
                 #(#declarations)*
                 #(#definitions)*
@@ -3047,6 +3090,7 @@ impl Rule {
         model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
+        flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_strict_parser(
@@ -3055,6 +3099,7 @@ impl Rule {
                 model_outputs,
                 model_all_rules_local,
                 model_path,
+                flavor,
             ),
             Rule::Struct(rule) => rule.expand_strict_parser(
                 type_env,
@@ -3063,6 +3108,7 @@ impl Rule {
                 model_all_rules_local,
                 model_path,
                 use_model_construction,
+                flavor,
             ),
             Rule::Enum(rule) => rule.expand_strict_parser(
                 type_env,
@@ -3071,6 +3117,7 @@ impl Rule {
                 model_all_rules_local,
                 model_path,
                 use_model_construction,
+                flavor,
             ),
         }
     }
@@ -3182,6 +3229,7 @@ impl AliasRule {
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
         model_path: Option<&Path>,
+        flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
         let argument_types = self.argument_types(type_env).ok_or_else(|| {
             syn::Error::new_spanned(
@@ -3202,6 +3250,7 @@ impl AliasRule {
             generate_model,
             model_outputs,
             model_all_rules_local,
+            flavor,
         };
         let parser = strict_parser_expr_tokens(
             &self.parser,
@@ -3210,7 +3259,7 @@ impl AliasRule {
             &free_modifier_parser,
             StrictParserCallMode::Local,
         )?;
-        let name = format_ident!("strict_{}_parser", self.name);
+        let name = flavor.rule_parser_name(&self.name.to_string());
         let output = parser_type_tokens(output, generate_model, model_outputs, model_path);
         let argument_tokens = strict_parser_argument_tokens(
             &self.arguments,
@@ -3445,6 +3494,7 @@ impl EnumRule {
         model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
+        flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
         let argument_types = self.argument_types(type_env).ok_or_else(|| {
             syn::Error::new_spanned(
@@ -3459,6 +3509,7 @@ impl EnumRule {
             generate_model,
             model_outputs,
             model_all_rules_local,
+            flavor,
         };
         let output_tokens =
             parser_type_tokens(&self.output, generate_model, model_outputs, model_path);
@@ -3534,7 +3585,7 @@ impl EnumRule {
             })
             .collect::<Result<Vec<_>>>()?;
         let parser = strict_choice_chain(alternatives, &self.name)?;
-        let name = format_ident!("strict_{}_parser", self.name);
+        let name = flavor.rule_parser_name(&self.name.to_string());
         let argument_tokens = strict_parser_argument_tokens(
             &self.arguments,
             &argument_types,
@@ -3823,6 +3874,7 @@ impl NodeRule {
         model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
+        flavor: StrictParserFlavor,
     ) -> Result<TokenStream2> {
         let argument_types = self.argument_types(type_env).ok_or_else(|| {
             syn::Error::new_spanned(
@@ -3842,15 +3894,17 @@ impl NodeRule {
             generate_model,
             model_outputs,
             model_all_rules_local,
+            flavor,
         };
         let (parser, pattern) = strict_sequence_parser_tokens(
+            &self.name.to_string(),
             &sequence_items,
             &argument_names,
             &generation,
             &free_modifier_parser,
             StrictParserCallMode::Local,
         )?;
-        let name = format_ident!("strict_{}_parser", self.name);
+        let name = flavor.rule_parser_name(&self.name.to_string());
         let output = &self.output;
         let output_tokens = parser_type_tokens(output, generate_model, model_outputs, model_path);
         let argument_tokens = strict_parser_argument_tokens(
@@ -4004,7 +4058,7 @@ impl NodeRule {
             &generation,
             &free_modifier_parser,
             RecoveredParserCallMode::Local,
-            true,
+            RecoveredFieldInstrumentation::Directive,
         )?;
         let (plain_parser, plain_pattern) = recovered_sequence_parser_tokens(
             &self.name.to_string(),
@@ -4013,7 +4067,7 @@ impl NodeRule {
             &generation,
             &free_modifier_parser,
             RecoveredParserCallMode::Local,
-            false,
+            RecoveredFieldInstrumentation::Checkpoint,
         )?;
         if pattern.to_string() != plain_pattern.to_string() {
             return Err(syn::Error::new_spanned(
@@ -4181,9 +4235,86 @@ enum StrictParserCallMode {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StrictParserFlavor {
+    Normal,
+    RecoveryCheckpoint,
+}
+
+impl StrictParserFlavor {
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    fn rule_parser_name(self, rule: &str) -> Ident {
+        match self {
+            Self::Normal => format_ident!("strict_{rule}_parser"),
+            Self::RecoveryCheckpoint => {
+                format_ident!("recovery_checkpoint_strict_{rule}_parser")
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_family_type(self) -> Ident {
+        match self {
+            Self::Normal => format_ident!("StrictGeneratedParserFamily"),
+            Self::RecoveryCheckpoint => {
+                format_ident!("RecoveryCheckpointStrictGeneratedParserFamily")
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_family_function(self) -> Ident {
+        match self {
+            Self::Normal => format_ident!("strict_generated_parser_family"),
+            Self::RecoveryCheckpoint => {
+                format_ident!("recovery_checkpoint_strict_generated_parser_family")
+            }
+        }
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    fn recursive_root_function(self, rule: &str) -> Ident {
+        match self {
+            Self::Normal => format_ident!("strict_generated_{rule}_parser"),
+            Self::RecoveryCheckpoint => {
+                format_ident!("recovery_checkpoint_strict_generated_{rule}_parser")
+            }
+        }
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    fn recursive_shared_root_function(self, rule: &str) -> Ident {
+        match self {
+            Self::Normal => format_ident!("strict_generated_{rule}_shared_parser"),
+            Self::RecoveryCheckpoint => {
+                format_ident!("recovery_checkpoint_strict_generated_{rule}_shared_parser")
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::RecoveryCheckpoint))]
+    fn records_recovery_checkpoints(self) -> bool {
+        matches!(self, Self::RecoveryCheckpoint)
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RecoveredParserCallMode {
     Local,
     External,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecoveredFieldInstrumentation {
+    Directive,
+    Checkpoint,
 }
 
 #[invariant(true)]
@@ -4192,6 +4323,7 @@ struct StrictParserGeneration<'a> {
     generate_model: bool,
     model_outputs: &'a Option<BTreeSet<String>>,
     model_all_rules_local: bool,
+    flavor: StrictParserFlavor,
 }
 
 impl StrictParserGeneration<'_> {
@@ -4226,7 +4358,8 @@ impl StrictParserGeneration<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
-        quote!(super::strict_generated_parser_family()
+        let family = self.flavor.recursive_family_function();
+        quote!(super::#family()
             .#name
             .map(generated_runtime::SharedSyntaxOutput::into_owned))
     }
@@ -4528,6 +4661,7 @@ fn recovered_parser_argument_tokens(
 #[requires(true)]
 #[ensures(true)]
 fn strict_sequence_parser_tokens(
+    rule_name: &str,
     fields: &[&FieldItem],
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
@@ -4537,27 +4671,173 @@ fn strict_sequence_parser_tokens(
     let Some(first) = fields.first() else {
         return Ok((quote!(generated_runtime::empty()), quote!(())));
     };
-    let mut parser = strict_parser_expr_tokens(
-        &first.parser,
-        arguments,
-        generation,
-        free_modifier_parser,
-        mode,
-    )?;
-    let mut pattern = sequence_item_pattern(first);
-    for field in fields.iter().skip(1) {
-        let next = strict_parser_expr_tokens(
-            &field.parser,
+    let mut parser = if generation.flavor.records_recovery_checkpoints()
+        && matches!(first.kind, FieldKind::Field)
+    {
+        recovery_checkpoint_strict_field_parser_expr_tokens(
+            rule_name,
+            0,
+            &first.parser,
             arguments,
             generation,
             free_modifier_parser,
             mode,
-        )?;
+        )?
+    } else {
+        strict_parser_expr_tokens(
+            &first.parser,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?
+    };
+    let mut pattern = sequence_item_pattern(first);
+    for (field_index, field) in fields.iter().enumerate().skip(1) {
+        let next = if generation.flavor.records_recovery_checkpoints()
+            && matches!(field.kind, FieldKind::Field)
+        {
+            recovery_checkpoint_strict_field_parser_expr_tokens(
+                rule_name,
+                field_index,
+                &field.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?
+        } else {
+            strict_parser_expr_tokens(
+                &field.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?
+        };
         let name = sequence_item_pattern(field);
         parser = quote!(#parser.then(#next));
         pattern = quote!((#pattern, #name));
     }
     Ok((parser, pattern))
+}
+
+#[requires(!rule_name.is_empty())]
+#[ensures(true)]
+fn recovery_checkpoint_strict_field_parser_expr_tokens(
+    rule_name: &str,
+    field_index: usize,
+    parser: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Result<TokenStream2> {
+    if let ParserExpr::Vector(vector) = parser {
+        if let [item] = vector.items.as_slice() {
+            let repeated = match item {
+                VectorItem::ZeroOrMore(expr) => {
+                    let inner = strict_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                    })
+                }
+                VectorItem::ZeroOrMoreSpread(expr) => {
+                    let inner = strict_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            __items
+                        })
+                    })
+                }
+                VectorItem::OneOrMore(expr) => {
+                    let inner = strict_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__items| {
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("strict non-empty vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::OneOrMoreSpread(expr) => {
+                    let inner = strict_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("strict non-empty spread vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+            };
+            if let Some(repeated) = repeated {
+                return Ok(repeated);
+            }
+        }
+    }
+
+    let inner =
+        strict_parser_expr_tokens(parser, arguments, generation, free_modifier_parser, mode)?;
+    Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
+        #rule_name,
+        #field_index,
+        #inner
+    )))
 }
 
 #[requires(true)]
@@ -4569,22 +4849,35 @@ fn recovered_sequence_parser_tokens(
     generation: &RecoveredParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
-    instrument_fields: bool,
+    instrumentation: RecoveredFieldInstrumentation,
 ) -> Result<(TokenStream2, TokenStream2)> {
     let Some(first) = fields.first() else {
         return Ok((quote!(generated_runtime::empty()), quote!(())));
     };
-    let mut parser = if instrument_fields && matches!(first.kind, FieldKind::Field) {
-        recovered_field_parser_expr_tokens(
-            rule_name,
-            0usize,
-            first.recovery_boundary()?,
-            &first.parser,
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )?
+    let mut parser = if matches!(first.kind, FieldKind::Field) {
+        match instrumentation {
+            RecoveredFieldInstrumentation::Directive => recovered_field_parser_expr_tokens(
+                rule_name,
+                0usize,
+                first.recovery_boundary()?,
+                &first.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?,
+            RecoveredFieldInstrumentation::Checkpoint => {
+                recovery_checkpoint_recovered_field_parser_expr_tokens(
+                    rule_name,
+                    0usize,
+                    &first.parser,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?
+            }
+        }
     } else {
         recovered_parser_expr_tokens(
             &first.parser,
@@ -4596,17 +4889,30 @@ fn recovered_sequence_parser_tokens(
     };
     let mut pattern = sequence_item_pattern(first);
     for (field_index, field) in fields.iter().enumerate().skip(1) {
-        let next = if instrument_fields && matches!(field.kind, FieldKind::Field) {
-            recovered_field_parser_expr_tokens(
-                rule_name,
-                field_index,
-                field.recovery_boundary()?,
-                &field.parser,
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?
+        let next = if matches!(field.kind, FieldKind::Field) {
+            match instrumentation {
+                RecoveredFieldInstrumentation::Directive => recovered_field_parser_expr_tokens(
+                    rule_name,
+                    field_index,
+                    field.recovery_boundary()?,
+                    &field.parser,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?,
+                RecoveredFieldInstrumentation::Checkpoint => {
+                    recovery_checkpoint_recovered_field_parser_expr_tokens(
+                        rule_name,
+                        field_index,
+                        &field.parser,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?
+                }
+            }
         } else {
             recovered_parser_expr_tokens(
                 &field.parser,
@@ -4621,6 +4927,124 @@ fn recovered_sequence_parser_tokens(
         pattern = quote!((#pattern, #name));
     }
     Ok((parser, pattern))
+}
+
+#[requires(!rule_name.is_empty())]
+#[ensures(true)]
+fn recovery_checkpoint_recovered_field_parser_expr_tokens(
+    rule_name: &str,
+    field_index: usize,
+    parser: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    if let ParserExpr::Vector(vector) = parser {
+        if let [item] = vector.items.as_slice() {
+            let repeated = match item {
+                VectorItem::ZeroOrMore(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                    })
+                }
+                VectorItem::ZeroOrMoreSpread(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            __items
+                        })
+                    })
+                }
+                VectorItem::OneOrMore(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__items| {
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("recovered plain non-empty vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::OneOrMoreSpread(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovery_checkpoint_recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("recovered plain non-empty spread vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+            };
+            if let Some(repeated) = repeated {
+                return Ok(repeated);
+            }
+        }
+    }
+
+    let inner =
+        recovered_parser_expr_tokens(parser, arguments, generation, free_modifier_parser, mode)?;
+    Ok(quote!(generated_runtime::recovery_checkpoint_field_parser(
+        #rule_name,
+        #field_index,
+        #inner
+    )))
 }
 
 #[requires(!rule_name.is_empty())]
@@ -5487,7 +5911,7 @@ fn strict_method_parser_expr_tokens(
             .flatten()
             .map(|argument| strict_argument_parser_tokens(argument, arguments, generation, mode))
             .collect::<Result<Vec<_>>>()?;
-        let parser_name = format_ident!("strict_{}_parser", rule);
+        let parser_name = generation.flavor.rule_parser_name(&rule);
         let parser_name = if mode == StrictParserCallMode::External
             || (generation.generate_model && !generation.rule_has_local_parser(&rule))
         {
@@ -5990,7 +6414,7 @@ fn strict_rule_call_tokens(
     free_modifier_parser: &Ident,
     call_mode: StrictParserCallMode,
 ) -> TokenStream2 {
-    let parser_name = format_ident!("strict_{}_parser", function);
+    let parser_name = generation.flavor.rule_parser_name(function);
     let parser_name = if call_mode == StrictParserCallMode::External {
         quote!(super::#parser_name)
     } else {

@@ -1448,6 +1448,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ChildRecoveryCheckpointObservations",
+        "a valid observation range and shared validated observation node are independently valid child-frame data",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:GeneratedModelNoopVisitor",
         "stateless generated-model validation visitor; all instances are equivalent",
     ),
@@ -1462,6 +1466,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointCollection",
+        "mutable checkpoint arena state uses impl invariants for arena, identity, observation, and replay-node relationships",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointId",
+        "checkpoint identities are private arena indices whose bounds are enforced by collection methods",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointIndex",
+        "every private site-to-field threshold map is a valid existence-query index",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityKindTelemetry",
+        "raw event counters deliberately admit every intermediate combination while telemetry is accumulated",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityTelemetry",
+        "local and boundary-resync telemetry are independent invariant-bearing counter snapshots",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
