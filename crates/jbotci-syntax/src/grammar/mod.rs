@@ -596,7 +596,7 @@ struct SyntaxMemoFailure<'tokens> {
     start_location: usize,
     end_location: usize,
     error: SyntaxParseError<'tokens>,
-    recovery_checkpoints: Rc<[RecoveryCheckpoint]>,
+    recovery_checkpoints: Option<Rc<[RecoveryCheckpoint]>>,
     diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
     rule_observation_node: Option<usize>,
 }
@@ -642,7 +642,7 @@ impl BoundaryAbandonedRange {
 #[derive(Debug, Clone)]
 struct SyntaxMemoSideEffects<'tokens> {
     warnings: Rc<[SyntaxWarning]>,
-    recovery_checkpoints: Rc<[RecoveryCheckpoint]>,
+    recovery_checkpoints: Option<Rc<[RecoveryCheckpoint]>>,
     diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
 }
 
@@ -689,6 +689,7 @@ struct SyntaxMemoRuleFrame<'tokens> {
     rule_observation: Option<SyntaxRuleObservation>,
     child_rule_observation_nodes: Vec<usize>,
     finalized_rule_observation_node: Option<usize>,
+    recovery_checkpoints: HashSet<RecoveryCheckpoint>,
     diagnostic_observation_id: Option<SyntaxDiagnosticObservationId>,
     diagnostic_observations: Vec<SyntaxDiagnosticObservation<'tokens>>,
     finalized_diagnostic_observations: Option<Rc<SyntaxDiagnosticObservations<'tokens>>>,
@@ -774,7 +775,6 @@ impl<'tokens> SyntaxRecoveryMemoSession<'tokens> {
 pub(super) struct SyntaxMemoContext {
     recovery_trial_id: Option<usize>,
     recovery_index: usize,
-    recovery_checkpoint_index: usize,
 }
 
 #[invariant(true)]
@@ -1045,7 +1045,6 @@ impl<'tokens> ParserState<'tokens> {
                 .as_ref()
                 .map(|trial| trial.trial_id.get()),
             recovery_index: self.consumed_recovery_directives,
-            recovery_checkpoint_index: self.recovery_checkpoint_order.len(),
         })
     }
 
@@ -1072,6 +1071,7 @@ impl<'tokens> ParserState<'tokens> {
             rule_observation: None,
             child_rule_observation_nodes: Vec::new(),
             finalized_rule_observation_node: None,
+            recovery_checkpoints: HashSet::new(),
             diagnostic_observation_id,
             diagnostic_observations: Vec::new(),
             finalized_diagnostic_observations: None,
@@ -1124,6 +1124,9 @@ impl<'tokens> ParserState<'tokens> {
             if let Some(node) = rule_observation_node {
                 parent.child_rule_observation_nodes.push(node);
             }
+            parent
+                .recovery_checkpoints
+                .extend(frame.recovery_checkpoints.iter().cloned());
             if let Some(observations) = diagnostic_observations {
                 parent
                     .diagnostic_observations
@@ -1426,6 +1429,17 @@ impl<'tokens> ParserState<'tokens> {
         (rule_observation_node, diagnostic_observations)
     }
 
+    #[requires(!self.syntax_memo_rule_frames.is_empty())]
+    #[ensures(true)]
+    fn current_syntax_memo_recovery_checkpoints(&self) -> Option<Rc<[RecoveryCheckpoint]>> {
+        let checkpoints = &self
+            .syntax_memo_rule_frames
+            .last()
+            .expect("syntax memo rule frame is active")
+            .recovery_checkpoints;
+        (!checkpoints.is_empty()).then(|| checkpoints.iter().cloned().collect::<Vec<_>>().into())
+    }
+
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[ensures(true)]
@@ -1563,7 +1577,9 @@ impl<'tokens> ParserState<'tokens> {
                     "only sensitive memo entries omit rule observations"
                 );
             }
-            self.replay_recovery_checkpoints(&failure.recovery_checkpoints);
+            if let Some(checkpoints) = &failure.recovery_checkpoints {
+                self.replay_recovery_checkpoints(checkpoints);
+            }
             return Some(failure);
         }
         self.syntax_failure_memo
@@ -1575,7 +1591,7 @@ impl<'tokens> ParserState<'tokens> {
                     start_location,
                     end_location,
                     error,
-                    recovery_checkpoints: Rc::from([]),
+                    recovery_checkpoints: None,
                     diagnostic_observations: None,
                     rule_observation_node: None,
                 })
@@ -1585,7 +1601,6 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule_name.is_empty())]
     #[requires(end_location >= start_location)]
     #[requires(context.recovery_index <= self.consumed_recovery_directives)]
-    #[requires(context.recovery_checkpoint_index <= self.recovery_checkpoint_order.len())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
@@ -1619,6 +1634,7 @@ impl<'tokens> ParserState<'tokens> {
             .is_some()
             .then(|| self.current_syntax_memo_observations())
             .unwrap_or((None, None));
+        let recovery_checkpoints = self.current_syntax_memo_recovery_checkpoints();
         let success = new!(SyntaxMemoSuccess {
             start_location,
             end_location,
@@ -1628,9 +1644,7 @@ impl<'tokens> ParserState<'tokens> {
             value,
             side_effects: SyntaxMemoSideEffects {
                 warnings: warnings.into(),
-                recovery_checkpoints: Rc::from(
-                    &self.recovery_checkpoint_order[context.recovery_checkpoint_index..],
-                ),
+                recovery_checkpoints,
                 diagnostic_observations,
             },
             rule_observation_node,
@@ -1658,7 +1672,6 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
-    #[requires(context.recovery_checkpoint_index <= self.recovery_checkpoint_order.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
     pub(super) fn store_syntax_memo_failure(
@@ -1677,13 +1690,12 @@ impl<'tokens> ParserState<'tokens> {
             let (rule_observation_node, diagnostic_observations) =
                 observations.expect("recovery memo observations were finalized");
             let end_location = self.memo_failure_end_location(start_location, &error);
+            let recovery_checkpoints = self.current_syntax_memo_recovery_checkpoints();
             let failure = new!(SyntaxMemoFailure {
                 start_location,
                 end_location,
                 error,
-                recovery_checkpoints: Rc::from(
-                    &self.recovery_checkpoint_order[context.recovery_checkpoint_index..],
-                ),
+                recovery_checkpoints,
                 diagnostic_observations,
                 rule_observation_node,
             });
@@ -1768,7 +1780,9 @@ impl<'tokens> ParserState<'tokens> {
         side_effects: &SyntaxMemoSideEffects<'tokens>,
     ) {
         self.warnings.extend_from_slice(&side_effects.warnings);
-        self.replay_recovery_checkpoints(&side_effects.recovery_checkpoints);
+        if let Some(checkpoints) = &side_effects.recovery_checkpoints {
+            self.replay_recovery_checkpoints(checkpoints);
+        }
         self.replay_syntax_diagnostic_observations(side_effects.diagnostic_observations.as_ref());
     }
 
@@ -2508,6 +2522,14 @@ impl<'tokens> ParserState<'tokens> {
         if let Some(checkpoints) = &mut self.recovery_checkpoints {
             let checkpoint =
                 RecoveryCheckpoint::new(rule, instance_byte_start, token_index, field_index, kind);
+            if let Some(frame) = self.syntax_memo_rule_frames.last_mut() {
+                // Memo entries retain the unique observations made in their
+                // dynamic subtree. This must be independent of the final
+                // failure's global deduplication: a later trial can reuse an
+                // entry without replaying the path that first observed the
+                // same checkpoint.
+                frame.recovery_checkpoints.insert(checkpoint.clone());
+            }
             if checkpoints.insert(checkpoint.clone()) {
                 self.recovery_checkpoint_order.push(checkpoint);
             }
@@ -4901,7 +4923,7 @@ mod tests {
                 value: SyntaxMemoValue::from_shared(Rc::new(())),
                 side_effects: SyntaxMemoSideEffects {
                     warnings: Rc::from([]),
-                    recovery_checkpoints: Rc::from([]),
+                    recovery_checkpoints: None,
                     diagnostic_observations: None,
                 },
                 rule_observation_node: Some(0),
@@ -4931,6 +4953,77 @@ mod tests {
         assert!(
             state.syntax_memo_success("disjoint", 3, context).is_some(),
             "memo reuse outside the abandoned range remains available",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn memo_side_effects_retain_duplicate_checkpoint_observations() {
+        let (mut state, store) = boundary_recovery_test_state();
+        let checkpoint =
+            RecoveryCheckpoint::new("observed", 0, 1, 2, RecoveryCheckpointKind::FieldStart);
+        state.record_recovery_checkpoint(
+            checkpoint.rule,
+            checkpoint.instance_byte_start,
+            checkpoint.token_index,
+            checkpoint.field_index,
+            checkpoint.kind,
+        );
+
+        state.begin_syntax_memo_rule_frame();
+        let context = state.syntax_memo_context();
+        state.observe_syntax_rule("memo", 0);
+        state.record_recovery_checkpoint(
+            checkpoint.rule,
+            checkpoint.instance_byte_start,
+            checkpoint.token_index,
+            checkpoint.field_index,
+            checkpoint.kind,
+        );
+        state.store_syntax_memo_success(
+            "memo",
+            0,
+            context,
+            0,
+            SyntaxMemoValue::from_shared(Rc::new(())),
+            Vec::new(),
+        );
+        state.finish_syntax_memo_rule_frame();
+
+        let store = store.borrow();
+        let memo = store
+            .insensitive_successes
+            .get(&("memo", 0))
+            .expect("the insensitive memo was stored");
+        assert_eq!(
+            memo.side_effects
+                .recovery_checkpoints
+                .as_deref()
+                .expect("the memo retained its checkpoint observations"),
+            &[checkpoint.clone()],
+            "the memo must replay observations that were already globally deduplicated",
+        );
+        drop(store);
+
+        state
+            .recovery_checkpoints
+            .as_mut()
+            .expect("the recovery state tracks checkpoints")
+            .clear();
+        state.recovery_checkpoint_order.clear();
+        state.begin_syntax_memo_rule_frame();
+        let replay_context = state.syntax_memo_context();
+        let hit = state
+            .syntax_memo_success("memo", 0, replay_context)
+            .expect("the insensitive memo can be reused");
+        let replay = state.apply_syntax_memo_success(hit);
+        state.replay_syntax_memo_side_effects(&replay.side_effects);
+        state.finish_syntax_memo_rule_frame();
+        assert_eq!(
+            state.recovery_checkpoint_order,
+            [checkpoint],
+            "a fresh trial receives the checkpoint from the memo replay",
         );
     }
 
