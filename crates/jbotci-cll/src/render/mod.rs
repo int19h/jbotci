@@ -6,8 +6,7 @@ mod markdown;
 pub(crate) use html::render_block_html;
 pub(crate) use markdown::render_block_markdown;
 
-#[invariant(::KeepContent => true)]
-#[invariant(::Drop => true)]
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CllPlainLinkDisposition {
     KeepContent,

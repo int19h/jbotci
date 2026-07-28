@@ -787,8 +787,7 @@ pub enum CllLinkKind {
 
 /// Whether rendered CLL links target the interactive web application or a
 /// route-free transport such as the CLI and MCP tool.
-#[invariant(::Plain => true)]
-#[invariant(::Web => true)]
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllLinkRenderMode {
