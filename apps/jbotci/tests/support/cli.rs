@@ -218,6 +218,27 @@ fn tool_cukta_semantic_uses_supplied_embedding_context_error() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn tool_cukta_section_output_uses_plain_links() {
+    let output = jbotci_cli::run_tool_cukta(ToolCuktaRequest {
+        mode: ToolCuktaMode::Section,
+        query: Some("9.6".to_owned()),
+        count: None,
+        search_result_kinds: Vec::new(),
+        format: ToolCuktaFormat::Markdown,
+    })
+    .expect("tool output");
+
+    assert_eq!(output.status, ToolStatus::Success);
+    assert!(output.stderr.is_empty(), "{}", output.stderr);
+    let stdout = String::from_utf8(output.stdout).expect("cukta Markdown should be UTF-8");
+    assert!(!stdout.contains("]("), "{stdout}");
+    assert!(!stdout.contains("Parse"), "{stdout}");
+    assert!(stdout.contains("| mi | viska | do | sepi'o |"), "{stdout}");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn benchmark_repeats_stdout_and_reports_success_metrics() {
     let once = run_cli_capture(&["jbotci", "vlasei", "--format", "brackets", "coi"], false);
     assert_eq!(once.status, CliStatus::Success);
@@ -3190,6 +3211,23 @@ fn cukta_section_fetch_outputs_default_section() {
     assert!(run.stderr.is_empty(), "{}", run.stderr);
     assert!(run.stdout.starts_with("# 1.1. What is Lojban?"));
     assert!(run.stdout.contains("Lojban (pronounced"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cukta_section_fetch_uses_plain_links() {
+    let run = run_cli_capture(&["jbotci", "cukta", "--section", "9.6"], false);
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty(), "{}", run.stderr);
+    assert!(!run.stdout.contains("]("), "{}", run.stdout);
+    assert!(!run.stdout.contains("Parse"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("| mi | viska | do | sepi'o |"),
+        "{}",
+        run.stdout
+    );
 }
 
 #[test]

@@ -2,7 +2,11 @@ use super::*;
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
+pub(crate) fn render_block_html(
+    site: &CllSite,
+    block: &CllBlock,
+    link_mode: CllLinkRenderMode,
+) -> String {
     match block {
         CllBlock::Paragraph {
             anchor_id,
@@ -21,7 +25,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             let body = if inlines.is_empty() {
                 escape_html(text)
             } else {
-                render_inlines_html(site, inlines)
+                render_inlines_html(site, inlines, link_mode)
             };
             format!("<p{id}{class}>{body}</p>")
         }
@@ -31,7 +35,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             for item in items {
                 output.push_str("<li>");
                 for block in item {
-                    output.push_str(&render_block_html(site, block));
+                    output.push_str(&render_block_html(site, block, link_mode));
                 }
                 output.push_str("</li>");
             }
@@ -39,7 +43,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             output
         }
         CllBlock::Example { example_id } => cll_lookup_example(site, example_id)
-            .map(|example| render_example(site, example, CllRenderFormat::Html))
+            .map(|example| render_example(site, example, CllRenderFormat::Html, link_mode))
             .unwrap_or_default(),
         CllBlock::Table {
             id,
@@ -55,16 +59,16 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             );
             if let Some(caption) = caption {
                 output.push_str("<caption>");
-                output.push_str(&render_inlines_html(site, caption));
+                output.push_str(&render_inlines_html(site, caption, link_mode));
                 output.push_str("</caption>");
             }
             if !header_rows.is_empty() {
                 output.push_str("<thead>");
-                render_table_rows_html(site, "th", header_rows, &mut output);
+                render_table_rows_html(site, "th", header_rows, &mut output, link_mode);
                 output.push_str("</thead>");
             }
             output.push_str("<tbody>");
-            render_table_rows_html(site, "td", body_rows, &mut output);
+            render_table_rows_html(site, "td", body_rows, &mut output, link_mode);
             output.push_str("</tbody>");
             output.push_str("</table>");
             output
@@ -73,7 +77,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             id,
             orientation,
             rows,
-        } => render_simple_list_table_html(site, id.as_deref(), *orientation, rows),
+        } => render_simple_list_table_html(site, id.as_deref(), *orientation, rows, link_mode),
         CllBlock::VariableList { id, entries } => {
             let mut output = format!(
                 "<dl{} class=\"cll-variable-list\">",
@@ -81,10 +85,10 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             );
             for entry in entries {
                 output.push_str("<dt>");
-                output.push_str(&render_inlines_html(site, &entry.term));
+                output.push_str(&render_inlines_html(site, &entry.term, link_mode));
                 output.push_str("</dt><dd>");
                 for block in &entry.blocks {
-                    output.push_str(&render_block_html(site, block));
+                    output.push_str(&render_block_html(site, block, link_mode));
                 }
                 output.push_str("</dd>");
             }
@@ -98,14 +102,25 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             alt,
         } => {
             let mut output = format!(
-                "<figure{} class=\"cll-media\"><img src=\"{}\" alt=\"{}\" />",
-                render_optional_id(id.as_deref()),
-                escape_html(src),
-                escape_html(alt)
+                "<figure{} class=\"cll-media\">",
+                render_optional_id(id.as_deref())
             );
+            match link_mode {
+                CllLinkRenderMode::Web => output.push_str(&format!(
+                    "<img src=\"{}\" alt=\"{}\" />",
+                    escape_html(src),
+                    escape_html(alt)
+                )),
+                CllLinkRenderMode::Plain if !alt.is_empty() => {
+                    output.push_str("<p class=\"cll-media-alt\">");
+                    output.push_str(&escape_html(alt));
+                    output.push_str("</p>");
+                }
+                CllLinkRenderMode::Plain => {}
+            }
             if let Some(title) = title {
                 output.push_str("<figcaption>");
-                output.push_str(&render_inlines_html(site, title));
+                output.push_str(&render_inlines_html(site, title, link_mode));
                 output.push_str("</figcaption>");
             }
             output.push_str("</figure>");
@@ -118,7 +133,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
                 escape_html(term)
             );
             for block in body {
-                output.push_str(&render_block_html(site, block));
+                output.push_str(&render_block_html(site, block, link_mode));
             }
             output.push_str("</dd></div>");
             output
@@ -141,7 +156,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             format!(
                 "<h{level}{}>{}</h{level}>",
                 render_optional_id(id.as_deref()),
-                render_inlines_html(site, inlines)
+                render_inlines_html(site, inlines, link_mode)
             )
         }
         CllBlock::BlockQuote { id, blocks } => {
@@ -150,7 +165,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
                 render_optional_id(id.as_deref())
             );
             for block in blocks {
-                output.push_str(&render_block_html(site, block));
+                output.push_str(&render_block_html(site, block, link_mode));
             }
             output.push_str("</blockquote>");
             output
@@ -158,7 +173,7 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
         CllBlock::Definition { id, body } => format!(
             "<p{} class=\"cll-definition\">{}</p>",
             render_optional_id(id.as_deref()),
-            render_inlines_html(site, body)
+            render_inlines_html(site, body, link_mode)
         ),
         CllBlock::InterlinearGloss {
             id,
@@ -177,29 +192,36 @@ pub(crate) fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             rows,
             natlang,
             comments,
+            link_mode,
         ),
         CllBlock::CmavoList {
             id,
             titles,
             headers,
             rows,
-        } => render_cmavo_list_html(site, id.as_deref(), titles, headers, rows),
+        } => render_cmavo_list_html(site, id.as_deref(), titles, headers, rows, link_mode),
         CllBlock::Lojbanization { id, lines } => {
-            render_lojbanization_html(site, id.as_deref(), lines)
+            render_lojbanization_html(site, id.as_deref(), lines, link_mode)
         }
-        CllBlock::LujvoMaking { id, parts } => render_lujvo_making_html(site, id.as_deref(), parts),
+        CllBlock::LujvoMaking { id, parts } => {
+            render_lujvo_making_html(site, id.as_deref(), parts, link_mode)
+        }
         CllBlock::GrammarTemplate { id, body } => format!(
             "<p{} class=\"cll-grammar-template\">{}</p>",
             render_optional_id(id.as_deref()),
-            render_inlines_html(site, body)
+            render_inlines_html(site, body, link_mode)
         ),
-        CllBlock::Ebnf { id, entries } => render_ebnf_html(site, id.as_deref(), entries),
+        CllBlock::Ebnf { id, entries } => render_ebnf_html(site, id.as_deref(), entries, link_mode),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
+fn render_inlines_html(
+    site: &CllSite,
+    inlines: &[CllInline],
+    link_mode: CllLinkRenderMode,
+) -> String {
     let mut output = String::new();
     for inline in inlines {
         match inline {
@@ -208,14 +230,14 @@ fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
                 output.push_str("<em");
                 output.push_str(&render_optional_lang(language.as_deref()));
                 output.push('>');
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
                 output.push_str("</em>");
             }
             CllInline::Quote { language, inlines } => {
                 output.push_str("<q");
                 output.push_str(&render_optional_lang(language.as_deref()));
                 output.push('>');
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
                 output.push_str("</q>");
             }
             CllInline::LanguageSpan {
@@ -228,37 +250,45 @@ fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
                 output.push('"');
                 output.push_str(&render_optional_lang(language.as_deref()));
                 output.push('>');
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
                 output.push_str("</span>");
             }
             CllInline::CiteTitle { inlines } => {
                 output.push_str("<cite>");
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
                 output.push_str("</cite>");
             }
             CllInline::Subscript { inlines } => {
                 output.push_str("<sub>");
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
                 output.push_str("</sub>");
             }
             CllInline::Superscript { inlines } => {
                 output.push_str("<sup>");
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
                 output.push_str("</sup>");
             }
             CllInline::Link {
                 target,
                 inlines,
                 kind,
-            } => {
-                output.push_str("<a href=\"");
-                output.push_str(&escape_html(&cll_link_href(site, *kind, target)));
-                output.push_str("\" class=\"spa-cll-link ");
-                output.push_str(link_kind_class(*kind));
-                output.push_str("\">");
-                output.push_str(&render_inlines_html(site, inlines));
-                output.push_str("</a>");
-            }
+            } => match link_mode {
+                CllLinkRenderMode::Web => {
+                    output.push_str("<a href=\"");
+                    output.push_str(&escape_html(&cll_link_href(site, *kind, target)));
+                    output.push_str("\" class=\"spa-cll-link ");
+                    output.push_str(link_kind_class(*kind));
+                    output.push_str("\">");
+                    output.push_str(&render_inlines_html(site, inlines, link_mode));
+                    output.push_str("</a>");
+                }
+                CllLinkRenderMode::Plain => match kind.plain_disposition() {
+                    CllPlainLinkDisposition::KeepContent => {
+                        output.push_str(&render_inlines_html(site, inlines, link_mode));
+                    }
+                    CllPlainLinkDisposition::Drop => {}
+                },
+            },
             CllInline::Code(text) => {
                 output.push_str("<code>");
                 output.push_str(&escape_html(text));
@@ -280,7 +310,7 @@ fn render_inlines_html(site: &CllSite, inlines: &[CllInline]) -> String {
                 if inlines.is_empty() {
                     output.push_str(&escape_html(shown));
                 } else {
-                    output.push_str(&render_inlines_html(site, inlines));
+                    output.push_str(&render_inlines_html(site, inlines, link_mode));
                 }
                 output.push_str("</span>");
             }
@@ -333,6 +363,7 @@ fn render_table_rows_html(
     tag_name: &str,
     rows: &[Vec<CllTableCell>],
     output: &mut String,
+    link_mode: CllLinkRenderMode,
 ) {
     for row in rows {
         output.push_str("<tr");
@@ -348,7 +379,9 @@ fn render_table_rows_html(
                 output.push_str(&format!(" rowspan=\"{row_span}\""));
             }
             output.push('>');
-            if let Some(parse_href) = &cell.parse_href {
+            if link_mode == CllLinkRenderMode::Web
+                && let Some(parse_href) = &cell.parse_href
+            {
                 output.push_str("<a class=\"");
                 output.push_str(&escape_html(&table_cell_parse_link_class(cell)));
                 output.push_str("\" href=\"");
@@ -356,7 +389,7 @@ fn render_table_rows_html(
                 output.push_str("\">Parse</a>");
             }
             for block in &cell.blocks {
-                output.push_str(&render_block_html(site, block));
+                output.push_str(&render_block_html(site, block, link_mode));
             }
             output.push_str("</");
             output.push_str(tag_name);
@@ -420,6 +453,7 @@ fn render_simple_list_table_html(
     id: Option<&str>,
     orientation: CllSimpleListOrientation,
     rows: &[Vec<Option<Vec<CllInline>>>],
+    link_mode: CllLinkRenderMode,
 ) -> String {
     let orientation_class = match orientation {
         CllSimpleListOrientation::Horizontal => "horizontal",
@@ -434,7 +468,7 @@ fn render_simple_list_table_html(
         for cell in row {
             output.push_str("<td>");
             if let Some(inlines) = cell {
-                output.push_str(&render_inlines_html(site, inlines));
+                output.push_str(&render_inlines_html(site, inlines, link_mode));
             }
             output.push_str("</td>");
         }
@@ -455,6 +489,7 @@ fn render_interlinear_html(
     rows: &[CllInterlinearRow],
     natlang: &[Vec<CllInline>],
     comments: &[Vec<CllInline>],
+    link_mode: CllLinkRenderMode,
 ) -> String {
     let mut output = format!(
         "<div{} class=\"cll-interlinear{}\">",
@@ -465,7 +500,9 @@ fn render_interlinear_html(
             ""
         }
     );
-    if let Some(parse_href) = parse_href {
+    if link_mode == CllLinkRenderMode::Web
+        && let Some(parse_href) = parse_href
+    {
         output.push_str("<a class=\"cll-parse-example spa-cll-link spa-cll-link-parse\" href=\"");
         output.push_str(&escape_html(parse_href));
         output.push_str("\">Parse</a>");
@@ -483,7 +520,7 @@ fn render_interlinear_html(
                 output.push_str("\">");
                 for cell in &row.cells {
                     output.push_str("<td>");
-                    output.push_str(&render_inlines_html(site, cell));
+                    output.push_str(&render_inlines_html(site, cell, link_mode));
                     output.push_str("</td>");
                 }
                 output.push_str("</tr>");
@@ -498,7 +535,7 @@ fn render_interlinear_html(
                 output.push_str(&escape_html(row.kind.as_str()));
                 output.push_str("\">");
                 for cell in &row.cells {
-                    output.push_str(&render_inlines_html(site, cell));
+                    output.push_str(&render_inlines_html(site, cell, link_mode));
                 }
                 output.push_str("</p></div>");
             }
@@ -507,12 +544,12 @@ fn render_interlinear_html(
     }
     for line in comments {
         output.push_str("<p class=\"cll-interlinear-comment\">");
-        output.push_str(&render_inlines_html(site, line));
+        output.push_str(&render_inlines_html(site, line, link_mode));
         output.push_str("</p>");
     }
     for line in natlang {
         output.push_str("<p class=\"cll-natlang\">");
-        output.push_str(&render_inlines_html(site, line));
+        output.push_str(&render_inlines_html(site, line, link_mode));
         output.push_str("</p>");
     }
     output.push_str("</div>");
@@ -527,11 +564,12 @@ fn render_cmavo_list_html(
     titles: &[Vec<CllInline>],
     headers: &[Vec<CllInline>],
     rows: &[Vec<Vec<CllInline>>],
+    link_mode: CllLinkRenderMode,
 ) -> String {
     let mut output = format!("<div{} class=\"cll-cmavo-list\">", render_optional_id(id));
     for title in titles {
         output.push_str("<p class=\"cll-cmavo-list-title\">");
-        output.push_str(&render_inlines_html(site, title));
+        output.push_str(&render_inlines_html(site, title, link_mode));
         output.push_str("</p>");
     }
     output.push_str("<table><tbody>");
@@ -539,7 +577,7 @@ fn render_cmavo_list_html(
         output.push_str("<tr>");
         for header in headers {
             output.push_str("<th>");
-            output.push_str(&render_inlines_html(site, header));
+            output.push_str(&render_inlines_html(site, header, link_mode));
             output.push_str("</th>");
         }
         output.push_str("</tr>");
@@ -548,7 +586,7 @@ fn render_cmavo_list_html(
         output.push_str("<tr>");
         for cell in row {
             output.push_str("<td>");
-            output.push_str(&render_inlines_html(site, cell));
+            output.push_str(&render_inlines_html(site, cell, link_mode));
             output.push_str("</td>");
         }
         output.push_str("</tr>");
@@ -563,6 +601,7 @@ fn render_lojbanization_html(
     site: &CllSite,
     id: Option<&str>,
     lines: &[CllLojbanizationLine],
+    link_mode: CllLinkRenderMode,
 ) -> String {
     let mut output = format!(
         "<table{} class=\"cll-lojbanization\"><tbody>",
@@ -574,10 +613,10 @@ fn render_lojbanization_html(
         output.push_str("\"><th>");
         output.push_str(&escape_html(line.kind.as_str()));
         output.push_str("</th><td>");
-        output.push_str(&render_inlines_html(site, &line.body));
+        output.push_str(&render_inlines_html(site, &line.body, link_mode));
         output.push_str("</td><td>");
         if let Some(comment) = &line.comment {
-            output.push_str(&render_inlines_html(site, comment));
+            output.push_str(&render_inlines_html(site, comment, link_mode));
         }
         output.push_str("</td></tr>");
     }
@@ -587,7 +626,12 @@ fn render_lojbanization_html(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_lujvo_making_html(site: &CllSite, id: Option<&str>, parts: &[CllLujvoPart]) -> String {
+fn render_lujvo_making_html(
+    site: &CllSite,
+    id: Option<&str>,
+    parts: &[CllLujvoPart],
+    link_mode: CllLinkRenderMode,
+) -> String {
     let mut output = format!("<ul{} class=\"cll-lujvo-making\">", render_optional_id(id));
     for part in parts {
         output.push_str("<li class=\"cll-lujvo-part cll-lujvo-part-");
@@ -595,7 +639,7 @@ fn render_lujvo_making_html(site: &CllSite, id: Option<&str>, parts: &[CllLujvoP
         output.push_str("\"><span class=\"cll-lujvo-part-kind\">");
         output.push_str(&escape_html(part.kind.as_str()));
         output.push_str("</span> ");
-        output.push_str(&render_inlines_html(site, &part.body));
+        output.push_str(&render_inlines_html(site, &part.body, link_mode));
         output.push_str("</li>");
     }
     output.push_str("</ul>");
@@ -604,7 +648,12 @@ fn render_lujvo_making_html(site: &CllSite, id: Option<&str>, parts: &[CllLujvoP
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ebnf_html(site: &CllSite, id: Option<&str>, entries: &[CllEbnfEntry]) -> String {
+fn render_ebnf_html(
+    site: &CllSite,
+    id: Option<&str>,
+    entries: &[CllEbnfEntry],
+    link_mode: CllLinkRenderMode,
+) -> String {
     let mut output = format!("<div{} class=\"cll-ebnf\">", render_optional_id(id));
     for entry in entries {
         output.push_str("<section class=\"cll-ebnf-entry\" id=\"");
@@ -616,10 +665,11 @@ fn render_ebnf_html(site: &CllSite, id: Option<&str>, entries: &[CllEbnfEntry]) 
             &entry.rule_name,
             &entry.rule_href,
             &mut output,
+            link_mode,
         );
         output.push_str(" <span class=\"cll-ebnf-assign\">⩴</span></div>");
         output.push_str("<pre class=\"cll-ebnf-rhs\">");
-        output.push_str(&render_ebnf_tokens_html(site, &entry.rhs));
+        output.push_str(&render_ebnf_tokens_html(site, &entry.rhs, link_mode));
         output.push_str("</pre></section>");
     }
     output.push_str("</div>");
@@ -628,15 +678,19 @@ fn render_ebnf_html(site: &CllSite, id: Option<&str>, entries: &[CllEbnfEntry]) 
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ebnf_tokens_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
+fn render_ebnf_tokens_html(
+    site: &CllSite,
+    tokens: &[CllEbnfToken],
+    link_mode: CllLinkRenderMode,
+) -> String {
     let lines = wrap_ebnf_choice_lines(tokens);
     if lines.len() == 1 {
-        return render_ebnf_token_line_html(site, &lines[0]);
+        return render_ebnf_token_line_html(site, &lines[0], link_mode);
     }
     let mut output = String::new();
     for line in lines {
         output.push_str("<span class=\"cll-ebnf-choice-line\">");
-        output.push_str(&render_ebnf_token_line_html(site, &line));
+        output.push_str(&render_ebnf_token_line_html(site, &line, link_mode));
         output.push_str("</span>");
     }
     output
@@ -644,7 +698,11 @@ fn render_ebnf_tokens_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_ebnf_token_line_html(site: &CllSite, tokens: &[CllEbnfToken]) -> String {
+fn render_ebnf_token_line_html(
+    site: &CllSite,
+    tokens: &[CllEbnfToken],
+    link_mode: CllLinkRenderMode,
+) -> String {
     let mut output = String::new();
     for token in tokens {
         match token {
@@ -662,13 +720,27 @@ fn render_ebnf_token_line_html(site: &CllSite, tokens: &[CllEbnfToken]) -> Strin
                 output.push_str("</span>");
             }
             CllEbnfToken::Terminal { body, href } => {
-                render_ebnf_link_html(site, "cll-ebnf-terminal", body, href, &mut output);
+                render_ebnf_link_html(
+                    site,
+                    "cll-ebnf-terminal",
+                    body,
+                    href,
+                    &mut output,
+                    link_mode,
+                );
             }
             CllEbnfToken::ElidableTerminator { body, href } => {
-                render_ebnf_elidable_html(site, body, href, &mut output);
+                render_ebnf_elidable_html(site, body, href, &mut output, link_mode);
             }
             CllEbnfToken::Nonterminal { body, href } => {
-                render_ebnf_link_html(site, "cll-ebnf-nonterminal", body, href, &mut output);
+                render_ebnf_link_html(
+                    site,
+                    "cll-ebnf-nonterminal",
+                    body,
+                    href,
+                    &mut output,
+                    link_mode,
+                );
             }
         }
     }
@@ -682,6 +754,7 @@ fn render_ebnf_elidable_html(
     body: &str,
     href: &Option<String>,
     output: &mut String,
+    link_mode: CllLinkRenderMode,
 ) {
     let body_html = if let Some((prefix, suffix)) = cll_ebnf_elidable_hash_pieces(body) {
         format!(
@@ -692,7 +765,14 @@ fn render_ebnf_elidable_html(
     } else {
         escape_html(body)
     };
-    render_ebnf_link_body_html(site, "cll-ebnf-elidable", &body_html, href, output);
+    render_ebnf_link_body_html(
+        site,
+        "cll-ebnf-elidable",
+        &body_html,
+        href,
+        output,
+        link_mode,
+    );
 }
 
 #[requires(true)]
@@ -711,8 +791,16 @@ fn render_ebnf_link_html(
     body: &str,
     href: &Option<String>,
     output: &mut String,
+    link_mode: CllLinkRenderMode,
 ) {
-    render_ebnf_link_body_html(site, class_name, &escape_html(body), href, output);
+    render_ebnf_link_body_html(
+        site,
+        class_name,
+        &escape_html(body),
+        href,
+        output,
+        link_mode,
+    );
 }
 
 #[requires(!class_name.is_empty())]
@@ -723,8 +811,11 @@ fn render_ebnf_link_body_html(
     body_html: &str,
     href: &Option<String>,
     output: &mut String,
+    link_mode: CllLinkRenderMode,
 ) {
-    if let Some(href) = href {
+    if link_mode == CllLinkRenderMode::Web
+        && let Some(href) = href
+    {
         output.push_str("<a class=\"");
         output.push_str(class_name);
         output.push_str("\" href=\"");

@@ -1701,7 +1701,7 @@ pub(super) fn render_cll_inline(
             inlines,
             kind,
         } => {
-            let href = cll_inline_href(base_path, *kind, target);
+            let href = cll_spa_inline_href(base_path, *kind, target);
             let class_name = format!("spa-cll-link {}", cll_link_kind_class(*kind));
             let tooltip = cll_dictionary_tooltip_for_link(base_path, *kind, target);
             let child_context = lojban_context || cll_link_text_is_lojban(*kind);
@@ -2553,9 +2553,9 @@ pub(super) fn cll_ebnf_href(base_path: &str, href: &str) -> String {
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn cll_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
+#[requires(base_path.is_empty() || base_path.starts_with('/'))]
+#[ensures(kind == CllLinkKind::External -> ret == target)]
+pub(super) fn cll_spa_inline_href(base_path: &str, kind: CllLinkKind, target: &str) -> String {
     let prefix = base_path.trim_end_matches('/');
     match kind {
         CllLinkKind::Dictionary => format!("{prefix}/vlacku/{target}"),
