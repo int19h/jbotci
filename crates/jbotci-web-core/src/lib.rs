@@ -9264,9 +9264,9 @@ mod tests {
             .dictionary_info
             .as_ref()
             .expect("blank vlacku result should include dictionary metadata");
-        assert_eq!(info.lensisku_created_date, "2026-05-23");
-        assert_eq!(info.lensisku_created_at, "2026-05-23T00:00:42.298977Z");
-        assert_eq!(info.total_count, 17_415);
+        assert_eq!(info.lensisku_created_date, "2026-07-27");
+        assert_eq!(info.lensisku_created_at, "2026-07-27T07:10:51.776063Z");
+        assert_eq!(info.total_count, 17_536);
         assert!(!info.count_tree.is_empty());
 
         let dictionary = jbotci_dictionary_data::english();
@@ -9358,7 +9358,7 @@ mod tests {
         );
 
         let cmavo = dictionary_count_node(&info.count_tree, "cmavo");
-        assert_eq!(cmavo.count, 1_624);
+        assert_eq!(cmavo.count, 1_627);
         assert_eq!(
             dictionary_count_node_labels(&cmavo.children),
             vec!["regular", "experimental", "obsolete"]
@@ -9371,7 +9371,7 @@ mod tests {
         );
         assert_eq!(
             dictionary_count_node(&cmavo.children, "experimental").count,
-            1_024
+            1_027
         );
         assert_eq!(dictionary_count_node(&cmavo.children, "obsolete").count, 2);
         assert_eq!(
@@ -9380,29 +9380,29 @@ mod tests {
         );
 
         let brivla = dictionary_count_node(&info.count_tree, "brivla");
-        assert_eq!(brivla.count, 14_561);
+        assert_eq!(brivla.count, 14_677);
         assert_eq!(
             dictionary_count_node_labels(&brivla.children),
             vec!["gismu", "lujvo", "fu'ivla"]
         );
         let gismu = dictionary_count_node(&brivla.children, "gismu");
-        assert_eq!(gismu.count, 1_732);
+        assert_eq!(gismu.count, 1_746);
         assert_eq!(
             dictionary_count_node(&gismu.children, "experimental").count,
-            394
+            408
         );
-        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_436);
+        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_443);
         assert_eq!(
             dictionary_count_node(
                 &dictionary_count_node(&gismu.children, "experimental").children,
                 "rafsi",
             )
             .count,
-            4
+            11
         );
 
         let lujvo = dictionary_count_node(&brivla.children, "lujvo");
-        assert_eq!(lujvo.count, 8_406);
+        assert_eq!(lujvo.count, 8_507);
         assert_eq!(
             dictionary_count_node_labels(&lujvo.children),
             vec!["zei-lujvo", "obsolete zei-lujvo"]
@@ -9417,10 +9417,10 @@ mod tests {
         );
 
         let fuivla = dictionary_count_node(&brivla.children, "fu'ivla");
-        assert_eq!(fuivla.count, 4_423);
+        assert_eq!(fuivla.count, 4_424);
         assert_eq!(
             dictionary_count_node(&fuivla.children, "obsolete").count,
-            301
+            300
         );
 
         let cmevla = dictionary_count_node(&info.count_tree, "cmevla");
@@ -9431,9 +9431,9 @@ mod tests {
         );
         assert_eq!(
             dictionary_count_node(&info.count_tree, "letterals").count,
-            39
+            40
         );
-        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 6);
+        assert_eq!(dictionary_count_node(&info.count_tree, "phrases").count, 7);
     }
 
     #[test]

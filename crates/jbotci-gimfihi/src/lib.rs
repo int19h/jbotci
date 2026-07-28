@@ -2435,6 +2435,75 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
+    fn refreshed_snapshot_collision_delta(
+        dictionary: &Dictionary<'_>,
+        request: &GimfihiRequest,
+    ) -> usize {
+        const NEW_EXPERIMENTAL_GISMU: &[&str] = &[
+            "bevda", "daste", "farje", "garja", "grepu", "jenri", "kirfa", "letsu", "merji",
+            "nocni", "pekni", "prova", "purba", "sekse", "tcoka", "tcuka",
+        ];
+
+        let mut previous_collisions = BTreeMap::new();
+        for entry in dictionary.entries().iter().filter(|entry| {
+            collision_scope_includes(request.check_collisions, entry.word_type)
+                && !NEW_EXPERIMENTAL_GISMU.contains(&entry.word)
+        }) {
+            insert_collision_entry(&mut previous_collisions, entry.word, entry.word_type);
+        }
+        for removed_word in ["cketi", "jvoso"] {
+            insert_collision_entry(
+                &mut previous_collisions,
+                removed_word,
+                WordType::ExperimentalGismu,
+            );
+        }
+        let previous_collision_index = new!(CollisionIndex {
+            collisions: previous_collisions,
+        });
+        let current_collision_index =
+            CollisionIndex::from_dictionary(dictionary, request.check_collisions);
+        let resolved_sources =
+            resolve_sources(request.preset, &request.sources).expect("valid test sources");
+        let shapes = unique_shapes(&request.shapes);
+        let mut delta = 0_isize;
+        for word in generate_candidates(
+            &resolved_sources,
+            &shapes,
+            request.all_letters || request.scorer == GimfihiScorer::Phonetic,
+        )
+        .into_iter()
+        .filter(|word| valid_gismu_candidate(word))
+        {
+            match (
+                previous_collision_index.find(&word),
+                current_collision_index.find(&word),
+            ) {
+                (None, Some(collision)) => {
+                    assert!(
+                        NEW_EXPERIMENTAL_GISMU.contains(&collision.existing_word.as_str()),
+                        "unexpected new collision source {}",
+                        collision.existing_word
+                    );
+                    delta += 1;
+                }
+                (Some(collision), None) => {
+                    assert!(
+                        matches!(collision.existing_word.as_str(), "cketi" | "jvoso"),
+                        "unexpected removed collision source {}",
+                        collision.existing_word
+                    );
+                    delta -= 1;
+                }
+                _ => {}
+            }
+        }
+        usize::try_from(delta)
+            .expect("this snapshot adds more candidate collisions than it removes")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn find_collision_by_scan(
         dictionary: &Dictionary<'_>,
         scope: CollisionScope,
@@ -2694,9 +2763,11 @@ mod tests {
             highlight: None,
         };
 
+        let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
+        assert_eq!(collision_delta, 19);
         let output = compose_gismu(dictionary, &request).expect("output");
         assert_eq!(output.candidate_count, 16_320);
-        assert_eq!(output.filtered_count, 12_222);
+        assert_eq!(output.filtered_count, 12_222 - collision_delta);
         assert_eq!(output.winner.as_deref(), Some("trado"));
         assert_eq!(
             output
@@ -2805,9 +2876,11 @@ mod tests {
             highlight: None,
         };
 
+        let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
+        assert_eq!(collision_delta, 112);
         let output = compose_gismu(dictionary, &request).expect("#587 reproduction");
         assert_eq!(output.candidate_count, 96_475);
-        assert_eq!(output.filtered_count, 82_567);
+        assert_eq!(output.filtered_count, 82_567 - collision_delta);
         assert_eq!(output.candidates.len(), 160);
         let top = output
             .candidates
