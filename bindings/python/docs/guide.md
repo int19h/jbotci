@@ -66,6 +66,12 @@ completion operations all retain the same structured result and error types.
 Cursor completion uses a Python Unicode-character index and parses exactly the
 prefix before that index; it does not guess incomplete words.
 
+`SyntaxRecoveryErrorPolicy` configures separate non-zero per-statement and
+whole-input error limits. Pass it as `ParseOptions(recovery_error_policy=...)`;
+the recovered and strict-or-recovered entry points consume those options
+directly. Both values are immutable, and their `with_...` methods return
+validated copies.
+
 [`recovery_diagnostics.py`](../examples/recovery_diagnostics.py) executes both
 strict tracing and recovered parsing.
 

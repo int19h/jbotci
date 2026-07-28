@@ -1,6 +1,9 @@
 //! Semantic builder that consumes the generated syntax model directly.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, HashSet},
+};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
@@ -42,22 +45,23 @@ use jbotci_syntax::generated_model::{
     LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax, LinkedSumtiFragmentSyntax,
     LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax,
     MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax,
-    MeksoSyntax, ModalForethoughtConnectiveSyntax, MultipleNaFragmentSyntax, NameSumtiSyntax,
-    NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
-    NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax, NumberWordContinuationSyntax,
-    NumberWordsSyntax, OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
-    ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
-    ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
-    PendingIConnectiveSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
-    PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
-    PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
-    QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
-    QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
-    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
-    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax,
-    RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
-    RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax, ReversePolishPartsSyntax,
-    ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
+    MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax, MultipleNaFragmentSyntax,
+    NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax,
+    NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
+    NumberWordContinuationSyntax, NumberWordsSyntax, OperatorSelbriTanruUnitSyntax,
+    OrdinalTanruUnitSyntax, ParagraphStandardStatementConnectiveSyntax,
+    ParagraphStatementSequenceSyntax, ParagraphSyntax, ParenthesizedMeksoOperandSyntax,
+    PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax, PendingIConnectiveSyntax,
+    PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax, PrenexFragmentSyntax, PrenexStatementSyntax,
+    PrenexSubbridiSyntax, PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax,
+    ProSumtiSyntax, QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax,
+    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
+    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
+    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
+    RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax, RelativeClauseListSyntax,
+    RelativeClauseTailSyntax, RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax,
+    ReversePolishMeksoSyntax, ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax,
+    ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
     ScalarNegatedTanruUnitSyntax, SelbriFragmentSyntax, SelbriMeksoOperandSyntax,
     SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
     SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
@@ -75,13 +79,14 @@ use jbotci_syntax::generated_model::{
     TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
     TermsetGroupSyntax, TextGroupStatementSyntax, TextLeadingConnectiveSyntax,
     TextNihoParagraphsSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
-    TextSyntax, TreeNode, UntaggedSelbriSyntax, VocativeFreeModifierSyntax,
-    VocativeMarkerWordsSyntax, VocativeSumtiSyntax, VuhoSumtiAttachmentTailSyntax,
-    WordTanruUnitSyntax, ZantufaBoGroupedMeksoBaseSyntax, ZantufaExtraGikConnectiveSyntax,
-    ZantufaGroupedMeksoOperandSequenceSyntax, ZantufaInfixMeksoSyntax, ZantufaMeSelbriBodySyntax,
-    ZantufaMeTanruUnitSyntax, ZantufaMeksoFragmentSyntax, ZantufaMexMoiTanruUnitSyntax,
-    ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
-    ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
+    TextSyntax, TreeNode, TreeWalkable, TreeWalker, UntaggedSelbriSyntax,
+    VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax, VocativeSumtiSyntax,
+    VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax, ZantufaBoGroupedMeksoBaseSyntax,
+    ZantufaExtraGikConnectiveSyntax, ZantufaGroupedMeksoOperandSequenceSyntax,
+    ZantufaInfixMeksoSyntax, ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax,
+    ZantufaMeksoFragmentSyntax, ZantufaMexMoiTanruUnitSyntax, ZantufaReversePolishMeksoSyntax,
+    ZantufaStatementAbstractionTanruUnitSyntax, ZantufaStatementTermsStatementSyntax,
+    ZantufaStatementTermsTailSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
@@ -170,6 +175,7 @@ pub fn build_generated_semantic_graph_with_dictionary_and_options<'a>(
     options: SemanticBuildOptions<'a>,
     dictionary: &Dictionary<'_>,
 ) -> Result<SemanticGraph, SemanticsError> {
+    validate_supported_bai_modal_markers(syntax)?;
     let builder = GeneratedGraphBuilder::new(options, dictionary);
     builder.build_text(syntax)
 }
@@ -343,6 +349,25 @@ struct GeneratedIndirectQuestionFocus {
 struct GeneratedPendingSumtiCandidate<'syntax> {
     source_key: (usize, usize),
     sumti: &'syntax SumtiSyntax,
+}
+
+#[invariant(sumti.try_borrow().is_ok(), "the visitor must not retain a candidate-list borrow between traversal events")]
+#[derive(Debug, Default)]
+struct GeneratedPendingSumtiCollector<'syntax> {
+    sumti: RefCell<Vec<&'syntax SumtiSyntax>>,
+}
+
+impl<'syntax> TreeVisitor<'syntax> for GeneratedPendingSumtiCollector<'syntax> {
+    type Node = GeneratedNodeRef<'syntax>;
+    type Atom = GeneratedAtomRef<'syntax>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if let GeneratedNodeRef::SumtiSyntax(sumti) = node {
+            self.sumti.borrow_mut().push(sumti);
+        }
+    }
 }
 
 #[invariant(!key.is_empty())]
@@ -8675,6 +8700,18 @@ mod tests {
             .unwrap_or_else(|| panic!("`{relation}` x{place} has no filled value"))
     }
 
+    #[requires(!source.is_empty())]
+    #[requires(!antecedent_relation.is_empty())]
+    #[ensures(true)]
+    fn assert_ri_targets_relation_x1(source: &str, antecedent_relation: &str) {
+        let graph = semantic_graph_for(source);
+        assert_eq!(
+            named_predication_place_value(&graph, "barda", 1),
+            named_predication_place_value(&graph, antecedent_relation, 1),
+            "`ri` must share the most recent eligible sumti referent in `{source}`",
+        );
+    }
+
     #[requires(!relation.is_empty() && !modal_relation.is_empty() && place > 0)]
     #[ensures(graph.objects.contains_key(&ret))]
     fn named_predication_modal_place_value(
@@ -11549,15 +11586,20 @@ mod tests {
                         .then_some(predication)
                 })
                 .expect("connected branch predication should exist");
-            let modal = predication
+            let tagged_argument = predication
                 .modal_arguments
                 .iter()
-                .find(|modal| modal.relation.as_deref() == Some("va'o"))
+                .find(|argument| argument.relation.as_deref() == Some("vanbi"))
                 .expect("shared va'o term should attach to every branch");
             modal_values.push(
-                modal.arguments[&argument_key(1)]
+                tagged_argument.arguments[&argument_key(1)]
                     .value
                     .expect("va'o condition should be filled"),
+            );
+            assert_eq!(
+                tagged_argument.arguments[&argument_key(2)].value,
+                predication.eventuality,
+                "vanbi x2 names the host situation in the official place structure"
             );
         }
         assert_eq!(modal_values[0], modal_values[1]);
@@ -11565,6 +11607,76 @@ mod tests {
             modal_values[0].referent_sort(),
             Some(SemanticSort::Eventuality(EventualitySort::General))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_bai_modal_filler_sumti_is_recent_ri_antecedent() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i va'o lo nu lo mlatu cu cadzu kei ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_abstraction_sumti_remains_recent_ri_control() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i lo nu lo mlatu cu cadzu cu fasnu .i ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tail_bai_modal_filler_sumti_remains_recent_ri_control() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama va'o lo nu lo mlatu cu cadzu .i ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_tense_filler_sumti_remains_recent_ri_control() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i ca lo nu lo mlatu cu cadzu kei ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_tense_and_bai_fillers_use_beginning_order_for_ri() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i ca lo nu lo xirma cu bajra kei va'o lo nu lo mlatu cu cadzu kei ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_bai_modal_filler_ri_target_survives_gohi_replay() {
+        let source = "lo gerku cu klama .i va'o lo nu lo mlatu cu cadzu kei ri tavla .i go'i";
+        let graph = semantic_graph_for(source);
+        let antecedent = named_predication_place_value(&graph, "cadzu", 1);
+        let tavla = named_predication_ids(&graph, "tavla");
+        assert_eq!(tavla.len(), 2, "`go'i` must replay the preceding bridi");
+        for predication in tavla {
+            assert_eq!(
+                graph.objects[&predication]
+                    .as_predication()
+                    .and_then(|predication| predication.arguments[&argument_key(1)].value),
+                Some(antecedent),
+                "both the original and replayed `tavla` x1 must share the modal-internal antecedent",
+            );
+        }
     }
 
     #[test]
@@ -11845,6 +11957,302 @@ mod tests {
             assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
             assert_eq!(error.message, expected);
         }
+    }
+
+    const STANDARD_BAI_RELATIONS: [(&str, &str); 65] = [
+        ("ba'i", "basti"),
+        ("bai", "bapli"),
+        ("bau", "bangu"),
+        ("be'i", "benji"),
+        ("ca'i", "catni"),
+        ("cau", "claxu"),
+        ("ci'e", "ciste"),
+        ("ci'o", "cinmo"),
+        ("ci'u", "ckilu"),
+        ("cu'u", "cusku"),
+        ("de'i", "detri"),
+        ("di'o", "diklo"),
+        ("do'e", "unspecified-role"),
+        ("du'i", "dunli"),
+        ("du'o", "djuno"),
+        ("fa'e", "fatne"),
+        ("fau", "fasnu"),
+        ("fi'e", "finti"),
+        ("ga'a", "zgana"),
+        ("gau", "gasnu"),
+        ("ja'e", "jalge"),
+        ("ja'i", "javni"),
+        ("ji'e", "jimte"),
+        ("ji'o", "jitro"),
+        ("ji'u", "jicmu"),
+        ("ka'a", "klama"),
+        ("ka'i", "krati"),
+        ("kai", "ckaji"),
+        ("ki'i", "ckini"),
+        ("ki'u", "krinu"),
+        ("koi", "korbi"),
+        ("ku'u", "kulnu"),
+        ("la'u", "klani"),
+        ("le'a", "klesi"),
+        ("li'e", "lidne"),
+        ("ma'e", "marji"),
+        ("ma'i", "manri"),
+        ("mau", "zmadu"),
+        ("me'a", "mleca"),
+        ("me'e", "cmene"),
+        ("mu'i", "mukti"),
+        ("mu'u", "mupli"),
+        ("ni'i", "nibli"),
+        ("pa'a", "panra"),
+        ("pa'u", "pagbu"),
+        ("pi'o", "pilno"),
+        ("po'i", "porsi"),
+        ("pu'a", "pluka"),
+        ("pu'e", "pruce"),
+        ("ra'a", "srana"),
+        ("ra'i", "krasi"),
+        ("rai", "traji"),
+        ("ri'a", "rinka"),
+        ("ri'i", "lifri"),
+        ("sau", "sarcu"),
+        ("si'u", "sidju"),
+        ("ta'i", "tadji"),
+        ("tai", "tamsmi"),
+        ("ti'i", "stidi"),
+        ("ti'u", "tcika"),
+        ("tu'i", "stuzi"),
+        ("va'o", "vanbi"),
+        ("va'u", "xamgu"),
+        ("zau", "zanru"),
+        ("zu'e", "zukte"),
+    ];
+
+    /// CLL 9.16-9.17 define exactly 65 standard BAI: 64 predicate
+    /// abbreviations and the exceptional `do'e`. Pin every mapping, including
+    /// the irregular lujvo target `tai` → `tamsmi`.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standard_bai_table_is_complete_and_never_returns_raw_cmavo() {
+        for (marker, relation) in STANDARD_BAI_RELATIONS {
+            assert_eq!(
+                modal_relation_for_marker(marker),
+                Some(relation),
+                "CLL 9.17 mapping drifted for `{marker}`"
+            );
+            assert_ne!(
+                marker, relation,
+                "canonical relation leaked the raw BAI `{marker}`"
+            );
+        }
+    }
+
+    /// Exercise the actual builder, not only the lookup table: every standard
+    /// BAI must produce its CLL 9.17 predicate and put the tagged sumti in x1.
+    /// Any additional filled place must be one of the exhaustively documented
+    /// dictionary-grounded host-event links.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn all_standard_bai_lower_with_zero_relation_or_tagged_place_deviations() {
+        for (marker, relation) in STANDARD_BAI_RELATIONS {
+            let source = format!("mi klama {marker} lo prenu");
+            let graph = semantic_graph_for(&source);
+            let predication_ids = named_predication_ids(&graph, "klama");
+            let [predication_id] = predication_ids.as_slice() else {
+                panic!("`{marker}` sweep source must contain one klama predication");
+            };
+            let predication = graph.objects[predication_id]
+                .as_predication()
+                .expect("named klama object must be a predication");
+            let [tagged_argument] = predication.modal_arguments.as_slice() else {
+                panic!("`{marker}` must lower to exactly one tagged argument");
+            };
+            assert_eq!(
+                tagged_argument.relation.as_deref(),
+                Some(relation),
+                "`{marker}` relation deviation"
+            );
+
+            let tagged = &tagged_argument.arguments[&argument_key(1)];
+            assert_eq!(
+                tagged.kind,
+                ArgumentValueKind::Filled,
+                "`{marker}` tagged x1 must be filled"
+            );
+            let tagged_value = tagged.value.expect("filled tagged argument has a value");
+            assert_eq!(
+                graph.objects[&tagged_value]
+                    .source()
+                    .and_then(|source| source.text.as_deref()),
+                Some("lo prenu"),
+                "`{marker}` x1 must be the tagged sumti"
+            );
+
+            let host_place = generated_modal_relation_host_event_place(relation);
+            for (place, argument) in &tagged_argument.arguments {
+                if place.get() == 1 {
+                    continue;
+                }
+                if Some(place.get()) == host_place {
+                    assert_eq!(
+                        argument.value, predication.eventuality,
+                        "`{marker}` dictionary-grounded host place drifted"
+                    );
+                } else {
+                    assert_eq!(
+                        argument.kind,
+                        ArgumentValueKind::Elided,
+                        "`{marker}` unexpectedly filled x{}",
+                        place.get()
+                    );
+                }
+            }
+        }
+    }
+
+    /// SE conversion changes only the selected underlying predicate place.
+    /// Cover x2 through x5, including the adjudicated `vanbi` relation.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_bai_put_the_tagged_sumti_in_the_selected_place() {
+        for (source, relation, selected_place) in [
+            ("mi klama se pi'o lo prenu", "pilno", 2),
+            ("mi klama se va'o lo prenu", "vanbi", 2),
+            ("mi klama te ka'a lo prenu", "klama", 3),
+            ("mi klama ve ka'a lo prenu", "klama", 4),
+            ("mi klama xe ka'a lo prenu", "klama", 5),
+        ] {
+            let graph = semantic_graph_for(source);
+            let predication_ids = named_predication_ids(&graph, "klama");
+            let [predication_id] = predication_ids.as_slice() else {
+                panic!("conversion sweep source must contain one klama predication");
+            };
+            let predication = graph.objects[predication_id]
+                .as_predication()
+                .expect("named klama object must be a predication");
+            let [tagged_argument] = predication.modal_arguments.as_slice() else {
+                panic!("converted BAI must lower to exactly one tagged argument");
+            };
+            assert_eq!(tagged_argument.relation.as_deref(), Some(relation));
+            let tagged = &tagged_argument.arguments[&argument_key(selected_place)];
+            assert_eq!(tagged.kind, ArgumentValueKind::Filled);
+            let tagged_value = tagged.value.expect("filled tagged argument has a value");
+            assert_eq!(
+                graph.objects[&tagged_value]
+                    .source()
+                    .and_then(|source| source.text.as_deref()),
+                Some("lo prenu"),
+                "`{source}` selected place must contain the tagged sumti"
+            );
+        }
+    }
+
+    /// Scalar-negation scale detection consumes the canonical predicate name,
+    /// not the surface BAI spelling returned before complete desugaring.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn canonical_scale_bai_relations_preserve_marker_only_negation_scope() {
+        for (marker, relation) in [("ci'u", "ckilu"), ("ci'e", "ciste"), ("le'a", "klesi")] {
+            let source = format!("le stizu cu na'e xunre be {marker} loka skari");
+            let graph = semantic_graph_for(&source);
+            let predication_ids = named_predication_ids(&graph, "xunre");
+            let [predication_id] = predication_ids.as_slice() else {
+                panic!("`{marker}` scale source must contain one xunre predication");
+            };
+            let predication = graph.objects[predication_id]
+                .as_predication()
+                .expect("named xunre object must be a predication");
+            assert_eq!(
+                predication
+                    .modal_arguments
+                    .first()
+                    .and_then(|argument| argument.relation.as_deref()),
+                Some(relation)
+            );
+            assert_eq!(
+                predication
+                    .scalar_negation
+                    .as_ref()
+                    .expect("na'e must produce scalar negation")
+                    .argument_scope,
+                Vec::new(),
+                "`{marker}` supplies the scale context, so na'e keeps marker-only scope"
+            );
+        }
+    }
+
+    /// Keep the strengthening policy reviewable as one exhaustive table.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn host_event_links_are_exhaustive_and_fasnu_remains_unlinked() {
+        for (relation, place) in [
+            ("bapli", 2),
+            ("gasnu", 2),
+            ("krinu", 2),
+            ("mukti", 2),
+            ("nibli", 2),
+            ("rinka", 2),
+            ("pilno", 3),
+            ("vanbi", 2),
+        ] {
+            assert_eq!(
+                generated_modal_relation_host_event_place(relation),
+                Some(place)
+            );
+        }
+        for relation in ["fasnu", "basti", "jalge", "zukte"] {
+            assert_eq!(generated_modal_relation_host_event_place(relation), None);
+        }
+    }
+
+    /// The morphology inventory intentionally includes experimental and
+    /// dialect BAI beyond CLL. Partition all 144 typed members: exactly the 65
+    /// standard markers map, and all remaining 79 are explicitly unsupported.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_typed_bai_is_standard_mapped_or_explicitly_unsupported() {
+        let bai = Cmavo::ALL
+            .iter()
+            .copied()
+            .filter(|cmavo| cmavo.is_selmaho(Selmaho::Bai))
+            .collect::<Vec<_>>();
+        let (supported, unsupported): (Vec<_>, Vec<_>) = bai
+            .iter()
+            .copied()
+            .partition(|cmavo| modal_relation_for_marker(cmavo.canonical_text()).is_some());
+        assert_eq!(bai.len(), 144, "typed BAI inventory changed");
+        assert_eq!(supported.len(), 65, "standard CLL BAI partition changed");
+        assert_eq!(
+            unsupported.len(),
+            79,
+            "experimental/dialect BAI partition changed"
+        );
+        assert!(unsupported.contains(&Cmavo::Baihau));
+        for cmavo in unsupported {
+            assert_eq!(
+                modal_relation_for_marker(cmavo.canonical_text()),
+                None,
+                "unsupported BAI unexpectedly acquired a guessed relation"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unsupported_non_cll_bai_fails_before_semantic_lowering() {
+        let error = semantic_result_for("mi klama bai'au lo prenu")
+            .expect_err("experimental BAI without a standardized mapping must fail");
+        assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+        assert_eq!(
+            error.message,
+            "semantic graph invariant failed: BAI `bai'au` has no standardized predicate mapping in the complete CLL 9.17 table"
+        );
     }
 
     #[test]

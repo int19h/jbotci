@@ -320,11 +320,33 @@ pub(super) fn generated_modal_relation_has_complementary_event_places(relation: 
     matches!(relation, "krinu" | "mukti" | "nibli" | "rinka")
 }
 
+/// The exhaustive dictionary-grounded host-event strengthening policy.
+///
+/// CLL 9.5 makes the enclosing tagged-argument attachment the baseline
+/// connection to the host bridi: the tagged sumti fills its converted place and
+/// the remaining relation places stay unspecified. Filling a relation place
+/// with the host eventuality is therefore an optional strengthening, used only
+/// when the official place structure itself names that role:
+///
+/// - `bapli`: x1 "forces/compels event x2 to occur";
+/// - `gasnu`: x1 "is an agentive cause of event x2";
+/// - `krinu`: x1 "(event/state) is a reason ... for x2 (event/state)";
+/// - `mukti`: x1 "(action/event/state) motivates ... action/event x2";
+/// - `nibli`: x1 "necessitates/entails/implies action/event/state x2";
+/// - `rinka`: x1 "(event/state) ... causes effect x2 (event/state)";
+/// - `pilno`: x1 uses x2 "for purpose x3";
+/// - `vanbi`: x1 is the environment/surroundings/context of x2.
+///
+/// The four complementary causal relations select the still-unfilled opposite
+/// event place in `generated_modal_relation_host_event_place_for_argument`.
+/// Relations absent from this table remain connected only by attachment. In
+/// particular, unary `fasnu` has no separate host-event place and stays
+/// unlinked.
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| place > 0))]
 pub(super) fn generated_modal_relation_host_event_place(relation: &str) -> Option<usize> {
     match relation {
-        "bapli" | "gasnu" | "krinu" | "mukti" | "nibli" | "rinka" => Some(2),
+        "bapli" | "gasnu" | "krinu" | "mukti" | "nibli" | "rinka" | "vanbi" => Some(2),
         "pilno" => Some(3),
         _ => None,
     }

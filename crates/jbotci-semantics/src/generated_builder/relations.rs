@@ -1827,7 +1827,7 @@ pub(super) fn generated_linked_sumti_provides_scalar_scale_context(
         return false;
     };
     generated_modal_relation_spec_for_tense_modal(sumti.tense_modal.as_ref())
-        .is_some_and(|(_, relation, _)| matches!(relation.as_str(), "ci'u" | "ci'e" | "le'a"))
+        .is_some_and(|(_, relation, _)| matches!(relation.as_str(), "ckilu" | "ciste" | "klesi"))
 }
 
 #[requires(*next_visible_place > 0)]

@@ -2599,6 +2599,9 @@ pub enum ModalNegationKind {
 
 #[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
 #[invariant(relation.as_ref().is_none_or(|relation| !relation.is_empty()), "modal relation must be named when present")]
+#[invariant(relation.as_ref().is_none_or(|relation| jbotci_morphology::Cmavo::from_text(relation)
+    .is_none_or(|cmavo| !cmavo.is_selmaho(jbotci_morphology::Selmaho::Bai))),
+    "canonical modal relations must not contain raw BAI cmavo")]
 #[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula), "modal body must be a formula")]
 #[invariant(relation.is_some() != body.is_some(), "modal argument must use either relation arguments or a body formula")]
 #[invariant(body.is_some() || !arguments.is_empty(), "modal relation must have at least one explicit place")]
@@ -2629,6 +2632,8 @@ pub struct ModalArgument {
 
 impl ModalArgument {
     #[requires(!relation.is_empty())]
+    #[requires(jbotci_morphology::Cmavo::from_text(&relation)
+        .is_none_or(|cmavo| !cmavo.is_selmaho(jbotci_morphology::Selmaho::Bai)))]
     #[requires(!introduced_by.is_empty())]
     #[requires(!arguments.is_empty())]
     #[requires(arguments.keys().all(|place| place.get() > 0))]
@@ -2643,6 +2648,8 @@ impl ModalArgument {
     }
 
     #[requires(!relation.is_empty())]
+    #[requires(jbotci_morphology::Cmavo::from_text(&relation)
+        .is_none_or(|cmavo| !cmavo.is_selmaho(jbotci_morphology::Selmaho::Bai)))]
     #[requires(!introduced_by.is_empty())]
     #[requires(!arguments.is_empty())]
     #[requires(arguments.keys().all(|place| place.get() > 0))]
@@ -4843,6 +4850,28 @@ mod tests {
             source: None,
             relative_clauses: Vec::new(),
             command_target: None,
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_argument_invariant_rejects_raw_bai_relations() {
+        let invalid = ModalArgument::try_from_data(data!(ModalArgument {
+            relation: Some("va'o".to_owned()),
+            introduced_by: "va'o".to_owned(),
+            arguments: BTreeMap::from([(
+                PlaceIndex::new(1),
+                ArgumentValue::filled(SemanticObjectId::referent(1), None),
+            )]),
+            body: None,
+            component: None,
+            negation: None,
+            scalar_negation: None,
+            modifiers: Vec::new(),
+            source: None,
         }));
 
         assert!(invalid.is_err());
