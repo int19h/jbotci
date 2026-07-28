@@ -54,7 +54,11 @@ shared installed-package checks before executing every public example:
 `tools/python_artifacts.py` rejects unsafe archive paths, symlinks, build/cache
 directories, dependency test corpora, secret-like files, checkout paths,
 unexpected large members, and unexpected archive layouts. It also emits one
-JSON size receipt per artifact.
+JSON size receipt per artifact. Wheel builds remap the checkout and build
+directory before rustc compiles generated sources, so native panic locations
+cannot expose runner-local paths. The vendored dictionary JSON is marked
+binary in Git because its metadata authenticates exact bytes; in particular,
+a Windows checkout cannot rewrite its line endings before the build.
 
 ## Source-distribution proof
 
@@ -115,6 +119,7 @@ Start in `bindings/python` and keep all transient output outside the checkout:
 export CARGO_TARGET_DIR=/build/jbotci/target/python-wheels
 export CARGO_HOME=/build/jbotci/scratch/python-wheels/cargo-home
 export TMPDIR=/build/jbotci/scratch/python-wheels/tmp
+export RUSTFLAGS="--remap-path-prefix=$(git rev-parse --show-toplevel)=/usr/src/jbotci --remap-path-prefix=$CARGO_TARGET_DIR=/usr/src/jbotci-target"
 mkdir -p "$CARGO_HOME" "$TMPDIR" /build/jbotci/scratch/python-wheels/dist
 uv run --locked --project . --group dev maturin develop
 uv run --locked --project . python tools/generate_syntax_models.py --check
@@ -144,7 +149,9 @@ python tools/python_artifacts.py compare \
   --right /build/jbotci/scratch/python-wheels/dist/second/jbotci-*.whl
 python tools/python_artifacts.py inspect \
   --artifact /build/jbotci/scratch/python-wheels/dist/first/jbotci-*.whl \
-  --kind wheel --platform linux-aarch64
+  --kind wheel --platform linux-aarch64 \
+  --forbid-path "$(git rev-parse --show-toplevel)" \
+  --forbid-path "$CARGO_TARGET_DIR"
 python tools/run_wheel_tests.py \
   --wheel /build/jbotci/scratch/python-wheels/dist/first/jbotci-*.whl \
   --package-root "$PWD" \

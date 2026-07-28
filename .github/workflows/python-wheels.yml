@@ -134,6 +134,10 @@ jobs:
   build-wheels:
     name: Build ${{ matrix.platform }}
     needs: generated
+    env:
+      # Generated Rust sources can make rustc record an absolute OUT_DIR in
+      # panic locations. Keep native artifacts independent of runner paths.
+      RUSTFLAGS: --remap-path-prefix=${{ github.workspace }}=/usr/src/jbotci
     strategy:
       fail-fast: false
       matrix:
@@ -212,6 +216,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p \
+            dist/receipts \
             "${GITHUB_WORKSPACE}/.github-cache/python-wheels/cargo/registry" \
             "${GITHUB_WORKSPACE}/.github-cache/python-wheels/cargo/git"
           if [[ "${{ runner.os }}" != "Linux" ]]; then
@@ -229,6 +234,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           working-directory: bindings/python
           docker-options: >-
+            -e RUSTFLAGS
             -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/registry:/root/.cargo/registry
             -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/git:/root/.cargo/git
           args: >-
@@ -246,6 +252,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           working-directory: bindings/python
           docker-options: >-
+            -e RUSTFLAGS
             -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/registry:/root/.cargo/registry
             -v ${{ github.workspace }}/.github-cache/python-wheels/cargo/git:/root/.cargo/git
           args: >-
@@ -467,6 +474,7 @@ jobs:
           CARGO_HOME="${SDIST_CARGO_HOME}" \
           CARGO_TARGET_DIR="${SDIST_TARGET_DIR}" \
           CARGO_NET_OFFLINE=true \
+          RUSTFLAGS="--remap-path-prefix=${RUNNER_TEMP}=/usr/src/jbotci-build" \
             "${RUNNER_TEMP}/jbotci-sdist-builder/bin/maturin" build \
               --release --locked --offline --strip --compatibility pypi \
               -i python \
@@ -474,6 +482,7 @@ jobs:
           CARGO_HOME="${SDIST_CARGO_HOME}" \
           CARGO_TARGET_DIR="${SDIST_TARGET_DIR}" \
           CARGO_NET_OFFLINE=true \
+          RUSTFLAGS="--remap-path-prefix=${RUNNER_TEMP}=/usr/src/jbotci-build" \
             "${RUNNER_TEMP}/jbotci-sdist-builder/bin/maturin" build \
               --release --locked --offline --strip --compatibility pypi \
               -i python \
@@ -496,6 +505,7 @@ jobs:
             --forbid-path "${GITHUB_WORKSPACE}" \
             --forbid-path "${ORIGINAL_CHECKOUT}" \
             --forbid-path "${SDIST_SOURCE}" \
+            --forbid-path "${RUNNER_TEMP}" \
             --receipt "${RUNNER_TEMP}/jbotci-sdist-receipts/sdist-wheel-x86_64.json"
           python "${SDIST_SOURCE}/bindings/python/tools/run_wheel_tests.py" \
             --wheel "${first[0]}" \

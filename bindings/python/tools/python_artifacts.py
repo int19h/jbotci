@@ -306,6 +306,9 @@ def _check_common_content(
         assert SECRET_FILE_RE.search(name) is None, name
         for forbidden in forbidden_paths:
             assert forbidden not in contents, f"local path leaked in {name}"
+        assert not any(
+            local_path in contents for local_path in GENERIC_LOCAL_PATHS
+        ), f"generic CI-local path leaked in {name}"
         if path.suffix.lower() in {
             ".json",
             ".md",
@@ -316,10 +319,9 @@ def _check_common_content(
             ".tsv",
             ".txt",
         }:
-            assert not any(
-                local_path in contents
-                for local_path in GENERIC_LOCAL_PATHS
-            ), f"generic CI-local path leaked in {name}"
+            assert b"file:" + b"//" not in contents, (
+                f"local file URL leaked in {name}"
+            )
 
 
 def _check_wheel(entries: dict[str, bytes], platform: str) -> None:
