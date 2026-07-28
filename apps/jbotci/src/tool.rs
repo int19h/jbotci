@@ -491,10 +491,12 @@ impl From<ToolVlaseiRequest> for Command {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCuktaFormat {
-    /// Markdown (the default): readable prose with headings, tables, and
-    /// cross-reference links.
+    /// Markdown (the default): readable prose with headings and tables. Link
+    /// labels remain as text, but web-only routes and Parse controls are
+    /// omitted.
     Markdown,
-    /// Rendered HTML of the same content.
+    /// Rendered HTML of the same content, without web-only links or Parse
+    /// controls.
     Html,
     /// The raw underlying DocBook source. For tooling that needs the original
     /// markup.
@@ -574,6 +576,9 @@ impl ToolCuktaSearchResultKind {
 /// Read or search the CLL — *The Complete Lojban Language*, the canonical
 /// reference book. Use this to look up grammar rules, find where a concept is
 /// explained, or pull a specific section or example.
+///
+/// Returned content is transport-safe: linked labels remain as readable text,
+/// while web-only routes and navigation-only Parse controls are omitted.
 ///
 /// To fetch a specific section or example, set `mode` and put the reference in
 /// `query` — e.g. `{"mode": "section", "query": "5.2"}` or `{"mode": "example",

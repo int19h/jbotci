@@ -32,9 +32,14 @@ pub(crate) fn run_cukta<WOut: Write, WErr: Write>(
                     return Ok(CliStatus::InvalidInput);
                 }
             };
-            render_search_output(&output, input.format.into())
+            render_search_output(&output, input.format.into(), CllLinkRenderMode::Plain)
         }
-        _ => match render_cukta_request(site, &request, input.format.into()) {
+        _ => match render_cukta_request(
+            site,
+            &request,
+            input.format.into(),
+            CllLinkRenderMode::Plain,
+        ) {
             Ok(rendered) => rendered,
             Err(CllError::SemanticSearchDisabled) => {
                 writeln!(stderr, "{}", CllError::SemanticSearchDisabled)?;

@@ -2,8 +2,8 @@ use dioxus::core::Task;
 use dioxus::prelude::*;
 use jbotci_cll::{
     CllBlock, CllEbnfEntry, CllEbnfToken, CllInline, CllInterlinearRow, CllLanguageSpanKind,
-    CllLinkKind, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation, CllTableCell,
-    cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
+    CllLinkKind, CllLinkRenderMode, CllLojbanizationLine, CllLujvoPart, CllSimpleListOrientation,
+    CllTableCell, cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,

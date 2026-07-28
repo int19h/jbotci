@@ -762,13 +762,41 @@ pub enum CllLanguageSpanKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllLinkKind {
+    /// A CLL section reference. Plain rendering keeps its human-readable
+    /// section label and omits the route.
     Section,
+    /// A worked-example reference. Plain rendering keeps its example label and
+    /// omits the route.
     Example,
+    /// A dictionary word reference. Plain rendering keeps the linked word and
+    /// omits the dictionary route.
     Dictionary,
+    /// A rafsi-search reference. Plain rendering keeps the displayed rafsi and
+    /// omits the search route.
     Rafsi,
+    /// A navigation-only parser action. Plain rendering drops the action
+    /// because "Parse" has no useful content without its route.
     Parse,
+    /// A bundled-asset reference. Plain rendering keeps the descriptive label
+    /// and omits the asset path.
     Asset,
+    /// An external reference. Plain rendering keeps the descriptive label and
+    /// omits the external URI.
     External,
+}
+
+/// Whether rendered CLL links target the interactive web application or a
+/// route-free transport such as the CLI and MCP tool.
+#[invariant(::Plain => true)]
+#[invariant(::Web => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllLinkRenderMode {
+    /// Preserve content-bearing labels but omit destinations and
+    /// navigation-only controls.
+    Plain,
+    /// Preserve the interactive SPA links exactly.
+    Web,
 }
 
 use crate::search::CllSearchChunk;
