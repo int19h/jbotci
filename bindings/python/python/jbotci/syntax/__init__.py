@@ -265,6 +265,7 @@ SyntaxTextBoundaryKind = _rust._syntax_parser_SyntaxTextBoundaryKind
 SyntaxErrorKind = _rust._syntax_parser_SyntaxErrorKind
 SyntaxWordCategory = _rust._syntax_parser_SyntaxWordCategory
 ExperimentalConstruct = _rust._syntax_parser_ExperimentalConstruct
+SyntaxRecoveryErrorPolicy = _rust._syntax_parser_SyntaxRecoveryErrorPolicy
 ParseOptions = _rust._syntax_parser_ParseOptions
 SyntaxTextUnit = _rust._syntax_parser_SyntaxTextUnit
 SyntaxTextStructureEventBoundary = (
@@ -677,6 +678,7 @@ __all__: tuple[str, ...] = (
     "RecoveredPrefix",
     "RecoveredValid",
     "SkippedTokens",
+    "SyntaxRecoveryErrorPolicy",
     "SyntaxRecoveryItem",
     "Token",
     "WithFreeModifiers",

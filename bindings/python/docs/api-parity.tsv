@@ -1429,11 +1429,12 @@ jbotci_syntax::ExperimentalConstruct::message	method	const fn message (self) -> 
 jbotci_syntax::ParseOptions	struct	()	direct	jbotci.syntax.ParseOptions		
 jbotci_syntax::ParseOptions::dialect	field	DialectDefinition	direct	jbotci.syntax.ParseOptions.dialect		
 jbotci_syntax::ParseOptions::error_context_depth	field	usize	direct	jbotci.syntax.ParseOptions.error_context_depth		
-jbotci_syntax::ParseOptions::max_recovery_errors	field	NonZeroUsize	direct	jbotci.syntax.ParseOptions.max_recovery_errors		
+jbotci_syntax::ParseOptions::recovery_error_policy	field	SyntaxRecoveryErrorPolicy	direct	jbotci.syntax.ParseOptions.recovery_error_policy		
 jbotci_syntax::ParseOptions::trace	field	TraceOptions	direct	jbotci.syntax.ParseOptions.trace		
 jbotci_syntax::ParseOptions::with_dialect_definition	method	fn with_dialect_definition (mut self , definition : & DialectDefinition) -> Self	subsumed	jbotci.syntax.ParseOptions		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_syntax::ParseOptions::with_error_context_depth	method	fn with_error_context_depth (mut self , depth : usize) -> Self	direct	jbotci.syntax.ParseOptions.with_error_context_depth		
 jbotci_syntax::ParseOptions::with_max_recovery_errors	method	fn with_max_recovery_errors (mut self , max_recovery_errors : usize) -> Self	direct	jbotci.syntax.ParseOptions.with_max_recovery_errors		
+jbotci_syntax::ParseOptions::with_max_recovery_errors_per_statement	method	fn with_max_recovery_errors_per_statement (mut self , max_recovery_errors : usize) -> Self	subsumed	jbotci.syntax.ParseOptions		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_syntax::ParseOptions::with_trace_options	method	fn with_trace_options (mut self , trace : TraceOptions) -> Self	subsumed	jbotci.syntax.ParseOptions		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_syntax::RecoveredSyntaxParse	struct	()	direct	jbotci.syntax.RecoveredSyntaxParse		
 jbotci_syntax::RecoveredSyntaxParse::errors	field	Vec < SyntaxError >	direct	jbotci.syntax.RecoveredSyntaxParse.errors		
@@ -1513,6 +1514,13 @@ jbotci_syntax::SyntaxParse::warnings	field	Vec < SyntaxWarning >	direct	jbotci.s
 jbotci_syntax::SyntaxParseAttempt	struct	()	direct	jbotci.syntax.SyntaxParseAttempt		
 jbotci_syntax::SyntaxParseAttempt::result	field	Result < SyntaxParse , SyntaxError >	direct	jbotci.syntax.SyntaxParseAttempt.result		
 jbotci_syntax::SyntaxParseAttempt::trace	field	Option < TraceReport >	direct	jbotci.syntax.SyntaxParseAttempt.trace		
+jbotci_syntax::SyntaxRecoveryErrorPolicy	struct	()	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy		
+jbotci_syntax::SyntaxRecoveryErrorPolicy::DEFAULT_GLOBAL_HARD_CAP	associated-constant	NonZeroUsize	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy.DEFAULT_GLOBAL_HARD_CAP		
+jbotci_syntax::SyntaxRecoveryErrorPolicy::DEFAULT_PER_STATEMENT	associated-constant	NonZeroUsize	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy.DEFAULT_PER_STATEMENT		
+jbotci_syntax::SyntaxRecoveryErrorPolicy::global_hard_cap	method	fn global_hard_cap (& self) -> NonZeroUsize	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy.global_hard_cap		
+jbotci_syntax::SyntaxRecoveryErrorPolicy::per_statement	method	fn per_statement (& self) -> NonZeroUsize	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy.per_statement		
+jbotci_syntax::SyntaxRecoveryErrorPolicy::with_global_hard_cap	method	fn with_global_hard_cap (mut self , limit : usize) -> Self	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy.with_global_hard_cap		
+jbotci_syntax::SyntaxRecoveryErrorPolicy::with_per_statement_limit	method	fn with_per_statement_limit (mut self , limit : usize) -> Self	direct	jbotci.syntax.SyntaxRecoveryErrorPolicy.with_per_statement_limit		
 jbotci_syntax::SyntaxRecoveryParse	enum	()	direct	jbotci.syntax.SyntaxRecoveryParse		
 jbotci_syntax::SyntaxRecoveryParse::Recovered	variant	{ parse : RecoveredSyntaxParse }	subsumed	jbotci.syntax.SyntaxRecoveryParse		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_syntax::SyntaxRecoveryParse::Recovered::parse	field	RecoveredSyntaxParse	subsumed	jbotci.syntax.SyntaxRecoveryParse		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
@@ -4924,7 +4932,7 @@ jbotci_syntax::generated_model::ZiBeforeZiLeadingTermTagTenseSyntax	type	product
 jbotci_syntax::generated_model::ZiBeforeZiLeadingTermTagTenseSyntax::zi	field	WithFreeModifiers[Token, FreeModifierSyntax]	direct	jbotci.syntax.strict.ZiBeforeZiLeadingTermTagTenseSyntax.zi		
 jbotci_syntax::generated_model::ZiTimeDistanceTenseSyntax	type	product	direct	jbotci.syntax.strict.ZiTimeDistanceTenseSyntax		
 jbotci_syntax::generated_model::ZiTimeDistanceTenseSyntax::zi	field	WithFreeModifiers[Token, FreeModifierSyntax]	direct	jbotci.syntax.strict.ZiTimeDistanceTenseSyntax.zi		
-jbotci_syntax::generated_model::__syntax_model_generator_source	generator-source	sha256:6cd599e7e8c26376e93bd3438419a64597e7117405b35cc3967af010eb008934	rust-only		implementation-representation	SHA-256 drift sentinel for generator-owned public output; it is tooling metadata, not a runtime domain value.
+jbotci_syntax::generated_model::__syntax_model_generator_source	generator-source	sha256:99fbd0bb1f40328cc7ee6a7fd351aa9c662ed381c261b2eb839b53f19f6ea6b2	rust-only		implementation-representation	SHA-256 drift sentinel for generator-owned public output; it is tooling metadata, not a runtime domain value.
 jbotci_syntax::generated_model::__tree_model_generator_source	generator-source	sha256:4ec3aebbd5fc8ac2adb5ab8a6da29f20d356756299a526c8ddb6db5349c4263f	rust-only		implementation-representation	SHA-256 drift sentinel for generator-owned public output; it is tooling metadata, not a runtime domain value.
 jbotci_syntax::generated_model::recovered::AbstractionTanruUnitSyntax	type	product	direct	jbotci.syntax.recovered.AbstractionTanruUnitSyntax		
 jbotci_syntax::generated_model::recovered::AbstractionTanruUnitSyntax::abstractor_connections	field	tuple[RecoveredField[AbstractorConnectionSyntax], ...]	direct	jbotci.syntax.recovered.AbstractionTanruUnitSyntax.abstractor_connections		

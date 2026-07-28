@@ -166,16 +166,44 @@ def exhaustive_syntax_recovery_parse(value: syntax.SyntaxRecoveryParse) -> int:
 def typed_parser_surface(text: str, cursor: int) -> ParsedText | RecoveredParsedText:
     """Exercise high- and low-level strict/recovered/completion declarations."""
 
+    recovery_policy = syntax.SyntaxRecoveryErrorPolicy()
+    assert_type(
+        syntax.SyntaxRecoveryErrorPolicy.DEFAULT_PER_STATEMENT,
+        int,
+    )
+    assert_type(
+        syntax.SyntaxRecoveryErrorPolicy.DEFAULT_GLOBAL_HARD_CAP,
+        int,
+    )
+    assert_type(recovery_policy.per_statement, int)
+    assert_type(recovery_policy.global_hard_cap, int)
+    assert_type(
+        recovery_policy.with_per_statement_limit(2),
+        syntax.SyntaxRecoveryErrorPolicy,
+    )
+    assert_type(
+        recovery_policy.with_global_hard_cap(8),
+        syntax.SyntaxRecoveryErrorPolicy,
+    )
+
     options = syntax.ParseOptions.default()
     assert_type(options.dialect, dialect.DialectDefinition)
     assert_type(options.trace, diagnostics.TraceOptions)
     assert_type(options.error_context_depth, int)
+    assert_type(
+        options.recovery_error_policy,
+        syntax.SyntaxRecoveryErrorPolicy,
+    )
     assert_type(options.max_recovery_errors, int)
     assert_type(options.with_dialect(dialect.DialectDefinition()), syntax.ParseOptions)
     assert_type(
         options.with_trace(diagnostics.TraceOptions()), syntax.ParseOptions
     )
     assert_type(options.with_error_context_depth(2), syntax.ParseOptions)
+    assert_type(
+        options.with_recovery_error_policy(recovery_policy),
+        syntax.ParseOptions,
+    )
     assert_type(options.with_max_recovery_errors(2), syntax.ParseOptions)
 
     strict_result = parse(text, parse_options=options, source_id="typed")

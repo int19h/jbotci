@@ -9,10 +9,10 @@ use jbotci_syntax::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
     SyntaxConstructContext, SyntaxError as RustSyntaxError, SyntaxErrorKind, SyntaxExpectation,
     SyntaxExpectationReason, SyntaxExpectationReasonData, SyntaxExpectedToken,
-    SyntaxExpectedTokenData, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParseAttempt,
-    SyntaxRecoveryParseData, SyntaxTextBoundaryKind, SyntaxTextStructureEvent,
-    SyntaxTextStructureEventData, SyntaxTextUnit, SyntaxTextUnitGranularity, SyntaxWarning,
-    SyntaxWarningDisplay,
+    SyntaxExpectedTokenData, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryErrorPolicy,
+    SyntaxRecoveryParseAttempt, SyntaxRecoveryParseData, SyntaxTextBoundaryKind,
+    SyntaxTextStructureEvent, SyntaxTextStructureEventData, SyntaxTextUnit,
+    SyntaxTextUnitGranularity, SyntaxWarning, SyntaxWarningDisplay,
 };
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
@@ -33,6 +33,10 @@ use crate::syntax::{
 };
 
 const PUBLIC_MODULE: &str = "jbotci.syntax";
+const DEFAULT_RECOVERY_ERRORS_PER_STATEMENT: i128 =
+    SyntaxRecoveryErrorPolicy::DEFAULT_PER_STATEMENT.get() as i128;
+const DEFAULT_RECOVERY_ERROR_HARD_CAP: i128 =
+    SyntaxRecoveryErrorPolicy::DEFAULT_GLOBAL_HARD_CAP.get() as i128;
 
 pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_syntax_parser_SYNTAX_TRACE_FILTERS",
@@ -42,6 +46,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_syntax_parser_SyntaxErrorKind",
     "_syntax_parser_SyntaxWordCategory",
     "_syntax_parser_ExperimentalConstruct",
+    "_syntax_parser_SyntaxRecoveryErrorPolicy",
     "_syntax_parser_ParseOptions",
     "_syntax_parser_SyntaxTextUnit",
     "_syntax_parser_SyntaxTextStructureEventBoundary",
@@ -288,8 +293,109 @@ define_syntax_string_enum_binding!(
     }
 );
 
+/// Immutable two-tier error budget for recovered syntax parsing.
+#[invariant(true)]
+#[pyclass(
+    name = "SyntaxRecoveryErrorPolicy",
+    frozen,
+    eq,
+    module = "jbotci.syntax",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PySyntaxRecoveryErrorPolicy {
+    value: SyntaxRecoveryErrorPolicy,
+}
+
+impl PySyntaxRecoveryErrorPolicy {
+    #[requires(true)]
+    #[ensures(ret.value.per_statement() == old(value.per_statement()))]
+    #[ensures(ret.value.global_hard_cap() == old(value.global_hard_cap()))]
+    fn from_rust(value: SyntaxRecoveryErrorPolicy) -> Self {
+        Self { value }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == &self.value)]
+    fn rust(&self) -> &SyntaxRecoveryErrorPolicy {
+        &self.value
+    }
+}
+
+#[pymethods]
+impl PySyntaxRecoveryErrorPolicy {
+    #[classattr]
+    const DEFAULT_PER_STATEMENT: usize = SyntaxRecoveryErrorPolicy::DEFAULT_PER_STATEMENT.get();
+
+    #[classattr]
+    const DEFAULT_GLOBAL_HARD_CAP: usize = SyntaxRecoveryErrorPolicy::DEFAULT_GLOBAL_HARD_CAP.get();
+
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("per_statement", "global_hard_cap");
+
+    /// Construct a checked syntax recovery error policy.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    #[pyo3(signature = (*, per_statement=DEFAULT_RECOVERY_ERRORS_PER_STATEMENT, global_hard_cap=DEFAULT_RECOVERY_ERROR_HARD_CAP))]
+    fn new(per_statement: i128, global_hard_cap: i128) -> PyResult<Self> {
+        Ok(Self::from_rust(
+            SyntaxRecoveryErrorPolicy::default()
+                .with_per_statement_limit(checked_recovery_limit(per_statement, "per_statement")?)
+                .with_global_hard_cap(checked_recovery_limit(global_hard_cap, "global_hard_cap")?),
+        ))
+    }
+
+    /// Return the non-zero recovery error limit for one statement.
+    #[requires(true)]
+    #[ensures(ret == self.value.per_statement().get())]
+    #[getter]
+    fn per_statement(&self) -> usize {
+        self.value.per_statement().get()
+    }
+
+    /// Return the non-zero recovery error limit for the complete input.
+    #[requires(true)]
+    #[ensures(ret == self.value.global_hard_cap().get())]
+    #[getter]
+    fn global_hard_cap(&self) -> usize {
+        self.value.global_hard_cap().get()
+    }
+
+    /// Return a copy with a checked per-statement recovery error limit.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|value| i128::try_from(value.rust().per_statement().get()).ok() == Some(limit)) || ret.is_err())]
+    fn with_per_statement_limit(&self, limit: i128) -> PyResult<Self> {
+        Ok(Self::from_rust(
+            self.value
+                .clone()
+                .with_per_statement_limit(checked_recovery_limit(limit, "per_statement")?),
+        ))
+    }
+
+    /// Return a copy with a checked global recovery error hard cap.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|value| i128::try_from(value.rust().global_hard_cap().get()).ok() == Some(limit)) || ret.is_err())]
+    fn with_global_hard_cap(&self, limit: i128) -> PyResult<Self> {
+        Ok(Self::from_rust(self.value.clone().with_global_hard_cap(
+            checked_recovery_limit(limit, "global_hard_cap")?,
+        )))
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn __repr__(&self) -> String {
+        format!(
+            "jbotci.syntax.SyntaxRecoveryErrorPolicy(per_statement={}, global_hard_cap={})",
+            self.value.per_statement(),
+            self.value.global_hard_cap()
+        )
+    }
+}
+
 /// Immutable strict/recovered syntax parser configuration.
-#[invariant(true, "the Rust options value enforces its non-zero recovery limit")]
+#[invariant(true)]
 #[pyclass(
     name = "ParseOptions",
     frozen,
@@ -303,6 +409,7 @@ pub(crate) struct PyParseOptions {
 }
 
 impl PyParseOptions {
+    #[requires(value.recovery_error_policy.per_statement().get() > 0)]
     #[requires(value.recovery_error_policy.global_hard_cap().get() > 0)]
     #[expensive_ensures(ret.value.as_ref() == &old(value.clone()))]
     fn from_rust(value: ParseOptions) -> Self {
@@ -328,19 +435,36 @@ fn checked_usize(value: i128, parameter: &str) -> PyResult<usize> {
     })
 }
 
+#[requires(!parameter.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|converted| *converted > 0) || ret.is_err())]
+fn checked_recovery_limit(value: i128, parameter: &str) -> PyResult<usize> {
+    if value <= 0 {
+        return Err(InvalidInputError::new_err(format!(
+            "{parameter} must be greater than zero"
+        )));
+    }
+    checked_usize(value, parameter)
+}
+
 #[pymethods]
 impl PyParseOptions {
     /// Construct syntax options by overriding values obtained from Rust defaults.
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     #[new]
-    #[pyo3(signature = (*, dialect=None, trace=None, error_context_depth=None, max_recovery_errors=None))]
+    #[pyo3(signature = (*, dialect=None, trace=None, error_context_depth=None, recovery_error_policy=None, max_recovery_errors=None))]
     fn new(
         dialect: Option<PyRef<'_, PyDialectDefinition>>,
         trace: Option<PyRef<'_, PyTraceOptions>>,
         error_context_depth: Option<i128>,
+        recovery_error_policy: Option<PyRef<'_, PySyntaxRecoveryErrorPolicy>>,
         max_recovery_errors: Option<i128>,
     ) -> PyResult<Self> {
+        if recovery_error_policy.is_some() && max_recovery_errors.is_some() {
+            return Err(InvalidInputError::new_err(
+                "recovery_error_policy and max_recovery_errors are mutually exclusive",
+            ));
+        }
         let mut value = ParseOptions::default();
         if let Some(dialect) = dialect {
             value = value.with_dialect_definition(dialect.rust());
@@ -351,13 +475,12 @@ impl PyParseOptions {
         if let Some(depth) = error_context_depth {
             value = value.with_error_context_depth(checked_usize(depth, "error_context_depth")?);
         }
+        if let Some(policy) = recovery_error_policy {
+            value.recovery_error_policy = policy.rust().clone();
+        }
         if let Some(limit) = max_recovery_errors {
-            if limit <= 0 {
-                return Err(InvalidInputError::new_err(
-                    "max_recovery_errors must be greater than zero",
-                ));
-            }
-            value = value.with_max_recovery_errors(checked_usize(limit, "max_recovery_errors")?);
+            value = value
+                .with_max_recovery_errors(checked_recovery_limit(limit, "max_recovery_errors")?);
         }
         Ok(Self::from_rust(value))
     }
@@ -406,20 +529,24 @@ impl PyParseOptions {
         ))
     }
 
+    /// Return a copy using the supplied two-tier syntax recovery error policy.
+    #[requires(true)]
+    #[ensures(ret.rust().recovery_error_policy == *policy.rust())]
+    fn with_recovery_error_policy(&self, policy: PyRef<'_, PySyntaxRecoveryErrorPolicy>) -> Self {
+        let mut value = self.value.as_ref().clone();
+        value.recovery_error_policy = policy.rust().clone();
+        Self::from_rust(value)
+    }
+
     /// Return a copy using a checked non-zero syntax recovery limit.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|value| i128::try_from(value.rust().recovery_error_policy.global_hard_cap().get()).ok() == Some(limit)) || ret.is_err())]
     fn with_max_recovery_errors(&self, limit: i128) -> PyResult<Self> {
-        if limit <= 0 {
-            return Err(InvalidInputError::new_err(
-                "max_recovery_errors must be greater than zero",
-            ));
-        }
         Ok(Self::from_rust(
             self.value
                 .as_ref()
                 .clone()
-                .with_max_recovery_errors(checked_usize(limit, "max_recovery_errors")?),
+                .with_max_recovery_errors(checked_recovery_limit(limit, "max_recovery_errors")?),
         ))
     }
 
@@ -445,6 +572,14 @@ impl PyParseOptions {
     #[getter]
     fn error_context_depth(&self) -> usize {
         self.value.error_context_depth
+    }
+
+    /// Return the immutable two-tier syntax recovery error policy.
+    #[requires(true)]
+    #[ensures(ret.rust() == &self.value.recovery_error_policy)]
+    #[getter]
+    fn recovery_error_policy(&self) -> PySyntaxRecoveryErrorPolicy {
+        PySyntaxRecoveryErrorPolicy::from_rust(self.value.recovery_error_policy.clone())
     }
 
     /// Return the non-zero maximum recovered syntax-error count.
@@ -2499,6 +2634,10 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_string_enum::<SyntaxErrorKind>(module)?;
     register_string_enum::<jbotci_syntax::SyntaxWordCategory>(module)?;
     register_string_enum::<ExperimentalConstruct>(module)?;
+    register_type::<PySyntaxRecoveryErrorPolicy>(
+        module,
+        "_syntax_parser_SyntaxRecoveryErrorPolicy",
+    )?;
     register_type::<PyParseOptions>(module, "_syntax_parser_ParseOptions")?;
     register_type::<PySyntaxTextUnit>(module, "_syntax_parser_SyntaxTextUnit")?;
     register_type::<PySyntaxTextStructureEventBoundary>(

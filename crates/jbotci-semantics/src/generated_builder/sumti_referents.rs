@@ -1370,73 +1370,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         term: &'tree TermSyntax,
         candidates: &mut Vec<GeneratedPendingSumtiCandidate<'tree>>,
     ) -> Result<(), SemanticsError> {
-        match term {
-            TermSyntax::TermsetGroup(termset) => {
-                self.collect_pending_sumti_candidates_for_simple_term(
-                    termset.leading_term.as_ref(),
-                    candidates,
-                )?;
-                for continuation in &termset.continuations {
-                    self.collect_pending_sumti_candidates_for_simple_term(
-                        continuation.trailing_term.as_ref(),
-                        candidates,
-                    )?;
-                }
-                Ok(())
-            }
-            TermSyntax::SimpleTerm(simple) => {
-                self.collect_pending_sumti_candidates_for_simple_term(simple, candidates)
-            }
-            TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-                leading_term,
-                continuations,
-            }) if continuations.is_empty() => self
-                .collect_pending_sumti_candidates_for_simple_term(
-                    leading_term.as_ref(),
-                    candidates,
-                ),
-            _ => Ok(()),
+        let mut collector = GeneratedPendingSumtiCollector::default();
+        term.visit_in_order(&mut collector);
+        for &sumti in collector.sumti.borrow().iter() {
+            self.push_pending_sumti_candidate(sumti, candidates);
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn collect_pending_sumti_candidates_for_simple_term(
-        &self,
-        simple: &'tree SimpleTermSyntax,
-        candidates: &mut Vec<GeneratedPendingSumtiCandidate<'tree>>,
-    ) -> Result<(), SemanticsError> {
-        match simple {
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
-                self.push_pending_sumti_candidate(sumti, candidates);
-                Ok(())
-            }
-            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.push_pending_sumti_candidate(sumti, candidates);
-                }
-                Ok(())
-            }
-            SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.push_pending_sumti_candidate(sumti, candidates);
-                }
-                Ok(())
-            }
-            SimpleTermSyntax::NuhiTermset(termset) => {
-                for term in &termset.termset {
-                    self.collect_pending_sumti_candidates_for_term(term, candidates)?;
-                }
-                Ok(())
-            }
-            SimpleTermSyntax::KeTermset(termset) => {
-                for term in &termset.termset {
-                    self.collect_pending_sumti_candidates_for_term(term, candidates)?;
-                }
-                Ok(())
-            }
-            _ => Ok(()),
-        }
+        Ok(())
     }
 
     #[requires(true)]
@@ -1446,30 +1385,59 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'tree SumtiSyntax,
         candidates: &mut Vec<GeneratedPendingSumtiCandidate<'tree>>,
     ) {
+        if !generated_sumti_is_direct_anaphora_candidate(sumti) {
+            return;
+        }
         let Some(source_key) = self.source_key_for_node(sumti) else {
             return;
         };
         candidates.push(new!(GeneratedPendingSumtiCandidate { source_key, sumti }));
     }
 
-    #[requires(true)]
+    #[requires(offset > 0)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
-    pub(super) fn build_pending_previous_sumti_referent<N: TreeNode>(
+    pub(super) fn build_previous_sumti_referent<N: TreeNode>(
         &mut self,
         node: &N,
+        offset: usize,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let Some((node_start, _)) = self.source_key_for_node(node) else {
             return Ok(None);
         };
+        let mut source_keys = self
+            .recent_sumti_referents
+            .iter()
+            .filter(|mention| mention.source_key.1 <= node_start)
+            .map(|mention| mention.source_key)
+            .collect::<BTreeSet<_>>();
+        source_keys.extend(
+            self.pending_sumti_candidates
+                .iter()
+                .filter(|candidate| candidate.source_key.1 <= node_start)
+                .map(|candidate| candidate.source_key),
+        );
+        let Some(source_key) = source_keys.iter().rev().nth(offset - 1).copied() else {
+            return Ok(None);
+        };
+        if let Some(referent) = self
+            .recent_sumti_referents
+            .iter()
+            .rev()
+            .find(|mention| mention.source_key == source_key)
+            .map(|mention| mention.referent)
+        {
+            return Ok(Some(referent));
+        }
         let candidate = self
             .pending_sumti_candidates
             .iter()
-            .filter(|candidate| candidate.source_key.1 <= node_start)
-            .max_by_key(|candidate| candidate.source_key.1);
+            .rev()
+            .find(|candidate| candidate.source_key == source_key)
+            .map(|candidate| candidate.sumti);
         let Some(candidate) = candidate else {
             return Ok(None);
         };
-        self.build_sumti_referent(candidate.sumti).map(Some)
+        self.build_sumti_referent(candidate).map(Some)
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
@@ -2772,28 +2740,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         Ok(id)
-    }
-
-    #[requires(offset > 0)]
-    #[ensures(ret.as_ref().is_none_or(|referent| referent.object_kind() == crate::model::SemanticObjectKind::Referent))]
-    pub(super) fn recent_sumti_referent_before_node<N: TreeNode>(
-        &self,
-        node: &N,
-        offset: usize,
-    ) -> Option<SemanticObjectId> {
-        let (node_start, _) = self.source_key_for_node(node)?;
-        let mut candidates = self
-            .recent_sumti_referents
-            .iter()
-            .enumerate()
-            .filter(|(_, mention)| mention.source_key.1 <= node_start)
-            .collect::<Vec<_>>();
-        candidates.sort_by_key(|(index, mention)| (mention.source_key, *index));
-        candidates
-            .into_iter()
-            .rev()
-            .nth(offset - 1)
-            .map(|(_, mention)| mention.referent)
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -7141,11 +7087,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
             Some(Cmavo::Zuhi) => self.build_typical_place_value_referent(pro_sumti),
             Some(Cmavo::Ri) => {
-                if let Some(referent) = self.build_pending_previous_sumti_referent(pro_sumti)? {
-                    return Ok(referent);
-                }
-                let recent_offset = generated_pro_sumti_positive_xi_offset(pro_sumti).unwrap_or(1);
-                self.recent_sumti_referent_before_node(pro_sumti, recent_offset)
+                let offset = generated_pro_sumti_positive_xi_offset(pro_sumti).unwrap_or(1);
+                self.build_previous_sumti_referent(pro_sumti, offset)?
                     .map(Ok)
                     .unwrap_or_else(|| {
                         self.build_generated_pro_sumti_fallback_referent(
