@@ -18,8 +18,8 @@ pub mod inventory;
 pub mod model;
 
 pub use disposition::{
-    baseline_contract, baseline_contract_for, baseline_disposition, source_link_surfaces,
-    source_provenance_reason,
+    baseline_contract, baseline_contract_for, baseline_disposition,
+    modal_introducer_provenance_reason, source_link_surfaces, source_provenance_reason,
 };
 pub use inventory::render_field_inventory;
 pub use model::{
@@ -147,11 +147,9 @@ mod tests {
         // PLACE QUESTIONS records (jbotci#622).
         assert_eq!(not_computed, 1, "NOT COMPUTED disposition count drifted");
         // Source provenance: SemanticSource(3) + SourceByteSpan(2) + one `source`
-        // link per object kind (13) and per source-bearing value struct (12).
-        assert_eq!(
-            excluded, 30,
-            "source-provenance ExcludedWithReason count drifted"
-        );
+        // link per object kind (13) and per source-bearing value struct (12),
+        // plus ModalArgument.introducedBy surface provenance.
+        assert_eq!(excluded, 31, "provenance ExcludedWithReason count drifted");
         assert_eq!(renders + not_computed + excluded, inventory.len());
     }
 

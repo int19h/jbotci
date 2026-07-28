@@ -1,11 +1,13 @@
 //! Byte-parity of this build's `smusni` notation renderer against the frozen
 //! Python oracle (Phase-B step 4; research repo `FREEZE-PHASE-B.md`).
 //!
-//! For each of the 44 frozen corpus documents, the vendored `<doc>.smusni.txt`
+//! For each of the 48 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at oracle commit `d5d1dfd` (jbotci#622). The corpus comprises the
-//! original 37 documents, the two jbotci#620 witnesses, and five new
-//! discriminant-verified question witnesses. `lean3` is the research
+//! lean3` at oracle commit `c6004a1bc4dda0c9d27cef188e21402d64f36d30`
+//! (jbotci#652). The corpus comprises the original 37 documents, the two
+//! jbotci#620 witnesses, and five new
+//! discriminant-verified question witnesses, plus four tagged-argument
+//! witnesses. `lean3` is the research
 //! repo's historical profile name for the product's `smusni` notation. This test
 //! re-derives each graph
 //! from `<doc>.lojban` with *this* build (the same pipeline the completeness
@@ -102,6 +104,7 @@ fn assert_parity(suffix: &str, config: SmusniConfig) {
         let expected = std::fs::read_to_string(fixture(doc, suffix))
             .unwrap_or_else(|error| panic!("read {doc}.{suffix}: {error}"));
         let actual = render_smusni(&graph_for(doc), config);
+        assert_no_standalone_modal_word(&actual);
         if expected != actual {
             match first_diff(&expected, &actual) {
                 Some((line, e, a)) => mismatches.push(format!(
@@ -121,7 +124,7 @@ fn assert_parity(suffix: &str, config: SmusniConfig) {
 }
 
 /// The default `smusni` profile (provenance off) byte-matches the oracle on all
-/// 44 frozen corpus documents.
+/// 48 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -130,7 +133,7 @@ fn smusni_byte_parity_over_frozen_corpus() {
 }
 
 /// The provenance opt-in (`--provenance`) byte-matches the oracle's
-/// `--profile lean3 --provenance` output on all 44 frozen corpus documents.
+/// `--profile lean3 --provenance` output on all 48 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -143,7 +146,13 @@ fn smusni_provenance_byte_parity_over_frozen_corpus() {
 #[requires(!suffix.is_empty())]
 #[ensures(true)]
 fn aggregate_fixture_hash(suffix: &str) -> String {
-    let mut docs: Vec<&&str> = CORPUS_DOCS.iter().collect();
+    aggregate_fixture_hash_for(CORPUS_DOCS.iter().copied(), suffix)
+}
+
+#[requires(!suffix.is_empty())]
+#[ensures(true)]
+fn aggregate_fixture_hash_for<'a>(docs: impl Iterator<Item = &'a str>, suffix: &str) -> String {
+    let mut docs: Vec<&str> = docs.collect();
     docs.sort();
     let mut hasher = Sha256::new();
     for doc in docs {
@@ -160,6 +169,27 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
         .collect()
 }
 
+/// The 44 documents that predate jbotci#652 retain their exact fixture bytes.
+/// This pins the stability claim independently of the aggregate over the four
+/// newly appended witnesses.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn preexisting_fixture_bytes_are_unchanged() {
+    let preexisting = CORPUS_DOCS
+        .iter()
+        .copied()
+        .filter(|doc| !doc.starts_with("modal-"));
+    assert_eq!(
+        aggregate_fixture_hash_for(preexisting.clone(), "smusni.txt"),
+        "0dbc1d7f96c49217382b9602c62001b5f3ae35c919b7a681e8dbe0b1e216a93e"
+    );
+    assert_eq!(
+        aggregate_fixture_hash_for(preexisting, "smusni-prov.txt"),
+        "d6fb701f5855382f3ddf7d6026951e5f4c74ae16bef6919968c515dce17a4e8a"
+    );
+}
+
 /// Should-fix 7 (round-1 review, Codex 4): pin the aggregate hash of BOTH
 /// vendored fixture sets so the renderer-expected and provenance fixtures cannot
 /// silently drift together (e.g. a regeneration that changes both while a stale
@@ -171,12 +201,12 @@ fn aggregate_fixture_hash(suffix: &str) -> String {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "0dbc1d7f96c49217382b9602c62001b5f3ae35c919b7a681e8dbe0b1e216a93e",
+        "455109a8f08252344f7865603e6063417d8adabb169031de87618b24b9810243",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "d6fb701f5855382f3ddf7d6026951e5f4c74ae16bef6919968c515dce17a4e8a",
+        "a53661c41f7768cf25e5e9f669d2ab42b99048d5aaddb8a4b0f08f437ef4c66c",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
@@ -313,5 +343,73 @@ fn smusni_question_record_shapes_are_explicit() {
         assert!(rendered.contains("QUESTION qu"));
         assert!(!rendered.contains("UNKNOWN question_"));
         assert!(!rendered.contains("renderer-support(\"question\")"));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn assert_no_standalone_modal_word(rendered: &str) {
+    assert!(
+        !rendered
+            .split(|character: char| !character.is_ascii_alphanumeric())
+            .any(|word| word.eq_ignore_ascii_case("modal")),
+        "human-facing smusni must not use the standalone word `modal`:\n{rendered}"
+    );
+}
+
+/// jbotci#652 regression: predicate and formula tags are ordinary keyword
+/// entries after numbered places in the existing ARGS sequence. Surface BAI
+/// and FIhO spellings stay provenance-only, and eventuality-level tags use the
+/// same entry shape.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn smusni_tagged_argument_entries_are_explicit_and_terminology_neutral() {
+    let fronted = render_smusni(
+        &graph_for("modal-fronted-vao"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(fronted.contains("[vanbi]: ("));
+    assert!(!fronted.contains("[va'o]:"));
+    assert!(!fronted.contains("INTRODUCED BY"));
+
+    let tail = render_smusni(
+        &graph_for("modal-tail-sepio"),
+        SmusniConfig { provenance: false },
+    );
+    for wording in [
+        "[pilno]: (",
+        "[1]: REFERENCE DENOTATION r11;",
+        "[2]: REFERENCE DENOTATION r7;",
+        "[3]: REFERENCE DENOTATION r6;",
+    ] {
+        assert!(tail.contains(wording), "missing `{wording}`");
+    }
+    assert!(!tail.contains("se pi'o"));
+
+    let fiho = render_smusni(
+        &graph_for("modal-fiho-selpilno"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(fiho.contains("[f16]: REFERENCE DENOTATION r6;"));
+    assert!(!fiho.contains("fi'o"));
+
+    let eventuality = render_smusni(
+        &graph_for("modal-eventuality-fragment"),
+        SmusniConfig { provenance: false },
+    );
+    assert!(eventuality.contains("ARGS ("));
+    assert!(eventuality.contains("[vanbi]: ("));
+
+    let provenance = render_smusni(
+        &graph_for("modal-fiho-selpilno"),
+        SmusniConfig { provenance: true },
+    );
+    assert!(provenance.contains("INTRODUCED BY: fi'o;"));
+    assert!(provenance.contains("CONSTRUCT: \"tagged-argument\";"));
+
+    for rendered in [fronted, tail, fiho, eventuality, provenance] {
+        assert!(!rendered.contains("MODAL ARGUMENTS"));
+        assert_no_standalone_modal_word(&rendered);
     }
 }
