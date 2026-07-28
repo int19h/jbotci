@@ -52,6 +52,18 @@ RUST_ONLY_CONCEPTS: dict[tuple[str, str], tuple[str, str]] = {
         "implementation-representation",
         "Compile-time metadata used to register exact Python StrEnum classes, not a consumer domain value.",
     ),
+    ("jbotci_syntax", "RecoveryReachabilityKindTelemetry"): (
+        "implementation-representation",
+        "Test-harness counters for cross-checking internal recovery reachability branches under expensive contracts; they are not parser output or consumer configuration.",
+    ),
+    ("jbotci_syntax", "RecoveryReachabilityTelemetry"): (
+        "implementation-representation",
+        "Test-harness aggregate for comparing internal recovery reachability behavior under expensive contracts; it is not parser output or a consumer domain value.",
+    ),
+    ("jbotci_syntax", "with_recovery_reachability_instrumentation"): (
+        "implementation-representation",
+        "Feature-gated test-harness entry point that toggles an internal recovery filter and captures cross-check counters; it is not a consumer parser operation.",
+    ),
 }
 
 PYTHON_CONCEPT_ALIASES: dict[tuple[str, str], str] = {
@@ -314,7 +326,11 @@ def concept(item: InventoryItem) -> tuple[str, str]:
         and parts[1] in PRIVATE_MORPHOLOGY_MODULES
     ):
         return (crate_name, parts[2])
-    if crate_name == "jbotci_syntax" and len(parts) > 2 and parts[1] == "tree":
+    if (
+        crate_name == "jbotci_syntax"
+        and len(parts) > 2
+        and parts[1] in {"grammar", "tree"}
+    ):
         return (crate_name, parts[2])
     return (crate_name, parts[1])
 

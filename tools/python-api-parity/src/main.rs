@@ -250,7 +250,7 @@ fn workspace_root() -> Result<PathBuf, String> {
 #[ensures(ret.as_ref().is_ok_and(|items| !items.is_empty()) || ret.is_err())]
 fn rust_inventory(workspace: &Path) -> Result<Vec<ApiItem>, String> {
     let syntax_source = workspace.join("crates/jbotci-syntax/src");
-    let syntax_files = ["lib.rs", "tree.rs"]
+    let syntax_files = ["lib.rs", "tree.rs", "grammar/mod.rs"]
         .into_iter()
         .map(|path| syntax_source.join(path))
         .collect::<BTreeSet<_>>();
