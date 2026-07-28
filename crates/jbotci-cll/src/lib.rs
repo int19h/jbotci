@@ -1048,6 +1048,31 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn plain_html_media_keeps_descriptions_and_markup_without_asset_routes() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let block = CllBlock::Media {
+            id: Some("diagram".to_owned()),
+            title: Some(vec![CllInline::Emphasis {
+                language: None,
+                inlines: vec![CllInline::Text("Diagram title".to_owned())],
+            }]),
+            src: "assets/media/dead-spa-route.svg".to_owned(),
+            alt: "Meaningful diagram description".to_owned(),
+        };
+        let html = render_block_html(site, &block, CllLinkRenderMode::Plain);
+
+        assert_eq!(
+            html,
+            "<figure id=\"diagram\" class=\"cll-media\"><p class=\"cll-media-alt\">Meaningful diagram description</p><figcaption><em>Diagram title</em></figcaption></figure>"
+        );
+        assert!(!html.contains("<img"), "{html}");
+        assert!(!html.contains("src="), "{html}");
+        assert!(!html.contains("dead-spa-route.svg"), "{html}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn plain_link_disposition_is_exhaustive_for_inline_link_kinds() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cases = [
@@ -1120,6 +1145,42 @@ mod tests {
                 CllRenderFormat::Markdown,
                 CllLinkRenderMode::Web,
             );
+
+            assert_eq!(sha256_hex(&rendered), expected_sha256, "{reference}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_html_matches_issue_655_pre_change_baseline_hashes() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cases = [
+            (
+                "1.8",
+                "a58fbf37c50b71d141b25ac7b440f74d1440b8620f44759a1de618406cfc28fc",
+            ),
+            (
+                "2.1",
+                "11cdaaa8489e9e3339043267a2d3246bd0ad6eebef1d8dc4294932649452e58d",
+            ),
+            (
+                "9.6",
+                "d5a91b4ff0a90ffb5c80747122dbab341453d27b5ddaed331a000c5e0d9cedd9",
+            ),
+            (
+                "section-EBNF",
+                "2e3a1e3c4dfac64839ecfd9a1c48fbe48506fe0607a22ff580bbb26552b9adde",
+            ),
+        ];
+
+        for (reference, expected_sha256) in cases {
+            let section_id = cll_resolve_section_reference(site, reference)
+                .unwrap_or_else(|| panic!("section {reference} should resolve"));
+            let section =
+                cll_lookup_section(site, &section_id).expect("resolved section should exist");
+            let rendered =
+                render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
 
             assert_eq!(sha256_hex(&rendered), expected_sha256, "{reference}");
         }

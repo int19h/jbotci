@@ -102,11 +102,22 @@ pub(crate) fn render_block_html(
             alt,
         } => {
             let mut output = format!(
-                "<figure{} class=\"cll-media\"><img src=\"{}\" alt=\"{}\" />",
-                render_optional_id(id.as_deref()),
-                escape_html(src),
-                escape_html(alt)
+                "<figure{} class=\"cll-media\">",
+                render_optional_id(id.as_deref())
             );
+            match link_mode {
+                CllLinkRenderMode::Web => output.push_str(&format!(
+                    "<img src=\"{}\" alt=\"{}\" />",
+                    escape_html(src),
+                    escape_html(alt)
+                )),
+                CllLinkRenderMode::Plain if !alt.is_empty() => {
+                    output.push_str("<p class=\"cll-media-alt\">");
+                    output.push_str(&escape_html(alt));
+                    output.push_str("</p>");
+                }
+                CllLinkRenderMode::Plain => {}
+            }
             if let Some(title) = title {
                 output.push_str("<figcaption>");
                 output.push_str(&render_inlines_html(site, title, link_mode));
