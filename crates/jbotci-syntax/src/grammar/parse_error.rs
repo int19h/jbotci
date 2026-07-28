@@ -2,12 +2,13 @@
 use bityzba::{data, ensures, invariant, new, requires};
 use std::{
     borrow::Cow,
-    collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
     rc::Rc,
     sync::Arc,
 };
+
+use rustc_hash::FxHasher;
 
 use super::parser_core::{Error, LabelError, MaybeRef, RichPattern, RichReason};
 use super::{Span, SyntaxContextFrame, SyntaxRuleFrame, Token};
@@ -533,7 +534,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if !self.same_position_branches.is_empty() {
             return None;
         }
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         self.span.hash(&mut hasher);
         self.expected_groups.hash(&mut hasher);
         self.context_paths.hash(&mut hasher);

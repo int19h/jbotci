@@ -11,7 +11,7 @@ use super::tokens::{
     syntax_error_with_diagnostic_candidate,
 };
 use super::{
-    BoxedParser, ContinuationTimeLimit, ParserState, RecoveryCheckpoint, RecoveryDirective,
+    BoxedParser, ContinuationTimeLimit, ParserState, RecoveryCheckpointIndex, RecoveryDirective,
     SpannedToken, SyntaxParseError, SyntaxRecoveryMemoSession, SyntaxRuleFrame,
 };
 use crate::{
@@ -4813,7 +4813,7 @@ pub mod generated_model {
     pub(crate) struct GeneratedParseFailure {
         pub public_error: crate::SyntaxError,
         pub branches: Vec<GeneratedRecoveryBranch>,
-        pub checkpoints: Vec<RecoveryCheckpoint>,
+        pub checkpoints: RecoveryCheckpointIndex,
     }
 
     #[bityzba::invariant(continuation_expectations.iter().all(|expectation| !expectation.tokens.is_empty()))]
@@ -5034,7 +5034,9 @@ pub mod generated_model {
                 Err(GeneratedParseFailure {
                     public_error,
                     branches,
-                    checkpoints: finish.recovery_checkpoints,
+                    checkpoints: RecoveryCheckpointIndex::from_checkpoints(
+                        finish.recovery_checkpoints,
+                    ),
                 })
             }
         };
@@ -5126,7 +5128,9 @@ pub mod generated_model {
                 Err(GeneratedParseFailure {
                     public_error,
                     branches,
-                    checkpoints: finish.recovery_checkpoints,
+                    checkpoints: RecoveryCheckpointIndex::from_checkpoints(
+                        finish.recovery_checkpoints,
+                    ),
                 })
             }
         };
