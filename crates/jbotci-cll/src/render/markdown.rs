@@ -518,6 +518,11 @@ fn render_ebnf_markdown(
     link_mode: CllLinkRenderMode,
 ) {
     for entry in entries {
+        for source_anchor_id in &entry.source_anchor_ids {
+            output.push_str("<a id=\"");
+            output.push_str(&escape_html(source_anchor_id));
+            output.push_str("\"></a>");
+        }
         output.push_str("**");
         output.push_str(&entry.rule_name);
         output.push_str("** ⩴\n");

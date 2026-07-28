@@ -18,8 +18,8 @@ use import::{
     parse_paragraph_blocks,
 };
 pub(crate) use import::{
-    PendingIndexEntry, SectionParseContext, block_anchor_id_for, child_element, raw_text,
-    visible_text, visible_text_raw, xml_id,
+    PendingIndexEntry, SectionParseContext, attr_string, block_anchor_id_for, child_element,
+    raw_text, visible_text, visible_text_raw, xml_id,
 };
 use import::{
     chrestomathy_area_groups, chrestomathy_area_label, chrestomathy_group_id,
@@ -942,7 +942,7 @@ mod tests {
         );
         assert_eq!(
             cll_link_href(site, CllLinkKind::Section, "chapter-grammars"),
-            "section/section-EBNF#chapter-grammars"
+            "section/section-grammars-introduction#chapter-grammars"
         );
     }
 
@@ -1315,12 +1315,112 @@ mod tests {
             .find(|chapter| chapter.chapter_id == metadata.chrestomathy_chapter_id)
             .expect("metadata chrestomathy chapter should exist");
 
-        assert_eq!(chrestomathy.chapter_number, 22);
-        assert!(cll_lookup_section(site, &metadata.ebnf_section_id).is_some());
+        assert_eq!(chrestomathy.chapter_number, 23);
+        let ebnf = cll_lookup_section(site, &metadata.ebnf_section_id)
+            .expect("metadata EBNF section should exist");
+        assert_eq!(ebnf.number, "21.2");
         assert_eq!(
-            ebnf_symbol_href("BRIVLA").as_deref(),
-            Some("section/section-morphology-brivla")
+            ebnf.blocks
+                .iter()
+                .filter_map(|block| match block {
+                    CllBlock::Ebnf { entries, .. } => Some(entries.len()),
+                    _ => None,
+                })
+                .sum::<usize>(),
+            92
         );
+        let expected_symbols = [
+            ("BRIVLA", "section-morphology-brivla"),
+            ("CMEVLA", "section-cmevla"),
+            ("any-word", "section-more-quotations"),
+            ("anything", "section-more-quotations"),
+            ("null", "section-erasure"),
+        ];
+        assert_eq!(metadata.ebnf_symbols.len(), expected_symbols.len());
+        for (symbol, section_id) in expected_symbols {
+            assert_eq!(
+                metadata.ebnf_symbols.get(symbol).map(String::as_str),
+                Some(section_id)
+            );
+            assert!(cll_lookup_section(site, section_id).is_some());
+            assert_eq!(ebnf_symbol_href(symbol), Some(section_href(section_id)));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sectionless_peg_morphology_appendix_renders_as_preformatted_cukta_section() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "appendix-peg-morphology")
+            .expect("PEG morphology appendix should be addressable through cukta");
+        assert_eq!(section.chapter_number, 24);
+        assert_eq!(section.number, "24");
+        let grammar = section
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::Code { text, .. } => Some(text),
+                _ => None,
+            })
+            .expect("PEG morphology appendix should contain a code block");
+        assert_eq!(grammar.lines().count(), 564);
+        assert!(grammar.starts_with("# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
+        assert!(grammar.contains("\nlojban_word <- CMEVLA / CMAVO / BRIVLA\n"));
+        assert!(grammar.ends_with("ZOhU <- &cmavo ( z o h u ) &post_word"));
+
+        let rendered = render_cukta_request(
+            site,
+            &CuktaRequest::Section {
+                reference: "appendix-peg-morphology".to_owned(),
+            },
+            CllRenderFormat::Markdown,
+        )
+        .expect("PEG morphology appendix should render through cukta");
+        assert!(rendered.contains("```\n# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
+        assert!(rendered.contains("\nZOhU <- &cmavo ( z o h u ) &post_word\n```"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restored_ebnf_cross_reference_links_to_rendered_rules() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cross_reference = cll_lookup_section(site, "section-cross-reference")
+            .expect("restored EBNF cross-reference section should exist");
+        assert_eq!(cross_reference.number, "21.3");
+        assert_eq!(
+            cross_reference
+                .blocks
+                .iter()
+                .filter_map(|block| match block {
+                    CllBlock::VariableList { entries, .. } => Some(entries.len()),
+                    _ => None,
+                })
+                .sum::<usize>(),
+            214
+        );
+        let rendered_cross_reference = render_section(site, cross_reference, CllRenderFormat::Html);
+        assert!(rendered_cross_reference.contains("href=\"section/section-EBNF#cll_bnf-802\""));
+        assert!(rendered_cross_reference.contains(">BNF rule #802</a>"));
+
+        let ebnf = cll_lookup_section(site, "section-EBNF").expect("EBNF section should exist");
+        let rendered_ebnf = render_section(site, ebnf, CllRenderFormat::Html);
+        assert!(rendered_ebnf.contains("id=\"cll_bnf-802\""));
+        assert!(rendered_ebnf.contains("id=\"ebnf-rule-ek\""));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colojban_import_covers_all_source_sections_and_anchored_examples() {
+        let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
+        assert_eq!(site.chapters.len(), 25);
+        // The sources contain 338 section elements. The sectionless PEG appendix
+        // adds one addressable root section so its program listing is not hidden.
+        assert_eq!(site.sections_by_id.len(), 339);
+        assert_eq!(site.section_order.len(), 339);
+        assert_eq!(site.examples_by_id.len(), 1857);
     }
 
     #[test]
@@ -1354,7 +1454,10 @@ mod tests {
             CllLinkRenderMode::Web,
         );
 
-        assert!(rendered.contains("[Chapter 21](section/section-EBNF#chapter-grammars)"));
+        assert!(
+            rendered
+                .contains("[Chapter 21](section/section-grammars-introduction#chapter-grammars)")
+        );
         assert!(rendered.contains("[Chapter 2](section/section-bridi#chapter-tour)"));
         assert!(!rendered.contains("[chapter-grammars]"));
         assert!(!rendered.contains("[chapter-tour]"));
