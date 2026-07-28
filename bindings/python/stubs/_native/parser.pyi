@@ -8,6 +8,29 @@ _syntax_parser_SYNTAX_TRACE_FILTERS: Final[tuple[str, ...]]
 _syntax_parser_ENUM_INVENTORY: Final[tuple[str, ...]]
 
 @final
+class _syntax_parser_SyntaxRecoveryErrorPolicy:
+    DEFAULT_PER_STATEMENT: ClassVar[int]
+    DEFAULT_GLOBAL_HARD_CAP: ClassVar[int]
+    __match_args__: ClassVar[tuple[str, str]]
+    def __new__(
+        cls,
+        *,
+        per_statement: int = ...,
+        global_hard_cap: int = ...,
+    ) -> _syntax_parser_SyntaxRecoveryErrorPolicy: ...
+    @property
+    def per_statement(self) -> int: ...
+    @property
+    def global_hard_cap(self) -> int: ...
+    def with_per_statement_limit(
+        self, limit: int
+    ) -> _syntax_parser_SyntaxRecoveryErrorPolicy: ...
+    def with_global_hard_cap(
+        self, limit: int
+    ) -> _syntax_parser_SyntaxRecoveryErrorPolicy: ...
+    def __repr__(self, /) -> str: ...
+
+@final
 class _syntax_parser_ParseOptions:
     def __new__(
         cls,
@@ -15,6 +38,7 @@ class _syntax_parser_ParseOptions:
         dialect: _dialect_DialectDefinition | None = ...,
         trace: _diagnostics_TraceOptions | None = ...,
         error_context_depth: int | None = ...,
+        recovery_error_policy: _syntax_parser_SyntaxRecoveryErrorPolicy | None = ...,
         max_recovery_errors: int | None = ...,
     ) -> _syntax_parser_ParseOptions: ...
     @staticmethod
@@ -26,6 +50,9 @@ class _syntax_parser_ParseOptions:
         self, trace: _diagnostics_TraceOptions
     ) -> _syntax_parser_ParseOptions: ...
     def with_error_context_depth(self, depth: int) -> _syntax_parser_ParseOptions: ...
+    def with_recovery_error_policy(
+        self, policy: _syntax_parser_SyntaxRecoveryErrorPolicy
+    ) -> _syntax_parser_ParseOptions: ...
     def with_max_recovery_errors(self, limit: int) -> _syntax_parser_ParseOptions: ...
     @property
     def dialect(self) -> _dialect_DialectDefinition: ...
@@ -33,6 +60,8 @@ class _syntax_parser_ParseOptions:
     def trace(self) -> _diagnostics_TraceOptions: ...
     @property
     def error_context_depth(self) -> int: ...
+    @property
+    def recovery_error_policy(self) -> _syntax_parser_SyntaxRecoveryErrorPolicy: ...
     @property
     def max_recovery_errors(self) -> int: ...
 

@@ -35,13 +35,40 @@ def _recovery_items(value: object) -> Iterator[syntax.SyntaxRecoveryItem]:
 
 
 def test_parse_options_use_rust_defaults_and_checked_copying_updates() -> None:
+    policy_defaults = syntax.SyntaxRecoveryErrorPolicy()
+    assert (
+        policy_defaults.per_statement
+        == syntax.SyntaxRecoveryErrorPolicy.DEFAULT_PER_STATEMENT
+        == 4
+    )
+    assert (
+        policy_defaults.global_hard_cap
+        == syntax.SyntaxRecoveryErrorPolicy.DEFAULT_GLOBAL_HARD_CAP
+        == 128
+    )
+    assert repr(policy_defaults) == (
+        "jbotci.syntax.SyntaxRecoveryErrorPolicy("
+        "per_statement=4, global_hard_cap=128)"
+    )
+
+    policy = (
+        policy_defaults.with_per_statement_limit(2).with_global_hard_cap(7)
+    )
+    assert policy.per_statement == 2
+    assert policy.global_hard_cap == 7
+    assert policy_defaults.per_statement == 4
+    assert policy_defaults.global_hard_cap == 128
+
     defaults = syntax.ParseOptions.default()
     constructed = syntax.ParseOptions()
+    configured = syntax.ParseOptions(recovery_error_policy=policy)
 
     assert constructed.error_context_depth == defaults.error_context_depth == 1
     assert constructed.max_recovery_errors == defaults.max_recovery_errors == 128
+    assert constructed.recovery_error_policy == policy_defaults
     assert constructed.dialect == defaults.dialect
     assert constructed.trace == defaults.trace
+    assert configured.recovery_error_policy == policy
 
     trace = diagnostics.TraceOptions(
         enabled=True,
@@ -50,17 +77,27 @@ def test_parse_options_use_rust_defaults_and_checked_copying_updates() -> None:
     changed = (
         defaults.with_trace(trace)
         .with_error_context_depth(4)
+        .with_recovery_error_policy(policy)
         .with_max_recovery_errors(7)
     )
     assert changed.trace == trace
     assert changed.error_context_depth == 4
+    assert changed.recovery_error_policy == policy
     assert changed.max_recovery_errors == 7
     assert defaults.error_context_depth == 1
     assert defaults.max_recovery_errors == 128
 
     operations: tuple[Callable[[], object], ...] = (
+        lambda: syntax.SyntaxRecoveryErrorPolicy(per_statement=0),
+        lambda: syntax.SyntaxRecoveryErrorPolicy(global_hard_cap=-1),
+        lambda: policy_defaults.with_per_statement_limit(0),
+        lambda: policy_defaults.with_global_hard_cap(0),
         lambda: syntax.ParseOptions(error_context_depth=-1),
         lambda: syntax.ParseOptions(max_recovery_errors=0),
+        lambda: syntax.ParseOptions(
+            recovery_error_policy=policy,
+            max_recovery_errors=3,
+        ),
         lambda: defaults.with_error_context_depth(-1),
         lambda: defaults.with_max_recovery_errors(0),
     )
@@ -297,6 +334,37 @@ def test_recovered_parse_exposes_exact_error_offsets_and_native_slot_indices() -
         )
         for item in skipped
     ) == ((1, ((17, 19),)),)
+
+
+def test_recovered_parse_consumes_two_tier_error_policy() -> None:
+    text = "mi zo'u do .i mi zo'u do .i mi klama"
+    words = morphology.segment(text)
+    per_statement = syntax.ParseOptions(
+        recovery_error_policy=syntax.SyntaxRecoveryErrorPolicy(
+            per_statement=1,
+            global_hard_cap=128,
+        )
+    )
+    globally_capped = syntax.ParseOptions(
+        recovery_error_policy=syntax.SyntaxRecoveryErrorPolicy(
+            per_statement=4,
+            global_hard_cap=1,
+        )
+    )
+
+    recovered = syntax.parse_syntax_tree_recovered(
+        words,
+        source_text=text,
+        options=per_statement,
+    )
+    capped = syntax.parse_syntax_tree_recovered(
+        words,
+        source_text=text,
+        options=globally_capped,
+    )
+
+    assert len(recovered.errors) == 2
+    assert len(capped.errors) == 1
 
 
 def test_eof_and_quote_failures_keep_structured_payloads() -> None:
