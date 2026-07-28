@@ -1920,7 +1920,7 @@ in `modalArguments`, where `relation` is the source relation for the tag
 the source marker, and `arguments` uses the same structured numbered place map
 as predication arguments.  This keeps `be ga'a mi` attached to the linked
 modifier predicate while tail `ga'a mi` attaches to the enclosing predication.
-The deliberately vague modal `do'e` uses `relation = "unspecified-modal"` and
+The deliberately vague modal `do'e` uses `relation = "unspecified-role"` and
 only records the visible modal place.
 Reference-frame tags such as `ma'i vo'a` use the source relation `manri` in
 `modalArguments`, with the resolved reference-frame sumti filling the visible
@@ -2001,7 +2001,8 @@ Indicators attached to a modal tag modify the modal relation itself, not the
 host predication as a whole.  They appear as nested `modifiers` on the
 `modalArguments` entry, using the same displayed-content modifier shape as
 attitudinal modifiers.  This is needed for CLL 15.10 `go'i ji'una'iku`, where
-`na'i` marks the `ji'u` presupposition/assumption as metalinguistically wrong:
+`na'i` marks the `jicmu` presupposition/assumption introduced by `ji'u` as
+metalinguistically wrong:
 
 ```json
 {
@@ -2009,12 +2010,17 @@ attitudinal modifiers.  This is needed for CLL 15.10 `go'i ji'una'iku`, where
   "relation": "go'i",
   "modalArguments": [
     {
-      "relation": "ji'u",
+      "relation": "jicmu",
       "introducedBy": "ji'u",
       "arguments": {
         "x1": {
           "kind": "elided",
           "value": "entity:1011",
+          "introducedBy": "zo'e"
+        },
+        "x2": {
+          "kind": "elided",
+          "value": "entity:1012",
           "introducedBy": "zo'e"
         }
       },
@@ -4477,7 +4483,8 @@ These are the semantic object-model changes relative to
     places such as `klama` x2-x5 from being explicit.  BAI modal entries now
     keep the cmavo in `introducedBy` but use the source relation in `relation`;
     SE conversion selects which source-relation place the visible modal sumti
-    fills.  The special vague modal `do'e` remains `unspecified-modal`.
+    fills.  The special vague modal `do'e` uses the synthetic relation
+    `unspecified-role`.
 
 68. Added sequence `connectionClaims`.
     CLL 9.7 says `.iri'abo` and `.iseri'abo` assert both connected bridi and

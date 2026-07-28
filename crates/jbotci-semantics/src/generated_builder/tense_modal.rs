@@ -1,5 +1,57 @@
 use super::*;
 
+/// Grammar-directed validation that prevents project-specific experimental BAI
+/// from reaching canonical semantic lowering. The morphology inventory contains
+/// more BAI spellings than the complete 65-member CLL 9.17 table; their
+/// predicate mappings are not standardized and must not be guessed.
+#[invariant(true)]
+#[derive(Default)]
+struct GeneratedBaiSupportValidator {
+    unsupported_marker: Option<String>,
+}
+
+impl<'tree> TreeWalker<'tree> for GeneratedBaiSupportValidator {
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_modal_tense(&mut self, node: &'tree ModalTenseSyntax) {
+        // Some project BAI spellings (for example `xei'e`) lower to typed
+        // tense/space coordinates rather than to `ModalArgument`. They do not
+        // need a CLL 9.17 predicate mapping and must retain that established
+        // interpretation. Reject only an unsupported BAI that would otherwise
+        // reach the generic relation-argument path.
+        if self.unsupported_marker.is_none() && !generated_tense_modal_has_event_modifier(node) {
+            let mut collector = GeneratedSpanCollector::default();
+            node.visit_in_order(&mut collector);
+            let marker = collector
+                .tokens
+                .iter()
+                .find(|token| token.is_selmaho(Selmaho::Bai))
+                .map(|token| token_text(token));
+            if let Some(marker) = marker {
+                if modal_relation_for_marker(&marker).is_none() {
+                    self.unsupported_marker = Some(marker);
+                }
+            }
+        }
+        jbotci_syntax::generated_model::walk::modal_tense(self, node);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(super) fn validate_supported_bai_modal_markers(
+    syntax: &TextSyntax,
+) -> Result<(), SemanticsError> {
+    let mut validator = GeneratedBaiSupportValidator::default();
+    TreeWalkable::walk_with(syntax, &mut validator);
+    if let Some(marker) = validator.unsupported_marker {
+        return Err(invalid_graph(format!(
+            "BAI `{marker}` has no standardized predicate mapping in the complete CLL 9.17 table"
+        )));
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_tagged_sumti_term_has_event_modifier(term: &TaggedSumtiTermSyntax) -> bool {
@@ -968,11 +1020,8 @@ pub(super) fn generated_modal_relation_spec_for_tense_modal<N: TreeNode>(
         let introduced_by = conversion
             .map(|conversion| format!("{} {marker}", token_text(conversion)))
             .unwrap_or_else(|| marker.clone());
-        return Some((
-            introduced_by,
-            modal_relation_for_marker(&marker),
-            visible_place,
-        ));
+        let relation = modal_relation_for_marker(&marker)?;
+        return Some((introduced_by, relation.to_owned(), visible_place));
     }
     generated_tense_relation_spec_for_tokens(&collector.tokens)
 }
@@ -1228,27 +1277,78 @@ pub(super) fn generated_modal_scalar_negation_for_tense_modal<N: TreeNode>(
     })
 }
 
+/// The complete CLL 9.17 BAI table. This intentionally excludes the project's
+/// experimental/dialect BAI inventory: those markers have no CLL-defined
+/// desugaring and are rejected before semantic lowering.
 #[requires(!marker.is_empty())]
-#[ensures(!ret.is_empty())]
-pub(super) fn modal_relation_for_marker(marker: &str) -> String {
+#[ensures(ret.is_none_or(|relation| !relation.is_empty()))]
+pub(super) fn modal_relation_for_marker(marker: &str) -> Option<&'static str> {
     match marker {
-        "bai" => "bapli".to_owned(),
-        "bau" => "bangu".to_owned(),
-        "cu'u" => "cusku".to_owned(),
-        "do'e" => "unspecified-modal".to_owned(),
-        "du'i" => "dunli".to_owned(),
-        "fi'e" => "finti".to_owned(),
-        "ga'a" => "zgana".to_owned(),
-        "gau" => "gasnu".to_owned(),
-        "ka'a" => "klama".to_owned(),
-        "ki'u" => "krinu".to_owned(),
-        "ma'i" => "manri".to_owned(),
-        "mau" => "zmadu".to_owned(),
-        "me'a" => "mleca".to_owned(),
-        "mu'i" => "mukti".to_owned(),
-        "ni'i" => "nibli".to_owned(),
-        "pi'o" => "pilno".to_owned(),
-        "ri'a" => "rinka".to_owned(),
-        _ => marker.replace(' ', "-"),
+        "ba'i" => Some("basti"),
+        "bai" => Some("bapli"),
+        "bau" => Some("bangu"),
+        "be'i" => Some("benji"),
+        "ca'i" => Some("catni"),
+        "cau" => Some("claxu"),
+        "ci'e" => Some("ciste"),
+        "ci'o" => Some("cinmo"),
+        "ci'u" => Some("ckilu"),
+        "cu'u" => Some("cusku"),
+        "de'i" => Some("detri"),
+        "di'o" => Some("diklo"),
+        "do'e" => Some("unspecified-role"),
+        "du'i" => Some("dunli"),
+        "du'o" => Some("djuno"),
+        "fa'e" => Some("fatne"),
+        "fau" => Some("fasnu"),
+        "fi'e" => Some("finti"),
+        "ga'a" => Some("zgana"),
+        "gau" => Some("gasnu"),
+        "ja'e" => Some("jalge"),
+        "ja'i" => Some("javni"),
+        "ji'e" => Some("jimte"),
+        "ji'o" => Some("jitro"),
+        "ji'u" => Some("jicmu"),
+        "ka'a" => Some("klama"),
+        "ka'i" => Some("krati"),
+        "kai" => Some("ckaji"),
+        "ki'i" => Some("ckini"),
+        "ki'u" => Some("krinu"),
+        "koi" => Some("korbi"),
+        "ku'u" => Some("kulnu"),
+        "la'u" => Some("klani"),
+        "le'a" => Some("klesi"),
+        "li'e" => Some("lidne"),
+        "ma'e" => Some("marji"),
+        "ma'i" => Some("manri"),
+        "mau" => Some("zmadu"),
+        "me'a" => Some("mleca"),
+        "me'e" => Some("cmene"),
+        "mu'i" => Some("mukti"),
+        "mu'u" => Some("mupli"),
+        "ni'i" => Some("nibli"),
+        "pa'a" => Some("panra"),
+        "pa'u" => Some("pagbu"),
+        "pi'o" => Some("pilno"),
+        "po'i" => Some("porsi"),
+        "pu'a" => Some("pluka"),
+        "pu'e" => Some("pruce"),
+        "ra'a" => Some("srana"),
+        "ra'i" => Some("krasi"),
+        "rai" => Some("traji"),
+        "ri'a" => Some("rinka"),
+        "ri'i" => Some("lifri"),
+        "sau" => Some("sarcu"),
+        "si'u" => Some("sidju"),
+        "ta'i" => Some("tadji"),
+        "tai" => Some("tamsmi"),
+        "ti'i" => Some("stidi"),
+        "ti'u" => Some("tcika"),
+        "tu'i" => Some("stuzi"),
+        "va'o" => Some("vanbi"),
+        "va'u" => Some("xamgu"),
+        "zau" => Some("zanru"),
+        "zu'e" => Some("zukte"),
+        _ => None,
     }
 }
