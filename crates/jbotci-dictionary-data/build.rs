@@ -30,8 +30,8 @@ use rayon::prelude::*;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-const VENDORED_DICTIONARY: &str = "../../vendor/lensisku/dictionary-en.json";
-const VENDORED_METADATA: &str = "../../vendor/lensisku/dictionary-en.metadata.toml";
+const VENDORED_DICTIONARY: &str = "data/dictionary-en.json";
+const VENDORED_METADATA: &str = "data/dictionary-en.metadata.toml";
 
 #[derive(Debug, Clone, Deserialize)]
 #[invariant(true)]

@@ -1,0 +1,58 @@
+# Initial artifact size baselines are rounded-up review ceilings calibrated
+# from issue #564's native aarch64 release/strip wheel and standalone sdist.
+# The other platform ceilings conservatively account for object-format and
+# linker variation; the workflow records their exact first-run sizes.
+# `python_artifacts.py inspect` fails when an artifact grows beyond the
+# baseline plus the stated percentage. Update a baseline only after inspecting
+# the logical archive diff and explaining the increase in the pull request.
+#
+# `baseline_unpacked_bytes` provides the same ratchet for the sum of member
+# sizes, while `max_entries` catches accidental trees of many small files.
+
+[sizes.sdist]
+baseline_bytes = 3200000
+baseline_unpacked_bytes = 21100000
+max_growth_percent = 15
+max_entries = 240
+
+[sizes.linux-x86_64]
+baseline_bytes = 20000000
+baseline_unpacked_bytes = 90000000
+max_growth_percent = 25
+max_entries = 32
+
+[sizes.linux-aarch64]
+baseline_bytes = 18500000
+baseline_unpacked_bytes = 80000000
+max_growth_percent = 20
+max_entries = 32
+
+[sizes.macos-x86_64]
+baseline_bytes = 20000000
+baseline_unpacked_bytes = 90000000
+max_growth_percent = 25
+max_entries = 32
+
+[sizes.macos-aarch64]
+baseline_bytes = 19000000
+baseline_unpacked_bytes = 85000000
+max_growth_percent = 25
+max_entries = 32
+
+[sizes.windows-x86_64]
+baseline_bytes = 20000000
+baseline_unpacked_bytes = 90000000
+max_growth_percent = 25
+max_entries = 32
+
+[sizes.sdist-wheel-x86_64]
+baseline_bytes = 20000000
+baseline_unpacked_bytes = 90000000
+max_growth_percent = 25
+max_entries = 32
+
+[sizes.sdist-wheel-aarch64]
+baseline_bytes = 18500000
+baseline_unpacked_bytes = 80000000
+max_growth_percent = 20
+max_entries = 32

@@ -464,7 +464,7 @@ struct VendorDictionaryArgs {
     language: String,
     #[arg(long, default_value = "json")]
     format: String,
-    #[arg(long, default_value = "vendor/lensisku")]
+    #[arg(long, default_value = "crates/jbotci-dictionary-data/data")]
     output: PathBuf,
     #[arg(long)]
     check: bool,

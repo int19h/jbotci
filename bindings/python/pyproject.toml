@@ -9,6 +9,7 @@ description = "Pre-alpha Python bindings for the unstable jbotci Rust API."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE.md"]
 authors = [{ name = "Pavel Minaev" }]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
@@ -38,6 +39,15 @@ dev = [
 bindings = "pyo3"
 module-name = "jbotci._native"
 python-source = "python"
+
+# Maturin's generated Rust SBOM currently records both a build timestamp and
+# the absolute checkout path. Those fields make same-source wheels differ and
+# leak local paths, so this artifact-only lane omits generated SBOMs until they
+# can be produced deterministically. Dependency provenance remains locked by
+# Cargo.lock and uv.lock in the source distribution.
+[tool.maturin.sbom]
+rust = false
+auditwheel = false
 
 # Maturin owns the editable installation. uv manages only the locked developer
 # tools so subsequent `uv run` invocations do not replace the native module.
