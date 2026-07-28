@@ -550,7 +550,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "modalArguments",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-eventuality-fragment",
+                path: "Eventuality:modalArguments",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -1174,7 +1178,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "modalArguments",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-fronted-vao",
+                path: "Predication:modalArguments",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -2115,7 +2123,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "kind",
             EntryKind::Field,
             Presence::Always,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-tail-sepio",
+                path: "Predication:modalArguments.arguments.x*.kind",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -2124,7 +2136,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "value",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-tail-sepio",
+                path: "Predication:modalArguments.arguments.x*.value",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -2142,7 +2158,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "introducedBy",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-tail-sepio",
+                path: "Predication:modalArguments.arguments.x*.introducedBy",
+                expect: new!(WitnessExpect::Value("zo'e"))
+            }),
             None,
         ),
         e(
@@ -2731,7 +2751,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "relation",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-tail-sepio",
+                path: "Predication:modalArguments.relation",
+                expect: new!(WitnessExpect::Value("pilno"))
+            }),
             None,
         ),
         e(
@@ -2740,7 +2764,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "introducedBy",
             EntryKind::Field,
             Presence::Always,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-tail-sepio",
+                path: "Predication:modalArguments.introducedBy",
+                expect: new!(WitnessExpect::Value("se pi'o"))
+            }),
             None,
         ),
         e(
@@ -2749,7 +2777,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "arguments",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-fronted-vao",
+                path: "Predication:modalArguments.arguments",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -2758,7 +2790,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "body",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-fiho-selpilno",
+                path: "Predication:modalArguments.body",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -2767,7 +2803,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "component",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-fiho-selpilno",
+                path: "Predication:modalArguments.component",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(
@@ -2803,7 +2843,11 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "source",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::NoCorpusWitness),
+            new!(Witness::Corpus {
+                doc: "modal-fronted-vao",
+                path: "Predication:modalArguments.source",
+                expect: new!(WitnessExpect::Present)
+            }),
             None,
         ),
         e(

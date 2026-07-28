@@ -10,8 +10,8 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 
-/// The 44 frozen corpus documents: 33 battery docs, 4 renderer samples, and seven
-/// question witnesses. The first 37 are frozen at
+/// The 48 frozen corpus documents: 33 battery docs, 4 renderer samples, seven
+/// question witnesses, and four tagged-argument witnesses. The first 37 are frozen at
 /// oracle commit `28c7d5f`; `ti-mo` was added at oracle commit `7e9c722`
 /// (jbotci#620) — the first corpus document exercising a predication whose
 /// relation is a bound parameter (`mo`, `relationParameter`) rather than a
@@ -22,8 +22,10 @@ use bityzba::{ensures, requires};
 /// jbotci#622 additions witness typed multi-domain slots (including connective,
 /// truth, tense, quantity, argument, and relation kinds), a math-operator
 /// question, and an indirect `kau` question with focus and a presupposed answer.
-/// All 44 render from oracle commit `d5d1dfd`. See
-/// `tests/phaseb_corpus/PROVENANCE.md`.
+/// The four jbotci#652 additions cover fronted and tail-position predication
+/// tags, a `fi'o` body formula, and an eventuality-level tagged fragment. See
+/// `tests/phaseb_corpus/PROVENANCE.md`; all 48 render from oracle commit
+/// `c6004a1bc4dda0c9d27cef188e21402d64f36d30`.
 pub const CORPUS_DOCS: &[&str] = &[
     "b13",
     "b14",
@@ -69,6 +71,10 @@ pub const CORPUS_DOCS: &[&str] = &[
     "question-tense",
     "question-math-operator",
     "question-indirect-presupposed",
+    "modal-fronted-vao",
+    "modal-tail-sepio",
+    "modal-fiho-selpilno",
+    "modal-eventuality-fragment",
 ];
 
 /// Whether `doc` is a known frozen corpus document.
@@ -98,8 +104,8 @@ mod tests {
         // relation-question witness (jbotci#620, oracle 7e9c722) and the
         // `mi-klama-fia` place-question witness (jbotci#620 round-1 review B3),
         // plus the five discriminant-rich question witnesses added for
-        // jbotci#622.
-        assert_eq!(CORPUS_DOCS.len(), 44);
+        // jbotci#622 and four tagged-argument witnesses added for jbotci#652.
+        assert_eq!(CORPUS_DOCS.len(), 48);
         assert!(corpus_docs_are_unique());
         assert!(is_corpus_doc("small-mi-klama"));
         assert!(is_corpus_doc("ti-mo"));
@@ -109,6 +115,10 @@ mod tests {
         assert!(is_corpus_doc("question-tense"));
         assert!(is_corpus_doc("question-math-operator"));
         assert!(is_corpus_doc("question-indirect-presupposed"));
+        assert!(is_corpus_doc("modal-fronted-vao"));
+        assert!(is_corpus_doc("modal-tail-sepio"));
+        assert!(is_corpus_doc("modal-fiho-selpilno"));
+        assert!(is_corpus_doc("modal-eventuality-fragment"));
         assert!(!is_corpus_doc("b20"));
     }
 }

@@ -32,7 +32,7 @@ use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::model::SemanticGraph;
 
@@ -517,19 +517,69 @@ fn render_source(w: &mut Writer, ctx: &Ctx, obj: &Value) {
         return;
     };
     w.heading("PROVENANCE", |w| {
-        if let Some(span) = src.get("span").filter(|s| !s.is_null()) {
-            if let (Some(start), Some(end)) = (span.get("byteStart"), span.get("byteEnd")) {
-                w.field(
-                    "BYTE SPAN",
-                    &format!("{}..{}", number_str(start), number_str(end)),
-                );
-            }
+        render_source_fields(w, src);
+    });
+}
+
+/// The coordinates inside a `PROVENANCE` block. Keeping the block wrapper
+/// separate lets nested modal arguments put their lexical introducer alongside
+/// the source coordinates without inventing a content-level cmavo field.
+#[requires(true)]
+#[ensures(true)]
+fn render_source_fields(w: &mut Writer, source: &Value) {
+    if let Some(span) = source.get("span").filter(|span| !span.is_null()) {
+        if let (Some(start), Some(end)) = (span.get("byteStart"), span.get("byteEnd")) {
+            w.field(
+                "BYTE SPAN",
+                &format!("{}..{}", number_str(start), number_str(end)),
+            );
         }
-        if let Some(text) = field_str(src, "text") {
-            w.field("TEXT", &quote(text));
-        }
-        if let Some(construct) = field_str(src, "construct") {
-            w.field("CONSTRUCT", &quote(construct));
+    }
+    if let Some(text) = field_str(source, "text") {
+        w.field("TEXT", &quote(text));
+    }
+    if let Some(construct) = field_str(source, "construct") {
+        w.field("CONSTRUCT", &quote(rendered_source_construct(construct)));
+    }
+}
+
+/// JSON source constructs retain the versioned model's historical terminology,
+/// but the human-facing notation uses neutral "tag" wording. This is an exact
+/// vocabulary translation, not a substring rewrite, so unknown constructs stay
+/// visible verbatim.
+#[requires(!construct.is_empty())]
+#[ensures(!ret.is_empty())]
+fn rendered_source_construct(construct: &str) -> &str {
+    match construct {
+        "modal-argument" => "tagged-argument",
+        "modal-indicator" => "tagged-indicator",
+        "modal-fragment" => "tagged-fragment",
+        "tense-modal-fragment" => "tense-tag-fragment",
+        "modal-branch-formula" => "tag-branch-formula",
+        "modal-connection-formula" => "tag-connection-formula",
+        _ => construct,
+    }
+}
+
+/// Modal introducers (`va'o`, `se pi'o`, `fi'o ...`) are surface provenance,
+/// not semantic notation keywords. They are therefore emitted only in the
+/// opt-in provenance profile, in the same block as the modal's source span.
+#[requires(true)]
+#[ensures(true)]
+fn render_modal_provenance(w: &mut Writer, ctx: &Ctx, modal_argument: &Value) {
+    if !ctx.provenance {
+        return;
+    }
+    w.heading("PROVENANCE", |w| {
+        w.field(
+            "INTRODUCED BY",
+            &lexical(req_str(modal_argument, "introducedBy")),
+        );
+        if let Some(source) = modal_argument
+            .get("source")
+            .filter(|source| !source.is_null())
+        {
+            render_source_fields(w, source);
         }
     });
 }
@@ -839,6 +889,228 @@ fn operand_ref(ctx: &Ctx, value: &Value) -> String {
     }
 }
 
+/// One `ArgumentValue` in an order-bearing callable-place map. This is shared
+/// by ordinary numbered predication places and the places nested below a modal
+/// predicate keyword. Occurrence-owned relative clauses and provenance retain
+/// exactly the same rendering in both contexts.
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn render_argument_value_entry(w: &mut Writer, ctx: &Ctx, label: &str, argument: &Value) {
+    let operand = operand_ref(ctx, req_val(argument, "value"));
+    let label = format!("{label} {operand}");
+    let relative_clauses = argument
+        .get("relativeClauses")
+        .and_then(Value::as_array)
+        .filter(|clauses| !clauses.is_empty());
+    let show_source = ctx.provenance
+        && argument
+            .get("source")
+            .is_some_and(|source| !source.is_null());
+    if relative_clauses.is_some() || show_source {
+        w.heading(&label, |w| {
+            if let Some(clauses) = relative_clauses {
+                render_relative_clauses(w, ctx, clauses);
+            }
+            render_source(w, ctx, argument);
+        });
+    } else {
+        w.entry(&label);
+    }
+}
+
+/// Emit the entries of a canonical callable-place map without adding an
+/// enclosing `ARGS`. Callers use this for both the host predication's numbered
+/// places and a modal predicate's recursively nested places.
+#[requires(!arguments.is_empty())]
+#[ensures(true)]
+fn render_argument_entries(w: &mut Writer, ctx: &Ctx, arguments: &Map<String, Value>) {
+    let mut keys: Vec<&String> = arguments.keys().collect();
+    keys.sort_by_key(|key| place_number(key));
+    for key in keys {
+        let place = place_number(key);
+        assert!(
+            place > 0 && key == &format!("x{place}"),
+            "argument place `{key}` is not a canonical xN key (contract violated)"
+        );
+        render_argument_value_entry(w, ctx, &format!("[{place}]:"), &arguments[key]);
+    }
+}
+
+/// A scalar-negation value nested in a modal argument.
+#[requires(true)]
+#[ensures(true)]
+fn render_scalar_negation(w: &mut Writer, ctx: &Ctx, scalar_negation: &Value) {
+    w.heading("SCALAR NEGATION", |w| {
+        w.field("KIND", &enum_render(req_str(scalar_negation, "kind")));
+        w.field(
+            "INTRODUCED BY",
+            &lexical(req_str(scalar_negation, "introducedBy")),
+        );
+        if let Some(scale) = scalar_negation.get("scale") {
+            w.field("SCALE", &ctx.id_of(scale));
+        }
+        if let Some(argument_scope) = scalar_negation
+            .get("argumentScope")
+            .and_then(Value::as_array)
+            .filter(|scope| !scope.is_empty())
+        {
+            w.ordered("ARGUMENT SCOPE", |w| {
+                for place in argument_scope {
+                    let key = pointer_key(place);
+                    let number = place_number(key);
+                    assert!(
+                        number > 0 && key == format!("x{number}"),
+                        "scalar-negation argument scope `{key}` is not a canonical xN key \
+                         (contract violated)"
+                    );
+                    w.entry(&format!("[{number}]"));
+                }
+            });
+        }
+    });
+}
+
+/// One displayed-content modifier nested in a modal argument.
+#[requires(true)]
+#[ensures(true)]
+fn render_displayed_content_modifier(w: &mut Writer, ctx: &Ctx, modifier: &Value) {
+    w.field("RELATION", &lexical(req_str(modifier, "relation")));
+    if let Some(family) = field_str(modifier, "family") {
+        w.field("FAMILY", &enum_render(family));
+    }
+    if let Some(polarity) = field_str(modifier, "polarity") {
+        w.field("POLARITY", &enum_render(polarity));
+    }
+    if let Some(intensity) = field_str(modifier, "intensity") {
+        w.field("INTENSITY", &lexical(intensity));
+    }
+    if let Some(assertion_effect) = field_str(modifier, "assertionEffect") {
+        w.field("ASSERTION EFFECT", &enum_render(assertion_effect));
+    }
+    render_source(w, ctx, modifier);
+}
+
+/// Content fields shared by relation-keyed and formula-keyed modal entries.
+#[requires(true)]
+#[ensures(true)]
+fn render_modal_entry_metadata(w: &mut Writer, ctx: &Ctx, modal_argument: &Value) {
+    if let Some(negation) = modal_argument
+        .get("negation")
+        .filter(|value| !value.is_null())
+    {
+        w.heading("NEGATION", |w| {
+            w.field("KIND", &enum_render(req_str(negation, "kind")));
+            w.field("INTRODUCED BY", &lexical(req_str(negation, "introducedBy")));
+        });
+    }
+    if let Some(scalar_negation) = modal_argument
+        .get("scalarNegation")
+        .filter(|value| !value.is_null())
+    {
+        render_scalar_negation(w, ctx, scalar_negation);
+    }
+    if let Some(modifiers) = modal_argument
+        .get("modifiers")
+        .and_then(Value::as_array)
+        .filter(|modifiers| !modifiers.is_empty())
+    {
+        w.ordered("MODIFIERS", |w| {
+            for (index, modifier) in modifiers.iter().enumerate() {
+                w.heading(&format!("[{}]:", index + 1), |w| {
+                    render_displayed_content_modifier(w, ctx, modifier);
+                });
+            }
+        });
+    }
+    render_modal_provenance(w, ctx, modal_argument);
+}
+
+/// Whether a formula-keyed modal needs a block rather than the compact
+/// `[formula]: REFERENCE DENOTATION component;` entry.
+#[requires(true)]
+#[ensures(true)]
+fn formula_modal_has_metadata(ctx: &Ctx, modal_argument: &Value) -> bool {
+    modal_argument
+        .get("negation")
+        .is_some_and(|value| !value.is_null())
+        || modal_argument
+            .get("scalarNegation")
+            .is_some_and(|value| !value.is_null())
+        || modal_argument
+            .get("modifiers")
+            .and_then(Value::as_array)
+            .is_some_and(|modifiers| !modifiers.is_empty())
+        || ctx.provenance
+}
+
+/// Render one modal as a keyword-indexed `ARGS` entry. A relation modal uses
+/// the desugared predicate word as its key and recursively renders that
+/// predicate's numbered places. An ad-hoc `fi'o` modal uses its formula ID as
+/// the key and the host component as the value.
+#[requires(true)]
+#[ensures(true)]
+fn render_modal_argument_entry(w: &mut Writer, ctx: &Ctx, modal_argument: &Value) {
+    if let Some(relation) = field_str(modal_argument, "relation") {
+        let arguments = req_val(modal_argument, "arguments")
+            .as_object()
+            .unwrap_or_else(|| {
+                panic!("modal `arguments` must be a JSON object (contract violated)")
+            });
+        assert!(
+            !arguments.is_empty(),
+            "relation modal must have at least one argument (contract violated)"
+        );
+        w.ordered(&format!("[{relation}]:"), |w| {
+            render_argument_entries(w, ctx, arguments);
+            if let Some(component) = modal_argument.get("component") {
+                w.field("COMPONENT", &ctx.id_of(component));
+            }
+            render_modal_entry_metadata(w, ctx, modal_argument);
+        });
+        return;
+    }
+
+    let body = ctx.id_of(req_val(modal_argument, "body"));
+    let component = ctx.id_of(req_val(modal_argument, "component"));
+    let label = format!("[{body}]: REFERENCE DENOTATION {component}");
+    if formula_modal_has_metadata(ctx, modal_argument) {
+        w.heading(&label, |w| {
+            render_modal_entry_metadata(w, ctx, modal_argument);
+        });
+    } else {
+        w.entry(&label);
+    }
+}
+
+/// Host numbered arguments followed by modal keyword entries, all inside the
+/// single existing `ARGS` sequence. Modal array order is canonical JSON
+/// document order and is preserved exactly.
+#[requires(true)]
+#[ensures(true)]
+fn render_arguments(w: &mut Writer, ctx: &Ctx, obj: &Value) {
+    let arguments = obj
+        .get("arguments")
+        .and_then(Value::as_object)
+        .filter(|arguments| !arguments.is_empty());
+    let modal_arguments = obj
+        .get("modalArguments")
+        .and_then(Value::as_array)
+        .filter(|arguments| !arguments.is_empty());
+    if arguments.is_none() && modal_arguments.is_none() {
+        return;
+    }
+    w.ordered("ARGS", |w| {
+        if let Some(arguments) = arguments {
+            render_argument_entries(w, ctx, arguments);
+        }
+        if let Some(modal_arguments) = modal_arguments {
+            for modal_argument in modal_arguments {
+                render_modal_argument_entry(w, ctx, modal_argument);
+            }
+        }
+    });
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
@@ -902,47 +1174,7 @@ fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         if let Some(eventuality) = obj.get("eventuality") {
             w.field("EVENTUALITY", &ctx.id_of(eventuality));
         }
-        if let Some(args) = obj
-            .get("arguments")
-            .and_then(Value::as_object)
-            .filter(|a| !a.is_empty())
-        {
-            // opt_terse_labels: ARGS; opt_bracket_keys: [N]:. Canonical x1..xn
-            // emission order.
-            let mut keys: Vec<&String> = args.keys().collect();
-            keys.sort_by_key(|k| place_number(k));
-            w.ordered("ARGS", |w| {
-                for xk in keys {
-                    let n = place_number(xk);
-                    let arg = &args[xk];
-                    let operand = operand_ref(ctx, req_val(arg, "value"));
-                    let label = format!("[{n}]: {operand}");
-                    // Amendment 3: an ArgumentValue's own `relativeClauses`
-                    // render (the builder attaches them only to the argument
-                    // occurrence; no invariant duplicates them as a rendered
-                    // restriction). Amendment 2: the filler's own `source`
-                    // renders under provenance. An argument with either becomes
-                    // a heading (RELATIVE CLAUSES first, then its PROVENANCE);
-                    // a plain argument stays the compact entry.
-                    let arg_rcs = arg
-                        .get("relativeClauses")
-                        .and_then(Value::as_array)
-                        .filter(|c| !c.is_empty());
-                    let show_source =
-                        ctx.provenance && arg.get("source").is_some_and(|s| !s.is_null());
-                    if arg_rcs.is_some() || show_source {
-                        w.heading(&label, |w| {
-                            if let Some(clauses) = arg_rcs {
-                                render_relative_clauses(w, ctx, clauses);
-                            }
-                            render_source(w, ctx, arg);
-                        });
-                    } else {
-                        w.entry(&label);
-                    }
-                }
-            });
-        }
+        render_arguments(w, ctx, obj);
         w.field("MODE", &enum_render(req_str(obj, "mode")));
         if let Some(place_questions) = obj
             .get("placeQuestions")
@@ -1052,7 +1284,11 @@ fn render_connector(w: &mut Writer, connector: Option<&Value>, full: bool) {
     };
     w.field("CONNECTIVE SOURCE", &lexical(req_str(connector, "source")));
     if full {
-        w.field("LOCUS", &enum_render(req_str(connector, "locus")));
+        let locus = match req_str(connector, "locus") {
+            "modal" => "tag",
+            locus => locus,
+        };
+        w.field("LOCUS", &enum_render(locus));
     }
     if let Some(truth_table) = field_str(connector, "truthTable") {
         w.field("TRUTH TABLE", &enum_render(truth_table));
@@ -1189,6 +1425,7 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         }
         render_eventuality_dimensions(w, ctx, &key, obj);
         render_interval_modifiers(w, ctx, obj);
+        render_arguments(w, ctx, obj);
         render_sign_content(w, ctx, obj);
         if let Some(descriptor) = obj.get("descriptor").filter(|d| !d.is_null()) {
             render_descriptor(w, ctx, descriptor);
@@ -1485,4 +1722,168 @@ fn render_question_slots(w: &mut Writer, ctx: &Ctx, slots: &[Value]) {
             });
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_arguments_share_host_args_and_hide_surface_introducers() {
+        let objects = BTreeMap::from([
+            ("entity:1".to_owned(), json!({ "type": "referent" })),
+            ("entity:2".to_owned(), json!({ "type": "referent" })),
+            ("formula:3".to_owned(), json!({ "type": "formula" })),
+        ]);
+        let id_map = BTreeMap::from([
+            ("entity:1".to_owned(), "r1".to_owned()),
+            ("entity:2".to_owned(), "r2".to_owned()),
+            ("formula:3".to_owned(), "f3".to_owned()),
+        ]);
+        let host = json!({
+            "arguments": {
+                "x1": { "kind": "filled", "value": "entity:1" }
+            },
+            "modalArguments": [
+                {
+                    "relation": "pilno",
+                    "introducedBy": "se pi'o",
+                    "arguments": {
+                        "x1": { "kind": "elided", "value": "entity:2" },
+                        "x2": { "kind": "filled", "value": "entity:1" },
+                        "x3": { "kind": "filled", "value": "entity:2" }
+                    },
+                    "source": {
+                        "span": { "byteStart": 4, "byteEnd": 15 },
+                        "text": "sepi'o lo ko'a",
+                        "construct": "modal-argument"
+                    }
+                },
+                {
+                    "introducedBy": "fi'o broda",
+                    "body": "formula:3",
+                    "component": "entity:2"
+                }
+            ]
+        });
+
+        let ordinary_ctx = Ctx {
+            objects: &objects,
+            id_map: &id_map,
+            provenance: false,
+        };
+        let mut writer = Writer::new(false, false);
+        render_arguments(&mut writer, &ordinary_ctx, &host);
+        let ordinary = writer.finish();
+        assert_eq!(ordinary.matches("ARGS (").count(), 1, "{ordinary}");
+        assert!(ordinary.contains("[1]: REFERENCE DENOTATION r1;"));
+        assert!(ordinary.contains("[pilno]: ("));
+        assert!(ordinary.contains("[3]: REFERENCE DENOTATION r2;"));
+        assert!(ordinary.contains("[f3]: REFERENCE DENOTATION r2;"));
+        assert!(!ordinary.contains("MODAL ARGUMENTS"));
+        assert!(!ordinary.contains("se pi'o"));
+        assert!(!ordinary.contains("fi'o broda"));
+        assert!(
+            ordinary.find("[1]:").expect("host numbered argument")
+                < ordinary.find("[pilno]:").expect("modal predicate key"),
+            "modal entries must follow numbered entries:\n{ordinary}"
+        );
+        assert!(
+            ordinary.find("[pilno]:").expect("first modal")
+                < ordinary.find("[f3]:").expect("second modal"),
+            "modal JSON document order changed:\n{ordinary}"
+        );
+
+        let provenance_ctx = Ctx {
+            objects: &objects,
+            id_map: &id_map,
+            provenance: true,
+        };
+        let mut writer = Writer::new(false, false);
+        render_arguments(&mut writer, &provenance_ctx, &host);
+        let provenance = writer.finish();
+        for expected in [
+            "INTRODUCED BY: se pi'o;",
+            "INTRODUCED BY: fi'o broda;",
+            "BYTE SPAN: 4..15;",
+            "CONSTRUCT: \"tagged-argument\";",
+        ] {
+            assert!(
+                provenance.contains(expected),
+                "missing `{expected}`:\n{provenance}"
+            );
+        }
+        assert_no_standalone_modal_word(&ordinary);
+        assert_no_standalone_modal_word(&provenance);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn eventuality_without_arguments_gets_args_only_for_modals() {
+        let objects = BTreeMap::from([("eventuality:1".to_owned(), json!({ "type": "referent" }))]);
+        let id_map = BTreeMap::from([("eventuality:1".to_owned(), "r1".to_owned())]);
+        let ctx = Ctx {
+            objects: &objects,
+            id_map: &id_map,
+            provenance: false,
+        };
+        let host = json!({
+            "modalArguments": [{
+                "relation": "vanbi",
+                "introducedBy": "va'o",
+                "arguments": {
+                    "x1": { "kind": "filled", "value": "eventuality:1" }
+                }
+            }]
+        });
+
+        let mut writer = Writer::new(false, false);
+        render_arguments(&mut writer, &ctx, &host);
+        assert_eq!(
+            writer.finish(),
+            "ARGS (\n  [vanbi]: (\n    [1]: REFERENCE DENOTATION r1;\n  )\n)\n"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_no_standalone_modal_word(rendered: &str) {
+        assert!(
+            !rendered
+                .split(|character: char| !character.is_ascii_alphanumeric())
+                .any(|word| word.eq_ignore_ascii_case("modal")),
+            "human-facing smusni must not use the standalone word `modal`:\n{rendered}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn historical_modal_source_and_locus_vocabulary_is_neutralized() {
+        for (construct, rendered) in [
+            ("modal-argument", "tagged-argument"),
+            ("modal-indicator", "tagged-indicator"),
+            ("modal-fragment", "tagged-fragment"),
+            ("tense-modal-fragment", "tense-tag-fragment"),
+            ("modal-branch-formula", "tag-branch-formula"),
+            ("modal-connection-formula", "tag-connection-formula"),
+        ] {
+            assert_eq!(rendered_source_construct(construct), rendered);
+            assert_no_standalone_modal_word(rendered);
+        }
+
+        let connector = json!({
+            "source": "ki'u",
+            "locus": "modal"
+        });
+        let mut writer = Writer::new(false, false);
+        render_connector(&mut writer, Some(&connector), true);
+        let rendered = writer.finish();
+        assert!(rendered.contains("LOCUS: TAG;"));
+        assert_no_standalone_modal_word(&rendered);
+    }
 }
