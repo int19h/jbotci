@@ -3445,11 +3445,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 first_visible_place,
             );
         }
-        self.build_term_assignments_for_terms_with_shared_tail_source_core(
-            terms,
-            first_visible_place,
-            shared_tail_start,
-        )
+        self.with_pending_sumti_candidates_for_terms(&terms, |builder| {
+            builder.build_term_assignments_for_terms_with_shared_tail_source_core(
+                &terms,
+                first_visible_place,
+                shared_tail_start,
+            )
+        })
     }
 
     #[requires(true)]
@@ -3467,14 +3469,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms_with_shared_tail_source_core<'syntax: 'tree>(
         &mut self,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         shared_tail_start: Option<usize>,
     ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
         let mut assignments = empty_generated_term_assignments();
         assignments.next_visible_place = first_visible_place;
-        let governed_termsets = generated_governed_termset_indices_for_terms(&terms);
-        for (index, term) in terms.into_iter().enumerate() {
+        let governed_termsets = generated_governed_termset_indices_for_terms(terms);
+        for (index, term) in terms.iter().copied().enumerate() {
             if governed_termsets.contains(&index) {
                 continue;
             }
@@ -3522,6 +3524,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         first_visible_place: usize,
         excluded_source: Option<&SourceByteSpan>,
     ) -> Result<(GeneratedTermAssignments<'syntax>, bool), SemanticsError> {
+        self.with_pending_sumti_candidates_for_terms(&terms, |builder| {
+            builder.build_term_assignments_for_terms_excluding_source_core(
+                &terms,
+                first_visible_place,
+                excluded_source,
+            )
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(assignments, _)| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
+    pub(super) fn build_term_assignments_for_terms_excluding_source_core<'syntax: 'tree>(
+        &mut self,
+        terms: &[&'syntax TermSyntax],
+        first_visible_place: usize,
+        excluded_source: Option<&SourceByteSpan>,
+    ) -> Result<(GeneratedTermAssignments<'syntax>, bool), SemanticsError> {
         let mut visible_arguments = BTreeMap::new();
         let mut place_questions = Vec::new();
         let mut modal_terms = Vec::new();
@@ -3532,8 +3551,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut next_visible_place = first_visible_place;
         let mut skipped_excluded_source = false;
         let mut assigned_places_for_skipped = BTreeSet::new();
-        let governed_termsets = generated_governed_termset_indices_for_terms(&terms);
-        for (index, term) in terms.into_iter().enumerate() {
+        let governed_termsets = generated_governed_termset_indices_for_terms(terms);
+        for (index, term) in terms.iter().copied().enumerate() {
             if governed_termsets.contains(&index) {
                 continue;
             }

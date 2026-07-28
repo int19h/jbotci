@@ -1,6 +1,9 @@
 //! Semantic builder that consumes the generated syntax model directly.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, HashSet},
+};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
@@ -343,6 +346,25 @@ struct GeneratedIndirectQuestionFocus {
 struct GeneratedPendingSumtiCandidate<'syntax> {
     source_key: (usize, usize),
     sumti: &'syntax SumtiSyntax,
+}
+
+#[invariant(sumti.try_borrow().is_ok(), "the visitor must not retain a candidate-list borrow between traversal events")]
+#[derive(Debug, Default)]
+struct GeneratedPendingSumtiCollector<'syntax> {
+    sumti: RefCell<Vec<&'syntax SumtiSyntax>>,
+}
+
+impl<'syntax> TreeVisitor<'syntax> for GeneratedPendingSumtiCollector<'syntax> {
+    type Node = GeneratedNodeRef<'syntax>;
+    type Atom = GeneratedAtomRef<'syntax>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if let GeneratedNodeRef::SumtiSyntax(sumti) = node {
+            self.sumti.borrow_mut().push(sumti);
+        }
+    }
 }
 
 #[invariant(!key.is_empty())]
@@ -8675,6 +8697,18 @@ mod tests {
             .unwrap_or_else(|| panic!("`{relation}` x{place} has no filled value"))
     }
 
+    #[requires(!source.is_empty())]
+    #[requires(!antecedent_relation.is_empty())]
+    #[ensures(true)]
+    fn assert_ri_targets_relation_x1(source: &str, antecedent_relation: &str) {
+        let graph = semantic_graph_for(source);
+        assert_eq!(
+            named_predication_place_value(&graph, "barda", 1),
+            named_predication_place_value(&graph, antecedent_relation, 1),
+            "`ri` must share the most recent eligible sumti referent in `{source}`",
+        );
+    }
+
     #[requires(!relation.is_empty() && !modal_relation.is_empty() && place > 0)]
     #[ensures(graph.objects.contains_key(&ret))]
     fn named_predication_modal_place_value(
@@ -11565,6 +11599,76 @@ mod tests {
             modal_values[0].referent_sort(),
             Some(SemanticSort::Eventuality(EventualitySort::General))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_bai_modal_filler_sumti_is_recent_ri_antecedent() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i va'o lo nu lo mlatu cu cadzu kei ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_abstraction_sumti_remains_recent_ri_control() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i lo nu lo mlatu cu cadzu cu fasnu .i ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tail_bai_modal_filler_sumti_remains_recent_ri_control() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama va'o lo nu lo mlatu cu cadzu .i ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_tense_filler_sumti_remains_recent_ri_control() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i ca lo nu lo mlatu cu cadzu kei ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_tense_and_bai_fillers_use_beginning_order_for_ri() {
+        assert_ri_targets_relation_x1(
+            "lo gerku cu klama .i ca lo nu lo xirma cu bajra kei va'o lo nu lo mlatu cu cadzu kei ri barda",
+            "cadzu",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fronted_bai_modal_filler_ri_target_survives_gohi_replay() {
+        let source = "lo gerku cu klama .i va'o lo nu lo mlatu cu cadzu kei ri tavla .i go'i";
+        let graph = semantic_graph_for(source);
+        let antecedent = named_predication_place_value(&graph, "cadzu", 1);
+        let tavla = named_predication_ids(&graph, "tavla");
+        assert_eq!(tavla.len(), 2, "`go'i` must replay the preceding bridi");
+        for predication in tavla {
+            assert_eq!(
+                graph.objects[&predication]
+                    .as_predication()
+                    .and_then(|predication| predication.arguments[&argument_key(1)].value),
+                Some(antecedent),
+                "both the original and replayed `tavla` x1 must share the modal-internal antecedent",
+            );
+        }
     }
 
     #[test]
