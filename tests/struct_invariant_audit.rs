@@ -1464,6 +1464,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityKindTelemetry",
+        "raw event counters deliberately admit every intermediate combination while telemetry is accumulated",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityTelemetry",
+        "local and boundary-resync telemetry are independent invariant-bearing counter snapshots",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
         "nonzero trial and frame components make every identity pair structurally valid",
     ),
