@@ -4,8 +4,13 @@ use super::*;
 /// from reaching canonical semantic lowering. The morphology inventory contains
 /// more BAI spellings than the complete 65-member CLL 9.17 table; their
 /// predicate mappings are not standardized and must not be guessed.
-#[invariant(true)]
-#[derive(Default)]
+#[invariant(
+    unsupported_marker
+        .as_ref()
+        .is_none_or(|marker| !marker.is_empty()),
+    "captured unsupported BAI markers must be non-empty"
+)]
+#[derive(Clone, Default)]
 struct GeneratedBaiSupportValidator {
     unsupported_marker: Option<String>,
 }
@@ -29,7 +34,9 @@ impl<'tree> TreeWalker<'tree> for GeneratedBaiSupportValidator {
                 .map(|token| token_text(token));
             if let Some(marker) = marker {
                 if modal_relation_for_marker(&marker).is_none() {
-                    self.unsupported_marker = Some(marker);
+                    *self = self.clone().with_data(data! {
+                        unsupported_marker: Some(marker)
+                    });
                 }
             }
         }
@@ -44,7 +51,7 @@ pub(super) fn validate_supported_bai_modal_markers(
 ) -> Result<(), SemanticsError> {
     let mut validator = GeneratedBaiSupportValidator::default();
     TreeWalkable::walk_with(syntax, &mut validator);
-    if let Some(marker) = validator.unsupported_marker {
+    if let Some(marker) = validator.into_data().unsupported_marker {
         return Err(invalid_graph(format!(
             "BAI `{marker}` has no standardized predicate mapping in the complete CLL 9.17 table"
         )));
