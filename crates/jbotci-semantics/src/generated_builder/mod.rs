@@ -46,22 +46,22 @@ use jbotci_syntax::generated_model::{
     LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax,
     MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax,
     MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax, MultipleNaFragmentSyntax,
-    NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax,
-    NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
-    NumberWordContinuationSyntax, NumberWordsSyntax, OperatorSelbriTanruUnitSyntax,
-    OrdinalTanruUnitSyntax, ParagraphStandardStatementConnectiveSyntax,
-    ParagraphStatementSequenceSyntax, ParagraphSyntax, ParenthesizedMeksoOperandSyntax,
-    PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax, PendingIConnectiveSyntax,
-    PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax, PrenexFragmentSyntax, PrenexStatementSyntax,
-    PrenexSubbridiSyntax, PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax,
-    ProSumtiSyntax, QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax,
-    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
-    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
-    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
-    RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax, RelativeClauseListSyntax,
-    RelativeClauseTailSyntax, RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax,
-    ReversePolishMeksoSyntax, ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax,
-    ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
+    NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax, NegatedSelbriSyntax,
+    NihoParagraphSyntax, NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax,
+    NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
+    OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
+    ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
+    ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
+    PendingIConnectiveSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
+    PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
+    PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
+    QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
+    QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
+    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
+    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax,
+    RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
+    RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax, ReversePolishPartsSyntax,
+    ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
     ScalarNegatedTanruUnitSyntax, SelbriFragmentSyntax, SelbriMeksoOperandSyntax,
     SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
     SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
@@ -73,7 +73,7 @@ use jbotci_syntax::generated_model::{
     SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax,
     SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSumtiTermSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
+    TaggedSelbriSyntax, TaggedSumtiTermSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
     TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalAtomSyntax, TenseModalBodySyntax,
     TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
@@ -717,6 +717,14 @@ struct GeneratedModalStatementConnectionSpec {
     relation: String,
     visible_place: usize,
     argument_kind: GeneratedModalConnectionArgumentKind,
+}
+
+#[invariant(!relation.is_empty(), "a simple fi'o selbri must name its lexical relation")]
+#[invariant(*visible_place > 0, "converted fi'o places are 1-based")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GeneratedSimpleFihoRelationSpec {
+    relation: String,
+    visible_place: usize,
 }
 
 #[invariant(!source.is_empty(), "modal connection source must preserve connector text")]
@@ -8548,6 +8556,80 @@ mod tests {
         )
     }
 
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn semantic_graph_json_without_provenance(source: &str) -> serde_json::Value {
+        let graph = semantic_graph_for(source);
+        let json = graph.to_json_string(0).expect("serialize semantic graph");
+        let mut value = serde_json::from_str(&json).expect("parse serialized semantic graph");
+        remove_semantic_graph_provenance(&mut value);
+        value
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn remove_semantic_graph_provenance(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Object(map) => {
+                // `SemanticSource` serializes as an object, whereas the
+                // semantically significant `Connector::source` is a string.
+                // Preserve the latter while normalizing graph provenance.
+                if map.get("source").is_some_and(serde_json::Value::is_object) {
+                    map.remove("source");
+                }
+                if let Some(serde_json::Value::Array(modal_arguments)) =
+                    map.get_mut("modalArguments")
+                {
+                    for modal_argument in modal_arguments {
+                        if let serde_json::Value::Object(modal_argument) = modal_argument {
+                            modal_argument.remove("introducedBy");
+                        }
+                    }
+                }
+                for child in map.values_mut() {
+                    remove_semantic_graph_provenance(child);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for item in items {
+                    remove_semantic_graph_provenance(item);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn graph_provenance_normalization_preserves_semantic_source_fields() {
+        let mut value = serde_json::json!({
+            "connector": {
+                "source": "gi'e",
+                "locus": "bridi-tail",
+            },
+            "object": {
+                "source": {
+                    "span": {
+                        "byteStart": 0,
+                        "byteEnd": 4,
+                    },
+                    "text": "pilno",
+                },
+            },
+            "modalArguments": [{
+                "introducedBy": "fi'o",
+                "relation": "pilno",
+            }],
+        });
+
+        remove_semantic_graph_provenance(&mut value);
+
+        assert_eq!(value["connector"]["source"], "gi'e");
+        assert!(value["object"].get("source").is_none());
+        assert!(value["modalArguments"][0].get("introducedBy").is_none());
+    }
+
     #[requires(graph.objects.values().any(|object| matches!(object.as_formula().map(FormulaNode::as_data), Some(data!(FormulaNode::Quantified(node))) if node.operator == FormulaOperator::Forall)))]
     #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
     fn forall_variable(graph: &SemanticGraph) -> SemanticObjectId {
@@ -12149,6 +12231,87 @@ mod tests {
         }
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn simple_fiho_and_bai_graphs_are_equivalent_modulo_provenance() {
+        assert_eq!(
+            semantic_graph_json_without_provenance("mi klama pi'o lo skami"),
+            semantic_graph_json_without_provenance("mi klama fi'o pilno lo skami"),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn converted_simple_fiho_and_bai_graphs_are_equivalent_modulo_provenance() {
+        assert_eq!(
+            semantic_graph_json_without_provenance("mi klama se pi'o lo skami"),
+            semantic_graph_json_without_provenance("mi klama fi'o se pilno lo skami"),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn simple_and_composite_fiho_selbri_keep_distinct_structural_shapes() {
+        for (source, selected_place) in [
+            ("mi klama fi'o pilno fe'u lo skami", 1),
+            ("mi klama fi'o se pilno fe'u lo skami", 2),
+            ("mi klama fi'o se ke pilno ke'e fe'u lo skami", 2),
+        ] {
+            let graph = semantic_graph_for(source);
+            let host_ids = named_predication_ids(&graph, "klama");
+            let [host_id] = host_ids.as_slice() else {
+                panic!("`{source}` must contain exactly one klama predication");
+            };
+            let host = graph.objects[host_id]
+                .as_predication()
+                .expect("klama object must be a predication");
+            let [modal_argument] = host.modal_arguments.as_slice() else {
+                panic!("`{source}` must lower to exactly one tagged argument");
+            };
+
+            assert_eq!(modal_argument.relation.as_deref(), Some("pilno"));
+            assert!(modal_argument.body.is_none());
+            assert!(modal_argument.component.is_none());
+            assert_eq!(modal_argument.introduced_by, "fi'o");
+            assert_eq!(modal_argument.arguments.len(), 3);
+            assert_eq!(
+                modal_argument.arguments[&argument_key(selected_place)].kind,
+                ArgumentValueKind::Filled,
+            );
+            assert_eq!(
+                modal_argument.arguments[&argument_key(3)].value,
+                host.eventuality,
+                "`pilno` x3 must receive the justified host-event link",
+            );
+        }
+
+        for source in [
+            "mi klama fi'o mutce pilno fe'u lo skami",
+            "mi klama fi'o nu mi pilno lo skami kei fe'u lo skami",
+            "mi klama fi'o pilno ja viska fe'u lo skami",
+        ] {
+            let graph = semantic_graph_for(source);
+            let host_ids = named_predication_ids(&graph, "klama");
+            let [host_id] = host_ids.as_slice() else {
+                panic!("`{source}` must contain exactly one klama predication");
+            };
+            let host = graph.objects[host_id]
+                .as_predication()
+                .expect("klama object must be a predication");
+            let [modal_argument] = host.modal_arguments.as_slice() else {
+                panic!("`{source}` must lower to exactly one tagged argument");
+            };
+
+            assert!(modal_argument.relation.is_none(), "`{source}` flattened");
+            assert!(modal_argument.body.is_some(), "`{source}` lost its body");
+            assert_eq!(modal_argument.component, host.eventuality);
+            assert_eq!(modal_argument.introduced_by, "fi'o");
+        }
+    }
+
     /// Scalar-negation scale detection consumes the canonical predicate name,
     /// not the surface BAI spelling returned before complete desugaring.
     #[test]
@@ -13320,7 +13483,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn connected_fiho_modals_copy_the_bridi_and_keep_typed_modal_bodies() {
+    fn connected_simple_fiho_modals_copy_the_bridi_and_keep_flat_relations() {
         let graph = semantic_graph_for(".e'a casnu fi'o selsnu ja fi'o bangu la lojban");
         let casnu = named_predication_ids(&graph, "casnu");
         assert_eq!(casnu.len(), 2, "JA-connected FIhO tags copy the bridi");
@@ -13331,24 +13494,17 @@ mod tests {
                 .as_predication()
                 .expect("casnu branch predication");
             let [modal] = predication.modal_arguments.as_slice() else {
-                panic!("each casnu branch must retain exactly one FIhO modal body");
+                panic!("each casnu branch must retain exactly one FIhO modal relation");
             };
             assert_eq!(modal.introduced_by, "fi'o");
-            let body = modal.body.expect("FIhO modal keeps a typed body formula");
-            assert_eq!(
-                modal.component, predication.eventuality,
-                "the FIhO modal component must be its copied casnu event"
-            );
-            let body = graph.objects[&body]
-                .formula_predication()
-                .and_then(|body| graph.objects.get(&body))
-                .and_then(SemanticObject::as_predication)
-                .expect("FIhO body is an atomic selbri formula");
-            let data!(PredicationRelation::Named { relation }) = body.relation.as_data() else {
-                panic!("FIhO body relation must stay named");
-            };
+            assert!(modal.body.is_none());
+            assert!(modal.component.is_none());
+            let relation = modal
+                .relation
+                .as_ref()
+                .expect("simple FIhO selbri must use its lexical relation");
             modal_relations.insert(relation.clone());
-            let topic = body.arguments[&argument_key(1)]
+            let topic = modal.arguments[&argument_key(1)]
                 .value
                 .expect("la lojban fills the FIhO relation x1");
             assert_eq!(*shared_topic.get_or_insert(topic), topic);

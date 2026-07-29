@@ -2790,11 +2790,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "body",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::Corpus {
-                doc: "modal-fiho-selpilno",
-                path: "Predication:modalArguments.body",
-                expect: new!(WitnessExpect::Present)
-            }),
+            new!(Witness::NoCorpusWitness),
             None,
         ),
         e(
@@ -2803,11 +2799,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             "component",
             EntryKind::Field,
             Presence::Optional,
-            new!(Witness::Corpus {
-                doc: "modal-fiho-selpilno",
-                path: "Predication:modalArguments.component",
-                expect: new!(WitnessExpect::Present)
-            }),
+            new!(Witness::NoCorpusWitness),
             None,
         ),
         e(

@@ -418,7 +418,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
             let argument = self.build_elided_argument_for_place(visible_x1_place)?;
             return self
-                .build_generated_ad_hoc_modal_argument_for_selbri(
+                .build_generated_fiho_modal_argument_for_selbri(
                     tense_modal,
                     selbri,
                     argument,
@@ -508,7 +508,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if let Some(selbri) = generated_fiho_tense_selbri(tense_modal) {
             return self
-                .build_generated_ad_hoc_modal_argument_for_selbri(
+                .build_generated_fiho_modal_argument_for_selbri(
                     tense_modal,
                     selbri,
                     argument,
@@ -558,14 +558,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(!construct.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|modal_argument| modal_argument.body.is_some() && modal_argument.relation.is_none()) || ret.is_err())]
-    pub(super) fn build_generated_ad_hoc_modal_argument_for_selbri<N: TreeNode>(
+    #[ensures(ret.as_ref().is_ok_and(|modal_argument| modal_argument.introduced_by == "fi'o" && (modal_argument.body.is_some() != modal_argument.relation.is_some())) || ret.is_err())]
+    pub(super) fn build_generated_fiho_modal_argument_for_selbri<N: TreeNode>(
         &mut self,
         tense_modal: &N,
         selbri: &'tree SelbriSyntax,
         argument: ArgumentValue,
         construct: &str,
     ) -> Result<ModalArgument, SemanticsError> {
+        if let Some(spec) = generated_simple_fiho_relation_spec(selbri)? {
+            let data!(GeneratedSimpleFihoRelationSpec {
+                relation,
+                visible_place,
+            }) = spec.into_data();
+            let arguments = self.modal_argument_map_for_visible_place(
+                argument,
+                visible_place,
+                relation_place_count(self.dictionary, &relation),
+            )?;
+            return Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                "fi'o".to_owned(),
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                construct,
+            ));
+        }
         let mut visible_arguments = BTreeMap::new();
         insert_visible_argument(&mut visible_arguments, 1, argument)?;
         let source = self.source_for_node(tense_modal, construct);
@@ -882,7 +902,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
             let argument = self.build_elided_argument_for_place(visible_x1_place)?;
             return self
-                .build_generated_ad_hoc_modal_argument_for_selbri(
+                .build_generated_fiho_modal_argument_for_selbri(
                     tense_modal,
                     selbri,
                     argument,

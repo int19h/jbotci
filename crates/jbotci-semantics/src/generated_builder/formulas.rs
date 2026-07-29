@@ -3166,7 +3166,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         )
                     }
                     data!(GeneratedConnectedModalTermKind::AdHoc { fiho }) => self
-                        .build_generated_ad_hoc_modal_argument_for_selbri(
+                        .build_generated_fiho_modal_argument_for_selbri(
                             &term.tense_modal,
                             fiho.selbri.as_ref(),
                             argument.clone(),
