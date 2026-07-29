@@ -3,8 +3,10 @@
 //!
 //! For each of the 48 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at oracle commit `c6004a1bc4dda0c9d27cef188e21402d64f36d30`
-//! (jbotci#652). The corpus comprises the original 37 documents, the two
+//! lean3` using the renderer from oracle commit
+//! `c6004a1bc4dda0c9d27cef188e21402d64f36d30` (jbotci#652), including the
+//! jbotci#682 re-freeze of the simple `fi'o se pilno` witness. The corpus
+//! comprises the original 37 documents, the two
 //! jbotci#620 witnesses, and five new
 //! discriminant-verified question witnesses, plus four tagged-argument
 //! witnesses. `lean3` is the research
@@ -201,12 +203,12 @@ fn preexisting_fixture_bytes_are_unchanged() {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "455109a8f08252344f7865603e6063417d8adabb169031de87618b24b9810243",
+        "c53413d1577a2310f5999042a623271b386e7de0dd5dff3f2f0252f82327fdda",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "a53661c41f7768cf25e5e9f669d2ab42b99048d5aaddb8a4b0f08f437ef4c66c",
+        "2805e6854984c34094c70bd7c906e0c22712f6d914a324d7d5e2eb996f7fe129",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
@@ -391,7 +393,14 @@ fn smusni_tagged_argument_entries_are_explicit_and_terminology_neutral() {
         &graph_for("modal-fiho-selpilno"),
         SmusniConfig { provenance: false },
     );
-    assert!(fiho.contains("[f16]: REFERENCE DENOTATION r6;"));
+    for wording in [
+        "[pilno]: (",
+        "[1]: REFERENCE DENOTATION r12;",
+        "[2]: REFERENCE DENOTATION r7;",
+        "[3]: REFERENCE DENOTATION r6;",
+    ] {
+        assert!(fiho.contains(wording), "missing `{wording}`");
+    }
     assert!(!fiho.contains("fi'o"));
 
     let eventuality = render_smusni(
