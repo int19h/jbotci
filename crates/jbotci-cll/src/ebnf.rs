@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
-use bityzba::{data, invariant, new, requires};
+#[allow(unused_imports)]
+use bityzba::{data, expensive_ensures, invariant, new, requires};
 use roxmltree::Node;
 use serde::{Deserialize, Serialize};
 
@@ -105,7 +106,14 @@ pub(super) fn parse_ebnf_block(
 }
 
 #[requires(entry.is_element())]
-#[ensures(true)]
+#[ensures(
+    ret.as_ref()
+        .is_none_or(|entry| entry.source_anchor_ids.len() == old(source_anchor_ids.len()))
+)]
+#[expensive_ensures(
+    ret.as_ref()
+        .is_none_or(|entry| entry.source_anchor_ids == old(source_anchor_ids.clone()))
+)]
 fn parse_ebnf_entry(
     entry: Node<'_, '_>,
     defined_rules: &BTreeSet<String>,

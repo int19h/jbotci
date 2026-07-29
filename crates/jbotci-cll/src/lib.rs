@@ -888,7 +888,7 @@ fn escape_html_into(output: &mut String, input: &str) {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
     #[allow(unused_imports)]
@@ -1118,7 +1118,7 @@ mod tests {
         let cases = [
             (
                 "1.8",
-                "4494a0d69fd5f7eca5e28a4a082c7fb7b8c3eac150b7df9f21dbc21087075bff",
+                "431f3bacf76041930750732951d356e792574c85f31a41e717e7aab6abfe1710",
             ),
             (
                 "2.1",
@@ -1126,11 +1126,11 @@ mod tests {
             ),
             (
                 "9.6",
-                "98c5e85f5fc1d3386a4b4824e239ba6f4b050676bc780a201bb8163f3b5d8d77",
+                "93e8a2ea9d7b806413d17cccf07996d569bffccf09b1911f5d682d670c2c92e7",
             ),
             (
                 "section-EBNF",
-                "7c83e0fe44e9bca28b1c405247f3f61374e12f441707da3be9cb1b209dd04ad1",
+                "0685302ea249fbcaaedef565e917d6866bdafc362e41440c235603f8ed3599aa",
             ),
         ];
 
@@ -1158,7 +1158,7 @@ mod tests {
         let cases = [
             (
                 "1.8",
-                "a58fbf37c50b71d141b25ac7b440f74d1440b8620f44759a1de618406cfc28fc",
+                "d2eb92b7063ce00201b4ab4b7c4a76ba8dded192b74a5ccad84f29082a5d4366",
             ),
             (
                 "2.1",
@@ -1166,11 +1166,11 @@ mod tests {
             ),
             (
                 "9.6",
-                "d5a91b4ff0a90ffb5c80747122dbab341453d27b5ddaed331a000c5e0d9cedd9",
+                "d8f3a4ecca12a8da76ce60964006413dc6c1cc00b35addd214c476c29964aeb2",
             ),
             (
                 "section-EBNF",
-                "2e3a1e3c4dfac64839ecfd9a1c48fbe48506fe0607a22ff580bbb26552b9adde",
+                "a7aa9ac42cbf574aaeaee9c0ad0ba33771099ca3f7804c84723c2e845608ee5a",
             ),
         ];
 
@@ -1375,6 +1375,7 @@ mod tests {
                 reference: "appendix-peg-morphology".to_owned(),
             },
             CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
         )
         .expect("PEG morphology appendix should render through cukta");
         assert!(rendered.contains("```\n# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
@@ -1400,14 +1401,102 @@ mod tests {
                 .sum::<usize>(),
             214
         );
-        let rendered_cross_reference = render_section(site, cross_reference, CllRenderFormat::Html);
-        assert!(rendered_cross_reference.contains("href=\"section/section-EBNF#cll_bnf-802\""));
-        assert!(rendered_cross_reference.contains(">BNF rule #802</a>"));
 
         let ebnf = cll_lookup_section(site, "section-EBNF").expect("EBNF section should exist");
-        let rendered_ebnf = render_section(site, ebnf, CllRenderFormat::Html);
-        assert!(rendered_ebnf.contains("id=\"cll_bnf-802\""));
+        let mut source_anchor_count = 0;
+        let mut source_anchor_ids = BTreeSet::new();
+        for anchor_id in ebnf
+            .blocks
+            .iter()
+            .filter_map(|block| match block {
+                CllBlock::Ebnf { entries, .. } => Some(entries),
+                _ => None,
+            })
+            .flatten()
+            .flat_map(|entry| &entry.source_anchor_ids)
+            .filter(|anchor_id| anchor_id.starts_with("cll_bnf-"))
+        {
+            source_anchor_count += 1;
+            source_anchor_ids.insert(anchor_id.as_str());
+        }
+        assert_eq!(source_anchor_count, 90);
+        assert_eq!(source_anchor_ids.len(), 90);
+
+        let mut link_targets = CllLinkTargetCounts {
+            counts: BTreeMap::new(),
+        };
+        link_targets.visit_blocks(&cross_reference.blocks);
+        let reference_count = link_targets
+            .counts
+            .iter()
+            .filter(|(target, _)| target.starts_with("cll_bnf-"))
+            .map(|(_, count)| count)
+            .sum::<usize>();
+        assert_eq!(reference_count, 456);
+        let referenced_anchor_ids = link_targets
+            .counts
+            .keys()
+            .filter(|target| target.starts_with("cll_bnf-"))
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(referenced_anchor_ids.len(), 90);
+        assert_eq!(referenced_anchor_ids, source_anchor_ids);
+
+        let emitted_anchor_ids = site
+            .anchors_by_id
+            .iter()
+            .filter(|(anchor_id, anchor)| {
+                anchor_id.starts_with("cll_bnf-") && anchor.section_id == "section-EBNF"
+            })
+            .map(|(anchor_id, _)| anchor_id.as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(emitted_anchor_ids, source_anchor_ids);
+
+        let rendered_cross_reference = render_section(
+            site,
+            cross_reference,
+            CllRenderFormat::Html,
+            CllLinkRenderMode::Web,
+        );
+        let rendered_ebnf =
+            render_section(site, ebnf, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        for anchor_id in referenced_anchor_ids {
+            let href = cll_link_href(site, CllLinkKind::Section, anchor_id);
+            assert_eq!(href, format!("section/section-EBNF#{anchor_id}"));
+            assert!(
+                rendered_cross_reference.contains(&format!("href=\"{href}\"")),
+                "cross-reference output should link to {anchor_id}"
+            );
+            assert!(
+                rendered_ebnf.contains(&format!("id=\"{anchor_id}\"")),
+                "EBNF output should emit {anchor_id}"
+            );
+        }
         assert!(rendered_ebnf.contains("id=\"ebnf-rule-ek\""));
+    }
+
+    #[invariant(
+        true,
+        "all combinations of link targets and occurrence counts are valid collector state"
+    )]
+    struct CllLinkTargetCounts {
+        counts: BTreeMap<String, usize>,
+    }
+
+    #[contract_trait]
+    impl CllBlockVisitor for CllLinkTargetCounts {
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_inline(&mut self, inline: &CllInline) {
+            if let CllInline::Link { target, .. } = inline {
+                if let Some(count) = self.counts.get_mut(target) {
+                    *count += 1;
+                } else {
+                    self.counts.insert(target.clone(), 1);
+                }
+            }
+            super::visitor::walk_inline(self, inline);
+        }
     }
 
     #[test]

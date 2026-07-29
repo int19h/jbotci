@@ -240,6 +240,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "chrestomathy grouping visitor is private traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:CllLinkTargetCounts",
+        "CLL link target counter is private test traversal accumulator state",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:InlinePlainTextVisitor",
         "inline plain text visitor is private traversal accumulator state",
     ),
