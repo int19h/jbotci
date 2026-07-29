@@ -2136,6 +2136,8 @@ impl PersonalParticipantMembership {
 #[invariant(others.is_none() -> (speaker.is_included() && audience.is_included()))]
 #[invariant(others.is_some() -> (speaker.is_included() || audience.is_included()))]
 #[invariant(others.is_none_or(|others| others.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(speaker.referent() != audience.referent(), "speaker and audience must be distinct set members")]
+#[invariant(others.is_none_or(|others| others != speaker.referent() && others != audience.referent()), "unspecified others must be distinct from speaker and audience")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PersonalMassMembership {
@@ -2149,6 +2151,8 @@ impl PersonalMassMembership {
     #[requires(others.is_none() -> (speaker.is_included() && audience.is_included()))]
     #[requires(others.is_some() -> (speaker.is_included() || audience.is_included()))]
     #[requires(others.is_none_or(|others| others.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(speaker.referent() != audience.referent())]
+    #[requires(others.is_none_or(|others| others != speaker.referent() && others != audience.referent()))]
     #[ensures(ret.others == others)]
     pub fn new(
         speaker: PersonalParticipantMembership,
@@ -4640,6 +4644,40 @@ mod tests {
         }));
 
         assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn personal_mass_membership_rejects_aliased_speaker_and_audience() {
+        let speaker = PersonalParticipantMembership::included(SemanticObjectId::referent(1));
+        let audience = PersonalParticipantMembership::included(SemanticObjectId::referent(1));
+
+        let invalid = PersonalMassMembership::try_from_data(data!(PersonalMassMembership {
+            speaker,
+            audience,
+            others: None,
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn personal_mass_membership_rejects_others_aliased_to_a_participant() {
+        let speaker = PersonalParticipantMembership::included(SemanticObjectId::referent(1));
+        let audience = PersonalParticipantMembership::excluded(SemanticObjectId::referent(2));
+
+        for others in [speaker.referent(), audience.referent()] {
+            let invalid = PersonalMassMembership::try_from_data(data!(PersonalMassMembership {
+                speaker,
+                audience,
+                others: Some(others),
+            }));
+
+            assert!(invalid.is_err());
+        }
     }
 
     #[test]

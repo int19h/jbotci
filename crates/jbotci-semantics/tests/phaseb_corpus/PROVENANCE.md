@@ -88,6 +88,14 @@ Provenance (see `FREEZE-PHASE-B.md` in the research repo):
   at x2, a full three-place dictionary map, and the justified host event at x3.
   `fi'o` remains provenance-only. No renderer change was needed: both smusni
   streams were regenerated with the unchanged Amendment 7 oracle.
+- Amendment 9 (jbotci#679): this jbotci model amendment replaces the surface-word
+  placeholders for compound personal pro-sumti and demonstratives with structural
+  semantics. `modal-fronted-vao` now records each `mi'o` as a typed mass whose
+  distinct speaker and audience referents are included; `ti-mo` records `ti` as
+  proximal deixis anchored to the utterance's current-here referent. Their
+  surface words remain only in provenance. Exactly those two frozen JSON files
+  and their four corresponding renderer expectations change; the other 46
+  documents and the renderer itself are unchanged.
 - Corpus: 33 `battery-docs/b*.json`/`nd*.json` + 4
   `notation-renderer-v0/samples/*.json` = 37 documents frozen at `28c7d5f`, plus
   the `ti-mo` relation-question witness (jbotci#620, oracle `7e9c722`) and the
