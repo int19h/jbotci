@@ -1,24 +1,36 @@
 use std::collections::BTreeSet;
 
-use bityzba::{invariant, new, requires};
+#[allow(unused_imports)]
+use bityzba::{data, expensive_ensures, invariant, new, requires};
 use roxmltree::Node;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AnchorMode, CllBlock, SectionParseContext, block_anchor_id_for, child_element,
-    cll_import_metadata, normalized_plain_text, section_href, visible_text, visible_text_raw,
+    AnchorMode, CllAnchor, CllBlock, SectionParseContext, attr_string, block_anchor_id_for,
+    child_element, cll_import_metadata, normalized_plain_text, section_href, visible_text,
+    visible_text_raw, xml_id,
 };
+
+#[invariant(!id.is_empty())]
+#[invariant(!label.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PendingEbnfAnchor {
+    id: String,
+    label: String,
+}
 
 #[invariant(!rule_name.is_empty())]
 #[invariant(!anchor_id.is_empty())]
 #[invariant(rule_href.as_ref().is_none_or(|href| !href.is_empty()))]
 #[invariant(!rhs.is_empty())]
+#[invariant(source_anchor_ids.iter().all(|id| !id.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllEbnfEntry {
     pub rule_name: String,
     pub anchor_id: String,
     pub rule_href: Option<String>,
     pub rhs: Vec<CllEbnfToken>,
+    pub source_anchor_ids: Vec<String>,
 }
 
 #[invariant(true)]
@@ -44,6 +56,7 @@ pub enum CllEbnfToken {
 pub(super) fn parse_ebnf_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
+    anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
     let entry_nodes = node
         .children()
@@ -55,10 +68,37 @@ pub(super) fn parse_ebnf_block(
         .map(|term| extract_ebnf_rule_name(&visible_text(term)))
         .filter(|rule| !rule.is_empty())
         .collect::<BTreeSet<_>>();
-    let entries = entry_nodes
-        .iter()
-        .filter_map(|entry| parse_ebnf_entry(*entry, &defined_rules))
-        .collect::<Vec<_>>();
+    let mut entries = Vec::with_capacity(entry_nodes.len());
+    let mut pending_source_anchors = Vec::new();
+    for entry in entry_nodes {
+        let Some(term) = child_element(entry, "term") else {
+            continue;
+        };
+        pending_source_anchors.extend(parse_ebnf_source_anchors(term));
+        let source_anchor_ids = pending_source_anchors
+            .iter()
+            .map(|anchor| anchor.id.clone())
+            .collect();
+        let Some(parsed) = parse_ebnf_entry(entry, &defined_rules, source_anchor_ids) else {
+            pending_source_anchors = Vec::new();
+            continue;
+        };
+        for source_anchor in pending_source_anchors {
+            let data!(PendingEbnfAnchor { id, label }) = source_anchor.into_data();
+            anchors.push((
+                id,
+                new!(CllAnchor {
+                    section_id: context.section_id.clone(),
+                    label,
+                }),
+            ));
+        }
+        pending_source_anchors = child_element(entry, "listitem")
+            .into_iter()
+            .flat_map(parse_ebnf_source_anchors)
+            .collect();
+        entries.push(parsed);
+    }
     (!entries.is_empty()).then_some(CllBlock::Ebnf {
         id: block_anchor_id_for("ebnf", AnchorMode::TopLevel, context, node),
         entries,
@@ -66,8 +106,19 @@ pub(super) fn parse_ebnf_block(
 }
 
 #[requires(entry.is_element())]
-#[ensures(true)]
-fn parse_ebnf_entry(entry: Node<'_, '_>, defined_rules: &BTreeSet<String>) -> Option<CllEbnfEntry> {
+#[ensures(
+    ret.as_ref()
+        .is_none_or(|entry| entry.source_anchor_ids.len() == old(source_anchor_ids.len()))
+)]
+#[expensive_ensures(
+    ret.as_ref()
+        .is_none_or(|entry| entry.source_anchor_ids == old(source_anchor_ids.clone()))
+)]
+fn parse_ebnf_entry(
+    entry: Node<'_, '_>,
+    defined_rules: &BTreeSet<String>,
+    source_anchor_ids: Vec<String>,
+) -> Option<CllEbnfEntry> {
     let term = child_element(entry, "term")?;
     let listitem = child_element(entry, "listitem")?;
     let para = child_element(listitem, "para")?;
@@ -81,7 +132,21 @@ fn parse_ebnf_entry(entry: Node<'_, '_>, defined_rules: &BTreeSet<String>) -> Op
         rule_href: ebnf_symbol_href(&rule_name),
         rhs: tokenize_ebnf_rule_rhs(&rule_name, defined_rules, &rhs_text),
         rule_name,
+        source_anchor_ids,
     }))
+}
+
+#[requires(node.is_element())]
+#[ensures(ret.iter().all(|anchor| !anchor.id.is_empty() && !anchor.label.is_empty()))]
+fn parse_ebnf_source_anchors(node: Node<'_, '_>) -> Vec<PendingEbnfAnchor> {
+    node.descendants()
+        .filter(|descendant| descendant.is_element() && descendant.has_tag_name("anchor"))
+        .filter_map(|anchor| {
+            let id = xml_id(anchor)?;
+            let label = attr_string(anchor, "xreflabel").unwrap_or_else(|| id.clone());
+            Some(new!(PendingEbnfAnchor { id, label }))
+        })
+        .collect()
 }
 
 #[requires(true)]
