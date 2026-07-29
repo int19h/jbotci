@@ -184,11 +184,11 @@ fn preexisting_fixture_bytes_are_unchanged() {
         .filter(|doc| !doc.starts_with("modal-"));
     assert_eq!(
         aggregate_fixture_hash_for(preexisting.clone(), "smusni.txt"),
-        "0dbc1d7f96c49217382b9602c62001b5f3ae35c919b7a681e8dbe0b1e216a93e"
+        "ba79402c74d7160e761c034759979215582bd86fc31dac00160d9a734673f254"
     );
     assert_eq!(
         aggregate_fixture_hash_for(preexisting, "smusni-prov.txt"),
-        "d6fb701f5855382f3ddf7d6026951e5f4c74ae16bef6919968c515dce17a4e8a"
+        "e3d1933cefd5915bcea4ed1ba996704b47badb7210de5f535d2b19ae3df54b88"
     );
 }
 

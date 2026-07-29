@@ -7097,6 +7097,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(Cmavo::Mi) => Ok(self.current_speaker()),
             Some(Cmavo::Do) => Ok(self.current_audience()),
             Some(Cmavo::Ko) => Ok(self.current_audience()),
+            Some(Cmavo::Miho) => self.build_personal_mass_referent(pro_sumti, true, true, false),
+            Some(Cmavo::Miha) => self.build_personal_mass_referent(pro_sumti, true, false, true),
+            Some(Cmavo::Maha) => self.build_personal_mass_referent(pro_sumti, true, true, true),
+            Some(Cmavo::Doho) => self.build_personal_mass_referent(pro_sumti, false, true, true),
             Some(Cmavo::Ma) => self.build_argument_question_parameter(pro_sumti),
             Some(Cmavo::Cehu) => {
                 self.build_generated_parameter(pro_sumti, ParameterRole::PropertySlot)
@@ -7142,13 +7146,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 | Cmavo::Dohi,
             ) => self.build_utterance_reference_referent(pro_sumti),
             Some(Cmavo::Ti) => {
-                self.build_demonstrative_referent(pro_sumti, IndexicalKind::ProximalDemonstrative)
+                self.build_demonstrative_referent(pro_sumti, DeicticProximity::Proximal)
             }
             Some(Cmavo::Ta) => {
-                self.build_demonstrative_referent(pro_sumti, IndexicalKind::MedialDemonstrative)
+                self.build_demonstrative_referent(pro_sumti, DeicticProximity::Medial)
             }
             Some(Cmavo::Tu) => {
-                self.build_demonstrative_referent(pro_sumti, IndexicalKind::DistalDemonstrative)
+                self.build_demonstrative_referent(pro_sumti, DeicticProximity::Distal)
             }
             Some(cmavo) if is_assignable_koha(cmavo) => self
                 .assigned_referents
@@ -7197,6 +7201,49 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             _ => self
                 .build_generated_pro_sumti_fallback_referent(pro_sumti, ReferentCategory::Constant),
         }
+    }
+
+    #[requires(speaker_included || audience_included)]
+    #[requires(include_others || (speaker_included && audience_included))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.referent_sort() == Some(SemanticSort::Mass)) || ret.is_err())]
+    pub(super) fn build_personal_mass_referent(
+        &mut self,
+        pro_sumti: &'tree ProSumtiSyntax,
+        speaker_included: bool,
+        audience_included: bool,
+        include_others: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let speaker = self.current_speaker();
+        let audience = self.current_audience();
+        let others = if include_others {
+            let id = self.next_referent_id();
+            self.insert(id, SemanticObject::generated_unspecified_referent())?;
+            Some(id)
+        } else {
+            None
+        };
+        let membership = PersonalMassMembership::new(
+            if speaker_included {
+                PersonalParticipantMembership::included(speaker)
+            } else {
+                PersonalParticipantMembership::excluded(speaker)
+            },
+            if audience_included {
+                PersonalParticipantMembership::included(audience)
+            } else {
+                PersonalParticipantMembership::excluded(audience)
+            },
+            others,
+        );
+        let id = self.next_referent_with_sort_id(SemanticSort::Mass);
+        self.insert(
+            id,
+            SemanticObject::personal_mass_referent(
+                membership,
+                self.source_for_node(pro_sumti, "sumti"),
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(pro_sumti.0.value.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di)))]
@@ -7700,19 +7747,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_demonstrative_referent(
         &mut self,
         pro_sumti: &'tree ProSumtiSyntax,
-        indexical: IndexicalKind,
+        proximity: DeicticProximity,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent_id();
         self.insert(
             id,
-            SemanticObject::referent(
-                ReferentCategory::Indexical,
-                SemanticSort::Entity,
-                Some(indexical),
-                None,
-                None,
+            SemanticObject::deictic_referent(
+                proximity,
+                self.current_here(),
                 self.source_for_node(pro_sumti, "sumti"),
-                Vec::new(),
             ),
         )?;
         Ok(id)

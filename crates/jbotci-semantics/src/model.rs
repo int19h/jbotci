@@ -2065,9 +2065,143 @@ pub enum IndexicalKind {
     Audience,
     Now,
     Here,
-    ProximalDemonstrative,
-    MedialDemonstrative,
-    DistalDemonstrative,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DeicticProximity {
+    Proximal,
+    Medial,
+    Distal,
+}
+
+#[invariant(ground.object_kind() == SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeicticReference {
+    pub proximity: DeicticProximity,
+    pub ground: SemanticObjectId,
+}
+
+impl DeicticReference {
+    #[requires(ground.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.ground == ground)]
+    pub fn new(proximity: DeicticProximity, ground: SemanticObjectId) -> Self {
+        new!(DeicticReference { proximity, ground })
+    }
+}
+
+#[invariant(::Included { referent } => referent.object_kind() == SemanticObjectKind::Referent)]
+#[invariant(::Excluded { referent } => referent.object_kind() == SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "membership")]
+pub enum PersonalParticipantMembership {
+    Included { referent: SemanticObjectId },
+    Excluded { referent: SemanticObjectId },
+}
+
+impl PersonalParticipantMembership {
+    #[requires(referent.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent() == referent)]
+    pub fn included(referent: SemanticObjectId) -> Self {
+        new!(PersonalParticipantMembership::Included { referent })
+    }
+
+    #[requires(referent.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent() == referent)]
+    pub fn excluded(referent: SemanticObjectId) -> Self {
+        new!(PersonalParticipantMembership::Excluded { referent })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn referent(&self) -> SemanticObjectId {
+        match self.as_data() {
+            data!(PersonalParticipantMembership::Included { referent })
+            | data!(PersonalParticipantMembership::Excluded { referent }) => *referent,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(PersonalParticipantMembership::Included { .. })))]
+    pub fn is_included(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(PersonalParticipantMembership::Included { .. })
+        )
+    }
+}
+
+#[invariant(others.is_none() -> (speaker.is_included() && audience.is_included()))]
+#[invariant(others.is_some() -> (speaker.is_included() || audience.is_included()))]
+#[invariant(others.is_none_or(|others| others.object_kind() == SemanticObjectKind::Referent))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonalMassMembership {
+    pub speaker: PersonalParticipantMembership,
+    pub audience: PersonalParticipantMembership,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub others: Option<SemanticObjectId>,
+}
+
+impl PersonalMassMembership {
+    #[requires(others.is_none() -> (speaker.is_included() && audience.is_included()))]
+    #[requires(others.is_some() -> (speaker.is_included() || audience.is_included()))]
+    #[requires(others.is_none_or(|others| others.object_kind() == SemanticObjectKind::Referent))]
+    #[ensures(ret.others == others)]
+    pub fn new(
+        speaker: PersonalParticipantMembership,
+        audience: PersonalParticipantMembership,
+        others: Option<SemanticObjectId>,
+    ) -> Self {
+        new!(PersonalMassMembership {
+            speaker,
+            audience,
+            others,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(out.len() == old(out.len()) + 2 + usize::from(self.others.is_some()))]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.extend([self.speaker.referent(), self.audience.referent()]);
+        extend_optional(out, self.others);
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GeneratedReferentRealization {
+    Elided,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GeneratedReferentSpecificity {
+    Unspecified,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedReferent {
+    pub realization: GeneratedReferentRealization,
+    pub specificity: GeneratedReferentSpecificity,
+}
+
+impl GeneratedReferent {
+    #[requires(true)]
+    #[ensures(ret.realization == GeneratedReferentRealization::Elided)]
+    #[ensures(ret.specificity == GeneratedReferentSpecificity::Unspecified)]
+    pub fn elided_unspecified() -> Self {
+        GeneratedReferent {
+            realization: GeneratedReferentRealization::Elided,
+            specificity: GeneratedReferentSpecificity::Unspecified,
+        }
+    }
 }
 
 #[invariant(!word.is_empty() || *kind == DescriptorKind::Description, "only bare descriptions may omit a descriptor word")]
