@@ -341,7 +341,7 @@ where
         .collect::<Vec<_>>();
     let caps = config.caps.clone();
     let listener_mode = config.listener_mode;
-    let tersmu_format = config.tersmu_format;
+    let tersmu_format = config.tersmu_format.clone();
     let header = RunHeader::new(config, &scenario).map_err(|error| {
         new!(RunError::Header {
             message: error.to_string(),
