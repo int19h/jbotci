@@ -1,5 +1,7 @@
 //! In-process adapters for the production jbotci tool layer.
 
+use std::fmt;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_cli::{
@@ -19,7 +21,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError};
+use crate::{ExternalRendererCommand, TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError};
 
 /// Typed result of gating one candidate through the production tersmu tool.
 #[invariant(::ParseFailure { diagnostics_rendering, .. } => !diagnostics_rendering.is_empty())]
@@ -100,34 +102,39 @@ pub fn gate_lojban(
     format: Option<TersmuFormat>,
     dialect: Option<String>,
 ) -> Result<GateOutcome, GateError> {
+    let format = format.unwrap_or_default();
     let request = ToolTersmuRequest {
         text: text.clone(),
-        format: tool_tersmu_format(format.unwrap_or_default()),
+        format: tool_tersmu_format(&format),
         dialect: dialect.clone(),
         show_defs: true,
         story_time: false,
         indent: None,
     };
-    let output = run_tool_tersmu(request).map_err(|error| GateError::ToolExecution {
-        message: error.to_string(),
+    let output = run_tool_tersmu(request).map_err(|error| {
+        new!(GateError::ToolExecution {
+            message: error.to_string(),
+        })
     })?;
     if output.status.is_success() {
         if output.stdout.is_empty() {
-            return Err(GateError::InvalidToolOutput {
+            return Err(new!(GateError::InvalidToolOutput {
                 message: "successful tersmu tool output was empty".to_owned(),
-            });
+            }));
         }
-        return Ok(new!(GateOutcome::Success {
-            tersmu_rendering: output.stdout,
-        }));
+        let tersmu_rendering = match &format {
+            TersmuFormat::External(command) => run_external_renderer(command, &output.stdout)?,
+            TersmuFormat::Json | TersmuFormat::Smusni => output.stdout,
+        };
+        return Ok(new!(GateOutcome::Success { tersmu_rendering }));
     }
     if output.stderr.is_empty() {
-        return Err(GateError::InvalidToolOutput {
+        return Err(new!(GateError::InvalidToolOutput {
             message: format!(
                 "failed tersmu tool output had status {:?} but no diagnostics",
                 output.status
             ),
-        });
+        }));
     }
     let category = classify_gate_failure(&text, dialect.as_deref())?;
     Ok(new!(GateOutcome::ParseFailure {
@@ -152,8 +159,10 @@ fn classify_gate_failure(
             || Ok(DialectDefinition::default()),
             |source| parse_dialect_selection_formula(&DialectSettings::default(), source),
         )
-        .map_err(|error| GateError::ToolExecution {
-            message: error.to_string(),
+        .map_err(|error| {
+            new!(GateError::ToolExecution {
+                message: error.to_string(),
+            })
         })?;
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let morphology_attempt =
@@ -180,24 +189,107 @@ fn classify_gate_failure(
 
 #[requires(true)]
 #[ensures(true)]
-fn tool_tersmu_format(format: TersmuFormat) -> ToolTersmuFormat {
+fn tool_tersmu_format(format: &TersmuFormat) -> ToolTersmuFormat {
     match format {
         TersmuFormat::Json => ToolTersmuFormat::Json,
         TersmuFormat::Smusni => ToolTersmuFormat::Smusni,
+        TersmuFormat::External(_) => ToolTersmuFormat::Json,
     }
+}
+
+/// Pipe a production tersmu JSON graph through an external renderer.
+#[requires(!tersmu_json.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|rendering| !rendering.is_empty()) || ret.is_err())]
+fn run_external_renderer(
+    command: &ExternalRendererCommand,
+    tersmu_json: &[u8],
+) -> Result<Vec<u8>, GateError> {
+    use std::io::Write as _;
+    use std::process::{Command, Stdio};
+
+    let renderer_error = |message: String| {
+        new!(GateError::ExternalRenderer {
+            command: command.program().to_owned(),
+            message,
+        })
+    };
+    let mut child = Command::new(command.program())
+        .args(command.args())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| renderer_error(format!("failed to spawn renderer: {error}")))?;
+
+    // Drain stdout/stderr concurrently with stdin. A renderer is allowed to
+    // emit more than one pipe buffer before consuming the complete graph.
+    let mut stdin = child
+        .stdin
+        .take()
+        .expect("stdin was requested as piped at spawn");
+    let payload = tersmu_json.to_vec();
+    let stdin_writer = std::thread::spawn(move || stdin.write_all(&payload));
+    let output = child
+        .wait_with_output()
+        .map_err(|error| renderer_error(format!("failed to collect renderer output: {error}")))?;
+    let stdin_result = stdin_writer
+        .join()
+        .map_err(|_| renderer_error("stdin writer thread panicked".to_owned()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let message = match stdin_result {
+            Ok(()) => format!("exited with {}: {stderr}", output.status),
+            Err(error) => format!(
+                "exited with {}, and writing its stdin also failed: {error}: {stderr}",
+                output.status
+            ),
+        };
+        return Err(renderer_error(message));
+    }
+    // A successful renderer may intentionally stop reading after a JSON
+    // prefix, so a broken stdin pipe alone is not an infrastructure failure.
+    if output.stdout.is_empty() {
+        return Err(renderer_error(
+            "exited successfully but produced no output on stdout".to_owned(),
+        ));
+    }
+    Ok(output.stdout)
 }
 
 /// The production tersmu entry point failed before returning structured output.
 #[invariant(true)]
 #[invariant(::ToolExecution { .. } => true)]
 #[invariant(::InvalidToolOutput { .. } => true)]
-#[derive(Debug, Error, PartialEq, Eq)]
+#[invariant(::ExternalRenderer { command, message } => !command.trim().is_empty() && !message.trim().is_empty())]
+#[derive(Debug, PartialEq, Eq)]
 pub enum GateError {
-    #[error("jbotci tersmu execution failed: {message}")]
     ToolExecution { message: String },
-    #[error("invalid structured output from jbotci tersmu: {message}")]
     InvalidToolOutput { message: String },
+    ExternalRenderer { command: String, message: String },
 }
+
+impl fmt::Display for GateError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            bityzba::data!(GateError::ToolExecution { message }) => {
+                write!(formatter, "jbotci tersmu execution failed: {message}")
+            }
+            bityzba::data!(GateError::InvalidToolOutput { message }) => write!(
+                formatter,
+                "invalid structured output from jbotci tersmu: {message}"
+            ),
+            bityzba::data!(GateError::ExternalRenderer { command, message }) => write!(
+                formatter,
+                "external tersmu renderer `{command}` failed: {message}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for GateError {}
 
 /// Stateless adapter exposing the production reference tools and their schemas.
 #[invariant(true)]
@@ -592,10 +684,67 @@ mod tests {
             .expect_err("gate must forward the invalid dialect");
         assert_eq!(
             gate_error,
-            GateError::ToolExecution {
+            new!(GateError::ToolExecution {
                 message: direct_error
-            }
+            })
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_renderer_receives_json_on_stdin_and_returns_stdout() {
+        let command = new!(ExternalRendererCommand(vec![
+            "sh".to_owned(),
+            "-c".to_owned(),
+            "printf 'stub:'; cat".to_owned(),
+        ]));
+        let rendered = gate_lojban(
+            "mi klama".to_owned(),
+            Some(TersmuFormat::External(command)),
+            None,
+        )
+        .expect("external renderer gate")
+        .tersmu_rendering()
+        .expect("successful rendering")
+        .to_owned();
+        let direct_json = run_tool_tersmu(ToolTersmuRequest {
+            text: "mi klama".to_owned(),
+            format: ToolTersmuFormat::Json,
+            dialect: None,
+            show_defs: true,
+            story_time: false,
+            indent: None,
+        })
+        .expect("direct JSON rendering");
+        let mut expected = b"stub:".to_vec();
+        expected.extend_from_slice(&direct_json.stdout);
+        assert_eq!(rendered, expected);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_renderer_nonzero_exit_propagates_as_gate_error() {
+        let command = new!(ExternalRendererCommand(vec![
+            "sh".to_owned(),
+            "-c".to_owned(),
+            "cat >/dev/null; printf 'stub failure' >&2; exit 23".to_owned(),
+        ]));
+        let error = gate_lojban(
+            "mi klama".to_owned(),
+            Some(TersmuFormat::External(command)),
+            None,
+        )
+        .expect_err("renderer failure must be loud");
+        match error.as_data() {
+            bityzba::data!(GateError::ExternalRenderer { command, message }) => {
+                assert_eq!(command, "sh");
+                assert!(message.contains("23"), "{message}");
+                assert!(message.contains("stub failure"), "{message}");
+            }
+            other => panic!("expected external renderer gate error, got {other:?}"),
+        }
     }
 
     #[test]

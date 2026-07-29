@@ -848,7 +848,7 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 writeln!(
                     report,
                     "- Gate format: `{}`",
-                    tersmu_format_name(header.config.tersmu_format)
+                    tersmu_format_name(&header.config.tersmu_format)
                 )
                 .expect("writing to String cannot fail");
                 writeln!(
@@ -1573,10 +1573,15 @@ const fn abort_reason(kind: AbortKind) -> &'static str {
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-const fn tersmu_format_name(format: crate::TersmuFormat) -> &'static str {
+fn tersmu_format_name(format: &crate::TersmuFormat) -> String {
     match format {
-        crate::TersmuFormat::Json => "json",
-        crate::TersmuFormat::Smusni => "smusni",
+        crate::TersmuFormat::Json => "json".to_owned(),
+        crate::TersmuFormat::Smusni => "smusni".to_owned(),
+        crate::TersmuFormat::External(command) => {
+            let mut argv = vec![command.program().to_owned()];
+            argv.extend(command.args().iter().cloned());
+            format!("external: {}", argv.join(" "))
+        }
     }
 }
 

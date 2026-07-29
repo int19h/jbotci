@@ -11,8 +11,8 @@ pub mod scenario;
 pub mod transcript;
 
 pub use config::{
-    CapsConfig, ClientConfig, ConfigError, ListenerMode, ParticipantConfig, PromptCaching,
-    ReasoningConfig, RunConfig, TersmuFormat, ToolChoice,
+    CapsConfig, ClientConfig, ConfigError, ExternalRendererCommand, ListenerMode,
+    ParticipantConfig, PromptCaching, ReasoningConfig, RunConfig, TersmuFormat, ToolChoice,
 };
 pub use jbotci_tools::{
     DiagnosticCategory, EmbeddingSearchPreflightError, GateError, GateOutcome, ReferenceToolError,

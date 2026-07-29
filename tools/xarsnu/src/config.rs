@@ -196,10 +196,39 @@ impl ClientConfig {
     }
 }
 
+/// One argv-style external command invocation used to render tersmu JSON.
+///
+/// The first element is the executable and every remaining element is passed
+/// to it literally, without invoking a shell. The command receives the
+/// production tersmu JSON graph on stdin and must write its rendering to
+/// stdout.
+#[invariant(self.first().is_some_and(|program| !program.trim().is_empty()), "external renderer command must name a non-empty executable")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ExternalRendererCommand(Vec<String>);
+
+impl ExternalRendererCommand {
+    /// The executable to spawn.
+    #[requires(true)]
+    #[ensures(!ret.trim().is_empty())]
+    pub fn program(&self) -> &str {
+        self.first()
+            .expect("invariant guarantees a nonempty command")
+    }
+
+    /// Literal arguments passed to the executable in configured order.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn args(&self) -> &[String] {
+        &self.as_slice()[1..]
+    }
+}
+
 /// Semantic rendering selected for the jbotci gate.
 #[invariant(::Json => true)]
 #[invariant(::Smusni => true)]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(::External(_) => true)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
     /// Model-facing `smusni` notation: a flat, self-describing declaration
@@ -207,6 +236,8 @@ pub enum TersmuFormat {
     #[default]
     Smusni,
     Json,
+    /// Pipe the JSON graph through a caller-configured renderer.
+    External(ExternalRendererCommand),
 }
 
 /// Information available when a listener first interprets a posted message.
@@ -579,5 +610,38 @@ system-prompt = "Speak only Lojban."
                 .to_string()
                 .contains("participant names must be unique")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_tersmu_format_deserializes_and_rejects_empty_commands() {
+        let configured = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\ntersmu-format = { external = [\"renderer\", \"--notation\", \"lean2\"] }",
+        );
+        let config = RunConfig::from_toml(&configured).expect("valid external renderer config");
+        let TersmuFormat::External(command) = &config.tersmu_format else {
+            panic!("expected external tersmu format");
+        };
+        assert_eq!(command.program(), "renderer");
+        assert_eq!(command.args(), ["--notation", "lean2"]);
+
+        for command in ["[]", "[\"\"]", "[\"   \"]"] {
+            let invalid = VALID_CONFIG.replace(
+                "scenario = \"schedule-negotiation\"",
+                &format!(
+                    "scenario = \"schedule-negotiation\"\ntersmu-format = {{ external = {command} }}"
+                ),
+            );
+            let error =
+                RunConfig::from_toml(&invalid).expect_err("empty renderer command must fail");
+            assert!(
+                error
+                    .to_string()
+                    .contains("external renderer command must name a non-empty executable"),
+                "{error}"
+            );
+        }
     }
 }

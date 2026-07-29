@@ -2938,13 +2938,14 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                     text: text.clone(),
                     attempt,
                 }));
-                let outcome = crate::gate_lojban(text.clone(), Some(self.tersmu_format), None)
-                    .map_err(|error| {
-                        new!(ProtocolRunError::Gate {
-                            participant: speaker.to_owned(),
-                            message: error.to_string(),
-                        })
-                    })?;
+                let outcome =
+                    crate::gate_lojban(text.clone(), Some(self.tersmu_format.clone()), None)
+                        .map_err(|error| {
+                            new!(ProtocolRunError::Gate {
+                                participant: speaker.to_owned(),
+                                message: error.to_string(),
+                            })
+                        })?;
                 if let Some(diagnostics) = outcome.diagnostics_rendering() {
                     let diagnostics = diagnostics.to_owned();
                     let diagnostic_category = outcome
