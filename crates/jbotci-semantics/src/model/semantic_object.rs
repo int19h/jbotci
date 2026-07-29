@@ -133,7 +133,7 @@ pub struct EventualityNode {
 #[invariant(*sort != SemanticSort::Sign)]
 #[invariant((category == &ReferentCategory::Indexical) == (indexical.is_some() || deictic_reference.is_some()))]
 #[invariant(indexical.is_none() || deictic_reference.is_none())]
-#[invariant(personal_mass_membership.as_ref().is_none_or(|_| category == &ReferentCategory::Composite && *sort == SemanticSort::Mass && composition.is_none()))]
+#[invariant(personal_mass_membership.as_ref().is_none_or(|_| category == &ReferentCategory::Composite && *sort == SemanticSort::Mass && descriptor.is_none() && composition.is_none()))]
 #[invariant(generated_referent.is_none_or(|_| category == &ReferentCategory::Constant && descriptor.is_none() && composition.is_none() && personal_mass_membership.is_none() && deictic_reference.is_none()))]
 #[invariant((category == &ReferentCategory::Constant) == scope_dependence.is_some())]
 #[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula))]

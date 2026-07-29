@@ -4637,6 +4637,43 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn personal_mass_referent_rejects_descriptor() {
+        let membership = PersonalMassMembership::new(
+            PersonalParticipantMembership::included(SemanticObjectId::referent(1)),
+            PersonalParticipantMembership::included(SemanticObjectId::referent(2)),
+            None,
+        );
+        let referent = SemanticObject::personal_mass_referent(membership, None);
+        let node = referent
+            .as_referent()
+            .expect("personal mass is represented by a referent")
+            .clone()
+            .into_data();
+        let descriptor = new!(Descriptor {
+            kind: DescriptorKind::ProSumti,
+            word: "mi'o".to_owned(),
+            speaker: None,
+            body: None,
+            veridical: None,
+            relative_clauses: Vec::new(),
+            quantity: None,
+            name: None,
+            scale: None,
+            definiteness: None,
+            operand: None,
+        });
+
+        let invalid = ReferentNode::try_from_data(data!(ReferentNode {
+            descriptor: Some(descriptor),
+            ..node
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn semantic_object_id_rejects_zero_index_data() {
         let invalid = SemanticObjectId::try_from_data(data!(SemanticObjectId {
             prefix: SemanticIdPrefix::Structural(SemanticObjectKind::Formula),

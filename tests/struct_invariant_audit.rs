@@ -1100,6 +1100,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "deictic ground is assembled by the utterance constructor from fixed special referents",
     ),
     (
+        "crates/jbotci-semantics/src/model.rs:GeneratedReferent",
+        "both fields are single-variant enums, so the struct has exactly one valid inhabitant",
+    ),
+    (
         "crates/jbotci-semantics/src/model.rs:IntervalEndpointInclusion",
         "interval endpoint inclusion is a pair of closed endpoint enum values",
     ),
