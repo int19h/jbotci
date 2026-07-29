@@ -258,6 +258,14 @@ fn run_external_renderer(
 }
 
 /// The production tersmu entry point failed before returning structured output.
+///
+/// `ExternalRenderer` carries a non-trivial invariant, so (unlike the other
+/// two variants, which are structurally unconstrained) this type cannot use
+/// `#[derive(thiserror::Error)]`: bityzba's validated-wrapper codegen for a
+/// type with a real invariant relocates the raw variant shape, which strips
+/// derive-time access to per-variant `#[error(...)]` attributes. `Display`
+/// and `Error` are implemented by hand instead, following the same pattern
+/// as `ProtocolRunError`.
 #[invariant(true)]
 #[invariant(::ToolExecution { .. } => true)]
 #[invariant(::InvalidToolOutput { .. } => true)]
@@ -745,6 +753,36 @@ mod tests {
             }
             other => panic!("expected external renderer gate error, got {other:?}"),
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_renderer_spawn_failure_is_a_loud_gate_error() {
+        let missing = TersmuFormat::External(new!(ExternalRendererCommand(vec![
+            "/definitely/not/a/real/executable-q4-external-test".to_owned(),
+        ])));
+        let error = gate_lojban("mi klama".to_owned(), Some(missing), None)
+            .expect_err("a renderer that cannot be spawned must surface as a gate error");
+        assert!(matches!(
+            error.as_data(),
+            bityzba::data!(GateError::ExternalRenderer { .. })
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_renderer_is_never_invoked_for_a_rejected_candidate() {
+        // "false" would surface as a GateError::ExternalRenderer if it were
+        // ever spawned; a candidate that fails to parse must still resolve
+        // to a normal ParseFailure GateOutcome without the gate call itself
+        // erroring, proving the external renderer only runs on success.
+        let would_fail_loudly_if_invoked =
+            TersmuFormat::External(new!(ExternalRendererCommand(vec!["false".to_owned()])));
+        let outcome = gate_lojban("mi cu".to_owned(), Some(would_fail_loudly_if_invoked), None)
+            .expect("a rejected candidate must not fail the gate call itself");
+        assert!(outcome.diagnostics_rendering().is_some());
     }
 
     #[test]
