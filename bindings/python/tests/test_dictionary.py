@@ -106,17 +106,17 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
         dictionary.PronunciationTargetSequenceView
         is native._dictionary_PronunciationTargetSequenceView
     )
-    assert len(dictionary.english) == 17_415
+    assert len(dictionary.english) == 17_536
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
     assert dictionary.english_metadata.language_realname == "English"
     assert dictionary.english_metadata.format == "json"
     assert dictionary.english_metadata.filename == "dictionary-en.json"
     assert dictionary.english_metadata.lensisku_created_at == (
-        "2026-05-23T00:00:42.298977Z"
+        "2026-07-27T07:10:51.776063Z"
     )
     assert dictionary.english_metadata.sha256 == (
-        "515c3fbf56f65a904cdcf28a6ddd411768363c322f4d33d3ac5bc74882314187"
+        "ba268ad701f8f44656ea4b17a1fd9539cfc1a3c523d0bdf581a44e3e93bb412f"
     )
     assert repr(dictionary.english) == "jbotci.dictionary.english"
     assert dictionary.Dictionary.__name__ == "Dictionary"
@@ -148,7 +148,7 @@ def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     assert not hasattr(dictionary.english, "index")
     assert not hasattr(entries, "count")
     assert not hasattr(entries, "index")
-    assert len(entries) == 17_415
+    assert len(entries) == 17_536
     assert entries[0].word == dictionary.english[0].word
     assert entries[dictionary.EntryIndex(0)].word == entries[0].word
     assert entries[-1].word == entries[len(entries) - 1].word

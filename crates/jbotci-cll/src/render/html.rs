@@ -656,6 +656,11 @@ fn render_ebnf_html(
 ) -> String {
     let mut output = format!("<div{} class=\"cll-ebnf\">", render_optional_id(id));
     for entry in entries {
+        for source_anchor_id in &entry.source_anchor_ids {
+            output.push_str("<span class=\"cll-anchor-alias\" aria-hidden=\"true\" id=\"");
+            output.push_str(&escape_html(source_anchor_id));
+            output.push_str("\"></span>");
+        }
         output.push_str("<section class=\"cll-ebnf-entry\" id=\"");
         output.push_str(&escape_html(&entry.anchor_id));
         output.push_str("\"><div class=\"cll-ebnf-head\">");

@@ -40,7 +40,8 @@ mod tests {
 
     use bityzba::requires;
     use jbotci_dictionary::{
-        DictionaryLujvoEntry, DictionaryLujvoSegmentKind, DictionarySoundEntry, RafsiSource,
+        DictionaryLujvoEntry, DictionaryLujvoSegment, DictionaryLujvoSegmentKind,
+        DictionarySoundEntry, RafsiSource,
     };
 
     use super::*;
@@ -62,7 +63,75 @@ mod tests {
         assert_eq!(english_metadata().entry_count, english().entries().len());
         assert_eq!(
             english_metadata().lensisku_created_at,
-            "2026-05-23T00:00:42.298977Z"
+            "2026-07-27T07:10:51.776063Z"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn refreshed_snapshot_derived_indexes_match_audited_counts() {
+        assert_eq!(english().sound_index().len(), 17_413);
+        assert_eq!(english().lujvo_index().len(), 8_352);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn refreshed_snapshot_additions_cover_non_lujvo_word_types() {
+        assert_non_lujvo_sound_addition("boxna bu", "phrase", "ˈbox.na bu");
+        assert_non_lujvo_sound_addition("gerku bu", "bu-letteral", "ˈger.ku bu");
+        assert_non_lujvo_sound_addition("bevda", "experimental gismu", "ˈbev.da");
+        assert_non_lujvo_sound_addition("pi'u'i", "experimental cmavo", "pi.ˈhu.hi");
+        assert_non_lujvo_sound_addition("plumbago", "fu'ivla", "plum.ˈba.go");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn refreshed_snapshot_additions_include_structural_lujvo_derivations() {
+        let badjai = lujvo_entry_for_word("badja'i").expect("lujvo entry for badja'i");
+        let [bad, jai] = badjai.segments else {
+            panic!("badja'i should have two segments");
+        };
+        assert_lujvo_segment(bad, DictionaryLujvoSegmentKind::Rafsi, "bad", Some("bandu"));
+        assert_lujvo_segment(
+            jai,
+            DictionaryLujvoSegmentKind::Rafsi,
+            "já'i",
+            Some("jadni"),
+        );
+        assert_eq!(badjai.source_words, ["bandu", "jadni"]);
+
+        let bendicybia = lujvo_entry_for_word("bendicybi'a").expect("lujvo entry for bendicybi'a");
+        let [ben, dic, y, bia] = bendicybia.segments else {
+            panic!("bendicybi'a should have four segments");
+        };
+        assert_lujvo_segment(ben, DictionaryLujvoSegmentKind::Rafsi, "ben", Some("besna"));
+        assert_lujvo_segment(dic, DictionaryLujvoSegmentKind::Rafsi, "dic", Some("dikca"));
+        assert_lujvo_segment(y, DictionaryLujvoSegmentKind::Hyphen, "y", None);
+        assert_lujvo_segment(
+            bia,
+            DictionaryLujvoSegmentKind::Rafsi,
+            "bí'a",
+            Some("bilma"),
+        );
+        assert_eq!(bendicybia.source_words, ["besna", "dikca", "bilma"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn refreshed_snapshot_rafsi_enrich_existing_lujvo_derivations() {
+        assert_listed_rafsi("jgu", "jguna");
+        assert_listed_rafsi("cfo", "jicfo");
+        assert_listed_rafsi("jid", "jidge");
+
+        let cemjgu = lujvo_entry_for_word("cemjgu").expect("lujvo entry for cemjgu");
+        assert_eq!(cemjgu.source_words, ["cecmu", "jguna"]);
+        assert_eq!(
+            cemjgu.segments.last().map(|segment| segment.source_word),
+            Some(Some("jguna"))
         );
     }
 
@@ -304,6 +373,46 @@ mod tests {
             .lujvo_index()
             .iter()
             .find(|entry| entry.entry_index.get() == index)
+    }
+
+    #[requires(!word.is_empty() && !word_type.is_empty() && !ipa.is_empty())]
+    #[ensures(true)]
+    fn assert_non_lujvo_sound_addition(word: &str, word_type: &str, ipa: &str) {
+        let entry = english()
+            .lookup_word(word)
+            .unwrap_or_else(|| panic!("entry for {word}"));
+        assert_eq!(entry.word_type.as_str(), word_type);
+        assert_eq!(
+            sound_entry_for_word(word)
+                .unwrap_or_else(|| panic!("sound entry for {word}"))
+                .ipa,
+            ipa
+        );
+        assert!(lujvo_entry_for_word(word).is_none());
+    }
+
+    #[requires(!surface.is_empty())]
+    #[ensures(true)]
+    fn assert_lujvo_segment(
+        segment: &DictionaryLujvoSegment<'_>,
+        kind: DictionaryLujvoSegmentKind,
+        surface: &str,
+        source_word: Option<&str>,
+    ) {
+        assert_eq!(segment.kind, kind);
+        assert_eq!(segment.surface, surface);
+        assert_eq!(segment.source_word, source_word);
+    }
+
+    #[requires(!rafsi.is_empty() && !word.is_empty())]
+    #[ensures(true)]
+    fn assert_listed_rafsi(rafsi: &str, word: &str) {
+        assert!(
+            english()
+                .lookup_rafsi(rafsi)
+                .any(|matched| matched.entry.word == word && matched.source == RafsiSource::Listed),
+            "listed rafsi {rafsi} should resolve to {word}"
+        );
     }
 
     #[requires(true)]
