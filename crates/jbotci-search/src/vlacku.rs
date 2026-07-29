@@ -364,10 +364,18 @@ pub struct ParsedWordDictionaryMatch {
 struct ParsedWordLookupTarget {
     lookup_text: String,
     is_lujvo: bool,
+    match_requirement: DictionaryMatchRequirement,
     byte_start: usize,
     byte_end: usize,
     char_start: usize,
     char_end: usize,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DictionaryMatchRequirement {
+    AllowSyntheticMissing,
+    ExactEntry,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -678,6 +686,11 @@ fn dictionary_cards_for_lookup_target(
     let exact_entries = dictionary
         .lookup_words(&target.lookup_text)
         .collect::<Vec<_>>();
+    if target.match_requirement == DictionaryMatchRequirement::ExactEntry
+        && exact_entries.is_empty()
+    {
+        return Vec::new();
+    }
     let exact_definition_found = exact_entries
         .iter()
         .any(|entry| !entry.definition.trim().is_empty());
@@ -686,7 +699,15 @@ fn dictionary_cards_for_lookup_target(
     } else {
         cards_for_valsi(dictionary, &target.lookup_text, &options)
     };
-    output.cards
+    match (target.match_requirement, output.outcome) {
+        (DictionaryMatchRequirement::ExactEntry, VlackuOutcome::ValidMissing)
+        | (_, VlackuOutcome::Invalid) => Vec::new(),
+        (
+            DictionaryMatchRequirement::AllowSyntheticMissing,
+            VlackuOutcome::Found | VlackuOutcome::ValidMissing,
+        )
+        | (DictionaryMatchRequirement::ExactEntry, VlackuOutcome::Found) => output.cards,
+    }
 }
 
 #[requires(true)]
@@ -785,8 +806,18 @@ fn push_content_dictionary_lookup_targets(
 )]
 fn push_word_content_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
     match word.kind() {
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla | WordKind::Cmevla => {
+        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
             push_word_lookup_target(word, targets);
+        }
+        WordKind::Cmevla => {
+            // A morphology-valid cmevla is content only when the dictionary
+            // has an exact entry; synthetic ValidMissing cards are vlacku
+            // behavior, not definition grounding.
+            push_word_lookup_target_with_requirement(
+                word,
+                DictionaryMatchRequirement::ExactEntry,
+                targets,
+            );
         }
         WordKind::Cmavo => {}
     }
@@ -842,9 +873,24 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
 #[requires(true)]
 #[ensures(true)]
 fn push_word_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
+    push_word_lookup_target_with_requirement(
+        word,
+        DictionaryMatchRequirement::AllowSyntheticMissing,
+        targets,
+    );
+}
+
+#[requires(true)]
+#[ensures(targets.len() == old(targets.len()) + 1)]
+fn push_word_lookup_target_with_requirement(
+    word: &Word,
+    match_requirement: DictionaryMatchRequirement,
+    targets: &mut Vec<ParsedWordLookupTarget>,
+) {
     targets.push(new!(ParsedWordLookupTarget {
         lookup_text: word_lookup_text(word),
         is_lujvo: word.kind() == WordKind::Lujvo,
+        match_requirement,
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
         char_start: word.span().char_start,
@@ -871,6 +917,7 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
     Some(new!(ParsedWordLookupTarget {
         lookup_text,
         is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })),
+        match_requirement: DictionaryMatchRequirement::AllowSyntheticMissing,
         byte_start,
         byte_end,
         char_start,
@@ -2789,8 +2836,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn content_word_dictionary_matches_follow_typed_morphology_classes() {
-        let words =
-            segment_words_with_modifiers("mi klama ti klupe zo klama abu").expect("morphology");
+        let words = segment_words_with_modifiers("mi .banan. klama ti klupe zo klama abu")
+            .expect("morphology");
         let matches =
             dictionary_matches_for_content_word_likes(jbotci_dictionary_data::english(), &words);
         assert_eq!(
@@ -2806,6 +2853,22 @@ mod tests {
                 .iter()
                 .all(|card| card.word_type != "cmavo")
         }));
+        assert!(
+            matches
+                .iter()
+                .all(|parsed_match| parsed_match.lookup_text != "banan"),
+            "an unattested cmevla must not produce a synthetic missing card"
+        );
+
+        let dictionary_cmevla =
+            segment_words_with_modifiers(".abeced.").expect("dictionary cmevla morphology");
+        let dictionary_cmevla_matches = dictionary_matches_for_content_word_likes(
+            jbotci_dictionary_data::english(),
+            &dictionary_cmevla,
+        );
+        assert_eq!(dictionary_cmevla_matches.len(), 1);
+        assert_eq!(dictionary_cmevla_matches[0].lookup_text, "abeced");
+        assert_eq!(dictionary_cmevla_matches[0].cards[0].word, "abeced");
 
         let zei_words =
             segment_words_with_modifiers("mi zei klama").expect("ZEI compound morphology");

@@ -1007,8 +1007,9 @@ fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
         "--format",
         "smusni",
         "--color=never",
-        "ti",
-        "klupe",
+        ".banan.",
+        "cu",
+        "klama",
     ]);
 
     // The content-word dictionary definitions are prepended ahead of the
@@ -1017,8 +1018,12 @@ fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
         .split_once("SEMANTIC DOCUMENT ")
         .expect("smusni document follows the prepended definitions");
     assert!(
-        definitions.starts_with("1. klupe | by: officialdata | gismu"),
+        definitions.starts_with("1. klama | by: officialdata | gismu"),
         "definitions must lead: {definitions:?}"
+    );
+    assert!(
+        !definitions.contains("banan"),
+        "unattested cmevla must not get a synthetic definition: {definitions:?}"
     );
     assert!(
         !definitions.contains("cmavo:"),
@@ -1028,7 +1033,7 @@ fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
         document.contains("ID PREFIXES: r=reference"),
         "the smusni document legend must follow the definitions"
     );
-    assert!(document.contains("RELATION: klupe"));
+    assert!(document.contains("RELATION: klama"));
 }
 
 #[test]

@@ -1814,7 +1814,7 @@ mod tests {
     #[ensures(ret.format == format && ret.show_defs == show_defs)]
     fn tersmu_request(format: ToolTersmuFormat, show_defs: bool) -> ToolTersmuRequest {
         ToolTersmuRequest {
-            text: "mi klama".to_owned(),
+            text: ".banan. cu klama".to_owned(),
             format,
             dialect: None,
             show_defs,
@@ -1952,6 +1952,7 @@ mod tests {
                 definitions.starts_with("1. klama | by: officialdata | gismu"),
                 "{format:?}"
             );
+            assert!(!definitions.contains("banan"), "{format:?}");
             assert!(!definitions.contains("cmavo:"), "{format:?}");
             assert!(definitions.ends_with('\n'), "{format:?}");
         }
