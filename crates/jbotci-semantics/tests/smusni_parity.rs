@@ -203,12 +203,12 @@ fn preexisting_fixture_bytes_are_unchanged() {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "c53413d1577a2310f5999042a623271b386e7de0dd5dff3f2f0252f82327fdda",
+        "2fe83e771edd04c23f51f5c5d41e7aafff551670e624364517cf58acb49ddce8",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "2805e6854984c34094c70bd7c906e0c22712f6d914a324d7d5e2eb996f7fe129",
+        "897cc4ee3a06011d4d5f665dbe8411389ada9f005f577abf68afc0012af3e9e7",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }

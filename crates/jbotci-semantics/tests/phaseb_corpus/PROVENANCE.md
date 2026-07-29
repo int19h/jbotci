@@ -111,9 +111,9 @@ Provenance (see `FREEZE-PHASE-B.md` in the research repo):
 - Aggregate fixture hashes over all 48 documents (pinned in
   `tests/smusni_parity.rs` `frozen_fixture_aggregate_hashes_are_pinned`, so the
   two fixture sets cannot silently drift together): `smusni.txt` →
-  `c53413d1577a2310f5999042a623271b386e7de0dd5dff3f2f0252f82327fdda`;
+  `2fe83e771edd04c23f51f5c5d41e7aafff551670e624364517cf58acb49ddce8`;
   `smusni-prov.txt` →
-  `2805e6854984c34094c70bd7c906e0c22712f6d914a324d7d5e2eb996f7fe129`.
+  `897cc4ee3a06011d4d5f665dbe8411389ada9f005f577abf68afc0012af3e9e7`.
 
 For each document `<name>`:
 
