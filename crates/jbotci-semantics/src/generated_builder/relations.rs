@@ -51,7 +51,7 @@ pub(super) fn generated_simple_fiho_relation_spec(
 }
 
 #[invariant(!*composite || lexical_word.is_none(), "composite inspection state does not retain an irrelevant lexical word")]
-#[derive(Clone, Default)]
+#[derive(Default)]
 struct GeneratedSimpleFihoRelationInspector<'tree> {
     lexical_word: Option<&'tree WordTanruUnitSyntax>,
     composite: bool,
@@ -61,7 +61,7 @@ impl<'tree> GeneratedSimpleFihoRelationInspector<'tree> {
     #[requires(true)]
     #[ensures(self.composite)]
     fn mark_composite(&mut self) {
-        *self = self.clone().with_data(data! {
+        *self = new!(GeneratedSimpleFihoRelationInspector {
             lexical_word: None,
             composite: true,
         });
@@ -73,8 +73,9 @@ impl<'tree> GeneratedSimpleFihoRelationInspector<'tree> {
         if self.lexical_word.is_some() {
             self.mark_composite();
         } else {
-            *self = self.clone().with_data(data! {
+            *self = new!(GeneratedSimpleFihoRelationInspector {
                 lexical_word: Some(word),
+                composite: false,
             });
         }
     }
