@@ -16,6 +16,7 @@ pub(super) use setup::run_setup;
 pub(super) use tersmu::run_tersmu;
 pub use vlacku::VlackuRenderOptions;
 pub(super) use vlacku::{
+    render_content_word_dictionary_definitions_for_word_likes,
     render_dictionary_definitions_for_word_likes, render_vlacku_output,
     render_vlacku_output_with_options, render_vlacku_output_with_width, run_vlacku,
 };

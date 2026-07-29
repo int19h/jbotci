@@ -1564,10 +1564,13 @@ pub struct ToolTersmuRequest {
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
-    /// Prepend full dictionary definitions to the human-readable `smusni`
-    /// format. Definitions ground the interpretation and are on by default; set
-    /// this to `false` to save tokens. The flag is suppressed for `json` so the
-    /// canonical graph remains a pure JSON document.
+    /// Prepend dictionary definitions for content words (gismu, lujvo, fu'ivla,
+    /// and dictionary-backed cmevla) to the human-readable `smusni` format.
+    /// Cmavo definitions are never included: cmavo semantics are exactly what
+    /// the semantic graph expresses. Definitions ground the interpretation and
+    /// are on by default; set this to `false` to save tokens. The flag is
+    /// suppressed for `json` so the canonical graph remains a pure JSON
+    /// document.
     #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative "story
@@ -1946,13 +1949,10 @@ mod tests {
                 .expect("show-defs only prepends definitions");
 
             assert!(
-                definitions.starts_with("1. mi | by: officialdata | cmavo: KOhA3"),
+                definitions.starts_with("1. klama | by: officialdata | gismu"),
                 "{format:?}"
             );
-            assert!(
-                definitions.contains("\n2. klama | by: officialdata | gismu"),
-                "{format:?}"
-            );
+            assert!(!definitions.contains("cmavo:"), "{format:?}");
             assert!(definitions.ends_with('\n'), "{format:?}");
         }
     }

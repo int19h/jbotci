@@ -170,7 +170,7 @@ fn render_tersmu(
     };
     let mut stdout = String::new();
     if input.show_defs {
-        stdout.push_str(&render_dictionary_definitions_for_word_likes(
+        stdout.push_str(&render_content_word_dictionary_definitions_for_word_likes(
             words.as_slice(),
             color_policy.stdout,
             glyphs,

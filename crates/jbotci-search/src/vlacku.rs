@@ -489,6 +489,34 @@ pub fn dictionary_matches_for_word_likes(
 }
 
 #[requires(true)]
+#[ensures(words.is_empty() -> ret.is_empty())]
+#[ensures(ret.iter().all(|parsed_match| !parsed_match.cards.is_empty()))]
+pub fn dictionary_matches_for_content_word_likes(
+    dictionary: &Dictionary<'_>,
+    words: &[WordLike],
+) -> Vec<ParsedWordDictionaryMatch> {
+    let mut matches = Vec::new();
+    for word_like in words {
+        for target in content_dictionary_lookup_targets(word_like) {
+            let cards = dictionary_cards_for_lookup_target(dictionary, &target);
+            if cards.is_empty() {
+                continue;
+            }
+            let target = target.into_data();
+            matches.push(new!(ParsedWordDictionaryMatch {
+                lookup_text: target.lookup_text,
+                byte_start: target.byte_start,
+                byte_end: target.byte_end,
+                char_start: target.char_start,
+                char_end: target.char_end,
+                cards,
+            }));
+        }
+    }
+    matches
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn normalize_word_type_filter(raw: &str) -> String {
     raw.trim().to_ascii_lowercase().replace(' ', "-")
@@ -689,6 +717,79 @@ fn dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget
     let mut targets = Vec::new();
     push_dictionary_lookup_targets(word_like, &mut targets);
     targets
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|target| !target.lookup_text.is_empty()))]
+fn content_dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget> {
+    let mut targets = Vec::new();
+    push_content_dictionary_lookup_targets(word_like, &mut targets);
+    targets
+}
+
+// Owner doctrine: cmavo semantics are what the semantic graph expresses. If
+// comprehension suffers without cmavo definitions, improve the notation;
+// definitions never return. This filter relies exclusively on typed morphology
+// classes (`WordKind` and the morphology-defined `ZeiCompound` brivla).
+#[requires(true)]
+#[ensures(targets.len() >= old(targets.len()))]
+fn push_content_dictionary_lookup_targets(
+    word_like: &WordLike,
+    targets: &mut Vec<ParsedWordLookupTarget>,
+) {
+    match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => {
+            push_word_content_lookup_target(word, targets);
+        }
+        data!(WordLike::QuotedWord { word, .. }) => {
+            // The quoted word is the referenced content; the `zo` quote marker
+            // is not.
+            push_word_content_lookup_target(word, targets);
+        }
+        data!(WordLike::SelmahoQuotedWord { word, .. }) => {
+            // Same: define the referenced word, not the `ma'oi` marker.
+            push_word_content_lookup_target(word, targets);
+        }
+        data!(WordLike::QuotedWords { quoted_words, .. }) => {
+            for word in quoted_words {
+                push_word_content_lookup_target(word, targets);
+            }
+        }
+        // `zoi` quotes non-Lojban text (no dictionary entry by construction);
+        // the remaining delimited quotes reference no defined word.
+        data!(WordLike::DelimitedNonLojbanQuote { .. })
+        | data!(WordLike::DelimitedWordQuote { .. }) => {}
+        // A lerfu word is a BY letteral, hence a cmavo by morphology.
+        data!(WordLike::LerfuWord { .. }) => {}
+        data!(WordLike::ZeiCompound { .. }) => {
+            // `zei` constructs a brivla. Its compound spelling cannot equal a
+            // single-cmavo dictionary key, so this lookup cannot add a cmavo
+            // card.
+            if let Some(target) = word_like_lookup_target(word_like) {
+                targets.push(target);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(
+    matches!(word.kind(), WordKind::Cmavo) ->
+        targets.len() == old(targets.len())
+)]
+#[ensures(
+    matches!(
+        word.kind(),
+        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla | WordKind::Cmevla
+    ) -> targets.len() == old(targets.len()) + 1
+)]
+fn push_word_content_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
+    match word.kind() {
+        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla | WordKind::Cmevla => {
+            push_word_lookup_target(word, targets);
+        }
+        WordKind::Cmavo => {}
+    }
 }
 
 #[requires(true)]
@@ -2682,5 +2783,41 @@ mod tests {
                 .map(|card| card.word.as_str()),
             Some("abu zei sance")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn content_word_dictionary_matches_follow_typed_morphology_classes() {
+        let words =
+            segment_words_with_modifiers("mi klama ti klupe zo klama abu").expect("morphology");
+        let matches =
+            dictionary_matches_for_content_word_likes(jbotci_dictionary_data::english(), &words);
+        assert_eq!(
+            matches
+                .iter()
+                .map(|parsed_match| parsed_match.lookup_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["klama", "klupe", "klama"]
+        );
+        assert!(matches.iter().all(|parsed_match| {
+            parsed_match
+                .cards
+                .iter()
+                .all(|card| card.word_type != "cmavo")
+        }));
+
+        let zei_words =
+            segment_words_with_modifiers("mi zei klama").expect("ZEI compound morphology");
+        assert_eq!(zei_words.len(), 1);
+        let zei_targets = content_dictionary_lookup_targets(&zei_words[0]);
+        assert_eq!(zei_targets.len(), 1);
+        assert_eq!(zei_targets[0].lookup_text, "mi zei klama");
+        assert!(zei_targets[0].is_lujvo);
+        let zei_matches = dictionary_matches_for_content_word_likes(
+            jbotci_dictionary_data::english(),
+            &zei_words,
+        );
+        assert!(zei_matches.is_empty());
     }
 }
