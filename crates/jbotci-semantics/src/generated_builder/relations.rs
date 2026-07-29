@@ -34,7 +34,11 @@ pub(super) fn generated_simple_fiho_relation_spec(
 ) -> Result<Option<GeneratedSimpleFihoRelationSpec>, SemanticsError> {
     let mut inspector = GeneratedSimpleFihoRelationInspector::default();
     TreeWalkable::walk_with(selbri, &mut inspector);
-    let Some(word) = inspector.lexical_word.filter(|_| !inspector.composite) else {
+    let data!(GeneratedSimpleFihoRelationInspector {
+        lexical_word,
+        composite,
+    }) = inspector.into_data();
+    let Some(word) = lexical_word.filter(|_| !composite) else {
         return Ok(None);
     };
     let token = &word.0.value;
@@ -46,8 +50,8 @@ pub(super) fn generated_simple_fiho_relation_spec(
     })))
 }
 
-#[invariant(true)]
-#[derive(Default)]
+#[invariant(!*composite || lexical_word.is_none(), "composite inspection state does not retain an irrelevant lexical word")]
+#[derive(Clone, Default)]
 struct GeneratedSimpleFihoRelationInspector<'tree> {
     lexical_word: Option<&'tree WordTanruUnitSyntax>,
     composite: bool,
@@ -57,7 +61,10 @@ impl<'tree> GeneratedSimpleFihoRelationInspector<'tree> {
     #[requires(true)]
     #[ensures(self.composite)]
     fn mark_composite(&mut self) {
-        self.composite = true;
+        *self = self.clone().with_data(data! {
+            lexical_word: None,
+            composite: true,
+        });
     }
 
     #[requires(true)]
@@ -66,7 +73,9 @@ impl<'tree> GeneratedSimpleFihoRelationInspector<'tree> {
         if self.lexical_word.is_some() {
             self.mark_composite();
         } else {
-            self.lexical_word = Some(word);
+            *self = self.clone().with_data(data! {
+                lexical_word: Some(word),
+            });
         }
     }
 }
