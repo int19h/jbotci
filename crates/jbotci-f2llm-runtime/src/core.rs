@@ -327,33 +327,44 @@ pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result
 }
 
 /// Typed failures for embedding-vector validation and pooling.
-#[invariant(::NoVectors => true)]
+#[invariant(::NoVectors { vector_count } => *vector_count == 0)]
 #[invariant(::DimensionMismatch {
     expected_dimensions,
     actual_dimensions,
 } => *expected_dimensions > 0 && expected_dimensions != actual_dimensions)]
-#[invariant(::NonFiniteComponent { .. } => true)]
-#[invariant(::ZeroNorm => true)]
-#[invariant(::NonFiniteNorm => true)]
+#[invariant(::NonFiniteComponent { value_bits, .. } =>
+    !f32::from_bits(*value_bits).is_finite())]
+#[invariant(::ZeroNorm { norm_bits } => f32::from_bits(*norm_bits) == 0.0)]
+#[invariant(::NonFiniteNorm { norm_bits } => !f32::from_bits(*norm_bits).is_finite())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EmbeddingVectorError {
-    NoVectors,
+    NoVectors {
+        vector_count: usize,
+    },
     DimensionMismatch {
         expected_dimensions: usize,
         actual_dimensions: usize,
     },
     NonFiniteComponent {
         dimension: usize,
+        value_bits: u32,
     },
-    ZeroNorm,
-    NonFiniteNorm,
+    ZeroNorm {
+        norm_bits: u32,
+    },
+    NonFiniteNorm {
+        norm_bits: u32,
+    },
 }
 
 impl EmbeddingVectorError {
     #[requires(true)]
-    #[ensures(ret == matches!(self.as_data(), data!(EmbeddingVectorError::ZeroNorm)))]
+    #[ensures(ret == matches!(
+        self.as_data(),
+        data!(EmbeddingVectorError::ZeroNorm { .. })
+    ))]
     pub fn is_zero_norm(&self) -> bool {
-        matches!(self.as_data(), data!(EmbeddingVectorError::ZeroNorm))
+        matches!(self.as_data(), data!(EmbeddingVectorError::ZeroNorm { .. }))
     }
 }
 
@@ -362,7 +373,7 @@ impl fmt::Display for EmbeddingVectorError {
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.as_data() {
-            data!(EmbeddingVectorError::NoVectors) => {
+            data!(EmbeddingVectorError::NoVectors { .. }) => {
                 formatter.write_str("at least one embedding vector is required for pooling")
             }
             data!(EmbeddingVectorError::DimensionMismatch {
@@ -372,16 +383,22 @@ impl fmt::Display for EmbeddingVectorError {
                 formatter,
                 "embedding vector has {actual_dimensions} dimensions, expected {expected_dimensions}"
             ),
-            data!(EmbeddingVectorError::NonFiniteComponent { dimension }) => write!(
+            data!(EmbeddingVectorError::NonFiniteComponent {
+                dimension,
+                value_bits,
+            }) => write!(
                 formatter,
-                "embedding vector contains a non-finite value at dimension {dimension}"
+                "embedding vector contains non-finite value {} at dimension {dimension}",
+                f32::from_bits(*value_bits)
             ),
-            data!(EmbeddingVectorError::ZeroNorm) => {
+            data!(EmbeddingVectorError::ZeroNorm { .. }) => {
                 formatter.write_str("embedding vector has zero norm")
             }
-            data!(EmbeddingVectorError::NonFiniteNorm) => {
-                formatter.write_str("embedding vector norm is non-finite")
-            }
+            data!(EmbeddingVectorError::NonFiniteNorm { norm_bits }) => write!(
+                formatter,
+                "embedding vector norm is non-finite: {}",
+                f32::from_bits(*norm_bits)
+            ),
         }
     }
 }
@@ -409,15 +426,20 @@ pub(crate) fn embedding_normalization_magnitude(
         if !value.is_finite() {
             return Err(new!(EmbeddingVectorError::NonFiniteComponent {
                 dimension: index,
+                value_bits: value.to_bits(),
             }));
         }
     }
     let magnitude = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
     if magnitude == 0.0 {
-        return Err(new!(EmbeddingVectorError::ZeroNorm));
+        return Err(new!(EmbeddingVectorError::ZeroNorm {
+            norm_bits: magnitude.to_bits(),
+        }));
     }
     if !magnitude.is_finite() {
-        return Err(new!(EmbeddingVectorError::NonFiniteNorm));
+        return Err(new!(EmbeddingVectorError::NonFiniteNorm {
+            norm_bits: magnitude.to_bits(),
+        }));
     }
     Ok(magnitude)
 }
@@ -530,7 +552,9 @@ pub fn mean_pool_normalized(
     dimensions: usize,
 ) -> Result<Vec<f32>, EmbeddingVectorError> {
     if vectors.is_empty() {
-        return Err(new!(EmbeddingVectorError::NoVectors));
+        return Err(new!(EmbeddingVectorError::NoVectors {
+            vector_count: vectors.len(),
+        }));
     }
     let mut pooled = vec![0.0; dimensions];
     for vector in vectors {
@@ -649,7 +673,7 @@ mod tests {
         let error = mean_pool_normalized(&[vec![1.0, 0.0], vec![-1.0, 0.0]], 2)
             .expect_err("cancelling windows must not produce a successful zero embedding");
 
-        assert_eq!(error, new!(EmbeddingVectorError::ZeroNorm));
+        assert!(error.is_zero_norm());
     }
 
     #[test]
@@ -804,11 +828,14 @@ mod tests {
             1.0
         );
         let zero_error = embedding_normalization_magnitude(&[0.0, -0.0], 2).unwrap_err();
-        assert_eq!(zero_error, new!(EmbeddingVectorError::ZeroNorm));
+        assert!(zero_error.is_zero_norm());
         let nan_error = embedding_normalization_magnitude(&[1.0, f32::NAN], 2).unwrap_err();
         assert_eq!(
             nan_error,
-            new!(EmbeddingVectorError::NonFiniteComponent { dimension: 1 })
+            new!(EmbeddingVectorError::NonFiniteComponent {
+                dimension: 1,
+                value_bits: f32::NAN.to_bits(),
+            })
         );
     }
 
