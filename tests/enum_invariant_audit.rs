@@ -912,27 +912,27 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::AssignedNameRecord",
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::AssignedNameRecord",
         "unit omission-family marker; no payload to constrain",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::BoundVariableWord",
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::BoundVariableWord",
         "unit omission-family marker; no payload to constrain",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::DescriptorWord",
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::DescriptorWord",
         "unit omission-family marker; no payload to constrain",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::IntroducedBy",
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::IntroducedBy",
         "unit omission-family marker; no payload to constrain",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::QuantityText",
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::QuantityText",
         "unit omission-family marker; no payload to constrain",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::SourceRecord",
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::SourceRecord",
         "unit omission-family marker; no payload to constrain",
     ),
     (

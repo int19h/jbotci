@@ -1543,7 +1543,8 @@ impl ToolTersmuFormat {
     fn content_type(self) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Smusni | Self::Xml => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Xml => APPLICATION_XML_CONTENT_TYPE,
         }
     }
 }
@@ -1793,6 +1794,7 @@ fn run_tool_command_with_context(
 }
 
 const TEXT_PLAIN_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
+const APPLICATION_XML_CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 const APPLICATION_JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 
 #[cfg(test)]

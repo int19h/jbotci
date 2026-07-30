@@ -21,6 +21,6 @@ pub use model::{
     semantic_object_scope_dependences_are_derived,
 };
 pub use notation::{
-    NotationProfile, SmusniConfig, XML_DECLARED_WAIVERS, XmlOmission, XmlOmissionKind, XmlRender,
-    render_notation, render_smusni, render_xml,
+    NotationProfile, SmusniConfig, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
+    XmlWaiverFamily, render_notation, render_smusni, render_xml,
 };

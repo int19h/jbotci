@@ -996,10 +996,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "smusni render config is a single bool provenance toggle; every value is a valid configuration",
     ),
     (
-        "crates/jbotci-semantics/src/notation/xml.rs:GraphData",
-        "XML graph data is validated once from canonical JSON and remains private and immutable thereafter",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
         "XML render state is deliberately mutable; balanced scope and definition transitions are enforced by method contracts and assertions",
     ),

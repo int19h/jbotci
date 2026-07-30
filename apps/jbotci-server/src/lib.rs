@@ -2058,7 +2058,7 @@ mod tests {
             (
                 jbotci_cli::ToolTersmuFormat::Xml,
                 serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "xml" }),
-                "text/plain; charset=utf-8",
+                "application/xml; charset=utf-8",
             ),
         ] {
             let request = ToolTersmuRequest {
@@ -2844,8 +2844,7 @@ mod tests {
                     "name": "tersmu",
                     "arguments": {
                         "text": "mi klama",
-                        "format": "xml",
-                        "show-defs": false
+                        "format": "xml"
                     }
                 }
             }),

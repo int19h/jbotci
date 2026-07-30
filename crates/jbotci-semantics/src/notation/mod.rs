@@ -58,7 +58,9 @@ pub mod xml_coverage;
 use bityzba::{ensures, invariant, requires};
 
 pub use render::SmusniConfig;
-pub use xml::{XML_DECLARED_WAIVERS, XmlOmission, XmlOmissionKind, XmlRender, render_xml};
+pub use xml::{
+    XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface, XmlWaiverFamily, render_xml,
+};
 
 use crate::model::SemanticGraph;
 
