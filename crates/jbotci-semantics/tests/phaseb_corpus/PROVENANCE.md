@@ -69,7 +69,7 @@ Provenance (see `FREEZE-PHASE-B.md` in the research repo):
   current builder path constructs those Question shapes.
 - Amendment 7 (jbotci#652), oracle commit
   `c6004a1bc4dda0c9d27cef188e21402d64f36d30`: predication and eventuality
-  `modalArguments` render as ordinary keyword-indexed entries in the host's
+  `adjuncts` render as ordinary keyword-indexed entries in the host's
   single `ARGS` sequence. Relation-backed entries use the desugared predicate
   word; ad-hoc `fi'o` entries use the body formula reference as the key and the
   host component as the value. The surface `introducedBy` spelling is omitted
@@ -96,6 +96,10 @@ Provenance (see `FREEZE-PHASE-B.md` in the research repo):
   surface words remain only in provenance. Exactly those two frozen JSON files
   and their four corresponding renderer expectations change; the other 46
   documents and the renderer itself are unchanged.
+- Amendment 10 (jbotci#656): the semantic model calls the host entries
+  `adjuncts` and their value type `Adjunct`. The four tagged-argument frozen
+  graphs change only by renaming each `modalArguments` object key to
+  `adjuncts`; the frozen smusni streams are unchanged.
 - Corpus: 33 `battery-docs/b*.json`/`nd*.json` + 4
   `notation-renderer-v0/samples/*.json` = 37 documents frozen at `28c7d5f`, plus
   the `ti-mo` relation-question witness (jbotci#620, oracle `7e9c722`) and the

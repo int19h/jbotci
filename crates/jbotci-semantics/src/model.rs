@@ -1657,7 +1657,7 @@ pub struct Recurrence {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interval: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub negation: Option<ModalNegation>,
+    pub negation: Option<TaggedNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -1671,7 +1671,7 @@ impl Recurrence {
         connection: Option<RecurrenceConnection>,
         value: Option<QuantityValue>,
         interval: Option<SemanticObjectId>,
-        negation: Option<ModalNegation>,
+        negation: Option<TaggedNegation>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(Recurrence {
@@ -1695,7 +1695,7 @@ impl Recurrence {
         connection: Option<RecurrenceConnection>,
         quantity: SemanticObjectId,
         interval: Option<SemanticObjectId>,
-        negation: Option<ModalNegation>,
+        negation: Option<TaggedNegation>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(Recurrence {
@@ -2708,19 +2708,19 @@ impl PlaceQuestionBinding {
     }
 }
 
-#[invariant(!introduced_by.is_empty(), "modal negation source marker must be named")]
+#[invariant(!introduced_by.is_empty(), "tagged negation source marker must be named")]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModalNegation {
-    pub kind: ModalNegationKind,
+pub struct TaggedNegation {
+    pub kind: TaggedNegationKind,
     pub introduced_by: String,
 }
 
-impl ModalNegation {
+impl TaggedNegation {
     #[requires(!introduced_by.is_empty())]
     #[ensures(ret.introduced_by == old(introduced_by.clone()))]
-    pub fn new(kind: ModalNegationKind, introduced_by: String) -> Self {
-        Self::from_data(data!(ModalNegation {
+    pub fn new(kind: TaggedNegationKind, introduced_by: String) -> Self {
+        Self::from_data(data!(TaggedNegation {
             kind,
             introduced_by,
         }))
@@ -2730,25 +2730,25 @@ impl ModalNegation {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ModalNegationKind {
+pub enum TaggedNegationKind {
     Contradictory,
     OtherThan,
 }
 
-#[invariant(!introduced_by.is_empty(), "modal source marker must be named")]
-#[invariant(relation.as_ref().is_none_or(|relation| !relation.is_empty()), "modal relation must be named when present")]
+#[invariant(!introduced_by.is_empty(), "adjunct source marker must be named")]
+#[invariant(relation.as_ref().is_none_or(|relation| !relation.is_empty()), "adjunct relation must be named when present")]
 #[invariant(relation.as_ref().is_none_or(|relation| jbotci_morphology::Cmavo::from_text(relation)
     .is_none_or(|cmavo| !cmavo.is_selmaho(jbotci_morphology::Selmaho::Bai))),
-    "canonical modal relations must not contain raw BAI cmavo")]
-#[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula), "modal body must be a formula")]
-#[invariant(relation.is_some() != body.is_some(), "modal argument must use either relation arguments or a body formula")]
-#[invariant(body.is_some() || !arguments.is_empty(), "modal relation must have at least one explicit place")]
-#[invariant(body.is_none() || arguments.is_empty(), "modal body arguments are represented inside the body formula")]
+    "canonical adjunct relations must not contain raw BAI cmavo")]
+#[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula), "adjunct body must be a formula")]
+#[invariant(relation.is_some() != body.is_some(), "adjunct must use either relation arguments or a body formula")]
+#[invariant(body.is_some() || !arguments.is_empty(), "adjunct relation must have at least one explicit place")]
+#[invariant(body.is_none() || arguments.is_empty(), "adjunct body arguments are represented inside the body formula")]
 #[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[invariant(component.is_none_or(|component| argument_object_kind_can_fill(component.object_kind())))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModalArgument {
+pub struct Adjunct {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relation: Option<String>,
     pub introduced_by: String,
@@ -2759,7 +2759,7 @@ pub struct ModalArgument {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub component: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub negation: Option<ModalNegation>,
+    pub negation: Option<TaggedNegation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scalar_negation: Option<ScalarNegation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -2768,7 +2768,7 @@ pub struct ModalArgument {
     pub source: Option<SemanticSource>,
 }
 
-impl ModalArgument {
+impl Adjunct {
     #[requires(!relation.is_empty())]
     #[requires(jbotci_morphology::Cmavo::from_text(&relation)
         .is_none_or(|cmavo| !cmavo.is_selmaho(jbotci_morphology::Selmaho::Bai)))]
@@ -2796,11 +2796,11 @@ impl ModalArgument {
         relation: String,
         introduced_by: String,
         arguments: BTreeMap<PlaceIndex, ArgumentValue>,
-        negation: Option<ModalNegation>,
+        negation: Option<TaggedNegation>,
         scalar_negation: Option<ScalarNegation>,
         source: Option<SemanticSource>,
     ) -> Self {
-        Self::from_data(data!(ModalArgument {
+        Self::from_data(data!(Adjunct {
             relation: Some(relation),
             introduced_by,
             arguments,
@@ -2821,7 +2821,7 @@ impl ModalArgument {
         body: SemanticObjectId,
         source: Option<SemanticSource>,
     ) -> Self {
-        Self::from_data(data!(ModalArgument {
+        Self::from_data(data!(Adjunct {
             relation: None,
             introduced_by,
             arguments: BTreeMap::new(),
@@ -2838,7 +2838,7 @@ impl ModalArgument {
     #[ensures(ret.component == Some(component))]
     pub fn with_component(self, component: SemanticObjectId) -> Self {
         let data = self.into_data();
-        Self::from_data(data!(ModalArgument {
+        Self::from_data(data!(Adjunct {
             component: Some(component),
             ..data
         }))
@@ -4474,7 +4474,7 @@ pub fn semantic_object_arguments_are_valid(
         let data!(SemanticObject::Predication(object)) = object.as_data() else {
             return true;
         };
-        let modal_arguments_valid = object.modal_arguments.iter().all(|argument| {
+        let adjuncts_valid = object.adjuncts.iter().all(|argument| {
             argument.arguments.iter().all(|(place, value)| {
                 place.get() > 0 && argument_value_references_allowed_objects(value, objects)
             })
@@ -4490,7 +4490,7 @@ pub fn semantic_object_arguments_are_valid(
                     .candidate_places
                     .iter()
                     .all(|place| place.get() > 0)
-        }) && modal_arguments_valid
+        }) && adjuncts_valid
             && object.reciprocity.iter().all(|exchange| {
                 argument_value_references_allowed_objects(&exchange.left, objects)
                     && argument_value_references_allowed_objects(&exchange.right, objects)
@@ -5067,8 +5067,8 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn modal_argument_invariant_rejects_raw_bai_relations() {
-        let invalid = ModalArgument::try_from_data(data!(ModalArgument {
+    fn adjunct_invariant_rejects_raw_bai_relations() {
+        let invalid = Adjunct::try_from_data(data!(Adjunct {
             relation: Some("va'o".to_owned()),
             introduced_by: "va'o".to_owned(),
             arguments: BTreeMap::from([(

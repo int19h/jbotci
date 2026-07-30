@@ -134,19 +134,19 @@ pub(super) fn generated_vocative_marker_first_token(markers: &VocativeMarkerWord
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|definition| crate::model::argument_object_kind_can_fill(definition.value.object_kind())))]
-pub(super) fn scalar_scale_definition_for_modal_argument(
-    modal_argument: &ModalArgument,
+pub(super) fn scalar_scale_definition_for_adjunct(
+    adjunct: &Adjunct,
 ) -> Option<GeneratedScalarScaleDefinition> {
-    modal_argument.relation.as_ref()?;
-    if modal_argument.introduced_by != "ci'u" {
+    adjunct.relation.as_ref()?;
+    if adjunct.introduced_by != "ci'u" {
         return None;
     }
-    let value = modal_argument.arguments.get(&argument_key(1))?.value?;
+    let value = adjunct.arguments.get(&argument_key(1))?.value?;
     Some(GeneratedScalarScaleDefinition::from_data(data!(
         GeneratedScalarScaleDefinition {
             value,
-            introduced_by: modal_argument.introduced_by.clone(),
-            source: modal_argument.source.clone(),
+            introduced_by: adjunct.introduced_by.clone(),
+            source: adjunct.source.clone(),
         }
     )))
 }
@@ -239,48 +239,47 @@ pub(super) fn descriptor_definiteness_for_scalar_negated_sumti(
 
 #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
 #[ensures(true)]
-pub(super) fn bind_generated_modal_argument_to_host_event(
-    modal_argument: &mut ModalArgument,
+pub(super) fn bind_generated_adjunct_to_host_event(
+    adjunct: &mut Adjunct,
     eventuality: SemanticObjectId,
 ) {
-    let _ =
-        bind_generated_modal_argument_to_host_event_preserving_elision(modal_argument, eventuality);
+    let _ = bind_generated_adjunct_to_host_event_preserving_elision(adjunct, eventuality);
 }
 
 #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
 #[ensures(ret.as_ref().is_none_or(|elision| elision.argument.kind == ArgumentValueKind::Elided))]
-pub(super) fn bind_generated_modal_argument_to_host_event_preserving_elision(
-    modal_argument: &mut ModalArgument,
+pub(super) fn bind_generated_adjunct_to_host_event_preserving_elision(
+    adjunct: &mut Adjunct,
     eventuality: SemanticObjectId,
 ) -> Option<GeneratedHostEventModalElision> {
-    if modal_argument.relation.is_none() {
-        if modal_argument.body.is_some() {
-            *modal_argument = modal_argument.clone().with_component(eventuality);
+    if adjunct.relation.is_none() {
+        if adjunct.body.is_some() {
+            *adjunct = adjunct.clone().with_component(eventuality);
         }
         return None;
     }
-    let relation = modal_argument.relation.as_ref()?.clone();
-    let Some(place) = generated_modal_relation_host_event_place_for_argument(modal_argument) else {
+    let relation = adjunct.relation.as_ref()?.clone();
+    let Some(place) = generated_modal_relation_host_event_place_for_argument(adjunct) else {
         return None;
     };
     let key = argument_key(place);
-    if modal_argument
+    if adjunct
         .arguments
         .get(&key)
         .is_some_and(|argument| argument.kind != ArgumentValueKind::Elided)
     {
         return None;
     }
-    let original_elision = modal_argument.arguments.get(&key).cloned();
-    let mut data = modal_argument.clone().into_data();
+    let original_elision = adjunct.arguments.get(&key).cloned();
+    let mut data = adjunct.clone().into_data();
     data.arguments
         .insert(key.clone(), ArgumentValue::filled(eventuality, None));
-    *modal_argument = ModalArgument::from_data(data);
+    *adjunct = Adjunct::from_data(data);
     original_elision.map(|argument| {
         new!(GeneratedHostEventModalElision {
             relation,
-            introduced_by: modal_argument.introduced_by.clone(),
-            source: modal_argument.source.clone(),
+            introduced_by: adjunct.introduced_by.clone(),
+            source: adjunct.source.clone(),
             place,
             argument,
         })
@@ -290,12 +289,12 @@ pub(super) fn bind_generated_modal_argument_to_host_event_preserving_elision(
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| place > 0))]
 pub(super) fn generated_modal_relation_host_event_place_for_argument(
-    modal_argument: &ModalArgument,
+    adjunct: &Adjunct,
 ) -> Option<usize> {
-    let relation = modal_argument.relation.as_deref()?;
+    let relation = adjunct.relation.as_deref()?;
     if generated_modal_relation_has_complementary_event_places(relation)
-        && generated_modal_argument_place_is_filled(modal_argument, 2)
-        && !generated_modal_argument_place_is_filled(modal_argument, 1)
+        && generated_adjunct_place_is_filled(adjunct, 2)
+        && !generated_adjunct_place_is_filled(adjunct, 1)
     {
         return Some(1);
     }
@@ -304,11 +303,8 @@ pub(super) fn generated_modal_relation_host_event_place_for_argument(
 
 #[requires(place > 0)]
 #[ensures(true)]
-pub(super) fn generated_modal_argument_place_is_filled(
-    modal_argument: &ModalArgument,
-    place: usize,
-) -> bool {
-    modal_argument
+pub(super) fn generated_adjunct_place_is_filled(adjunct: &Adjunct, place: usize) -> bool {
+    adjunct
         .arguments
         .get(&argument_key(place))
         .is_some_and(|argument| argument.kind != ArgumentValueKind::Elided)

@@ -238,11 +238,11 @@ fn collect_predication_eventuality_references(
     for question in &node.place_questions {
         extend_if_eventuality(question.argument.value, out);
     }
-    for modal in &node.modal_arguments {
-        for argument in modal.arguments.values() {
+    for adjunct in &node.adjuncts {
+        for argument in adjunct.arguments.values() {
             extend_if_eventuality(argument.value, out);
         }
-        extend_if_eventuality(modal.component, out);
+        extend_if_eventuality(adjunct.component, out);
     }
     for exchange in &node.reciprocity {
         extend_if_eventuality(exchange.left.value, out);

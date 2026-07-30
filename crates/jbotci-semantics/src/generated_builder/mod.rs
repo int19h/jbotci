@@ -96,31 +96,31 @@ use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
-    ArgumentValue, ArgumentValueData, ArgumentValueKind, Aspect, AssignedName, AssignedNameData,
-    CommandTarget, Composition, CompositionOperator, Connector, DeicticProximity, Descriptor,
-    DescriptorDefiniteness, DescriptorKind, DisplayedContentAssertionEffect,
-    DisplayedContentFamily, DisplayedContentModifier, DisplayedContentNode,
-    DisplayedContentPolarity, DisplayedContentTargetFocus, ElidedConnectionOperand,
-    EventualityClass, EventualityNode, EventualityNodeData, EventualitySort,
-    ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
-    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
-    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
-    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
-    MixedRadixComponent, ModalArgument, ModalArgumentData, ModalNegation, ModalNegationKind,
-    NonlogicalConnection, ParagraphTransition, ParameterRole, PersonalMassMembership,
-    PersonalParticipantMembership, PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData,
-    PredicationMode, PredicationNode, PredicationNodeData, PredicationRelationData,
-    QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm, QuantityScale, QuantityValue,
-    QuestionKind, QuestionMode, QuestionNode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, ReciprocalExchangeData, Recurrence, RecurrenceConnection,
-    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion,
-    RelationLabel, RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream,
-    ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject,
-    SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind,
-    SignNode, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
-    TanruLink, TanruLinkData, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData,
-    TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
+    AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
+    AnchorRelation, AnchorRelationData, ArgumentValue, ArgumentValueData, ArgumentValueKind,
+    Aspect, AssignedName, AssignedNameData, CommandTarget, Composition, CompositionOperator,
+    Connector, DeicticProximity, Descriptor, DescriptorDefiniteness, DescriptorKind,
+    DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentModifier,
+    DisplayedContentNode, DisplayedContentPolarity, DisplayedContentTargetFocus,
+    ElidedConnectionOperand, EventualityClass, EventualityNode, EventualityNodeData,
+    EventualitySort, ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator,
+    FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
+    MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
+    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, NonlogicalConnection,
+    ParagraphTransition, ParameterRole, PersonalMassMembership, PersonalParticipantMembership,
+    PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData, PredicationMode, PredicationNode,
+    PredicationNodeData, PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode,
+    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode,
+    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange,
+    ReciprocalExchangeData, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
+    RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion, RelationLabel,
+    RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
+    ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject, SemanticObjectData,
+    SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind, SignNode,
+    SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TaggedNegation,
+    TaggedNegationKind, TanruLink, TanruLinkData, TemporalPathAnchor, TemporalPathStep,
+    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
     argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
     source_from_spans,
 };
@@ -203,7 +203,7 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     recorded_implicit_existential_variables: HashSet<SemanticObjectId>,
     implicit_da_series_bindings: BTreeMap<String, SemanticObjectId>,
     quantified_da_series_bindings: BTreeMap<String, GeneratedSemanticDaSeriesScopeBinding>,
-    sticky_modal_arguments: BTreeMap<GeneratedStickyModalKey, ModalArgument>,
+    sticky_adjuncts: BTreeMap<GeneratedStickyModalKey, Adjunct>,
     host_event_modal_elisions: BTreeMap<SemanticObjectId, Vec<GeneratedHostEventModalElision>>,
     sticky_time_path: Vec<TemporalPathStep>,
     sticky_space_path: Vec<TemporalPathStep>,
@@ -390,17 +390,17 @@ struct GeneratedStickyModalKey {
 }
 
 impl GeneratedStickyModalKey {
-    #[requires(!modal_argument.introduced_by.is_empty())]
-    #[requires(modal_argument.relation.as_ref().is_some_and(|relation| !relation.is_empty()))]
-    #[ensures(ret.introduced_by == modal_argument.introduced_by)]
-    fn for_modal_argument(modal_argument: &ModalArgument) -> Self {
-        let relation = modal_argument
+    #[requires(!adjunct.introduced_by.is_empty())]
+    #[requires(adjunct.relation.as_ref().is_some_and(|relation| !relation.is_empty()))]
+    #[ensures(ret.introduced_by == adjunct.introduced_by)]
+    fn for_adjunct(adjunct: &Adjunct) -> Self {
+        let relation = adjunct
             .relation
             .as_ref()
             .expect("precondition guarantees relation modal")
             .clone();
         Self::from_data(data!(GeneratedStickyModalKey {
-            introduced_by: modal_argument.introduced_by.clone(),
+            introduced_by: adjunct.introduced_by.clone(),
             relation,
         }))
     }
@@ -739,7 +739,7 @@ struct GeneratedLogicalModalConnectionSpec<'syntax> {
     terms: Vec<GeneratedConnectedModalTerm<'syntax>>,
 }
 
-#[invariant(generated_tense_modal_has_modal_argument(tense_modal))]
+#[invariant(generated_tense_modal_has_adjunct(tense_modal))]
 #[derive(Debug, Clone)]
 struct GeneratedConnectedModalTerm<'syntax> {
     tense_modal: TenseModalSyntax,
@@ -762,7 +762,7 @@ struct GeneratedLogicalTagConnection<'syntax> {
     branches: Vec<GeneratedLogicalTagConnectionBranch<'syntax>>,
 }
 
-#[invariant(::Modal { term, .. } => generated_tense_modal_has_modal_argument(&term.tense_modal))]
+#[invariant(::Modal { term, .. } => generated_tense_modal_has_adjunct(&term.tense_modal))]
 #[invariant(::Event { branch, anchor } => generated_tense_modal_has_event_modifier(&branch.tense_modal) && anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
 #[derive(Debug, Clone)]
 enum GeneratedLogicalTagConnectionBranch<'syntax> {
@@ -993,7 +993,7 @@ struct GeneratedScopedFormula<'syntax> {
 #[derive(Debug, Clone)]
 struct GeneratedForethoughtPrefixContext<'syntax> {
     assignments: GeneratedTermAssignments<'syntax>,
-    modal_arguments: Vec<ModalArgument>,
+    adjuncts: Vec<Adjunct>,
 }
 
 #[invariant(!introduced_by.is_empty())]
@@ -1020,7 +1020,7 @@ struct GeneratedArgumentQuantifierBundleScope<'syntax> {
 #[derive(Debug, Clone)]
 struct GeneratedLinkargsAssignments<'syntax> {
     numbered_argument_choices: BTreeMap<usize, Vec<ArgumentValue>>,
-    modal_arguments: Vec<ModalArgument>,
+    adjuncts: Vec<Adjunct>,
     event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     first_visible_place: usize,
@@ -1035,7 +1035,7 @@ struct GeneratedLinkargsAssignments<'syntax> {
 #[derive(Debug)]
 struct GeneratedLinkargsArgumentBranches<'syntax> {
     visible_argument_branches: Vec<BTreeMap<usize, ArgumentValue>>,
-    modal_arguments: Vec<ModalArgument>,
+    adjuncts: Vec<Adjunct>,
     event_modifiers: Vec<GeneratedLinkedEventModifier<'syntax>>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     diagnostics: Vec<crate::model::SemanticDiagnostic>,
@@ -1110,7 +1110,7 @@ struct GeneratedRecurrenceQuantityCacheKey {
     introduced_by: String,
     connection: Option<RecurrenceConnection>,
     value: GeneratedRecurrenceQuantityCacheValue,
-    negation: Option<ModalNegation>,
+    negation: Option<TaggedNegation>,
 }
 
 impl GeneratedRecurrenceQuantityCacheKey {
@@ -1137,7 +1137,7 @@ impl GeneratedRecurrenceQuantityCacheKey {
         introduced_by: String,
         connection: Option<RecurrenceConnection>,
         value: GeneratedRecurrenceQuantityCacheValue,
-        negation: Option<ModalNegation>,
+        negation: Option<TaggedNegation>,
     ) -> Self {
         Self::from_data(data!(GeneratedRecurrenceQuantityCacheKey {
             kind,
@@ -1630,7 +1630,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             recorded_implicit_existential_variables: HashSet::new(),
             implicit_da_series_bindings: BTreeMap::new(),
             quantified_da_series_bindings: BTreeMap::new(),
-            sticky_modal_arguments: BTreeMap::new(),
+            sticky_adjuncts: BTreeMap::new(),
             host_event_modal_elisions: BTreeMap::new(),
             sticky_time_path: Vec::new(),
             sticky_space_path: Vec::new(),
@@ -2313,11 +2313,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if let Some(eventuality) = eventuality {
                 object.update_predication(|predication| {
                     let mut data = predication.into_data();
-                    for modal_argument in &mut data.modal_arguments {
-                        self.bind_generated_modal_argument_to_host_event(
-                            modal_argument,
-                            eventuality,
-                        );
+                    for adjunct in &mut data.adjuncts {
+                        self.bind_generated_adjunct_to_host_event(adjunct, eventuality);
                     }
                     PredicationNode::from_data(data)
                 });
@@ -7526,15 +7523,15 @@ fn replace_generated_predication_formula_references(
             *question = question.clone().with_data(data! { argument: argument });
         }
     }
-    for modal_argument in &mut predication.modal_arguments {
-        let mut arguments = modal_argument.arguments.clone();
+    for adjunct in &mut predication.adjuncts {
+        let mut arguments = adjunct.arguments.clone();
         for argument in arguments.values_mut() {
             replace_generated_argument_value_formula_references(argument, old_id, new_id);
         }
-        let mut body = modal_argument.body;
+        let mut body = adjunct.body;
         replace_generated_formula_option(&mut body, old_id, new_id);
-        if arguments != modal_argument.arguments || body != modal_argument.body {
-            *modal_argument = modal_argument.clone().with_data(data! {
+        if arguments != adjunct.arguments || body != adjunct.body {
+            *adjunct = adjunct.clone().with_data(data! {
                 arguments: arguments,
                 body: body,
             });
@@ -8665,12 +8662,10 @@ mod tests {
                 if map.get("source").is_some_and(serde_json::Value::is_object) {
                     map.remove("source");
                 }
-                if let Some(serde_json::Value::Array(modal_arguments)) =
-                    map.get_mut("modalArguments")
-                {
-                    for modal_argument in modal_arguments {
-                        if let serde_json::Value::Object(modal_argument) = modal_argument {
-                            modal_argument.remove("introducedBy");
+                if let Some(serde_json::Value::Array(adjuncts)) = map.get_mut("adjuncts") {
+                    for adjunct in adjuncts {
+                        if let serde_json::Value::Object(adjunct) = adjunct {
+                            adjunct.remove("introducedBy");
                         }
                     }
                 }
@@ -8705,7 +8700,7 @@ mod tests {
                     "text": "pilno",
                 },
             },
-            "modalArguments": [{
+            "adjuncts": [{
                 "introducedBy": "fi'o",
                 "relation": "pilno",
             }],
@@ -8715,7 +8710,7 @@ mod tests {
 
         assert_eq!(value["connector"]["source"], "gi'e");
         assert!(value["object"].get("source").is_none());
-        assert!(value["modalArguments"][0].get("introducedBy").is_none());
+        assert!(value["adjuncts"][0].get("introducedBy").is_none());
     }
 
     #[requires(graph.objects.values().any(|object| matches!(object.as_formula().map(FormulaNode::as_data), Some(data!(FormulaNode::Quantified(node))) if node.operator == FormulaOperator::Forall)))]
@@ -8901,7 +8896,7 @@ mod tests {
             .as_predication()
             .expect("named object must remain a predication");
         let modals = predication
-            .modal_arguments
+            .adjuncts
             .iter()
             .filter(|modal| modal.relation.as_deref() == Some(modal_relation))
             .collect::<Vec<_>>();
@@ -9862,7 +9857,7 @@ mod tests {
         assert_ne!(broda_node.eventuality, brode_node.eventuality);
         for branch in [broda_node, brode_node] {
             let modal = branch
-                .modal_arguments
+                .adjuncts
                 .iter()
                 .find(|modal| modal.relation.as_deref() == Some("bangu"))
                 .expect("group-head modal term attaches to every connected branch");
@@ -10071,7 +10066,7 @@ mod tests {
                 .expect("shared forethought x1");
             assert_eq!(*shared_x1.get_or_insert(x1), x1);
             let standard = predication
-                .modal_arguments
+                .adjuncts
                 .iter()
                 .find(|modal| modal.relation.as_deref() == Some("manri"))
                 .and_then(|modal| modal.arguments[&argument_key(1)].value)
@@ -11770,7 +11765,7 @@ mod tests {
                 })
                 .expect("connected branch predication should exist");
             let tagged_argument = predication
-                .modal_arguments
+                .adjuncts
                 .iter()
                 .find(|argument| argument.relation.as_deref() == Some("vanbi"))
                 .expect("shared va'o term should attach to every branch");
@@ -12007,7 +12002,7 @@ mod tests {
         assert_eq!(space.anchor, SemanticObjectId::here());
         assert_eq!(space.distance.as_deref(), Some("short"));
         let bai = broda
-            .modal_arguments
+            .adjuncts
             .iter()
             .find(|argument| argument.relation.as_deref() == Some("bapli"))
             .expect("the following bai tag must remain attached");
@@ -12248,7 +12243,7 @@ mod tests {
             let predication = graph.objects[predication_id]
                 .as_predication()
                 .expect("named klama object must be a predication");
-            let [tagged_argument] = predication.modal_arguments.as_slice() else {
+            let [tagged_argument] = predication.adjuncts.as_slice() else {
                 panic!("`{marker}` must lower to exactly one tagged argument");
             };
             assert_eq!(
@@ -12315,7 +12310,7 @@ mod tests {
             let predication = graph.objects[predication_id]
                 .as_predication()
                 .expect("named klama object must be a predication");
-            let [tagged_argument] = predication.modal_arguments.as_slice() else {
+            let [tagged_argument] = predication.adjuncts.as_slice() else {
                 panic!("converted BAI must lower to exactly one tagged argument");
             };
             assert_eq!(tagged_argument.relation.as_deref(), Some(relation));
@@ -12369,21 +12364,21 @@ mod tests {
             let host = graph.objects[host_id]
                 .as_predication()
                 .expect("klama object must be a predication");
-            let [modal_argument] = host.modal_arguments.as_slice() else {
+            let [adjunct] = host.adjuncts.as_slice() else {
                 panic!("`{source}` must lower to exactly one tagged argument");
             };
 
-            assert_eq!(modal_argument.relation.as_deref(), Some("pilno"));
-            assert!(modal_argument.body.is_none());
-            assert!(modal_argument.component.is_none());
-            assert_eq!(modal_argument.introduced_by, "fi'o");
-            assert_eq!(modal_argument.arguments.len(), 3);
+            assert_eq!(adjunct.relation.as_deref(), Some("pilno"));
+            assert!(adjunct.body.is_none());
+            assert!(adjunct.component.is_none());
+            assert_eq!(adjunct.introduced_by, "fi'o");
+            assert_eq!(adjunct.arguments.len(), 3);
             assert_eq!(
-                modal_argument.arguments[&argument_key(selected_place)].kind,
+                adjunct.arguments[&argument_key(selected_place)].kind,
                 ArgumentValueKind::Filled,
             );
             assert_eq!(
-                modal_argument.arguments[&argument_key(3)].value,
+                adjunct.arguments[&argument_key(3)].value,
                 host.eventuality,
                 "`pilno` x3 must receive the justified host-event link",
             );
@@ -12402,14 +12397,14 @@ mod tests {
             let host = graph.objects[host_id]
                 .as_predication()
                 .expect("klama object must be a predication");
-            let [modal_argument] = host.modal_arguments.as_slice() else {
+            let [adjunct] = host.adjuncts.as_slice() else {
                 panic!("`{source}` must lower to exactly one tagged argument");
             };
 
-            assert!(modal_argument.relation.is_none(), "`{source}` flattened");
-            assert!(modal_argument.body.is_some(), "`{source}` lost its body");
-            assert_eq!(modal_argument.component, host.eventuality);
-            assert_eq!(modal_argument.introduced_by, "fi'o");
+            assert!(adjunct.relation.is_none(), "`{source}` flattened");
+            assert!(adjunct.body.is_some(), "`{source}` lost its body");
+            assert_eq!(adjunct.component, host.eventuality);
+            assert_eq!(adjunct.introduced_by, "fi'o");
         }
     }
 
@@ -12431,7 +12426,7 @@ mod tests {
                 .expect("named xunre object must be a predication");
             assert_eq!(
                 predication
-                    .modal_arguments
+                    .adjuncts
                     .first()
                     .and_then(|argument| argument.relation.as_deref()),
                 Some(relation)
@@ -13594,7 +13589,7 @@ mod tests {
             let predication = graph.objects[&predication]
                 .as_predication()
                 .expect("casnu branch predication");
-            let [modal] = predication.modal_arguments.as_slice() else {
+            let [modal] = predication.adjuncts.as_slice() else {
                 panic!("each casnu branch must retain exactly one FIhO modal relation");
             };
             assert_eq!(modal.introduced_by, "fi'o");
@@ -14430,7 +14425,7 @@ mod tests {
     fn modal_jai_resolves_grounded_slots_without_guessing_bare_jai() {
         // `vo'e` occupies JAI's promoted surface x1 and denotes surface x2. Building the modal
         // argument moves the placeholder out of the numbered cusku arguments, so the post-build
-        // resolver must update the invariant-bearing ModalArgument itself.
+        // resolver must update the invariant-bearing Adjunct itself.
         let graph = semantic_graph_for("fa vo'e fe mi cu jai bau cusku");
         assert_eq!(
             named_predication_modal_place_value(&graph, "cusku", "bangu", 1),

@@ -470,7 +470,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for (visible_place, argument) in assignments.visible_arguments {
             insert_visible_argument(&mut visible_arguments, visible_place, argument)?;
         }
-        let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_adjuncts = Vec::new();
         let mut linkarg_event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         let mut fai_formula_scopes = Vec::new();
@@ -560,14 +560,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             };
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches: adjusted_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes,
                 diagnostics: linkarg_diagnostics,
                 ..
             }) = adjusted.into_data();
             visible_argument_branches = adjusted_branches;
-            linkarg_modal_arguments = modal_arguments;
+            linkarg_adjuncts = adjuncts;
             linkarg_event_modifiers = event_modifiers;
             linkarg_formula_scopes = formula_scopes;
             diagnostics.extend(linkarg_diagnostics);
@@ -587,10 +587,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     raised_referent,
                 )?;
             } else if let Some(raised_referent) = raised_referent
-                && let Some(modal_argument) = self
-                    .build_generated_jai_modal_argument_for_argument_object(unit, raised_referent)?
+                && let Some(adjunct) =
+                    self.build_generated_jai_adjunct_for_argument_object(unit, raised_referent)?
             {
-                linkarg_modal_arguments.push(modal_argument);
+                linkarg_adjuncts.push(adjunct);
             }
         }
         if linkargs.is_none()
@@ -650,13 +650,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
             }
             let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-            let mut modal_arguments = self
-                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+            let mut adjuncts = self
+                .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                     eventuality,
                     &assignments.modal_terms,
                     Some(&arguments),
                 )?;
-            modal_arguments.extend(linkarg_modal_arguments.clone());
+            adjuncts.extend(linkarg_adjuncts.clone());
             let place_limit = place_count.unwrap_or_else(|| highest_argument.max(1));
             let place_questions = self.build_generated_place_question_bindings(
                 &place_question_assignments,
@@ -691,7 +691,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source.clone(),
                 diagnostics.clone(),
             );
-            predication_object.set_predication_attachments(modal_arguments, place_questions);
+            predication_object.set_predication_attachments(adjuncts, place_questions);
             predication_object.set_predication_relation_metadata(relation_metadata);
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -3045,7 +3045,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes,
                 diagnostics,
@@ -3070,11 +3070,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     "selbri",
                     eventuality,
                 )?;
-                for modal_argument in &modal_arguments {
-                    self.attach_modal_argument_to_generated_formula(
-                        result.formula,
-                        modal_argument,
-                    )?;
+                for adjunct in &adjuncts {
+                    self.attach_adjunct_to_generated_formula(result.formula, adjunct)?;
                 }
                 if let Some(object) = self.objects.get_mut(&result.formula) {
                     for diagnostic in diagnostics.clone() {
@@ -3245,7 +3242,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             bare_generated_jai_modal_tanru_atom_base_view(atom.base()),
         )?;
         let visible_x1_argument = visible_arguments.get(&1).cloned();
-        let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_adjuncts = Vec::new();
         let mut linkarg_event_modifiers = Vec::new();
         let mut linkarg_formula_scopes = Vec::new();
         let mut visible_argument_branches = vec![visible_arguments];
@@ -3272,14 +3269,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             };
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches: adjusted_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes,
                 diagnostics: linkarg_diagnostics,
                 ..
             }) = adjusted.into_data();
             visible_argument_branches = adjusted_branches;
-            linkarg_modal_arguments = modal_arguments;
+            linkarg_adjuncts = adjuncts;
             linkarg_event_modifiers = event_modifiers;
             linkarg_formula_scopes = formula_scopes;
             diagnostics.extend(linkarg_diagnostics);
@@ -3301,9 +3298,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut formulas = Vec::with_capacity(visible_argument_branches.len());
         let mut head_predication = None;
         for visible_arguments in visible_argument_branches {
-            let mut branch_modal_arguments = linkarg_modal_arguments.clone();
+            let mut branch_adjuncts = linkarg_adjuncts.clone();
             if let Some(unit) = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base()) {
-                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                branch_adjuncts.push(self.build_generated_jai_adjunct(
                     unit,
                     &visible_arguments,
                     eventuality,
@@ -3322,13 +3319,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
             let place_limit = place_count.unwrap_or_else(|| highest_argument.max(1));
-            let mut modal_arguments = self
-                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+            let mut adjuncts = self
+                .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                     eventuality,
                     modal_terms,
                     Some(&arguments),
                 )?;
-            modal_arguments.extend(branch_modal_arguments);
+            adjuncts.extend(branch_adjuncts);
             for place in 1..=place_limit.max(highest_argument) {
                 let key = argument_key(place);
                 if arguments.contains_key(&key) {
@@ -3352,7 +3349,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source.clone(),
                 diagnostics.clone(),
             );
-            predication_object.set_predication_modal_arguments(modal_arguments);
+            predication_object.set_predication_adjuncts(adjuncts);
             predication_object.set_predication_relation_metadata(relation_metadata);
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -3684,7 +3681,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .map(|(place, argument)| (if place >= 2 { place + 1 } else { place }, argument))
                 .collect()
         };
-        let mut linkarg_modal_arguments = Vec::new();
+        let mut linkarg_adjuncts = Vec::new();
         let mut linkarg_event_modifiers = Vec::new();
         let mut formula_scopes = Vec::new();
         let mut linkarg_diagnostics = Vec::new();
@@ -3702,7 +3699,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes: adjusted_formula_scopes,
                 diagnostics,
@@ -3712,7 +3709,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 invalid_graph("sumti-derived selbri linkargs produced multiple claims".to_owned())
             })?;
             visible_arguments = adjusted_arguments;
-            linkarg_modal_arguments = modal_arguments;
+            linkarg_adjuncts = adjuncts;
             linkarg_event_modifiers = event_modifiers;
             formula_scopes = adjusted_formula_scopes;
             linkarg_diagnostics = diagnostics;
@@ -3765,13 +3762,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for (place, argument) in visible_arguments {
             arguments.insert(argument_key(place), argument);
         }
-        let mut modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+        let mut adjuncts = self
+            .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                 eventuality,
                 modal_terms,
                 Some(&arguments),
             )?;
-        modal_arguments.extend(linkarg_modal_arguments);
+        adjuncts.extend(linkarg_adjuncts);
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
             relation.display_text(),
@@ -3781,7 +3778,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             linkarg_diagnostics,
         );
-        predication_object.set_predication_modal_arguments(modal_arguments);
+        predication_object.set_predication_adjuncts(adjuncts);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -5366,7 +5363,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes,
                 diagnostics,
@@ -5393,8 +5390,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     formula_source.clone(),
                     eventuality,
                 )?;
-                for modal_argument in &modal_arguments {
-                    self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
+                for adjunct in &adjuncts {
+                    self.attach_adjunct_to_generated_formula(formula, adjunct)?;
                 }
                 if let Some(object) = self.objects.get_mut(&formula) {
                     for diagnostic in diagnostics.clone() {
@@ -5460,7 +5457,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
-            modal_arguments,
+            adjuncts,
             event_modifiers,
             formula_scopes,
             mut diagnostics,
@@ -5565,10 +5562,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             {
                 self.apply_generated_linked_event_modifiers(branch_eventuality, &event_modifiers)?;
             }
-            let mut branch_modal_arguments = modal_arguments.clone();
+            let mut branch_adjuncts = adjuncts.clone();
             if let (Some(unit), Some(eventuality)) = (jai_modal, branch_eventuality) {
                 let visible_arguments = jai_visible_arguments.unwrap_or_default();
-                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                branch_adjuncts.push(self.build_generated_jai_adjunct(
                     unit,
                     &visible_arguments,
                     eventuality,
@@ -5583,7 +5580,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source.clone(),
                 diagnostics.clone(),
             );
-            predication_object.set_predication_modal_arguments(branch_modal_arguments);
+            predication_object.set_predication_adjuncts(branch_adjuncts);
             predication_object.set_predication_relation_metadata(relation_metadata);
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -5659,7 +5656,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes,
                 diagnostics,
@@ -5693,8 +5690,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     formula_source.clone(),
                     eventuality,
                 )?;
-                for modal_argument in &modal_arguments {
-                    self.attach_modal_argument_to_generated_formula(formula, modal_argument)?;
+                for adjunct in &adjuncts {
+                    self.attach_adjunct_to_generated_formula(formula, adjunct)?;
                 }
                 if let Some(object) = self.objects.get_mut(&formula) {
                     for diagnostic in diagnostics.clone() {
@@ -5754,7 +5751,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
-            modal_arguments,
+            adjuncts,
             event_modifiers,
             formula_scopes,
             mut diagnostics,
@@ -5852,10 +5849,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             } else {
                 None
             };
-            let mut branch_modal_arguments = modal_arguments.clone();
+            let mut branch_adjuncts = adjuncts.clone();
             if let (Some(unit), Some(eventuality)) = (jai_modal, predication_eventuality) {
                 let visible_arguments = jai_visible_arguments.unwrap_or_default();
-                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                branch_adjuncts.push(self.build_generated_jai_adjunct(
                     unit,
                     &visible_arguments,
                     eventuality,
@@ -5870,7 +5867,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source.clone(),
                 diagnostics.clone(),
             );
-            predication_object.set_predication_modal_arguments(branch_modal_arguments);
+            predication_object.set_predication_adjuncts(branch_adjuncts);
             predication_object.set_predication_relation_metadata(relation_metadata);
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -6198,7 +6195,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
-            modal_arguments,
+            adjuncts,
             event_modifiers,
             formula_scopes,
             diagnostics: linkarg_diagnostics,
@@ -6297,9 +6294,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             {
                 self.apply_generated_linked_event_modifiers(branch_eventuality, &event_modifiers)?;
             }
-            let mut branch_modal_arguments = modal_arguments.clone();
+            let mut branch_adjuncts = adjuncts.clone();
             if let (Some(unit), Some(eventuality)) = (jai_modal, branch_eventuality) {
-                branch_modal_arguments.push(self.build_generated_jai_modal_argument(
+                branch_adjuncts.push(self.build_generated_jai_adjunct(
                     unit,
                     &jai_visible_arguments.unwrap_or_default(),
                     eventuality,
@@ -6314,7 +6311,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source.clone(),
                 diagnostics.clone(),
             );
-            predication_object.set_predication_modal_arguments(branch_modal_arguments);
+            predication_object.set_predication_adjuncts(branch_adjuncts);
             predication_object.set_predication_relation_metadata(relation_metadata);
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -6398,7 +6395,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
         let mut assignments = new!(GeneratedLinkargsAssignments {
             numbered_argument_choices: BTreeMap::new(),
-            modal_arguments: Vec::new(),
+            adjuncts: Vec::new(),
             event_modifiers: Vec::new(),
             formula_scopes: Vec::new(),
             first_visible_place,
@@ -6533,7 +6530,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(linkargs) = linkargs else {
             return Ok(new!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches: vec![visible_arguments],
-                modal_arguments: Vec::new(),
+                adjuncts: Vec::new(),
                 event_modifiers: Vec::new(),
                 formula_scopes: Vec::new(),
                 diagnostics: Vec::new(),
@@ -6683,7 +6680,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
         Ok(new!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
-            modal_arguments: linkarg_assignments.modal_arguments,
+            adjuncts: linkarg_assignments.adjuncts,
             event_modifiers: linkarg_assignments.event_modifiers,
             formula_scopes: linkarg_assignments.formula_scopes,
             diagnostics,
@@ -6715,7 +6712,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches: outer_branches,
-            mut modal_arguments,
+            mut adjuncts,
             mut event_modifiers,
             mut formula_scopes,
             mut diagnostics,
@@ -6734,7 +6731,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             let data!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches,
-                modal_arguments: branch_modal_arguments,
+                adjuncts: branch_adjuncts,
                 event_modifiers: branch_event_modifiers,
                 formula_scopes: branch_formula_scopes,
                 diagnostics: branch_diagnostics,
@@ -6744,7 +6741,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }) = adjusted.into_data();
             combined_branches.extend(visible_argument_branches);
             preposed_metadata.get_or_insert((
-                branch_modal_arguments,
+                branch_adjuncts,
                 branch_event_modifiers,
                 branch_formula_scopes,
                 branch_diagnostics,
@@ -6754,7 +6751,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         }
         if let Some((
-            mut branch_modal_arguments,
+            mut branch_adjuncts,
             mut branch_event_modifiers,
             mut branch_formula_scopes,
             mut branch_diagnostics,
@@ -6763,13 +6760,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             branch_fallback,
         )) = preposed_metadata
         {
-            modal_arguments.append(&mut branch_modal_arguments);
+            adjuncts.append(&mut branch_adjuncts);
             event_modifiers.append(&mut branch_event_modifiers);
             formula_scopes.append(&mut branch_formula_scopes);
             diagnostics.append(&mut branch_diagnostics);
             return Ok(new!(GeneratedLinkargsArgumentBranches {
                 visible_argument_branches: combined_branches,
-                modal_arguments,
+                adjuncts,
                 event_modifiers,
                 formula_scopes,
                 diagnostics,
@@ -6910,12 +6907,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             anchor: argument.value,
                         }));
                 } else {
-                    let modal_argument = self
-                        .build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
+                    let adjunct = self
+                        .build_adjunct_for_generated_tense_tagged_linked_sumti_with_argument(
                             sumti.tense_modal.as_ref(),
                             argument,
                         )?;
-                    assignments.modal_arguments.push(modal_argument);
+                    assignments.adjuncts.push(adjunct);
                 }
             }
             LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
@@ -6925,13 +6922,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tense_tagged_linked_sumti<'syntax: 'tree>(
+    pub(super) fn build_adjunct_for_generated_tense_tagged_linked_sumti<'syntax: 'tree>(
         &mut self,
         tense_modal: &'syntax TenseModalSyntax,
         sumti: &'syntax TaggedOrElidedSumtiSyntax,
-    ) -> Result<ModalArgument, SemanticsError> {
+    ) -> Result<Adjunct, SemanticsError> {
         let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
-        self.build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
+        self.build_adjunct_for_generated_tense_tagged_linked_sumti_with_argument(
             tense_modal,
             argument,
         )
@@ -6939,11 +6936,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tense_tagged_linked_sumti_with_argument(
+    pub(super) fn build_adjunct_for_generated_tense_tagged_linked_sumti_with_argument(
         &mut self,
         tense_modal: &'tree TenseModalSyntax,
         argument: ArgumentValue,
-    ) -> Result<ModalArgument, SemanticsError> {
+    ) -> Result<Adjunct, SemanticsError> {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         else {
@@ -6951,17 +6948,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "non-modal tense tag reached linked-sumti modal-argument lowering".to_owned(),
             ));
         };
-        let arguments = self.modal_argument_map_for_visible_place(
+        let arguments = self.adjunct_map_for_visible_place(
             argument,
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+        Ok(self.generated_adjunct_with_tense_modal_modifiers(
             tense_modal,
             relation,
             introduced_by,
             arguments,
-            generated_modal_negation_for_tense_modal(tense_modal),
+            generated_adjunct_negation_for_tense_modal(tense_modal),
             generated_modal_scalar_negation_for_tense_modal(tense_modal),
             "modal-argument",
         ))
@@ -7639,18 +7636,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|negation| negation.scale.is_some()) || ret.is_err())]
-    pub(super) fn scalar_negation_with_scale_for_modal_arguments(
+    pub(super) fn scalar_negation_with_scale_for_adjuncts(
         &mut self,
         scalar_negation: ScalarNegation,
-        modal_arguments: &[ModalArgument],
+        adjuncts: &[Adjunct],
         fallback_source: Option<crate::model::SemanticSource>,
     ) -> Result<ScalarNegation, SemanticsError> {
         if scalar_negation.scale.is_some() {
             return Ok(scalar_negation);
         }
-        let scale_definition = modal_arguments
+        let scale_definition = adjuncts
             .iter()
-            .find_map(scalar_scale_definition_for_modal_argument);
+            .find_map(scalar_scale_definition_for_adjunct);
         let definition = scale_definition.as_ref().map(|definition| definition.value);
         let word = scale_definition
             .as_ref()
@@ -7677,19 +7674,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         predication: SemanticObjectId,
         scalar_negation: ScalarNegation,
     ) -> Result<(), SemanticsError> {
-        let Some((modal_arguments, source)) = self.objects.get(&predication).and_then(|object| {
+        let Some((adjuncts, source)) = self.objects.get(&predication).and_then(|object| {
             Some((
-                object.predication_modal_arguments()?.to_vec(),
+                object.predication_adjuncts()?.to_vec(),
                 object.source().cloned(),
             ))
         }) else {
             return Ok(());
         };
-        let scalar_negation = self.scalar_negation_with_scale_for_modal_arguments(
-            scalar_negation,
-            &modal_arguments,
-            source,
-        )?;
+        let scalar_negation =
+            self.scalar_negation_with_scale_for_adjuncts(scalar_negation, &adjuncts, source)?;
         if let Some(object) = self.objects.get_mut(&predication) {
             object.set_predication_scalar_negation(scalar_negation);
         }

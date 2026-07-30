@@ -406,11 +406,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_bare_tag(
+    pub(super) fn build_adjunct_for_generated_bare_tag(
         &mut self,
         tense_modal: &'tree LeadingTermTagTenseModalSyntax,
         construct: &str,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         if generated_tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
         }
@@ -418,12 +418,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
             let argument = self.build_elided_argument_for_place(visible_x1_place)?;
             return self
-                .build_generated_fiho_modal_argument_for_selbri(
-                    tense_modal,
-                    selbri,
-                    argument,
-                    construct,
-                )
+                .build_generated_fiho_adjunct_for_selbri(tense_modal, selbri, argument, construct)
                 .map(Some);
         }
         let Some((introduced_by, relation, visible_place)) =
@@ -432,40 +427,38 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let argument = self.build_elided_argument_for_place(visible_place)?;
-        let arguments = self.modal_argument_map_for_visible_place(
+        let arguments = self.adjunct_map_for_visible_place(
             argument,
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(
-            self.generated_modal_argument_with_tense_modal_modifiers(
-                tense_modal,
-                relation,
-                introduced_by,
-                arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
-                generated_modal_scalar_negation_for_tense_modal(tense_modal),
-                construct,
-            ),
-        ))
+        Ok(Some(self.generated_adjunct_with_tense_modal_modifiers(
+            tense_modal,
+            relation,
+            introduced_by,
+            arguments,
+            generated_adjunct_negation_for_tense_modal(tense_modal),
+            generated_modal_scalar_negation_for_tense_modal(tense_modal),
+            construct,
+        )))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tagged_sumti(
+    pub(super) fn build_adjunct_for_generated_tagged_sumti(
         &mut self,
         term: &'tree TaggedSumtiTermSyntax,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
-        self.build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(term, None)
+    ) -> Result<Option<Adjunct>, SemanticsError> {
+        self.build_adjunct_for_generated_tagged_sumti_with_visible_arguments(term, None)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
+    pub(super) fn build_adjunct_for_generated_tagged_sumti_with_visible_arguments(
         &mut self,
         term: &'tree TaggedSumtiTermSyntax,
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
         if generated_tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
@@ -474,16 +467,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &term.sumti,
             visible_arguments,
         )?;
-        self.build_modal_argument_for_generated_tagged_sumti_with_argument(term, argument)
+        self.build_adjunct_for_generated_tagged_sumti_with_argument(term, argument)
     }
 
     #[requires(argument.value.is_some() || argument.kind == ArgumentValueKind::Deleted)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tagged_sumti_with_argument(
+    pub(super) fn build_adjunct_for_generated_tagged_sumti_with_argument(
         &mut self,
         term: &'tree TaggedSumtiTermSyntax,
         argument: ArgumentValue,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
         if matches!(
             tense_modal,
@@ -508,7 +501,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if let Some(selbri) = generated_fiho_tense_selbri(tense_modal) {
             return self
-                .build_generated_fiho_modal_argument_for_selbri(
+                .build_generated_fiho_adjunct_for_selbri(
                     tense_modal,
                     selbri,
                     argument,
@@ -521,31 +514,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(None);
         };
-        let arguments = self.modal_argument_map_for_visible_place(
+        let arguments = self.adjunct_map_for_visible_place(
             argument,
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(
-            self.generated_modal_argument_with_tense_modal_modifiers(
-                tense_modal,
-                relation,
-                introduced_by,
-                arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
-                generated_modal_scalar_negation_for_tense_modal(tense_modal),
-                "modal-argument",
-            ),
-        ))
+        Ok(Some(self.generated_adjunct_with_tense_modal_modifiers(
+            tense_modal,
+            relation,
+            introduced_by,
+            arguments,
+            generated_adjunct_negation_for_tense_modal(tense_modal),
+            generated_modal_scalar_negation_for_tense_modal(tense_modal),
+            "modal-argument",
+        )))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
+    pub(super) fn build_adjunct_for_generated_tagged_sumti_with_predication_arguments(
         &mut self,
         term: &'tree TaggedSumtiTermSyntax,
         arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
         if generated_tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
@@ -554,34 +545,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &term.sumti,
             arguments,
         )?;
-        self.build_modal_argument_for_generated_tagged_sumti_with_argument(term, argument)
+        self.build_adjunct_for_generated_tagged_sumti_with_argument(term, argument)
     }
 
     #[requires(!construct.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|modal_argument| modal_argument.introduced_by == "fi'o" && (modal_argument.body.is_some() != modal_argument.relation.is_some())) || ret.is_err())]
-    pub(super) fn build_generated_fiho_modal_argument_for_selbri<N: TreeNode>(
+    #[ensures(ret.as_ref().is_ok_and(|adjunct| adjunct.introduced_by == "fi'o" && (adjunct.body.is_some() != adjunct.relation.is_some())) || ret.is_err())]
+    pub(super) fn build_generated_fiho_adjunct_for_selbri<N: TreeNode>(
         &mut self,
         tense_modal: &N,
         selbri: &'tree SelbriSyntax,
         argument: ArgumentValue,
         construct: &str,
-    ) -> Result<ModalArgument, SemanticsError> {
+    ) -> Result<Adjunct, SemanticsError> {
         if let Some(spec) = generated_simple_fiho_relation_spec(selbri)? {
             let data!(GeneratedSimpleFihoRelationSpec {
                 relation,
                 visible_place,
             }) = spec.into_data();
-            let arguments = self.modal_argument_map_for_visible_place(
+            let arguments = self.adjunct_map_for_visible_place(
                 argument,
                 visible_place,
                 relation_place_count(self.dictionary, &relation),
             )?;
-            return Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+            return Ok(self.generated_adjunct_with_tense_modal_modifiers(
                 tense_modal,
                 relation,
                 "fi'o".to_owned(),
                 arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_adjunct_negation_for_tense_modal(tense_modal),
                 generated_modal_scalar_negation_for_tense_modal(tense_modal),
                 construct,
             ));
@@ -597,12 +588,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             None,
         )?;
         self.set_formula_predication_mode(lowered.formula, PredicationMode::Incidental);
-        let mut modal_argument = ModalArgument::body("fi'o".to_owned(), lowered.formula, source);
-        let modifiers = self.modal_argument_modifiers_for_generated_tense_modal(tense_modal);
+        let mut adjunct = Adjunct::body("fi'o".to_owned(), lowered.formula, source);
+        let modifiers = self.adjunct_modifiers_for_generated_tense_modal(tense_modal);
         if !modifiers.is_empty() {
-            modal_argument = modal_argument.with_data(data! { modifiers: modifiers });
+            adjunct = adjunct.with_data(data! { modifiers: modifiers });
         }
-        Ok(modal_argument)
+        Ok(adjunct)
     }
 
     #[requires(!relation.is_empty())]
@@ -610,17 +601,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[requires(!construct.is_empty())]
     #[ensures(true)]
-    pub(super) fn generated_modal_argument_with_tense_modal_modifiers<N: TreeNode>(
+    pub(super) fn generated_adjunct_with_tense_modal_modifiers<N: TreeNode>(
         &self,
         tense_modal: &N,
         relation: String,
         introduced_by: String,
         arguments: BTreeMap<PlaceIndex, ArgumentValue>,
-        negation: Option<ModalNegation>,
+        negation: Option<TaggedNegation>,
         scalar_negation: Option<ScalarNegation>,
         construct: &str,
-    ) -> ModalArgument {
-        let mut modal_argument = ModalArgument::new_with_polarity(
+    ) -> Adjunct {
+        let mut adjunct = Adjunct::new_with_polarity(
             relation,
             introduced_by,
             arguments,
@@ -628,16 +619,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             scalar_negation,
             self.source_for_node(tense_modal, construct),
         );
-        let modifiers = self.modal_argument_modifiers_for_generated_tense_modal(tense_modal);
+        let modifiers = self.adjunct_modifiers_for_generated_tense_modal(tense_modal);
         if !modifiers.is_empty() {
-            modal_argument = modal_argument.with_data(data! { modifiers: modifiers });
+            adjunct = adjunct.with_data(data! { modifiers: modifiers });
         }
-        modal_argument
+        adjunct
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn modal_argument_modifiers_for_generated_tense_modal<N: TreeNode>(
+    pub(super) fn adjunct_modifiers_for_generated_tense_modal<N: TreeNode>(
         &self,
         tense_modal: &N,
     ) -> Vec<DisplayedContentModifier> {
@@ -668,7 +659,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(visible_x1_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|arguments| !arguments.is_empty()) || ret.is_err())]
-    pub(super) fn modal_argument_map_for_visible_place(
+    pub(super) fn adjunct_map_for_visible_place(
         &mut self,
         argument: ArgumentValue,
         visible_x1_place: usize,
@@ -690,12 +681,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.relation.is_some()) || ret.is_err())]
-    pub(super) fn build_generated_jai_modal_argument(
+    pub(super) fn build_generated_jai_adjunct(
         &mut self,
         unit: &JaiModalTanruUnitSyntax,
         visible_arguments: &BTreeMap<usize, ArgumentValue>,
         eventuality: SemanticObjectId,
-    ) -> Result<ModalArgument, SemanticsError> {
+    ) -> Result<Adjunct, SemanticsError> {
         let Some(tense_modal) = unit.tense_modal.as_deref() else {
             return Err(invalid_graph(
                 "bare JAI reached modal-argument lowering".to_owned(),
@@ -729,12 +720,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 arguments.insert(key, self.build_elided_argument_for_place(place)?);
             }
         }
-        Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+        Ok(self.generated_adjunct_with_tense_modal_modifiers(
             tense_modal,
             relation,
             introduced_by,
             arguments,
-            generated_modal_negation_for_tense_modal(tense_modal),
+            generated_adjunct_negation_for_tense_modal(tense_modal),
             generated_modal_scalar_negation_for_tense_modal(tense_modal),
             "modal-argument",
         ))
@@ -742,11 +733,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(crate::model::argument_object_kind_can_fill(argument_object.object_kind()))]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.as_ref().is_none_or(|argument| argument.relation.is_some())) || ret.is_err())]
-    pub(super) fn build_generated_jai_modal_argument_for_argument_object(
+    pub(super) fn build_generated_jai_adjunct_for_argument_object(
         &mut self,
         unit: &JaiModalTanruUnitSyntax,
         argument_object: SemanticObjectId,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         let Some(tense_modal) = unit.tense_modal.as_deref() else {
             return Ok(None);
         };
@@ -758,22 +749,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(None);
         };
-        let arguments = self.modal_argument_map_for_visible_place(
+        let arguments = self.adjunct_map_for_visible_place(
             ArgumentValue::filled(argument_object, None),
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(
-            self.generated_modal_argument_with_tense_modal_modifiers(
-                tense_modal,
-                relation,
-                introduced_by,
-                arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
-                generated_modal_scalar_negation_for_tense_modal(tense_modal),
-                "modal-argument",
-            ),
-        ))
+        Ok(Some(self.generated_adjunct_with_tense_modal_modifiers(
+            tense_modal,
+            relation,
+            introduced_by,
+            arguments,
+            generated_adjunct_negation_for_tense_modal(tense_modal),
+            generated_modal_scalar_negation_for_tense_modal(tense_modal),
+            "modal-argument",
+        )))
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -856,32 +845,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?;
             }
         }
-        let modal_argument = match modal_term.tagged_sumti {
-            Some(tagged_sumti) => {
-                self.build_modal_argument_for_generated_tagged_sumti(tagged_sumti)?
+        let adjunct = match modal_term.tagged_sumti {
+            Some(tagged_sumti) => self.build_adjunct_for_generated_tagged_sumti(tagged_sumti)?,
+            None => {
+                self.build_adjunct_for_generated_bare_tag(modal_term.tense_modal, "modal-argument")?
             }
-            None => self.build_modal_argument_for_generated_bare_tag(
-                modal_term.tense_modal,
-                "modal-argument",
-            )?,
         };
-        let Some(mut modal_argument) = modal_argument else {
+        let Some(mut adjunct) = adjunct else {
             return Ok(());
         };
         if let Some(eventuality) = eventuality {
-            self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
+            self.bind_generated_adjunct_to_host_event(&mut adjunct, eventuality);
         }
         let object = self
             .objects
             .get_mut(&predication)
             .ok_or_else(|| invalid_graph(format!("missing generated predication {predication}")))?;
         if object
-            .predication_modal_arguments()
-            .is_some_and(|arguments| !arguments.contains(&modal_argument))
+            .predication_adjuncts()
+            .is_some_and(|arguments| !arguments.contains(&adjunct))
         {
             object.update_predication(|node| {
                 let mut data = node.into_data();
-                data.modal_arguments.push(modal_argument);
+                data.adjuncts.push(adjunct);
                 PredicationNode::from_data(data)
             });
         }
@@ -890,11 +876,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(!construct.is_empty())]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tense_modal(
+    pub(super) fn build_adjunct_for_generated_tense_modal(
         &mut self,
         tense_modal: &'tree TenseModalSyntax,
         construct: &str,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         if generated_tense_modal_has_event_modifier(tense_modal) {
             return Ok(None);
         }
@@ -902,12 +888,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
             let argument = self.build_elided_argument_for_place(visible_x1_place)?;
             return self
-                .build_generated_fiho_modal_argument_for_selbri(
-                    tense_modal,
-                    selbri,
-                    argument,
-                    construct,
-                )
+                .build_generated_fiho_adjunct_for_selbri(tense_modal, selbri, argument, construct)
                 .map(Some);
         }
         let Some((introduced_by, relation, visible_place)) =
@@ -916,30 +897,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let argument = self.build_elided_argument_for_place(visible_place)?;
-        let arguments = self.modal_argument_map_for_visible_place(
+        let arguments = self.adjunct_map_for_visible_place(
             argument,
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(
-            self.generated_modal_argument_with_tense_modal_modifiers(
-                tense_modal,
-                relation,
-                introduced_by,
-                arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
-                generated_modal_scalar_negation_for_tense_modal(tense_modal),
-                construct,
-            ),
-        ))
+        Ok(Some(self.generated_adjunct_with_tense_modal_modifiers(
+            tense_modal,
+            relation,
+            introduced_by,
+            arguments,
+            generated_adjunct_negation_for_tense_modal(tense_modal),
+            generated_modal_scalar_negation_for_tense_modal(tense_modal),
+            construct,
+        )))
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn attach_modal_argument_to_generated_discourse_item(
+    pub(super) fn attach_adjunct_to_generated_discourse_item(
         &mut self,
         id: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) -> Result<(), SemanticsError> {
         let object = self
             .objects
@@ -949,7 +928,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         match object.object_kind() {
             crate::model::SemanticObjectKind::Utterance => {
                 if let Some(content) = object.as_utterance().and_then(|node| node.content) {
-                    self.attach_modal_argument_to_generated_content(content, modal_argument)?;
+                    self.attach_adjunct_to_generated_content(content, adjunct)?;
                 }
             }
             crate::model::SemanticObjectKind::Sequence => {
@@ -958,11 +937,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .map(|node| node.items.clone())
                     .unwrap_or_default()
                 {
-                    self.attach_modal_argument_to_generated_discourse_item(item, modal_argument)?;
+                    self.attach_adjunct_to_generated_discourse_item(item, adjunct)?;
                 }
             }
             crate::model::SemanticObjectKind::Formula => {
-                self.attach_modal_argument_to_generated_formula(id, modal_argument)?;
+                self.attach_adjunct_to_generated_formula(id, adjunct)?;
             }
             _ => {}
         }
@@ -971,17 +950,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn attach_modal_argument_to_generated_content(
+    pub(super) fn attach_adjunct_to_generated_content(
         &mut self,
         id: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) -> Result<(), SemanticsError> {
         match id.object_kind() {
             crate::model::SemanticObjectKind::Formula => {
-                self.attach_modal_argument_to_generated_formula(id, modal_argument)
+                self.attach_adjunct_to_generated_formula(id, adjunct)
             }
             crate::model::SemanticObjectKind::Sequence => {
-                self.attach_modal_argument_to_generated_discourse_item(id, modal_argument)
+                self.attach_adjunct_to_generated_discourse_item(id, adjunct)
             }
             crate::model::SemanticObjectKind::Question => Ok(()),
             _ => Ok(()),
@@ -990,10 +969,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(true)]
-    pub(super) fn attach_modal_argument_to_generated_formula(
+    pub(super) fn attach_adjunct_to_generated_formula(
         &mut self,
         id: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) -> Result<(), SemanticsError> {
         let object = self
             .objects
@@ -1001,23 +980,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing generated formula {id}")))?;
         if let Some(predication) = object.formula_predication() {
-            self.attach_modal_argument_to_generated_predication(predication, modal_argument)?;
+            self.attach_adjunct_to_generated_predication(predication, adjunct)?;
         }
         for child in object.formula_children().to_vec() {
-            self.attach_modal_argument_to_generated_formula(child, modal_argument)?;
+            self.attach_adjunct_to_generated_formula(child, adjunct)?;
         }
         if let Some(body) = object.formula_body() {
-            self.attach_modal_argument_to_generated_formula(body, modal_argument)?;
+            self.attach_adjunct_to_generated_formula(body, adjunct)?;
         }
         Ok(())
     }
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(true)]
-    pub(super) fn prepend_modal_argument_to_generated_formula(
+    pub(super) fn prepend_adjunct_to_generated_formula(
         &mut self,
         id: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) -> Result<(), SemanticsError> {
         let object = self
             .objects
@@ -1025,23 +1004,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing generated formula {id}")))?;
         if let Some(predication) = object.formula_predication() {
-            self.prepend_modal_argument_to_generated_predication(predication, modal_argument)?;
+            self.prepend_adjunct_to_generated_predication(predication, adjunct)?;
         }
         for child in object.formula_children().to_vec() {
-            self.prepend_modal_argument_to_generated_formula(child, modal_argument)?;
+            self.prepend_adjunct_to_generated_formula(child, adjunct)?;
         }
         if let Some(body) = object.formula_body() {
-            self.prepend_modal_argument_to_generated_formula(body, modal_argument)?;
+            self.prepend_adjunct_to_generated_formula(body, adjunct)?;
         }
         Ok(())
     }
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[ensures(true)]
-    pub(super) fn attach_modal_argument_to_generated_predication(
+    pub(super) fn attach_adjunct_to_generated_predication(
         &mut self,
         id: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) -> Result<(), SemanticsError> {
         let (mode, eventuality) = {
             let object = self
@@ -1051,21 +1030,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             (object.predication_mode(), object.predication_eventuality())
         };
         if mode == Some(PredicationMode::Asserted) {
-            let mut modal_argument = modal_argument.clone();
+            let mut adjunct = adjunct.clone();
             if let Some(eventuality) = eventuality {
-                self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
+                self.bind_generated_adjunct_to_host_event(&mut adjunct, eventuality);
             }
             let object = self
                 .objects
                 .get_mut(&id)
                 .ok_or_else(|| invalid_graph(format!("missing generated predication {id}")))?;
             if object
-                .predication_modal_arguments()
-                .is_some_and(|arguments| !arguments.contains(&modal_argument))
+                .predication_adjuncts()
+                .is_some_and(|arguments| !arguments.contains(&adjunct))
             {
                 object.update_predication(|node| {
                     let mut data = node.into_data();
-                    data.modal_arguments.push(modal_argument);
+                    data.adjuncts.push(adjunct);
                     PredicationNode::from_data(data)
                 });
             }
@@ -1075,10 +1054,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[ensures(true)]
-    pub(super) fn prepend_modal_argument_to_generated_predication(
+    pub(super) fn prepend_adjunct_to_generated_predication(
         &mut self,
         id: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) -> Result<(), SemanticsError> {
         let (mode, eventuality) = {
             let object = self
@@ -1088,21 +1067,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             (object.predication_mode(), object.predication_eventuality())
         };
         if mode == Some(PredicationMode::Asserted) {
-            let mut modal_argument = modal_argument.clone();
+            let mut adjunct = adjunct.clone();
             if let Some(eventuality) = eventuality {
-                self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
+                self.bind_generated_adjunct_to_host_event(&mut adjunct, eventuality);
             }
             let object = self
                 .objects
                 .get_mut(&id)
                 .ok_or_else(|| invalid_graph(format!("missing generated predication {id}")))?;
             if object
-                .predication_modal_arguments()
-                .is_some_and(|arguments| !arguments.contains(&modal_argument))
+                .predication_adjuncts()
+                .is_some_and(|arguments| !arguments.contains(&adjunct))
             {
                 object.update_predication(|node| {
                     let mut data = node.into_data();
-                    data.modal_arguments.insert(0, modal_argument);
+                    data.adjuncts.insert(0, adjunct);
                     PredicationNode::from_data(data)
                 });
             }
@@ -1112,15 +1091,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[ensures(true)]
-    pub(super) fn bind_generated_modal_argument_to_host_event(
+    pub(super) fn bind_generated_adjunct_to_host_event(
         &mut self,
-        modal_argument: &mut ModalArgument,
+        adjunct: &mut Adjunct,
         eventuality: SemanticObjectId,
     ) {
-        if let Some(elision) = bind_generated_modal_argument_to_host_event_preserving_elision(
-            modal_argument,
-            eventuality,
-        ) {
+        if let Some(elision) =
+            bind_generated_adjunct_to_host_event_preserving_elision(adjunct, eventuality)
+        {
             self.host_event_modal_elisions
                 .entry(eventuality)
                 .or_default()
@@ -1134,39 +1112,39 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn generated_host_event_modal_elision(
         &mut self,
         eventuality: SemanticObjectId,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
         place: usize,
     ) -> Option<ArgumentValue> {
-        let relation = modal_argument.relation.as_ref()?;
+        let relation = adjunct.relation.as_ref()?;
         self.host_event_modal_elisions
             .get(&eventuality)?
             .iter()
             .find(|elision| {
                 elision.place == place
                     && &elision.relation == relation
-                    && elision.introduced_by == modal_argument.introduced_by
-                    && elision.source == modal_argument.source
+                    && elision.introduced_by == adjunct.introduced_by
+                    && elision.source == adjunct.source
             })
             .map(|elision| elision.argument.clone())
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_modal_term(
+    pub(super) fn build_adjunct_for_generated_modal_term(
         &mut self,
         term: &GeneratedModalTerm<'tree>,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         match (&term.argument, term.tagged_sumti) {
             (Some(argument), Some(tagged_sumti)) => self
-                .build_modal_argument_for_generated_tagged_sumti_with_argument(
+                .build_adjunct_for_generated_tagged_sumti_with_argument(
                     tagged_sumti,
                     argument.clone(),
                 ),
             (None, Some(tagged_sumti)) => {
-                self.build_modal_argument_for_generated_tagged_sumti(tagged_sumti)
+                self.build_adjunct_for_generated_tagged_sumti(tagged_sumti)
             }
             (None, None) => {
-                self.build_modal_argument_for_generated_bare_tag(term.tense_modal, "modal-argument")
+                self.build_adjunct_for_generated_bare_tag(term.tense_modal, "modal-argument")
             }
             (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
         }
@@ -1174,24 +1152,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_modal_term_with_visible_arguments(
+    pub(super) fn build_adjunct_for_generated_modal_term_with_visible_arguments(
         &mut self,
         term: &GeneratedModalTerm<'tree>,
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         match (&term.argument, term.tagged_sumti) {
             (Some(argument), Some(tagged_sumti)) => self
-                .build_modal_argument_for_generated_tagged_sumti_with_argument(
+                .build_adjunct_for_generated_tagged_sumti_with_argument(
                     tagged_sumti,
                     argument.clone(),
                 ),
             (None, Some(tagged_sumti)) => self
-                .build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
+                .build_adjunct_for_generated_tagged_sumti_with_visible_arguments(
                     tagged_sumti,
                     visible_arguments,
                 ),
             (None, None) => {
-                self.build_modal_argument_for_generated_bare_tag(term.tense_modal, "modal-argument")
+                self.build_adjunct_for_generated_bare_tag(term.tense_modal, "modal-argument")
             }
             (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
         }
@@ -1199,24 +1177,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_modal_term_with_predication_arguments(
+    pub(super) fn build_adjunct_for_generated_modal_term_with_predication_arguments(
         &mut self,
         term: &GeneratedModalTerm<'tree>,
         arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
-    ) -> Result<Option<ModalArgument>, SemanticsError> {
+    ) -> Result<Option<Adjunct>, SemanticsError> {
         match (&term.argument, term.tagged_sumti) {
             (Some(argument), Some(tagged_sumti)) => self
-                .build_modal_argument_for_generated_tagged_sumti_with_argument(
+                .build_adjunct_for_generated_tagged_sumti_with_argument(
                     tagged_sumti,
                     argument.clone(),
                 ),
             (None, Some(tagged_sumti)) => self
-                .build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
+                .build_adjunct_for_generated_tagged_sumti_with_predication_arguments(
                     tagged_sumti,
                     arguments,
                 ),
             (None, None) => {
-                self.build_modal_argument_for_generated_bare_tag(term.tense_modal, "modal-argument")
+                self.build_adjunct_for_generated_bare_tag(term.tense_modal, "modal-argument")
             }
             (Some(_), None) => unreachable!("GeneratedModalTerm invariant forbids this state"),
         }
@@ -1224,35 +1202,31 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_arguments_for_generated_tagged_terms(
+    pub(super) fn build_adjuncts_for_generated_tagged_terms(
         &mut self,
         modal_terms: &[GeneratedModalTerm<'tree>],
-    ) -> Result<Vec<ModalArgument>, SemanticsError> {
-        let inherited_modal_arguments = self.sticky_modal_arguments.clone();
-        let mut modal_arguments = Vec::new();
+    ) -> Result<Vec<Adjunct>, SemanticsError> {
+        let inherited_adjuncts = self.sticky_adjuncts.clone();
+        let mut adjuncts = Vec::new();
         for term in modal_terms {
-            let argument = self.build_modal_argument_for_generated_modal_term(term)?;
+            let argument = self.build_adjunct_for_generated_modal_term(term)?;
             if let Some(argument) = argument {
-                self.record_generated_sticky_modal_argument_if_needed(term.tense_modal, &argument);
-                modal_arguments.push(argument);
+                self.record_generated_sticky_adjunct_if_needed(term.tense_modal, &argument);
+                adjuncts.push(argument);
             }
         }
-        self.append_generated_sticky_modal_arguments(
-            &inherited_modal_arguments,
-            &mut modal_arguments,
-            None,
-        );
-        Ok(modal_arguments)
+        self.append_generated_sticky_adjuncts(&inherited_adjuncts, &mut adjuncts, None);
+        Ok(adjuncts)
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[ensures(true)]
-    pub(super) fn build_modal_arguments_for_generated_tagged_terms_for_event(
+    pub(super) fn build_adjuncts_for_generated_tagged_terms_for_event(
         &mut self,
         eventuality: SemanticObjectId,
         modal_terms: &[GeneratedModalTerm<'tree>],
-    ) -> Result<Vec<ModalArgument>, SemanticsError> {
-        self.build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
+    ) -> Result<Vec<Adjunct>, SemanticsError> {
+        self.build_adjuncts_for_generated_tagged_terms_for_event_with_visible_arguments(
             eventuality,
             modal_terms,
             None,
@@ -1261,107 +1235,105 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[ensures(true)]
-    pub(super) fn build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
+    pub(super) fn build_adjuncts_for_generated_tagged_terms_for_event_with_visible_arguments(
         &mut self,
         eventuality: SemanticObjectId,
         modal_terms: &[GeneratedModalTerm<'tree>],
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
-    ) -> Result<Vec<ModalArgument>, SemanticsError> {
-        let inherited_modal_arguments = self.sticky_modal_arguments.clone();
-        let mut modal_arguments = Vec::new();
+    ) -> Result<Vec<Adjunct>, SemanticsError> {
+        let inherited_adjuncts = self.sticky_adjuncts.clone();
+        let mut adjuncts = Vec::new();
         for term in modal_terms {
-            let argument = self
-                .build_modal_argument_for_generated_modal_term_with_visible_arguments(
-                    term,
-                    visible_arguments,
-                )?;
+            let argument = self.build_adjunct_for_generated_modal_term_with_visible_arguments(
+                term,
+                visible_arguments,
+            )?;
             if let Some(mut argument) = argument {
-                self.record_generated_sticky_modal_argument_if_needed(term.tense_modal, &argument);
-                self.bind_generated_modal_argument_to_host_event(&mut argument, eventuality);
-                modal_arguments.push(argument);
+                self.record_generated_sticky_adjunct_if_needed(term.tense_modal, &argument);
+                self.bind_generated_adjunct_to_host_event(&mut argument, eventuality);
+                adjuncts.push(argument);
             }
         }
-        self.append_generated_sticky_modal_arguments(
-            &inherited_modal_arguments,
-            &mut modal_arguments,
+        self.append_generated_sticky_adjuncts(
+            &inherited_adjuncts,
+            &mut adjuncts,
             Some(eventuality),
         );
-        Ok(modal_arguments)
+        Ok(adjuncts)
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[ensures(true)]
-    pub(super) fn build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+    pub(super) fn build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
         &mut self,
         eventuality: SemanticObjectId,
         modal_terms: &[GeneratedModalTerm<'tree>],
         arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
-    ) -> Result<Vec<ModalArgument>, SemanticsError> {
-        let inherited_modal_arguments = self.sticky_modal_arguments.clone();
-        let mut modal_arguments = Vec::new();
+    ) -> Result<Vec<Adjunct>, SemanticsError> {
+        let inherited_adjuncts = self.sticky_adjuncts.clone();
+        let mut adjuncts = Vec::new();
         for term in modal_terms {
-            let argument = self
-                .build_modal_argument_for_generated_modal_term_with_predication_arguments(
-                    term, arguments,
-                )?;
+            let argument = self.build_adjunct_for_generated_modal_term_with_predication_arguments(
+                term, arguments,
+            )?;
             if let Some(mut argument) = argument {
-                self.record_generated_sticky_modal_argument_if_needed(term.tense_modal, &argument);
-                self.bind_generated_modal_argument_to_host_event(&mut argument, eventuality);
-                modal_arguments.push(argument);
+                self.record_generated_sticky_adjunct_if_needed(term.tense_modal, &argument);
+                self.bind_generated_adjunct_to_host_event(&mut argument, eventuality);
+                adjuncts.push(argument);
             }
         }
-        self.append_generated_sticky_modal_arguments(
-            &inherited_modal_arguments,
-            &mut modal_arguments,
+        self.append_generated_sticky_adjuncts(
+            &inherited_adjuncts,
+            &mut adjuncts,
             Some(eventuality),
         );
-        Ok(modal_arguments)
+        Ok(adjuncts)
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn record_generated_sticky_modal_argument_if_needed<N: TreeNode>(
+    pub(super) fn record_generated_sticky_adjunct_if_needed<N: TreeNode>(
         &mut self,
         tense_modal: &N,
-        modal_argument: &ModalArgument,
+        adjunct: &Adjunct,
     ) {
         if !generated_tense_modal_makes_modal_sticky(tense_modal) {
             return;
         }
-        if modal_argument.relation.is_none() {
+        if adjunct.relation.is_none() {
             return;
         }
-        self.sticky_modal_arguments.insert(
-            GeneratedStickyModalKey::for_modal_argument(modal_argument),
-            modal_argument.clone(),
+        self.sticky_adjuncts.insert(
+            GeneratedStickyModalKey::for_adjunct(adjunct),
+            adjunct.clone(),
         );
     }
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn append_generated_sticky_modal_arguments(
+    pub(super) fn append_generated_sticky_adjuncts(
         &mut self,
-        inherited_modal_arguments: &BTreeMap<GeneratedStickyModalKey, ModalArgument>,
-        modal_arguments: &mut Vec<ModalArgument>,
+        inherited_adjuncts: &BTreeMap<GeneratedStickyModalKey, Adjunct>,
+        adjuncts: &mut Vec<Adjunct>,
         eventuality: Option<SemanticObjectId>,
     ) {
-        for (key, sticky_modal) in inherited_modal_arguments {
-            if modal_arguments
+        for (key, sticky_modal) in inherited_adjuncts {
+            if adjuncts
                 .iter()
-                .filter(|modal_argument| modal_argument.relation.is_some())
-                .map(GeneratedStickyModalKey::for_modal_argument)
+                .filter(|adjunct| adjunct.relation.is_some())
+                .map(GeneratedStickyModalKey::for_adjunct)
                 .any(|modal_key| modal_key == *key)
             {
                 continue;
             }
             let mut sticky_modal = sticky_modal.clone();
             if let Some(eventuality) = eventuality {
-                self.bind_generated_modal_argument_to_host_event(&mut sticky_modal, eventuality);
+                self.bind_generated_adjunct_to_host_event(&mut sticky_modal, eventuality);
             }
-            if modal_arguments.contains(&sticky_modal) {
+            if adjuncts.contains(&sticky_modal) {
                 continue;
             }
-            modal_arguments.push(sticky_modal);
+            adjuncts.push(sticky_modal);
         }
     }
 
@@ -1823,7 +1795,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         spatial,
                         recurrence_index,
                         modifier_index,
-                        ModalNegation::new(ModalNegationKind::OtherThan, token_text(&token)),
+                        TaggedNegation::new(TaggedNegationKind::OtherThan, token_text(&token)),
                     );
                     continue;
                 }
@@ -2320,23 +2292,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         {
             let argument = self.build_tagged_or_elided_sumti_argument(sumti)?;
-            let arguments = self.modal_argument_map_for_visible_place(
+            let arguments = self.adjunct_map_for_visible_place(
                 argument,
                 visible_place,
                 relation_place_count(self.dictionary, &relation),
             )?;
-            let modal_argument = self.generated_modal_argument_with_tense_modal_modifiers(
+            let adjunct = self.generated_adjunct_with_tense_modal_modifiers(
                 tense_modal,
                 relation,
                 introduced_by,
                 arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_adjunct_negation_for_tense_modal(tense_modal),
                 generated_modal_scalar_negation_for_tense_modal(tense_modal),
                 "modal-fragment",
             );
             event.update_eventuality(|node| {
                 let mut data = node.into_data();
-                data.modal_arguments.push(modal_argument);
+                data.adjuncts.push(adjunct);
                 EventualityNode::from_data(data)
             });
         } else {
@@ -3428,24 +3400,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for argument in arguments.values_mut() {
             replace_generated_argument_value_object(argument, replacements);
         }
-        let mut modal_arguments = node.modal_arguments.clone();
-        for modal_argument in &mut modal_arguments {
-            let mut arguments = modal_argument.arguments.clone();
+        let mut adjuncts = node.adjuncts.clone();
+        for adjunct in &mut adjuncts {
+            let mut arguments = adjunct.arguments.clone();
             for (place_key, argument) in &mut arguments {
                 replace_generated_argument_value_object(argument, replacements);
                 let place = argument_place_index(place_key);
                 if let Some(eventuality) = source_eventuality
                     && argument.value == Some(eventuality)
                     && let Some(elision) =
-                        self.generated_host_event_modal_elision(eventuality, modal_argument, place)
+                        self.generated_host_event_modal_elision(eventuality, adjunct, place)
                 {
                     *argument = elision;
                 }
             }
-            if arguments != modal_argument.arguments {
-                *modal_argument = modal_argument
-                    .clone()
-                    .with_data(data! { arguments: arguments });
+            if arguments != adjunct.arguments {
+                *adjunct = adjunct.clone().with_data(data! { arguments: arguments });
             }
         }
         let id = self.next_predication_id();
@@ -3457,7 +3427,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             object.source().cloned(),
             object.diagnostics().to_vec(),
         );
-        cloned.set_predication_modal_arguments(modal_arguments);
+        cloned.set_predication_adjuncts(adjuncts);
         self.insert(id, cloned)?;
         Ok(Some(id))
     }
@@ -4812,11 +4782,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let nested = self.ensure_generated_text_group_sequence_content(nested, &statement.text)?;
         if let Some(tense_modal) = &statement.tense_modal
             && generated_tense_relation_spec_for_tense_modal(tense_modal).is_none()
-            && let Some(modal_argument) =
-                self.build_modal_argument_for_generated_tense_modal(tense_modal, "modal-argument")?
+            && let Some(adjunct) =
+                self.build_adjunct_for_generated_tense_modal(tense_modal, "modal-argument")?
         {
-            self.record_generated_sticky_modal_argument_if_needed(tense_modal, &modal_argument);
-            self.attach_modal_argument_to_generated_discourse_item(nested, &modal_argument)?;
+            self.record_generated_sticky_adjunct_if_needed(tense_modal, &adjunct);
+            self.attach_adjunct_to_generated_discourse_item(nested, &adjunct)?;
         }
         let object = self.objects.get_mut(&utterance).ok_or_else(|| {
             invalid_graph(format!(
@@ -8943,7 +8913,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         let data!(GeneratedLinkargsArgumentBranches {
             visible_argument_branches,
-            modal_arguments,
+            adjuncts,
             event_modifiers,
             formula_scopes,
             mut diagnostics,
@@ -8982,8 +8952,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             prepared_arguments.push(arguments);
         }
-        let jai_modal_argument =
-            self.build_generated_jai_modal_argument_for_argument_object(jai_unit, referent)?;
+        let jai_adjunct =
+            self.build_generated_jai_adjunct_for_argument_object(jai_unit, referent)?;
         for arguments in &mut prepared_arguments {
             let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
             let place_limit = place_count.unwrap_or_else(|| highest_argument.max(visible_x1_place));
@@ -9015,10 +8985,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let formula_source = self.source_for_node(selbri, "restrictive-formula");
         let mut formulas = Vec::with_capacity(prepared_arguments.len());
         for arguments in prepared_arguments {
-            let mut branch_modal_arguments = modal_arguments.clone();
-            if let Some(mut modal_argument) = jai_modal_argument.clone() {
-                self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
-                branch_modal_arguments.push(modal_argument);
+            let mut branch_adjuncts = adjuncts.clone();
+            if let Some(mut adjunct) = jai_adjunct.clone() {
+                self.bind_generated_adjunct_to_host_event(&mut adjunct, eventuality);
+                branch_adjuncts.push(adjunct);
             }
             let predication = self.next_predication_id();
             let mut object = SemanticObject::predication(
@@ -9029,7 +8999,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source.clone(),
                 diagnostics.clone(),
             );
-            object.set_predication_attachments(branch_modal_arguments, Vec::new());
+            object.set_predication_attachments(branch_adjuncts, Vec::new());
             object.set_predication_relation_metadata(relation_metadata);
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -9902,7 +9872,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         let tanru_head = node.tanru_link.as_ref().map(|link| link.head);
         let modal_bodies = node
-            .modal_arguments
+            .adjuncts
             .iter()
             .filter_map(|argument| argument.body)
             .collect::<Vec<_>>();
@@ -10120,10 +10090,10 @@ fn replace_generated_scalar_negation_eventuality_reference(
 #[ensures(ret.arguments.values().all(|argument| argument.value != Some(old_eventuality)))]
 #[ensures(ret.component != Some(old_eventuality))]
 fn replace_generated_modal_eventuality_references(
-    modal: ModalArgument,
+    modal: Adjunct,
     old_eventuality: SemanticObjectId,
     new_eventuality: SemanticObjectId,
-) -> ModalArgument {
+) -> Adjunct {
     let data = modal.into_data();
     let arguments = data
         .arguments
@@ -10153,7 +10123,7 @@ fn replace_generated_modal_eventuality_references(
             new_eventuality,
         )
     });
-    ModalArgument::from_data(data!(ModalArgument {
+    Adjunct::from_data(data!(Adjunct {
         arguments,
         component,
         scalar_negation,
@@ -10167,7 +10137,7 @@ fn replace_generated_modal_eventuality_references(
 #[ensures(ret.eventuality != Some(old_eventuality))]
 #[ensures(ret.arguments.values().all(|argument| argument.value != Some(old_eventuality)))]
 #[ensures(ret.place_questions.iter().all(|binding| binding.argument.value != Some(old_eventuality)))]
-#[ensures(ret.modal_arguments.iter().all(|modal| modal.arguments.values().all(|argument| argument.value != Some(old_eventuality)) && modal.component != Some(old_eventuality)))]
+#[ensures(ret.adjuncts.iter().all(|modal| modal.arguments.values().all(|argument| argument.value != Some(old_eventuality)) && modal.component != Some(old_eventuality)))]
 #[ensures(ret.reciprocity.iter().all(|exchange| exchange.left.value != Some(old_eventuality) && exchange.right.value != Some(old_eventuality)))]
 fn replace_generated_predication_eventuality_references(
     predication: PredicationNode,
@@ -10223,8 +10193,8 @@ fn replace_generated_predication_eventuality_references(
             }))
         })
         .collect();
-    let modal_arguments = data
-        .modal_arguments
+    let adjuncts = data
+        .adjuncts
         .into_iter()
         .map(|modal| {
             replace_generated_modal_eventuality_references(modal, old_eventuality, new_eventuality)
@@ -10262,7 +10232,7 @@ fn replace_generated_predication_eventuality_references(
         tanru_link,
         arguments,
         place_questions,
-        modal_arguments,
+        adjuncts,
         reciprocity,
         scalar_negation,
         ..data

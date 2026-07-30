@@ -530,7 +530,7 @@ deliberately use the standard event-contour terms `cessative` and
 "completed".
 
 Contradictory tense negation with `nai` is formula-level negation of the
-positive tensed predication for temporal/spatial relations and modal
+positive tensed predication for temporal/spatial relations and adjunct
 attachments.  For `mi punai klama le zarci`, the utterance content is
 `operator = "not"` whose child is the `klama` atom with
 `time.relation = "before"`.  The event-time relation itself does not carry a
@@ -679,16 +679,16 @@ and `intervalModifiers` for non-`fe'e` event/time interpretations.  For example,
 `spatialAspect.contour = "initiative"`.
 
 `tenseModal` is an open slot for `cu'e` when the question asks for an
-unspecified tense or modal construct.  The referenced parameter has
+unspecified tense or adjunct construct.  The referenced parameter has
 `sort = "tenseModal"` and `role = "tenseQuestion"`.  This is different from
 `ca ma` or `vi ma`: those are ordinary `ma` parameters used as the anchor of a
 known time or space relation, while `cu'e` leaves the relation, aspect,
-actuality, or modal construct itself to be supplied by the answer.
+actuality, or adjunct construct itself to be supplied by the answer.
 
-Tense/modal fragments used as answers, such as `va`, `puzu`, `vi le lunra`,
+Tense or adjunct fragments used as answers, such as `va`, `puzu`, `vi le lunra`,
 `pu'o`, or `seka'a le briju`, are emitted as mentioned eventuality content.
 The event carries the corresponding `space`, `time`, `aspect`, or
-`modalArguments` fields directly.  This keeps answer fragments semantic without
+`adjuncts` fields directly.  This keeps answer fragments semantic without
 inventing a full asserted predication.
 
 Tense sumtcita anchor these same event attributes to the following sumti
@@ -724,7 +724,7 @@ anchor.  This uses the existing `time`/`timePath` fields; no separate
 
 Tense constructs that are moved into term position with `ku`, such as
 `puku mi klama le zarci`, are still event anchors.  They must not appear as
-`modalArguments` with a fabricated `pu` relation and elided modal sumti.  CLL
+`adjuncts` with a fabricated `pu` relation and elided tagged sumti.  CLL
 10.1 says those forms differ from selbri-adjacent `pu` only in emphasis, so
 the asserted predication's eventuality should carry the same
 `time.relation = "before"` anchor.
@@ -752,7 +752,7 @@ Exact magnitudes from governed termsets use `magnitude` on the affected
 relation has `anchor` pointing at George and
 `magnitude.value` pointing at the `lo mitre be li mu` referent.  The termset
 terms are consumed by the event relation and do not also fill ordinary `sanli`
-places or create a separate `la'u` modal argument.  This is distinct from
+places or create a separate `la'u` adjunct.  This is distinct from
 vague `distance`: `vu` records a long but inexact distance, while
 `magnitude` records an exact or independently described amount supplied by a
 sumti.
@@ -765,10 +765,10 @@ path steps produced by the marked tense carry `sticky = true`; copied-forward
 relations carry `inherited = true` as well.  Bare `ki` reset clears the
 sticky context for following predications; because it has no tense or space
 relation of its own, it does not fabricate an anchor/path object.  This is
-distinct from a BAI modal argument; FAhA/VA tenses are event-location
+distinct from a BAI adjunct; FAhA/VA tenses are event-location
 attributes.
 
-When a modal relation's place structure calls for an event or state but the
+When an adjunct relation's place structure calls for an event or state but the
 connected side is a grouped formula or discourse sequence, reify an
 eventuality whose `content` points at that formula or sequence.  Do not pick
 the first atomic child as a proxy for the whole group.  Atomic asserted
@@ -1512,7 +1512,7 @@ predication's `placeQuestions` field.  It is not an entity filler: `fi'a do`
 does not ask who fills a place, but which place the known addressee fills.
 
 A tense-question parameter has `sort = "tenseModal"` and is referenced from an
-eventuality's `tenseModal` field.  It represents the open tense/modal
+eventuality's `tenseModal` field.  It represents the open tense/adjunct
 construct requested by `cu'e`, not an entity standing for a time or place.
 
 A connective-question parameter has `sort = "connective"` and is referenced
@@ -1566,7 +1566,7 @@ The relevant wrappers are:
   names, and bare quantified sumti.
 - Bare-selbri vocatives, which CLL 6.11 treats as implicit `le` descriptions
   of the addressee.
-- `FIhO selbri FEhU`, which builds an ad-hoc modal body.
+- `FIhO selbri FEhU`, which builds an ad-hoc adjunct body.
 - `NAhU selbri TEhU`, which builds a selbri-derived mekso operator.
 - `NIhE selbri TEhU`, which builds a selbri-derived mekso operand.
 - `SEI [terms [CU]] selbri SEhU`, which is a metalinguistic bridi with a
@@ -1587,9 +1587,8 @@ therefore bind the curried unit, not base x1 unconditionally:
   body as its meaning; the named referent is not asserted to satisfy `broda`.
 - A bare-selbri vocative uses the same description body as `le <selbri>`, with
   the resulting referent serving as the vocative audience.
-- `fi'o <selbri> <sumti>` fills the tagged selbri's visible x1 with the modal
-  sumti and attaches that subordinate body as the host predication's modal
-  argument.
+- `fi'o <selbri> <sumti>` fills the tagged selbri's visible x1 with the tagged
+  sumti and attaches that subordinate body as the host predication's adjunct.
 - `na'u <selbri>` builds a typed math operator whose result place is the
   selbri's visible x1 and whose later unfilled places are operands.
 - `ni'e <selbri>` builds a typed math operand from the selbri's output value.
@@ -1704,7 +1703,7 @@ than from an explicit abstraction cmavo.
 
 A predication applies a relation to arguments under an eventuality. Its
 `eventuality` field is a semantic use considered by generated-event binding;
-modal arguments and every transitive `tanruLink.head` predication are considered
+adjuncts and every transitive `tanruLink.head` predication are considered
 uses at the same formula site as well.
 
 ```json
@@ -1730,7 +1729,7 @@ uses at the same formula site as well.
       "introducedBy": "zo'e"
     }
   },
-  "modalArguments": [
+  "adjuncts": [
     {
       "relation": "zgana",
       "introducedBy": "ga'a",
@@ -1914,50 +1913,50 @@ represented by `deleted`.  Relations whose arity is unavailable should emit the
 assigned places that are forced by syntax, plus a diagnostic that the full
 place structure is unavailable; the graph must not invent unbounded places.
 
-Tagged or modal sumti such as `ga'a mi` are not numbered places.  They appear
-in `modalArguments`, where `relation` is the source relation for the tag
+Tagged sumti such as `ga'a mi` are not numbered places.  They appear
+in `adjuncts`, where `relation` is the source relation for the tag
 (`zgana` for `ga'a`, `klama` for `ka'a`, and so on), `introducedBy` preserves
 the source marker, and `arguments` uses the same structured numbered place map
 as predication arguments.  This keeps `be ga'a mi` attached to the linked
 modifier predicate while tail `ga'a mi` attaches to the enclosing predication.
-The deliberately vague modal `do'e` uses `relation = "unspecified-role"` and
-only records the visible modal place.
+The deliberately vague adjunct `do'e` uses `relation = "unspecified-role"` and
+only records the visible place.
 Reference-frame tags such as `ma'i vo'a` use the source relation `manri` in
-`modalArguments`, with the resolved reference-frame sumti filling the visible
+`adjuncts`, with the resolved reference-frame sumti filling the visible
 place.
 
-`modalArguments[].component`, when present, identifies the component of a
-composite argument that the modal applies to.  CLL 14.131/14.132 requires this:
+`adjuncts[].component`, when present, identifies the component of a
+composite argument that the adjunct applies to.  CLL 14.131/14.132 requires this:
 `mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban. casnu` has one
-`casnu` predication whose x1 is the mass of `mi` and `do`, but the `bau` modal
-for Lojban applies to the speaker component and the `bau` modal for English
+`casnu` predication whose x1 is the mass of `mi` and `do`, but the `bau` adjunct
+for Lojban applies to the speaker component and the `bau` adjunct for English
 applies to the addressee component.  Without `component`, the two language
-modals would incorrectly describe the whole mass uniformly.
+adjuncts would incorrectly describe the whole mass uniformly.
 
-A modal entry has either a lexical modal `relation` plus structured
-`arguments`, or a full modal `body` formula.  BAI-derived tags normally use the
+An adjunct entry has either a lexical adjunct `relation` plus structured
+`arguments`, or a full adjunct `body` formula.  BAI-derived tags normally use the
 lexical relation shape because their source relation is fixed by the marker.
 `fi'o` uses the `body` shape because its source is an arbitrary selbri whose
 tanru structure, linkargs, conversion, and other selbri-internal semantics must
 remain visible.  This is true even when the source selbri is a single brivla:
-`fi'o kanla` still contributes a modal predication body with every known
+`fi'o kanla` still contributes an adjunct predication body with every known
 `kanla` place explicit, not a relation-string shorthand.
 
-Ad-hoc modal tags with `fi'o` take a full selbri body.  The modal entry uses
+Ad-hoc adjunct tags with `fi'o` take a full selbri body.  The adjunct entry uses
 `body` to point at a subordinate formula for that tagged selbri; the following
-modal sumti fills the selbri's visible x1 after conversion, `be`/`bei` linkargs
+tagged sumti fills the selbri's visible x1 after conversion, `be`/`bei` linkargs
 fill the places they govern, and all other dictionary-known omitted places are
-explicit `elided` fillers.  Thus `fi'o kanla le zunle` contains a modal body
+explicit `elided` fillers.  Thus `fi'o kanla le zunle` contains an adjunct body
 with `kanla(x1 = le zunle, x2 = zo'e)`, while `fi'o se pilno le zunle kanla`
-contains a modal body with raw `pilno` x2 filled by the tool and x1/x3 elided.
+contains an adjunct body with raw `pilno` x2 filled by the tool and x1/x3 elided.
 For tanru such as `fi'o melbi kanla`, the body uses the normal tanru schema
 rather than a flat relation string such as `"melbi kanla"`.
 
-Modal tags before a selbri, as in `mi bai tavla` and `mi fi'o kanla fe'u viska
-do`, also appear in `modalArguments` on the affected predication.  Because
-there is no explicit modal sumti, the tag body's visible modal place is an
+Adjunct tags before a selbri, as in `mi bai tavla` and `mi fi'o kanla fe'u viska
+do`, also appear in `adjuncts` on the affected predication.  Because
+there is no explicit tagged sumti, the tag body's visible place is an
 `elided` filler, and all other dictionary-known places of the tag relation are
-also explicit elisions.  This preserves the CLL 9.9 "modal selbri" reading
+also explicit elisions.  This preserves the CLL 9.9 tagged-selbri reading
 without inventing a compeller, tool, eye, or other participant.
 
 When a BAI source relation links two events or propositions, the host
@@ -1966,12 +1965,12 @@ not occupied by the tagged sumti after SE conversion.  Thus `ri'a X` fills
 `rinka` x2 with the host event and x1 with `X`, while `se ri'a X` fills x1 with
 the host event and x2 with `X`.
 
-`jai` with a BAI modal conversion, such as `la .lojban. jai bau cusku fai mi`,
-uses the same `modalArguments` shape.  The base predication remains the inner
+`jai` with a BAI adjunct conversion, such as `la .lojban. jai bau cusku fai mi`,
+uses the same `adjuncts` shape.  The base predication remains the inner
 source relation (`cusku`), `fai` supplies the original x1 when present, and the
 raised x1 fills the visible place of the BAI source relation (`bangu` x1 for
 `bau`).  No public binding or conversion object is needed, because the resolved
-graph can state the resulting predicate and modal relation directly.
+graph can state the resulting predicate and adjunct relation directly.
 CLL 11.10's bare `jai` is vaguer: it raises something from an implicit
 abstraction involving the surface x1.  Public JSON represents that implicit
 abstraction with a normal `referent` descriptor
@@ -1985,21 +1984,21 @@ conjoined with it.  This preserves both the underlying relation
 `krinu(reason, justified-event)` and the bare-`jai` claim that the raised
 surface x1 participates in the abstraction moved to `fai`.  When `jai` has a
 BAI marker, as in `le jai gau rinka ...`, the described referent fills the BAI
-source relation in `modalArguments` (`gasnu` for `gau`), while the inner
+source relation in `adjuncts` (`gasnu` for `gau`), while the inner
 predicate's old x1 remains filled by `fai` if present or is otherwise an
 explicit `zo'e` elision.
 
-Modal negation belongs to the modal relation, not to the host predication.
+Tagged negation belongs to the adjunct relation, not to the host predication.
 `BAI nai` adds `negation` with `kind = "contradictory"` to the
-`modalArguments` entry.  `NAhE BAI` adds `scalarNegation` using the same scalar
+`adjuncts` entry.  `NAhE BAI` adds `scalarNegation` using the same scalar
 negation object shape used for selbri negation.  In `mi nelci do mu'inai le nu
-do nelci mi`, the speaker's liking is still asserted, while the `mukti` modal
-relation is contradicted; in `banro na'emu'i ...`, the `mukti` modal relation
+do nelci mi`, the speaker's liking is still asserted, while the `mukti` adjunct
+relation is contradicted; in `banro na'emu'i ...`, the `mukti` adjunct relation
 is marked as other-than, without inventing which alternate relation holds.
 
-Indicators attached to a modal tag modify the modal relation itself, not the
+Indicators attached to an adjunct tag modify the adjunct relation itself, not the
 host predication as a whole.  They appear as nested `modifiers` on the
-`modalArguments` entry, using the same displayed-content modifier shape as
+`adjuncts` entry, using the same displayed-content modifier shape as
 attitudinal modifiers.  This is needed for CLL 15.10 `go'i ji'una'iku`, where
 `na'i` marks the `jicmu` presupposition/assumption introduced by `ji'u` as
 metalinguistically wrong:
@@ -2008,7 +2007,7 @@ metalinguistically wrong:
 {
   "type": "predication",
   "relation": "go'i",
-  "modalArguments": [
+  "adjuncts": [
     {
       "relation": "jicmu",
       "introducedBy": "ji'u",
@@ -2037,29 +2036,29 @@ metalinguistically wrong:
 }
 ```
 
-Sticky modals are represented by their semantic effect, not by a public binding
-object.  When `ki` makes a BAI modal sticky, the resolved `modalArguments`
+Sticky adjuncts are represented by their semantic effect, not by a public binding
+object.  When `ki` makes a BAI adjunct sticky, the resolved `adjuncts`
 entry is repeated on following asserted predications until sticky state is
 cancelled.  The repeated entry reuses the same semantic IDs in its place map,
-because CLL 9.14 says the modal and its following sumti persist together.  Bare
-`ki` before a selbri clears sticky modal context and produces no modal argument
+because CLL 9.14 says the adjunct and its following sumti persist together.  Bare
+`ki` before a selbri clears sticky adjunct context and produces no adjunct
 of its own.
 
-Logical connection between modal tags, as in `seka'a je teka'a le zdani`,
-does not make one modal relation named after the whole tag string.  It lowers
+Logical connection between adjunct tags, as in `seka'a je teka'a le zdani`,
+does not make one adjunct relation named after the whole tag string.  It lowers
 to the corresponding logical formula over host predications: one branch has a
-`se ka'a`/`klama` modal argument and another branch has a `te ka'a`/`klama`
-modal argument.  The explicit modal sumti resolves once and is reused in the
-visible place of each branch's modal relation.  This differs from a `ce'e`
+`se ka'a`/`klama` adjunct and another branch has a `te ka'a`/`klama`
+adjunct.  The explicit tagged sumti resolves once and is reused in the
+visible place of each branch's adjunct relation.  This differs from a `ce'e`
 termset such as `seka'a le zdani ce'e teka'a le zdani`, which CLL 9.15 treats
-as one host event with both modal arguments.
+as one host event with both adjuncts.
 
-When one modal scopes over a connected bridi-tail or a `tu'e` text group, the
-same modal relation should be attached to every asserted predication in that
+When one adjunct scopes over a connected bridi-tail or a `tu'e` text group, the
+same adjunct relation should be attached to every asserted predication in that
 scope.  The repeated JSON entries reuse the same semantic IDs inside their
-`arguments` maps, so a single elided modal operand remains one discourse
+`arguments` maps, so a single elided adjunct operand remains one discourse
 referent across all affected predications.  Restrictive predications inside
-descriptions are not affected by the outer modal.
+descriptions are not affected by the outer adjunct.
 
 Reciprocal `soi` modifiers appear in `reciprocity` on the affected
 predication.  Each entry records the two participant fillers whose interchange
@@ -2166,11 +2165,11 @@ records the semantic relation:
 - `po'u` and `no'u` use `relation = "identity"`; `po'u` is restrictive and
   `no'u` is incidental.  Unlike `du`, these identity predications use the
   relative-clause mode, not `mode = "definitional"`.
-- Modal relative phrases such as `pe cu'u la .artr.` and `ne semau la
+- Adjunct relative phrases such as `pe cu'u la .artr.` and `ne semau la
   .meiris.` keep the same `RelativeClause` attachment and `introducedBy =
   "pe"`/`"ne"` on the attachment, but the body predication uses the BAI source
   relation rather than vague `associatedWith` when the source place routing is
-  known from CLL.  The predication's own `introducedBy` preserves the modal
+  known from CLL.  The predication's own `introducedBy` preserves the adjunct
   marker, e.g. `"cu'u"` or `"se mau"`.
 
 For `le stizu pe mi cu blanu`, the main predication's x1 filler therefore
@@ -2263,10 +2262,10 @@ Atomic:
 
 `boundEventualities` is an explicit typed owner edge, not a projected constant
 annotation. A generated event appears on exactly one such edge: the lowest
-formula node dominating its primary predication field, ordinary/modal argument
+formula node dominating its primary predication field, ordinary/adjunct
 uses, transitive tanru-head uses, connective formula event fields, and
 eventuality `content`. If no formula dominates all roots, the lowest containing
-sequence owns it. This makes shared modal/tanru/connection events single
+sequence owns it. This makes shared adjunct/tanru/connection events single
 witnesses and places a negated atom's witness inside `not`. Referential
 eventualities are forbidden on the edge.
 
@@ -2299,7 +2298,7 @@ Connective:
 }
 ```
 
-Scoped tense or modal:
+Scoped tense or adjunct:
 
 ```json
 {
@@ -2500,7 +2499,7 @@ is partitioned into distinct witnesses.
 
 For termset cases where the second parallel stream is a complete branch formula
 such as CLL 14.133, the branch stream's items may be formulas rather than entity
-referents; this preserves the modal/tag content associated with each index while
+referents; this preserves the adjunct/tag content associated with each index while
 still exposing the zip.
 
 For logical connectives, `connector.truthTable` is the canonical four-bit truth
@@ -4108,10 +4107,10 @@ These are the semantic object-model changes relative to
    the unconverted modifier relation before applying the outer place
    conversion.
 
-20. Added modal arguments on predications.
+20. Added adjuncts on predications.
    CLL 5.7 distinguishes `blanu be ga'a mi be'o zdani`, where the observer tag
    scopes to the linked modifier, from `blanu zdani ga'a mi`, where it scopes to
-   the enclosing predication.  `modalArguments` records these tagged arguments
+   the enclosing predication.  `adjuncts` records these tagged arguments
    separately from numbered `xN` places.
 
 21. Added occurrence-scoped relative clauses on argument fillers.
@@ -4463,27 +4462,27 @@ These are the semantic object-model changes relative to
     conjunction shape is used with one atom per concrete predication, and
     unmentioned places remain shared bridi-level elisions.
 
-66. Changed modal arguments from one filler to a place map. **Refined by
+66. Changed adjuncts from one filler to a place map. **Refined by
     amendment 40 and issue #126 for `fi'o`.**
-    CLL 9.5 says `fi'o kanla le zunle` makes the modal sumti fill x1 of
+    CLL 9.5 says `fi'o kanla le zunle` makes the tagged sumti fill x1 of
     `kanla`, and `fi'o se pilno le zunle kanla` makes it fill x2 of `pilno`.
-    A single `argument` field could preserve the modal sumti but not the tag
-    relation's place structure, conversion, or omitted non-x1 places.  Modal
+    A single `argument` field could preserve the tagged sumti but not the tag
+    relation's place structure, conversion, or omitted non-x1 places.  Adjunct
     entries were extended to use `arguments`, the same numbered argument map as
     predications.  Current normative form keeps that map for fixed lexical BAI
-    tags; ad-hoc `fi'o` entries use a full modal `body` formula so even a
+    tags; ad-hoc `fi'o` entries use a full adjunct `body` formula so even a
     one-brivla tag such as `fi'o kanla` is represented as a subordinate
     predication body with explicit places, not as a relation-string shorthand.
 
-67. Use source relations for BAI modal tags.
+67. Use source relations for BAI adjunct tags.
     CLL 9.6 defines BAI tags through the place structures of corresponding
     gismu: `pi'o` is based on `pilno`, `ka'a` on `klama`, and `ga'a` on
     `zgana`.  Emitting `relation = "ka'a"` made the public graph depend on an
     obscure cmavo as if it were a predicate, and it prevented known omitted
-    places such as `klama` x2-x5 from being explicit.  BAI modal entries now
+    places such as `klama` x2-x5 from being explicit.  BAI adjunct entries now
     keep the cmavo in `introducedBy` but use the source relation in `relation`;
-    SE conversion selects which source-relation place the visible modal sumti
-    fills.  The special vague modal `do'e` uses the synthetic relation
+    SE conversion selects which source-relation place the visible tagged sumti
+    fills.  The special vague adjunct `do'e` uses the synthetic relation
     `unspecified-role`.
 
 68. Added sequence `connectionClaims`.
@@ -4498,7 +4497,7 @@ These are the semantic object-model changes relative to
 69. Allowed formula IDs as proposition-like argument fillers.
     CLL 9.8's `li ny. du li vo .ini'ibo li ny. du li re su'i re` uses `ni'i`
     from `nibli`, a relation whose x1/x2 are propositions.  The earlier
-    event-only modal-connection lowering worked for `rinka` and `mukti`, but it
+    event-only adjunct-connection lowering worked for `rinka` and `mukti`, but it
     could not represent logical entailment between identity statements without
     pretending that identities are ordinary events.  `ArgumentValue.filled`
     may now point at a `formula` when the relation's place structure calls for
@@ -4512,14 +4511,14 @@ These are the semantic object-model changes relative to
     variable now reuse one number referent within the discourse.  Arithmetic
     expressions and numeric constants are not normalized by this rule.
 
-71. Clarified modal selbri and text-group modal scope.
-    CLL 9.9 allows a BAI or `fi'o` modal to appear before a selbri without an
-    explicit modal sumti, and also allows one modal to scope over a connected
+71. Clarified adjunct selbri and text-group adjunct scope.
+    CLL 9.9 allows a BAI or `fi'o` adjunct to appear before a selbri without an
+    explicit tagged sumti, and also allows one adjunct to scope over a connected
     bridi-tail or `tu'e` group.  No new object type is needed: these use the
-    existing `modalArguments` place-map shape.  Bare modal selbri create
-    source-relation place maps with elided fillers; spread modals duplicate the
-    modal entry on each asserted predication while reusing the same filler IDs
-    for the single modal's elided participants.
+    existing `adjuncts` place-map shape.  Bare adjunct selbri create
+    source-relation place maps with elided fillers; spread adjuncts duplicate the
+    adjunct entry on each asserted predication while reusing the same filler IDs
+    for the single adjunct's elided participants.
 
 72. Clarified explicit places for converted property modifiers.
     CLL 9.9 compares `bai tavla` to `se bapli tavla`, which exercises the
@@ -4528,20 +4527,20 @@ These are the semantic object-model changes relative to
     restrictive property predications must include every known place of the
     source relation, including places before the filled converted place.
 
-73. Added source-relation lowering for modal relative phrases.
+73. Added source-relation lowering for adjunct relative phrases.
     CLL 9.10 says `pe cu'u` and `ne fi'e` have the full semantic content of
     the corresponding `poi se cusku` and `noi se finti` clauses, and that
     `ne semau`/`ne seme'a` use the comparative source relations `zmadu` and
-    `mleca`.  Plain `pe`/`ne` can only say `associatedWith`, but modal relative
+    `mleca`.  Plain `pe`/`ne` can only say `associatedWith`, but adjunct relative
     phrases with known CLL routing must not lose the source relation.  No new
     object type is needed: the existing relative-clause body points at a
-    source-relation predication with `introducedBy` preserving the modal marker.
+    source-relation predication with `introducedBy` preserving the adjunct marker.
 
-74. Added content-described eventualities for grouped modal connection sides.
+74. Added content-described eventualities for grouped adjunct connection sides.
     CLL 9.11 says the `tu'e`/`ke` grouped portion of examples 9.79-9.81 is the
     effect as a whole: carrying the dog or carrying the cat, equally.  Picking
     the first branch's event made `se ri'a` point only at carrying the dog, and
-    a discourse `sequence` cannot itself fill an event place.  Eventive modal
+    a discourse `sequence` cannot itself fill an event place.  Eventive adjunct
     connection claims may now fill a source-relation event place with an
     `eventuality` whose `content` points at the grouped `formula` or nested
     `sequence`; atomic branches still use their own predication eventualities.
@@ -4555,58 +4554,58 @@ These are the semantic object-model changes relative to
     root a bare `formula` would lose the two utterance acts, while leaving a
     plain sequence with a diagnostic lost the truth-functional claim.  A
     sequence may now carry `content` pointing at the statement-level connective
-    formula; modal side claims such as `ki'u`, `ri'a`, and `du'i` remain in
+    formula; adjunct side claims such as `ki'u`, `ri'a`, and `du'i` remain in
     `connectionClaims`.
 
-76. Clarified `jai BAI` modal conversion as modal-argument routing.
+76. Clarified `jai BAI` adjunct conversion as adjunct-argument routing.
     CLL 9.12 says `la .lojban. jai bau cusku fai mi` is equivalent to
     `mi cusku bau la .lojban.`: the language place introduced by `bau` becomes
     visible as the converted x1, while `fai` restores the old x1 of `cusku`.
-    The previous JSON model had `modalArguments` and source-relation routing
-    for ordinary BAI tags, but did not say how a converted modal place should
+    The previous JSON model had `adjuncts` and source-relation routing
+    for ordinary BAI tags, but did not say how a converted adjunct place should
     appear.  No new object or field is required; the affected predication keeps
     the inner relation and records the raised place as the same BAI
-    `modalArguments` entry that an ordinary modal sumti would have produced.
+    `adjuncts` entry that an ordinary tagged sumti would have produced.
 
-77. Added modal-argument polarity fields.
-    CLL 9.13 distinguishes contradictory negation on a modal (`mu'inai`) from
-    scalar negation before a modal (`na'emu'i`).  The old JSON could preserve
+77. Added adjunct-argument polarity fields.
+    CLL 9.13 distinguishes contradictory negation on an adjunct (`mu'inai`) from
+    scalar negation before an adjunct (`na'emu'i`).  The old JSON could preserve
     the source text but had no machine-readable way to say that the host claim
-    was asserted while only the modal relation was negated.  `ModalArgument`
+    was asserted while only the adjunct relation was negated.  `Adjunct`
     now has optional `negation` and `scalarNegation` fields.  `negation` is an
     embedded object with `kind = "contradictory"` and `introducedBy = "nai"`;
     `scalarNegation` reuses the existing scalar-negation shape, for example
     `{"kind":"otherThan","introducedBy":"na'e"}`.
 
-78. Clarified sticky modal lowering.
-    CLL 9.14 says a BAI modal followed by `ki` persists, together with its
+78. Clarified sticky adjunct lowering.
+    CLL 9.14 says a BAI adjunct followed by `ki` persists, together with its
     following sumti, into following bridi until cancelled.  The JSON graph does
-    not need a public sticky-binding object: the resolved modal argument is
+    not need a public sticky-binding object: the resolved adjunct is
     repeated on affected asserted predications.  This was necessary for
     `mi tavla ... bai ki tu'a la .frank. .ibabo mi tavla ...`, where the second
-    `tavla` must carry the same `bapli` modal argument pointing at the original
+    `tavla` must carry the same `bapli` adjunct pointing at the original
     `tu'a la .frank.` referent.  Bare `ki`, as in `mi ki tavla`, clears sticky
-    context and emits no modal relation.
+    context and emits no adjunct relation.
 
-79. Clarified logical modal-tag connections.
+79. Clarified logical adjunct-tag connections.
     CLL 9.15 says `la .frank. bajra seka'a je teka'a le zdani` is equivalent
     to the statement connection in example 9.91: Frank runs to the house and
     Frank runs from the house, without implying whether those are one or two
-    acts of running.  Treating `seka'a je teka'a` as a single opaque modal
+    acts of running.  Treating `seka'a je teka'a` as a single opaque adjunct
     relation lost both the logical connective and the `klama` source-relation
     place routing.  No new object type is required: the utterance content is a
-    modal-locus connective formula with one branch predication carrying the
-    `se ka'a` modal argument and the other carrying the `te ka'a` modal
+    adjunct-locus connective formula with one branch predication carrying the
+    `se ka'a` adjunct and the other carrying the `te ka'a` adjunct
     argument.  By contrast, the `ce'e` termset in example 9.93 remains one
-    host predication with both modal arguments, because CLL says the termset
+    host predication with both adjuncts, because CLL says the termset
     conventionally forces one common running event.
 
 80. Clarified moved tense terms as event anchors.
     CLL 10.1 says `mi cu pu klama le zarci`, `puku mi klama le zarci`,
     `mi klama puku le zarci`, and `mi klama le zarci pu` differ only in
-    emphasis.  The previous JSON lowering treated moved `puku` as a modal
+    emphasis.  The previous JSON lowering treated moved `puku` as an adjunct
     argument relation named `pu` with an elided place, which confused tense
-    anchoring with BAI-style modal arguments.  No new field is required:
+    anchoring with BAI-style adjuncts.  No new field is required:
     moved tense terms attach the same `time` or `space` anchor to the host
     predication's eventuality that selbri-adjacent tense would attach.
 
@@ -4712,7 +4711,7 @@ These are the semantic object-model changes relative to
 91. Clarified grouped tensed logical connectives.
     CLL 10.17 says `.ije ba tu'e ... tu'u`, `gi'e bake ... ke'e`, and
     `.e bake ... ke'e` are grouped versions of the same tensed logical
-    connective pattern.  A text-group tense should not become a generic modal
+    connective pattern.  A text-group tense should not become a generic adjunct
     argument with an elided anchor on every nested predicate.  Instead the
     sequence that holds the grouped right side is reified as an eventuality and
     related to the left side by an asserted connection claim.  No new field was
@@ -4765,12 +4764,12 @@ These are the semantic object-model changes relative to
     following `nai` directly on that recurrence.  This recurrence-level `nai`
     does not also wrap the host formula in `operator = "not"`.
 
-97. Clarified `ma'i` as a source-relation modal argument.
+97. Clarified `ma'i` as a source-relation adjunct.
     CLL 10.8 uses `ma'i vo'a` to change the reference frame for spatial
-    direction.  This did not require a new public object: ordinary BAI modal
+    direction.  This did not require a new public object: ordinary BAI adjunct
     arguments already attach a relation to the host predication.  The
     important correction is that `relation` should be the source relation
-    `manri`, not the modal marker `ma'i`; `introducedBy` still preserves the
+    `manri`, not the adjunct marker `ma'i`; `introducedBy` still preserves the
     source marker.
 
 98. Added ordered aspect chains.
@@ -4797,22 +4796,22 @@ These are the semantic object-model changes relative to
     records the temporal relation, anchor, source marker, and optional
     distance.
 
-101. Added tense-modal and connective question slots.
+101. Added tense-adjunct and connective question slots.
     CLL 10.24 distinguishes `ca ma`/`vi ma`, where `ma` is an ordinary entity
     parameter used as a time or place anchor, from `cu'e`, which asks for the
-    tense or modal construct itself.  Eventualities now have optional
+    tense or adjunct construct itself.  Eventualities now have optional
     `tenseModal`, pointing at a `parameter` with `sort = "tenseModal"` and
     `role = "tenseQuestion"`.  The same section also uses `je'i` to ask which
     logical connective relates two tense branches.  Formula connectors now have
     optional `parameter`, and such formulas use
     `operator = "connectiveQuestion"` with a `parameter` of
-    `sort = "connective"` and `role = "connectiveQuestion"`.  Tense/modal
+    `sort = "connective"` and `role = "connectiveQuestion"`.  Tense/adjunct
     fragment answers are represented as mentioned eventualities carrying the
-    answer's `time`, `space`, `aspect`, or `modalArguments`.
+    answer's `time`, `space`, `aspect`, or `adjuncts`.
 
 102. Added exact event-relation `magnitude`.
     CLL 10.25 uses `zu'a nu'i ... la'u ...` to specify an origin and an exact
-    distance for a spatial tense/modal tag.  The previous model had vague
+    distance for a spatial tense/adjunct tag.  The previous model had vague
     `distance` for VA/ZI markers, but no field for an exact amount supplied by
     a termset sumti.  `time`, `timePath[]`, `space`, and `spacePath[]` relation
     objects now have optional `magnitude`, whose `value` points at the supplied
@@ -4896,7 +4895,7 @@ These are the semantic object-model changes relative to
      `abstractionAbout` descriptor was sufficient for explicit `tu'a`, but the
      model text did not say how bare `jai` should be represented.  Bare `jai`
      now uses the same descriptor shape with `word = "jai"`; `jai gau` and
-     other `jai BAI` forms instead use `modalArguments` with the BAI source
+     other `jai BAI` forms instead use `adjuncts` with the BAI source
      relation (`gasnu` for `gau`) and keep the inner predicate's old place
      structure explicit.
 
@@ -5005,16 +5004,16 @@ These are the semantic object-model changes relative to
      group.  This gives forward utterance pro-sumti a concrete target without
      making a parenthetical utterance contain another utterance directly.
 
-122. Added `modalArguments[].modifiers` for indicators on modal tags.
+122. Added `adjuncts[].modifiers` for indicators on adjunct tags.
      CLL 15.10 uses `go'i ji'una'iku` to mark the presupposition supplied by
      `ji'u` as metalinguistically wrong.  Treating `na'i` as a display on the
      whole host formula would lose the fact that the error is specifically in
-     the modal assumption, while dropping it from `modalArguments` would lose
-     the metalinguistic force entirely.  Modal arguments now carry nested
+     the adjunct assumption, while dropping it from `adjuncts` would lose
+     the metalinguistic force entirely.  Adjuncts now carry nested
      displayed-content modifiers for indicators attached to the tag word.  The
      modifier still carries `assertionEffect:"metalinguisticallyVoided"`, because
      CLL 15.10 says `na'i` anywhere in the sentence makes it a non-assertion;
-     the modifier location records that the presupposition/modal assumption is
+     the modifier location records that the presupposition/adjunct assumption is
      the offending part.
 
 123. Added relation-variable parameters for `bu'a`-series selbri variables.
@@ -5241,7 +5240,7 @@ These are the semantic object-model changes relative to
      semantic edges explicit rather than relying on leaked temporary objects:
      displayed-content objects anchored to an utterance are listed in that
      utterance's `asides`; self-identification vocatives use the identified
-     referent as `content`; and primary eventualities used as modal relation
+     referent as `content`; and primary eventualities used as adjunct relation
      arguments point back to their defining formula through `content`.
 
 133. Preserved bare-`jai` raised participants when `fai` fills the moved place.
@@ -5362,10 +5361,10 @@ implementation gaps are listed separately in “Known Implementation Divergences
     edge already encodes subordination). Add a §sequence sentence making the
     “single combined claim” guarantee explicit. Implemented in `tersmu` v1.
 
-11. **Modal over a connected formula / group (#16) — NOT adopted; closed.** JSON
-    amendment #71 already specifies that one modal over a connected bridi-tail or
+11. **Adjunct over a connected formula / group (#16) — NOT adopted; closed.** JSON
+    amendment #71 already specifies that one adjunct over a connected bridi-tail or
     `tu'e` group **spreads/duplicates** onto each predication via shared filler ids
-    (no new object). Adding `modalArguments` to `formula`/`sequence` would contradict
+    (no new object). Adding `adjuncts` to `formula`/`sequence` would contradict
     #71 and put an asserted relation onto a truth-valueless SEQ. The real defects on
     that path (`tu'e` force; deictic-ground duplication) are separate builder bugs.
 
@@ -5407,10 +5406,10 @@ implementation gaps are listed separately in “Known Implementation Divergences
     Implemented in `tersmu` v1.
 
 16. **`fi'o se pilno` place numbering (#17) — model correct; doc only.** Per 0.H the
-    `ModalArgument.relation` carries the **unconverted** root (`pilno`) and the tagged
+    `Adjunct.relation` carries the **unconverted** root (`pilno`) and the tagged
     sumti lands in the SE-remapped base place (x2 = tool); output is already correct.
     Resolved by documenting that the SE-remapping rule applies to
-    `ModalArgument.arguments` as well as `predication.arguments` (primer §3.5). Closed.
+    `Adjunct.arguments` as well as `predication.arguments` (primer §3.5). Closed.
 
 17. **`quotation.mode` (#19) — model correct; doc only.** `mode` is the two-valued
     **category** (`parsed` vs `opaque` — the structured/reachable vs sealed split,
@@ -5443,9 +5442,9 @@ implementation gaps are listed separately in “Known Implementation Divergences
       `recurrence`/`intervalModifiers` negation, keeping the base recurrence kind and the
       count intact (`paroinai` = "other than once", CLL 15.79). *Current impl:* mislabeled
       `contradictory` (#62) — the single `contradictory` kind is never correct for TAhE/ROI.
-    - *Type note:* `Recurrence.negation` is typed `ModalNegation`/`ModalNegationKind`; if a
+    - *Type note:* `Recurrence.negation` is typed `TaggedNegation`/`TaggedNegationKind`; if a
       scalar variant is added there, rename/generalize it or document it as a **shared
-      negation-shape type**, since interval-modifier negation is not a "modal" negation.
+      negation-shape type**, since interval-modifier negation is not adjunct-specific.
     - *Scale note:* the scalar reading is **scale-relative** — ROI `-nai` = "other
       than N" on a frequency scale, TAhE `-nai` = "other than this recurrence/distribution
       class" on a distribution scale.  Predication scalar negation now uses
@@ -5630,7 +5629,7 @@ implementation gaps are listed separately in “Known Implementation Divergences
     `SEI [terms [CU]] selbri SEhU`.  These constructs preserve tanru, `be`
     linkargs, conversion, JAI, NAhE, connectives, elided/deleted places, and
     dictionary place structure in a subordinate predication/relation body.  No
-    public raw `selbriExpression` object is added.  `fi'o` always uses a modal
+    public raw `selbriExpression` object is added.  `fi'o` always uses an adjunct
     `body` formula, even for one-brivla tags such as `fi'o kanla`; `la <selbri>`
     preserves the name sign while allowing that sign to denote the lowered
     selbri relation body; `na'u` and `ni'e` point their math outputs at the

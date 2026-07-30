@@ -98,7 +98,7 @@ pub struct EventualityNode {
     pub composition: Option<Composition>,
     pub relative_clauses: Vec<RelativeClause>,
     pub assigned_names: Vec<AssignedName>,
-    pub modal_arguments: Vec<ModalArgument>,
+    pub adjuncts: Vec<Adjunct>,
     pub actuality: Option<Actuality>,
     pub tense_modal: Option<SemanticObjectId>,
     pub time: Option<AnchorRelation>,
@@ -199,7 +199,7 @@ pub struct PredicationNode {
     pub tanru_link: Option<TanruLink>,
     pub arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     pub place_questions: Vec<PlaceQuestionBinding>,
-    pub modal_arguments: Vec<ModalArgument>,
+    pub adjuncts: Vec<Adjunct>,
     pub reciprocity: Vec<ReciprocalExchange>,
     pub mode: PredicationMode,
     pub scalar_negation: Option<ScalarNegation>,
@@ -1049,7 +1049,7 @@ impl SemanticObject {
             composition,
             relative_clauses: Vec::new(),
             assigned_names: Vec::new(),
-            modal_arguments: Vec::new(),
+            adjuncts: Vec::new(),
             actuality,
             tense_modal: None,
             time: None,
@@ -1104,7 +1104,7 @@ impl SemanticObject {
                 composition,
                 relative_clauses: Vec::new(),
                 assigned_names: Vec::new(),
-                modal_arguments: Vec::new(),
+                adjuncts: Vec::new(),
                 actuality: None,
                 tense_modal: None,
                 time: None,
@@ -1323,7 +1323,7 @@ impl SemanticObject {
             tanru_link: None,
             arguments,
             place_questions: Vec::new(),
-            modal_arguments: Vec::new(),
+            adjuncts: Vec::new(),
             reciprocity: Vec::new(),
             mode,
             scalar_negation: None,
@@ -1959,8 +1959,8 @@ impl SemanticObject {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn predication_modal_arguments(&self) -> Option<&[ModalArgument]> {
-        Some(&self.as_predication()?.modal_arguments)
+    pub fn predication_adjuncts(&self) -> Option<&[Adjunct]> {
+        Some(&self.as_predication()?.adjuncts)
     }
 
     #[requires(true)]
@@ -2400,11 +2400,11 @@ impl SemanticObject {
     }
 
     #[requires(self.as_predication().is_some())]
-    #[ensures(self.as_predication().is_some_and(|node| node.modal_arguments.len() == old(modal_arguments.len()))) ]
-    pub fn set_predication_modal_arguments(&mut self, modal_arguments: Vec<ModalArgument>) {
+    #[ensures(self.as_predication().is_some_and(|node| node.adjuncts.len() == old(adjuncts.len()))) ]
+    pub fn set_predication_adjuncts(&mut self, adjuncts: Vec<Adjunct>) {
         self.update_predication(|node| {
             node.with_data(data! {
-                modal_arguments: modal_arguments,
+                adjuncts: adjuncts,
             })
         });
     }
@@ -2423,12 +2423,12 @@ impl SemanticObject {
     #[ensures(self.as_predication().is_some())]
     pub fn set_predication_attachments(
         &mut self,
-        modal_arguments: Vec<ModalArgument>,
+        adjuncts: Vec<Adjunct>,
         place_questions: Vec<PlaceQuestionBinding>,
     ) {
         self.update_predication(|node| {
             node.with_data(data! {
-                modal_arguments: modal_arguments,
+                adjuncts: adjuncts,
                 place_questions: place_questions,
             })
         });
@@ -2753,7 +2753,7 @@ fn serialize_eventuality<M: SerializeMap>(
     optional_entry!(map, "composition", node.composition.as_ref());
     nonempty_entry!(map, "relativeClauses", &node.relative_clauses);
     nonempty_entry!(map, "assignedNames", &node.assigned_names);
-    nonempty_entry!(map, "modalArguments", &node.modal_arguments);
+    nonempty_entry!(map, "adjuncts", &node.adjuncts);
     optional_entry!(map, "body", node.body.as_ref());
     nonempty_entry!(map, "parameters", &node.parameters);
     optional_entry!(map, "arity", node.arity.as_ref());
@@ -2824,7 +2824,7 @@ fn serialize_predication<M: SerializeMap>(
     optional_entry!(map, "tanruLink", node.tanru_link.as_ref());
     nonempty_entry!(map, "arguments", &node.arguments);
     nonempty_entry!(map, "placeQuestions", &node.place_questions);
-    nonempty_entry!(map, "modalArguments", &node.modal_arguments);
+    nonempty_entry!(map, "adjuncts", &node.adjuncts);
     nonempty_entry!(map, "reciprocity", &node.reciprocity);
     map.serialize_entry("mode", &node.mode)?;
     optional_entry!(map, "scalarNegation", node.scalar_negation.as_ref());
@@ -3026,8 +3026,8 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             extend_optional(out, node.experiencer);
             extend_optional(out, node.scale);
             extend_optional(out, node.target);
-            for modal in &node.modal_arguments {
-                modal.references_into(out);
+            for adjunct in &node.adjuncts {
+                adjunct.references_into(out);
             }
             if let Some(time_interval) = &node.time_interval {
                 time_interval.references_into(out);
@@ -3232,8 +3232,8 @@ fn collect_predication_references(node: &PredicationNode, out: &mut Vec<Semantic
     for question in &node.place_questions {
         question.references_into(out);
     }
-    for modal in &node.modal_arguments {
-        modal.references_into(out);
+    for adjunct in &node.adjuncts {
+        adjunct.references_into(out);
     }
     for exchange in &node.reciprocity {
         exchange.references_into(out);
