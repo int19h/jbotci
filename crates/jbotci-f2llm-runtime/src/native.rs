@@ -47,7 +47,7 @@ impl DirectoryRoot {
 
 /// Failures while validating a native artifact directory root.
 #[invariant(::Unavailable { message, .. } => !message.is_empty())]
-#[invariant(::NotDirectory { .. } => true)]
+#[invariant(::NotDirectory { path } => path.is_absolute())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DirectoryRootError {
     Unavailable { path: PathBuf, message: String },

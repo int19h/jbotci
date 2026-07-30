@@ -375,8 +375,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 "#;
 
 /// GPU operations enabled for a loaded runtime.
-#[invariant(::EmbeddingOnly => true)]
-#[invariant(::EmbeddingAndF16Scoring => true)]
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeCapabilities {
     /// Model loading and f32 embedding inference without optional shader-f16 support.
