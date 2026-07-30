@@ -595,7 +595,12 @@ fn rest_tool_output(output: ToolRenderedOutput) -> Response<Body> {
         text.into_bytes()
     };
     let mut builder = Response::builder().status(status);
-    if let Some(content_type) = output.content_type {
+    let content_type = if output.status.is_success() {
+        output.content_type.as_deref()
+    } else {
+        Some("text/plain; charset=utf-8")
+    };
+    if let Some(content_type) = content_type {
         builder = builder.header(CONTENT_TYPE, content_type);
     }
     builder
@@ -2039,33 +2044,51 @@ mod tests {
     #[ensures(true)]
     async fn tersmu_rest_api_matches_typed_tool_surface() {
         let app = router(test_config(test_static_dir()));
-        for (format, body, content_type) in [
+        for (format, show_defs, body, content_type) in [
             (
-                jbotci_cli::ToolTersmuFormat::Smusni,
+                jbotci_cli::ToolTersmuFormat::Xml,
+                true,
                 serde_json::json!({ "text": "mi nitcu lo tanxe" }),
                 "text/plain; charset=utf-8",
             ),
             (
                 jbotci_cli::ToolTersmuFormat::Smusni,
+                true,
                 serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "smusni" }),
                 "text/plain; charset=utf-8",
             ),
             (
                 jbotci_cli::ToolTersmuFormat::Json,
+                true,
                 serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "json" }),
                 "application/json; charset=utf-8",
             ),
             (
                 jbotci_cli::ToolTersmuFormat::Xml,
-                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "xml" }),
+                false,
+                serde_json::json!({
+                    "text": "mi nitcu lo tanxe",
+                    "format": "xml",
+                    "show-defs": false
+                }),
                 "application/xml; charset=utf-8",
+            ),
+            (
+                jbotci_cli::ToolTersmuFormat::Xml,
+                true,
+                serde_json::json!({
+                    "text": "mi nitcu lo tanxe",
+                    "format": "xml",
+                    "show-defs": true
+                }),
+                "text/plain; charset=utf-8",
             ),
         ] {
             let request = ToolTersmuRequest {
                 text: "mi nitcu lo tanxe".to_owned(),
                 format,
                 dialect: None,
-                show_defs: true,
+                show_defs,
                 story_time: false,
                 indent: None,
             };
@@ -2097,36 +2120,42 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn tersmu_default_preserves_principled_construct_diagnostics() {
+    async fn tersmu_failures_are_plain_text_for_every_requested_format() {
         const INPUT: &str = "mi klama i su'i do klama";
         const EXPECTED_ERROR: &str = "semantic error: semantic interpretation is undefined for the experimental VUhU statement connective `su'i` outside a mekso expression\n";
 
         let app = router(test_config(test_static_dir()));
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/tersmu")
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(Body::from(serde_json::json!({ "text": INPUT }).to_string()))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(
-            response.headers().get(CONTENT_TYPE),
-            Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
-        );
-        let rest_text = String::from_utf8(
-            to_bytes(response.into_body(), usize::MAX)
+        for request_body in [
+            serde_json::json!({ "text": INPUT }),
+            serde_json::json!({ "text": INPUT, "format": "xml", "show-defs": false }),
+            serde_json::json!({ "text": INPUT, "format": "json" }),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri("/api/tersmu")
+                        .header(CONTENT_TYPE, "application/json")
+                        .body(Body::from(request_body.to_string()))
+                        .expect("request"),
+                )
                 .await
-                .expect("body")
-                .to_vec(),
-        )
-        .expect("UTF-8 diagnostics");
-        assert_eq!(rest_text, EXPECTED_ERROR);
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+            assert_eq!(
+                response.headers().get(CONTENT_TYPE),
+                Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
+            );
+            let rest_text = String::from_utf8(
+                to_bytes(response.into_body(), usize::MAX)
+                    .await
+                    .expect("body")
+                    .to_vec(),
+            )
+            .expect("UTF-8 diagnostics");
+            assert_eq!(rest_text, EXPECTED_ERROR);
+        }
 
         let response = post_json(
             app,
@@ -2147,7 +2176,7 @@ mod tests {
         assert_eq!(mcp_json["result"]["isError"], true);
         assert_eq!(
             mcp_json["result"]["content"][0]["text"],
-            serde_json::Value::String(rest_text)
+            serde_json::Value::String(EXPECTED_ERROR.to_owned())
         );
     }
 
@@ -2227,8 +2256,9 @@ mod tests {
         let instructions = initialize_json["result"]["instructions"]
             .as_str()
             .expect("server instructions");
-        assert!(instructions.contains("`tersmu` defaults to `smusni`"));
-        assert!(instructions.contains("Request `json` explicitly"));
+        assert!(instructions.contains("`tersmu` defaults to canonical, self-describing SFN-XML"));
+        assert!(instructions.contains("Request `smusni`"));
+        assert!(instructions.contains("or `json`"));
 
         let tools = post_json(
             app,
@@ -2449,7 +2479,7 @@ mod tests {
         assert!(tersmu_schema["properties"]["text"].is_object());
         assert_eq!(
             tersmu_schema["properties"]["format"]["default"],
-            serde_json::json!("smusni")
+            serde_json::json!("xml")
         );
         let tersmu_format_schema = tersmu_schema["properties"]["format"].to_string();
         // The MCP format enumeration offers exactly the surviving values and must
@@ -2479,12 +2509,26 @@ mod tests {
             .and_then(|tool| tool["description"].as_str())
             .expect("tersmu tool description");
         for marker in [
-            "default `smusni`",
-            "flat, self-describing declaration listing",
-            "ID-prefix legend",
-            "`NOT COMPUTED` block",
-            "The uppercase field labels and declaration keywords are exact graph vocabulary",
-            "never a negative claim",
+            "default is canonical scoped SFN-XML",
+            "embedded, authoritative `KEY`",
+            "UPPERCASE names are structural elements and attributes",
+            "Simple ID and number lists are space-separated attributes",
+            "`ID=` defines a shared graph node",
+            "`REF=` and named `*-REF=`",
+            "`EXISTS`, `FORALL`, and `CARDINALITY`",
+            "`ADJUNCT` adds a predicate-keyed optional participant",
+            "`REF=\"SOME\"`",
+            "`DEICTIC-GROUND`",
+            "pairwise identical",
+            "number-neutral",
+            "`SAME-FOR-ALL`",
+            "`POSSIBLY-DIFFERENT-PER=`",
+            "absent facet attribute means `UNSPECIFIED`",
+            "distinct from an absent XML structure",
+            "`SFN FORM=\"TYPED-GRAPH\"` fallback uses its own embedded `KEY`",
+            "`OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` typed vocabulary",
+            "Request `smusni`",
+            "or `json`",
         ] {
             assert!(
                 tersmu_description.contains(marker),
@@ -2793,16 +2837,20 @@ mod tests {
         assert_eq!(tersmu.status(), StatusCode::OK);
         let tersmu_json = response_json(tersmu).await;
         assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        // tersmu defaults to definition-grounded, readable `smusni` text only.
+        // tersmu defaults to definition-grounded, self-describing SFN-XML.
         assert!(tersmu_json["result"]["structuredContent"].is_null());
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu smusni text");
-        assert!(tersmu_text.starts_with("1. klama | by: officialdata | gismu"));
-        assert!(!tersmu_text.contains("banan"));
-        assert!(!tersmu_text.contains("cmavo:"));
-        assert!(tersmu_text.contains("\n\nSEMANTIC DOCUMENT "));
-        assert!(tersmu_text.contains("ID PREFIXES: r=reference"));
+            .expect("tersmu XML text");
+        let (definitions, xml_document) = tersmu_text
+            .split_once("<SFN ")
+            .expect("definitions precede the default XML document");
+        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
+        assert!(!definitions.contains("banan"));
+        assert!(!definitions.contains("cmavo:"));
+        let xml_document = format!("<SFN {xml_document}");
+        assert!(xml_document.contains("<KEY>"));
+        roxmltree::Document::parse(&xml_document).expect("default MCP XML suffix parses");
 
         // An explicit `smusni` request with definitions off returns the pure
         // notation document with no prepended dictionary block.
@@ -2844,7 +2892,8 @@ mod tests {
                     "name": "tersmu",
                     "arguments": {
                         "text": "mi klama",
-                        "format": "xml"
+                        "format": "xml",
+                        "show-defs": false
                     }
                 }
             }),

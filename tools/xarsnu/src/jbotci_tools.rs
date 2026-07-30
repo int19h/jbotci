@@ -17,6 +17,7 @@ use jbotci_syntax::{
     ParseOptions, SyntaxRecoveryParseData,
     parse_syntax_tree_with_recovery_with_source_and_options_attempt,
 };
+use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -304,8 +305,67 @@ impl std::error::Error for GateError {}
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ReferenceTools;
 
+/// xarsnu-local tersmu request. The production MCP and REST surfaces default to
+/// XML, while this reference-tool surface retains its established smusni
+/// default.
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+struct XarsnuTersmuRequest {
+    /// The Lojban text to interpret.
+    text: String,
+    /// How to render the graph. Defaults to the model-facing `smusni`
+    /// declaration notation on xarsnu. Use `xml` for canonical scoped SFN-XML
+    /// or `json` for the canonical interchange graph.
+    #[serde(default = "xarsnu_tersmu_format_default")]
+    format: ToolTersmuFormat,
+    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
+    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them.
+    #[serde(default)]
+    dialect: Option<String>,
+    /// Prepend dictionary definitions for content words. Definitions are on by
+    /// default and are suppressed for JSON.
+    #[serde(default = "xarsnu_show_defs_default")]
+    show_defs: bool,
+    /// Carry tense forward across sentences as an advancing narrative story
+    /// time. Off by default.
+    #[serde(default)]
+    story_time: bool,
+    /// Spaces per indent level. Defaults to 2; set 0 for compact JSON.
+    #[serde(default)]
+    indent: Option<usize>,
+}
+
+impl From<XarsnuTersmuRequest> for ToolTersmuRequest {
+    #[requires(true)]
+    #[ensures(ret.format == value.format)]
+    fn from(value: XarsnuTersmuRequest) -> Self {
+        Self {
+            text: value.text,
+            format: value.format,
+            dialect: value.dialect,
+            show_defs: value.show_defs,
+            story_time: value.story_time,
+            indent: value.indent,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == ToolTersmuFormat::Smusni)]
+fn xarsnu_tersmu_format_default() -> ToolTersmuFormat {
+    ToolTersmuFormat::Smusni
+}
+
+#[requires(true)]
+#[ensures(ret)]
+fn xarsnu_show_defs_default() -> bool {
+    true
+}
+
 impl ReferenceTools {
-    /// Model-facing definitions generated directly from the production request types.
+    /// Model-facing definitions generated from each reference-tool surface
+    /// request type.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|tools| tools.len() == 5) || ret.is_err())]
     pub fn definitions() -> Result<Vec<ToolDefinition>, ToolDefinitionError> {
@@ -323,7 +383,7 @@ impl ReferenceTools {
             ToolDefinition::new(
                 "tersmu".to_owned(),
                 "Compute the production semantic representation of Lojban text.".to_owned(),
-                tool_request_schema::<ToolTersmuRequest>(),
+                tool_request_schema::<XarsnuTersmuRequest>(),
             )?,
             ToolDefinition::new(
                 "jvozba".to_owned(),
@@ -356,8 +416,9 @@ impl ReferenceTools {
                 run_tool_gentufa(request).map_err(|error| execution_error(call, error.to_string()))
             }
             "tersmu" => {
-                let request = decode_request::<ToolTersmuRequest>(call)?;
-                run_tool_tersmu(request).map_err(|error| execution_error(call, error.to_string()))
+                let request = decode_request::<XarsnuTersmuRequest>(call)?;
+                run_tool_tersmu(request.into())
+                    .map_err(|error| execution_error(call, error.to_string()))
             }
             "jvozba" => {
                 let request = decode_request::<ToolJvozbaRequest>(call)?;
@@ -588,7 +649,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn reference_definitions_use_each_production_request_schema() {
+    fn reference_definitions_use_each_surface_request_schema() {
         let definitions = ReferenceTools::definitions().expect("valid definitions");
         assert_schema(
             &definitions,
@@ -603,7 +664,7 @@ mod tests {
         assert_schema(
             &definitions,
             "tersmu",
-            tool_request_schema::<ToolTersmuRequest>(),
+            tool_request_schema::<XarsnuTersmuRequest>(),
         );
         assert_schema(
             &definitions,
@@ -630,6 +691,69 @@ mod tests {
                 .function
                 .description
                 .contains("often the right choice for grammar questions")
+        );
+        let tersmu = definitions
+            .iter()
+            .find(|definition| definition.name() == "tersmu")
+            .expect("tersmu definition");
+        let format = &tersmu.function.parameters["properties"]["format"];
+        assert_eq!(
+            format["default"],
+            json!("smusni"),
+            "xarsnu's published schema must retain its surface-local default"
+        );
+        assert!(
+            format["description"]
+                .as_str()
+                .is_some_and(|description| description.contains("on xarsnu")),
+            "{format}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn xarsnu_tersmu_defaults_to_smusni_and_preserves_explicit_xml() {
+        let omitted = tool_call("tersmu", json!({ "text": "mi klama" }));
+        let omitted_output = ReferenceTools::dispatch(&omitted).expect("omitted format");
+        let expected_smusni = run_tool_tersmu(ToolTersmuRequest {
+            text: "mi klama".to_owned(),
+            format: ToolTersmuFormat::Smusni,
+            dialect: None,
+            show_defs: true,
+            story_time: false,
+            indent: None,
+        })
+        .expect("direct smusni");
+        assert_eq!(omitted_output, expected_smusni);
+        assert_eq!(
+            omitted_output.content_type.as_deref(),
+            Some("text/plain; charset=utf-8")
+        );
+
+        let explicit_xml = tool_call(
+            "tersmu",
+            json!({
+                "text": "mi klama",
+                "format": "xml",
+                "show-defs": false
+            }),
+        );
+        let xml_output = ReferenceTools::dispatch(&explicit_xml).expect("explicit XML");
+        let expected_xml = run_tool_tersmu(ToolTersmuRequest {
+            text: "mi klama".to_owned(),
+            format: ToolTersmuFormat::Xml,
+            dialect: None,
+            show_defs: false,
+            story_time: false,
+            indent: None,
+        })
+        .expect("direct XML");
+        assert_eq!(xml_output, expected_xml);
+        assert!(xml_output.stdout.starts_with(b"<SFN "));
+        assert_eq!(
+            xml_output.content_type.as_deref(),
+            Some("application/xml; charset=utf-8")
         );
     }
 
@@ -805,8 +929,8 @@ mod tests {
 
         let tersmu = tool_call("tersmu", json!({ "text": "mi klama" }));
         let adapted = ReferenceTools::dispatch(&tersmu).expect("adapter tersmu");
-        let direct = run_tool_tersmu(decode_request(&tersmu).expect("tersmu request"))
-            .expect("direct tersmu");
+        let request: XarsnuTersmuRequest = decode_request(&tersmu).expect("xarsnu tersmu request");
+        let direct = run_tool_tersmu(request.into()).expect("direct tersmu");
         assert!(direct.stdout.ends_with(b"\n"), "fixture catches trimming");
         assert_eq!(adapted, direct);
 

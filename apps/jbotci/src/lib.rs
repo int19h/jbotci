@@ -1841,12 +1841,6 @@ fn validate_tersmu_options(input: &TersmuInput) -> Result<()> {
             "`--show-defs` is not supported with `--format json`",
         )?;
     }
-    if input.format == TersmuFormat::Xml {
-        validate_not_present(
-            input.show_defs,
-            "`--show-defs` is not supported with `--format xml`; XML definitions bundling is a follow-up",
-        )?;
-    }
     Ok(())
 }
 

@@ -1491,8 +1491,9 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
     }
 }
 
-/// Output format for a `tersmu` semantic analysis. `smusni` is the default,
-/// `xml` is canonical SFN-XML, and `json` is the canonical interchange graph.
+/// Output format for a model-facing `tersmu` semantic analysis. `xml` is the
+/// default, `smusni` is the flat declaration notation, and `json` is the
+/// canonical interchange graph.
 #[invariant(::Json => true)]
 #[invariant(::Smusni => true)]
 #[invariant(::Xml => true)]
@@ -1503,8 +1504,8 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 pub enum ToolTersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph.
     Json,
-    /// The default: the model-facing `smusni` notation — a flat, self-describing
-    /// declaration listing of the same graph tuned for language models.
+    /// Model-facing `smusni` notation: a flat, self-describing declaration
+    /// listing of the same graph.
     Smusni,
     /// Canonical scoped SFN-XML rendering of the semantic graph.
     Xml,
@@ -1512,20 +1513,17 @@ pub enum ToolTersmuFormat {
 
 impl Default for ToolTersmuFormat {
     #[requires(true)]
-    #[ensures(ret == ToolTersmuFormat::Smusni)]
+    #[ensures(ret == ToolTersmuFormat::Xml)]
     fn default() -> Self {
-        Self::Smusni
+        Self::Xml
     }
 }
 
 impl ToolTersmuFormat {
     #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Smusni))]
+    #[ensures(ret == matches!(self, Self::Smusni | Self::Xml))]
     fn supports_definitions(self) -> bool {
-        // XML must remain one pure XML document. Bundling definitions into an
-        // XML gate view is a separate follow-up, just as canonical JSON remains
-        // a pure JSON document.
-        matches!(self, Self::Smusni)
+        matches!(self, Self::Smusni | Self::Xml)
     }
 
     #[requires(true)]
@@ -1539,11 +1537,15 @@ impl ToolTersmuFormat {
     }
 
     #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn content_type(self) -> &'static str {
+    #[ensures(self == Self::Json -> ret == APPLICATION_JSON_CONTENT_TYPE)]
+    #[ensures(self == Self::Smusni -> ret == TEXT_PLAIN_CONTENT_TYPE)]
+    #[ensures(self == Self::Xml && show_defs -> ret == TEXT_PLAIN_CONTENT_TYPE)]
+    #[ensures(self == Self::Xml && !show_defs -> ret == APPLICATION_XML_CONTENT_TYPE)]
+    fn content_type(self, show_defs: bool) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
             Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Xml if show_defs => TEXT_PLAIN_CONTENT_TYPE,
             Self::Xml => APPLICATION_XML_CONTENT_TYPE,
         }
     }
@@ -1559,11 +1561,10 @@ impl ToolTersmuFormat {
 pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
-    /// How to render the graph. Defaults to `smusni`: the model-facing notation,
-    /// a flat, self-describing declaration listing of the graph. Use `xml` for
-    /// canonical SFN-XML or `json` for the canonical interchange graph. The
-    /// `smusni` output obeys the tersmu interpretation contract documented in
-    /// the tool description.
+    /// How to render the graph. Defaults to canonical scoped SFN-XML. Use
+    /// `smusni` for the alternative flat, self-describing declaration listing
+    /// or `json` for the canonical interchange graph. The XML output obeys the
+    /// tersmu interpretation contract documented in the tool description.
     #[serde(default)]
     pub format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
@@ -1572,11 +1573,11 @@ pub struct ToolTersmuRequest {
     #[serde(default)]
     pub dialect: Option<String>,
     /// Prepend dictionary definitions for content words (gismu, lujvo, fu'ivla,
-    /// and dictionary-backed cmevla) to the human-readable `smusni` format.
-    /// Cmavo definitions are never included: cmavo semantics are exactly what
-    /// the semantic graph expresses. Definitions ground the interpretation and
-    /// are on by default; set this to `false` to save tokens. The flag is
-    /// suppressed for `xml` and `json` so each remains one pure document.
+    /// and dictionary-backed cmevla) to the `xml` or `smusni` document. Cmavo
+    /// definitions are never included: cmavo semantics are exactly what the
+    /// semantic graph expresses. Definitions ground the interpretation and are
+    /// on by default; set this to `false` to save tokens. The flag is suppressed
+    /// for `json` so it remains one pure document.
     #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative "story
@@ -1750,7 +1751,7 @@ fn tool_gimfihi_source_to_input(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    let content_type = request.format.content_type();
+    let content_type = request.format.content_type(request.show_defs);
     run_tool_command(Command::from(request), Some(content_type))
 }
 
@@ -1948,7 +1949,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn tersmu_human_formats_prepend_definitions() {
-        for format in [ToolTersmuFormat::Smusni] {
+        for format in [ToolTersmuFormat::Smusni, ToolTersmuFormat::Xml] {
             let grounded = run_tool_tersmu(tersmu_request(format, true))
                 .expect("grounded human tersmu output");
             let ungrounded = run_tool_tersmu(tersmu_request(format, false))
@@ -1972,17 +1973,43 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tersmu_xml_suppresses_definitions_and_remains_one_document() {
+    fn tersmu_xml_definitions_precede_the_unchanged_xml_document() {
         let grounded =
             run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, true)).expect("grounded XML");
         let ungrounded =
             run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, false)).expect("ungrounded XML");
 
         assert_eq!(grounded.status, ToolStatus::Success);
-        assert_eq!(grounded.stdout, ungrounded.stdout);
-        let output = grounded.stdout_text().expect("UTF-8 XML");
-        assert!(output.starts_with("<SFN "));
-        assert!(output.ends_with("</SFN>\n"));
+        let grounded = grounded.stdout_text().expect("UTF-8 grounded XML");
+        let ungrounded = ungrounded.stdout_text().expect("UTF-8 ungrounded XML");
+        let definitions = grounded
+            .strip_suffix(ungrounded)
+            .expect("show-defs only prepends definitions before XML");
+        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
+        assert!(ungrounded.starts_with("<SFN "));
+        assert!(ungrounded.ends_with("</SFN>\n"));
+        roxmltree::Document::parse(ungrounded).expect("unchanged XML document suffix parses");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_content_type_tracks_the_effective_representation() {
+        for (format, show_defs, expected) in [
+            (ToolTersmuFormat::Json, false, APPLICATION_JSON_CONTENT_TYPE),
+            (ToolTersmuFormat::Json, true, APPLICATION_JSON_CONTENT_TYPE),
+            (ToolTersmuFormat::Smusni, false, TEXT_PLAIN_CONTENT_TYPE),
+            (ToolTersmuFormat::Smusni, true, TEXT_PLAIN_CONTENT_TYPE),
+            (ToolTersmuFormat::Xml, false, APPLICATION_XML_CONTENT_TYPE),
+            (ToolTersmuFormat::Xml, true, TEXT_PLAIN_CONTENT_TYPE),
+        ] {
+            let output = run_tool_tersmu(tersmu_request(format, show_defs)).expect("tersmu output");
+            assert_eq!(
+                output.content_type.as_deref(),
+                Some(expected),
+                "{format:?} with show_defs={show_defs}"
+            );
+        }
     }
 
     #[test]
