@@ -903,6 +903,41 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn tersmu_xml_cli_output_is_one_canonical_document() {
+    let run = run_cli_capture(&["jbotci", "tersmu", "--format", "xml", "mi klama"], false);
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(
+        run.stdout
+            .starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
+    );
+    assert!(
+        run.stdout
+            .contains("<UTTERANCE FORCE=\"ASSERT\" GROUND=\"g1\">")
+    );
+    assert!(run.stdout.ends_with("</SFN>\n"));
+    assert!(!run.stdout.ends_with("</SFN>\n\n"));
+
+    let with_definitions = Cli::try_parse_from([
+        "jbotci",
+        "tersmu",
+        "--format",
+        "xml",
+        "--show-defs",
+        "mi klama",
+    ])
+    .expect("tersmu XML definitions parse");
+    let error = run_cli(with_definitions, &mut Vec::new(), &mut Vec::new(), false)
+        .expect_err("XML definitions must be rejected");
+    assert!(
+        error
+            .to_string()
+            .contains("XML definitions bundling is a follow-up")
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn parses_tersmu_formats_with_smusni_default() {
     let Command::Tersmu(default_input) = Cli::try_parse_from(["jbotci", "tersmu", "coi"])
         .expect("default tersmu")
@@ -916,6 +951,7 @@ fn parses_tersmu_formats_with_smusni_default() {
     for (name, expected) in [
         ("json", TersmuFormat::Json),
         ("smusni", TersmuFormat::Smusni),
+        ("xml", TersmuFormat::Xml),
     ] {
         let Command::Tersmu(input) =
             Cli::try_parse_from(["jbotci", "tersmu", "--format", name, "coi"])

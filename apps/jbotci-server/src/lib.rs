@@ -2055,6 +2055,11 @@ mod tests {
                 serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "json" }),
                 "application/json; charset=utf-8",
             ),
+            (
+                jbotci_cli::ToolTersmuFormat::Xml,
+                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "xml" }),
+                "text/plain; charset=utf-8",
+            ),
         ] {
             let request = ToolTersmuRequest {
                 text: "mi nitcu lo tanxe".to_owned(),
@@ -2458,6 +2463,10 @@ mod tests {
             tersmu_format_schema.contains("json"),
             "tersmu format enumeration must advertise `json`: {tersmu_format_schema}"
         );
+        assert!(
+            tersmu_format_schema.contains("xml"),
+            "tersmu format enumeration must advertise `xml`: {tersmu_format_schema}"
+        );
         for retired in ["lean3", "tree+proj", "\"tree\""] {
             assert!(
                 !tersmu_format_schema.contains(retired),
@@ -2823,6 +2832,32 @@ mod tests {
         assert!(smusni_text.starts_with("SEMANTIC DOCUMENT "));
         assert!(smusni_text.contains("ID PREFIXES: r=reference"));
         assert!(smusni_text.contains("RELATION: nitcu"));
+
+        let tersmu_xml = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "tersmu-xml",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": {
+                        "text": "mi klama",
+                        "format": "xml",
+                        "show-defs": false
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(tersmu_xml.status(), StatusCode::OK);
+        let tersmu_xml = response_json(tersmu_xml).await;
+        let tersmu_xml_text = tersmu_xml["result"]["content"][0]["text"]
+            .as_str()
+            .expect("tersmu XML text");
+        assert!(tersmu_xml_text.starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"));
+        assert!(tersmu_xml_text.contains("<UTTERANCE FORCE=\"ASSERT\" GROUND=\"g1\">"));
 
         let tersmu_json = post_json(
             app.clone(),

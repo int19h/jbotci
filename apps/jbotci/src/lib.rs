@@ -195,7 +195,8 @@ use jbotci_search::vlacku::{
     parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
+    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
+    render_smusni, render_xml,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -374,6 +375,9 @@ pub enum TersmuFormat {
     /// library-only for now (`jbotci_semantics::render_smusni` with
     /// `SmusniConfig { provenance: true }`), not exposed as a CLI/MCP flag.
     Smusni,
+    /// Canonical SFN-XML: a scoped, self-describing rendering of the same
+    /// semantic graph with structured definitions and references.
+    Xml,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -742,7 +746,7 @@ pub struct TersmuInput {
         long = "format",
         default_value_t = TersmuFormat::Smusni,
         value_enum,
-        help = "Output the model-facing `smusni` notation (default) or the canonical JSON interchange graph"
+        help = "Output `smusni` notation (default), canonical SFN-XML, or the canonical JSON interchange graph"
     )]
     pub format: TersmuFormat,
     #[arg(long = "max-errors")]
@@ -1835,6 +1839,12 @@ fn validate_tersmu_options(input: &TersmuInput) -> Result<()> {
         validate_not_present(
             input.show_defs,
             "`--show-defs` is not supported with `--format json`",
+        )?;
+    }
+    if input.format == TersmuFormat::Xml {
+        validate_not_present(
+            input.show_defs,
+            "`--show-defs` is not supported with `--format xml`; XML definitions bundling is a follow-up",
         )?;
     }
     Ok(())

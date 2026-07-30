@@ -271,8 +271,9 @@ fn mcp_tools() -> Vec<Value> {
              was left underived, then lists every utterance, predication, formula, reference, and \
              eventuality as an id-tagged `DECLARATION`. Every field is an uppercase label followed \
              by its value (e.g. `MODE <value>`, `SCOPE DEPENDENCE <kind>`), never a `key=value` \
-             pair. Request `json` explicitly for the canonical flat id-graph (the same objects as \
-             a pure JSON document). The uppercase field labels and declaration keywords are exact \
+             pair. Request `xml` explicitly for the canonical scoped SFN-XML rendering, or `json` \
+             explicitly for the canonical flat id-graph (the same objects as a pure JSON document). \
+             The uppercase field labels and declaration keywords are exact \
              graph vocabulary; `UNSPECIFIED` marks a graph dimension (time, actuality, aspect, \
              space) left without a committed value and `NOT COMPUTED` marks a surface the \
              renderer did not derive — both are an absence of commitment, never a negative claim. \

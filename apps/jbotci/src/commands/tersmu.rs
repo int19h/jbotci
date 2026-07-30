@@ -198,6 +198,16 @@ fn render_tersmu(
             }
             rendered
         }
+        TersmuFormat::Xml => {
+            // The command's input label is the document identity used by the
+            // canonical XML root. As with smusni, normalize the renderer's
+            // trailing newline before the shared output terminator below.
+            let mut rendered = render_xml(&graph, &source_label).into_data().output;
+            if rendered.ends_with('\n') {
+                rendered.pop();
+            }
+            rendered
+        }
     };
     stdout.push_str(&rendered);
     stdout.push('\n');

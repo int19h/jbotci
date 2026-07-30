@@ -1492,9 +1492,10 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 }
 
 /// Output format for a `tersmu` semantic analysis. `smusni` is the default,
-/// model-facing notation, and `json` is the canonical interchange graph.
+/// `xml` is canonical SFN-XML, and `json` is the canonical interchange graph.
 #[invariant(::Json => true)]
 #[invariant(::Smusni => true)]
+#[invariant(::Xml => true)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -1505,6 +1506,8 @@ pub enum ToolTersmuFormat {
     /// The default: the model-facing `smusni` notation — a flat, self-describing
     /// declaration listing of the same graph tuned for language models.
     Smusni,
+    /// Canonical scoped SFN-XML rendering of the semantic graph.
+    Xml,
 }
 
 impl Default for ToolTersmuFormat {
@@ -1519,8 +1522,9 @@ impl ToolTersmuFormat {
     #[requires(true)]
     #[ensures(ret == matches!(self, Self::Smusni))]
     fn supports_definitions(self) -> bool {
-        // Dictionary definitions ground every human-readable rendering; only the
-        // canonical JSON graph suppresses them so it stays a pure JSON document.
+        // XML must remain one pure XML document. Bundling definitions into an
+        // XML gate view is a separate follow-up, just as canonical JSON remains
+        // a pure JSON document.
         matches!(self, Self::Smusni)
     }
 
@@ -1530,6 +1534,7 @@ impl ToolTersmuFormat {
         match self {
             Self::Json => TersmuFormat::Json,
             Self::Smusni => TersmuFormat::Smusni,
+            Self::Xml => TersmuFormat::Xml,
         }
     }
 
@@ -1538,7 +1543,7 @@ impl ToolTersmuFormat {
     fn content_type(self) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Smusni | Self::Xml => TEXT_PLAIN_CONTENT_TYPE,
         }
     }
 }
@@ -1554,9 +1559,10 @@ pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
     /// How to render the graph. Defaults to `smusni`: the model-facing notation,
-    /// a flat, self-describing declaration listing of the graph. Use `json` for
-    /// the canonical interchange graph. The `smusni` output obeys the tersmu
-    /// interpretation contract documented in the tool description.
+    /// a flat, self-describing declaration listing of the graph. Use `xml` for
+    /// canonical SFN-XML or `json` for the canonical interchange graph. The
+    /// `smusni` output obeys the tersmu interpretation contract documented in
+    /// the tool description.
     #[serde(default)]
     pub format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
@@ -1569,8 +1575,7 @@ pub struct ToolTersmuRequest {
     /// Cmavo definitions are never included: cmavo semantics are exactly what
     /// the semantic graph expresses. Definitions ground the interpretation and
     /// are on by default; set this to `false` to save tokens. The flag is
-    /// suppressed for `json` so the canonical graph remains a pure JSON
-    /// document.
+    /// suppressed for `xml` and `json` so each remains one pure document.
     #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative "story
@@ -1830,7 +1835,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tersmu_format_serde_accepts_smusni_and_json_and_rejects_removed_values() {
+    fn tersmu_format_serde_accepts_smusni_xml_and_json_and_rejects_removed_values() {
         assert_eq!(
             serde_json::from_str::<ToolTersmuFormat>("\"smusni\"").expect("smusni deserializes"),
             ToolTersmuFormat::Smusni
@@ -1838,6 +1843,10 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<ToolTersmuFormat>("\"json\"").expect("json deserializes"),
             ToolTersmuFormat::Json
+        );
+        assert_eq!(
+            serde_json::from_str::<ToolTersmuFormat>("\"xml\"").expect("xml deserializes"),
+            ToolTersmuFormat::Xml
         );
         for retired in ["lean3", "tree", "tree+proj"] {
             assert!(
@@ -1852,7 +1861,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tersmu_format_schema_enumerates_only_smusni_and_json() {
+    fn tersmu_format_schema_enumerates_smusni_xml_and_json() {
         let schema = tool_request_schema::<ToolTersmuRequest>();
         let variants = schema["properties"]["format"]["oneOf"]
             .as_array()
@@ -1867,7 +1876,7 @@ mod tests {
             .collect();
         assert_eq!(
             values,
-            ["json", "smusni"]
+            ["json", "smusni", "xml"]
                 .into_iter()
                 .collect::<std::collections::BTreeSet<_>>(),
             "schema must expose only the surviving tersmu formats"
@@ -1956,6 +1965,22 @@ mod tests {
             assert!(!definitions.contains("cmavo:"), "{format:?}");
             assert!(definitions.ends_with('\n'), "{format:?}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_xml_suppresses_definitions_and_remains_one_document() {
+        let grounded =
+            run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, true)).expect("grounded XML");
+        let ungrounded =
+            run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, false)).expect("ungrounded XML");
+
+        assert_eq!(grounded.status, ToolStatus::Success);
+        assert_eq!(grounded.stdout, ungrounded.stdout);
+        let output = grounded.stdout_text().expect("UTF-8 XML");
+        assert!(output.starts_with("<SFN "));
+        assert!(output.ends_with("</SFN>\n"));
     }
 
     #[test]
