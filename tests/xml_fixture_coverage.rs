@@ -231,7 +231,7 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
 #[requires(true)]
 #[ensures(true)]
 fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
-    let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+    let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let fixtures = load_fixture_tree(&fixture_root).expect("repository fixtures must load");
     let fixture_count = fixtures.len();
     let mut results: Vec<FixtureRenderResult> = fixtures
