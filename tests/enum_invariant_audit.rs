@@ -912,6 +912,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
     ),
     (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlRepresentationPlan::Compact",
+        "unit representation-plan marker; the alternative variant enforces the nonempty incompatibility evidence",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::AssignedNameRecord",
         "unit omission-family marker; no payload to constrain",
     ),
