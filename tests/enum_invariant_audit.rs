@@ -1024,6 +1024,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
     ),
     (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlRepresentationPlan::Compact",
+        "unit representation-plan marker; the alternative variant enforces the nonempty incompatibility evidence",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::AssignedNameRecord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::BoundVariableWord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::DescriptorWord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::IntroducedBy",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::QuantityText",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::SourceRecord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",
         "accepted-progress payload validity is enforced by the invariant-bearing RecoveryProgressTrial type",
     ),

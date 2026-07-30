@@ -1,0 +1,124 @@
+<SFN VERSION="0" DOC="b52">
+  <KEY>
+    <RULE TOPIC="ids">ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).</RULE>
+    <RULE TOPIC="lexical-categories">UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.</RULE>
+    <RULE TOPIC="sorts">SORT= values are flat PascalCase sort names. Subtype facts derived from encountered JSON sort paths: Locution ⊂ Eventuality. LOCUTION implies sort Locution and therefore omits SORT=.</RULE>
+    <RULE TOPIC="some">REF="SOME" denotes a distinct elided node per occurrence; distinct nodes assert neither identity (=) nor non-identity (≠).</RULE>
+    <RULE TOPIC="ground">DEICTIC-GROUND is the shared speech-situation unit selected by UTTERANCE GROUND=. Its g-prefixed ID is a notation-level rendering id because the JSON has no ground object id; if the graph gains context ids, the rendering must align. Ground units share one definition ⇔ their SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF graph referents are pairwise identical.</RULE>
+    <RULE TOPIC="quantifiers">EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS has no RESTRICTION; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.</RULE>
+    <RULE TOPIC="scope-dependence">A referent mentioned inside a quantifier may either be one shared thing for all values of the bound variable, or a possibly different thing per value — the text does not decide, and nothing is marked in that default case. SAME-FOR-ALL marks the exceptions known to be one and the same across all values.</RULE>
+    <RULE TOPIC="scope-dependence-subsets">POSSIBLY-DIFFERENT-PER= is a space-separated list of the enclosing bound-variable ids on which a referent may depend when that list is a strict subset of all enclosing binders.</RULE>
+    <RULE TOPIC="number-neutrality">References are number-neutral: a reference may denote one or several individuals; the only number commitments are explicit quantities on descriptions, cardinality binders, or mass restrictions.</RULE>
+    <RULE TOPIC="personal-reference">PERSONAL-MASS-MEMBERSHIP states whether SPEAKER and AUDIENCE are INCLUDED or EXCLUDED and points to any additional included OTHERS. DEICTIC-REFERENCE states PROXIMITY to a discourse-referent GROUND-REF. These structures carry the semantics; no pro-sumti label is implied.</RULE>
+    <RULE TOPIC="speaker-anchor">A description is anchored to its enclosing utterance's speaker. SPEAKER-REF= on a description, or BY inside NAMED, appears only when the anchor differs from that enclosing speaker.</RULE>
+    <RULE TOPIC="facet-silence">Absent facet attribute ⇒ UNSPECIFIED (no commitment). Facet attributes: TIME, ACTUALITY, ASPECT, RECURRENCE, SPACE, SPATIAL-ASPECT, SPATIAL-RECURRENCE, DETAILS.</RULE>
+    <RULE TOPIC="event-field">EVENT is the reserved first child of a PREDICATION, its Eventuality referent, never a numbered ARG.</RULE>
+    <RULE TOPIC="adjuncts">ADJUNCT introduces a predicate-keyed optional participant of the host predication; PREDICATE= with flat ARG children is the compact single-lexical-predicate place map; without PREDICATE=, BODY carries the composite predicate subtree; ARG FILL="true" marks the unique explicit non-host filled place; a non-unique graph stays complete and carries FILL-STATUS; APPLIES-TO links the host component.</RULE>
+    <RULE TOPIC="pro-sumti">UNRESOLVED-REFERENT WORD= is a word-only stopgap only for referents that remain unresolved after the jbotci#690 KOhA audit; the quoted WORD value is the stopgap's whole content. Bound-variable surface words are provenance-only.</RULE>
+    <RULE TOPIC="mode">MODE vocabulary: ASSERTED=main claim; RESTRICTIVE=restriction; INCIDENTAL=side claim; INERT=embedded nonclaim; DEFINITIONAL=identity definition; PERFORMATIVE=speech act. MODE is a required attribute on PREDICATION.</RULE>
+    <RULE TOPIC="defs">Every non-binder graph-node definition and every DEICTIC-GROUND definition sits in DEFS in the smallest graph scope strictly containing all uses; an attribute reference on element X is a use at X's position. Quantifier VARIABLE precedes its scope's DEFS; all graph-node uses outside their definition site are references.</RULE>
+    <RULE TOPIC="atomic-lists">A list of simple ids or numbers is a space-separated NMTOKENS attribute, never a sequence of child elements; semantic structure remains element-valued.</RULE>
+    <RULE TOPIC="order">Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.</RULE>
+  </KEY>
+  <WAIVERS>
+    <WAIVER>*.source provenance (17 records: spans, witness text, construct labels)</WAIVER>
+    <WAIVER>descriptor *.word provenance (1 field)</WAIVER>
+    <WAIVER>*.introducedBy provenance (9 fields)</WAIVER>
+  </WAIVERS>
+  <EXISTS>
+    <VARIABLE ID="e6" SORT="Eventuality"/>
+    <BODY>
+      <EXISTS>
+        <VARIABLE ID="e19" SORT="Eventuality"/>
+        <BODY>
+          <SEQUENCE RELATION="SAME_TOPIC_CONTINUATION">
+            <DEFS>
+              <DEICTIC-GROUND ID="g1" SPEAKER-REF="r1" AUDIENCE-REF="r2" TIME-REF="e3" PLACE-REF="r4"/>
+              <ENTITY ID="r7">
+                <VERIDICAL-DESCRIPTION SPEAKER-REF="r1">
+                  <BODY>
+                    <PREDICATION PREDICATE="zarci" MODE="RESTRICTIVE">
+                      <ARG INDEX="1" REF="r7"/>
+                      <ARG INDEX="2" REF="SOME"/>
+                      <ARG INDEX="3" REF="SOME"/>
+                    </PREDICATION>
+                  </BODY>
+                </VERIDICAL-DESCRIPTION>
+              </ENTITY>
+            </DEFS>
+            <UTTERANCE FORCE="ASSERT" GROUND="g1">
+              <LOCUTION ACTUALITY="ACTUAL"/>
+              <CONTENT>
+                <DEFS>
+                  <PREDICATION ID="f16" PREDICATE="klama" MODE="ASSERTED">
+                    <EVENT REF="e6"/>
+                    <ARG INDEX="1" REF="r1"/>
+                    <ARG INDEX="2" REF="r7"/>
+                    <ARG INDEX="3" REF="SOME"/>
+                    <ARG INDEX="4" REF="SOME"/>
+                    <ARG INDEX="5" REF="SOME"/>
+                  </PREDICATION>
+                </DEFS>
+                <REFERENCE REF="f16"/>
+              </CONTENT>
+            </UTTERANCE>
+            <UTTERANCE FORCE="ASSERT" GROUND="g1">
+              <LOCUTION ACTUALITY="ACTUAL"/>
+              <CONTENT>
+                <DEFS>
+                  <PREDICATION ID="f24" PREDICATE="klama" MODE="ASSERTED">
+                    <EVENT REF="e19"/>
+                    <ARG INDEX="1" REF="r1"/>
+                    <ARG INDEX="2" REF="r7"/>
+                    <ARG INDEX="3" REF="SOME"/>
+                    <ARG INDEX="4" REF="SOME"/>
+                    <ARG INDEX="5" REF="SOME"/>
+                  </PREDICATION>
+                </DEFS>
+                <REFERENCE REF="f24"/>
+              </CONTENT>
+            </UTTERANCE>
+            <META>
+              <CONNECTION-CLAIMS>
+                <LIST>
+                  <ITEM>
+                    <EXISTS>
+                      <VARIABLE ID="e26" SORT="Eventuality"/>
+                      <BODY>
+                        <PREDICATION PREDICATE="after" MODE="ASSERTED">
+                          <EVENT REF="e26"/>
+                          <ARG INDEX="1" REF="e19"/>
+                          <ARG INDEX="2" REF="e6"/>
+                        </PREDICATION>
+                      </BODY>
+                    </EXISTS>
+                  </ITEM>
+                </LIST>
+              </CONNECTION-CLAIMS>
+              <NONLOGICAL-CONNECTION>
+                <RECORD>
+                  <FIELD NAME="operator">
+                    <STRING VALUE="nonlogical:ba bo"/>
+                  </FIELD>
+                  <FIELD NAME="connector">
+                    <RECORD>
+                      <FIELD NAME="source">
+                        <STRING VALUE="ba bo"/>
+                      </FIELD>
+                      <FIELD NAME="locus">
+                        <STRING VALUE="statement"/>
+                      </FIELD>
+                      <FIELD NAME="truthTable">
+                        <STRING VALUE="TFFF"/>
+                      </FIELD>
+                    </RECORD>
+                  </FIELD>
+                </RECORD>
+              </NONLOGICAL-CONNECTION>
+            </META>
+          </SEQUENCE>
+        </BODY>
+      </EXISTS>
+    </BODY>
+  </EXISTS>
+</SFN>
