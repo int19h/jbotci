@@ -195,7 +195,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to `smusni`, a flat, self-describing declaration listing of the semantic graph. Request `json` explicitly for the canonical interchange graph."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to canonical, self-describing SFN-XML. Request `smusni` for the alternative flat declaration notation or `json` for the canonical interchange graph."
     })
 }
 
@@ -263,20 +263,35 @@ fn mcp_tools() -> Vec<Value> {
         tool_definition(
             "tersmu",
             "Lojban semantics",
-            "Compute the deep semantic/logical meaning of Lojban text. The default `smusni` \
-             format is a flat, self-describing declaration listing of the semantic graph: it \
-             opens with the root id, an ID-prefix legend (r=reference, p=predication, f=formula, \
-             q=quantity, u=utterance, s=sequence, m=mathExpression, x=parameter, \
-             l=relation_expression, d=displayed_content) and a `NOT COMPUTED` block naming what \
-             was left underived, then lists every utterance, predication, formula, reference, and \
-             eventuality as an id-tagged `DECLARATION`. Every field is an uppercase label followed \
-             by its value (e.g. `MODE <value>`, `SCOPE DEPENDENCE <kind>`), never a `key=value` \
-             pair. Request `xml` explicitly for the canonical scoped SFN-XML rendering, or `json` \
-             explicitly for the canonical flat id-graph (the same objects as a pure JSON document). \
-             The uppercase field labels and declaration keywords are exact \
-             graph vocabulary; `UNSPECIFIED` marks a graph dimension (time, actuality, aspect, \
-             space) left without a committed value and `NOT COMPUTED` marks a surface the \
-             renderer did not derive — both are an absence of commitment, never a negative claim. \
+            "Compute the deep semantic/logical meaning of Lojban text. The default is canonical \
+             scoped SFN-XML: the `SFN` root begins with an embedded, authoritative `KEY`; the \
+             ordinary scoped form places shared graph definitions in scoped `DEFS` before the \
+             semantic body. UPPERCASE names are structural elements and attributes, PascalCase \
+             values are sorts, and lowercase content words occur only as data values. Simple ID \
+             and number lists are space-separated attributes; semantic structure remains \
+             element-valued, child order is fixed, and childless elements self-close. `ID=` \
+             defines a shared graph node (except that `DEICTIC-GROUND` role \
+             references define speech-situation referents); `REF=` and named `*-REF=` attributes \
+             point to discourse referents, later references reuse the exact node, and `GROUND=` \
+             points to a deictic-ground unit. IDs are opaque; distinct IDs assert neither identity \
+             nor non-identity. `EXISTS`, `FORALL`, and `CARDINALITY` bind a `VARIABLE`; use sites \
+             carry `REF=`, while `RESTRICTION` and `BODY` are explicit siblings. `EXISTS` has no \
+             `RESTRICTION`; the other binders always write one, even when empty. `ADJUNCT` adds a \
+             predicate-keyed optional participant: compact lexical adjuncts use `PREDICATE=` and \
+             flat `ARG` children, composite adjuncts use `BODY`, `FILL=\"true\"` marks the unique \
+             explicit non-host filled place, and `APPLIES-TO` links the host. `REF=\"SOME\"` is a \
+             distinct elided node per occurrence, without asserting non-identity. `DEICTIC-GROUND`, \
+             selected by `UTTERANCE GROUND=`, is the shared speech situation identified by its \
+             speaker, audience, time, and place referents; grounds share one definition exactly \
+             when those four referents are pairwise identical. Silence is noncommittal: references \
+             are number-neutral unless an explicit description quantity, cardinality binder, or \
+             mass restriction commits number; an unmarked referent inside a quantifier may be \
+             shared or vary with the bound variable, while `SAME-FOR-ALL` marks known sharing and \
+             `POSSIBLY-DIFFERENT-PER=` names a strict subset of enclosing binders on which it may \
+             depend; and an absent facet attribute means `UNSPECIFIED` (no commitment). That facet default is \
+             distinct from an absent XML structure: do not invent an `UNSPECIFIED` value or a \
+             negative claim for arbitrary absent elements or attributes. Request `smusni` for the \
+             alternative flat declaration listing or `json` for the canonical interchange graph. \
              For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),

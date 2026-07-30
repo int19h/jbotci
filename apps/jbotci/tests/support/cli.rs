@@ -916,23 +916,37 @@ fn tersmu_xml_cli_output_is_one_canonical_document() {
     );
     assert!(run.stdout.ends_with("</SFN>\n"));
     assert!(!run.stdout.ends_with("</SFN>\n\n"));
+}
 
-    let with_definitions = Cli::try_parse_from([
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_show_defs_prepends_definitions_before_the_xml_document() {
+    let output = run_success_stdout(&[
         "jbotci",
         "tersmu",
         "--format",
         "xml",
         "--show-defs",
-        "mi klama",
-    ])
-    .expect("tersmu XML definitions parse");
-    let error = run_cli(with_definitions, &mut Vec::new(), &mut Vec::new(), false)
-        .expect_err("XML definitions must be rejected");
+        "--color=never",
+        ".banan.",
+        "cu",
+        "klama",
+    ]);
+    let (definitions, document) = output
+        .split_once("<SFN ")
+        .expect("XML document follows the prepended definitions");
     assert!(
-        error
-            .to_string()
-            .contains("XML definitions bundling is a follow-up")
+        definitions.starts_with("1. klama | by: officialdata | gismu"),
+        "definitions must lead: {definitions:?}"
     );
+    assert!(!definitions.contains("banan"));
+    assert!(!definitions.contains("cmavo:"));
+    let document = format!("<SFN {document}");
+    assert!(document.starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"));
+    assert!(document.contains("<KEY>"));
+    assert!(document.ends_with("</SFN>\n"));
+    roxmltree::Document::parse(&document).expect("XML document suffix parses");
 }
 
 #[test]
@@ -1080,6 +1094,7 @@ fn tersmu_outputs_smusni_by_default() {
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty());
     assert!(run.stdout.starts_with("SEMANTIC DOCUMENT "));
+    assert!(!run.stdout.starts_with("<SFN "));
     assert!(run.stdout.contains("ID PREFIXES: r=reference"));
     assert!(run.stdout.contains("RELATION: klama"));
 }

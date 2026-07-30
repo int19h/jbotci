@@ -2041,9 +2041,9 @@ mod tests {
         let app = router(test_config(test_static_dir()));
         for (format, body, content_type) in [
             (
-                jbotci_cli::ToolTersmuFormat::Smusni,
+                jbotci_cli::ToolTersmuFormat::Xml,
                 serde_json::json!({ "text": "mi nitcu lo tanxe" }),
-                "text/plain; charset=utf-8",
+                "application/xml; charset=utf-8",
             ),
             (
                 jbotci_cli::ToolTersmuFormat::Smusni,
@@ -2117,7 +2117,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(
             response.headers().get(CONTENT_TYPE),
-            Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
+            Some(&HeaderValue::from_static("application/xml; charset=utf-8"))
         );
         let rest_text = String::from_utf8(
             to_bytes(response.into_body(), usize::MAX)
@@ -2227,8 +2227,9 @@ mod tests {
         let instructions = initialize_json["result"]["instructions"]
             .as_str()
             .expect("server instructions");
-        assert!(instructions.contains("`tersmu` defaults to `smusni`"));
-        assert!(instructions.contains("Request `json` explicitly"));
+        assert!(instructions.contains("`tersmu` defaults to canonical, self-describing SFN-XML"));
+        assert!(instructions.contains("Request `smusni`"));
+        assert!(instructions.contains("or `json`"));
 
         let tools = post_json(
             app,
@@ -2449,7 +2450,7 @@ mod tests {
         assert!(tersmu_schema["properties"]["text"].is_object());
         assert_eq!(
             tersmu_schema["properties"]["format"]["default"],
-            serde_json::json!("smusni")
+            serde_json::json!("xml")
         );
         let tersmu_format_schema = tersmu_schema["properties"]["format"].to_string();
         // The MCP format enumeration offers exactly the surviving values and must
@@ -2479,12 +2480,24 @@ mod tests {
             .and_then(|tool| tool["description"].as_str())
             .expect("tersmu tool description");
         for marker in [
-            "default `smusni`",
-            "flat, self-describing declaration listing",
-            "ID-prefix legend",
-            "`NOT COMPUTED` block",
-            "The uppercase field labels and declaration keywords are exact graph vocabulary",
-            "never a negative claim",
+            "default is canonical scoped SFN-XML",
+            "embedded, authoritative `KEY`",
+            "UPPERCASE names are structural elements and attributes",
+            "Simple ID and number lists are space-separated attributes",
+            "`ID=` defines a shared graph node",
+            "`REF=` and named `*-REF=`",
+            "`EXISTS`, `FORALL`, and `CARDINALITY`",
+            "`ADJUNCT` adds a predicate-keyed optional participant",
+            "`REF=\"SOME\"`",
+            "`DEICTIC-GROUND`",
+            "pairwise identical",
+            "number-neutral",
+            "`SAME-FOR-ALL`",
+            "`POSSIBLY-DIFFERENT-PER=`",
+            "absent facet attribute means `UNSPECIFIED`",
+            "distinct from an absent XML structure",
+            "Request `smusni`",
+            "or `json`",
         ] {
             assert!(
                 tersmu_description.contains(marker),
@@ -2793,16 +2806,20 @@ mod tests {
         assert_eq!(tersmu.status(), StatusCode::OK);
         let tersmu_json = response_json(tersmu).await;
         assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        // tersmu defaults to definition-grounded, readable `smusni` text only.
+        // tersmu defaults to definition-grounded, self-describing SFN-XML.
         assert!(tersmu_json["result"]["structuredContent"].is_null());
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
-            .expect("tersmu smusni text");
-        assert!(tersmu_text.starts_with("1. klama | by: officialdata | gismu"));
-        assert!(!tersmu_text.contains("banan"));
-        assert!(!tersmu_text.contains("cmavo:"));
-        assert!(tersmu_text.contains("\n\nSEMANTIC DOCUMENT "));
-        assert!(tersmu_text.contains("ID PREFIXES: r=reference"));
+            .expect("tersmu XML text");
+        let (definitions, xml_document) = tersmu_text
+            .split_once("<SFN ")
+            .expect("definitions precede the default XML document");
+        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
+        assert!(!definitions.contains("banan"));
+        assert!(!definitions.contains("cmavo:"));
+        let xml_document = format!("<SFN {xml_document}");
+        assert!(xml_document.contains("<KEY>"));
+        roxmltree::Document::parse(&xml_document).expect("default MCP XML suffix parses");
 
         // An explicit `smusni` request with definitions off returns the pure
         // notation document with no prepended dictionary block.
@@ -2844,7 +2861,8 @@ mod tests {
                     "name": "tersmu",
                     "arguments": {
                         "text": "mi klama",
-                        "format": "xml"
+                        "format": "xml",
+                        "show-defs": false
                     }
                 }
             }),
