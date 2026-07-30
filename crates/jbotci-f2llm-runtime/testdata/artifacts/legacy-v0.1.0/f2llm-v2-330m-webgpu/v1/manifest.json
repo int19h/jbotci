@@ -1,0 +1,6008 @@
+{
+  "schema_version": 1,
+  "runtime": "jbotci-webgpu-f2llm",
+  "artifact_version": "0.1.0",
+  "model_key": "f2llm-v2-330m-q4-896",
+  "source_model": "codefuse-ai/F2LLM-v2-330M",
+  "source_revision": null,
+  "source_quantized_onnx": "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+  "max_sequence_length": 512,
+  "quantization": {
+    "kind": "onnx_hqq_q4_block32",
+    "matmul_operator": "com.microsoft.MatMulNBits",
+    "gather_operator": "com.microsoft.GatherBlockQuantized",
+    "bits": 4,
+    "block_size": 32,
+    "dequantization": "(q - zero_point) * scale",
+    "pack_order": "low_nibble_first"
+  },
+  "model": {
+    "vocab_size": 151936,
+    "hidden_size": 896,
+    "num_hidden_layers": 16,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "head_dim": 128,
+    "intermediate_size": 2560,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 1000000.0
+  },
+  "tokenizer": {
+    "url": "tokenizer.compact.json",
+    "byte_length": 5359244,
+    "canonical_json_sha256": "8e2541c74f028cbcefe6903c7f43f6cb0ee4aa9df9b4bbeb38989c06ed902dd6"
+  },
+  "tensors": {
+    "model.embed_tokens.weight": {
+      "kind": "q4_onnx_gather",
+      "shape": [
+        151936,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 68067328,
+        "chunks": [
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0000.bin",
+            "byte_offset": 0,
+            "byte_length": 4194304,
+            "sha256": "c9265fa2a67fde1d65871583240cdcc30f11030a0337be2630d3b027508543a8"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0001.bin",
+            "byte_offset": 4194304,
+            "byte_length": 4194304,
+            "sha256": "fffaa3757892657cab5eb1630ffc9b8d4a5a3e24ef81010c65ede844220621af"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0002.bin",
+            "byte_offset": 8388608,
+            "byte_length": 4194304,
+            "sha256": "332ccd0e0c7402cd8a62d9b80a2b8adc6a1cdaa82da15e571ea95586339aeaf8"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0003.bin",
+            "byte_offset": 12582912,
+            "byte_length": 4194304,
+            "sha256": "79407e05f1a44e4ffb6847e8f2f9b80669a6806ddf131aa4e1475a19e6186859"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0004.bin",
+            "byte_offset": 16777216,
+            "byte_length": 4194304,
+            "sha256": "dbfe650346004489e2c219a8f0cd7722a9b10eb19974a72cf8a0a9c797e7a24e"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0005.bin",
+            "byte_offset": 20971520,
+            "byte_length": 4194304,
+            "sha256": "b1fa75e778c5eff8471ca04454294c903d5cf83a729910a72dfe3cbaaeeb0e8a"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0006.bin",
+            "byte_offset": 25165824,
+            "byte_length": 4194304,
+            "sha256": "86d41280ed5cd567cec8363e2f7f2a2c06d093134c193c9095eacd39b1b35709"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0007.bin",
+            "byte_offset": 29360128,
+            "byte_length": 4194304,
+            "sha256": "6991e4b4789f3e134c340c7c97db0b0f4c7ce69bb43d402bc88cd88ea0a8f387"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0008.bin",
+            "byte_offset": 33554432,
+            "byte_length": 4194304,
+            "sha256": "a6b461134537290e37ca176207aff4ffc3da0d3b87b5bbe835ea5ffd869d760e"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0009.bin",
+            "byte_offset": 37748736,
+            "byte_length": 4194304,
+            "sha256": "e85c2ab7f6294d05223416e45e16dc9f6d840ba835ba5f8be8777ab6b1f36b8f"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0010.bin",
+            "byte_offset": 41943040,
+            "byte_length": 4194304,
+            "sha256": "aa06a8c9f9af54b70485ac3030aa221841403371b3164c22a7788419dd6e5fae"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0011.bin",
+            "byte_offset": 46137344,
+            "byte_length": 4194304,
+            "sha256": "45c1b5cb31ab1ee2c082d319ed8f33391c8eee1af5f1b813b95198502d4092f7"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0012.bin",
+            "byte_offset": 50331648,
+            "byte_length": 4194304,
+            "sha256": "360106d452c2afc4b2d102b717fea2263a78c71151620dc5034490083935fe29"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0013.bin",
+            "byte_offset": 54525952,
+            "byte_length": 4194304,
+            "sha256": "5a0a8a36f81d87db150a9aeaf06db8296c52f3b3368d21b90da25c605fbcd1f4"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0014.bin",
+            "byte_offset": 58720256,
+            "byte_length": 4194304,
+            "sha256": "e51febfc95f77e22497fdfeef9e978fb24ba0ee9cdd297e35a3dc5f58d01d97d"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0015.bin",
+            "byte_offset": 62914560,
+            "byte_length": 4194304,
+            "sha256": "3797de73d631c58ef45e11625350eb2e35a4be182355699994d548c05f2cb778"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/qweight.part0016.bin",
+            "byte_offset": 67108864,
+            "byte_length": 958464,
+            "sha256": "b349ee486736d94ef4760bc789fb79569a6bffa77e56b197526dbace02a54e8f"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 17016832,
+        "chunks": [
+          {
+            "url": "tensors/model/embed_tokens/weight/scales.f32.part0000.bin",
+            "byte_offset": 0,
+            "byte_length": 4194304,
+            "sha256": "11dff7d3ecfef84314738b531a5763fd516433957a3c6921451f2752169575d7"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/scales.f32.part0001.bin",
+            "byte_offset": 4194304,
+            "byte_length": 4194304,
+            "sha256": "6690cf9aad511a56397bf2a1255b53b1ee27f00c319a5c9984b1e3b2d08b3690"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/scales.f32.part0002.bin",
+            "byte_offset": 8388608,
+            "byte_length": 4194304,
+            "sha256": "9961c12078e254d65b6a15fddefbe4362c735a51ddecb9d0112e826079b4baef"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/scales.f32.part0003.bin",
+            "byte_offset": 12582912,
+            "byte_length": 4194304,
+            "sha256": "c36675ca3cbc0193d1b7e497e176eef208b083a84461df18af6c704ad36127d3"
+          },
+          {
+            "url": "tensors/model/embed_tokens/weight/scales.f32.part0004.bin",
+            "byte_offset": 16777216,
+            "byte_length": 239616,
+            "sha256": "f02b07a1094b9536162ab2a04c9b63937db015a63cf6fe531932e71c421f7528"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 2127104,
+        "chunks": [
+          {
+            "url": "tensors/model/embed_tokens/weight/zero_points.u4.bin",
+            "byte_offset": 0,
+            "byte_length": 2127104,
+            "sha256": "41764617e32a81c6d9d3ba0328a79ff50f16469f8d1934fb05d546b5faf31b3a"
+          }
+        ]
+      }
+    },
+    "model.norm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "f6d6883e57388dc1672b0e680c4827835532e64d9282bb22efc610c593c878e0"
+          }
+        ]
+      }
+    },
+    "model.layers.0.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "9ce62d36f3abb9d25be5c596f0f84363a917314163538335d58962df6fd81fc2"
+          }
+        ]
+      }
+    },
+    "model.layers.0.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "7d126f706f27e652a4e2adaf332b8e7084bcf6b6959fd96545c4f9399d4cf23c"
+          }
+        ]
+      }
+    },
+    "model.layers.0.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "c06c46d08f3e5d7515f2514595ccded5f7f8fc7ab1fea4f772f1a8c8aeb653c3"
+          }
+        ]
+      }
+    },
+    "model.layers.0.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "4cd95fe98a6b7075398d773f661653b738e753674e37d48ffbd9eeda5c748cdd"
+          }
+        ]
+      }
+    },
+    "model.layers.1.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "bf9161d4ff75a3a1054e7f344a30d6b4a746146e0bf8d2d88bcf53ec05c0a295"
+          }
+        ]
+      }
+    },
+    "model.layers.1.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "7b334df6c78874ab9dbee12256cde61bc225323e6cd02dd63740ceb8593989f7"
+          }
+        ]
+      }
+    },
+    "model.layers.1.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "5dfa8116a7003fa11080e761e9546938dbdeb62a795babb359edee39dd65965c"
+          }
+        ]
+      }
+    },
+    "model.layers.1.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "4208f48b985a795e05e674eac0ddfe9d4115db857e0c425ffaa3c9061f768b53"
+          }
+        ]
+      }
+    },
+    "model.layers.2.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "d1368d7eac922ab4d5304e79548840c594ca7c76f6703faef65c4be3bb0e9f64"
+          }
+        ]
+      }
+    },
+    "model.layers.2.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "539c0859050e0a1359d4181523a51d052c45895f76d1b1a38123a77ce0c84fd2"
+          }
+        ]
+      }
+    },
+    "model.layers.2.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a28a9f43555a3501f3c7f68cc02beacbe656f16c3143ac69034694696b50b9fc"
+          }
+        ]
+      }
+    },
+    "model.layers.2.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "8621df01b3f33bd9c617d929e14326628aefba9e65fc59510a51eab4371c5f37"
+          }
+        ]
+      }
+    },
+    "model.layers.3.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "9754a011c765fc130f683cb2f3436631d168d4e13b0ab8188ea71f0ad39b399e"
+          }
+        ]
+      }
+    },
+    "model.layers.3.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "2f161116a27fbb8d903959e0e55f86d481b00fdc2ab45b66fcdaaf2a3290ba3a"
+          }
+        ]
+      }
+    },
+    "model.layers.3.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "02203d70fbc89d6f6ce65b41492826156c680dc3d7578ae78843b8d9053cf54e"
+          }
+        ]
+      }
+    },
+    "model.layers.3.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "867a3a33f9fa929c7e8cce0f5408a8ce8065c9f2f932f64c43e36a93e4931551"
+          }
+        ]
+      }
+    },
+    "model.layers.4.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "e58f0f1b64c76cc33c324acd64a579760eae78c007d77e19928637c64f7c1264"
+          }
+        ]
+      }
+    },
+    "model.layers.4.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "d21929e32d557639e4bcfafec8dca615b1dd13916606cb38c398d624d246721a"
+          }
+        ]
+      }
+    },
+    "model.layers.4.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "0b60e6ee73adcc2d59769a2fb625525675439833bdfef17bfcd3d63a511150dc"
+          }
+        ]
+      }
+    },
+    "model.layers.4.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "c3e1ade5a5df71b9fefc55547786eb84af28db2969250ccf50fd4aedc0f3931f"
+          }
+        ]
+      }
+    },
+    "model.layers.5.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "2fc23a4050b1e9f21ba6cde4a3feb130305e8e2bd0722cab870a433ef88af301"
+          }
+        ]
+      }
+    },
+    "model.layers.5.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "92549c4992af1a0e716d33ff0108cfb853a35166599f9c3e215b3e10e7066a6a"
+          }
+        ]
+      }
+    },
+    "model.layers.5.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "89ff77996cb8498d574c9bb1c13cbae564e9cbc9dec7a7ebe12a5a03df61b23d"
+          }
+        ]
+      }
+    },
+    "model.layers.5.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "d017cee548f63fb27496df32ce7f05c6d5c896afa8afc7cec91a8574ff1fbfd9"
+          }
+        ]
+      }
+    },
+    "model.layers.6.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "319561a61ceb580797488043ee1d795dd8357418cdf8abcf87fc8c1b061b2421"
+          }
+        ]
+      }
+    },
+    "model.layers.6.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "08ec8ca1f05d65855e7e11994a178283a24cb2cd09b28cc912159e2a5686e3ee"
+          }
+        ]
+      }
+    },
+    "model.layers.6.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a6b3b084a81c970ab85f98ca8dbf8fe703d417acca680ae593ec8905833d236e"
+          }
+        ]
+      }
+    },
+    "model.layers.6.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "ea8aff2ba6a97f7b841b503bc16218ee2360af399675f26e70790f0f0bfcbb9f"
+          }
+        ]
+      }
+    },
+    "model.layers.7.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "d4e538df442639c2e31fdbe6256d7e6ac53f7e4a0db86c3f3e4ad87810e4c111"
+          }
+        ]
+      }
+    },
+    "model.layers.7.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "60cbb092ef19ff29b933f7475c4dfa8d2ed0b3950787f452ccaddba5cf74f8a1"
+          }
+        ]
+      }
+    },
+    "model.layers.7.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "607bfd19ae52dc35bbf8e4db3e078088529c303a30cd7c1f8f9f0d8e3e8e7c47"
+          }
+        ]
+      }
+    },
+    "model.layers.7.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a6caf86e79f60e2439521697191e04a0ac0454206247e4a621d0ffd24d8612c9"
+          }
+        ]
+      }
+    },
+    "model.layers.8.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "edb97f4107a6b2d7b52ebe2e9a6fd69337f2c1ec9ace6de7c4058428b5607ea1"
+          }
+        ]
+      }
+    },
+    "model.layers.8.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "cbbeb6855f1a4c87a8f4b760e161da1f4ff7a21fcfff6e61ae2cb6ef20614db0"
+          }
+        ]
+      }
+    },
+    "model.layers.8.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "c0386644e6d42a0f32a48fd1afbcad1ef8c50f04f6185e5ebff649a78edcfabd"
+          }
+        ]
+      }
+    },
+    "model.layers.8.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "febfea24633a61e46b97a8538236945b8499c1173b04914dfb8f332d66d9e8e5"
+          }
+        ]
+      }
+    },
+    "model.layers.9.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "5033be2511a06c966b1968b2d771cb713ee6b850281c075709a827e4dbe88667"
+          }
+        ]
+      }
+    },
+    "model.layers.9.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "261736251336f7c730ca6cf89d24e06c77e8741438d19b60198e8bb954d6cc30"
+          }
+        ]
+      }
+    },
+    "model.layers.9.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a7f3d5f7d2b5eb584176054281d3b4c2e9a4e6e500d83aa6196194087e4a18f0"
+          }
+        ]
+      }
+    },
+    "model.layers.9.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "cf3ab848a817dd1c919bd233be3217ebdd2886d47d25bebdae7cb4a9583f8197"
+          }
+        ]
+      }
+    },
+    "model.layers.10.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "5b0a87a97f51e7db3c06058009002b17516c19b71717ff443640110acc6f5640"
+          }
+        ]
+      }
+    },
+    "model.layers.10.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "cc3d4b4749a75da1081adb462da72f9b10e3f98bdc0684283504e69096ae9610"
+          }
+        ]
+      }
+    },
+    "model.layers.10.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "af7123a73300e8d9040197c1864bb6f7bdcf01e6d6d52e814a282d9c06a03d5c"
+          }
+        ]
+      }
+    },
+    "model.layers.10.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a4caa852fe996f6413d481c72c7b67ffc289c004577c35cf8f1d7774ae6c49be"
+          }
+        ]
+      }
+    },
+    "model.layers.11.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "ff2885ced263cb005b326def9af7e26a9e8984cb6a751c9dac0a52ac55982fa2"
+          }
+        ]
+      }
+    },
+    "model.layers.11.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "96a7a3f4702829162576ee7e5777261318d1e085770d5bd19bb37c17bd367922"
+          }
+        ]
+      }
+    },
+    "model.layers.11.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "b708b6ca9d43f7a2893c5a4681f749ad3bb36a6d11db7ffcde7af1c2bc477bcc"
+          }
+        ]
+      }
+    },
+    "model.layers.11.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "25f5dcc84d12ffb3c24b179b8a66e787e8192c2c953fc77feb7450a8aa67a6f4"
+          }
+        ]
+      }
+    },
+    "model.layers.12.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "f36576fb784eee84b89960da099f58533857e1c7ecb0e34e2e9a4f7c329a432b"
+          }
+        ]
+      }
+    },
+    "model.layers.12.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "ba59e3e640b5b79fb1e04fa00da1682014670c39f66bf81f7bf3ac05c50e2144"
+          }
+        ]
+      }
+    },
+    "model.layers.12.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "c032f2097f10f5d32a76403afd4a92049c04f067940b6904906a3d7b693d33c0"
+          }
+        ]
+      }
+    },
+    "model.layers.12.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a5d4f642a9164903805eb1c77a9c12cac34be1943114e523cc325fd5f1601536"
+          }
+        ]
+      }
+    },
+    "model.layers.13.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "3bb3830393f96ff6e9761a32e6a2865f4c6caad0e3d6a5a3bf30f050847666d5"
+          }
+        ]
+      }
+    },
+    "model.layers.13.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "42d08aded7463affb5f2a84ff9ffd4e0a58a9108458c4af7a91caa253d8f488d"
+          }
+        ]
+      }
+    },
+    "model.layers.13.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "8f4ed91850afe754c2c5505533e41635467e7d37739be37e6050046a0782b770"
+          }
+        ]
+      }
+    },
+    "model.layers.13.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "ef596ddff76e1a12a1abb708c13d6a103765298374df8d27b894172652a05caa"
+          }
+        ]
+      }
+    },
+    "model.layers.14.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "970d4e6f13f16ed2408994076f0385ad0ed9465d1a963e634de38a7d05d06f27"
+          }
+        ]
+      }
+    },
+    "model.layers.14.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "efbdb280347726426b68004af27f88f0210010f7dedfca77268b78a4a7873929"
+          }
+        ]
+      }
+    },
+    "model.layers.14.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "b010517e2c0c10f0290e451ede39ce7845a79cb00df15a357a2651b1f4157985"
+          }
+        ]
+      }
+    },
+    "model.layers.14.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "05e7f06fd396f40118ce3d03f696c5a7a3616051e46c7203cd80d584361e0e48"
+          }
+        ]
+      }
+    },
+    "model.layers.15.input_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/input_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "20ac835b1e2b0d1eacb72614e146ae799cd1820f8b56cb5b0d8856e552f01810"
+          }
+        ]
+      }
+    },
+    "model.layers.15.post_attention_layernorm.weight": {
+      "kind": "f32",
+      "shape": [
+        896
+      ],
+      "data": {
+        "byte_length": 3584,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/post_attention_layernorm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 3584,
+            "sha256": "ba490c4be585b4a5c7d51149987dcff55877edc56b1bc7237386b4485690705b"
+          }
+        ]
+      }
+    },
+    "model.layers.15.self_attn.q_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/q_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "a027db16ec932dfe5ebeec4a683439549806ec009d056a058f026fbdff02eaa6"
+          }
+        ]
+      }
+    },
+    "model.layers.15.self_attn.k_norm.weight": {
+      "kind": "f32",
+      "shape": [
+        128
+      ],
+      "data": {
+        "byte_length": 512,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/k_norm/weight/data.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 512,
+            "sha256": "96344e522caba185b5974d63660cc050a73cf1fdb3d2fb0407f7afa7d746ccb7"
+          }
+        ]
+      }
+    },
+    "model.layers.0.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "7aa13e1754aa5aa5cd43e6ef469c88332b7d58fb00876e59c6d94e3c7ecbc316"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "0f8f797b3351cc0816412f124cb6f620d22f47f0759b4c4b11647f3f761149f8"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "215120f6eb0a8c8882df7bb7d0ea76917f3c043879e03ef04f5299dbdcf4e952"
+          }
+        ]
+      }
+    },
+    "model.layers.0.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "f2654b6928b3f255e9988d12f73630f94c2a4dd1a05d8261cb0576c92ff0edd4"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "d4981172e1a6bf192cf8746fb8b78ffd7ee56cdf4094a5ecf5edc61bd7285e0d"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "ae6a7f2bed31679daf96a1df88ff0c67eb9644fb2f13ee3f131f6d4b54ca4e82"
+          }
+        ]
+      }
+    },
+    "model.layers.0.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "35c2c42af95621762a3963ee05b688f1dd6b381eb7613c5091baf03ac710ec65"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "4b567746ee6f8b1534dfb2499e5558f33c24c7e72b1611918b23f1c8cfc364e3"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "ba4d14e0973cbebf620cdc63e48048a78e3672dfd4e279fbe0245fea37617dcf"
+          }
+        ]
+      }
+    },
+    "model.layers.0.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "213451aee9933922c30e83f2eabaefa910bdc28376de524ace303e36c5513627"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "86ad7e9344d786babc169c6c8361d1c4b6f77d6fad60ec845c126c78cadc7492"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "61618001ff61d612c51f9ba4f5e12f3a7bc795516ef65974df48f88c09b1c42e"
+          }
+        ]
+      }
+    },
+    "model.layers.0.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "584563d5390324c332b251af4c92614044fca46f9fb22898e582a9310fcaf876"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "fc80808a9cd5a7ace1ab3b04c4cb66e8f12760a053bea1527fd171aa7aeed224"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "43227274e59dbc4640fd5b198a036863c02d6e353774fd38d2136728d1672a6d"
+          }
+        ]
+      }
+    },
+    "model.layers.0.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "6a6e98f705ceed02fc2b46c80960ce02e4cabc29fa154e721a5917838377881b"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "28a0bbec8ae0ca1f96f4a0a6483b934db166c993044b555fde4349d66c31c569"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "79121446079d675eec23429b95902455020c08ad8b74391208b50e4d9470700f"
+          }
+        ]
+      }
+    },
+    "model.layers.0.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "f9e8267b82863cf3c344cf11b8b1813677b4a63ca1a85e75bbe326a3286da052"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "b4ebedc0f9a254ddcbd3eb185ac2d643918061685896b92e8f4fc56ace2212d6"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/0/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "5b6a8df80251d955488e3be803403d25d7d5604d6aaa39b5f39c4b97f0a4cd12"
+          }
+        ]
+      }
+    },
+    "model.layers.1.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "7c955903ff68153cee9549d620da7830d1d16b63f4e1a61cd7679c56e3cff516"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "4b96c13f218a631c269fe2fec14d2066acc5c317264791cc02ecb1054d9aac0b"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "272d4b6b404b4a2f034a6366772204571c642c5f0f9721bd3e7ca76d00f88b49"
+          }
+        ]
+      }
+    },
+    "model.layers.1.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "da8766879b38689e92cfe14dc10d2457b3aba1ccc0a9651777907109e86c6ac2"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "fddb4e58198c7f5625993651e558b7061351a3d466394d710ae24a1f8e1a5e33"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "67bdbea68d13c0f7971940842d9f5c69cd04315d3813d76bb587c5b14a8a55d8"
+          }
+        ]
+      }
+    },
+    "model.layers.1.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "439143b8e51ecfd81bed6c509ae99aa47f5f05bf9d724d2df8d0a8f73fa78554"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "acc5a73fee2882c56969599c66a50daa6be5165190ab18451c45e51aea3de575"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "5d0e72c88942de0f03ca816665343703d026e706598f82e3bfdaa62fd091f67c"
+          }
+        ]
+      }
+    },
+    "model.layers.1.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "61b5f3922043186c5982512c4ff768139fcfcb66017683e932db44f221467093"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "d6c20cab80f1e7241f7e1bb0a5d06633778b73ae2c306fe500e7df3220f9abf4"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "41d3d1d8345eb9af4604ac8ef0ed6d5deaafae9abf5827a82f9971d31a8c726a"
+          }
+        ]
+      }
+    },
+    "model.layers.1.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "a730be92d240ee6d71165dda03b349a47186defdb5dd008d309c5165e25b5c8c"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "b1e5a3ea5cb5c079fb50d8b181db67bd1d2396a79eb46c4d1deb9f50ee2bc93b"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "14bcbcf52c30d818ff3d7b3c857da3b18fe222cf382a7834dd6662a715439df5"
+          }
+        ]
+      }
+    },
+    "model.layers.1.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "d295f1c9492df5addab33508b6fe361e441e2405da7cf5abb30b30931c6be5aa"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "38b8a4da2748a73c27ef129199c14d834771d902edc5d29e304b5712f1433191"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "df1afe62a54ed087702c24fb3b9fd496d9972ae4ec2c981dcb0e0da6da00d5af"
+          }
+        ]
+      }
+    },
+    "model.layers.1.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "903197e70888211957271f7fb4c60438c4267ac4b211d6d21de354a237569b87"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "59f119056d2dd5a4f5b2c4d3b06b15f59a412baf92e7244cdcada2373c3e2131"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/1/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "6e51ff4093cf0c4678beadded949c8f26577dc0ecd3a96534d9142ec382c7866"
+          }
+        ]
+      }
+    },
+    "model.layers.2.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "3569f71b40dabb3cdc70dd50d2c18a020a7a1d7f1a8cc404478e36f51badd0d8"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "237f7060f7b45cca7579c810fc7154c64190cda86425d3c9bb15293bbb75091a"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "b9d68dd9e51b4a4f1125477598fcd8ff9233592afd8b291aa27cdbfe777b4f68"
+          }
+        ]
+      }
+    },
+    "model.layers.2.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "11c0f8366532e0f873bfab5164569e6d3df3902b3c5cab2164eaf38bf9569dab"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "45a0575c037df154b39b97c8e54c76d442c88f0f97b20ce62f465a4ae363cfd9"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "eb1dec877ec991bbfc5ed065472559e5b2a77dbc4f4c267caf3e9e0e8bc60756"
+          }
+        ]
+      }
+    },
+    "model.layers.2.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "afcb4987bac2569da087c8a12c59100ffdfc7eaef905c34794992e176c28709b"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "0d3df0eec68c01bd251f417f2afb1df026597bd63587bac2ff51f992453899df"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "5052a4cc47880b52df19256d41ba095537b66f3a8550d288cc322b0b8f95c2a6"
+          }
+        ]
+      }
+    },
+    "model.layers.2.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "88b7a6efbd84ddc2c0bbd0a359e380cb539e4396e461e5ac22187ba0c1945613"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "e24f7e69303c61a2cc53f33ba4fe85d2d69081db8c0b7611164477831e7c8aca"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "fc23201abbb8762cfba21d6c276e0ed0d2b7f23fd03bc9204d4583f0cead0369"
+          }
+        ]
+      }
+    },
+    "model.layers.2.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "c20c8305bb3f75ee56a6a34d5a3c76285ed9559b220b44166ccc6ec6de352dcc"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "79b08c65f037f2018d3cb158e621055e99219d481842176f540f1d5e99c8a36c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "62739a20ac88cf78cf7f012ae8c148fb7f33282cf3bd2060f95e9b80bcf22e79"
+          }
+        ]
+      }
+    },
+    "model.layers.2.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "3aa198474a0e7ad557a4de216c0a8e4eb34ccae3e1a366b9bfad0e1ad7e05100"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "401a850238a97da1c15d639066e6f23731fd1728d7c1fe63eb6ff3ff7b440aca"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "a4e7372e4f3a6d4576a126ec48b25dca8a988a3e6b3b8ffc14c01cfa2c9ddbcb"
+          }
+        ]
+      }
+    },
+    "model.layers.2.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "dd93a122d545ca738d90c0ed95a2d5a4d901c65d57fc016c680a390c2c2f6f00"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "438fd954b8cf3a0f470d196d137b40865ba29cda72316b5a2035cbe10dde7c79"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/2/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e23af3537150d72059fe92a816f7195f4111b6fc4bbc3962c659e3e3fe17bb84"
+          }
+        ]
+      }
+    },
+    "model.layers.3.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "4e66a8ada4a850973bd0a6e9a8a9603038d5717dd87ce8a1f25c83a07140be16"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "7f9c0162c8af999eaec698004c71b43d0a22fa98cd9af57b1f9687bab759b48c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "cb93e0c55e287dc682202cf423178c911bb6b419fad4548bb6d1beb8e8bd9942"
+          }
+        ]
+      }
+    },
+    "model.layers.3.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "f0f517c4872e5ee619cd8c4440ceaa337d16f5f6c25ea24672c3d7f7f4249bc4"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "c98fa98c0a853b40f9da9de77298ef7794f23e45093a7af6c5ef8804d41743aa"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "9f5f0ae47cbc26cbb06c5677ad3ac0d527ffaaf2cad3b784eebf0d61873bcbe7"
+          }
+        ]
+      }
+    },
+    "model.layers.3.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "1f0da94bb3e6d66be9fad50ad68e4444b202067ec82f3492435df7607727ffe6"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "82181f439bb64744398f45587d4ea8d96c8844bf7113e08b3d7643c9716fb8cd"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "743f8d7313c0a2aacff5b9bb58871c06cc11cc46693bce8ba49fd3d51580437a"
+          }
+        ]
+      }
+    },
+    "model.layers.3.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "07e4ce175ccbeb44c134f81c7ed2f11b18b4106362b0e534f46a1590d0107ec7"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "3983640eaa1930393e155b768256985d2f13f13f29ea5e6c1e6ce8f1524176ef"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "666a0b47ffa99885c6ead5465763ae858c4279729c191b8ee046b02a27adc34d"
+          }
+        ]
+      }
+    },
+    "model.layers.3.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "e93f0b26e8526f1526f4ce4a90e73ab996efaec86d56362c89904ee15a4180fa"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "22f2e8830b5985ece654b843b49a4d37c15dc0f9f09c387abc039fc64bdd5b8c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "25a3f62577653ad6ae67600bd8fab3d59411bd05efc770d4e5df4d9e6972dcf1"
+          }
+        ]
+      }
+    },
+    "model.layers.3.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "1b47cc3e029f36dac3e6f3ae1936121142dca138f55d83a24bf98b192120743a"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "9aeb45e796d78c335726ee89772d8caa57e08c509fe05cc15e3d097c2ff406ea"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "94228c532de6a21d6f08249444d950b149c99f74edae47c57df87653ca806b80"
+          }
+        ]
+      }
+    },
+    "model.layers.3.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "5fba4a6e53276880b5e2636052ef4db21b8e8a6a3fb03498bb76ee6c2e73b744"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "c160ff22a1b0d951fd58be445d38d5aa516182ec10d8d96cbda8e898deabea9a"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/3/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "f7f630371e24fd0c1ea39d2202bb108bd4cd5d3c2322479762890c7d5c9d0822"
+          }
+        ]
+      }
+    },
+    "model.layers.4.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "06430f6a1b38391569e7170a3340d261d5517406abd2dad28d557e80d3065650"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "88e49d57458d2d7efd481378a6d683d7ceebf9958015a9a3ec1a93b88c0c1d75"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "92f201f22baee154fa79100a6537c9c20b8bfa86e4d81162a0a8cabb060a7a40"
+          }
+        ]
+      }
+    },
+    "model.layers.4.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "db466a17d895484263d3db13a52aed10ee95753b9e6da92114d7517baa879c0b"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "bda528c1bc6161b0356097f2a15a836247516cf28fd3ad1e55cf2387263345fa"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "4b18dd7cae4b2877869d5bc6b4c37f2a704cbe1bcc43f8ed9dca2ac5c2d52907"
+          }
+        ]
+      }
+    },
+    "model.layers.4.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "f0c0d6e0026a1d60be6cd71f4a0516c22f5cac80b229a9e3f9c700c2c69f5743"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "d8f6b6a851d89309192890f5236a9625da70e3075ee280c9c35685016f699576"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "e92002034f0333b04a9b0949b66eb26f0bb33020faec38bb436d39bceb4f83a8"
+          }
+        ]
+      }
+    },
+    "model.layers.4.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "0fc8586279871dfccee4cba2bbaeda2131729264eefaf59eb36fe8b7c773804f"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "80bb66df7a445fa00598f2bf7f1a2995f20b61c4b3a7069bb8bfce0621c6d6fc"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "3d9a8588dcea5a85a3a96cde4959fd909d46e3ed09df94bf80af160a49076d0a"
+          }
+        ]
+      }
+    },
+    "model.layers.4.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "eb533e3135d7cdcd55a938e46c118700e4a35e0a77eada752d70e8704cf4e367"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "24f780b9e711aeede730a9dd758f2a0eb274906d6876f3d509f9276516a05092"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "df819c11d670859c84823a3e704766511b3b5f73e6a7af9b49b8f332ee9751ff"
+          }
+        ]
+      }
+    },
+    "model.layers.4.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "958b23f4b6b4953a17b325d7ab63dadbe41d704623f042da275ab65e2eac9aaf"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "000bd2856d6d2e016ab5d4fb891cfc82261119b5534614cbcb844fa499ae5a6c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "261b34e096c4010ae4eee772feeec8582dd08b62cc9ced952c6ebe8fe0bc0ab0"
+          }
+        ]
+      }
+    },
+    "model.layers.4.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "fde7670980ee7e5a36719f041943c3f08f526a778433d215ac04ae64f6107ec3"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "fd76f82f5643869bdc708caa4f2113b5e4acc7ec1a297cec4aa1a347c65f0ae4"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/4/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "93e7373b080a2dd0f64e9bd888bdca671cd02fb760c0e6a03698704441240f8d"
+          }
+        ]
+      }
+    },
+    "model.layers.5.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "6e6217e1e0b924ce3a05646b90dd731946f3570e700f5384418c14c37964f241"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "9c8f5dc675b6fc7f2d71b4a33080e5fd8b1ada9bc4406f60330cdc537e26c635"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "b5ff68ebb0b23438a504235d00d14f68f1ff7657cf7f52d04e1eccf31fce0210"
+          }
+        ]
+      }
+    },
+    "model.layers.5.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "f0025b93f63c52d90ab8215ea9cc1ccdabe74670b9c079c3d78e0cc1c0d556a1"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "c5878fe4c90688841b6b3aa939d83eb6a6032f4b757052ed097e87cdba8ad770"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "d9f5446301e46f3ea8c79376935effcd539628133daddde3c2d882fa9abdab6e"
+          }
+        ]
+      }
+    },
+    "model.layers.5.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "9252436b22919b211eeb5e1e55669a391aac5f19ba9b3e01a0aac86ab0364499"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "90209451dbd8efce28f2cb058f623b801682302624c889a9aee165270803982a"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "201485ce0ec91ef3b00ae05b8a8f9beb4e4de67de879a0415fb44509ed769f2a"
+          }
+        ]
+      }
+    },
+    "model.layers.5.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "00fac66a7be350e32cebd0236b26d46ce8254d3beced656bab87e149e0209c3e"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "07b9670fe7f83efbc0928346e978a93f803f66d9cda4cef3183563609596d6b8"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "45504294568bd129e4e058d4eb0dbab1823ca75319e23057e7089bd43c615647"
+          }
+        ]
+      }
+    },
+    "model.layers.5.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "41481ac8e766dfbdc0e0a490d506be18df736a55ab24922c24d50c51f5ff341b"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "4ec9dd798903382c47152785a0272be565fc0746dd33c47c43579fa7da4d960b"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "9f3f801889316c5c484d48341ab3281750fbe32710172c7824899af681f39585"
+          }
+        ]
+      }
+    },
+    "model.layers.5.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "33f5184cc0d7206c73a3c065fad320409787352ff042b37015954ae4665d7cf7"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "21f5166a37504a8c53ae3971b8d08897a6f4ecc0a392408099a8f758fb931677"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "24840d3f0e2990256fb64dbb01f05cb77315f4f788f14662001107d5b46e8f6e"
+          }
+        ]
+      }
+    },
+    "model.layers.5.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "a8f5bfafba2b4c7e6c91538ff735eaa3c4185654773918ffc38786f3ca2824f9"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "255205dbb2e4590434bbeec6480a691a39b8d1e0206dca207ed97265e9833743"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/5/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "b48840ac2a4abe70c9fe80b9c231c41c65d9990c60f134a121da8848048fd5ac"
+          }
+        ]
+      }
+    },
+    "model.layers.6.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "7fd91da658cfff3b56add0fea1d398bd7e4b3c917ba52a52552489dc6e712bec"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "a9d94fe9fd70ee7a9821a8ee16593c9a97e6619ca2b0ed98c44fd8809641d3c3"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "a171202602d34bb9bc0ea17782e15384835e6096dd94918fef39507e86c039df"
+          }
+        ]
+      }
+    },
+    "model.layers.6.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "4a18b7871d89fb80653d5a466ea3ea1d1988b1446835822eed43c0e2f3038d05"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "f8ec21b8fd1e58c3443bbc0bf9fa1216b8beab62ddd0be962e97b1a322951eef"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "060a696c2d0948225f4687f41d296996350639572ac6e0d076c1484239552ca5"
+          }
+        ]
+      }
+    },
+    "model.layers.6.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "eac107c261ff7f965c982ea898cd5733f5e1e3560cc61f47232f774bca1d687a"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "a57f268a74f5b45c641040930b33a0797674a8da1c775223fcd9b6284ded4346"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "12e7770a58ef406f79a5f76eb3aea5bf623a1ed61f4a7f773087fc00cbda3db0"
+          }
+        ]
+      }
+    },
+    "model.layers.6.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "07d41aef585350c5105047216b0a0972750f90f8c1486be8142a5c9dc9927490"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "fc2f6b24f7a1292c07b6688c15590550bacd6c0d599bcbe7c5626a858d310506"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "73bfb9effa36464d4d4c79baa0e94a7898163168eebe6e2821f15ba1f877e288"
+          }
+        ]
+      }
+    },
+    "model.layers.6.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "1caf5b86c429e0f943810e145930ef97b0e971860fc7f3853ad0a5e8acfb5090"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "a25446c0777f727eb6c69cb93827966f7b29a36a1197341eaa55463577406385"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "cd218d288ca973401ea916a6d4116ff63a78e4bd6658f679dd13db2f2f691b6c"
+          }
+        ]
+      }
+    },
+    "model.layers.6.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "fdcd3d3671fdfcaad3e97232fb9946e20f1f36e2fb3c0d47acc2e79f84552cc9"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "4214f7ae5ac35b6466a46f18fcb8aeea7883859ab810d96291c63018dae0f0eb"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e568833450eb01a7d95d7bc7986113bbf3d3119d9653fe201abef46b4b228308"
+          }
+        ]
+      }
+    },
+    "model.layers.6.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "d3c2ec0606a244fac51d6e7f1b81b5a53d13d9ee4f280449ffc82a68a4a54200"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e2cbd296324d2d870c5b394400b26668ac46fa012ab960db5f138f452baeaf05"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/6/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "c384caa74312e9a2c35662888156d924d410f43b1c80a8bb83d65df1b69b9692"
+          }
+        ]
+      }
+    },
+    "model.layers.7.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "f18249a162b3d2d14320a7c61c958d24ed1570de8b5dedeeeaf693c54dcbc891"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "355e215eb7a5c3a269e3c1dca30c2cfd6f4b6e35f55ec9947a13c3143242cffb"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "181ff3c62520f278acfd7d4f63f86de2924c766dfd7838e8d085b2d0e30e6d3e"
+          }
+        ]
+      }
+    },
+    "model.layers.7.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "ae33aede6b06a4c7c8add5fbd54189f487887e77d4565da34aedb4196208128f"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "56f7d509220782c4962c0fe1189febe0c4b92b5ebd5ec9f0733f707d3ccb8e6c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "8aa745ce08f8824493bba7c220c87d343f2ad1552084a6fffba32de9490b5380"
+          }
+        ]
+      }
+    },
+    "model.layers.7.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "67a4b6e7934cf47b32727df283bc4bc0dbe73cba8dceeb98113a5ba3afa15c31"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "7fc9304967039b55368dc47f64c0964a6f62f1f0f74c684233640a31809cc517"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "cc684248d9212a448da3e8466c44adeb6865b5b5daf1c8f89c0b6f15cd099909"
+          }
+        ]
+      }
+    },
+    "model.layers.7.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "89f83ddff5890eae27916cd3afcac38de7678fd9802f3df85c477ea56039996f"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "e42ce592091e50b01fdc6cf259abb73e678b57bf7e5bed249a24289c2fac6377"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "082535ecd43c020e4731f3f5dba837cec4aafd87989c5150f314a4ffdea01f55"
+          }
+        ]
+      }
+    },
+    "model.layers.7.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "359dcfc311166d6079ad81867692ff646f990a6d0182db2f54533c44b2781da3"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "2e28f7424d734b642c94dd54e5c751a5e92ac22e70f1fedf0e8331c83bdc7408"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "0301ba8d428a6ce2b050c41d192e449d32245166828e6f54eb7801b4d3551095"
+          }
+        ]
+      }
+    },
+    "model.layers.7.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "c20d944e1cbfa7c3c73a9c4bdd24165724c423d3f7000e7a9d044d759f544f61"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e188914eec0f6abd4d2f292fca39bb1e823ef067c75f586797b856c07e4913ef"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "af238b400cbb3de478a769beff6418e37dad30618b695be2e7b049a3ed676fa2"
+          }
+        ]
+      }
+    },
+    "model.layers.7.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "9d0eded53002a09dc8b946259ef0ce53258e16c3b8315f0f19bf1d4107627b90"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "7f09920a5b6ac6c30ae0b173d202ed991b5ae8410fc6e8df8b6ef18988ffaa1c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/7/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "93f6b5f461495c494c8a650b0b36455ad9a2170fe6ba3f9d5581fa2607c22737"
+          }
+        ]
+      }
+    },
+    "model.layers.8.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "c567ea443934b25b4c9d7f0f7c07274d5d36a46616cfda89018058aeb5d3b5c8"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "e782e08019636754ab6fe67d63c719a80a88bce46988f0433858900c226b9a4c"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "180d00eb24bb67a96a718c0b024c9b1b91c627fabab22bc77fd9722b553fea77"
+          }
+        ]
+      }
+    },
+    "model.layers.8.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "c43fd2588eb80bd40921325d26c46e4a7509a183ce526c925be0a24c30eb3752"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "53f45c2fa1963959b3bc0fa117929edd1a86a09925037f560cdfd3cb829e2e33"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "14e216432ff1a315f3694e68030d04649de6404719653d5bbd43d3b2d3bb3ce3"
+          }
+        ]
+      }
+    },
+    "model.layers.8.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "f4b56e2405d5ca01ee5210441b9d1acb3695479fdf7b29428af2e7c1ce071f02"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "21316a53956e110102944dd609b05b6219837d43648c2dbb4b805cf646f96d98"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "ed02a69e6f8223c56ca1e4aec0e5addf811aa3cf48e7e2c067b67ff3e8757068"
+          }
+        ]
+      }
+    },
+    "model.layers.8.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "d348df82324e67f784c37d5eff4924916f9a0ecbed13405c554c2ee6a7087b9e"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "5711fe61af91f4d6e6a2548050cb51fd1805ded2a54c96db741529914e5d71d5"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "530ae24646460d5517cae3cf872bf94c2611d1aa7e8e9b3da4ace4b4fd01f4cd"
+          }
+        ]
+      }
+    },
+    "model.layers.8.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "4e160a8ca344ca2836275f51a3ca363f28d7e596bbac778565c28a6c1534299b"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "32d3e07c179f692a09706dd96e66c01a910b504278ddaee8f87926bb5103cd20"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "f89480dfb2068b81a8d8703f7ec4fc10bf89759d7e085a9427e45255f54f4a11"
+          }
+        ]
+      }
+    },
+    "model.layers.8.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "70d3ce775fe413de872a705a81fad3219a85fa18ebbbd3c8a00bc5e236efd76d"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "91b498d69ad94da51ca2a2e409415d4fbf17593ccc42834d3675f183c8e700b4"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "ab2367d0bb2de16d2232c1034cf411e689ac6378acb9428b3621976b810e9869"
+          }
+        ]
+      }
+    },
+    "model.layers.8.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "4659e3b21f0afd8533a4af27752df0f1d4b2da660ebb5ad4085d074a558f9ae5"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "cddd8dd24fea02af7b2e849faa36ab21550473305f42dda8c63938ffa2e8283f"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/8/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "9458f6adc70967e7b1e8ae7cd6a74002c7e1853cd1def9810d41bcb37218a63b"
+          }
+        ]
+      }
+    },
+    "model.layers.9.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "64d5a534da0dd9ce1f9d8870f6137e46b04afa964e73b449c4ef64b88be4becf"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "c726b528e7fd5b692bb0bf66b3b8fca5ffd896562ea6ced91f5bffb834961535"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "05a7fc159d2027fe6cb73fd2874a916bbca159a688ff58b523710460a3741424"
+          }
+        ]
+      }
+    },
+    "model.layers.9.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "70d0af52de3002d6a03924ddb026cb1c6130c6b0ae7abadacedbd0a0eeb3d41a"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "5ca08ef9e24dc036d2cbec1a63976ca345ee21e19684a00fe5acff403699eb02"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "ce3877f4b335aab579c80b8cadc27e6406c1ad057b074f74f718305dccbbe7a4"
+          }
+        ]
+      }
+    },
+    "model.layers.9.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "effadba42127063214c105ecbd83ed3fa25de0b8bdfd16fe05d83f117d6579f3"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "955b84b7bd625502eef7b3c2c8c03329d42d209fdfb4a85a1cbb31413ce930d4"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "7d06fd351d0d0ddf30a59d1e9951b02c5c83c49d8d5be18576ca3b7c074073ce"
+          }
+        ]
+      }
+    },
+    "model.layers.9.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "d0676d7705c6773b050b960e33a060e9afba2dbaabfab9c99b4ea288f243f8a8"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "5ed4596728be997399c653818cc42d29b53f0ae295297996a2f7f0d82d5fc1cb"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "4d6366f2badf58eb79a6a96eafe132db6c9b6e20380ecdc737efd4233fc6cd0c"
+          }
+        ]
+      }
+    },
+    "model.layers.9.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "730dfdf2c13f9027fb88f39e2488666056c7c4b2bec94c26eb880cc97bb16569"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "c64035ff8c8bd03827b0cfe564dbbf3631a6037d48accf676527525a580bbc6e"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "5fb8b7be7f20fd3a3c76fa57b0cc2bb5242edcb5c441e9d7fd888e4f5bb2a442"
+          }
+        ]
+      }
+    },
+    "model.layers.9.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "7eac5cb165d25c3ad432809ada20af069813f7f93b047d7522ed95605debbf8a"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "fbc09c42117d8afdd7cc29247394bd31d000a4a8001857d6fbc8cdadd58f0307"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "7dbc154117f3651295e3a9dead12af65ee1f1dfc0e0a5db391c63694257998fa"
+          }
+        ]
+      }
+    },
+    "model.layers.9.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "27c2bb26636dce55f7dac16a990cdecc1679bcc52cb1817c90e7ec271dfe585a"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "7539874b174ec19ca842bd60d0f0547f49075fe024faaea3df9da21f3bb6933b"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/9/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "909d93358ec7ac09faa82eebff4bbe6b21cc05b8f9f6571ae655a5c302bf84b5"
+          }
+        ]
+      }
+    },
+    "model.layers.10.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "f6c78f7d1a7215c3fe101310c3c60e5df8108b7c479461de745caa5e0cfff3f3"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "66e756b39b0fe3854f799363b2e6a666c8a1ae2e09dbb9518f1557ae3967810f"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "cf21701031a31240778b501a5e59b39fd90504c6099477229b0fa2f3d057fbda"
+          }
+        ]
+      }
+    },
+    "model.layers.10.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "57fd84e9324a9915d5ed1f7a650ac27e899cd13fde4b4e52b2b78e2b9ff9da54"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "1f944d65176059203b0247011110ff424989575496a4a7043f7702ea929f2299"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "e57bc20cf64d780006c6a230429ac079a8c48902ca945bfbdba85adba5220178"
+          }
+        ]
+      }
+    },
+    "model.layers.10.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "e213db6cf65010f1bd06ce5cc149504ae61774d4ede158b2fa6c4837fb298f31"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "c289df5e27f95f40447ee15973e15e0b08d9ae16239a42b98369b375dfe05060"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "2ceb5d01a3f885d709ecb64502181eca10ae1f941b093aa2057e20dea880d5f1"
+          }
+        ]
+      }
+    },
+    "model.layers.10.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "efe9d7f3cd64661c040b36320c3a9100014ad6feabcd3b5351048ce917e5afcb"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "a713c72103054842ce328d527e231e81b6bc2b2fe585b7221146961c87b72f17"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "143aaa98dbe6b80881ef0c2d9c490a1ae1d5d6ecf22f103a95a9bf28db0ee92b"
+          }
+        ]
+      }
+    },
+    "model.layers.10.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "b43ec86a78d2b1741aee281698f72825d58b2cecc8f89f8212fbe6bad0116563"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "8f3f5cdb68e42f5f1bf3af698aa0aaee526f60c93207e29c11838eb5b7b8674f"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "6a5f1a1eb822f36b83cb7c074b6e9533cd7c13fbbac0175d96392e2d655741a8"
+          }
+        ]
+      }
+    },
+    "model.layers.10.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "a2cf037600ce41f37d4e5df63d5c95adf659aea359134797b57cdc3b1f132f88"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e6d09ebf796a25d6da9eed50b64fa3007ec152f11b5d6b9d21ee6bf55a5f6d13"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "9274f7ee8dff4e784860533a31c8d04fd52c32235aa7489732f10122a4142fcf"
+          }
+        ]
+      }
+    },
+    "model.layers.10.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "cc03272091ab9a5ae5bc0b4dfa0771c912bd91e650c6238395cce283fac9f818"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "acb876d253b0d0625d6ce8a511ce5f37bef12f80e459fa948d49f36e9318bd69"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/10/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "f18d4a31fef90b5ee013abc2bcf2d4dae8b263627e29da75b16b4415d04d49de"
+          }
+        ]
+      }
+    },
+    "model.layers.11.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "5a9f31780e186cb21d542484e3ad66806f4de6b4c68c5e606fa23c97b8a8160e"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "1851df1c8cbc41e3bf2dd31d37e0b9c5eb123aa4890e44865d84fba5e3e7aa82"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "b01bde967f1d221ab9f37dc269705b57d24a8afdc722b978e3687cd07fc5ef6f"
+          }
+        ]
+      }
+    },
+    "model.layers.11.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "fd6fca4ebf436aa95a25c43bbbcf07d551c18fb276379c48abe268b8c15d78c7"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "950f88d0b7b9336dce5b2f0d20e70d4de717b515cb2758808a677ac6977e6e83"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "a2aa34342ad1cba4eb32661c15828f546049cc4ba5307ec02dc1da262c10d334"
+          }
+        ]
+      }
+    },
+    "model.layers.11.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "f37862907761aa641bd2cd35b2c31967b02be2afe92e5a40deb9f4be076f0657"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "7180a63fe4bc4191407177b855468a9df6dc1668b66ea0a4739edf1c4a5ae8b1"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "154d51730f2d75022c917382603505035fe869bac77b9851e46da9f945b83243"
+          }
+        ]
+      }
+    },
+    "model.layers.11.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "002a9f8b0cc751c3ceb3b089f29bf22583a8021f0c93dfd7514ddcaec3b7eca9"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "a40b39a964e92b377852ba64be6ea9a0d8614caa7561213f3ea6e201937b7142"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "1eb360f4171f8c29f266dcc9a18e762ae395a377647454dba2721d8665eec47c"
+          }
+        ]
+      }
+    },
+    "model.layers.11.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "08b48e3aea42628a10f47552e487b042e547663368db5245f1fc10870632756c"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "7c7481b0f117776b304f72d4be7c793ef51bc3bc181e1615b2fe312d576b15c2"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "8a81e3b49f63a2eddb03b37ee4e4c61ae78dd8e8a4a46a25a73b32580b00dd69"
+          }
+        ]
+      }
+    },
+    "model.layers.11.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "e88724398ae911c96e969c2cc3de37be25ea560235a3b9b256231840ffc737ea"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "d11dcfd40c34c79172ddad97d9d88b47cd895761455612d759aa5dc0af845a52"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "d5ca1ec4dacfe1e173c9f5477062f50a87553c2d776de7c8446eb5ca9149a749"
+          }
+        ]
+      }
+    },
+    "model.layers.11.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "e85b39c52b9186075f13d1f3182d368016f56487d361835213e845db90f8b1c9"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "33cf0ab1e442dc1c164abaffcaaf961290a6244e86c0a7742483fe728e1c9791"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/11/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "3fe221cd5acc9de609f9a7d36cd1a769dcf0e9d676bedf255f37ac18641b4672"
+          }
+        ]
+      }
+    },
+    "model.layers.12.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "8aad78004e06668039ad63764b96e8ff6cb4c11f70cc00f255d6e8585e73bbd7"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "0ce6338e6219c8a56efc4776093c447e191336d7b624a3426c87967322e7e275"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "9088d9f6eafd9ea30ec365b05e46a1b5ed99792c1ae9b00d1922712cb1c67403"
+          }
+        ]
+      }
+    },
+    "model.layers.12.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "543d640fdf69eebe8d8e48c9fca63f28ddfa4f3c19499aad9769fb7195021a56"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "a0e30522c5d6d53480fc76ed8d5df4ce7e6c263ad661a0a1d507a4912fa4ed41"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "0a46bccea77b003dd33df7b39a38c66f6eb24cf17426e9ddaa4fc5a80f653d1d"
+          }
+        ]
+      }
+    },
+    "model.layers.12.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "95e504764a6c645da462af181ef16e43605cea89eba3718da084b450c5b384d6"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "e10b0746e389a10cd549d6cdb762ac555c0e6b8eee9b3b945158558ff546736f"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "d4819571ce34d27b9eda9c8c883e3e0b805246cc8cf107963b22884d07b439e9"
+          }
+        ]
+      }
+    },
+    "model.layers.12.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "8887fcc35b2068ccf671adf3bf993983751a9e939753546edd37d673413ac55c"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "a61dee4caf273486235e513d611d5809a73baedef4b2a872f362328b77b1d9f2"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "cefd361403d8eef8402dc8539b8c7e283fa7a14a3acd1a99a634cb97e6f2eb5b"
+          }
+        ]
+      }
+    },
+    "model.layers.12.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "3e704d51175219a42326b1fb1e35e473fc263651a5b895680c613167d09b1005"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "8a5eee37f0ea81e23dc684a55d406011846b145b7d8d4e169315ee436bb32fca"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "4c6d566c4c0d64f25c6c28b46ad92d93b734ee01e970fdef764644d40eb2f5f8"
+          }
+        ]
+      }
+    },
+    "model.layers.12.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "fbd7ed41ac92278c61fa35e0461b501e4cc5af3b91816c12e75808c0829d14c4"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "00bf3f7ce58177b247f866d85bea6888db394bb5db514c7a00d0e98411aed416"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "7db47eea60ec3f2274d80a2c6a1200ded0acb2c406e9e61205ae43b1a1a5c950"
+          }
+        ]
+      }
+    },
+    "model.layers.12.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "444f4be3ae2d3008bb3e7af08ca25b63ee6aa6411a7c02c7c4a673af812a78c2"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "822e35f7b64b475d0dcdd937f3cf11b58bb6354b6e7a0bc692fe3d3032db096e"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/12/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "2b24c30600883fc01ac553ee10030126d0deefe2f76ce46b1c58607258ccefe5"
+          }
+        ]
+      }
+    },
+    "model.layers.13.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "63b8bde71b76d4d2bcdb5fa26e5a0eb3b407c20c1fc839f10b3003ef97f465ec"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "f64c37be76bc5a1f05d3a53d16b8f5a674dd5447ca9b203a6b687ddfdb4b5ea5"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "aaaa2ae1338d57fcefb09dc47abbd28d18796f77b3de5631ab3d3b52b5962bc5"
+          }
+        ]
+      }
+    },
+    "model.layers.13.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "d612c7f16c48f1f44e75377ccce2054d5225a263c9e3a6235c3ba4e3d3e2d964"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "3ae988c5b7c498373502fdfef34e582c68889c625c8a4609065061648139f8d9"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "af24607e26f95259afa5c7a11efe724105d52ba883e0bb40ad384ce4f1f2584c"
+          }
+        ]
+      }
+    },
+    "model.layers.13.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "cd839f31576e41eae8b2dd20b60bf5183c594b24e0b7aed6aa97d2ff22ad49b8"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "dc0a51cf10365ddab0e6539e426a1b032326c380efcc4ddef989e652b06fceef"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "db21d8f9309244bf497a5da23b6128393c3bf957f3fa0db24723df9ffac80896"
+          }
+        ]
+      }
+    },
+    "model.layers.13.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "0ad77ca8fdc36d8451ac86cb780bcef0f2006d390a579e667575972abfd99e58"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "fce0153c7ec518dcd433f537f5e5a0cb391d323afde4457e78af73b349dcfea6"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "c0fd8d842567925cf6e99465f1963b834d691b9352b6dad812318a907dbd08d9"
+          }
+        ]
+      }
+    },
+    "model.layers.13.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "929c9df1934bc1bdaeaab1cbbff151e4f45457c88a1182bf47f79ab51b77447a"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "c6d3e3554336792f49be3200f4fb05a6f4de886e7c55e7e279ca3ef1d78c7d73"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "150f3a0a3edc5389f5caecb53b7e1ae5f4062a2121db90980e3fcf06fd662023"
+          }
+        ]
+      }
+    },
+    "model.layers.13.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "587d8cc789a6cdf848e0ac8e1eeb6a2deac9671cbe670cd26fb99675143c8646"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "d2aff77693c1a3321f615533bd3264ef25cce018f5e260f0bacbc6324ab23534"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "6ca865821b483a8c0fde3ca6ad4c2e3a3b2eb4eeae5e7afad09ac83ed91f1eea"
+          }
+        ]
+      }
+    },
+    "model.layers.13.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "c2185910ab80fb471e253d2d3ef10f8904aee72c0ad79401880b23b032da6683"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "0cb4cfa7312ac44b0691901daa10b68c3af4b8ea652ccf4f6532b7ed03b184e4"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/13/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "55f2fb37fc013e2f921117369036b9d615698c2ef6664eb0753e838b9c906818"
+          }
+        ]
+      }
+    },
+    "model.layers.14.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "1420ae62405a2b3e833deff511d88df8b9a865a0dac5fe8f49e4114187761745"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "3f631b0adfb876d8e6f103bacd1d0a5762a3473c6d2b98cbb0cbac3a487974f4"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "bc578f355df7cf835d582a1fbaabcd08fe86514a100729d49a696be4cf68d555"
+          }
+        ]
+      }
+    },
+    "model.layers.14.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "a406bf298d7565041faa16541334283a696f36077978625422b2df942a9b0320"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "b328d9ed284386435d9a4bd4f3a0b05685f708baa227b2a2891b3130e204e735"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "dd3b41089ccb2c84ebab81ace4d453c0f0c9ebdc8a4e9db562a6cc2ae75cf9d8"
+          }
+        ]
+      }
+    },
+    "model.layers.14.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "2177feb8d129622b182616c636f18c72bf6d95944ff047df9be157b85659633d"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "e87f6cd73a464d6fc0e6c14339c32559b8c78fad65e0a8946a84ef2f636eead7"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "938bd4724a81a53e22a2fdd04b32eeb404358b9212223fd7253dbce5e53b908b"
+          }
+        ]
+      }
+    },
+    "model.layers.14.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "2415e8e726aa347f454d05112462b10fd9b99d03cb8867dbdf63861df914602f"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "2b7453d8e0ad899e03dc0b867097d78151c4bda80adac696bf10820ab25b5c72"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "2c82d8ddbe2b69ec9ea04f1077f3fbc9506063178aa151986ee0aaafb8c2aa63"
+          }
+        ]
+      }
+    },
+    "model.layers.14.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "a104e907436966f99d7433725d85f28bfcb3ef0972cd4c754cf88ab22921063c"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e01d4e9f82bf9662f0d7324ece84de72485a05de0029a70844eb16105f5dff45"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "1d4f0b74c060f7ca67625ccfebe4b87011c7216dbab51bbd78f16820df50793e"
+          }
+        ]
+      }
+    },
+    "model.layers.14.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "fa28684b9b61028d41512dadd83f199271d152e72efbb6e3d30367ddc0485e37"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "5ed6b07e4bf15233f1b4c240ff584956457e7a9d84db175ee3729d9083cca1f9"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "b101839b38dd67537e7b67e7853d685e17d6c829b0eab814f1640d51a118a740"
+          }
+        ]
+      }
+    },
+    "model.layers.14.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "062939c2ada57d6a0f0458a79dd1034a70ecd4e0189c1056bdbf177616271850"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "2944495b28a81ab52eef3241dbf9f08c48a8e227c2ac68097e60e611cb5fe191"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/14/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "422a1e8bf41be7f0a9c9f971ef5f52911a0a036b791309948d5179a59ae1930c"
+          }
+        ]
+      }
+    },
+    "model.layers.15.self_attn.q_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2048,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/q_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "a316905374e791dd5636480276d556a75967e2f05e703e0f59c8a7fd72e18afb"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/q_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "8d3bda88c01dacaf01dd9e75c68baf55e076fdd2435723211601fef445dc14de"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/q_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "44ce034d743379d290caecb33a67d898650a20fee71f09bee884f4b5ac53ee3f"
+          }
+        ]
+      }
+    },
+    "model.layers.15.self_attn.k_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/k_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "3513cb3109d5788c001654fcd09f915973371c730aa201a81bda3d236d0313a1"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/k_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "858ffa77a8482d9ad7ff0acdedbf52a4555602ea1f889647ee8528f8f01ad487"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/k_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "8f8a21e38c8abe2bf0b2820eb671e28969d9b124159968b776bfb7882e109217"
+          }
+        ]
+      }
+    },
+    "model.layers.15.self_attn.v_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        1024,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 458752,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/v_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 458752,
+            "sha256": "b8669c3427723ad71c5daf1f34ccb10802d19ad14cdf1f91e200784db8b64b52"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/v_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "135f15af65b4e7aedcd2d4b82014fc7b52aab5c94f9c84027506157d9ac1c4a9"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 114688,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/v_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 114688,
+            "sha256": "b534c38b8a49e4f78667910cc9f5fe59a7680286f65b2357fa9b879e228de254"
+          }
+        ]
+      }
+    },
+    "model.layers.15.self_attn.o_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2048
+      ],
+      "group_size": 32,
+      "groups": 64,
+      "qweight": {
+        "byte_length": 917504,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/o_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 917504,
+            "sha256": "4e5e8c4abd9840f1bb02b3eef3f3de561db2b5166571791adf9081ba8c187680"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/o_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "1af8a7b3d6243fda14d2f16ed8920c3a694c84493b069383513e7db1293b0c21"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 229376,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/self_attn/o_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 229376,
+            "sha256": "6d5ae33adb8f636ee8e5f3eac99010c14019cae9eb4ea9498ac536682c2ff930"
+          }
+        ]
+      }
+    },
+    "model.layers.15.mlp.gate_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/gate_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "ad884a238f9aa3562dac47bd7661363335f2317c4f3edbb3154aba994b7f7db2"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/gate_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "e8919d15bc94fc34904d641671c7059f190d10f1da5724ca5a1d7fc31ff7f25e"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/gate_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "0a78b9ed03b68503d294bdea9ab732cf27bf338ab20345e5eee4c075cf88d5b5"
+          }
+        ]
+      }
+    },
+    "model.layers.15.mlp.up_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        2560,
+        896
+      ],
+      "group_size": 32,
+      "groups": 28,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/up_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "a9d06e46f89086d284f42e829e1e49422fd3a5cce59a26341065262e362ededa"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/up_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "7f7e7b78584a5cf507f7335bb5e60c98c5a3dd7256a1a1e0efbc68ff311e3420"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/up_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "c3b0a799251bab8506e8541b8f4ffc6b79ddb1a1ebede4d7cab690f5bd0d36ca"
+          }
+        ]
+      }
+    },
+    "model.layers.15.mlp.down_proj.weight": {
+      "kind": "q4_onnx_matmul",
+      "shape": [
+        896,
+        2560
+      ],
+      "group_size": 32,
+      "groups": 80,
+      "qweight": {
+        "byte_length": 1146880,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/down_proj/weight/qweight.bin",
+            "byte_offset": 0,
+            "byte_length": 1146880,
+            "sha256": "a1ba5b4aa404600e4695c5aef97190fa31ed2b07a53080eeda12b436c0a83d62"
+          }
+        ]
+      },
+      "scales": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/down_proj/weight/scales.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "66f3a416aa5831e0225925a476ab9ebc781a5e4836c31941e34b58e12f5e108a"
+          }
+        ]
+      },
+      "zero_points": {
+        "byte_length": 286720,
+        "chunks": [
+          {
+            "url": "tensors/model/layers/15/mlp/down_proj/weight/zero_points.f32.bin",
+            "byte_offset": 0,
+            "byte_length": 286720,
+            "sha256": "66461c37a43dbf1ddeb3310c7a64f3cf03ea172180ccd01a9ed34bea458068df"
+          }
+        ]
+      }
+    }
+  }
+}

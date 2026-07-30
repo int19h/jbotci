@@ -448,8 +448,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "browser/native embedding corpus DTO is generated from embedded dictionary and CLL data immediately before JSON serialization",
     ),
     (
+        "crates/jbotci-embedding-inputs/src/lib.rs:EmbeddingInputCorpusDto",
+        "raw corpus deserialization accepts all field combinations so conversion can return precise typed validation errors",
+    ),
+    (
         "crates/jbotci-embedding-inputs/src/lib.rs:EmbeddingInputDocument",
         "browser/native embedding document DTO is generated from v0-parity embedding input builders",
+    ),
+    (
+        "crates/jbotci-embedding-inputs/src/lib.rs:EmbeddingInputDocumentDto",
+        "raw document deserialization accepts all field combinations so conversion can recompute and validate every fingerprint",
     ),
     (
         "crates/jbotci-embeddings/src/lib.rs:CllEmbeddingItem",
@@ -562,6 +570,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-embeddings/src/native.rs:NativeLlamaEmbeddingBackend",
         "native backend fields are produced by llama.cpp model/context initialization",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ObjectSafeSources",
+        "unit test source has no state; it exists only to prove the two async source traits remain separately object safe",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ObjectSafeProgressSink",
+        "unit test progress sink has no state; it exists only to prove async fallible progress remains object safe",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:BlockTemp",

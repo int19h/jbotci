@@ -680,6 +680,118 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
     ),
     (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::Absolute",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::Backslash",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::ControlCharacter",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::CurrentDirectory",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::Empty",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::EmptyComponent",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::ParentDirectory",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::SchemeOrDrive",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::TrailingSeparator",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:ArtifactPathError::UrlMetacharacter",
+        "artifact path errors are closed unit classifications; the rejected path is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:Sha256DigestError::Character",
+        "digest character errors are a unit classification after the parser has rejected the supplied text",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:VectorStoreKeyError::ControlCharacter",
+        "vector-store key errors are closed unit classifications; the rejected key is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/artifact.rs:VectorStoreKeyError::Empty",
+        "vector-store key errors are closed unit classifications; the rejected key is retained by the caller",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/pack.rs:DistanceMetric::Dot",
+        "distance metric is a closed wire-format selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/pack.rs:Pooling::MeanNormalizedWindows",
+        "pooling strategy is a closed wire-format selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/pack.rs:VectorElementType::F16Le",
+        "vector element type is a closed wire-format selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/pack.rs:VectorElementType::F32Le",
+        "vector element type is a closed wire-format selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressKind::Corpus",
+        "progress kind is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressKind::Model",
+        "progress kind is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressKind::Pack",
+        "progress kind is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressKind::Validation",
+        "progress kind is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::Complete",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::Embedding",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::LoadingManifest",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::LoadingModel",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::LoadingTokenizer",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::Validating",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/progress.rs:ProgressPhase::WritingPack",
+        "progress phase is a closed status selector with no payload",
+    ),
+    (
         "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Leaf",
         "internal borrowed layout cursor delegates validity to the referenced leaf part",
     ),
