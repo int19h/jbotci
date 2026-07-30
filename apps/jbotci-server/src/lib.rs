@@ -2775,7 +2775,7 @@ mod tests {
                 "params": {
                     "name": "tersmu",
                     "arguments": {
-                        "text": "mi klama"
+                        "text": ".banan. cu klama"
                     }
                 }
             }),
@@ -2789,7 +2789,9 @@ mod tests {
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu smusni text");
-        assert!(tersmu_text.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
+        assert!(tersmu_text.starts_with("1. klama | by: officialdata | gismu"));
+        assert!(!tersmu_text.contains("banan"));
+        assert!(!tersmu_text.contains("cmavo:"));
         assert!(tersmu_text.contains("\n\nSEMANTIC DOCUMENT "));
         assert!(tersmu_text.contains("ID PREFIXES: r=reference"));
 

@@ -1007,28 +1007,33 @@ fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
         "--format",
         "smusni",
         "--color=never",
-        "ti",
-        "klupe",
+        ".banan.",
+        "cu",
+        "klama",
     ]);
 
-    // The dictionary definitions are prepended, in order, ahead of the smusni
-    // semantic document that the default format renders.
+    // The content-word dictionary definitions are prepended ahead of the
+    // smusni semantic document that the default format renders.
     let (definitions, document) = output
         .split_once("SEMANTIC DOCUMENT ")
         .expect("smusni document follows the prepended definitions");
     assert!(
-        definitions.starts_with("1. ti | by: officialdata | cmavo: KOhA6"),
+        definitions.starts_with("1. klama | by: officialdata | gismu"),
         "definitions must lead: {definitions:?}"
     );
     assert!(
-        definitions.contains("\n2. klupe | by: officialdata | gismu"),
-        "each word is defined in order: {definitions:?}"
+        !definitions.contains("banan"),
+        "unattested cmevla must not get a synthetic definition: {definitions:?}"
+    );
+    assert!(
+        !definitions.contains("cmavo:"),
+        "tersmu definitions must not define cmavo: {definitions:?}"
     );
     assert!(
         document.contains("ID PREFIXES: r=reference"),
         "the smusni document legend must follow the definitions"
     );
-    assert!(document.contains("RELATION: klupe"));
+    assert!(document.contains("RELATION: klama"));
 }
 
 #[test]
