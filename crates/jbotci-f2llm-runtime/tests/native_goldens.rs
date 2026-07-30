@@ -187,7 +187,12 @@ fn all_vendored_native_goldens() {
             let name = required_string(case, "name");
             assert_eq!(embedding.len(), dimensions, "{name} dimensions");
             let expected = expected_embedding(case);
-            let cosine = cosine_similarity(&embedding, &expected);
+            let cosine = cosine_similarity(&embedding, &expected).unwrap_or_else(|error| {
+                panic!(
+                    "{} case `{name}` cannot compare native and reference embeddings: {error}",
+                    spec.model_key
+                )
+            });
             model_min_cosine = model_min_cosine.min(cosine);
             assert!(
                 cosine >= MIN_REFERENCE_COSINE,
@@ -377,10 +382,22 @@ fn json_u32_array(value: &Value, label: &str) -> Vec<u32> {
         .collect()
 }
 
-#[requires(!left.is_empty())]
-#[requires(left.len() == right.len())]
-#[ensures(ret.is_finite())]
-fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|cosine| cosine.is_finite()) || ret.is_err())]
+fn cosine_similarity(left: &[f32], right: &[f32]) -> Result<f32, String> {
+    if left.is_empty() || right.is_empty() {
+        return Err("cannot compare an empty embedding".to_owned());
+    }
+    if left.len() != right.len() {
+        return Err(format!(
+            "embedding dimensions differ: {} and {}",
+            left.len(),
+            right.len()
+        ));
+    }
+    if left.iter().chain(right).any(|value| !value.is_finite()) {
+        return Err("cannot compare an embedding with non-finite components".to_owned());
+    }
     let dot = left
         .iter()
         .zip(right)
@@ -388,8 +405,35 @@ fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
         .sum::<f32>();
     let left_norm = left.iter().map(|value| value * value).sum::<f32>().sqrt();
     let right_norm = right.iter().map(|value| value * value).sum::<f32>().sqrt();
-    assert!(left_norm > 0.0 && right_norm > 0.0);
-    dot / (left_norm * right_norm)
+    if left_norm == 0.0 || right_norm == 0.0 {
+        return Err("cannot compare a zero embedding".to_owned());
+    }
+    if !left_norm.is_finite() || !right_norm.is_finite() {
+        return Err("cannot compare an embedding with a non-finite norm".to_owned());
+    }
+    let cosine = dot / (left_norm * right_norm);
+    if !cosine.is_finite() {
+        return Err("embedding cosine is non-finite".to_owned());
+    }
+    Ok(cosine)
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn native_cosine_rejects_zero_and_non_finite_embeddings() {
+    let reference = [1.0_f32, 0.0];
+
+    assert!(
+        cosine_similarity(&[0.0, -0.0], &reference)
+            .unwrap_err()
+            .contains("zero embedding")
+    );
+    assert!(
+        cosine_similarity(&[1.0, f32::NAN], &reference)
+            .unwrap_err()
+            .contains("non-finite components")
+    );
 }
 
 #[requires(true)]

@@ -1398,8 +1398,6 @@ fn f2llm_golden_gate(args: F2LlmGoldenGateArgs) -> Result<()> {
                 &expected_windows,
                 &native_case["windows"],
             )?;
-            let bytes = f2llm_case_bytes(native_case, dimensions, model_key, name)?;
-            let values = decode_f32le_values(&bytes)?;
             let reference = golden_case["embedding"]
                 .as_array()
                 .with_context(|| format!("golden `{model_key}` case `{name}` has no embedding"))?
@@ -1414,7 +1412,8 @@ fn f2llm_golden_gate(args: F2LlmGoldenGateArgs) -> Result<()> {
                         })
                 })
                 .collect::<Result<Vec<_>>>()?;
-            let cosine = f2llm_cosine(&values, &reference)?;
+            let cosine =
+                f2llm_golden_case_cosine(native_case, dimensions, model_key, name, &reference)?;
             global_min_reference_cosine = global_min_reference_cosine.min(cosine);
             if cosine < args.min_cosine {
                 bail!(
@@ -1462,11 +1461,9 @@ fn f2llm_golden_gate(args: F2LlmGoldenGateArgs) -> Result<()> {
             &native_case["windows"],
             &wasm_case["windows"],
         )?;
-        let native_bytes = f2llm_case_bytes(native_case, F2LLM_80M_DIMENSIONS, "native", name)?;
-        let wasm_bytes = f2llm_case_bytes(wasm_case, F2LLM_80M_DIMENSIONS, "wasm", name)?;
         let cosine = f2llm_cosine(
-            &decode_f32le_values(&native_bytes)?,
-            &decode_f32le_values(&wasm_bytes)?,
+            &f2llm_case_values(native_case, F2LLM_80M_DIMENSIONS, "native", name)?,
+            &f2llm_case_values(wasm_case, F2LLM_80M_DIMENSIONS, "wasm", name)?,
         )?;
         min_wasm_native_cosine = min_wasm_native_cosine.min(cosine);
         comparison_cases.push(serde_json::json!({
@@ -1571,6 +1568,44 @@ fn f2llm_case_bytes(
     Ok(bytes)
 }
 
+#[requires(dimensions > 0)]
+#[requires(!implementation.is_empty())]
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|values| {
+    values.len() == dimensions && values.iter().all(|value| value.is_finite())
+}) || ret.is_err())]
+fn f2llm_case_values(
+    case: &serde_json::Value,
+    dimensions: usize,
+    implementation: &str,
+    name: &str,
+) -> Result<Vec<f32>> {
+    decode_f32le_values(&f2llm_case_bytes(case, dimensions, implementation, name)?)
+}
+
+#[requires(dimensions > 0)]
+#[requires(!implementation.is_empty())]
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|cosine| cosine.is_finite()) || ret.is_err())]
+fn f2llm_golden_case_cosine(
+    case: &serde_json::Value,
+    dimensions: usize,
+    implementation: &str,
+    name: &str,
+    reference: &[f32],
+) -> Result<f32> {
+    if reference.len() != dimensions {
+        bail!(
+            "golden `{implementation}` case `{name}` has {} embedding dimensions, expected {dimensions}",
+            reference.len()
+        );
+    }
+    f2llm_cosine(
+        &f2llm_case_values(case, dimensions, implementation, name)?,
+        reference,
+    )
+}
+
 #[requires(bytes.len() % 4 == 0)]
 #[ensures(ret.as_ref().is_ok_and(|values| values.len() * 4 == bytes.len()) || ret.is_err())]
 fn decode_f32le_values(bytes: &[u8]) -> Result<Vec<f32>> {
@@ -1587,10 +1622,22 @@ fn decode_f32le_values(bytes: &[u8]) -> Result<Vec<f32>> {
         .collect()
 }
 
-#[requires(!left.is_empty())]
-#[requires(left.len() == right.len())]
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|cosine| cosine.is_finite()) || ret.is_err())]
 fn f2llm_cosine(left: &[f32], right: &[f32]) -> Result<f32> {
+    if left.is_empty() || right.is_empty() {
+        bail!("cannot compare an empty F2LLM embedding");
+    }
+    if left.len() != right.len() {
+        bail!(
+            "cannot compare F2LLM embeddings with different dimensions: {} and {}",
+            left.len(),
+            right.len()
+        );
+    }
+    if left.iter().chain(right).any(|value| !value.is_finite()) {
+        bail!("cannot compare an F2LLM embedding with non-finite components");
+    }
     let dot = left
         .iter()
         .zip(right)
@@ -1600,6 +1647,9 @@ fn f2llm_cosine(left: &[f32], right: &[f32]) -> Result<f32> {
     let right_norm = right.iter().map(|value| value * value).sum::<f32>().sqrt();
     if left_norm == 0.0 || right_norm == 0.0 {
         bail!("cannot compare a zero F2LLM embedding");
+    }
+    if !left_norm.is_finite() || !right_norm.is_finite() {
+        bail!("cannot compare an F2LLM embedding with a non-finite norm");
     }
     let cosine = dot / (left_norm * right_norm);
     if !cosine.is_finite() {
@@ -13876,6 +13926,52 @@ mod tests {
     use super::*;
     use bityzba::requires;
     use jbotci_cll::{CllChapter, CllExampleLine, CllMetadata, CllReference, CllSection};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn golden_comparison_rejects_digest_consistent_zero_and_non_finite_evidence() {
+        let reference = [1.0_f32, 0.0];
+        let zero = f2llm_test_evidence_case(&[0.0, -0.0]);
+        assert!(
+            f2llm_case_bytes(&zero, 2, "regression", "zero").is_ok(),
+            "zero regression evidence must have bytes consistent with its digest"
+        );
+        let zero_error = f2llm_golden_case_cosine(&zero, 2, "regression", "zero", &reference)
+            .expect_err("the actual golden comparison must reject an all-zero embedding");
+        assert!(zero_error.to_string().contains("zero F2LLM embedding"));
+
+        let non_finite = f2llm_test_evidence_case(&[1.0, f32::NAN]);
+        assert!(
+            f2llm_case_bytes(&non_finite, 2, "regression", "non-finite").is_ok(),
+            "non-finite regression evidence must have bytes consistent with its digest"
+        );
+        let non_finite_error =
+            f2llm_golden_case_cosine(&non_finite, 2, "regression", "non-finite", &reference)
+                .expect_err("the actual golden comparison must reject a non-finite embedding");
+        assert!(
+            non_finite_error
+                .to_string()
+                .contains("non-finite embedding component")
+        );
+    }
+
+    #[requires(!values.is_empty())]
+    #[ensures(ret.is_object())]
+    fn f2llm_test_evidence_case(values: &[f32]) -> serde_json::Value {
+        let bytes = values
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect::<Vec<_>>();
+        let encoded = bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        serde_json::json!({
+            "embedding_f32le_hex": encoded,
+            "embedding_f32le_sha256": sha256_hex(&bytes),
+        })
+    }
 
     #[test]
     #[requires(true)]

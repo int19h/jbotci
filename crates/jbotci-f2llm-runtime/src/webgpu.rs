@@ -12,9 +12,9 @@ use futures_channel::oneshot;
 use sha2::{Digest, Sha256};
 
 use crate::core::{
-    DEFAULT_MAX_SEQUENCE_LENGTH, QwenByteBpeTokenizer, TokenWindow, mean_pool_normalized,
-    normalize_in_place, pack_token_windows, q4_padded_row_stride,
-    validate_embedding_vector_before_normalize, validate_sha256_hex, validate_token_ids,
+    DEFAULT_MAX_SEQUENCE_LENGTH, EmbeddingVectorError, QwenByteBpeTokenizer, TokenWindow,
+    embedding_normalization_magnitude, mean_pool_normalized, normalize_validated_in_place,
+    pack_token_windows, q4_padded_row_stride, validate_sha256_hex, validate_token_ids,
 };
 use crate::webgpu_manifest::{
     ArtifactManifest, ChunkedSpec, TensorSpec, TokenizerSpec, checked_rank2_shape,
@@ -399,6 +399,7 @@ impl fmt::Display for RuntimeCapabilities {
 #[invariant(::Message { message } => !message.is_empty())]
 #[invariant(::AdapterUnavailable { message } => !message.is_empty())]
 #[invariant(::CapabilityUnavailable { operation, .. } => !operation.is_empty())]
+#[invariant(::InvalidEmbedding { operation, .. } => !operation.is_empty())]
 #[invariant(::DevicePollTimeout { operation, timeout_millis } =>
     !operation.is_empty() && *timeout_millis > 0)]
 #[invariant(::DevicePollFailed { operation, message } =>
@@ -414,6 +415,10 @@ pub enum RuntimeError {
     CapabilityUnavailable {
         operation: String,
         required: RuntimeCapabilities,
+    },
+    InvalidEmbedding {
+        operation: String,
+        error: EmbeddingVectorError,
     },
     DevicePollTimeout {
         operation: String,
@@ -447,6 +452,15 @@ impl RuntimeError {
         })
     }
 
+    #[requires(!operation.is_empty())]
+    #[ensures(matches!(
+        ret.as_data(),
+        data!(RuntimeError::InvalidEmbedding { .. })
+    ))]
+    fn invalid_embedding(operation: String, error: EmbeddingVectorError) -> Self {
+        new!(RuntimeError::InvalidEmbedding { operation, error })
+    }
+
     #[requires(true)]
     #[ensures(ret.is_some() == matches!(
         self.as_data(),
@@ -455,6 +469,18 @@ impl RuntimeError {
     pub fn unavailable_capability(&self) -> Option<RuntimeCapabilities> {
         match self.as_data() {
             data!(RuntimeError::CapabilityUnavailable { required, .. }) => Some(*required),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(
+        self.as_data(),
+        data!(RuntimeError::InvalidEmbedding { .. })
+    ))]
+    pub fn embedding_error(&self) -> Option<&EmbeddingVectorError> {
+        match self.as_data() {
+            data!(RuntimeError::InvalidEmbedding { error, .. }) => Some(error),
             _ => None,
         }
     }
@@ -476,6 +502,12 @@ impl fmt::Display for RuntimeError {
                 formatter,
                 "F2LLM runtime capability `{required}` is unavailable for operation `{operation}`"
             ),
+            data!(RuntimeError::InvalidEmbedding { operation, error }) => {
+                write!(
+                    formatter,
+                    "F2LLM operation `{operation}` produced an invalid embedding: {error}"
+                )
+            }
             data!(RuntimeError::DevicePollTimeout {
                 operation,
                 timeout_millis,
@@ -499,6 +531,21 @@ impl From<String> for RuntimeError {
     fn from(value: String) -> Self {
         new!(RuntimeError::Message { message: value })
     }
+}
+
+#[requires(dimensions > 0)]
+#[ensures(ret.as_ref().is_ok_and(|vector| {
+    vector.len() == dimensions
+        && vector.iter().all(|value| value.is_finite())
+        && vector.iter().any(|value| *value != 0.0)
+}) || ret.is_err())]
+fn pool_window_embeddings(
+    vectors: &[Vec<f32>],
+    dimensions: usize,
+) -> Result<Vec<f32>, RuntimeError> {
+    mean_pool_normalized(vectors, dimensions).map_err(|error| {
+        RuntimeError::invalid_embedding("pool F2LLM window embeddings".to_owned(), error)
+    })
 }
 
 /// Stable, serializable-by-consumers facts about the selected physical adapter.
@@ -990,7 +1037,14 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|vectors| vectors.len() == texts.len()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|vectors| {
+        vectors.len() == texts.len()
+            && vectors.iter().all(|vector| {
+                vector.len() == self.dimensions
+                    && vector.iter().all(|value| value.is_finite())
+                    && vector.iter().any(|value| *value != 0.0)
+            })
+    }) || ret.is_err())]
     pub async fn embed_texts(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, RuntimeError> {
         if texts.is_empty() {
             return Ok(Vec::new());
@@ -1028,14 +1082,21 @@ impl WebGpuRuntime {
                     format!("missing F2LLM window embeddings for text row {text_index}").into(),
                 );
             }
-            output.push(mean_pool_normalized(&vectors, self.dimensions));
+            output.push(pool_window_embeddings(&vectors, self.dimensions)?);
         }
         Ok(output)
     }
 
     #[requires(!segments.is_empty())]
     #[requires(segments.iter().all(|segment| !segment.token_ids.is_empty()))]
-    #[ensures(ret.as_ref().is_ok_and(|rows| rows.len() == segments.len()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|rows| {
+        rows.len() == segments.len()
+            && rows.iter().all(|row| {
+                row.len() == self.dimensions
+                    && row.iter().all(|value| value.is_finite())
+                    && row.iter().any(|value| *value != 0.0)
+            })
+    }) || ret.is_err())]
     async fn embed_packed_batch(
         &mut self,
         segments: &[TokenWindow],
@@ -1075,12 +1136,18 @@ impl WebGpuRuntime {
             .await?;
         hidden.destroy();
         let mut rows = Vec::with_capacity(segments.len());
-        for token_offset in last_token_offsets {
+        for (row_index, token_offset) in last_token_offsets.into_iter().enumerate() {
             let start = token_offset * self.manifest.model.hidden_size;
             let end = start + self.manifest.model.hidden_size;
             let mut vector = hidden_values[start..end].to_vec();
-            validate_embedding_vector_before_normalize(&vector, "F2LLM hidden output")?;
-            normalize_in_place(&mut vector);
+            let magnitude =
+                embedding_normalization_magnitude(&vector, self.dimensions).map_err(|error| {
+                    RuntimeError::invalid_embedding(
+                        format!("normalize F2LLM hidden output row {row_index}"),
+                        error,
+                    )
+                })?;
+            normalize_validated_in_place(&mut vector, magnitude);
             rows.push(vector);
         }
         Ok(rows)
@@ -2535,6 +2602,20 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(names.len(), 8);
         assert!(!names.contains(&"vectorDotF16"));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn cancelling_window_pooling_surfaces_typed_runtime_error() {
+        let error = pool_window_embeddings(&[vec![1.0, 0.0], vec![-1.0, 0.0]], 2)
+            .expect_err("cancelling windows must fail");
+
+        assert!(
+            error
+                .embedding_error()
+                .is_some_and(EmbeddingVectorError::is_zero_norm)
+        );
     }
 
     #[requires(true)]

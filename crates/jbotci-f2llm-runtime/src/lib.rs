@@ -19,8 +19,8 @@ pub use artifact::{
     VectorStoreKeyError,
 };
 pub use core::{
-    DEFAULT_MAX_SEQUENCE_LENGTH, PackedTokenBatch, QwenByteBpeTokenizer, TokenWindow,
-    mean_pool_normalized, normalize_in_place, pack_token_windows,
+    DEFAULT_MAX_SEQUENCE_LENGTH, EmbeddingVectorError, PackedTokenBatch, QwenByteBpeTokenizer,
+    TokenWindow, mean_pool_normalized, pack_token_windows,
 };
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 pub use native::{

@@ -54,7 +54,8 @@ fn n0_windows_and_wasm_pooling_bytes_match_the_pre_move_baseline() {
             .map(|window| json_f32s(window["embedding"].as_array().expect("window embedding")))
             .collect::<Vec<_>>();
         assert_eq!(window_vectors.len(), windows.len());
-        let embedding = mean_pool_normalized(&window_vectors, dimensions);
+        let embedding = mean_pool_normalized(&window_vectors, dimensions)
+            .unwrap_or_else(|error| panic!("pooling N0 case `{name}`: {error}"));
         let bytes = f32le_bytes(&embedding);
         assert_eq!(
             Sha256Digest::of_bytes(&bytes).as_str(),
