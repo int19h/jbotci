@@ -829,6 +829,15 @@ impl XmlRepresentationPlan {
     }
 }
 
+#[cfg(test)]
+#[invariant(::PredicationAdjuncts => true)]
+#[invariant(::ReferentArity => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TestRenderSuppression {
+    PredicationAdjuncts,
+    ReferentArity,
+}
+
 // Validated once in `from_value`; fields are private and never mutated.
 #[invariant(objects.contains_key(root), "the root must name a graph object")]
 #[invariant(
@@ -1964,6 +1973,8 @@ struct RenderState {
     planning_object_stack: Vec<String>,
     planning_compact_adjacency: HashMap<String, BTreeSet<String>>,
     planning_repeated_single_use: BTreeSet<String>,
+    #[cfg(test)]
+    test_suppression: Option<TestRenderSuppression>,
 }
 
 impl RenderState {
@@ -2006,6 +2017,34 @@ impl RenderState {
             planning_object_stack: Vec::new(),
             planning_compact_adjacency: HashMap::new(),
             planning_repeated_single_use: BTreeSet::new(),
+            #[cfg(test)]
+            test_suppression: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn suppress_predication_adjuncts(&self) -> bool {
+        #[cfg(test)]
+        {
+            self.test_suppression == Some(TestRenderSuppression::PredicationAdjuncts)
+        }
+        #[cfg(not(test))]
+        {
+            false
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn suppress_referent_arity(&self) -> bool {
+        #[cfg(test)]
+        {
+            self.test_suppression == Some(TestRenderSuppression::ReferentArity)
+        }
+        #[cfg(not(test))]
+        {
+            false
         }
     }
 
@@ -2279,7 +2318,7 @@ impl RenderState {
         self.start_planning_pass(true);
         let document_scope = vec!["document".to_owned()];
         let _ = self.scoped_parts(graph, document_scope, |state, graph| {
-            state.render_graph_components(graph)
+            state.render_root_component(graph)
         });
         self.finish_planning_pass(graph);
         if graph.ordinary_definition_keys.is_empty() {
@@ -2316,7 +2355,7 @@ impl RenderState {
             self.start_planning_pass(false);
             let document_scope = vec!["document".to_owned()];
             let _ = self.scoped_parts(graph, document_scope, |state, graph| {
-                state.render_graph_components(graph)
+                state.render_root_component(graph)
             });
             self.finish_planning_pass(graph);
             let mut planned = HashMap::new();
@@ -2687,7 +2726,9 @@ impl RenderState {
                 self.pointer_list(graph, parameters, "PARAMETERS"),
             );
         }
-        if let Some(arity) = object.get("arity") {
+        if !self.suppress_referent_arity()
+            && let Some(arity) = object.get("arity")
+        {
             self.account_field(graph, object, "arity");
             result.set("ARITY", scalar_string(arity));
         }
@@ -3173,10 +3214,17 @@ fn render_compact_incompatibility(reason: &CompactIncompatibility) -> XmlElement
 }
 
 impl RenderState {
+    /// Render only the semantic root component.
+    ///
+    /// Declaration-scope planning deliberately uses this exact compact
+    /// traversal rather than the later `UNREACHABLE` sweep. The prototype
+    /// rejects an ordinary shared node with no use reachable from the semantic
+    /// root; allowing the sweep to manufacture such a use can assign a stale
+    /// declaration scope and prevent a later planning pass from making
+    /// progress.
     #[requires(true)]
-    #[ensures(self.emitted == graph.object_keys)]
-    fn render_graph_components(&mut self, graph: &GraphData) -> (XmlElement, Option<XmlElement>) {
-        let mut unreachable = XmlElement::new("UNREACHABLE");
+    #[ensures(true)]
+    fn render_root_component(&mut self, graph: &GraphData) -> XmlElement {
         if self.planning {
             let mut ground_referents: Vec<String> = graph
                 .context_sites
@@ -3191,7 +3239,14 @@ impl RenderState {
                 }
             }
         }
-        let graph_root = self.render_pointer(graph, &graph.root);
+        self.render_pointer(graph, &graph.root)
+    }
+
+    #[requires(true)]
+    #[ensures(self.emitted == graph.object_keys)]
+    fn render_graph_components(&mut self, graph: &GraphData) -> (XmlElement, Option<XmlElement>) {
+        let mut unreachable = XmlElement::new("UNREACHABLE");
+        let graph_root = self.render_root_component(graph);
         loop {
             let definition_owner = graph
                 .objects
@@ -3339,7 +3394,9 @@ impl RenderState {
                 let kind = optional_string(object, "kind");
                 if kind == Some("elided") && value.as_str() == Some("zo'e") {
                     self.account_field(graph, object, field);
-                } else {
+                    continue;
+                }
+                if variable || kind != Some("proSumti") {
                     self.record_field_omission(
                         graph,
                         object,
@@ -3350,8 +3407,11 @@ impl RenderState {
                             XmlWaiverFamily::DescriptorWord
                         },
                     );
+                    continue;
                 }
-                continue;
+                // A non-variable pro-sumti word is the unresolved referent's
+                // only identifying surface, so both compact and typed-graph
+                // forms fall through to the ordinary field renderer.
             }
             if quantity_value && field == "text" {
                 self.record_field_omission(graph, object, field, XmlWaiverFamily::QuantityText);
@@ -3518,9 +3578,12 @@ impl RenderState {
 
 #[requires(!document_name.is_empty())]
 #[ensures(ret.output.ends_with('\n'))]
-fn render_xml_value(graph: Value, document_name: &str) -> XmlRender {
+fn render_xml_value_with_state(
+    graph: Value,
+    document_name: &str,
+    mut state: RenderState,
+) -> XmlRender {
     let graph = GraphData::from_value(graph);
-    let mut state = RenderState::new();
     let preliminary_incompatibilities = match graph.representation.as_data() {
         data!(XmlRepresentationPlan::Compact) => BTreeSet::new(),
         data!(XmlRepresentationPlan::TypedGraph { incompatibilities }) => incompatibilities.clone(),
@@ -3544,6 +3607,25 @@ fn render_xml_value(graph: Value, document_name: &str) -> XmlRender {
     };
     let omissions = state.omissions;
     new!(XmlRender { output, omissions })
+}
+
+#[requires(!document_name.is_empty())]
+#[ensures(ret.output.ends_with('\n'))]
+fn render_xml_value(graph: Value, document_name: &str) -> XmlRender {
+    render_xml_value_with_state(graph, document_name, RenderState::new())
+}
+
+#[cfg(test)]
+#[requires(!document_name.is_empty())]
+#[ensures(ret.output.ends_with('\n'))]
+fn render_xml_value_with_test_suppression(
+    graph: Value,
+    document_name: &str,
+    suppression: TestRenderSuppression,
+) -> XmlRender {
+    let mut state = RenderState::new();
+    state.test_suppression = Some(suppression);
+    render_xml_value_with_state(graph, document_name, state)
 }
 
 /// Render a semantic graph as canonical SFN-XML.
@@ -3633,6 +3715,19 @@ mod tests {
     #[ensures(ret.is_object())]
     fn graph(document: &str) -> Value {
         let path = fixture(document, "frozen.json");
+        serde_json::from_slice(
+            &std::fs::read(&path)
+                .unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
+        )
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()))
+    }
+
+    #[requires(!document.is_empty())]
+    #[ensures(ret.is_object())]
+    fn phaseb_graph(document: &str) -> Value {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/phaseb_corpus")
+            .join(format!("{document}.frozen.json"));
         serde_json::from_slice(
             &std::fs::read(&path)
                 .unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
@@ -3990,12 +4085,191 @@ mod tests {
         );
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn hostile_adjunct_drop_routes_shared_unreachable_graph_to_typed_form() {
+        let graph = graph("b44");
+        let expected = declared_waiver_occurrences(&graph);
+        let rendered = render_xml_value_with_test_suppression(
+            graph,
+            "<hostile-adjunct-drop>",
+            TestRenderSuppression::PredicationAdjuncts,
+        );
+
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(
+            rendered
+                .output
+                .contains("KIND=\"PROTOTYPE-ID-WITHOUT-COMPACT-USE\"")
+        );
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected,
+            "typed fallback must preserve every non-waived adjunct surface"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn hostile_scalar_drop_is_an_unwaived_occurrence() {
+        let graph = graph("b13");
+        let mut expected = declared_waiver_occurrences(&graph);
+        expected.insert(new!(XmlOmission {
+            waiver: None,
+            surface: field_surface("/objects/relation:20/arity".to_owned()),
+        }));
+        let rendered = render_xml_value_with_test_suppression(
+            graph,
+            "<hostile-scalar-drop>",
+            TestRenderSuppression::ReferentArity,
+        );
+
+        assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(!rendered.output.contains("ARITY=\"1\""));
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn descriptor_word_oracle_covers_elided_and_nonvariable_prosumti_edges() {
+        let elided_non_zohe = serde_json::json!({
+            "version": SEMANTIC_JSON_VERSION,
+            "root": "entity:1",
+            "objects": {
+                "entity:1": {
+                    "type": "referent",
+                    "category": "constant",
+                    "sort": "entity",
+                    "descriptor": {"kind": "elided", "word": "zi'o"}
+                }
+            }
+        });
+        let expected = declared_waiver_occurrences(&elided_non_zohe);
+        let rendered = render_xml_value(elided_non_zohe, "<elided-non-zohe>");
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected
+        );
+        assert!(expected.contains(&new!(XmlOmission {
+            waiver: Some(XmlWaiverFamily::DescriptorWord),
+            surface: field_surface("/objects/entity:1/descriptor/word".to_owned()),
+        })));
+
+        let nonvariable_prosumti = serde_json::json!({
+            "version": SEMANTIC_JSON_VERSION,
+            "root": "entity:1",
+            "objects": {
+                "entity:1": {
+                    "type": "referent",
+                    "denotation": "generated-bound",
+                    "category": "constant",
+                    "sort": "entity",
+                    "descriptor": {"kind": "proSumti", "word": "ko'a"}
+                }
+            }
+        });
+        let expected = declared_waiver_occurrences(&nonvariable_prosumti);
+        let rendered = render_xml_value(nonvariable_prosumti, "<nonvariable-prosumti>");
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(rendered.output.contains("<STRING VALUE=\"ko'a\"/>"));
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected
+        );
+        assert!(expected.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_golden_typed_branches_have_structural_witnesses() {
+        let deictic = render_xml_value(phaseb_graph("ti-mo"), "<deictic-witness>");
+        assert!(
+            deictic
+                .output
+                .contains("<DEICTIC-REFERENCE PROXIMITY=\"PROXIMAL\"")
+        );
+        assert!(
+            deictic
+                .omissions
+                .iter()
+                .all(|omission| omission.waiver.is_some())
+        );
+
+        let personal_mass =
+            render_xml_value(phaseb_graph("modal-fronted-vao"), "<personal-mass-witness>");
+        assert!(personal_mass.output.contains("<PERSONAL-MASS-MEMBERSHIP>"));
+        assert!(
+            personal_mass
+                .output
+                .contains("<ADJUNCT PREDICATE=\"vanbi\">")
+        );
+        assert!(
+            personal_mass
+                .omissions
+                .iter()
+                .all(|omission| omission.waiver.is_some())
+        );
+
+        let synthetic = serde_json::json!({
+            "version": SEMANTIC_JSON_VERSION,
+            "root": "entity:1",
+            "objects": {
+                "entity:1": {
+                    "type": "referent",
+                    "category": "constant",
+                    "sort": "entity",
+                    "intervalModifiers": [{
+                        "kind": "aspect",
+                        "value": {"contour": "initiative"}
+                    }],
+                    "generatedReferent": {
+                        "realization": "explicit",
+                        "specificity": "specific"
+                    },
+                    "adjuncts": [{"witness": "referent-level"}]
+                }
+            }
+        });
+        let synthetic = render_xml_value(synthetic, "<synthetic-typed-branches>");
+        assert!(synthetic.output.contains("<INTERVAL-MODIFIERS>"));
+        assert!(
+            synthetic.output.contains(
+                "<GENERATED-REFERENT REALIZATION=\"EXPLICIT\" SPECIFICITY=\"SPECIFIC\"/>"
+            )
+        );
+        assert!(synthetic.output.contains("<FIELD NAME=\"witness\">"));
+        assert!(synthetic.omissions.is_empty());
+    }
+
     #[requires(true)]
     #[ensures(output.len() >= old(output.len()))]
     fn collect_declared_waiver_occurrences(
         value: &Value,
         path: &str,
-        descriptor: bool,
+        descriptor_variable: Option<bool>,
         output: &mut BTreeSet<XmlOmission>,
     ) {
         match value {
@@ -4004,31 +4278,31 @@ mod tests {
                     collect_declared_waiver_occurrences(
                         item,
                         &format!("{path}/{index}"),
-                        false,
+                        None,
                         output,
                     );
                 }
             }
             Value::Object(object) => {
-                if descriptor
-                    && !matches!(optional_string(object, "kind"), Some("elided" | "proSumti"))
-                    && object.get("word").is_some_and(Value::is_string)
+                if let Some(variable) = descriptor_variable
+                    && let Some(word) = object.get("word").and_then(Value::as_str)
                 {
-                    output.insert(new!(XmlOmission {
-                        waiver: Some(XmlWaiverFamily::DescriptorWord),
-                        surface: field_surface(format!("{path}/word")),
-                    }));
-                }
-                if optional_string(object, "type") == Some("referent")
-                    && optional_string(object, "category") == Some("variable")
-                    && let Some(descriptor) = object.get("descriptor").and_then(Value::as_object)
-                    && optional_string(descriptor, "kind") == Some("proSumti")
-                    && descriptor.get("word").is_some_and(Value::is_string)
-                {
-                    output.insert(new!(XmlOmission {
-                        waiver: Some(XmlWaiverFamily::BoundVariableWord),
-                        surface: field_surface(format!("{path}/descriptor/word")),
-                    }));
+                    let kind = optional_string(object, "kind");
+                    let waiver = if kind == Some("elided") && word == "zo'e" {
+                        None
+                    } else if !variable && kind == Some("proSumti") {
+                        None
+                    } else if variable && kind == Some("proSumti") {
+                        Some(XmlWaiverFamily::BoundVariableWord)
+                    } else {
+                        Some(XmlWaiverFamily::DescriptorWord)
+                    };
+                    if let Some(waiver) = waiver {
+                        output.insert(new!(XmlOmission {
+                            waiver: Some(waiver),
+                            surface: field_surface(format!("{path}/word")),
+                        }));
+                    }
                 }
                 if optional_string(object, "type") == Some("quantity")
                     && let Some(quantity) = object.get("value").and_then(Value::as_object)
@@ -4067,7 +4341,8 @@ mod tests {
                     collect_declared_waiver_occurrences(
                         item,
                         &field_path,
-                        field == "descriptor",
+                        (field == "descriptor")
+                            .then(|| optional_string(object, "category") == Some("variable")),
                         output,
                     );
                 }
@@ -4080,7 +4355,7 @@ mod tests {
     #[ensures(true)]
     fn declared_waiver_occurrences(graph: &Value) -> BTreeSet<XmlOmission> {
         let mut occurrences = BTreeSet::new();
-        collect_declared_waiver_occurrences(graph, "", false, &mut occurrences);
+        collect_declared_waiver_occurrences(graph, "", None, &mut occurrences);
         occurrences
     }
 
@@ -6121,7 +6396,9 @@ impl RenderState {
                 ));
             }
         }
-        if let Some(adjuncts) = object.get("adjuncts").and_then(Value::as_array) {
+        if !self.suppress_predication_adjuncts()
+            && let Some(adjuncts) = object.get("adjuncts").and_then(Value::as_array)
+        {
             self.account_field(graph, object, "adjuncts");
             for adjunct in adjuncts {
                 result.push(self.render_added_place(
