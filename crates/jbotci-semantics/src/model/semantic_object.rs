@@ -131,8 +131,10 @@ pub struct EventualityNode {
 
 #[invariant(!sort.is_subsort_of(SemanticSort::eventuality()))]
 #[invariant(*sort != SemanticSort::Sign)]
-#[invariant(category != &ReferentCategory::Indexical || indexical.is_some())]
-#[invariant(category == &ReferentCategory::Indexical || indexical.is_none())]
+#[invariant((category == &ReferentCategory::Indexical) == (indexical.is_some() || deictic_reference.is_some()))]
+#[invariant(indexical.is_none() || deictic_reference.is_none())]
+#[invariant(personal_mass_membership.as_ref().is_none_or(|_| category == &ReferentCategory::Composite && *sort == SemanticSort::Mass && descriptor.is_none() && composition.is_none()))]
+#[invariant(generated_referent.is_none_or(|_| category == &ReferentCategory::Constant && descriptor.is_none() && composition.is_none() && personal_mass_membership.is_none() && deictic_reference.is_none()))]
 #[invariant((category == &ReferentCategory::Constant) == scope_dependence.is_some())]
 #[invariant(body.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(parameters.iter().all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
@@ -147,8 +149,11 @@ pub struct ReferentNode {
     pub scope_dependence: Option<ScopeDependence>,
     pub sort: SemanticSort,
     pub indexical: Option<IndexicalKind>,
+    pub deictic_reference: Option<DeicticReference>,
     pub descriptor: Option<Descriptor>,
     pub composition: Option<Composition>,
+    pub personal_mass_membership: Option<PersonalMassMembership>,
+    pub generated_referent: Option<GeneratedReferent>,
     pub relative_clauses: Vec<RelativeClause>,
     pub assigned_names: Vec<AssignedName>,
     pub body: Option<SemanticObjectId>,
@@ -1151,8 +1156,11 @@ impl SemanticObject {
             scope_dependence,
             sort,
             indexical,
+            deictic_reference: None,
             descriptor,
             composition,
+            personal_mass_membership: None,
+            generated_referent: None,
             relative_clauses: Vec::new(),
             assigned_names: Vec::new(),
             body: None,
@@ -1167,6 +1175,77 @@ impl SemanticObject {
             subscript: None,
             common: SemanticObjectCommon::new(source, diagnostics),
         })))
+    }
+
+    #[requires(membership.speaker.referent().object_kind() == SemanticObjectKind::Referent)]
+    #[requires(membership.audience.referent().object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.sort() == Some(SemanticSort::Mass))]
+    pub fn personal_mass_referent(
+        membership: PersonalMassMembership,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        let mut referent = Self::referent(
+            ReferentCategory::Composite,
+            SemanticSort::Mass,
+            None,
+            None,
+            None,
+            source,
+            Vec::new(),
+        );
+        referent.update_referent(|node| {
+            node.with_data(data! {
+                personal_mass_membership: Some(membership),
+            })
+        });
+        referent
+    }
+
+    #[requires(ground.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.sort() == Some(SemanticSort::Entity))]
+    pub fn deictic_referent(
+        proximity: DeicticProximity,
+        ground: SemanticObjectId,
+        source: Option<SemanticSource>,
+    ) -> Self {
+        let mut referent = Self::referent(
+            ReferentCategory::Indexical,
+            SemanticSort::Entity,
+            Some(IndexicalKind::Here),
+            None,
+            None,
+            source,
+            Vec::new(),
+        );
+        referent.update_referent(|node| {
+            node.with_data(data! {
+                indexical: None,
+                deictic_reference: Some(DeicticReference::new(proximity, ground)),
+            })
+        });
+        referent
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn generated_unspecified_referent() -> Self {
+        let mut referent = Self::referent(
+            ReferentCategory::Constant,
+            SemanticSort::Entity,
+            None,
+            None,
+            None,
+            None,
+            Vec::new(),
+        );
+        referent.update_referent(|node| {
+            node.with_data(data! {
+                generated_referent: Some(GeneratedReferent::elided_unspecified()),
+            })
+        });
+        referent
     }
 
     #[requires(!introduced_by.is_empty())]
@@ -2693,8 +2772,15 @@ fn serialize_referent<M: SerializeMap>(map: &mut M, node: &ReferentNode) -> Resu
     optional_entry!(map, "scopeDependence", node.scope_dependence.as_ref());
     map.serialize_entry("sort", &node.sort)?;
     optional_entry!(map, "indexical", node.indexical.as_ref());
+    optional_entry!(map, "deicticReference", node.deictic_reference.as_ref());
     optional_entry!(map, "descriptor", node.descriptor.as_ref());
     optional_entry!(map, "composition", node.composition.as_ref());
+    optional_entry!(
+        map,
+        "personalMassMembership",
+        node.personal_mass_membership.as_ref()
+    );
+    optional_entry!(map, "generatedReferent", node.generated_referent.as_ref());
     nonempty_entry!(map, "relativeClauses", &node.relative_clauses);
     nonempty_entry!(map, "assignedNames", &node.assigned_names);
     optional_entry!(map, "body", node.body.as_ref());
@@ -2998,6 +3084,12 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             extend_optional(out, node.experiencer);
             extend_optional(out, node.scale);
             extend_optional(out, node.target);
+            if let Some(deictic_reference) = node.deictic_reference {
+                out.push(deictic_reference.ground);
+            }
+            if let Some(membership) = &node.personal_mass_membership {
+                membership.references_into(out);
+            }
             collect_referent_references(
                 node.descriptor.as_ref(),
                 node.composition.as_ref(),

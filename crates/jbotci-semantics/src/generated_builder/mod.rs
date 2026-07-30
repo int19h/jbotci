@@ -98,21 +98,22 @@ use crate::facade::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
     ArgumentValue, ArgumentValueData, ArgumentValueKind, Aspect, AssignedName, AssignedNameData,
-    CommandTarget, Composition, CompositionOperator, Connector, Descriptor, DescriptorDefiniteness,
-    DescriptorKind, DisplayedContentAssertionEffect, DisplayedContentFamily,
-    DisplayedContentModifier, DisplayedContentNode, DisplayedContentPolarity,
-    DisplayedContentTargetFocus, ElidedConnectionOperand, EventualityClass, EventualityNode,
-    EventualityNodeData, EventualitySort, ForethoughtRelationBranch, FormulaNode, FormulaNodeData,
-    FormulaOperator, FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
-    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
-    MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
-    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, ModalArgument,
-    ModalArgumentData, ModalNegation, ModalNegationKind, NonlogicalConnection, ParagraphTransition,
-    ParameterRole, PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData, PredicationMode,
-    PredicationNode, PredicationNodeData, PredicationRelationData, QuantifierBinding,
-    QuantifierBundleFormulaNode, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
-    QuestionMode, QuestionNode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding,
-    ReciprocalExchange, ReciprocalExchangeData, Recurrence, RecurrenceConnection,
+    CommandTarget, Composition, CompositionOperator, Connector, DeicticProximity, Descriptor,
+    DescriptorDefiniteness, DescriptorKind, DisplayedContentAssertionEffect,
+    DisplayedContentFamily, DisplayedContentModifier, DisplayedContentNode,
+    DisplayedContentPolarity, DisplayedContentTargetFocus, ElidedConnectionOperand,
+    EventualityClass, EventualityNode, EventualityNodeData, EventualitySort,
+    ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
+    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
+    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
+    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
+    MixedRadixComponent, ModalArgument, ModalArgumentData, ModalNegation, ModalNegationKind,
+    NonlogicalConnection, ParagraphTransition, ParameterRole, PersonalMassMembership,
+    PersonalParticipantMembership, PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData,
+    PredicationMode, PredicationNode, PredicationNodeData, PredicationRelationData,
+    QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm, QuantityScale, QuantityValue,
+    QuestionKind, QuestionMode, QuestionNode, QuestionSlot, QuestionSlotRole, Quotation,
+    RafsiBinding, ReciprocalExchange, ReciprocalExchangeData, Recurrence, RecurrenceConnection,
     RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion,
     RelationLabel, RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream,
     ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject,
@@ -8514,7 +8515,8 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 mod tests {
     use super::*;
     use crate::model::{
-        ActualityKind, DomainImport, ScopeDependence, ScopeDependenceData, SemanticObjectKind,
+        ActualityKind, DeicticReference, DomainImport, GeneratedReferent, ScopeDependence,
+        ScopeDependenceData, SemanticObjectKind,
     };
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
@@ -8529,6 +8531,92 @@ mod tests {
     #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
     fn semantic_result_for(source: &str) -> Result<SemanticGraph, SemanticsError> {
         semantic_result_for_with_parse_options(source, &jbotci_syntax::ParseOptions::default())
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compound_personals_and_demonstratives_have_structural_references() {
+        for (word, speaker_included, audience_included, has_others) in [
+            ("mi'o", true, true, false),
+            ("mi'a", true, false, true),
+            ("ma'a", true, true, true),
+            ("do'o", false, true, true),
+        ] {
+            let graph = semantic_graph_for(&format!("{word} klama"));
+            let (personal_id, personal) = graph
+                .objects
+                .iter()
+                .find_map(|(id, object)| {
+                    (object.source().and_then(|source| source.text.as_deref()) == Some(word))
+                        .then(|| object.as_referent().map(|referent| (*id, referent)))
+                        .flatten()
+                })
+                .expect("surface personal referent");
+            assert_eq!(personal.sort, SemanticSort::Mass);
+            assert!(personal.descriptor.is_none());
+            assert!(personal.composition.is_none());
+            let membership = personal
+                .personal_mass_membership
+                .as_ref()
+                .expect("typed personal membership");
+            assert_eq!(membership.speaker.is_included(), speaker_included);
+            assert_eq!(membership.audience.is_included(), audience_included);
+            assert_eq!(membership.speaker.referent(), SemanticObjectId::speaker());
+            assert_eq!(
+                membership.audience.referent(),
+                SemanticObjectId::addressee()
+            );
+            assert_eq!(membership.others.is_some(), has_others);
+            assert!(
+                graph.objects[&personal_id]
+                    .as_referent()
+                    .and_then(|referent| referent.descriptor.as_ref())
+                    .is_none()
+            );
+            if let Some(others) = membership.others {
+                let generated = graph.objects[&others]
+                    .as_referent()
+                    .expect("others is a referent");
+                assert!(generated.descriptor.is_none());
+                assert!(generated.common.source.is_none());
+                assert_eq!(
+                    generated.generated_referent,
+                    Some(GeneratedReferent::elided_unspecified())
+                );
+                assert_eq!(
+                    graph
+                        .objects
+                        .values()
+                        .filter_map(SemanticObject::as_referent)
+                        .filter(|referent| referent.generated_referent.is_some())
+                        .count(),
+                    1
+                );
+            }
+        }
+
+        for (word, proximity) in [
+            ("ti", DeicticProximity::Proximal),
+            ("ta", DeicticProximity::Medial),
+            ("tu", DeicticProximity::Distal),
+        ] {
+            let graph = semantic_graph_for(&format!("{word} klama"));
+            let deictic = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    (object.source().and_then(|source| source.text.as_deref()) == Some(word))
+                        .then(|| object.as_referent())
+                        .flatten()
+                })
+                .expect("surface demonstrative referent");
+            assert!(deictic.descriptor.is_none());
+            assert_eq!(
+                deictic.deictic_reference,
+                Some(DeicticReference::new(proximity, SemanticObjectId::here(),))
+            );
+        }
     }
 
     #[requires(!source.is_empty())]
@@ -8912,9 +9000,9 @@ mod tests {
             data!(PredicationRelation::Named { relation }) if relation == "tavla"
         ));
         for (place, indexical) in [
-            (1, IndexicalKind::Speaker),
-            (2, IndexicalKind::Audience),
-            (3, IndexicalKind::ProximalDemonstrative),
+            (1, Some(IndexicalKind::Speaker)),
+            (2, Some(IndexicalKind::Audience)),
+            (3, None),
         ] {
             let argument = predication
                 .arguments
@@ -8927,9 +9015,21 @@ mod tests {
                     .and_then(|id| graph.objects.get(&id))
                     .and_then(SemanticObject::as_referent)
                     .and_then(|referent| referent.indexical),
-                Some(indexical)
+                indexical
             );
         }
+        let demonstrative = predication.arguments[&argument_key(3)]
+            .value
+            .and_then(|id| graph.objects.get(&id))
+            .and_then(SemanticObject::as_referent)
+            .and_then(|referent| referent.deictic_reference);
+        assert_eq!(
+            demonstrative,
+            Some(DeicticReference::new(
+                DeicticProximity::Proximal,
+                SemanticObjectId::here(),
+            ))
+        );
     }
 
     #[test]
@@ -9856,8 +9956,9 @@ mod tests {
                 .value
                 .and_then(|id| moi.objects.get(&id))
                 .and_then(SemanticObject::as_referent)
-                .and_then(|referent| referent.indexical),
-            Some(IndexicalKind::MedialDemonstrative)
+                .and_then(|referent| referent.deictic_reference)
+                .map(|reference| reference.proximity),
+            Some(DeicticProximity::Medial)
         );
         assert_eq!(
             ordinal.arguments[&argument_key(2)]
