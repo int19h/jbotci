@@ -830,12 +830,14 @@ impl XmlRepresentationPlan {
 }
 
 #[cfg(test)]
-#[invariant(::PredicationAdjuncts => true)]
-#[invariant(::ReferentArity => true)]
+#[invariant(
+    *predication_adjuncts != *referent_arity,
+    "a hostile renderer drops exactly one independent branch"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TestRenderSuppression {
-    PredicationAdjuncts,
-    ReferentArity,
+struct TestRenderSuppression {
+    predication_adjuncts: bool,
+    referent_arity: bool,
 }
 
 // Validated once in `from_value`; fields are private and never mutated.
@@ -2027,7 +2029,9 @@ impl RenderState {
     fn suppress_predication_adjuncts(&self) -> bool {
         #[cfg(test)]
         {
-            self.test_suppression == Some(TestRenderSuppression::PredicationAdjuncts)
+            self.test_suppression
+                .as_ref()
+                .is_some_and(|suppression| suppression.predication_adjuncts)
         }
         #[cfg(not(test))]
         {
@@ -2040,7 +2044,9 @@ impl RenderState {
     fn suppress_referent_arity(&self) -> bool {
         #[cfg(test)]
         {
-            self.test_suppression == Some(TestRenderSuppression::ReferentArity)
+            self.test_suppression
+                .as_ref()
+                .is_some_and(|suppression| suppression.referent_arity)
         }
         #[cfg(not(test))]
         {
@@ -4094,7 +4100,10 @@ mod tests {
         let rendered = render_xml_value_with_test_suppression(
             graph,
             "<hostile-adjunct-drop>",
-            TestRenderSuppression::PredicationAdjuncts,
+            new!(TestRenderSuppression {
+                predication_adjuncts: true,
+                referent_arity: false,
+            }),
         );
 
         assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
@@ -4127,7 +4136,10 @@ mod tests {
         let rendered = render_xml_value_with_test_suppression(
             graph,
             "<hostile-scalar-drop>",
-            TestRenderSuppression::ReferentArity,
+            new!(TestRenderSuppression {
+                predication_adjuncts: false,
+                referent_arity: true,
+            }),
         );
 
         assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
