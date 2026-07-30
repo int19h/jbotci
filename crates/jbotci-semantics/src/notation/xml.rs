@@ -175,7 +175,7 @@ pub enum XmlSurface {
 impl XmlSurface {
     /// Return this occurrence's canonical JSON Pointer.
     #[requires(true)]
-    #[ensures(!ret.is_empty())]
+    #[ensures(ret.starts_with("/objects/"))]
     pub fn path(&self) -> &str {
         match self.as_data() {
             data!(XmlSurface::Object { path }) | data!(XmlSurface::Field { path }) => path,
