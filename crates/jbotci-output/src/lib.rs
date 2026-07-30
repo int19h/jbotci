@@ -1529,7 +1529,14 @@ mod tests {
             WordType::ZeiLujvo | WordType::ObsoleteZeiLujvo => {
                 words.len() == 1 && contains_zei_compound(&words[0])
             }
-            WordType::Phrase => words.len() >= 2,
+            WordType::Phrase => {
+                words.len() >= 2
+                    || words.first().is_some_and(|word| {
+                        // Magic words such as BU and ZEI fold multiple written words into
+                        // one structured morphology node.
+                        !matches!(word.as_data(), data!(WordLike::PlainWord(_)))
+                    })
+            }
         }
     }
 

@@ -177,6 +177,9 @@ fn parse_chapter(
     let mut parse_state = BlockParseState {
         chapter_example_counter: 0,
     };
+    let has_sections = root
+        .children()
+        .any(|child| child.is_element() && child.has_tag_name("section"));
 
     if let Some(title_node) = title_node {
         collect_title_anchors(
@@ -187,28 +190,44 @@ fn parse_chapter(
         );
     }
 
-    for child in root.children().filter(Node::is_element) {
-        if child.has_tag_name("title") {
-            continue;
+    if has_sections {
+        for child in root.children().filter(Node::is_element) {
+            if child.has_tag_name("title") {
+                continue;
+            }
+            if child.has_tag_name("section") {
+                section_index += 1;
+                let parsed = parse_section(
+                    child,
+                    &chapter_id,
+                    chapter_number,
+                    section_index,
+                    source_path,
+                    &mut parse_state,
+                )?;
+                root_section_ids.push(parsed.0.section_id.clone());
+                examples.extend(parsed.1);
+                anchors.extend(parsed.2);
+                index_entries.extend(parsed.3);
+                sections.push(parsed.0);
+            } else if let Some(block) = parse_standalone_chapter_block(child) {
+                prelude_blocks.push(block);
+            }
         }
-        if child.has_tag_name("section") {
-            section_index += 1;
-            let parsed = parse_section(
-                child,
-                &chapter_id,
-                chapter_number,
-                section_index,
-                source_path,
-                &mut parse_state,
-            )?;
-            root_section_ids.push(parsed.0.section_id.clone());
-            examples.extend(parsed.1);
-            anchors.extend(parsed.2);
-            index_entries.extend(parsed.3);
-            sections.push(parsed.0);
-        } else if let Some(block) = parse_standalone_chapter_block(child) {
-            prelude_blocks.push(block);
-        }
+    } else {
+        let parsed = parse_sectionless_chapter(
+            root,
+            &chapter_id,
+            chapter_number,
+            &chapter_title,
+            source_path,
+            &mut parse_state,
+        );
+        root_section_ids.push(parsed.0.section_id.clone());
+        examples.extend(parsed.1);
+        anchors.extend(parsed.2);
+        index_entries.extend(parsed.3);
+        sections.push(parsed.0);
     }
 
     anchors.push((
@@ -241,6 +260,90 @@ fn parse_chapter(
 #[ensures(ret.starts_with("Chapter "))]
 fn chapter_xref_label(chapter_number: u16) -> String {
     format!("Chapter {chapter_number}")
+}
+
+#[requires(root.is_element())]
+#[requires(chapter_number > 0)]
+#[requires(!chapter_id.is_empty())]
+#[requires(!chapter_title.is_empty())]
+#[requires(!source_path.is_empty())]
+#[ensures(ret.0.chapter_number == chapter_number)]
+#[ensures(ret.0.section_id == chapter_id)]
+fn parse_sectionless_chapter(
+    root: Node<'_, '_>,
+    chapter_id: &str,
+    chapter_number: u16,
+    chapter_title: &str,
+    source_path: &str,
+    parse_state: &mut BlockParseState,
+) -> (
+    CllSection,
+    Vec<CllExample>,
+    Vec<(String, CllAnchor)>,
+    Vec<PendingIndexEntry>,
+) {
+    let section_number = chapter_number.to_string();
+    let context = SectionParseContext {
+        chapter_id: chapter_id.to_owned(),
+        chapter_number,
+        section_id: chapter_id.to_owned(),
+        section_number: section_number.clone(),
+        section_title: chapter_title.to_owned(),
+        source_path: source_path.to_owned(),
+    };
+    let mut examples = Vec::new();
+    let mut anchors = Vec::new();
+    let index_entries = root
+        .descendants()
+        .filter(|node| node.is_element() && node.has_tag_name("indexterm"))
+        .filter_map(index_key)
+        .map(|key| PendingIndexEntry {
+            key,
+            section_id: chapter_id.to_owned(),
+        })
+        .collect();
+    let content_nodes = root
+        .children()
+        .filter(|child| {
+            child.is_text()
+                || (child.is_element()
+                    && !child.has_tag_name("title")
+                    && !child.has_tag_name("indexterm"))
+        })
+        .collect::<Vec<_>>();
+    let blocks = parse_blocks_from_nodes(
+        &content_nodes,
+        &context,
+        AnchorMode::TopLevel,
+        parse_state,
+        &mut examples,
+        &mut anchors,
+    );
+    anchors.push((
+        chapter_id.to_owned(),
+        new!(CllAnchor {
+            section_id: chapter_id.to_owned(),
+            label: format!("{section_number}. {chapter_title}"),
+        }),
+    ));
+
+    (
+        new!(CllSection {
+            section_id: chapter_id.to_owned(),
+            chapter_id: chapter_id.to_owned(),
+            chapter_number,
+            number: section_number,
+            title: chapter_title.to_owned(),
+            parent_section_id: None,
+            child_section_ids: Vec::new(),
+            blocks,
+            source_path: source_path.to_owned(),
+            plain_text: String::new(),
+        }),
+        examples,
+        anchors,
+        index_entries,
+    )
 }
 
 #[requires(section_node.is_element())]
@@ -1256,7 +1359,7 @@ fn parse_variable_list_block(
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
     if context.section_id == cll_import_metadata().ebnf_section_id {
-        return parse_ebnf_block(node, context);
+        return parse_ebnf_block(node, context, anchors);
     }
     let entries = node
         .children()
@@ -2128,7 +2231,7 @@ pub(crate) fn xml_id(node: Node<'_, '_>) -> Option<String> {
 
 #[requires(node.is_element())]
 #[ensures(true)]
-fn attr_string(node: Node<'_, '_>, name: &str) -> Option<String> {
+pub(crate) fn attr_string(node: Node<'_, '_>, name: &str) -> Option<String> {
     node.attribute(name)
         .or_else(|| {
             let local_name = name.rsplit(':').next().unwrap_or(name);

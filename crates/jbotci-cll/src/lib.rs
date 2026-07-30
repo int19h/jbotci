@@ -18,8 +18,8 @@ use import::{
     parse_paragraph_blocks,
 };
 pub(crate) use import::{
-    PendingIndexEntry, SectionParseContext, block_anchor_id_for, child_element, raw_text,
-    visible_text, visible_text_raw, xml_id,
+    PendingIndexEntry, SectionParseContext, attr_string, block_anchor_id_for, child_element,
+    raw_text, visible_text, visible_text_raw, xml_id,
 };
 use import::{
     chrestomathy_area_groups, chrestomathy_area_label, chrestomathy_group_id,
@@ -888,7 +888,7 @@ fn escape_html_into(output: &mut String, input: &str) {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
     #[allow(unused_imports)]
@@ -942,7 +942,7 @@ mod tests {
         );
         assert_eq!(
             cll_link_href(site, CllLinkKind::Section, "chapter-grammars"),
-            "section/section-EBNF#chapter-grammars"
+            "section/section-grammars-introduction#chapter-grammars"
         );
     }
 
@@ -1118,7 +1118,7 @@ mod tests {
         let cases = [
             (
                 "1.8",
-                "4494a0d69fd5f7eca5e28a4a082c7fb7b8c3eac150b7df9f21dbc21087075bff",
+                "431f3bacf76041930750732951d356e792574c85f31a41e717e7aab6abfe1710",
             ),
             (
                 "2.1",
@@ -1126,11 +1126,11 @@ mod tests {
             ),
             (
                 "9.6",
-                "98c5e85f5fc1d3386a4b4824e239ba6f4b050676bc780a201bb8163f3b5d8d77",
+                "93e8a2ea9d7b806413d17cccf07996d569bffccf09b1911f5d682d670c2c92e7",
             ),
             (
                 "section-EBNF",
-                "7c83e0fe44e9bca28b1c405247f3f61374e12f441707da3be9cb1b209dd04ad1",
+                "0685302ea249fbcaaedef565e917d6866bdafc362e41440c235603f8ed3599aa",
             ),
         ];
 
@@ -1158,7 +1158,7 @@ mod tests {
         let cases = [
             (
                 "1.8",
-                "a58fbf37c50b71d141b25ac7b440f74d1440b8620f44759a1de618406cfc28fc",
+                "d2eb92b7063ce00201b4ab4b7c4a76ba8dded192b74a5ccad84f29082a5d4366",
             ),
             (
                 "2.1",
@@ -1166,11 +1166,11 @@ mod tests {
             ),
             (
                 "9.6",
-                "d5a91b4ff0a90ffb5c80747122dbab341453d27b5ddaed331a000c5e0d9cedd9",
+                "d8f3a4ecca12a8da76ce60964006413dc6c1cc00b35addd214c476c29964aeb2",
             ),
             (
                 "section-EBNF",
-                "2e3a1e3c4dfac64839ecfd9a1c48fbe48506fe0607a22ff580bbb26552b9adde",
+                "a7aa9ac42cbf574aaeaee9c0ad0ba33771099ca3f7804c84723c2e845608ee5a",
             ),
         ];
 
@@ -1315,12 +1315,201 @@ mod tests {
             .find(|chapter| chapter.chapter_id == metadata.chrestomathy_chapter_id)
             .expect("metadata chrestomathy chapter should exist");
 
-        assert_eq!(chrestomathy.chapter_number, 22);
-        assert!(cll_lookup_section(site, &metadata.ebnf_section_id).is_some());
+        assert_eq!(chrestomathy.chapter_number, 23);
+        let ebnf = cll_lookup_section(site, &metadata.ebnf_section_id)
+            .expect("metadata EBNF section should exist");
+        assert_eq!(ebnf.number, "21.2");
         assert_eq!(
-            ebnf_symbol_href("BRIVLA").as_deref(),
-            Some("section/section-morphology-brivla")
+            ebnf.blocks
+                .iter()
+                .filter_map(|block| match block {
+                    CllBlock::Ebnf { entries, .. } => Some(entries.len()),
+                    _ => None,
+                })
+                .sum::<usize>(),
+            92
         );
+        let expected_symbols = [
+            ("BRIVLA", "section-morphology-brivla"),
+            ("CMEVLA", "section-cmevla"),
+            ("any-word", "section-more-quotations"),
+            ("anything", "section-more-quotations"),
+            ("null", "section-erasure"),
+        ];
+        assert_eq!(metadata.ebnf_symbols.len(), expected_symbols.len());
+        for (symbol, section_id) in expected_symbols {
+            assert_eq!(
+                metadata.ebnf_symbols.get(symbol).map(String::as_str),
+                Some(section_id)
+            );
+            assert!(cll_lookup_section(site, section_id).is_some());
+            assert_eq!(ebnf_symbol_href(symbol), Some(section_href(section_id)));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sectionless_peg_morphology_appendix_renders_as_preformatted_cukta_section() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "appendix-peg-morphology")
+            .expect("PEG morphology appendix should be addressable through cukta");
+        assert_eq!(section.chapter_number, 24);
+        assert_eq!(section.number, "24");
+        let grammar = section
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::Code { text, .. } => Some(text),
+                _ => None,
+            })
+            .expect("PEG morphology appendix should contain a code block");
+        assert_eq!(grammar.lines().count(), 564);
+        assert!(grammar.starts_with("# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
+        assert!(grammar.contains("\nlojban_word <- CMEVLA / CMAVO / BRIVLA\n"));
+        assert!(grammar.ends_with("ZOhU <- &cmavo ( z o h u ) &post_word"));
+
+        let rendered = render_cukta_request(
+            site,
+            &CuktaRequest::Section {
+                reference: "appendix-peg-morphology".to_owned(),
+            },
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        )
+        .expect("PEG morphology appendix should render through cukta");
+        assert!(rendered.contains("```\n# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
+        assert!(rendered.contains("\nZOhU <- &cmavo ( z o h u ) &post_word\n```"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restored_ebnf_cross_reference_links_to_rendered_rules() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let cross_reference = cll_lookup_section(site, "section-cross-reference")
+            .expect("restored EBNF cross-reference section should exist");
+        assert_eq!(cross_reference.number, "21.3");
+        assert_eq!(
+            cross_reference
+                .blocks
+                .iter()
+                .filter_map(|block| match block {
+                    CllBlock::VariableList { entries, .. } => Some(entries.len()),
+                    _ => None,
+                })
+                .sum::<usize>(),
+            214
+        );
+
+        let ebnf = cll_lookup_section(site, "section-EBNF").expect("EBNF section should exist");
+        let mut source_anchor_count = 0;
+        let mut source_anchor_ids = BTreeSet::new();
+        for anchor_id in ebnf
+            .blocks
+            .iter()
+            .filter_map(|block| match block {
+                CllBlock::Ebnf { entries, .. } => Some(entries),
+                _ => None,
+            })
+            .flatten()
+            .flat_map(|entry| &entry.source_anchor_ids)
+            .filter(|anchor_id| anchor_id.starts_with("cll_bnf-"))
+        {
+            source_anchor_count += 1;
+            source_anchor_ids.insert(anchor_id.as_str());
+        }
+        assert_eq!(source_anchor_count, 90);
+        assert_eq!(source_anchor_ids.len(), 90);
+
+        let mut link_targets = CllLinkTargetCounts {
+            counts: BTreeMap::new(),
+        };
+        link_targets.visit_blocks(&cross_reference.blocks);
+        let reference_count = link_targets
+            .counts
+            .iter()
+            .filter(|(target, _)| target.starts_with("cll_bnf-"))
+            .map(|(_, count)| count)
+            .sum::<usize>();
+        assert_eq!(reference_count, 456);
+        let referenced_anchor_ids = link_targets
+            .counts
+            .keys()
+            .filter(|target| target.starts_with("cll_bnf-"))
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(referenced_anchor_ids.len(), 90);
+        assert_eq!(referenced_anchor_ids, source_anchor_ids);
+
+        let emitted_anchor_ids = site
+            .anchors_by_id
+            .iter()
+            .filter(|(anchor_id, anchor)| {
+                anchor_id.starts_with("cll_bnf-") && anchor.section_id == "section-EBNF"
+            })
+            .map(|(anchor_id, _)| anchor_id.as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(emitted_anchor_ids, source_anchor_ids);
+
+        let rendered_cross_reference = render_section(
+            site,
+            cross_reference,
+            CllRenderFormat::Html,
+            CllLinkRenderMode::Web,
+        );
+        let rendered_ebnf =
+            render_section(site, ebnf, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        for anchor_id in referenced_anchor_ids {
+            let href = cll_link_href(site, CllLinkKind::Section, anchor_id);
+            assert_eq!(href, format!("section/section-EBNF#{anchor_id}"));
+            assert!(
+                rendered_cross_reference.contains(&format!("href=\"{href}\"")),
+                "cross-reference output should link to {anchor_id}"
+            );
+            assert!(
+                rendered_ebnf.contains(&format!("id=\"{anchor_id}\"")),
+                "EBNF output should emit {anchor_id}"
+            );
+        }
+        assert!(rendered_ebnf.contains("id=\"ebnf-rule-ek\""));
+    }
+
+    #[invariant(
+        true,
+        "all combinations of link targets and occurrence counts are valid collector state"
+    )]
+    struct CllLinkTargetCounts {
+        counts: BTreeMap<String, usize>,
+    }
+
+    #[contract_trait]
+    impl CllBlockVisitor for CllLinkTargetCounts {
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_inline(&mut self, inline: &CllInline) {
+            if let CllInline::Link { target, .. } = inline {
+                if let Some(count) = self.counts.get_mut(target) {
+                    *count += 1;
+                } else {
+                    self.counts.insert(target.clone(), 1);
+                }
+            }
+            super::visitor::walk_inline(self, inline);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn colojban_import_covers_all_source_sections_and_anchored_examples() {
+        let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
+        assert_eq!(site.chapters.len(), 25);
+        // The sources contain 338 section elements. The sectionless PEG appendix
+        // adds one addressable root section so its program listing is not hidden.
+        assert_eq!(site.sections_by_id.len(), 339);
+        assert_eq!(site.section_order.len(), 339);
+        assert_eq!(site.examples_by_id.len(), 1857);
     }
 
     #[test]
@@ -1354,7 +1543,10 @@ mod tests {
             CllLinkRenderMode::Web,
         );
 
-        assert!(rendered.contains("[Chapter 21](section/section-EBNF#chapter-grammars)"));
+        assert!(
+            rendered
+                .contains("[Chapter 21](section/section-grammars-introduction#chapter-grammars)")
+        );
         assert!(rendered.contains("[Chapter 2](section/section-bridi#chapter-tour)"));
         assert!(!rendered.contains("[chapter-grammars]"));
         assert!(!rendered.contains("[chapter-tour]"));

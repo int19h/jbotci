@@ -76,5 +76,7 @@ uploads matching q4-generated `f16le` vector packs under the normal web
 embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
 EmbeddingGemma entries are preserved.
 
-`vendor/cll` is kept as a submodule because CLL examples and references are
-part of the core parser and semantics development loop.
+`vendor/cll` tracks the
+[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.2` release.
+It is kept as a submodule because CLL examples and references are part of the
+core parser and semantics development loop.

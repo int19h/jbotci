@@ -1417,6 +1417,42 @@ fn render_reference(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         if let Some(indexical) = field_str(obj, "indexical") {
             w.field("INDEXICAL", &enum_render(indexical));
         }
+        if let Some(deictic) = obj.get("deicticReference") {
+            w.heading("DEICTIC REFERENCE", |w| {
+                w.field("PROXIMITY", &enum_render(req_str(deictic, "proximity")));
+                w.field("GROUND", &ctx.id_of(req_val(deictic, "ground")));
+            });
+        }
+        if let Some(personal) = obj.get("personalMassMembership") {
+            w.heading("PERSONAL MASS MEMBERSHIP", |w| {
+                for (label, field) in [("SPEAKER", "speaker"), ("AUDIENCE", "audience")] {
+                    let participant = req_val(personal, field);
+                    w.field(
+                        label,
+                        &format!(
+                            "{} {}",
+                            enum_render(req_str(participant, "membership")),
+                            ctx.id_of(req_val(participant, "referent"))
+                        ),
+                    );
+                }
+                if let Some(others) = personal.get("others") {
+                    w.field("OTHERS", &ctx.id_of(others));
+                }
+            });
+        }
+        if let Some(generated) = obj.get("generatedReferent") {
+            w.heading("GENERATED REFERENT", |w| {
+                w.field(
+                    "REALIZATION",
+                    &enum_render(req_str(generated, "realization")),
+                );
+                w.field(
+                    "SPECIFICITY",
+                    &enum_render(req_str(generated, "specificity")),
+                );
+            });
+        }
         if let Some(denotation) = field_str(obj, "denotation") {
             w.field("DENOTATION", &enum_render(denotation));
         }

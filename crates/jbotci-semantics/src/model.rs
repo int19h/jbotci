@@ -2065,9 +2065,147 @@ pub enum IndexicalKind {
     Audience,
     Now,
     Here,
-    ProximalDemonstrative,
-    MedialDemonstrative,
-    DistalDemonstrative,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DeicticProximity {
+    Proximal,
+    Medial,
+    Distal,
+}
+
+#[invariant(ground.object_kind() == SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeicticReference {
+    pub proximity: DeicticProximity,
+    pub ground: SemanticObjectId,
+}
+
+impl DeicticReference {
+    #[requires(ground.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.ground == ground)]
+    pub fn new(proximity: DeicticProximity, ground: SemanticObjectId) -> Self {
+        new!(DeicticReference { proximity, ground })
+    }
+}
+
+#[invariant(::Included { referent } => referent.object_kind() == SemanticObjectKind::Referent)]
+#[invariant(::Excluded { referent } => referent.object_kind() == SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "membership")]
+pub enum PersonalParticipantMembership {
+    Included { referent: SemanticObjectId },
+    Excluded { referent: SemanticObjectId },
+}
+
+impl PersonalParticipantMembership {
+    #[requires(referent.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent() == referent)]
+    pub fn included(referent: SemanticObjectId) -> Self {
+        new!(PersonalParticipantMembership::Included { referent })
+    }
+
+    #[requires(referent.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent() == referent)]
+    pub fn excluded(referent: SemanticObjectId) -> Self {
+        new!(PersonalParticipantMembership::Excluded { referent })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    pub fn referent(&self) -> SemanticObjectId {
+        match self.as_data() {
+            data!(PersonalParticipantMembership::Included { referent })
+            | data!(PersonalParticipantMembership::Excluded { referent }) => *referent,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(PersonalParticipantMembership::Included { .. })))]
+    pub fn is_included(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(PersonalParticipantMembership::Included { .. })
+        )
+    }
+}
+
+#[invariant(others.is_none() -> (speaker.is_included() && audience.is_included()))]
+#[invariant(others.is_some() -> (speaker.is_included() || audience.is_included()))]
+#[invariant(others.is_none_or(|others| others.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(speaker.referent() != audience.referent(), "speaker and audience must be distinct set members")]
+#[invariant(others.is_none_or(|others| others != speaker.referent() && others != audience.referent()), "unspecified others must be distinct from speaker and audience")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonalMassMembership {
+    pub speaker: PersonalParticipantMembership,
+    pub audience: PersonalParticipantMembership,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub others: Option<SemanticObjectId>,
+}
+
+impl PersonalMassMembership {
+    #[requires(others.is_none() -> (speaker.is_included() && audience.is_included()))]
+    #[requires(others.is_some() -> (speaker.is_included() || audience.is_included()))]
+    #[requires(others.is_none_or(|others| others.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(speaker.referent() != audience.referent())]
+    #[requires(others.is_none_or(|others| others != speaker.referent() && others != audience.referent()))]
+    #[ensures(ret.others == others)]
+    pub fn new(
+        speaker: PersonalParticipantMembership,
+        audience: PersonalParticipantMembership,
+        others: Option<SemanticObjectId>,
+    ) -> Self {
+        new!(PersonalMassMembership {
+            speaker,
+            audience,
+            others,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(out.len() == old(out.len()) + 2 + usize::from(self.others.is_some()))]
+    fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
+        out.extend([self.speaker.referent(), self.audience.referent()]);
+        extend_optional(out, self.others);
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GeneratedReferentRealization {
+    Elided,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GeneratedReferentSpecificity {
+    Unspecified,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedReferent {
+    pub realization: GeneratedReferentRealization,
+    pub specificity: GeneratedReferentSpecificity,
+}
+
+impl GeneratedReferent {
+    #[requires(true)]
+    #[ensures(ret.realization == GeneratedReferentRealization::Elided)]
+    #[ensures(ret.specificity == GeneratedReferentSpecificity::Unspecified)]
+    pub fn elided_unspecified() -> Self {
+        GeneratedReferent {
+            realization: GeneratedReferentRealization::Elided,
+            specificity: GeneratedReferentSpecificity::Unspecified,
+        }
+    }
 }
 
 #[invariant(!word.is_empty() || *kind == DescriptorKind::Description, "only bare descriptions may omit a descriptor word")]
@@ -4499,6 +4637,43 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn personal_mass_referent_rejects_descriptor() {
+        let membership = PersonalMassMembership::new(
+            PersonalParticipantMembership::included(SemanticObjectId::referent(1)),
+            PersonalParticipantMembership::included(SemanticObjectId::referent(2)),
+            None,
+        );
+        let referent = SemanticObject::personal_mass_referent(membership, None);
+        let node = referent
+            .as_referent()
+            .expect("personal mass is represented by a referent")
+            .clone()
+            .into_data();
+        let descriptor = new!(Descriptor {
+            kind: DescriptorKind::ProSumti,
+            word: "mi'o".to_owned(),
+            speaker: None,
+            body: None,
+            veridical: None,
+            relative_clauses: Vec::new(),
+            quantity: None,
+            name: None,
+            scale: None,
+            definiteness: None,
+            operand: None,
+        });
+
+        let invalid = ReferentNode::try_from_data(data!(ReferentNode {
+            descriptor: Some(descriptor),
+            ..node
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn semantic_object_id_rejects_zero_index_data() {
         let invalid = SemanticObjectId::try_from_data(data!(SemanticObjectId {
             prefix: SemanticIdPrefix::Structural(SemanticObjectKind::Formula),
@@ -4506,6 +4681,40 @@ mod tests {
         }));
 
         assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn personal_mass_membership_rejects_aliased_speaker_and_audience() {
+        let speaker = PersonalParticipantMembership::included(SemanticObjectId::referent(1));
+        let audience = PersonalParticipantMembership::included(SemanticObjectId::referent(1));
+
+        let invalid = PersonalMassMembership::try_from_data(data!(PersonalMassMembership {
+            speaker,
+            audience,
+            others: None,
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn personal_mass_membership_rejects_others_aliased_to_a_participant() {
+        let speaker = PersonalParticipantMembership::included(SemanticObjectId::referent(1));
+        let audience = PersonalParticipantMembership::excluded(SemanticObjectId::referent(2));
+
+        for others in [speaker.referent(), audience.referent()] {
+            let invalid = PersonalMassMembership::try_from_data(data!(PersonalMassMembership {
+                speaker,
+                audience,
+                others: Some(others),
+            }));
+
+            assert!(invalid.is_err());
+        }
     }
 
     #[test]

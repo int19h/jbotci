@@ -240,6 +240,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "chrestomathy grouping visitor is private traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:CllLinkTargetCounts",
+        "CLL link target counter is private test traversal accumulator state",
+    ),
+    (
         "crates/jbotci-cll/src/lib.rs:InlinePlainTextVisitor",
         "inline plain text visitor is private traversal accumulator state",
     ),
@@ -1094,6 +1098,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/model.rs:DeicticGround",
         "deictic ground is assembled by the utterance constructor from fixed special referents",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:GeneratedReferent",
+        "both fields are single-variant enums, so the struct has exactly one valid inhabitant",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:IntervalEndpointInclusion",

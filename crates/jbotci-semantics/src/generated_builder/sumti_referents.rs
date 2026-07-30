@@ -418,7 +418,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
             let argument = self.build_elided_argument_for_place(visible_x1_place)?;
             return self
-                .build_generated_ad_hoc_modal_argument_for_selbri(
+                .build_generated_fiho_modal_argument_for_selbri(
                     tense_modal,
                     selbri,
                     argument,
@@ -508,7 +508,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if let Some(selbri) = generated_fiho_tense_selbri(tense_modal) {
             return self
-                .build_generated_ad_hoc_modal_argument_for_selbri(
+                .build_generated_fiho_modal_argument_for_selbri(
                     tense_modal,
                     selbri,
                     argument,
@@ -558,14 +558,34 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(!construct.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|modal_argument| modal_argument.body.is_some() && modal_argument.relation.is_none()) || ret.is_err())]
-    pub(super) fn build_generated_ad_hoc_modal_argument_for_selbri<N: TreeNode>(
+    #[ensures(ret.as_ref().is_ok_and(|modal_argument| modal_argument.introduced_by == "fi'o" && (modal_argument.body.is_some() != modal_argument.relation.is_some())) || ret.is_err())]
+    pub(super) fn build_generated_fiho_modal_argument_for_selbri<N: TreeNode>(
         &mut self,
         tense_modal: &N,
         selbri: &'tree SelbriSyntax,
         argument: ArgumentValue,
         construct: &str,
     ) -> Result<ModalArgument, SemanticsError> {
+        if let Some(spec) = generated_simple_fiho_relation_spec(selbri)? {
+            let data!(GeneratedSimpleFihoRelationSpec {
+                relation,
+                visible_place,
+            }) = spec.into_data();
+            let arguments = self.modal_argument_map_for_visible_place(
+                argument,
+                visible_place,
+                relation_place_count(self.dictionary, &relation),
+            )?;
+            return Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                "fi'o".to_owned(),
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                construct,
+            ));
+        }
         let mut visible_arguments = BTreeMap::new();
         insert_visible_argument(&mut visible_arguments, 1, argument)?;
         let source = self.source_for_node(tense_modal, construct);
@@ -882,7 +902,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let visible_x1_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
             let argument = self.build_elided_argument_for_place(visible_x1_place)?;
             return self
-                .build_generated_ad_hoc_modal_argument_for_selbri(
+                .build_generated_fiho_modal_argument_for_selbri(
                     tense_modal,
                     selbri,
                     argument,
@@ -7077,6 +7097,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(Cmavo::Mi) => Ok(self.current_speaker()),
             Some(Cmavo::Do) => Ok(self.current_audience()),
             Some(Cmavo::Ko) => Ok(self.current_audience()),
+            Some(Cmavo::Miho) => self.build_personal_mass_referent(pro_sumti, true, true, false),
+            Some(Cmavo::Miha) => self.build_personal_mass_referent(pro_sumti, true, false, true),
+            Some(Cmavo::Maha) => self.build_personal_mass_referent(pro_sumti, true, true, true),
+            Some(Cmavo::Doho) => self.build_personal_mass_referent(pro_sumti, false, true, true),
             Some(Cmavo::Ma) => self.build_argument_question_parameter(pro_sumti),
             Some(Cmavo::Cehu) => {
                 self.build_generated_parameter(pro_sumti, ParameterRole::PropertySlot)
@@ -7122,13 +7146,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 | Cmavo::Dohi,
             ) => self.build_utterance_reference_referent(pro_sumti),
             Some(Cmavo::Ti) => {
-                self.build_demonstrative_referent(pro_sumti, IndexicalKind::ProximalDemonstrative)
+                self.build_demonstrative_referent(pro_sumti, DeicticProximity::Proximal)
             }
             Some(Cmavo::Ta) => {
-                self.build_demonstrative_referent(pro_sumti, IndexicalKind::MedialDemonstrative)
+                self.build_demonstrative_referent(pro_sumti, DeicticProximity::Medial)
             }
             Some(Cmavo::Tu) => {
-                self.build_demonstrative_referent(pro_sumti, IndexicalKind::DistalDemonstrative)
+                self.build_demonstrative_referent(pro_sumti, DeicticProximity::Distal)
             }
             Some(cmavo) if is_assignable_koha(cmavo) => self
                 .assigned_referents
@@ -7177,6 +7201,49 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             _ => self
                 .build_generated_pro_sumti_fallback_referent(pro_sumti, ReferentCategory::Constant),
         }
+    }
+
+    #[requires(speaker_included || audience_included)]
+    #[requires(include_others || (speaker_included && audience_included))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.referent_sort() == Some(SemanticSort::Mass)) || ret.is_err())]
+    pub(super) fn build_personal_mass_referent(
+        &mut self,
+        pro_sumti: &'tree ProSumtiSyntax,
+        speaker_included: bool,
+        audience_included: bool,
+        include_others: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let speaker = self.current_speaker();
+        let audience = self.current_audience();
+        let others = if include_others {
+            let id = self.next_referent_id();
+            self.insert(id, SemanticObject::generated_unspecified_referent())?;
+            Some(id)
+        } else {
+            None
+        };
+        let membership = PersonalMassMembership::new(
+            if speaker_included {
+                PersonalParticipantMembership::included(speaker)
+            } else {
+                PersonalParticipantMembership::excluded(speaker)
+            },
+            if audience_included {
+                PersonalParticipantMembership::included(audience)
+            } else {
+                PersonalParticipantMembership::excluded(audience)
+            },
+            others,
+        );
+        let id = self.next_referent_with_sort_id(SemanticSort::Mass);
+        self.insert(
+            id,
+            SemanticObject::personal_mass_referent(
+                membership,
+                self.source_for_node(pro_sumti, "sumti"),
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(pro_sumti.0.value.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di)))]
@@ -7680,19 +7747,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_demonstrative_referent(
         &mut self,
         pro_sumti: &'tree ProSumtiSyntax,
-        indexical: IndexicalKind,
+        proximity: DeicticProximity,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent_id();
         self.insert(
             id,
-            SemanticObject::referent(
-                ReferentCategory::Indexical,
-                SemanticSort::Entity,
-                Some(indexical),
-                None,
-                None,
+            SemanticObject::deictic_referent(
+                proximity,
+                self.current_here(),
                 self.source_for_node(pro_sumti, "sumti"),
-                Vec::new(),
             ),
         )?;
         Ok(id)

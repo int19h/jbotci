@@ -20,6 +20,184 @@ pub(super) fn relation_label_from_selbri(
     relation_label_from_co_selbri(co_selbri)
 }
 
+/// Extract the flat relation and converted tagged place from a `fi'o` selbri
+/// that contains exactly one lexical predicate.
+///
+/// Grouping is transparent only while every enclosed grammar layer still has
+/// one child. Any construct that contributes semantic structure of its own
+/// (tanru composition, connectives, `NU`, linked arguments, negation, and so
+/// on) returns `None` and therefore retains the body/component representation.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|spec| spec.as_ref().is_none_or(|spec| !spec.relation.is_empty() && spec.visible_place > 0)) || ret.is_err())]
+pub(super) fn generated_simple_fiho_relation_spec(
+    selbri: &SelbriSyntax,
+) -> Result<Option<GeneratedSimpleFihoRelationSpec>, SemanticsError> {
+    let mut inspector = GeneratedSimpleFihoRelationInspector::default();
+    TreeWalkable::walk_with(selbri, &mut inspector);
+    let data!(GeneratedSimpleFihoRelationInspector {
+        lexical_word,
+        composite,
+    }) = inspector.into_data();
+    let Some(word) = lexical_word.filter(|_| !composite) else {
+        return Ok(None);
+    };
+    let token = &word.0.value;
+    let relation = relation_label_from_token(token).display_text();
+    let visible_place = generated_raw_place_visible_rank_for_selbri(selbri, 1)?;
+    Ok(Some(new!(GeneratedSimpleFihoRelationSpec {
+        relation: relation,
+        visible_place: visible_place,
+    })))
+}
+
+#[invariant(!*composite || lexical_word.is_none(), "composite inspection state does not retain an irrelevant lexical word")]
+#[derive(Default)]
+struct GeneratedSimpleFihoRelationInspector<'tree> {
+    lexical_word: Option<&'tree WordTanruUnitSyntax>,
+    composite: bool,
+}
+
+impl<'tree> GeneratedSimpleFihoRelationInspector<'tree> {
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn mark_composite(&mut self) {
+        *self = new!(GeneratedSimpleFihoRelationInspector {
+            lexical_word: None,
+            composite: true,
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(self.lexical_word == Some(word) || self.composite)]
+    fn capture_lexical_word(&mut self, word: &'tree WordTanruUnitSyntax) {
+        if self.lexical_word.is_some() {
+            self.mark_composite();
+        } else {
+            *self = new!(GeneratedSimpleFihoRelationInspector {
+                lexical_word: Some(word),
+                composite: false,
+            });
+        }
+    }
+}
+
+impl<'tree> TreeWalker<'tree> for GeneratedSimpleFihoRelationInspector<'tree> {
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn walk_tagged_selbri(&mut self, _node: &'tree TaggedSelbriSyntax) {
+        self.mark_composite();
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn walk_negated_selbri(&mut self, _node: &'tree NegatedSelbriSyntax) {
+        self.mark_composite();
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn walk_forethought_selbri_connection(
+        &mut self,
+        _node: &'tree ForethoughtSelbriConnectionSyntax,
+    ) {
+        self.mark_composite();
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite || node.co_tail.is_none())]
+    fn walk_co_selbri(&mut self, node: &'tree CoSelbriSyntax) {
+        if node.co_tail.is_some() {
+            self.mark_composite();
+        } else {
+            jbotci_syntax::generated_model::walk::co_selbri(self, node);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite || node.continuations.is_empty())]
+    fn walk_connected_selbri(&mut self, node: &'tree ConnectedSelbriSyntax) {
+        if node.continuations.is_empty() {
+            jbotci_syntax::generated_model::walk::connected_selbri(self, node);
+        } else {
+            self.mark_composite();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite || node.additional_units.is_empty())]
+    fn walk_tanru_selbri(&mut self, node: &'tree TanruSelbriSyntax) {
+        if node.additional_units.is_empty() {
+            jbotci_syntax::generated_model::walk::tanru_selbri(self, node);
+        } else {
+            self.mark_composite();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite || node.0.links.is_empty())]
+    fn walk_tanru_unit(&mut self, node: &'tree TanruUnitSyntax) {
+        if node.0.links.is_empty() {
+            jbotci_syntax::generated_model::walk::tanru_unit(self, node);
+        } else {
+            self.mark_composite();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn walk_forethought_selbri_group_tanru_unit(
+        &mut self,
+        _node: &'tree ForethoughtSelbriGroupTanruUnitSyntax,
+    ) {
+        self.mark_composite();
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn walk_bound_tanru_unit(&mut self, _node: &'tree BoundTanruUnitSyntax) {
+        self.mark_composite();
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite)]
+    fn walk_assigned_pro_bridi_tanru_unit(
+        &mut self,
+        _node: &'tree AssignedProBridiTanruUnitSyntax,
+    ) {
+        self.mark_composite();
+    }
+
+    #[requires(true)]
+    #[ensures(self.composite || node.linkargs.is_none())]
+    fn walk_linked_tanru_unit(&mut self, node: &'tree LinkedTanruUnitSyntax) {
+        if node.linkargs.is_some() {
+            self.mark_composite();
+        } else {
+            jbotci_syntax::generated_model::walk::linked_tanru_unit(self, node);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_tanru_unit_atom_base(&mut self, node: &'tree TanruUnitAtomBaseSyntax) {
+        match node {
+            TanruUnitAtomBaseSyntax::WordTanruUnit(word) => {
+                TreeWalkable::walk_with(word, self);
+            }
+            TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
+                TreeWalkable::walk_with(grouped, self);
+            }
+            _ => self.mark_composite(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.lexical_word == Some(node) || self.composite)]
+    fn walk_word_tanru_unit(&mut self, node: &'tree WordTanruUnitSyntax) {
+        self.capture_lexical_word(node);
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_cmavo_is_resolvable_pro_bridi(cmavo: Cmavo) -> bool {

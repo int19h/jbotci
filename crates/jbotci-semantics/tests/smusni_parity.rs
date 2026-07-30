@@ -3,8 +3,10 @@
 //!
 //! For each of the 48 frozen corpus documents, the vendored `<doc>.smusni.txt`
 //! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` at oracle commit `c6004a1bc4dda0c9d27cef188e21402d64f36d30`
-//! (jbotci#652). The corpus comprises the original 37 documents, the two
+//! lean3` using the renderer from oracle commit
+//! `c6004a1bc4dda0c9d27cef188e21402d64f36d30` (jbotci#652), including the
+//! jbotci#682 re-freeze of the simple `fi'o se pilno` witness. The corpus
+//! comprises the original 37 documents, the two
 //! jbotci#620 witnesses, and five new
 //! discriminant-verified question witnesses, plus four tagged-argument
 //! witnesses. `lean3` is the research
@@ -182,11 +184,11 @@ fn preexisting_fixture_bytes_are_unchanged() {
         .filter(|doc| !doc.starts_with("modal-"));
     assert_eq!(
         aggregate_fixture_hash_for(preexisting.clone(), "smusni.txt"),
-        "0dbc1d7f96c49217382b9602c62001b5f3ae35c919b7a681e8dbe0b1e216a93e"
+        "ba79402c74d7160e761c034759979215582bd86fc31dac00160d9a734673f254"
     );
     assert_eq!(
         aggregate_fixture_hash_for(preexisting, "smusni-prov.txt"),
-        "d6fb701f5855382f3ddf7d6026951e5f4c74ae16bef6919968c515dce17a4e8a"
+        "e3d1933cefd5915bcea4ed1ba996704b47badb7210de5f535d2b19ae3df54b88"
     );
 }
 
@@ -201,12 +203,12 @@ fn preexisting_fixture_bytes_are_unchanged() {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "455109a8f08252344f7865603e6063417d8adabb169031de87618b24b9810243",
+        "2fe83e771edd04c23f51f5c5d41e7aafff551670e624364517cf58acb49ddce8",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "a53661c41f7768cf25e5e9f669d2ab42b99048d5aaddb8a4b0f08f437ef4c66c",
+        "897cc4ee3a06011d4d5f665dbe8411389ada9f005f577abf68afc0012af3e9e7",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }
@@ -391,7 +393,14 @@ fn smusni_tagged_argument_entries_are_explicit_and_terminology_neutral() {
         &graph_for("modal-fiho-selpilno"),
         SmusniConfig { provenance: false },
     );
-    assert!(fiho.contains("[f16]: REFERENCE DENOTATION r6;"));
+    for wording in [
+        "[pilno]: (",
+        "[1]: REFERENCE DENOTATION r12;",
+        "[2]: REFERENCE DENOTATION r7;",
+        "[3]: REFERENCE DENOTATION r6;",
+    ] {
+        assert!(fiho.contains(wording), "missing `{wording}`");
+    }
     assert!(!fiho.contains("fi'o"));
 
     let eventuality = render_smusni(

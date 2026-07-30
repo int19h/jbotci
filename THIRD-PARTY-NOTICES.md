@@ -135,10 +135,14 @@ DEALINGS IN THE FONT SOFTWARE.
 
 ### The Complete Lojban Language (CLL)
 
-jbotci embeds text, examples, and the formal grammar of *The Complete Lojban
-Language* by John Woldemar Cowan, used to power the grammar reference (the
-`cukta` tool) and to drive parser and semantics development. The book carries
-the following notice, which its license requires us to preserve on all copies:
+jbotci embeds text, examples, and the formal grammar from
+[colojban 1.3.2](https://github.com/int19h/cll/tree/v1.3.2), a modified fork of
+*The Complete Lojban Language* by John Woldemar Cowan. This material powers the
+grammar reference (the `cukta` tool) and drives parser and semantics
+development. Its lineage is the official CLL 1.1, followed by the UnCLL
+`geklojban-1.2.16` revision, followed by the colojban 1.3.2 fork vendored here.
+The book carries the following notice, which its license requires us to
+preserve on all copies:
 
 ```
 Copyright © 1997 by The Logical Language Group, Inc. All Rights Reserved.
@@ -162,8 +166,10 @@ Fairfax VA 22031-1303 USA. Web Address: http://www.lojban.org
 ```
 
 The formal grammar (the machine-parseable EBNF) and certain other contents of
-the book are placed in the public domain by that same notice. The maintainers
-of the CLL sources consider the permission notice above to be equivalent to the
+the book are placed in the public domain by that same notice. Except for
+separately sourced components, the colojban source repository applies the
+book's permission notice to its sources and associated scripts as well. The
+source maintainers consider that notice equivalent to the
 [Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/)
 license.
 
