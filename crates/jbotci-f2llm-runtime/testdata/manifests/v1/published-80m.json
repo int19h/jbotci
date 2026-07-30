@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "artifact_version": "f2llm-vector-pack-windowed-ca-v1",
+  "model_key": "f2llm-v2-80m-q4-320",
+  "model_revision": "",
+  "web_model": "codefuse-ai/F2LLM-v2-80M",
+  "q4_onnx_sha256": "00ec8cc51400b74b0d215b794536a81a24f9002926c340ebde139092b3a36cc6",
+  "vector_space_key": "jbotci-browser-f2llm-q4-f16-windowed-512-v1",
+  "pack_id": "f2llm-v2-330m-q4-k-m-v0-f2llm-vector-pack-windowed-ca-v1-c533544395bf-496a983b304e-jbotci-browser-f2llm-q4-f16-windowed-512-v1",
+  "input_format_version": "f2llm-v2-330m-q4-k-m-v0",
+  "input_hash": "f6bcb6c55027144dec1f9c53fc337745b431ed08d062e64782be2bb7abfe1839",
+  "max_sequence_length": 512,
+  "pooling": "mean_normalized_windows",
+  "max_window_tokens": 512,
+  "built_by": {
+    "runtime": "onnxruntime",
+    "provider": "CPUExecutionProvider",
+    "dtype": "q4",
+    "source": "com.microsoft MatMulNBits/GatherBlockQuantized"
+  },
+  "dimensions": 320,
+  "element_type": "f16le",
+  "normalized": true,
+  "distance": "dot",
+  "compatible_query_runtimes": [
+    {
+      "runtime": "jbotci-webgpu-f2llm",
+      "version": "0.2.0",
+      "dtype": "q4",
+      "device": "webgpu",
+      "pooling": "mean_normalized_windows",
+      "max_window_tokens": 512
+    },
+    {
+      "runtime": "jbotci-onnxruntime-web-f2llm",
+      "version": "0.2.0",
+      "dtype": "q4",
+      "device": "wasm",
+      "pooling": "mean_normalized_windows",
+      "max_window_tokens": 512
+    }
+  ],
+  "corpora": [
+    {
+      "corpus_id": "vlacku-en",
+      "input_format_version": "f2llm-v2-330m-q4-k-m-v0",
+      "input_hash": "f4c73060bc1b96304984bfe8e3fe5dc013b19eacd4037ff29d1bdf1bd9743bf4",
+      "row_count": 17415,
+      "dimensions": 320,
+      "items_url": "corpora/vlacku-en/items.598572277f9fd09ff80ccc330419a2442e77d4c640a5bc8b1120724bc589c2c8.json",
+      "items_sha256": "598572277f9fd09ff80ccc330419a2442e77d4c640a5bc8b1120724bc589c2c8",
+      "vector_url": "corpora/vlacku-en/vectors.dc4b5a7cbf9534a606434e92921f481441f2a7f9c191077ead64091ddc7e50af.f16",
+      "vector_byte_len": 11145600,
+      "vector_sha256": "dc4b5a7cbf9534a606434e92921f481441f2a7f9c191077ead64091ddc7e50af"
+    },
+    {
+      "corpus_id": "cukta-cll",
+      "input_format_version": "f2llm-v2-330m-q4-k-m-v0",
+      "input_hash": "982ffc064ba58e10a90aa1321aa013bc7c71859290417a1d7562601b7f12624c",
+      "row_count": 3925,
+      "dimensions": 320,
+      "items_url": "corpora/cukta-cll/items.2aed49aa4f3f65ddbe2c004eef79ae93d5ad713917033253e567dadb618671c4.json",
+      "items_sha256": "2aed49aa4f3f65ddbe2c004eef79ae93d5ad713917033253e567dadb618671c4",
+      "vector_url": "corpora/cukta-cll/vectors.a158b7cf1c6eeb3a9035917a8a36b3bee2ac77bcf5493691e9c8add17f731519.f16",
+      "vector_byte_len": 2512000,
+      "vector_sha256": "a158b7cf1c6eeb3a9035917a8a36b3bee2ac77bcf5493691e9c8add17f731519"
+    }
+  ]
+}

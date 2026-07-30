@@ -163,6 +163,7 @@ SDIST_OMITTED_WORKSPACE_DEPENDENCIES: tuple[bytes, ...] = (
     b'jbotci-cll = { path = "crates/jbotci-cll" }\n',
     b'jbotci-embedding-inputs = { path = "crates/jbotci-embedding-inputs" }\n',
     b'jbotci-embeddings = { path = "crates/jbotci-embeddings" }\n',
+    b'jbotci-f2llm-runtime = { path = "crates/jbotci-f2llm-runtime" }\n',
     b'jbotci-gentufa = { path = "crates/jbotci-gentufa" }\n',
     b'jbotci-gimfihi = { path = "crates/jbotci-gimfihi" }\n',
     b'jbotci-ide = { path = "crates/jbotci-ide" }\n',

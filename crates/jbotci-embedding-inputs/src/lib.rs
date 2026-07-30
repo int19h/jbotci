@@ -4,11 +4,11 @@ use std::fmt;
 use std::fmt::Write as _;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{CllSearchChunk, CllSearchChunkKind, cll_search_all_chunks};
 use jbotci_dictionary::{Dictionary, DictionaryEntry};
 use jbotci_search::vlacku::{grouped_word_type_filter_key, normalize_word_type_filter};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
@@ -47,6 +47,32 @@ pub struct EmbeddingInputDocument {
     pub kind: Option<String>,
 }
 
+/// Raw JSON transport shape. Fingerprints in this DTO are untrusted claims until conversion.
+#[invariant(true)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EmbeddingInputCorpusDto {
+    model_key: String,
+    model_revision: String,
+    input_format_version: String,
+    input_hash: String,
+    dictionary_hash: String,
+    cll_hash: String,
+    dictionary: Vec<EmbeddingInputDocumentDto>,
+    cll: Vec<EmbeddingInputDocumentDto>,
+}
+
+/// Raw document transport shape. All field combinations can occur at the deserialization boundary.
+#[invariant(true)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EmbeddingInputDocumentDto {
+    id: usize,
+    input: String,
+    input_hash: String,
+    kind: Option<String>,
+}
+
 #[invariant(!message.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingInputError {
@@ -82,6 +108,205 @@ impl fmt::Display for EmbeddingInputError {
 }
 
 impl std::error::Error for EmbeddingInputError {}
+
+/// Validation failures for the corpus JSON consumed by the future native pack builder.
+#[invariant(::Json { message } => !message.is_empty())]
+#[invariant(::Metadata { field } => !field.is_empty())]
+#[invariant(::UnsupportedInputFormat { actual } => actual != DEFAULT_INPUT_FORMAT_VERSION)]
+#[invariant(::EmptyCorpus { corpus } => !corpus.is_empty())]
+#[invariant(::DocumentId { corpus, expected, actual } => !corpus.is_empty() && expected != actual)]
+#[invariant(
+    ::Fingerprint {
+        field,
+        expected,
+        actual,
+    } => !field.is_empty() && expected != actual
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EmbeddingInputCorpusError {
+    Json {
+        message: String,
+    },
+    Metadata {
+        field: String,
+    },
+    UnsupportedInputFormat {
+        actual: String,
+    },
+    EmptyCorpus {
+        corpus: String,
+    },
+    DocumentId {
+        corpus: String,
+        expected: usize,
+        actual: usize,
+    },
+    Fingerprint {
+        field: String,
+        expected: String,
+        actual: String,
+    },
+}
+
+impl fmt::Display for EmbeddingInputCorpusError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            data!(EmbeddingInputCorpusError::Json { message }) => {
+                write!(formatter, "invalid embedding corpus JSON: {message}")
+            }
+            data!(EmbeddingInputCorpusError::Metadata { field }) => {
+                write!(
+                    formatter,
+                    "embedding corpus field `{field}` must not be empty"
+                )
+            }
+            data!(EmbeddingInputCorpusError::UnsupportedInputFormat { actual }) => write!(
+                formatter,
+                "unsupported embedding corpus input format `{actual}`; expected `{DEFAULT_INPUT_FORMAT_VERSION}`"
+            ),
+            data!(EmbeddingInputCorpusError::EmptyCorpus { corpus }) => {
+                write!(formatter, "embedding corpus `{corpus}` must not be empty")
+            }
+            data!(EmbeddingInputCorpusError::DocumentId {
+                corpus,
+                expected,
+                actual,
+            }) => write!(
+                formatter,
+                "embedding corpus `{corpus}` document id mismatch: expected {expected}, got {actual}"
+            ),
+            data!(EmbeddingInputCorpusError::Fingerprint {
+                field,
+                expected,
+                actual,
+            }) => write!(
+                formatter,
+                "embedding corpus fingerprint `{field}` mismatch: expected {expected}, got {actual}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for EmbeddingInputCorpusError {}
+
+impl EmbeddingInputCorpus {
+    /// Deserializes the canonical corpus transport and verifies every serialized fingerprint.
+    ///
+    /// `model_key` remains corpus metadata rather than a target-model constraint: all four F2LLM
+    /// WebGPU artifacts consume the same canonical corpus even though the exporter currently
+    /// records the native 330M model key.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|corpus| {
+        corpus.input_format_version == DEFAULT_INPUT_FORMAT_VERSION
+            && !corpus.dictionary.is_empty()
+            && !corpus.cll.is_empty()
+    }) || ret.is_err())]
+    pub fn from_json(json: &str) -> Result<Self, EmbeddingInputCorpusError> {
+        let dto: EmbeddingInputCorpusDto = serde_json::from_str(json).map_err(|error| {
+            new!(EmbeddingInputCorpusError::Json {
+                message: error.to_string(),
+            })
+        })?;
+        if dto.model_key.is_empty() {
+            return Err(new!(EmbeddingInputCorpusError::Metadata {
+                field: "modelKey".to_owned(),
+            }));
+        }
+        if dto.model_revision.is_empty() {
+            return Err(new!(EmbeddingInputCorpusError::Metadata {
+                field: "modelRevision".to_owned(),
+            }));
+        }
+        if dto.input_format_version != DEFAULT_INPUT_FORMAT_VERSION {
+            return Err(new!(EmbeddingInputCorpusError::UnsupportedInputFormat {
+                actual: dto.input_format_version,
+            }));
+        }
+        let dictionary = validate_corpus_documents("dictionary", dto.dictionary, VLACKU_CORPUS_ID)?;
+        let cll = validate_corpus_documents("cll", dto.cll, CUKTA_CORPUS_ID)?;
+        let dictionary_hash = dictionary_documents_hash(&dictionary);
+        require_fingerprint("dictionaryHash", &dto.dictionary_hash, &dictionary_hash)?;
+        let cll_hash = input_documents_hash(CUKTA_CORPUS_ID, &cll);
+        require_fingerprint("cllHash", &dto.cll_hash, &cll_hash)?;
+        let input_hash = combined_input_hash(&dictionary_hash, &cll_hash);
+        require_fingerprint("inputHash", &dto.input_hash, &input_hash)?;
+        Ok(Self {
+            model_key: dto.model_key,
+            model_revision: dto.model_revision,
+            input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+            input_hash,
+            dictionary_hash,
+            cll_hash,
+            dictionary,
+            cll,
+        })
+    }
+}
+
+#[requires(!corpus_name.is_empty())]
+#[requires(!corpus_id.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|documents| {
+    !documents.is_empty()
+        && documents
+            .iter()
+            .enumerate()
+            .all(|(index, document)| document.id == index)
+}) || ret.is_err())]
+fn validate_corpus_documents(
+    corpus_name: &str,
+    documents: Vec<EmbeddingInputDocumentDto>,
+    corpus_id: &str,
+) -> Result<Vec<EmbeddingInputDocument>, EmbeddingInputCorpusError> {
+    if documents.is_empty() {
+        return Err(new!(EmbeddingInputCorpusError::EmptyCorpus {
+            corpus: corpus_name.to_owned(),
+        }));
+    }
+    let mut validated = Vec::with_capacity(documents.len());
+    for (expected_id, document) in documents.into_iter().enumerate() {
+        if document.id != expected_id {
+            return Err(new!(EmbeddingInputCorpusError::DocumentId {
+                corpus: corpus_name.to_owned(),
+                expected: expected_id,
+                actual: document.id,
+            }));
+        }
+        let input_hash = sha256_hex_bytes(document.input.as_bytes());
+        require_fingerprint(
+            &format!("{corpus_id}[{expected_id}].inputHash"),
+            &document.input_hash,
+            &input_hash,
+        )?;
+        validated.push(EmbeddingInputDocument {
+            id: expected_id,
+            input: document.input,
+            input_hash,
+            kind: document.kind,
+        });
+    }
+    Ok(validated)
+}
+
+#[requires(!field.is_empty())]
+#[requires(expected.len() == 64)]
+#[ensures(ret.is_ok() == (claimed == expected))]
+fn require_fingerprint(
+    field: &str,
+    claimed: &str,
+    expected: &str,
+) -> Result<(), EmbeddingInputCorpusError> {
+    if claimed == expected {
+        Ok(())
+    } else {
+        Err(new!(EmbeddingInputCorpusError::Fingerprint {
+            field: field.to_owned(),
+            expected: expected.to_owned(),
+            actual: claimed.to_owned(),
+        }))
+    }
+}
 
 #[requires(true)]
 #[ensures(ret.starts_with(RETRIEVAL_QUERY_PREFIX))]
@@ -536,5 +761,97 @@ mod tests {
             value.get("modelKey").and_then(serde_json::Value::as_str),
             Some(DEFAULT_MODEL_KEY)
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn canonical_corpus_json_round_trips_through_validated_deserialization() {
+        let expected = embedding_input_corpus().expect("embedded corpus");
+        let json = serde_json::to_string(&expected).expect("serialize corpus");
+        let actual = EmbeddingInputCorpus::from_json(&json).expect("validate corpus");
+        assert_eq!(actual, expected);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn corpus_deserialization_recomputes_document_and_aggregate_hashes() {
+        let json = embedding_input_corpus_json().expect("corpus JSON");
+        let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse JSON");
+        value["dictionary"][0]["input"] = serde_json::json!("tampered");
+        let tampered = serde_json::to_string(&value).expect("serialize tampered corpus");
+        let error = EmbeddingInputCorpus::from_json(&tampered).expect_err("hash mismatch");
+        let data!(EmbeddingInputCorpusError::Fingerprint { field, .. }) = error.as_data() else {
+            panic!("expected fingerprint error, got {error}");
+        };
+        assert_eq!(field, "vlacku-en[0].inputHash");
+
+        let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse JSON");
+        value["dictionaryHash"] =
+            serde_json::json!("0000000000000000000000000000000000000000000000000000000000000000");
+        let tampered = serde_json::to_string(&value).expect("serialize tampered corpus");
+        let error = EmbeddingInputCorpus::from_json(&tampered).expect_err("aggregate mismatch");
+        let data!(EmbeddingInputCorpusError::Fingerprint { field, .. }) = error.as_data() else {
+            panic!("expected fingerprint error, got {error}");
+        };
+        assert_eq!(field, "dictionaryHash");
+
+        let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse JSON");
+        value["cll"][0]["input"] = serde_json::json!("tampered");
+        let tampered = serde_json::to_string(&value).expect("serialize tampered corpus");
+        let error = EmbeddingInputCorpus::from_json(&tampered).expect_err("CLL hash mismatch");
+        let data!(EmbeddingInputCorpusError::Fingerprint { field, .. }) = error.as_data() else {
+            panic!("expected fingerprint error, got {error}");
+        };
+        assert_eq!(field, "cukta-cll[0].inputHash");
+
+        for field in ["cllHash", "inputHash"] {
+            let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse JSON");
+            value[field] = serde_json::json!(
+                "0000000000000000000000000000000000000000000000000000000000000000"
+            );
+            let tampered = serde_json::to_string(&value).expect("serialize tampered corpus");
+            let error = EmbeddingInputCorpus::from_json(&tampered).expect_err("aggregate mismatch");
+            let data!(EmbeddingInputCorpusError::Fingerprint {
+                field: actual_field,
+                ..
+            }) = error.as_data()
+            else {
+                panic!("expected fingerprint error, got {error}");
+            };
+            assert_eq!(actual_field, field);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn corpus_deserialization_rejects_noncanonical_document_ids() {
+        let json = embedding_input_corpus_json().expect("corpus JSON");
+        let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse JSON");
+        value["cll"][0]["id"] = serde_json::json!(9);
+        let tampered = serde_json::to_string(&value).expect("serialize tampered corpus");
+        let error = EmbeddingInputCorpus::from_json(&tampered).expect_err("document id mismatch");
+        assert!(matches!(
+            error.as_data(),
+            data!(EmbeddingInputCorpusError::DocumentId {
+                corpus,
+                expected: 0,
+                actual: 9,
+            }) if corpus == "cll"
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn corpus_model_key_is_metadata_not_a_web_artifact_constraint() {
+        let json = embedding_input_corpus_json().expect("corpus JSON");
+        let mut value: serde_json::Value = serde_json::from_str(&json).expect("parse JSON");
+        value["modelKey"] = serde_json::json!("different-target-model");
+        let changed = serde_json::to_string(&value).expect("serialize changed corpus");
+        let corpus = EmbeddingInputCorpus::from_json(&changed).expect("metadata is allowed");
+        assert_eq!(corpus.model_key, "different-target-model");
     }
 }
