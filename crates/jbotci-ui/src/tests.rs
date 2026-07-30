@@ -944,6 +944,7 @@ fn native_embedding_model_options_cover_f2llm_size_family() {
 }
 
 #[test]
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn browser_embedding_catalog_serializes_runtime_specs() {

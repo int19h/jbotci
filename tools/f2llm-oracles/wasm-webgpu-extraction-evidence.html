@@ -1,0 +1,134 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>F2LLM WASM WebGPU extraction evidence</title>
+<pre id="result">pending</pre>
+<script type="module">
+  const result = document.getElementById("result");
+  const params = new URLSearchParams(location.search);
+
+  function requiredParameter(name) {
+    const value = params.get(name);
+    if (!value) {
+      throw new Error(`missing required query parameter: ${name}`);
+    }
+    return value;
+  }
+
+  function f32LittleEndianBytes(values) {
+    const bytes = new Uint8Array(values.length * 4);
+    const view = new DataView(bytes.buffer);
+    for (let index = 0; index < values.length; index += 1) {
+      view.setFloat32(index * 4, values[index], true);
+    }
+    return bytes;
+  }
+
+  function hex(bytes) {
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  async function sha256(bytes) {
+    return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)));
+  }
+
+  async function run() {
+    const moduleUrl = requiredParameter("module");
+    const wasmUrl = requiredParameter("wasm");
+    const goldensUrl = requiredParameter("goldens");
+    const artifactBaseUrl = requiredParameter("artifacts").replace(/\/$/, "");
+    const implementation = requiredParameter("implementation");
+    const adapter = await navigator.gpu?.requestAdapter();
+    if (!adapter) {
+      throw new Error("browser did not provide a WebGPU adapter");
+    }
+    const adapterFeatures = Array.from(adapter.features).sort();
+    const app = await import(moduleUrl);
+    await app.default(wasmUrl);
+
+    const goldenResponse = await fetch(goldensUrl);
+    if (!goldenResponse.ok) {
+      throw new Error(`failed to fetch goldens: HTTP ${goldenResponse.status}`);
+    }
+    const goldens = await goldenResponse.json();
+
+    const tokenizerResponse = await fetch(`${artifactBaseUrl}/tokenizer.8e2541c74f028cbc.compact.json`);
+    if (!tokenizerResponse.ok) {
+      throw new Error(`failed to fetch tokenizer: HTTP ${tokenizerResponse.status}`);
+    }
+    const tokenizerBytes = await tokenizerResponse.arrayBuffer();
+    const tokenizer = app.jbotciF2LlmTokenizerLoad(tokenizerBytes);
+    const tokenCases = goldens.cases.map((golden) => {
+      const windows = tokenizer
+        .tokenWindows(golden.input, goldens.max_sequence_length)
+        .map((window) => Array.from(window));
+      return {
+        name: golden.name,
+        token_ids: windows.flat(),
+        windows,
+      };
+    });
+
+    const progress = [];
+    const runtime = await app.jbotciF2LlmWebGpuRuntimeLoad(
+      {
+        baseUrl: artifactBaseUrl,
+        expectedModelKey: goldens.model_key,
+        expectedRuntime: goldens.runtime,
+        expectedVersion: goldens.runtime_version,
+        maxSequenceLength: goldens.max_sequence_length,
+        dimensions: goldens.dimensions,
+      },
+      async (url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`failed to fetch ${url}: HTTP ${response.status}`);
+        }
+        return response.arrayBuffer();
+      },
+      async (event) => {
+        progress.push(event);
+        await Promise.resolve();
+      },
+    );
+    const vectors = await runtime.embedTexts(goldens.cases.map((golden) => golden.input));
+    if (vectors.length !== tokenCases.length) {
+      throw new Error(`runtime returned ${vectors.length} vectors for ${tokenCases.length} cases`);
+    }
+
+    const cases = [];
+    for (let index = 0; index < vectors.length; index += 1) {
+      const bytes = f32LittleEndianBytes(vectors[index]);
+      cases.push({
+        ...tokenCases[index],
+        embedding_f32le_hex: hex(bytes),
+        embedding_f32le_sha256: await sha256(bytes),
+      });
+    }
+    return {
+      schema: "jbotci-f2llm-extraction-wasm-webgpu-v1",
+      implementation,
+      user_agent: navigator.userAgent,
+      adapter_features: adapterFeatures,
+      artifact_manifest_sha256: "f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2",
+      tokenizer_sha256: "8e2541c74f028cbcefe6903c7f43f6cb0ee4aa9df9b4bbeb38989c06ed902dd6",
+      runtime: goldens.runtime,
+      runtime_version: goldens.runtime_version,
+      model_key: goldens.model_key,
+      dimensions: goldens.dimensions,
+      max_sequence_length: goldens.max_sequence_length,
+      progress_event_count: progress.length,
+      cases,
+    };
+  }
+
+  try {
+    result.textContent = JSON.stringify(await run());
+  } catch (error) {
+    const adapter = await navigator.gpu?.requestAdapter();
+    result.textContent = JSON.stringify({
+      error: String(error),
+      stack: error?.stack ?? null,
+      adapter_features: adapter ? Array.from(adapter.features).sort() : [],
+    });
+  }
+</script>

@@ -4109,10 +4109,15 @@ name = "jbotci-f2llm-runtime"
 version = "0.1.0"
 dependencies = [
  "bityzba",
+ "bytemuck",
+ "fancy-regex",
+ "futures-channel",
  "serde",
  "serde_json",
  "sha2",
  "thiserror 2.0.18",
+ "unicode-normalization",
+ "wgpu",
 ]
 
 [[package]]
@@ -4434,15 +4439,14 @@ version = "0.1.0"
 dependencies = [
  "arboard",
  "bityzba",
- "bytemuck",
  "dioxus",
  "directories",
- "fancy-regex",
  "futures-channel",
  "jbotci-cll",
  "jbotci-diagnostics",
  "jbotci-dialect",
  "jbotci-embeddings",
+ "jbotci-f2llm-runtime",
  "jbotci-gentufa",
  "jbotci-output",
  "jbotci-web-core",
@@ -4450,12 +4454,9 @@ dependencies = [
  "rfd 0.15.4",
  "serde",
  "serde_json",
- "sha2",
- "unicode-normalization",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu",
 ]
 
 [[package]]

@@ -297,6 +297,17 @@ pub enum ArtifactError {
     },
 }
 
+impl ArtifactError {
+    #[requires(!message.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(ArtifactError::Unavailable { .. })))]
+    pub fn unavailable(path: ArtifactPath, message: String) -> Self {
+        new!(ArtifactError::Unavailable {
+            path: path,
+            message: message,
+        })
+    }
+}
+
 impl fmt::Display for ArtifactError {
     #[requires(true)]
     #[ensures(true)]
@@ -375,6 +386,17 @@ pub enum VectorStoreKeyError {
 pub struct VectorStoreError {
     pub key: VectorStoreKey,
     pub message: String,
+}
+
+impl VectorStoreError {
+    #[requires(!message.is_empty())]
+    #[ensures(!ret.message.is_empty())]
+    pub fn new(key: VectorStoreKey, message: String) -> Self {
+        new!(VectorStoreError {
+            key: key,
+            message: message,
+        })
+    }
 }
 
 impl fmt::Display for VectorStoreError {
