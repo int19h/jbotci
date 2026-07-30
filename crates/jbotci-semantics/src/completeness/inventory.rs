@@ -547,12 +547,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(
             SurfaceCategory::Object,
             "Eventuality",
-            "modalArguments",
+            "adjuncts",
             EntryKind::Field,
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-eventuality-fragment",
-                path: "Eventuality:modalArguments",
+                path: "Eventuality:adjuncts",
                 expect: new!(WitnessExpect::Present)
             }),
             None,
@@ -1202,12 +1202,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(
             SurfaceCategory::Object,
             "Predication",
-            "modalArguments",
+            "adjuncts",
             EntryKind::Field,
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-fronted-vao",
-                path: "Predication:modalArguments",
+                path: "Predication:adjuncts",
                 expect: new!(WitnessExpect::Present)
             }),
             None,
@@ -2152,7 +2152,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             Presence::Always,
             new!(Witness::Corpus {
                 doc: "modal-tail-sepio",
-                path: "Predication:modalArguments.arguments.x*.kind",
+                path: "Predication:adjuncts.arguments.x*.kind",
                 expect: new!(WitnessExpect::Present)
             }),
             None,
@@ -2165,7 +2165,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-tail-sepio",
-                path: "Predication:modalArguments.arguments.x*.value",
+                path: "Predication:adjuncts.arguments.x*.value",
                 expect: new!(WitnessExpect::Present)
             }),
             None,
@@ -2187,7 +2187,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-tail-sepio",
-                path: "Predication:modalArguments.arguments.x*.introducedBy",
+                path: "Predication:adjuncts.arguments.x*.introducedBy",
                 expect: new!(WitnessExpect::Value("zo'e"))
             }),
             None,
@@ -2855,46 +2855,46 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "relation",
             EntryKind::Field,
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-tail-sepio",
-                path: "Predication:modalArguments.relation",
+                path: "Predication:adjuncts.relation",
                 expect: new!(WitnessExpect::Value("pilno"))
             }),
             None,
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "introducedBy",
             EntryKind::Field,
             Presence::Always,
             new!(Witness::Corpus {
                 doc: "modal-tail-sepio",
-                path: "Predication:modalArguments.introducedBy",
+                path: "Predication:adjuncts.introducedBy",
                 expect: new!(WitnessExpect::Value("se pi'o"))
             }),
             None,
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "arguments",
             EntryKind::Field,
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-fronted-vao",
-                path: "Predication:modalArguments.arguments",
+                path: "Predication:adjuncts.arguments",
                 expect: new!(WitnessExpect::Present)
             }),
             None,
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "body",
             EntryKind::Field,
             Presence::Optional,
@@ -2903,7 +2903,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "component",
             EntryKind::Field,
             Presence::Optional,
@@ -2912,7 +2912,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "negation",
             EntryKind::Field,
             Presence::Optional,
@@ -2921,7 +2921,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "scalarNegation",
             EntryKind::Field,
             Presence::Optional,
@@ -2930,7 +2930,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "modifiers",
             EntryKind::Field,
             Presence::Optional,
@@ -2939,20 +2939,20 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalArgument",
+            "Adjunct",
             "source",
             EntryKind::Field,
             Presence::Optional,
             new!(Witness::Corpus {
                 doc: "modal-fronted-vao",
-                path: "Predication:modalArguments.source",
+                path: "Predication:adjuncts.source",
                 expect: new!(WitnessExpect::Present)
             }),
             None,
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalNegation",
+            "TaggedNegation",
             "kind",
             EntryKind::Field,
             Presence::Always,
@@ -2961,7 +2961,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::ValueStruct,
-            "ModalNegation",
+            "TaggedNegation",
             "introducedBy",
             EntryKind::Field,
             Presence::Always,
@@ -5633,7 +5633,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::Enum,
-            "ModalNegationKind",
+            "TaggedNegationKind",
             "Contradictory",
             EntryKind::Variant,
             Presence::VariantConditional,
@@ -5642,7 +5642,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         e(
             SurfaceCategory::Enum,
-            "ModalNegationKind",
+            "TaggedNegationKind",
             "OtherThan",
             EntryKind::Variant,
             Presence::VariantConditional,

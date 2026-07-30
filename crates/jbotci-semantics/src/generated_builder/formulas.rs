@@ -1700,17 +1700,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut modal_arguments =
-            self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
-        for modal_argument in &mut modal_arguments {
-            let mut arguments = modal_argument.arguments.clone();
+        let mut adjuncts =
+            self.build_adjuncts_for_generated_tagged_terms(&assignments.modal_terms)?;
+        for adjunct in &mut adjuncts {
+            let mut arguments = adjunct.arguments.clone();
             for argument in arguments.values_mut() {
                 replace_generated_argument_value_object(argument, replacements);
             }
-            if arguments != modal_argument.arguments {
-                *modal_argument = modal_argument
-                    .clone()
-                    .with_data(data! { arguments: arguments });
+            if arguments != adjunct.arguments {
+                *adjunct = adjunct.clone().with_data(data! { arguments: arguments });
             }
         }
 
@@ -1742,7 +1740,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.set_predication_modal_arguments(modal_arguments);
+        object.set_predication_adjuncts(adjuncts);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -1975,8 +1973,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
-        let modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+        let adjuncts = self
+            .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                 eventuality,
                 &assignments.modal_terms,
                 Some(&arguments),
@@ -1990,7 +1988,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2126,10 +2124,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         }
 
-        let mut leading_modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms(&leading_assignments.modal_terms)?;
-        let mut trailing_modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms(&trailing_assignments.modal_terms)?;
+        let mut leading_adjuncts =
+            self.build_adjuncts_for_generated_tagged_terms(&leading_assignments.modal_terms)?;
+        let mut trailing_adjuncts =
+            self.build_adjuncts_for_generated_tagged_terms(&trailing_assignments.modal_terms)?;
         let relation = semantic_relation_label(relation_label_from_selbri(&simple_tail.selbri)?);
         let mut arguments = BTreeMap::new();
         let mut places = leading_assignments
@@ -2213,13 +2211,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .visible_arguments
             .get(&1)
             .and_then(|argument| argument.value);
-        let mut modal_arguments = Vec::new();
-        modal_arguments.extend(leading_modal_arguments.drain(..).map(|argument| {
+        let mut adjuncts = Vec::new();
+        adjuncts.extend(leading_adjuncts.drain(..).map(|argument| {
             leading_component.map_or(argument.clone(), |component| {
                 argument.with_component(component)
             })
         }));
-        modal_arguments.extend(trailing_modal_arguments.drain(..).map(|argument| {
+        adjuncts.extend(trailing_adjuncts.drain(..).map(|argument| {
             trailing_component.map_or(argument.clone(), |component| {
                 argument.with_component(component)
             })
@@ -2234,7 +2232,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.set_predication_modal_arguments(modal_arguments);
+        object.set_predication_adjuncts(adjuncts);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2278,10 +2276,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         }
 
-        let mut leading_modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms(&leading_assignments.modal_terms)?;
-        let mut trailing_modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms(&trailing_assignments.modal_terms)?;
+        let mut leading_adjuncts =
+            self.build_adjuncts_for_generated_tagged_terms(&leading_assignments.modal_terms)?;
+        let mut trailing_adjuncts =
+            self.build_adjuncts_for_generated_tagged_terms(&trailing_assignments.modal_terms)?;
         let relation = semantic_relation_label(relation_label_from_selbri(&simple_tail.selbri)?);
         let mut arguments = BTreeMap::new();
         let mut places = leading_assignments
@@ -2367,13 +2365,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .visible_arguments
             .get(&1)
             .and_then(|argument| argument.value);
-        let mut modal_arguments = Vec::new();
-        modal_arguments.extend(leading_modal_arguments.drain(..).map(|argument| {
+        let mut adjuncts = Vec::new();
+        adjuncts.extend(leading_adjuncts.drain(..).map(|argument| {
             leading_component.map_or(argument.clone(), |component| {
                 argument.with_component(component)
             })
         }));
-        modal_arguments.extend(trailing_modal_arguments.drain(..).map(|argument| {
+        adjuncts.extend(trailing_adjuncts.drain(..).map(|argument| {
             trailing_component.map_or(argument.clone(), |component| {
                 argument.with_component(component)
             })
@@ -2388,7 +2386,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.set_predication_modal_arguments(modal_arguments);
+        object.set_predication_adjuncts(adjuncts);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2466,8 +2464,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let assignments =
             self.build_term_assignments_for_terms(terms.clone(), first_visible_place)?;
-        let modal_arguments =
-            self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
+        let adjuncts = self.build_adjuncts_for_generated_tagged_terms(&assignments.modal_terms)?;
         let mut arguments = preassigned_visible_arguments
             .iter()
             .map(|(place, argument)| (argument_key(*place), argument.clone()))
@@ -2506,7 +2503,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2781,8 +2778,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
+        let adjuncts = self
+            .build_adjuncts_for_generated_tagged_terms_for_event_with_visible_arguments(
                 eventuality,
                 &assignments.modal_terms,
                 Some(&visible_arguments_for_modal_terms),
@@ -2812,7 +2809,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
         let formula = self.next_formula_id();
@@ -3141,7 +3138,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         branch: &GeneratedLogicalTagConnectionBranch<'syntax>,
         predication_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut branch_modal_argument = match branch.as_data() {
+        let mut branch_adjunct = match branch.as_data() {
             data!(GeneratedLogicalTagConnectionBranch::Modal { term, argument }) => {
                 Some(match term.kind.as_data() {
                     data!(GeneratedConnectedModalTermKind::Named {
@@ -3149,24 +3146,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         relation,
                         visible_place,
                     }) => {
-                        let modal_arguments_for_relation = self
-                            .modal_argument_map_for_visible_place(
-                                argument.clone(),
-                                *visible_place,
-                                relation_place_count(self.dictionary, relation),
-                            )?;
-                        self.generated_modal_argument_with_tense_modal_modifiers(
+                        let adjuncts_for_relation = self.adjunct_map_for_visible_place(
+                            argument.clone(),
+                            *visible_place,
+                            relation_place_count(self.dictionary, relation),
+                        )?;
+                        self.generated_adjunct_with_tense_modal_modifiers(
                             &term.tense_modal,
                             relation.clone(),
                             introduced_by.clone(),
-                            modal_arguments_for_relation,
-                            generated_modal_negation_for_tense_modal(&term.tense_modal),
+                            adjuncts_for_relation,
+                            generated_adjunct_negation_for_tense_modal(&term.tense_modal),
                             generated_modal_scalar_negation_for_tense_modal(&term.tense_modal),
                             "modal-argument",
                         )
                     }
                     data!(GeneratedConnectedModalTermKind::AdHoc { fiho }) => self
-                        .build_generated_fiho_modal_argument_for_selbri(
+                        .build_generated_fiho_adjunct_for_selbri(
                             &term.tense_modal,
                             fiho.selbri.as_ref(),
                             argument.clone(),
@@ -3178,8 +3174,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         let eventuality =
             self.build_generated_predication_eventuality(predication_source.clone())?;
-        if let Some(modal_argument) = &mut branch_modal_argument {
-            self.bind_generated_modal_argument_to_host_event(modal_argument, eventuality);
+        if let Some(adjunct) = &mut branch_adjunct {
+            self.bind_generated_adjunct_to_host_event(adjunct, eventuality);
         }
         if let data!(GeneratedLogicalTagConnectionBranch::Event { branch, anchor }) =
             branch.as_data()
@@ -3237,11 +3233,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "relation place structure is unavailable; only places required by explicit assignments are represented",
             ));
         }
-        let inherited_modal_arguments = self.sticky_modal_arguments.clone();
-        let mut modal_arguments = branch_modal_argument.into_iter().collect::<Vec<_>>();
-        self.append_generated_sticky_modal_arguments(
-            &inherited_modal_arguments,
-            &mut modal_arguments,
+        let inherited_adjuncts = self.sticky_adjuncts.clone();
+        let mut adjuncts = branch_adjunct.into_iter().collect::<Vec<_>>();
+        self.append_generated_sticky_adjuncts(
+            &inherited_adjuncts,
+            &mut adjuncts,
             Some(eventuality),
         );
         let predication = self.next_predication_id();
@@ -3253,7 +3249,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         self.attach_generated_reciprocity_to_predication_for_terms(predication, terms)?;
         let formula = self.next_formula_id();
@@ -3917,7 +3913,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .any(|term| generated_term_has_distributed_sumti_connection(term))
         {
             if generated_tense_modal_resets_sticky_modals(tagged.tense_modal.as_ref()) {
-                self.sticky_modal_arguments.clear();
+                self.sticky_adjuncts.clear();
             }
             if generated_tense_modal_resets_sticky_tense(tagged.tense_modal.as_ref()) {
                 self.sticky_time_path.clear();
@@ -4130,8 +4126,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             None => self.build_generated_predication_eventuality(predication_source.clone())?,
         };
         self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
-        let modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+        let adjuncts = self
+            .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                 eventuality,
                 &assignments.modal_terms,
                 Some(&arguments),
@@ -4146,7 +4142,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source.clone(),
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -4211,7 +4207,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula,
                 GeneratedForethoughtPrefixContext {
                     assignments: empty_generated_term_assignments(),
-                    modal_arguments: Vec::new(),
+                    adjuncts: Vec::new(),
                 },
             ));
         }
@@ -4226,8 +4222,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             shared_tail_start,
         )?;
         let prefix_assignments = self.build_term_assignments_for_terms(prefix_terms.to_vec(), 1)?;
-        let shared_modal_arguments =
-            self.build_modal_arguments_for_generated_tagged_terms(&prefix_assignments.modal_terms)?;
+        let shared_adjuncts =
+            self.build_adjuncts_for_generated_tagged_terms(&prefix_assignments.modal_terms)?;
         let mut place_question_assignments = prefix_assignments.place_questions.clone();
         place_question_assignments.extend(local_assignments.place_questions.clone());
 
@@ -4274,7 +4270,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     formula,
                     GeneratedForethoughtPrefixContext {
                         assignments: prefix_assignments,
-                        modal_arguments: shared_modal_arguments,
+                        adjuncts: shared_adjuncts,
                     },
                 ));
             }
@@ -4337,16 +4333,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             eventuality,
             &local_assignments.modal_terms,
         )?;
-        let mut modal_arguments = shared_modal_arguments.clone();
-        for modal_argument in &mut modal_arguments {
-            self.bind_generated_modal_argument_to_host_event(modal_argument, eventuality);
+        let mut adjuncts = shared_adjuncts.clone();
+        for adjunct in &mut adjuncts {
+            self.bind_generated_adjunct_to_host_event(adjunct, eventuality);
         }
-        modal_arguments.extend(
-            self.build_modal_arguments_for_generated_tagged_terms_for_event(
-                eventuality,
-                &local_assignments.modal_terms,
-            )?,
-        );
+        adjuncts.extend(self.build_adjuncts_for_generated_tagged_terms_for_event(
+            eventuality,
+            &local_assignments.modal_terms,
+        )?);
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
             relation.display_text(),
@@ -4356,7 +4350,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -4380,7 +4374,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             GeneratedForethoughtPrefixContext {
                 assignments: prefix_assignments,
-                modal_arguments: shared_modal_arguments,
+                adjuncts: shared_adjuncts,
             },
         ))
     }
@@ -4488,8 +4482,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             second_eventuality,
             &branch_prenex_existentials,
         )?;
-        for modal_argument in &prefix_context.modal_arguments {
-            self.attach_modal_argument_to_generated_formula(second_formula, modal_argument)?;
+        for adjunct in &prefix_context.adjuncts {
+            self.attach_adjunct_to_generated_formula(second_formula, adjunct)?;
         }
         if let Some(anchor) = self.current_utterance {
             self.attach_generated_indicator_displays_with_target_focus(
@@ -4630,8 +4624,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 branch_eventuality,
                 &branch_prenex_existentials,
             )?;
-            for modal_argument in &prefix_context.modal_arguments {
-                self.attach_modal_argument_to_generated_formula(branch_formula, modal_argument)?;
+            for adjunct in &prefix_context.adjuncts {
+                self.attach_adjunct_to_generated_formula(branch_formula, adjunct)?;
             }
             if let Some(anchor) = self.current_utterance {
                 self.attach_generated_indicator_displays_with_target_focus(
@@ -5547,7 +5541,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula,
                 GeneratedForethoughtPrefixContext {
                     assignments: empty_generated_term_assignments(),
-                    modal_arguments: Vec::new(),
+                    adjuncts: Vec::new(),
                 },
             ));
         }
@@ -5672,9 +5666,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.build_term_assignments_for_terms(prefix_terms.to_vec(), 1)?
             };
             if !prefix_terms.is_empty() {
-                let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms(
-                    &prefix_assignments.modal_terms,
-                )?;
+                let adjuncts = self
+                    .build_adjuncts_for_generated_tagged_terms(&prefix_assignments.modal_terms)?;
                 let formula = self
                     .build_connected_bridi_tail_formula_with_preassigned_shared_terms(
                         source_node,
@@ -5691,7 +5684,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     formula,
                     GeneratedForethoughtPrefixContext {
                         assignments: prefix_assignments,
-                        modal_arguments,
+                        adjuncts,
                     },
                 ));
             }
@@ -5711,7 +5704,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula,
                 GeneratedForethoughtPrefixContext {
                     assignments: prefix_assignments,
-                    modal_arguments: Vec::new(),
+                    adjuncts: Vec::new(),
                 },
             ));
         }
@@ -6128,7 +6121,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?
             };
             self.apply_generated_tagged_term_event_modifiers(branch_eventuality, &modal_terms)?;
-            let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms_for_event(
+            let adjuncts = self.build_adjuncts_for_generated_tagged_terms_for_event(
                 branch_eventuality,
                 &modal_terms,
             )?;
@@ -6152,8 +6145,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source.clone(),
                 diagnostics.clone(),
             );
-            predication_object
-                .set_predication_attachments(modal_arguments, place_questions.clone());
+            predication_object.set_predication_attachments(adjuncts, place_questions.clone());
             self.insert(predication, predication_object)?;
             self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
             self.record_generated_tense_modal_event_modifier(
@@ -6368,7 +6360,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         if generated_tense_modal_resets_sticky_modals(tagged.tense_modal.as_ref()) {
-            self.sticky_modal_arguments.clear();
+            self.sticky_adjuncts.clear();
         }
         if generated_tense_modal_resets_sticky_tense(tagged.tense_modal.as_ref()) {
             self.sticky_time_path.clear();
@@ -6456,14 +6448,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && !self.options.story_time
             && generated_tense_modal_event_modifier_allocates_objects(tagged.tense_modal.as_ref());
         let child_eventuality = if eventuality.is_none()
-            && (generated_tense_modal_has_modal_argument(tagged.tense_modal.as_ref())
+            && (generated_tense_modal_has_adjunct(tagged.tense_modal.as_ref())
                 || preapply_tagged_event_modifier)
         {
             Some(self.build_generated_predication_eventuality(predication_source.clone())?)
         } else {
             eventuality
         };
-        let tagged_modal_argument = self.build_modal_argument_for_generated_tense_modal(
+        let tagged_adjunct = self.build_adjunct_for_generated_tense_modal(
             tagged.tense_modal.as_ref(),
             "modal-argument",
         )?;
@@ -6529,14 +6521,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.story_time_anchor = Some(*eventuality);
             }
         }
-        if let Some(modal_argument) = &tagged_modal_argument {
-            self.record_generated_sticky_modal_argument_if_needed(
-                tagged.tense_modal.as_ref(),
-                modal_argument,
-            );
+        if let Some(adjunct) = &tagged_adjunct {
+            self.record_generated_sticky_adjunct_if_needed(tagged.tense_modal.as_ref(), adjunct);
         }
-        if let Some(modal_argument) = tagged_modal_argument {
-            self.prepend_modal_argument_to_generated_formula(formula, &modal_argument)?;
+        if let Some(adjunct) = tagged_adjunct {
+            self.prepend_adjunct_to_generated_formula(formula, &adjunct)?;
         }
         Ok(formula)
     }
@@ -6900,8 +6889,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
-        let modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
+        let adjuncts = self
+            .build_adjuncts_for_generated_tagged_terms_for_event_with_visible_arguments(
                 eventuality,
                 &assignments.modal_terms,
                 Some(&visible_arguments_for_modal_terms),
@@ -6931,7 +6920,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
         let formula = self.next_formula_id();

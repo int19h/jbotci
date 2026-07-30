@@ -522,7 +522,7 @@ fn render_source(w: &mut Writer, ctx: &Ctx, obj: &Value) {
 }
 
 /// The coordinates inside a `PROVENANCE` block. Keeping the block wrapper
-/// separate lets nested modal arguments put their lexical introducer alongside
+/// separate lets nested adjuncts put their lexical introducer alongside
 /// the source coordinates without inventing a content-level cmavo field.
 #[requires(true)]
 #[ensures(true)]
@@ -543,7 +543,7 @@ fn render_source_fields(w: &mut Writer, source: &Value) {
     }
 }
 
-/// JSON source constructs retain the versioned model's historical terminology,
+/// JSON source constructs retain their historical parser terminology,
 /// but the human-facing notation uses neutral "tag" wording. This is an exact
 /// vocabulary translation, not a substring rewrite, so unknown constructs stay
 /// visible verbatim.
@@ -561,24 +561,18 @@ fn rendered_source_construct(construct: &str) -> &str {
     }
 }
 
-/// Modal introducers (`va'o`, `se pi'o`, `fi'o ...`) are surface provenance,
+/// Adjunct introducers (`va'o`, `se pi'o`, `fi'o ...`) are surface provenance,
 /// not semantic notation keywords. They are therefore emitted only in the
-/// opt-in provenance profile, in the same block as the modal's source span.
+/// opt-in provenance profile, in the same block as the adjunct's source span.
 #[requires(true)]
 #[ensures(true)]
-fn render_modal_provenance(w: &mut Writer, ctx: &Ctx, modal_argument: &Value) {
+fn render_adjunct_provenance(w: &mut Writer, ctx: &Ctx, adjunct: &Value) {
     if !ctx.provenance {
         return;
     }
     w.heading("PROVENANCE", |w| {
-        w.field(
-            "INTRODUCED BY",
-            &lexical(req_str(modal_argument, "introducedBy")),
-        );
-        if let Some(source) = modal_argument
-            .get("source")
-            .filter(|source| !source.is_null())
-        {
+        w.field("INTRODUCED BY", &lexical(req_str(adjunct, "introducedBy")));
+        if let Some(source) = adjunct.get("source").filter(|source| !source.is_null()) {
             render_source_fields(w, source);
         }
     });
@@ -890,7 +884,7 @@ fn operand_ref(ctx: &Ctx, value: &Value) -> String {
 }
 
 /// One `ArgumentValue` in an order-bearing callable-place map. This is shared
-/// by ordinary numbered predication places and the places nested below a modal
+/// by ordinary numbered predication places and the places nested below an adjunct
 /// predicate keyword. Occurrence-owned relative clauses and provenance retain
 /// exactly the same rendering in both contexts.
 #[requires(!label.is_empty())]
@@ -920,7 +914,7 @@ fn render_argument_value_entry(w: &mut Writer, ctx: &Ctx, label: &str, argument:
 
 /// Emit the entries of a canonical callable-place map without adding an
 /// enclosing `ARGS`. Callers use this for both the host predication's numbered
-/// places and a modal predicate's recursively nested places.
+/// places and an adjunct predicate's recursively nested places.
 #[requires(!arguments.is_empty())]
 #[ensures(true)]
 fn render_argument_entries(w: &mut Writer, ctx: &Ctx, arguments: &Map<String, Value>) {
@@ -936,7 +930,7 @@ fn render_argument_entries(w: &mut Writer, ctx: &Ctx, arguments: &Map<String, Va
     }
 }
 
-/// A scalar-negation value nested in a modal argument.
+/// A scalar-negation value nested in an adjunct.
 #[requires(true)]
 #[ensures(true)]
 fn render_scalar_negation(w: &mut Writer, ctx: &Ctx, scalar_negation: &Value) {
@@ -970,7 +964,7 @@ fn render_scalar_negation(w: &mut Writer, ctx: &Ctx, scalar_negation: &Value) {
     });
 }
 
-/// One displayed-content modifier nested in a modal argument.
+/// One displayed-content modifier nested in an adjunct.
 #[requires(true)]
 #[ensures(true)]
 fn render_displayed_content_modifier(w: &mut Writer, ctx: &Ctx, modifier: &Value) {
@@ -990,26 +984,23 @@ fn render_displayed_content_modifier(w: &mut Writer, ctx: &Ctx, modifier: &Value
     render_source(w, ctx, modifier);
 }
 
-/// Content fields shared by relation-keyed and formula-keyed modal entries.
+/// Content fields shared by relation-keyed and formula-keyed adjuncts.
 #[requires(true)]
 #[ensures(true)]
-fn render_modal_entry_metadata(w: &mut Writer, ctx: &Ctx, modal_argument: &Value) {
-    if let Some(negation) = modal_argument
-        .get("negation")
-        .filter(|value| !value.is_null())
-    {
+fn render_adjunct_entry_metadata(w: &mut Writer, ctx: &Ctx, adjunct: &Value) {
+    if let Some(negation) = adjunct.get("negation").filter(|value| !value.is_null()) {
         w.heading("NEGATION", |w| {
             w.field("KIND", &enum_render(req_str(negation, "kind")));
             w.field("INTRODUCED BY", &lexical(req_str(negation, "introducedBy")));
         });
     }
-    if let Some(scalar_negation) = modal_argument
+    if let Some(scalar_negation) = adjunct
         .get("scalarNegation")
         .filter(|value| !value.is_null())
     {
         render_scalar_negation(w, ctx, scalar_negation);
     }
-    if let Some(modifiers) = modal_argument
+    if let Some(modifiers) = adjunct
         .get("modifiers")
         .and_then(Value::as_array)
         .filter(|modifiers| !modifiers.is_empty())
@@ -1022,68 +1013,68 @@ fn render_modal_entry_metadata(w: &mut Writer, ctx: &Ctx, modal_argument: &Value
             }
         });
     }
-    render_modal_provenance(w, ctx, modal_argument);
+    render_adjunct_provenance(w, ctx, adjunct);
 }
 
-/// Whether a formula-keyed modal needs a block rather than the compact
+/// Whether a formula-keyed adjunct needs a block rather than the compact
 /// `[formula]: REFERENCE DENOTATION component;` entry.
 #[requires(true)]
 #[ensures(true)]
-fn formula_modal_has_metadata(ctx: &Ctx, modal_argument: &Value) -> bool {
-    modal_argument
+fn formula_adjunct_has_metadata(ctx: &Ctx, adjunct: &Value) -> bool {
+    adjunct
         .get("negation")
         .is_some_and(|value| !value.is_null())
-        || modal_argument
+        || adjunct
             .get("scalarNegation")
             .is_some_and(|value| !value.is_null())
-        || modal_argument
+        || adjunct
             .get("modifiers")
             .and_then(Value::as_array)
             .is_some_and(|modifiers| !modifiers.is_empty())
         || ctx.provenance
 }
 
-/// Render one modal as a keyword-indexed `ARGS` entry. A relation modal uses
+/// Render one adjunct as a keyword-indexed `ARGS` entry. A relation adjunct uses
 /// the desugared predicate word as its key and recursively renders that
-/// predicate's numbered places. An ad-hoc `fi'o` modal uses its formula ID as
+/// predicate's numbered places. An ad-hoc `fi'o` adjunct uses its formula ID as
 /// the key and the host component as the value.
 #[requires(true)]
 #[ensures(true)]
-fn render_modal_argument_entry(w: &mut Writer, ctx: &Ctx, modal_argument: &Value) {
-    if let Some(relation) = field_str(modal_argument, "relation") {
-        let arguments = req_val(modal_argument, "arguments")
+fn render_adjunct_entry(w: &mut Writer, ctx: &Ctx, adjunct: &Value) {
+    if let Some(relation) = field_str(adjunct, "relation") {
+        let arguments = req_val(adjunct, "arguments")
             .as_object()
             .unwrap_or_else(|| {
-                panic!("modal `arguments` must be a JSON object (contract violated)")
+                panic!("adjunct `arguments` must be a JSON object (contract violated)")
             });
         assert!(
             !arguments.is_empty(),
-            "relation modal must have at least one argument (contract violated)"
+            "relation adjunct must have at least one argument (contract violated)"
         );
         w.ordered(&format!("[{relation}]:"), |w| {
             render_argument_entries(w, ctx, arguments);
-            if let Some(component) = modal_argument.get("component") {
+            if let Some(component) = adjunct.get("component") {
                 w.field("COMPONENT", &ctx.id_of(component));
             }
-            render_modal_entry_metadata(w, ctx, modal_argument);
+            render_adjunct_entry_metadata(w, ctx, adjunct);
         });
         return;
     }
 
-    let body = ctx.id_of(req_val(modal_argument, "body"));
-    let component = ctx.id_of(req_val(modal_argument, "component"));
+    let body = ctx.id_of(req_val(adjunct, "body"));
+    let component = ctx.id_of(req_val(adjunct, "component"));
     let label = format!("[{body}]: REFERENCE DENOTATION {component}");
-    if formula_modal_has_metadata(ctx, modal_argument) {
+    if formula_adjunct_has_metadata(ctx, adjunct) {
         w.heading(&label, |w| {
-            render_modal_entry_metadata(w, ctx, modal_argument);
+            render_adjunct_entry_metadata(w, ctx, adjunct);
         });
     } else {
         w.entry(&label);
     }
 }
 
-/// Host numbered arguments followed by modal keyword entries, all inside the
-/// single existing `ARGS` sequence. Modal array order is canonical JSON
+/// Host numbered arguments followed by adjunct keyword entries, all inside the
+/// single existing `ARGS` sequence. Adjunct array order is canonical JSON
 /// document order and is preserved exactly.
 #[requires(true)]
 #[ensures(true)]
@@ -1092,20 +1083,20 @@ fn render_arguments(w: &mut Writer, ctx: &Ctx, obj: &Value) {
         .get("arguments")
         .and_then(Value::as_object)
         .filter(|arguments| !arguments.is_empty());
-    let modal_arguments = obj
-        .get("modalArguments")
+    let adjuncts = obj
+        .get("adjuncts")
         .and_then(Value::as_array)
         .filter(|arguments| !arguments.is_empty());
-    if arguments.is_none() && modal_arguments.is_none() {
+    if arguments.is_none() && adjuncts.is_none() {
         return;
     }
     w.ordered("ARGS", |w| {
         if let Some(arguments) = arguments {
             render_argument_entries(w, ctx, arguments);
         }
-        if let Some(modal_arguments) = modal_arguments {
-            for modal_argument in modal_arguments {
-                render_modal_argument_entry(w, ctx, modal_argument);
+        if let Some(adjuncts) = adjuncts {
+            for adjunct in adjuncts {
+                render_adjunct_entry(w, ctx, adjunct);
             }
         }
     });
@@ -1768,7 +1759,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn modal_arguments_share_host_args_and_hide_surface_introducers() {
+    fn adjuncts_share_host_args_and_hide_surface_introducers() {
         let objects = BTreeMap::from([
             ("entity:1".to_owned(), json!({ "type": "referent" })),
             ("entity:2".to_owned(), json!({ "type": "referent" })),
@@ -1783,7 +1774,7 @@ mod tests {
             "arguments": {
                 "x1": { "kind": "filled", "value": "entity:1" }
             },
-            "modalArguments": [
+            "adjuncts": [
                 {
                     "relation": "pilno",
                     "introducedBy": "se pi'o",
@@ -1824,13 +1815,13 @@ mod tests {
         assert!(!ordinary.contains("fi'o broda"));
         assert!(
             ordinary.find("[1]:").expect("host numbered argument")
-                < ordinary.find("[pilno]:").expect("modal predicate key"),
-            "modal entries must follow numbered entries:\n{ordinary}"
+                < ordinary.find("[pilno]:").expect("adjunct predicate key"),
+            "adjuncts must follow numbered entries:\n{ordinary}"
         );
         assert!(
-            ordinary.find("[pilno]:").expect("first modal")
-                < ordinary.find("[f3]:").expect("second modal"),
-            "modal JSON document order changed:\n{ordinary}"
+            ordinary.find("[pilno]:").expect("first adjunct")
+                < ordinary.find("[f3]:").expect("second adjunct"),
+            "adjunct JSON document order changed:\n{ordinary}"
         );
 
         let provenance_ctx = Ctx {
@@ -1859,7 +1850,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn eventuality_without_arguments_gets_args_only_for_modals() {
+    fn eventuality_without_arguments_gets_args_only_for_adjuncts() {
         let objects = BTreeMap::from([("eventuality:1".to_owned(), json!({ "type": "referent" }))]);
         let id_map = BTreeMap::from([("eventuality:1".to_owned(), "r1".to_owned())]);
         let ctx = Ctx {
@@ -1868,7 +1859,7 @@ mod tests {
             provenance: false,
         };
         let host = json!({
-            "modalArguments": [{
+            "adjuncts": [{
                 "relation": "vanbi",
                 "introducedBy": "va'o",
                 "arguments": {
@@ -1899,7 +1890,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn historical_modal_source_and_locus_vocabulary_is_neutralized() {
+    fn historical_source_and_locus_vocabulary_is_neutralized() {
         for (construct, rendered) in [
             ("modal-argument", "tagged-argument"),
             ("modal-indicator", "tagged-indicator"),

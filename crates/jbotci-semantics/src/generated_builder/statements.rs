@@ -222,7 +222,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             node.arguments
                 .values()
                 .chain(
-                    node.modal_arguments
+                    node.adjuncts
                         .iter()
                         .flat_map(|modal| modal.arguments.values()),
                 )
@@ -337,7 +337,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     }));
                 }
             }
-            for (modal_index, modal) in predication.modal_arguments.iter().enumerate() {
+            for (modal_index, modal) in predication.adjuncts.iter().enumerate() {
                 for (place, argument) in &modal.arguments {
                     let Some(value) = argument.value else {
                         continue;
@@ -383,8 +383,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             PredicationNode::from_data(data!(PredicationNode { arguments, ..data }))
                         }
                         data!(GeneratedVohaUpdateLocation::Modal { modal_index, place }) => {
-                            let mut modal_arguments = data.modal_arguments;
-                            if let Some(modal) = modal_arguments.get(*modal_index).cloned() {
+                            let mut adjuncts = data.adjuncts;
+                            if let Some(modal) = adjuncts.get(*modal_index).cloned() {
                                 let modal_data = modal.into_data();
                                 let mut arguments = modal_data.arguments;
                                 if let Some(argument) = arguments.get(place).cloned() {
@@ -393,16 +393,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                         argument.with_data(data! { value: Some(update.resolved) }),
                                     );
                                 }
-                                modal_arguments[*modal_index] =
-                                    ModalArgument::from_data(data!(ModalArgument {
-                                        arguments,
-                                        ..modal_data
-                                    }));
+                                adjuncts[*modal_index] = Adjunct::from_data(data!(Adjunct {
+                                    arguments,
+                                    ..modal_data
+                                }));
                             }
-                            PredicationNode::from_data(data!(PredicationNode {
-                                modal_arguments,
-                                ..data
-                            }))
+                            PredicationNode::from_data(data!(PredicationNode { adjuncts, ..data }))
                         }
                     }
                 });

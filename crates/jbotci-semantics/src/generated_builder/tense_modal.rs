@@ -20,7 +20,7 @@ impl<'tree> TreeWalker<'tree> for GeneratedBaiSupportValidator {
     #[ensures(true)]
     fn walk_modal_tense(&mut self, node: &'tree ModalTenseSyntax) {
         // Some project BAI spellings (for example `xei'e`) lower to typed
-        // tense/space coordinates rather than to `ModalArgument`. They do not
+        // tense/space coordinates rather than to `Adjunct`. They do not
         // need a CLL 9.17 predicate mapping and must retain that established
         // interpretation. Reject only an unsupported BAI that would otherwise
         // reach the generic relation-argument path.
@@ -279,7 +279,7 @@ pub(super) fn generated_logical_modal_connection_spec_for_tense_modal<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|term| generated_tense_modal_has_modal_argument(&term.tense_modal)))]
+#[ensures(ret.as_ref().is_none_or(|term| generated_tense_modal_has_adjunct(&term.tense_modal)))]
 pub(super) fn generated_connected_modal_term_from_atom<'syntax>(
     atom: &'syntax TenseModalAtomSyntax,
 ) -> Option<GeneratedConnectedModalTerm<'syntax>> {
@@ -404,7 +404,7 @@ pub(super) fn generated_connected_event_tense_branch_from_atom(
     let tense_modal = TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(atom.clone()));
     generated_tense_modal_has_event_modifier(&tense_modal).then(|| {
         GeneratedConnectedEventTenseBranch::from_data(data!(GeneratedConnectedEventTenseBranch {
-            negated: generated_modal_negation_for_tense_modal(&tense_modal).is_some(),
+            negated: generated_adjunct_negation_for_tense_modal(&tense_modal).is_some(),
             tense_modal,
         }))
     })
@@ -492,7 +492,7 @@ pub(super) fn generated_connected_event_tense_connective_negates_right<N: TreeNo
 pub(super) fn generated_tense_modal_has_contradictory_event_negation(
     tense_modal: &TenseModalSyntax,
 ) -> bool {
-    generated_modal_negation_for_tense_modal(tense_modal).is_some()
+    generated_adjunct_negation_for_tense_modal(tense_modal).is_some()
         && !matches!(
             &tense_modal.0,
             TenseModalBodySyntax::TenseModalAtom(
@@ -753,7 +753,7 @@ pub(super) fn generated_tense_modal_resets_sticky_modals(tense_modal: &TenseModa
 
 #[requires(true)]
 #[ensures(generated_tense_modal_has_event_modifier(tense_modal) -> !ret)]
-pub(super) fn generated_tense_modal_has_modal_argument(tense_modal: &TenseModalSyntax) -> bool {
+pub(super) fn generated_tense_modal_has_adjunct(tense_modal: &TenseModalSyntax) -> bool {
     if generated_tense_modal_has_event_modifier(tense_modal) {
         return false;
     }
@@ -825,7 +825,7 @@ pub(super) fn apply_generated_recurrence_negation(
     spatial: bool,
     recurrence_index: usize,
     modifier_index: usize,
-    negation: ModalNegation,
+    negation: TaggedNegation,
 ) {
     let recurrence = if spatial {
         modifiers.spatial_recurrences.get_mut(recurrence_index)
@@ -1237,17 +1237,17 @@ pub(super) fn generated_se_token_conversion_place(se: &Token) -> Option<usize> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
-pub(super) fn generated_modal_negation_for_tense_modal<N: TreeNode>(
+pub(super) fn generated_adjunct_negation_for_tense_modal<N: TreeNode>(
     tense_modal: &N,
-) -> Option<ModalNegation> {
+) -> Option<TaggedNegation> {
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
     let mut previous_recurrence_marker = false;
     for token in &collector.tokens {
         if token.cmavo() == Some(Cmavo::Nai) {
             if !previous_recurrence_marker {
-                return Some(ModalNegation::new(
-                    ModalNegationKind::Contradictory,
+                return Some(TaggedNegation::new(
+                    TaggedNegationKind::Contradictory,
                     token_text(token),
                 ));
             }

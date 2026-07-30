@@ -154,8 +154,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 arguments.insert(key, self.build_elided_argument_for_place(place)?);
             }
         }
-        let modal_arguments = self
-            .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+        let adjuncts = self
+            .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                 eventuality,
                 modal_terms,
                 Some(&arguments),
@@ -168,7 +168,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         let predication = self.next_predication_id();
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
@@ -552,7 +552,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
             }
         }
-        let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms_for_event(
+        let adjuncts = self.build_adjuncts_for_generated_tagged_terms_for_event(
             eventuality,
             &assignments.modal_terms,
         )?;
@@ -571,7 +571,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.set_predication_attachments(modal_arguments, place_questions);
+        predication_object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, predication_object)?;
         if let Some(scalar_negation) = scalar_negation {
             self.set_scalar_negation(predication, scalar_negation)?;

@@ -473,8 +473,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         )));
                     }
                 }
-                let modal_arguments = self
-                    .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                let adjuncts = self
+                    .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                         eventuality,
                         &modal_terms,
                         Some(&arguments),
@@ -487,7 +487,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     connection_formula_source.clone(),
                     Vec::new(),
                 );
-                predication_object.set_predication_modal_arguments(modal_arguments);
+                predication_object.set_predication_adjuncts(adjuncts);
                 let predication = self.next_predication_id();
                 self.insert_converted_predication_with_voha_place_map(
                     predication,
@@ -554,8 +554,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source_with_construct(source.clone(), "distributed-predication"),
                 )?;
                 self.apply_generated_tagged_term_event_modifiers(eventuality, &modal_terms)?;
-                let modal_arguments = self
-                    .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                let adjuncts = self
+                    .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                         eventuality,
                         &modal_terms,
                         Some(&arguments),
@@ -568,7 +568,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source_with_construct(source.clone(), "distributed-predication"),
                     Vec::new(),
                 );
-                predication_object.set_predication_modal_arguments(modal_arguments);
+                predication_object.set_predication_adjuncts(adjuncts);
                 let predication = self.next_predication_id();
                 self.insert_converted_predication_with_voha_place_map(
                     predication,
@@ -1255,8 +1255,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source_with_construct(predication_source.clone(), "distributed-predication"),
             )?;
             self.apply_generated_tagged_term_event_modifiers(eventuality, &branch_modal_terms)?;
-            let modal_arguments = self
-                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+            let adjuncts = self
+                .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                     eventuality,
                     &branch_modal_terms,
                     Some(&arguments),
@@ -1269,7 +1269,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source_with_construct(predication_source.clone(), "distributed-predication"),
                 Vec::new(),
             );
-            predication_object.set_predication_modal_arguments(modal_arguments);
+            predication_object.set_predication_adjuncts(adjuncts);
             let predication = self.next_predication_id();
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -1478,8 +1478,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source_with_construct(predication_source.clone(), "distributed-predication"),
             )?;
             self.apply_generated_tagged_term_event_modifiers(eventuality, modal_terms)?;
-            let modal_arguments = self
-                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+            let adjuncts = self
+                .build_adjuncts_for_generated_tagged_terms_for_event_with_predication_arguments(
                     eventuality,
                     modal_terms,
                     Some(&arguments),
@@ -1492,7 +1492,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source_with_construct(predication_source.clone(), "distributed-predication"),
                 Vec::new(),
             );
-            predication_object.set_predication_modal_arguments(modal_arguments);
+            predication_object.set_predication_adjuncts(adjuncts);
             let predication = self.next_predication_id();
             self.insert_converted_predication_with_voha_place_map(
                 predication,
@@ -2118,7 +2118,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
         let visible_arguments_for_place_questions = assignments.visible_arguments.clone();
         self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
-        let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms_for_event(
+        let adjuncts = self.build_adjuncts_for_generated_tagged_terms_for_event(
             eventuality,
             &assignments.modal_terms,
         )?;
@@ -2150,7 +2150,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.set_predication_attachments(modal_arguments, place_questions);
+        object.set_predication_attachments(adjuncts, place_questions);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2256,7 +2256,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let assignments = self.with_temporal_context(eventuality, |builder| {
             builder.build_term_assignments_for_terms(terms, first_visible_place)
         })?;
-        let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms_for_event(
+        let adjuncts = self.build_adjuncts_for_generated_tagged_terms_for_event(
             eventuality,
             &assignments.modal_terms,
         )?;
@@ -2278,7 +2278,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.set_predication_modal_arguments(modal_arguments);
+        object.set_predication_adjuncts(adjuncts);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(

@@ -22,7 +22,7 @@
 //!   renderer actually emits ([`source_rendered_under_provenance`]: the 12
 //!   object kinds it has renderers for, plus the traversed value structs
 //!   `AssignedName`/`RelativeClause`/`ArgumentValue` per Amendment 2,
-//!   `PlaceQuestionBinding` per jbotci#622, and `ModalArgument` plus its nested
+//!   `PlaceQuestionBinding` per jbotci#622, and `Adjunct` plus its nested
 //!   `DisplayedContentModifier` per jbotci#652, plus the `SemanticSource`/
 //!   `SourceByteSpan` fields those emit) become `Renders`; a source whose struct
 //!   the renderer never renders (`RelationMetadata`, or untraversed value
@@ -39,10 +39,10 @@
 //!   absent-in-document vs not-computed distinction lives in
 //!   [`crate::completeness::Presence`], not in the disposition.
 //!   This includes the first-class QUESTION records and predication
-//!   `PLACE QUESTIONS` bindings added by jbotci#622, plus the modal predicate
+//!   `PLACE QUESTIONS` bindings added by jbotci#622, plus the adjunct predicate
 //!   and formula keyword entries added by jbotci#652.
-//! * **Modal introducers are provenance.** `ModalArgument.introducedBy` is
-//!   excluded in ordinary notation and rendered inside the modal's provenance
+//! * **Adjunct introducers are provenance.** `Adjunct.introducedBy` is
+//!   excluded in ordinary notation and rendered inside the adjunct's provenance
 //!   block when provenance is enabled.
 //!
 //! # Known-consistent-pattern debt (documented, not a build failure)
@@ -65,13 +65,13 @@
 //!   no rendered source under provenance; the coverage reflects this precisely
 //!   (their `source` stays `ExcludedWithReason` even under provenance).
 //!   `Question`/`PlaceQuestionBinding` are now traversed and their sources render
-//!   when provenance is on. `ModalArgument` and its nested
+//!   when provenance is on. `Adjunct` and its nested
 //!   `DisplayedContentModifier` are likewise traversed on predication and
 //!   eventuality hosts; the remaining untraversed structs stay corpus-absent.
 //!   (Argument-attached `RelativeClause`s ARE now rendered — Amendment 3 — so
 //!   the round-2 deferral is resolved. `RelativeClause`/`ArgumentValue`
 //!   traversal is total across the RENDERED parent paths — descriptors,
-//!   predication arguments, and modal arguments — and the provenance coverage is
+//!   predication arguments, and adjuncts — and the provenance coverage is
 //!   occurrence-accurate there; `ArgumentValue`s reachable only through
 //!   untraversed value structs such as `ReciprocalExchange` remain part of that
 //!   acknowledged `NoCorpusWitness` debt, not covered by this claim.
@@ -85,7 +85,7 @@ use super::render::SmusniConfig;
 use crate::completeness::model::DispositionData;
 use crate::completeness::{
     CompletenessContract, Disposition, EntryKind, InventoryEntry,
-    modal_introducer_provenance_reason, render_field_inventory, source_link_surfaces,
+    adjunct_introducer_provenance_reason, render_field_inventory, source_link_surfaces,
     source_provenance_reason,
 };
 
@@ -96,7 +96,7 @@ const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 /// reached on — the 12 object kinds it has per-kind renderers for (each calls
 /// `render_source`), plus the six value structs it traverses and renders the
 /// nested source of: `AssignedName`, `RelativeClause`, `ArgumentValue`,
-/// jbotci#622's `PlaceQuestionBinding`, and jbotci#652's `ModalArgument` and
+/// jbotci#622's `PlaceQuestionBinding`, and jbotci#652's `Adjunct` and
 /// `DisplayedContentModifier`. The object kind
 /// with no per-kind renderer (`RelationMetadata`) falls to the `UNKNOWN` path
 /// and never renders a source; the other source-bearing value structs
@@ -125,7 +125,7 @@ const SOURCE_RENDERED_SURFACES: &[&str] = &[
     "RelativeClause",
     "ArgumentValue",
     "PlaceQuestionBinding",
-    "ModalArgument",
+    "Adjunct",
     "DisplayedContentModifier",
 ];
 
@@ -139,11 +139,11 @@ fn is_source_provenance(entry: &InventoryEntry) -> bool {
         || (entry.field == "source" && source_link_surfaces().contains(&entry.surface.name))
 }
 
-/// The modal's surface BAI/`fi'o` spelling, rendered only as provenance.
+/// The adjunct's surface BAI/`fi'o` spelling, rendered only as provenance.
 #[requires(true)]
-#[ensures(ret == (entry.surface.name == "ModalArgument" && entry.field == "introducedBy"))]
-fn is_modal_introducer_provenance(entry: &InventoryEntry) -> bool {
-    entry.surface.name == "ModalArgument" && entry.field == "introducedBy"
+#[ensures(ret == (entry.surface.name == "Adjunct" && entry.field == "introducedBy"))]
+fn is_adjunct_introducer_provenance(entry: &InventoryEntry) -> bool {
+    entry.surface.name == "Adjunct" && entry.field == "introducedBy"
 }
 
 /// True when, under `--provenance`, the renderer actually emits this
@@ -167,14 +167,14 @@ fn renderer_declares_not_computed(entry: &InventoryEntry) -> bool {
 }
 
 /// True when the renderer excludes a provenance coordinate: source data that
-/// is disabled/unreachable, or a modal's surface introducer in ordinary mode.
+/// is disabled/unreachable, or an adjunct's surface introducer in ordinary mode.
 #[requires(true)]
 #[ensures(ret == ((is_source_provenance(entry)
     && !(config.provenance && source_rendered_under_provenance(entry)))
-    || (is_modal_introducer_provenance(entry) && !config.provenance)))]
+    || (is_adjunct_introducer_provenance(entry) && !config.provenance)))]
 fn renderer_excludes(entry: &InventoryEntry, config: SmusniConfig) -> bool {
     (is_source_provenance(entry) && !(config.provenance && source_rendered_under_provenance(entry)))
-        || (is_modal_introducer_provenance(entry) && !config.provenance)
+        || (is_adjunct_introducer_provenance(entry) && !config.provenance)
 }
 
 /// The disposition the `smusni` renderer applies to one inventory entry under a
@@ -200,8 +200,8 @@ pub fn renderer_disposition(entry: &InventoryEntry, config: SmusniConfig) -> Dis
     if renderer_excludes(entry, config) {
         // Adopt the spec's stated reason verbatim: the Disposition carries it,
         // so default-profile agreement also verifies the provenance category.
-        let reason = if is_modal_introducer_provenance(entry) {
-            modal_introducer_provenance_reason()
+        let reason = if is_adjunct_introducer_provenance(entry) {
+            adjunct_introducer_provenance_reason()
         } else {
             source_provenance_reason()
         };
@@ -303,7 +303,7 @@ mod tests {
     /// The coverage is config-dependent (kimi 8) AND accurate about which nested
     /// sources actually render (round-2 Blocker 1): turning provenance ON flips
     /// to `Renders` exactly the source coordinates the renderer emits
-    /// ([`source_rendered_under_provenance`]) plus the modal introducer — no
+    /// ([`source_rendered_under_provenance`]) plus the adjunct introducer — no
     /// more (a source whose struct is never rendered stays
     /// `ExcludedWithReason`) and no less.
     #[test]
@@ -319,7 +319,7 @@ mod tests {
             .iter()
             .filter(|entry| {
                 (is_source_provenance(entry) && source_rendered_under_provenance(entry))
-                    || is_modal_introducer_provenance(entry)
+                    || is_adjunct_introducer_provenance(entry)
             })
             .count();
         assert!(
@@ -331,7 +331,7 @@ mod tests {
             expected_flipped,
             "provenance-on must flip exactly the {expected_flipped} rendered source coordinates"
         );
-        // Every flipped entry is rendered source data or the modal introducer.
+        // Every flipped entry is rendered source data or the adjunct introducer.
         for key in &disagreements {
             let entry = inventory
                 .entries()
@@ -340,7 +340,7 @@ mod tests {
                 .expect("disagreement key is an inventory entry");
             assert!(
                 (is_source_provenance(entry) && source_rendered_under_provenance(entry))
-                    || is_modal_introducer_provenance(entry)
+                    || is_adjunct_introducer_provenance(entry)
             );
         }
         // A non-rendered source struct (e.g. QuantifierBinding.source) does NOT flip.

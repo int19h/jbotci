@@ -15,8 +15,8 @@
 //!   `smusni` sample. Excluding by type — not by field name — keeps lexical
 //!   `source` fields such as `Connector.source` (a word, not a `SemanticSource`)
 //!   rendering.
-//! * `ModalArgument.introducedBy` is likewise surface provenance: the semantic
-//!   modal is keyed by its desugared predicate (or body formula), so the BAI or
+//! * `Adjunct.introducedBy` is likewise surface provenance: the semantic
+//!   adjunct is keyed by its desugared predicate (or body formula), so the BAI or
 //!   `fi'o` spelling is excluded from the default profile and rendered only by
 //!   the provenance opt-in.
 //! * Exactly one document-level `NOT COMPUTED` fact
@@ -43,8 +43,8 @@ use super::model::{
 };
 
 const SOURCE_PROVENANCE_REASON: &str = "source provenance; smusni renders semantic content, not source spans (absent from every frozen smusni sample output)";
-const MODAL_INTRODUCER_PROVENANCE_REASON: &str =
-    "surface modal introducer; smusni keys modal arguments by desugared predicate or body formula";
+const ADJUNCT_INTRODUCER_PROVENANCE_REASON: &str =
+    "surface adjunct introducer; smusni keys adjuncts by desugared predicate or body formula";
 
 /// The single document-level `NOT COMPUTED` fact `smusni` declares rather than
 /// computes. (ALL HOLD / ROLE FOR are rendered wordings, not NOT COMPUTED.)
@@ -76,7 +76,7 @@ const SOURCE_LINK_SURFACES: &[&str] = &[
     "ArgumentValue",
     "AssignedName",
     "DisplayedContentModifier",
-    "ModalArgument",
+    "Adjunct",
     "OrdinalLabel",
     "PlaceQuestionBinding",
     "QuantifierBinding",
@@ -106,11 +106,11 @@ pub fn source_provenance_reason() -> &'static str {
     SOURCE_PROVENANCE_REASON
 }
 
-/// The reason `ModalArgument.introducedBy` is absent from ordinary `smusni`.
+/// The reason `Adjunct.introducedBy` is absent from ordinary `smusni`.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn modal_introducer_provenance_reason() -> &'static str {
-    MODAL_INTRODUCER_PROVENANCE_REASON
+pub fn adjunct_introducer_provenance_reason() -> &'static str {
+    ADJUNCT_INTRODUCER_PROVENANCE_REASON
 }
 
 /// True for a `SemanticSource`/`SourceByteSpan` value or a `SemanticSource`-typed
@@ -123,18 +123,18 @@ fn is_source_provenance(entry: &InventoryEntry) -> bool {
         || (entry.field == "source" && SOURCE_LINK_SURFACES.contains(&entry.surface.name))
 }
 
-/// True for the surface spelling that identifies how a modal was introduced.
+/// True for the surface spelling that identifies how an adjunct was introduced.
 #[requires(true)]
-#[ensures(ret == (entry.surface.name == "ModalArgument" && entry.field == "introducedBy"))]
-fn is_modal_introducer_provenance(entry: &InventoryEntry) -> bool {
-    entry.surface.name == "ModalArgument" && entry.field == "introducedBy"
+#[ensures(ret == (entry.surface.name == "Adjunct" && entry.field == "introducedBy"))]
+fn is_adjunct_introducer_provenance(entry: &InventoryEntry) -> bool {
+    entry.surface.name == "Adjunct" && entry.field == "introducedBy"
 }
 
 /// True for coordinates intentionally excluded from ordinary notation.
 #[requires(true)]
-#[ensures(ret == (is_source_provenance(entry) || is_modal_introducer_provenance(entry)))]
+#[ensures(ret == (is_source_provenance(entry) || is_adjunct_introducer_provenance(entry)))]
 fn is_excluded_provenance(entry: &InventoryEntry) -> bool {
-    is_source_provenance(entry) || is_modal_introducer_provenance(entry)
+    is_source_provenance(entry) || is_adjunct_introducer_provenance(entry)
 }
 
 /// True for the one declared document-level NOT COMPUTED fact.
@@ -159,9 +159,9 @@ pub fn baseline_disposition(entry: &InventoryEntry) -> Disposition {
     if is_source_provenance(entry) {
         return new!(Disposition::ExcludedWithReason(SOURCE_PROVENANCE_REASON));
     }
-    if is_modal_introducer_provenance(entry) {
+    if is_adjunct_introducer_provenance(entry) {
         return new!(Disposition::ExcludedWithReason(
-            MODAL_INTRODUCER_PROVENANCE_REASON
+            ADJUNCT_INTRODUCER_PROVENANCE_REASON
         ));
     }
     if is_not_computed_fact(entry) {

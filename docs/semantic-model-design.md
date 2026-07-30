@@ -54,7 +54,7 @@ KIND id : attr=val, attr=val, …
 | `EV` | an eventuality referent | `denotation`=generated-bound\|referential, slash-separated eventuality `sort`; typed time/space/aspect/recurrence fields; direct event abstractions carry `content` |
 | `REF` | a non-event referent | `category`=constant\|variable\|indexical\|composite, `sort`, optional `descriptor`/`composition`; constants carry `scopeDependence`; direct non-event abstractions carry `body`/`parameters` |
 | `PAR` | a free variable / gap | `sort`, typed `role`, `introducedBy` |
-| `PRD` | a predication (atomic proposition) | `relation` or `relationParameter`, optional `eventuality`, numbered `arguments`, `modalArguments`, typed `mode` |
+| `PRD` | a predication (atomic proposition) | `relation` or `relationParameter`, optional `eventuality`, numbered `arguments`, `adjuncts`, typed `mode` |
 | `FRM` | a logical formula | atom, connective, quantifier, `quantifierBundle`, or `respectivelyDistribution`; optionally owns generated events through `boundEventualities` |
 | `SGN` | a sign referent | public `type:"referent"`, `sort:"sign"`; `kind`, `text`/`letterals`/`quotation`, optional `denotes` |
 | `SEQ` | a discourse sequence | ordered `items`, optional formula/question `content`, `connectionClaims`, typed paragraph `relation`, optional `nonlogicalConnection`/`elidedConnectionOperand`; may own generated events when no formula LCA exists |
@@ -98,7 +98,7 @@ Every eventuality has one of two disjoint typed identities:
 - A **generated-bound** eventuality is introduced by predication lowering. It
   has no referential `category` or `scopeDependence`, and exactly one existing
   semantic owner lists it in `boundEventualities`. The owner is the lowest `FRM`
-  dominating every primary-field, argument/modal, transitive-tanru,
+  dominating every primary-field, argument/adjunct, transitive-tanru,
   formula-event, and reified-content use. If no formula LCA exists, the lowest
   containing `SEQ` owns it. Shared events are consequently bound once, outside
   every use, rather than once per atom.
@@ -294,28 +294,28 @@ A tense/space cmavo is **never a numbered place**; it is an **attribute on the `
   be preserved.
 - `ZAhO` becomes `aspect`/`aspects` and ordered interval modifiers; `CAhA`
   becomes `actuality.kind` (`actual`, `capable`, `potential`, `demonstrated`).
-- `KI` → a **sticky default**: the value is copied onto subsequent `EV`s until reset. `cu'e` → a tense **question**: a `PAR role=tenseQuestion, sort=tenseModal` over the `EV`'s tense field. Tense **as sumtcita** (`ca lo nu broda`) → a predication relating `e1`'s time to another event's time (a `cabna`-style link, i.e. a modal anchored to another event).
+- `KI` → a **sticky default**: the value is copied onto subsequent `EV`s until reset. `cu'e` → a tense **question**: a `PAR role=tenseQuestion, sort=tenseModal` over the `EV`'s tense field. Tense **as sumtcita** (`ca lo nu broda`) → a predication relating `e1`'s time to another event's time (a `cabna`-style link, represented as an adjunct anchored to another event).
 
-## 0.H Modals are typed arguments of the host predication
+## 0.H Adjuncts are typed arguments of the host predication
 
-A **modal tag** (`fi'o`/BAI) becomes a `ModalArgument` in the host
-predication's `modalArguments` array. Its `relation`, `introducedBy`, and
-canonical root-relation `arguments` retain the modal gismu and place mapping:
+An **adjunct tag** (`fi'o`/BAI) becomes an `Adjunct` in the host
+predication's `adjuncts` array. Its `relation`, `introducedBy`, and
+canonical root-relation `arguments` retain the adjunct relation and place mapping:
 - ρ is **internal** to the tag gismu when it has an event place — `bai`←`bapli` puts the main event `e1` directly in `bapli`'s event place; likewise `ti'u`←`tcika`, `sepi'o`←`pilno` (x3).
-- ρ is **external** otherwise — `fi'o kanla le zunle` retains the `kanla` arguments plus a contextual link to `e1`; `do'e` keeps the bare vague modal relation.
+- ρ is **external** otherwise — `fi'o kanla le zunle` retains the `kanla` arguments plus a contextual link to `e1`; `do'e` keeps the bare vague adjunct relation.
 
 `FA` (fe/fi/fo/fu) = arg-slot reassignment, recorded resolved in `arguments`.
 `JAI` = a relation conversion **raising an abstraction-place into x1** while
 the graph retains the unconverted root relation and keys (`jai gau` raises the
-agent specifically). `KI` = sticky modal (copied onto later predications).
-Modal **sentence** connection — the causals `ri'a`←`rinka`, `mu'i`←`mukti`,
+agent specifically). `KI` = sticky adjunct (copied onto later predications).
+Adjunct **sentence** connection — the causals `ri'a`←`rinka`, `mu'i`←`mukti`,
 `ni'i`←`nibli`, `ki'u`←`krinu` — attaches a causal predication formula through
 the sequence's `connectionClaims`; `nonlogicalConnection` retains the surface
 connector. For afterthought `A .i ri'a bo B`, CLL 9.7 makes B the root x1 cause
 and A the root x2 effect.
 
-Because an ordinary modal is part of the host predication, contradictory
-negation scopes over the host together with its modal claim. The graph does
+Because an ordinary adjunct is part of the host predication, contradictory
+negation scopes over the host together with its adjunct claim. The graph does
 not fabricate a second free-standing formula child solely to encode the tag:
 `mi na klama bai do` negates the going-with-compulsion claim as a unit.
 
@@ -371,7 +371,7 @@ Realization algebra: four vowels **A=`or`(TTTF), E=`and`(TFFF), O=`iff`(TFFT), U
 node and the question slot. **Non-logical connectives** (JOI/JOhI) do **not**
 enter `FRM` — they build typed composite referents; statement-level forms use
 `Sequence.nonlogicalConnection`. When a non-logical termset associates tagged
-terms with different composite members, the modal relation records the relevant
+terms with different composite members, the adjunct relation records the relevant
 member via `component`.
 
 ## 0.M Letterals are sign referents and anaphoric names
@@ -436,7 +436,7 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
 - **C-12 (notation, later refined by C-22).** One object per line; uniform `KIND id : attr=val`; modes asserted/incidental/displayed/restrictive; every elided place its own `zo'e`; the `UTT`/`e0` frame always present. (Part 0.A–0.B.)
 - **C-13 (existential import).** Import attaches to a predication-occurrence and propagates through `FRM` as that predication's truth value does; a bare `REF` is inert; `zi'o`/`PAR` exempt; a `var` is governed by its own quantifier; incidental/displayed carry import but project. *Refinement (CLL 16.8, corrected by C-30):* a `poi`-restriction on `forall`/`pluralForall` carries **projective** domain-nonemptiness import, recorded by `domainImport=projective`; restricted `exists`/`pluralExists`/`cardinality` derive their at-issue import classically from the restriction-as-conjunct reading, while `none` carries no import. A predication in a connective antecedent is not a quantifier restriction and carries no such domain import, as in the import-free "any". (Part 0.K, 0.E.)
 - **C-14 (relative clauses & possession).** `poi` = restrictive (extension-fixing); `noi` = incidental; `voi` = restrictive but non-veridical (`skicu`-style); `pe`/`po`/`po'e` = restrictive `srana`/possession predications; `ne` = incidental; `goi` = shared id; `zi'e` = several clauses on one head; `vu'o` = a clause over a composite referent. (Part 0.A, companion ch. 8.)
-- **C-15 (modals & tenses are sumtcita).** Modal = a typed `ModalArgument` on the host predication, with ρ internal when the tag gismu has an event place and contextual otherwise; tense = `EV` attributes; `FA` = argument reorder; `JAI` = a raising conversion; `KI` = sticky; sentence causals = event-relation formulas in sequence `connectionClaims`. (Part 0.G–0.H.)
+- **C-15 (adjuncts & tenses are sumtcita).** Adjunct = a typed `Adjunct` on the host predication, with ρ internal when the tag gismu has an event place and contextual otherwise; tense = `EV` attributes; `FA` = argument reorder; `JAI` = a raising conversion; `KI` = sticky; sentence causals = event-relation formulas in sequence `connectionClaims`. (Part 0.G–0.H.)
 - **C-16 (abstraction).** Direct abstraction-output referents, the `ce'u`/`ke'a` distinction, `du'u` factivity-belongs-to-the-verb, `se du'u` = the sentence-sign, `kau` focus, and `tu'a` raising. (Part 0.I.)
 - **C-17 (indexicals as utterance roles).** Indexicals denote roles of the utterance they occur in; nested quotations are their own `UTT`s with their own roles; cross-level coreference is an explicit `du`; unstated speaker/audience get placeholder `REF`s whose existence rides on the asserted `UTT`. (Part 0.P.)
 - **C-18 (lujvo authority and nonce metadata; amended by the 2026-07-17 owner ruling).** A lujvo's relation is atomic. Dictionary definitions are authoritative for meaning and place count and receive no `REL` decomposition object. Only nonce lujvo receive morphology-derived `REL` metadata, limited to resolved `sourceWords` and typed rafsi `expansion`/`rafsiBindings`, with no `placeStructure`, participant-mapping, or implicit-abstraction claim. **Tanru desugar in `FRM`; lujvo do not.** (Part 0.F.)
@@ -448,7 +448,7 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
 - **C-24 (mekso).** Numbers denote values; the `MEX` operand language is self-contained, feeding the core via quantifier (`CARD`), value (`li`→`QTY`), expression (`me'o`→a sign-sort `REF`), and MOI relations; `li`/`me'o` is the value/sign split. (Part 0.N.)
 - **C-25 (text structure).** `.i`/NIhO → `SEQ` (truth-valueless; bare `.i` uses `same-topic-continuation`, NIhO a tagged paragraph boundary); `.ije` → a connected `content` formula on the sequence; structured (`lu…li'u`, nested `UTT`, referents reachable) vs opaque (`lo'u`/`zo`/`zoi`, sealed sign-sort `REF`) quotation; `la'o`/`la'e`/`lu'e`; topic-comment `zo'u` = vague `R[topic-of]`; TO/SEI = `aside` edge; FUhE/BAhE = `DSP`; MAI/XI = annotations; SI/SA/SU/FAhO = pre-semantic token editing. (Part 0.O.)
 - **C-NL (non-logical / discourse attachment).** Parentheticals (`to…toi`, `sei…se'u`) are nested `UTT force=parenthetical` on an unordered `aside` edge, sharing the host's deictic ground; their content, when several unconnected sentences, is a `SEQ` (**truth-valueless by construction**, each member keeping its own truth value and import); a `SEQ` member may itself be a logically connected `FRM` (grouping = precedence only); `.i` is discourse juxtaposition, never a truth function. (Part 0.O.)
-- **C-26 (tersmu / Lean-prelude cross-check).** Validated the model against jbotci `tersmu`'s Lean prelude (the prior object model, read directly). Three refinements. **(A)** Tanru now use one **uniform** schema — tertau asserted + seltau reified as a kind `⟨ka ce'u S⟩` linked by the vague `R`, asserting **neither** `S(x)` **nor** a concrete seltau referent; the reading is the resolution of `R`, and only the tertau's eventuality is introduced. (The prelude's `ofKind` is likewise an *uninterpreted* modifier that closes the seltau's extra places; the prior two-sub-case form over-committed by fabricating `S(x)`/`S(y)` and by proliferating events.) **(B)** The `REF` sort list gains `Proposition` (`du'u`) and `TruthValue` (`jei`) so abstraction outputs are typed for place-structure checking (the prelude keeps distinct `Predication`/`TruthValueEntity`/`ConceptEntity`/`AmountEntity`/… wrappers), and `ka`'s arity is fixed as its `ce'u` count. **(C)** `gi'e` shares only an **explicit** x1 — an omitted x1 is each tail's own `zo'e` (CLL 14.57–14.58) — and sumti connection shares overt non-connected arguments while keeping omitted non-connected places branch-local. **Corroborated without change:** the `UTT` speaker/addressee frame (`Utterance := Entities → Entities → Prop`), reified eventualities, claim-by-omission, `le` as non-veridical description, the `gunma`/`selcmi` mass/set reductions (the prelude cites the same BPFK `lo gunma/selcmi be …`), the four distinct causals (`isPhysicallyCausedBy`/`isJustifiedBy`/`isMotivatedBy`/`isLogicallyEntailedBy`), `caha` (`isActualized`/`isCapableOf`/…), `se du'u` as a sentence-sign (`TextEntity`), **lujvo as lexical-atomic** (the prelude's general `asLujvo` witness is narrowed by amended C-18 to mechanical metadata for nonce lujvo only), structured quotation as a nested speaker-relative utterance, and — independently reproduced — the `.e`-vs-`gi'e` sharing contrast. **Deliberate divergences kept per mandate:** xorlo `lo` (prelude uses the pre-xorlo existential conjunct), the propositional-attitude vs pure-emotion split (prelude treats both as a bare `Attitude` label, leaving the bridi asserted — a real value-add we keep), existential import of restricted universals (CLL 16.8; prelude uses bare `∀`), and gismu-derived modal `ρ` exposing places (prelude uses curated `is…By` relations). Current names use a typed name descriptor rather than a separate `cmene` namer predication and word-sign. (Parts 0.A, 0.F, 0.I, 0.L.)
+- **C-26 (tersmu / Lean-prelude cross-check).** Validated the model against jbotci `tersmu`'s Lean prelude (the prior object model, read directly). Three refinements. **(A)** Tanru now use one **uniform** schema — tertau asserted + seltau reified as a kind `⟨ka ce'u S⟩` linked by the vague `R`, asserting **neither** `S(x)` **nor** a concrete seltau referent; the reading is the resolution of `R`, and only the tertau's eventuality is introduced. (The prelude's `ofKind` is likewise an *uninterpreted* modifier that closes the seltau's extra places; the prior two-sub-case form over-committed by fabricating `S(x)`/`S(y)` and by proliferating events.) **(B)** The `REF` sort list gains `Proposition` (`du'u`) and `TruthValue` (`jei`) so abstraction outputs are typed for place-structure checking (the prelude keeps distinct `Predication`/`TruthValueEntity`/`ConceptEntity`/`AmountEntity`/… wrappers), and `ka`'s arity is fixed as its `ce'u` count. **(C)** `gi'e` shares only an **explicit** x1 — an omitted x1 is each tail's own `zo'e` (CLL 14.57–14.58) — and sumti connection shares overt non-connected arguments while keeping omitted non-connected places branch-local. **Corroborated without change:** the `UTT` speaker/addressee frame (`Utterance := Entities → Entities → Prop`), reified eventualities, claim-by-omission, `le` as non-veridical description, the `gunma`/`selcmi` mass/set reductions (the prelude cites the same BPFK `lo gunma/selcmi be …`), the four distinct causals (`isPhysicallyCausedBy`/`isJustifiedBy`/`isMotivatedBy`/`isLogicallyEntailedBy`), `caha` (`isActualized`/`isCapableOf`/…), `se du'u` as a sentence-sign (`TextEntity`), **lujvo as lexical-atomic** (the prelude's general `asLujvo` witness is narrowed by amended C-18 to mechanical metadata for nonce lujvo only), structured quotation as a nested speaker-relative utterance, and — independently reproduced — the `.e`-vs-`gi'e` sharing contrast. **Deliberate divergences kept per mandate:** xorlo `lo` (prelude uses the pre-xorlo existential conjunct), the propositional-attitude vs pure-emotion split (prelude treats both as a bare `Attitude` label, leaving the bridi asserted — a real value-add we keep), existential import of restricted universals (CLL 16.8; prelude uses bare `∀`), and gismu-derived adjunct `ρ` exposing places (prelude uses curated `is…By` relations). Current names use a typed name descriptor rather than a separate `cmene` namer predication and word-sign. (Parts 0.A, 0.F, 0.I, 0.L.)
 - **C-27 (jbotci CLL review pass, 2026-06-23).** A CLL-wide review of `jbotci gentufa`/`tersmu` (chapters 9, 10, 11, 14 + pilots) adopted a batch of model amendments and, at the time, recorded implementation divergences. Those listed divergences have since been resolved; the current audit section in [`semantic-model-spec.md`](semantic-model-spec.md) is authoritative. Highlights, all consistent with Part 0: tenses/aspect/`ROI`/`ki` are realized as the eventuality attributes 0.G already prescribes (stacked aspect gets an ordered `intervalModifiers` stack; `ROI` counts become first-class `quantity` objects; `ki` gets a `sticky` flag); the 0.L connective algebra is realized **structurally** rather than left in surface text (whether-or-not marks the `inert` operand; `se` exchanges operands; **negated logical connectives canonicalize to the base-vowel operator with a `not`-wrapped operand at every locus — the `na ja`→`implies` shortcut is dropped**; runs nest binary, never flattening across distinct operators); non-logical statement connectives (`.i joi`/`.i ce'o`) get a truth-valueless `nonlogicalConnection` on the `SEQ`; connected operands carry `force=subordinated`; tanru keep the 0.F desugaring but gain a typed `tanruLink` sidecar replacing the untyped `R[tanru:…]` string; `lo'e`/`le'e` bodies become non-veridical (kind/genericity structure deliberately **not** added — 0.D keeps that gap exposed); `fa'u` gets a declarative `respectivelyDistribution` node; `vau`-shared ids become normative. Doc-only items: `fi'o se pilno` place-numbering, `quotation.mode` as a category, and the `abstractionAbout` descriptor kind were already correct — the consumer primer was corrected instead. (Parts 0.D, 0.F, 0.G, 0.H, 0.I, 0.L, 0.O.)
 - **C-28 (mekso connective implementation follow-up).** Logical mekso operand
   connectives used as sumti quantifiers now lift to formula-level connectives
@@ -463,7 +463,7 @@ Entries marked **SUPERSEDED** are retained only to record the model's history; t
   formula whose `streams` bind `parameter.role="respectiveSlot"` placeholders.
   Quantified witness streams carry their restriction and source quantity
   (CLL 14.124), while termset streams may carry complete branch formulas so
-  modal/tag content stays paired with the correct index (CLL 14.133). (Part
+  adjunct/tag content stays paired with the correct index (CLL 14.133). (Part
   0.L.)
 - **C-30 (projective restricted-universal domain import, #279).** Adopted the
   classical-divergence criterion and replaced 0.E's incorrect at-issue

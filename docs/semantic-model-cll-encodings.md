@@ -346,21 +346,21 @@ FRM (ps attaches to c1; the host clause supplies f1)
 ```
 `po` (specific) → a stronger possession relation; `po'e` (inalienable) → an intrinsic part-relation `R[part-of]`; `ne` (incidental) → `ps` with `mode=incidental`. **`voi` (8.5)** `le voi blanu` (non-veridical restrictive) → `skicu(a1, x1, a2, ⟨ka ce'u blanu⟩) mode=restrictive` (restricted to what the speaker *describes* as blue). **`goi` (8.x)** binds a `ko'a` handle to the head's id (shared id). **`zi'e` (8.4)** → several clause-`PRD`s on one head (each with its own mode). **`vu'o` (8.8)** → the clause attaches to a composite `(c1 ⊕ …)` referent rather than to `c1` alone.
 
-## Chapter 9 — modals (sumtcita = shared-eventuality predications)
+## Chapter 9 — adjuncts (sumtcita = shared-eventuality predications)
 
 **9.28 `mi viska do sepi'o le zunle kanla`** — "I see you with-tool my left eye" (`sepi'o`←`pilno`, ρ **internal** via x3).
 ```
 ⟨frame u1/e0/a1/a2⟩
 REF k1 : kind=const, flavor=le, sort=Obj ; +LE-clause(k1, [zunle ⋗ kanla])   -- the left eye (tanru)
 EV  e1 : tense=?, caha=?
-PRD p1 : rel=viska, ev=e1, args=[a1, a2, z1], mode=asserted, modalArguments=[m1]  -- I see you
-MOD m1 : relation=pilno, introducedBy="se pi'o",
-         arguments=[z_agent, k1, e1]                                         -- root places: x2 tool, x3 purpose event
+PRD p1 : rel=viska, ev=e1, args=[a1, a2, z1], mode=asserted, adjuncts=[m1]  -- I see you
+ADJUNCT m1 : relation=pilno, introducedBy="se pi'o",
+             arguments=[z_agent, k1, e1]                                     -- root places: x2 tool, x3 purpose event
 REF z1 : kind=const, flavor=zo'e, sort=Obj
 FRM f1 : atom(p1)
 ```
 The seeing event `e1` fills `pilno`'s x3 (purpose) — that *is* the ρ-link.
-The modal is a typed `ModalArgument` on `p1`, with root-relation place keys;
+The adjunct is a typed `Adjunct` on `p1`, with root-relation place keys;
 it is not emitted as a second free-standing predication or formula conjunct.
 
 **9.30 `mi cadzu seka'a la .bratfyd.`** — "I walk with-destination Bradford" (`ka'a`←`klama`, SE selects the destination place).
@@ -380,9 +380,9 @@ FRM f1 : and(p1, pk)
 The `klama` predication shares the agent `a1` and (by `R`) the same motion as `cadzu`; SE has put `B` in `klama`'s x2.
 
 **`fi'o kanla` (external ρ) and `do'e` (R alone).** `kanla` has no event
-place, so its `ModalArgument` retains the filled `kanla` arguments and an
+place, so its `Adjunct` retains the filled `kanla` arguments and an
 explicit external contextual link to the host event. `do'e` (9.34,
-`lo nanmu be do'e le berti`) retains only that vague contextual modal relation,
+`lo nanmu be do'e le berti`) retains only that vague contextual adjunct relation,
 with no tag gismu — fully vague "of".
 
 **Causal sentence connection (9.7) — `ko'a broda .i ri'a bo ko'e brode`** (`ri'a`←`rinka`):
@@ -402,9 +402,9 @@ cause (root x1). The relation claim is attached to the sequence rather than
 conjoined into either utterance's content. (`mu'i`→`mukti`, `ni'i`→`nibli`,
 `ki'u`→`krinu`, each a relation between the two events.) **`JAI` (9.12)**
 `mi jai rinka le nu …` uses conversion while retaining the root `rinka`
-relation and canonical argument keys (`jai gau` raises the agent). **Modal
-negation (9.13)** is recorded on the modal structure. **`KI` (9.14)** sets a
-modal as a sticky default copied onto later predications.
+relation and canonical argument keys (`jai gau` raises the agent). **Adjunct
+negation (9.13)** is recorded on the adjunct structure. **`KI` (9.14)** sets an
+adjunct as a sticky default copied onto later predications.
 
 ## Chapter 10 — tenses (typed eventuality fields; no numbered places)
 
@@ -444,7 +444,7 @@ extent, dimensionality, and motion; `TAhE` (`ta'e klama`) adds a recurrence
 distribution (`ru'inai` is intermittent); `ROI` (`ci roi`) adds an
 `occurrenceCount` recurrence with a quantity object; `ZAhO` (`ba'o klama`)
 sets `aspect`; and `CAhA` (`ka'e klama`) sets `actuality`. Bare generated
-events have no default actuality. **`KI`** makes the typed tense/modal value a
+events have no default actuality. **`KI`** makes the typed tense/adjunct value a
 sticky default for later eventualities. **`cu'e`** produces a tense question
 with a `tenseQuestion` parameter. **Tense as sumtcita** (`ca lo nu broda`)
 anchors the matrix event's time to the abstraction event. **Tense negation**
@@ -653,7 +653,7 @@ FRM f1 : and(p1, p2)
 ```
 The two predications share overt non-connected arguments, but omitted places are separate branch-local `zo'e` referents. This keeps CLL 14.26 equivalent to the corresponding `.ije` expansion with respect to unspecified origins, routes, and means.
 
-**Realization algebra (one `FRM` node per connection):** `.a`→`or`, `.e`→`and`, `.o`→`iff`, `.u`→ first asserted + second `mode=inert`; `na`/`nai`/`se` transform structurally — `na.a`→`or(not p,q)` (truth-functionally implication), afterthought `.enai`→`and(p, not q)`, forethought `ganai ... gi`→`or(not p, q)`, forethought `ge ... ginai`→`and(p, not q)`, `se.u`→`inert(p), assert(q)`. **Connective question `ji`** (`do ji mi`) introduces a `connectiveQuestion` parameter of sort `connective`; the question has `kind=connective` and a typed answer slot. **Forethought `ge…gi`** = same `FRM` nodes, prefix order. **Termset `nu'i…nu'u` / `pe'e`** = parallel connection of several places: equal-length termsets zip corresponding terms, while unequal branches replay surrounding terms per branch, so in CLL 14.74 the same following `le briju` is x2 in the `mi` branch and x3 in the `do ce'e le zarci` branch. **Non-logical `joi`/`ce`/`ce'o` (14.15)** do **not** enter `FRM`: `joi`→a `gunma` composite, `ce`→a `selcmi` set, `ce'o`→an ordered sequence — all **composite referents** fed to one predication. **`fa'u`** first introduces a respectively-paired composite, but when the correspondence itself is truth-conditional it is promoted to `respectivelyDistribution`: CLL 14.124 zips James/George against two distinct sister witnesses, and CLL 14.133 zips John/Frank against two tagged/modal branch formulas. For non-logical termsets with tagged components (CLL 14.131/14.132), branch-local modals carry `component` so each modal is tied to the relevant member of the composite argument; `fa'u` 14.133 additionally exposes the branch correspondence as parallel streams.
+**Realization algebra (one `FRM` node per connection):** `.a`→`or`, `.e`→`and`, `.o`→`iff`, `.u`→ first asserted + second `mode=inert`; `na`/`nai`/`se` transform structurally — `na.a`→`or(not p,q)` (truth-functionally implication), afterthought `.enai`→`and(p, not q)`, forethought `ganai ... gi`→`or(not p, q)`, forethought `ge ... ginai`→`and(p, not q)`, `se.u`→`inert(p), assert(q)`. **Connective question `ji`** (`do ji mi`) introduces a `connectiveQuestion` parameter of sort `connective`; the question has `kind=connective` and a typed answer slot. **Forethought `ge…gi`** = same `FRM` nodes, prefix order. **Termset `nu'i…nu'u` / `pe'e`** = parallel connection of several places: equal-length termsets zip corresponding terms, while unequal branches replay surrounding terms per branch, so in CLL 14.74 the same following `le briju` is x2 in the `mi` branch and x3 in the `do ce'e le zarci` branch. **Non-logical `joi`/`ce`/`ce'o` (14.15)** do **not** enter `FRM`: `joi`→a `gunma` composite, `ce`→a `selcmi` set, `ce'o`→an ordered sequence — all **composite referents** fed to one predication. **`fa'u`** first introduces a respectively-paired composite, but when the correspondence itself is truth-conditional it is promoted to `respectivelyDistribution`: CLL 14.124 zips James/George against two distinct sister witnesses, and CLL 14.133 zips John/Frank against two tagged/adjunct branch formulas. For non-logical termsets with tagged components (CLL 14.131/14.132), branch-local adjuncts carry `component` so each adjunct is tied to the relevant member of the composite argument; `fa'u` 14.133 additionally exposes the branch correspondence as parallel streams.
 
 ## Chapters 15–16 — negation & quantifier scope (reference-by-id)
 
@@ -819,4 +819,4 @@ UTT u1 : … , asides=[u3]                                              -- UNORD
 
 ## Gotchas found & doc revisions during this pass
 
-See the closing summary in the accompanying message. In brief: (1) **tanru** use one uniform schema — tertau asserted + seltau as a reified kind `⟨ka ce'u S⟩` linked by the vague `R`, asserting neither `S(x)` nor a concrete seltau referent (revised under C-26 from the earlier two-sub-case form, which over-committed); (2) **asserted modal predications** conjoined into content (fall under `na`); (3) **restricted universals** carry categorical domain-nonemptiness import (CLL 16.8), distinct from the import-free "any". A later cross-check against jbotci `tersmu`'s Lean prelude (C-26) corroborated the model broadly and prompted the uniform tanru schema plus the `Proposition`/`TruthValue` sorts and the `gi'e`/`.e` sharing fix; no other definitions required revision; all remaining chapters validated against CLL as-is.
+See the closing summary in the accompanying message. In brief: (1) **tanru** use one uniform schema — tertau asserted + seltau as a reified kind `⟨ka ce'u S⟩` linked by the vague `R`, asserting neither `S(x)` nor a concrete seltau referent (revised under C-26 from the earlier two-sub-case form, which over-committed); (2) **asserted adjunct predications** conjoined into content (fall under `na`); (3) **restricted universals** carry categorical domain-nonemptiness import (CLL 16.8), distinct from the import-free "any". A later cross-check against jbotci `tersmu`'s Lean prelude (C-26) corroborated the model broadly and prompted the uniform tanru schema plus the `Proposition`/`TruthValue` sorts and the `gi'e`/`.e` sharing fix; no other definitions required revision; all remaining chapters validated against CLL as-is.
