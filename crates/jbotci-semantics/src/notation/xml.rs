@@ -215,14 +215,14 @@ pub const XML_DECLARED_WAIVERS: &[XmlWaiverFamily] = &[
     XmlWaiverFamily::BoundVariableWord,
 ];
 
-#[requires(path.starts_with('/'))]
-#[ensures(ret.path().starts_with('/'))]
+#[requires(path.starts_with("/objects/"))]
+#[ensures(ret.path().starts_with("/objects/"))]
 fn object_surface(path: String) -> XmlSurface {
     new!(XmlSurface::Object { path })
 }
 
-#[requires(path.starts_with('/'))]
-#[ensures(ret.path().starts_with('/'))]
+#[requires(path.starts_with("/objects/"))]
+#[ensures(ret.path().starts_with("/objects/"))]
 fn field_surface(path: String) -> XmlSurface {
     new!(XmlSurface::Field { path })
 }
@@ -1080,14 +1080,6 @@ impl RenderState {
         if self.planning {
             return;
         }
-        assert!(
-            !self
-                .omissions
-                .iter()
-                .any(|omission| omission.waiver == Some(waiver) && omission.surface == surface),
-            "the same omission was observed twice: {waiver:?} at {}",
-            surface.path()
-        );
         assert!(
             self.unaccounted_surfaces.remove(&surface),
             "omitted semantic surface was already accounted: {}",
