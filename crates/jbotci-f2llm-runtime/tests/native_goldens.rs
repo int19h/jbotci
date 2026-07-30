@@ -1,5 +1,6 @@
 #![cfg(all(feature = "native", not(target_arch = "wasm32")))]
 
+use std::cell::Cell;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -30,10 +31,10 @@ struct GoldenSpec {
     golden_relative: &'static str,
 }
 
-#[invariant(true)]
+#[invariant(reports.get() < usize::MAX)]
 #[derive(Debug)]
 struct CountingProgress {
-    reports: usize,
+    reports: Cell<usize>,
 }
 
 #[contract_trait]
@@ -42,14 +43,16 @@ impl ProgressSink for CountingProgress {
         &'a mut self,
         _event: &'a ProgressEvent,
     ) -> RuntimeFuture<'a, Result<(), ProgressError>> {
-        self.reports += 1;
+        self.reports.set(self.reports.get() + 1);
         Box::pin(async { Ok(()) })
     }
 }
 
-#[invariant(true)]
+#[invariant(!message.is_empty())]
 #[derive(Debug)]
-struct RejectingVectorStore;
+struct RejectingVectorStore {
+    message: &'static str,
+}
 
 #[contract_trait]
 impl VectorStore for RejectingVectorStore {
@@ -57,12 +60,7 @@ impl VectorStore for RejectingVectorStore {
         &'a self,
         key: &'a VectorStoreKey,
     ) -> RuntimeFuture<'a, Result<Vec<u8>, VectorStoreError>> {
-        Box::pin(async move {
-            Err(VectorStoreError::new(
-                key.clone(),
-                "embedding-only scoring must fail before reading vectors".to_owned(),
-            ))
-        })
+        Box::pin(async move { Err(VectorStoreError::new(key.clone(), self.message.to_owned())) })
     }
 }
 
@@ -120,11 +118,13 @@ fn all_vendored_native_goldens() {
         if force_fallback {
             options = options.with_force_fallback_adapter_for_testing();
         }
-        let mut progress = CountingProgress { reports: 0 };
+        let mut progress = new!(CountingProgress {
+            reports: Cell::new(0),
+        });
         let mut runtime = pollster::block_on(WebGpuRuntime::load(options, &source, &mut progress))
             .unwrap_or_else(|error| panic!("loading {} native runtime: {error}", spec.model_key));
         assert_eq!(runtime.capabilities(), RuntimeCapabilities::EmbeddingOnly);
-        assert!(progress.reports > 1);
+        assert!(progress.reports.get() > 1);
 
         let adapter = runtime.adapter_info();
         let adapter_evidence = json!({
@@ -285,7 +285,9 @@ fn assert_embedding_only_scoring_is_typed(runtime: &mut WebGpuRuntime, dimension
     let error = pollster::block_on(runtime.score_f16_vectors(
         &corpus,
         &vec![0.0; dimensions],
-        &RejectingVectorStore,
+        &new!(RejectingVectorStore {
+            message: "embedding-only scoring must fail before reading vectors",
+        }),
     ))
     .expect_err("embedding-only scoring must fail");
     assert_eq!(

@@ -101,7 +101,7 @@ impl std::fmt::Display for DirectoryRootError {
 impl std::error::Error for DirectoryRootError {}
 
 /// An immutable filesystem-backed artifact source rooted at a validated directory.
-#[invariant(true)]
+#[invariant(root.as_path().is_absolute())]
 #[derive(Debug, Clone)]
 pub struct DirectoryArtifactSource {
     root: DirectoryRoot,
@@ -111,7 +111,7 @@ impl DirectoryArtifactSource {
     #[requires(true)]
     #[ensures(true)]
     pub fn new(root: DirectoryRoot) -> Self {
-        Self { root }
+        new!(DirectoryArtifactSource { root: root })
     }
 
     #[requires(true)]
