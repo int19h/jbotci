@@ -231,6 +231,49 @@ fn field_surface(path: String) -> XmlSurface {
     new!(XmlSurface::Field { path })
 }
 
+/// Remove one surface and every object/field occurrence nested below its JSON
+/// Pointer without scanning unrelated inventory entries.
+///
+/// Object and field variants form separate ordered ranges. Starting each range
+/// at `path + "/"` is significant: a bare `path` lower bound would also visit
+/// lexicographic siblings such as `path-...` before reaching real descendants.
+#[requires(surface.path().starts_with("/objects/"))]
+#[ensures(!surfaces.contains(surface))]
+fn remove_surface_subtree(surfaces: &mut BTreeSet<XmlSurface>, surface: &XmlSurface) -> bool {
+    let path = surface.path().to_owned();
+    let removed = surfaces.remove(surface);
+    surfaces.remove(&object_surface(path.clone()));
+    surfaces.remove(&field_surface(path.clone()));
+
+    let descendant_prefix = format!("{path}/");
+    let object_start = object_surface(descendant_prefix.clone());
+    let object_descendants: Vec<XmlSurface> = surfaces
+        .range(object_start..)
+        .take_while(|candidate| {
+            matches!(
+                candidate.as_data(),
+                data!(XmlSurface::Object { path }) if path.starts_with(&descendant_prefix)
+            )
+        })
+        .cloned()
+        .collect();
+    let field_start = field_surface(descendant_prefix.clone());
+    let field_descendants: Vec<XmlSurface> = surfaces
+        .range(field_start..)
+        .take_while(|candidate| {
+            matches!(
+                candidate.as_data(),
+                data!(XmlSurface::Field { path }) if path.starts_with(&descendant_prefix)
+            )
+        })
+        .cloned()
+        .collect();
+    for descendant in object_descendants.into_iter().chain(field_descendants) {
+        surfaces.remove(&descendant);
+    }
+    removed
+}
+
 // Mutable XML construction state. Validity is established by the private
 // constructors and canonical serializer rather than by a wrapper that would
 // prohibit in-place tree assembly.
@@ -551,14 +594,25 @@ fn json_pointer_escape(segment: &str) -> String {
     segment.replace('~', "~0").replace('/', "~1")
 }
 
+/// Append the graph pointers counted by the e25eeaf prototype's ID policy.
+///
+/// This deliberately walks every canonical JSON field except source records.
+/// It is *not* the compact renderer's traversal graph: provenance, generated
+/// inverse content, and other fields that compact SFN derives or waives still
+/// affect prototype-compatible ID/share counts. Compact safety evidence is
+/// captured separately by the real planning traversal.
 #[requires(true)]
-#[ensures(true)]
-fn walk_pointer_values(value: &Value, object_keys: &HashSet<String>, output: &mut Vec<String>) {
+#[ensures(output.len() >= old(output.len()))]
+fn append_prototype_non_source_pointers(
+    value: &Value,
+    object_keys: &HashSet<String>,
+    output: &mut Vec<String>,
+) {
     match value {
         Value::String(value) if object_keys.contains(value) => output.push(value.clone()),
         Value::Array(items) => {
             for item in items {
-                walk_pointer_values(item, object_keys, output);
+                append_prototype_non_source_pointers(item, object_keys, output);
             }
         }
         Value::Object(object) => {
@@ -566,11 +620,43 @@ fn walk_pointer_values(value: &Value, object_keys: &HashSet<String>, output: &mu
                 if field == "source" && is_source_record(item) {
                     continue;
                 }
-                walk_pointer_values(item, object_keys, output);
+                append_prototype_non_source_pointers(item, object_keys, output);
             }
         }
         _ => {}
     }
+}
+
+/// Reproduce e25eeaf's raw non-source reference multiplicities exactly.
+///
+/// The synthetic root occurrence and duplicate pointers are intentional. These
+/// counts decide which compact nodes receive prototype-compatible IDs; they do
+/// not claim that every counted field is traversed by the compact renderer.
+#[requires(objects.contains_key(root))]
+#[requires(objects.keys().all(|key| object_keys.contains(key)))]
+#[ensures(
+    ret.len() == objects.len()
+        && ret.keys().all(|key| object_keys.contains(key))
+        && ret.get(root).is_some_and(|count| *count > 0)
+)]
+fn prototype_non_source_reference_counts(
+    root: &str,
+    objects: &Map<String, Value>,
+    object_keys: &HashSet<String>,
+) -> HashMap<String, usize> {
+    let mut counts: HashMap<String, usize> =
+        object_keys.iter().map(|key| (key.clone(), 0)).collect();
+    *counts.get_mut(root).expect("root belongs to objects") += 1;
+    for object in objects.values() {
+        let mut pointers = Vec::new();
+        append_prototype_non_source_pointers(object, object_keys, &mut pointers);
+        for pointer in pointers {
+            *counts
+                .get_mut(&pointer)
+                .expect("prototype pointer walk only yields object keys") += 1;
+        }
+    }
+    counts
 }
 
 #[requires(arguments.keys().all(|place| place.starts_with('x')))]
@@ -604,19 +690,162 @@ fn place_label(place: &str) -> &str {
 type Scope = Vec<String>;
 type Ground = [String; 4];
 
+/// One structural fact that prevents truthful use of the compact SFN vocabulary.
+///
+/// These are properties of the semantic graph, not renderer failures.  Keeping
+/// them typed makes the compact/graph-form boundary exhaustive and inspectable.
+#[invariant(::NonCanonicalGround { object, role } => !object.is_empty() && !role.is_empty())]
+#[invariant(::MultipleBinderOwners { referent } => !referent.is_empty())]
+#[invariant(::BinderDoesNotEncloseUse { referent, owner, use_site } =>
+    !referent.is_empty() && !owner.is_empty() && !use_site.is_empty()
+)]
+#[invariant(::ScopeDependencyWithoutEnclosingBinder { referent, dependency } =>
+    !referent.is_empty() && !dependency.is_empty()
+)]
+#[invariant(::NonCompactReferent { referent, field } =>
+    !referent.is_empty() && !field.is_empty()
+)]
+#[invariant(::NonCompactFieldShape { object, field } =>
+    !object.is_empty() && !field.is_empty()
+)]
+#[invariant(::NonCompactNameDescriptor { referent } => !referent.is_empty())]
+#[invariant(::NonDerivableGeneratedContent { referent, content } =>
+    !referent.is_empty() && !content.is_empty()
+)]
+#[invariant(::UnrepresentableCycle { entry } => !entry.is_empty())]
+#[invariant(::RepeatedSingleUseEmission { object } => !object.is_empty())]
+#[invariant(::PrototypeIdWithoutCompactUse { object } => !object.is_empty())]
+#[invariant(::DefinitionSiteDoesNotDominateUse { object } => !object.is_empty())]
+#[invariant(::DeclarationPlanningDidNotConverge { iterations } => *iterations > 0)]
+#[invariant(::RestrictedExists { formula } => !formula.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum CompactIncompatibility {
+    NonCanonicalGround {
+        object: String,
+        role: String,
+    },
+    MultipleBinderOwners {
+        referent: String,
+    },
+    BinderDoesNotEncloseUse {
+        referent: String,
+        owner: String,
+        use_site: String,
+    },
+    ScopeDependencyWithoutEnclosingBinder {
+        referent: String,
+        dependency: String,
+    },
+    NonCompactReferent {
+        referent: String,
+        field: String,
+    },
+    NonCompactFieldShape {
+        object: String,
+        field: String,
+    },
+    NonCompactNameDescriptor {
+        referent: String,
+    },
+    NonDerivableGeneratedContent {
+        referent: String,
+        content: String,
+    },
+    UnrepresentableCycle {
+        entry: String,
+    },
+    RepeatedSingleUseEmission {
+        object: String,
+    },
+    PrototypeIdWithoutCompactUse {
+        object: String,
+    },
+    DefinitionSiteDoesNotDominateUse {
+        object: String,
+    },
+    DeclarationPlanningDidNotConverge {
+        iterations: usize,
+    },
+    RestrictedExists {
+        formula: String,
+    },
+}
+
+impl CompactIncompatibility {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn kind(&self) -> &'static str {
+        match self.as_data() {
+            data!(CompactIncompatibility::NonCanonicalGround { .. }) => "NON-CANONICAL-GROUND",
+            data!(CompactIncompatibility::MultipleBinderOwners { .. }) => "MULTIPLE-BINDER-OWNERS",
+            data!(CompactIncompatibility::BinderDoesNotEncloseUse { .. }) => {
+                "BINDER-DOES-NOT-ENCLOSE-USE"
+            }
+            data!(CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder { .. }) => {
+                "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER"
+            }
+            data!(CompactIncompatibility::NonCompactReferent { .. }) => "NON-COMPACT-REFERENT",
+            data!(CompactIncompatibility::NonCompactFieldShape { .. }) => "NON-COMPACT-FIELD-SHAPE",
+            data!(CompactIncompatibility::NonCompactNameDescriptor { .. }) => {
+                "NON-COMPACT-NAME-DESCRIPTOR"
+            }
+            data!(CompactIncompatibility::NonDerivableGeneratedContent { .. }) => {
+                "NON-DERIVABLE-GENERATED-CONTENT"
+            }
+            data!(CompactIncompatibility::UnrepresentableCycle { .. }) => "UNREPRESENTABLE-CYCLE",
+            data!(CompactIncompatibility::RepeatedSingleUseEmission { .. }) => {
+                "REPEATED-SINGLE-USE-EMISSION"
+            }
+            data!(CompactIncompatibility::PrototypeIdWithoutCompactUse { .. }) => {
+                "PROTOTYPE-ID-WITHOUT-COMPACT-USE"
+            }
+            data!(CompactIncompatibility::DefinitionSiteDoesNotDominateUse { .. }) => {
+                "DEFINITION-SITE-DOES-NOT-DOMINATE-USE"
+            }
+            data!(CompactIncompatibility::DeclarationPlanningDidNotConverge { .. }) => {
+                "DECLARATION-PLANNING-DID-NOT-CONVERGE"
+            }
+            data!(CompactIncompatibility::RestrictedExists { .. }) => "RESTRICTED-EXISTS",
+        }
+    }
+}
+
+/// The exact representation selected before rendering starts.
+#[invariant(::Compact => true)]
+#[invariant(::TypedGraph { incompatibilities } => !incompatibilities.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum XmlRepresentationPlan {
+    Compact,
+    TypedGraph {
+        incompatibilities: BTreeSet<CompactIncompatibility>,
+    },
+}
+
+impl XmlRepresentationPlan {
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(XmlRepresentationPlan::Compact)))]
+    fn is_compact(&self) -> bool {
+        matches!(self.as_data(), data!(XmlRepresentationPlan::Compact))
+    }
+}
+
 // Validated once in `from_value`; fields are private and never mutated.
 #[invariant(objects.contains_key(root), "the root must name a graph object")]
 #[invariant(
     object_keys.len() == objects.len()
         && order.len() == objects.len()
-        && ids.len() == objects.len(),
+        && ids.len() == objects.len()
+        && prototype_non_source_reference_counts.len() == objects.len(),
     "all object-keyed indexes must cover the graph"
 )]
 #[expensive_invariant(
     object_keys.iter().all(|key| objects.contains_key(key))
         && objects.keys().all(|key| object_keys.contains(key))
         && order.keys().all(|key| object_keys.contains(key))
-        && ids.keys().all(|key| object_keys.contains(key)),
+        && ids.keys().all(|key| object_keys.contains(key))
+        && prototype_non_source_reference_counts
+            .keys()
+            .all(|key| object_keys.contains(key)),
     "all object-keyed indexes must have the same key domain"
 )]
 #[expensive_invariant(
@@ -638,6 +867,9 @@ struct GraphData {
     ids: HashMap<String, String>,
     context_sites: HashMap<String, Vec<(String, String)>>,
     event_binding_owners: HashMap<String, String>,
+    semantic_definition_owners: HashSet<String>,
+    prototype_non_source_reference_counts: HashMap<String, usize>,
+    representation: XmlRepresentationPlan,
     special_definition_keys: HashSet<String>,
     ordinary_definition_keys: HashSet<String>,
     ground_by_utterance: HashMap<String, Ground>,
@@ -682,18 +914,8 @@ impl GraphData {
             "generated SFN ids are not unique"
         );
 
-        let mut uses: HashMap<String, usize> =
-            object_keys.iter().map(|key| (key.clone(), 0)).collect();
-        *uses.get_mut(&root).expect("root belongs to objects") += 1;
-        for object in objects.values() {
-            let mut pointers = Vec::new();
-            walk_pointer_values(object, &object_keys, &mut pointers);
-            for pointer in pointers {
-                *uses
-                    .get_mut(&pointer)
-                    .expect("walk only yields object keys") += 1;
-            }
-        }
+        let prototype_non_source_reference_counts =
+            prototype_non_source_reference_counts(&root, &objects, &object_keys);
 
         let mut context_sites: HashMap<String, Vec<(String, String)>> = HashMap::new();
         let mut ground_by_utterance = HashMap::new();
@@ -715,8 +937,9 @@ impl GraphData {
             ground_by_utterance.insert(key.clone(), ground);
         }
 
-        let mut event_binding_owners = HashMap::new();
-        let mut quantifier_owners = HashMap::new();
+        let mut event_binding_owner_sets: HashMap<String, BTreeSet<String>> = HashMap::new();
+        let mut binder_owner_sets: HashMap<String, BTreeSet<String>> = HashMap::new();
+        let mut quantifier_owner_sets: HashMap<String, BTreeSet<String>> = HashMap::new();
         let mut quantifier_restrictions = HashSet::new();
         for (owner, value) in &objects {
             let object = json_object(value);
@@ -725,12 +948,14 @@ impl GraphData {
                     let event = event
                         .as_str()
                         .unwrap_or_else(|| panic!("bound eventuality must be an id"));
-                    assert!(
-                        event_binding_owners
-                            .insert(event.to_owned(), owner.clone())
-                            .is_none(),
-                        "eventuality has multiple binders: {event:?}"
-                    );
+                    event_binding_owner_sets
+                        .entry(event.to_owned())
+                        .or_default()
+                        .insert(owner.clone());
+                    binder_owner_sets
+                        .entry(event.to_owned())
+                        .or_default()
+                        .insert(owner.clone());
                 }
             }
             if optional_string(object, "type") == Some("formula")
@@ -740,12 +965,14 @@ impl GraphData {
                 )
                 && let Some(variable) = optional_string(object, "variable")
             {
-                assert!(
-                    quantifier_owners
-                        .insert(variable.to_owned(), owner.clone())
-                        .is_none(),
-                    "variable has multiple quantifier binders: {variable:?}"
-                );
+                binder_owner_sets
+                    .entry(variable.to_owned())
+                    .or_default()
+                    .insert(owner.clone());
+                quantifier_owner_sets
+                    .entry(variable.to_owned())
+                    .or_default()
+                    .insert(owner.clone());
                 if matches!(
                     optional_string(object, "operator"),
                     Some("forall" | "cardinality")
@@ -754,7 +981,51 @@ impl GraphData {
                     quantifier_restrictions.insert((variable.to_owned(), restriction.to_owned()));
                 }
             }
+            if let Some(parameters) = object.get("parameters").and_then(Value::as_array) {
+                for parameter in parameters {
+                    let parameter = parameter
+                        .as_str()
+                        .unwrap_or_else(|| panic!("parameter binder must be an id"));
+                    binder_owner_sets
+                        .entry(parameter.to_owned())
+                        .or_default()
+                        .insert(owner.clone());
+                }
+            }
         }
+        let event_binding_owners: HashMap<String, String> = event_binding_owner_sets
+            .iter()
+            .filter_map(|(referent, owners)| {
+                owners
+                    .iter()
+                    .next()
+                    .filter(|_| owners.len() == 1)
+                    .map(|owner| (referent.clone(), owner.clone()))
+            })
+            .collect();
+        let quantifier_owners: HashMap<String, String> = quantifier_owner_sets
+            .iter()
+            .filter_map(|(referent, owners)| {
+                owners
+                    .iter()
+                    .next()
+                    .filter(|_| owners.len() == 1)
+                    .map(|owner| (referent.clone(), owner.clone()))
+            })
+            .collect();
+        let representation = representation_plan(
+            &root,
+            &objects,
+            &object_keys,
+            &context_sites,
+            &binder_owner_sets,
+            &quantifier_restrictions,
+        );
+        let semantic_definition_owners: HashSet<String> = event_binding_owners
+            .values()
+            .cloned()
+            .chain(quantifier_owners.values().cloned())
+            .collect();
         let special_definition_keys: HashSet<String> = context_sites
             .keys()
             .chain(event_binding_owners.keys())
@@ -763,7 +1034,13 @@ impl GraphData {
             .collect();
         let id_keys: HashSet<String> = objects
             .keys()
-            .filter(|key| uses.get(*key).copied().unwrap_or_default() > 1)
+            .filter(|key| {
+                prototype_non_source_reference_counts
+                    .get(*key)
+                    .copied()
+                    .unwrap_or_default()
+                    > 1
+            })
             .cloned()
             .chain(special_definition_keys.iter().cloned())
             .collect();
@@ -791,6 +1068,9 @@ impl GraphData {
             ids,
             context_sites,
             event_binding_owners,
+            semantic_definition_owners,
+            prototype_non_source_reference_counts,
+            representation,
             special_definition_keys,
             ordinary_definition_keys,
             ground_by_utterance,
@@ -827,6 +1107,701 @@ impl GraphData {
             .get(&(value as *const Map<String, Value> as usize))
             .map(String::as_str)
             .unwrap_or_else(|| panic!("semantic record is absent from the path index"))
+    }
+}
+
+/// Build the semantic-reference adjacency used for binder enclosure.
+///
+/// Like the prototype count policy, this includes every non-source pointer.
+/// Unlike the counts it deduplicates parallel edges because reachability and
+/// dominance depend only on the graph topology.
+#[requires(objects.keys().all(|key| object_keys.contains(key)))]
+#[ensures(
+    ret.len() == objects.len()
+        && ret.keys().all(|key| object_keys.contains(key))
+        && ret
+            .values()
+            .all(|targets| targets.iter().all(|target| object_keys.contains(target)))
+)]
+fn semantic_reference_adjacency(
+    objects: &Map<String, Value>,
+    object_keys: &HashSet<String>,
+) -> HashMap<String, BTreeSet<String>> {
+    objects
+        .iter()
+        .map(|(key, value)| {
+            let mut pointers = Vec::new();
+            append_prototype_non_source_pointers(value, object_keys, &mut pointers);
+            (key.clone(), pointers.into_iter().collect())
+        })
+        .collect()
+}
+
+/// An immutable indexed graph shared by the linear SCC and dominator analyses.
+#[invariant(
+    keys.len() == indexes.len()
+        && keys.len() == successors.len()
+        && keys.len() == predecessors.len(),
+    "every reference-graph node must have all four index entries"
+)]
+#[expensive_invariant(
+    keys.iter()
+        .enumerate()
+        .all(|(index, key)| indexes.get(key) == Some(&index)),
+    "key and numeric indexes must be mutual inverses"
+)]
+#[expensive_invariant(
+    successors
+        .iter()
+        .chain(predecessors.iter())
+        .flatten()
+        .all(|target| *target < keys.len()),
+    "all indexed edges must stay within the graph"
+)]
+#[derive(Debug)]
+struct ReferenceGraph {
+    keys: Vec<String>,
+    indexes: HashMap<String, usize>,
+    successors: Vec<Vec<usize>>,
+    predecessors: Vec<Vec<usize>>,
+}
+
+impl ReferenceGraph {
+    #[requires(true)]
+    #[ensures(ret.keys.len() == old(keys.len()))]
+    fn from_adjacency(keys: Vec<String>, adjacency: &HashMap<String, BTreeSet<String>>) -> Self {
+        let indexes: HashMap<String, usize> = keys
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, key)| (key, index))
+            .collect();
+        assert_eq!(
+            indexes.len(),
+            keys.len(),
+            "reference-graph keys must be unique"
+        );
+        assert!(
+            adjacency.keys().all(|key| indexes.contains_key(key))
+                && adjacency
+                    .values()
+                    .flatten()
+                    .all(|target| indexes.contains_key(target)),
+            "reference adjacency contains an unknown object"
+        );
+
+        let mut successors = vec![Vec::new(); keys.len()];
+        let mut predecessors = vec![Vec::new(); keys.len()];
+        for (key, targets) in adjacency {
+            let source = indexes[key];
+            for target in targets {
+                let target = indexes[target];
+                successors[source].push(target);
+                predecessors[target].push(source);
+            }
+        }
+        Self::from_data(data!(ReferenceGraph {
+            keys,
+            indexes,
+            successors,
+            predecessors,
+        }))
+    }
+
+    #[requires(self.indexes.contains_key(key))]
+    #[ensures(ret < self.keys.len())]
+    fn index(&self, key: &str) -> usize {
+        self.indexes[key]
+    }
+
+    #[requires(root < self.keys.len())]
+    #[ensures(ret.len() == self.keys.len() && ret[root])]
+    fn reachable_from(&self, root: usize) -> Vec<bool> {
+        let mut reachable = vec![false; self.keys.len()];
+        let mut pending = vec![root];
+        while let Some(node) = pending.pop() {
+            if reachable[node] {
+                continue;
+            }
+            reachable[node] = true;
+            pending.extend(self.successors[node].iter().copied());
+        }
+        reachable
+    }
+
+    /// Compute SCCs with iterative Kosaraju passes in O(vertices + edges).
+    #[requires(true)]
+    #[ensures(ret.component_by_node.len() == self.keys.len())]
+    fn strongly_connected_components(&self) -> StrongComponents {
+        let finish_order = depth_first_finish_order(&self.successors);
+        let mut component_by_node = vec![usize::MAX; self.keys.len()];
+        let mut components = Vec::new();
+        for start in finish_order.into_iter().rev() {
+            if component_by_node[start] != usize::MAX {
+                continue;
+            }
+            let component_index = components.len();
+            let mut component = Vec::new();
+            let mut pending = vec![start];
+            component_by_node[start] = component_index;
+            while let Some(node) = pending.pop() {
+                component.push(node);
+                for predecessor in &self.predecessors[node] {
+                    if component_by_node[*predecessor] == usize::MAX {
+                        component_by_node[*predecessor] = component_index;
+                        pending.push(*predecessor);
+                    }
+                }
+            }
+            components.push(component);
+        }
+        StrongComponents::from_data(data!(StrongComponents {
+            component_by_node,
+            components,
+        }))
+    }
+
+    /// Compute one dominance relation for all enclosure queries.
+    ///
+    /// A virtual entry points at every compact document component root. The
+    /// Lengauer-Tarjan semidominator pass computes the dominator tree once;
+    /// Euler intervals then answer every binder-encloses-use query in O(1).
+    #[requires(!roots.is_empty())]
+    #[requires(roots.iter().all(|root| *root < self.keys.len()))]
+    #[ensures(ret.entry.len() == self.keys.len() && ret.exit.len() == self.keys.len())]
+    fn dominator_intervals(&self, roots: &[usize]) -> DominatorIntervals {
+        let node_count = self.keys.len();
+        let virtual_root = node_count;
+        let total_nodes = node_count + 1;
+        let mut unique_roots = roots.to_vec();
+        unique_roots.sort_unstable();
+        unique_roots.dedup();
+
+        // Iterative DFS assigns the 1-based numbering required by the standard
+        // semidominator algorithm without risking call-stack exhaustion.
+        let mut dfs_number = vec![0usize; total_nodes];
+        let mut vertex = vec![usize::MAX; total_nodes + 1];
+        let mut parent = vec![0usize; total_nodes + 1];
+        dfs_number[virtual_root] = 1;
+        vertex[1] = virtual_root;
+        let mut next_number = 2usize;
+        let mut stack = vec![(virtual_root, 0usize)];
+        while let Some((node, next_successor)) = stack.last_mut() {
+            let successors = if *node == virtual_root {
+                unique_roots.as_slice()
+            } else {
+                self.successors[*node].as_slice()
+            };
+            if *next_successor == successors.len() {
+                stack.pop();
+                continue;
+            }
+            let successor = successors[*next_successor];
+            *next_successor += 1;
+            if dfs_number[successor] != 0 {
+                continue;
+            }
+            let number = next_number;
+            next_number += 1;
+            dfs_number[successor] = number;
+            vertex[number] = successor;
+            parent[number] = dfs_number[*node];
+            stack.push((successor, 0));
+        }
+        let visited = next_number - 1;
+        assert_eq!(
+            visited, total_nodes,
+            "document component roots must make every graph node reachable"
+        );
+
+        let mut predecessors = vec![Vec::new(); total_nodes + 1];
+        for (source, targets) in self.successors.iter().enumerate() {
+            for target in targets {
+                predecessors[dfs_number[*target]].push(dfs_number[source]);
+            }
+        }
+        for root in unique_roots {
+            predecessors[dfs_number[root]].push(1);
+        }
+
+        let mut semi: Vec<usize> = (0..=total_nodes).collect();
+        let mut label: Vec<usize> = (0..=total_nodes).collect();
+        let mut ancestor = vec![0usize; total_nodes + 1];
+        let mut immediate_dominator = vec![0usize; total_nodes + 1];
+        let mut buckets = vec![Vec::new(); total_nodes + 1];
+        for node in (2..=total_nodes).rev() {
+            for predecessor in &predecessors[node] {
+                let candidate = semidominator_eval(*predecessor, &mut ancestor, &mut label, &semi);
+                semi[node] = semi[node].min(semi[candidate]);
+            }
+            buckets[semi[node]].push(node);
+            ancestor[node] = parent[node];
+            for pending in std::mem::take(&mut buckets[parent[node]]) {
+                let candidate = semidominator_eval(pending, &mut ancestor, &mut label, &semi);
+                immediate_dominator[pending] = if semi[candidate] < semi[pending] {
+                    candidate
+                } else {
+                    parent[node]
+                };
+            }
+        }
+        for node in 2..=total_nodes {
+            if immediate_dominator[node] != semi[node] {
+                immediate_dominator[node] = immediate_dominator[immediate_dominator[node]];
+            }
+        }
+        immediate_dominator[1] = 1;
+
+        let mut dominator_children = vec![Vec::new(); total_nodes];
+        for node in 2..=total_nodes {
+            let graph_node = vertex[node];
+            let dominator = vertex[immediate_dominator[node]];
+            dominator_children[dominator].push(graph_node);
+        }
+        let mut entry = vec![0usize; total_nodes];
+        let mut exit = vec![0usize; total_nodes];
+        let mut clock = 0usize;
+        let mut traversal = vec![(virtual_root, 0usize)];
+        entry[virtual_root] = clock;
+        clock += 1;
+        while let Some((node, next_child)) = traversal.last_mut() {
+            if *next_child == dominator_children[*node].len() {
+                exit[*node] = clock;
+                traversal.pop();
+                continue;
+            }
+            let child = dominator_children[*node][*next_child];
+            *next_child += 1;
+            entry[child] = clock;
+            clock += 1;
+            traversal.push((child, 0));
+        }
+        entry.pop();
+        exit.pop();
+        DominatorIntervals::from_data(data!(DominatorIntervals { entry, exit }))
+    }
+}
+
+#[invariant(
+    component_by_node.len() == components.iter().map(Vec::len).sum::<usize>(),
+    "every graph node belongs to exactly one strong component"
+)]
+#[expensive_invariant(
+    component_by_node
+        .iter()
+        .enumerate()
+        .all(|(node, component)| components
+            .get(*component)
+            .is_some_and(|members| members.contains(&node))),
+    "the component index must agree with component membership"
+)]
+#[derive(Debug)]
+struct StrongComponents {
+    component_by_node: Vec<usize>,
+    components: Vec<Vec<usize>>,
+}
+
+impl StrongComponents {
+    #[requires(node < self.component_by_node.len())]
+    #[ensures(ret < self.components.len())]
+    fn component(&self, node: usize) -> usize {
+        self.component_by_node[node]
+    }
+
+    #[requires(node < graph.keys.len())]
+    #[requires(self.component_by_node.len() == graph.keys.len())]
+    #[ensures(true)]
+    fn node_is_cyclic(&self, graph: &ReferenceGraph, node: usize) -> bool {
+        let component = &self.components[self.component(node)];
+        component.len() > 1 || graph.successors[node].contains(&node)
+    }
+}
+
+#[invariant(entry.len() == exit.len())]
+#[expensive_invariant(
+    entry
+        .iter()
+        .zip(exit.iter())
+        .all(|(entry, exit)| entry < exit),
+    "every dominator interval must be nonempty"
+)]
+#[derive(Debug)]
+struct DominatorIntervals {
+    entry: Vec<usize>,
+    exit: Vec<usize>,
+}
+
+impl DominatorIntervals {
+    #[requires(dominator < self.entry.len() && node < self.entry.len())]
+    #[ensures(true)]
+    fn dominates(&self, dominator: usize, node: usize) -> bool {
+        self.entry[dominator] <= self.entry[node] && self.exit[node] <= self.exit[dominator]
+    }
+}
+
+#[requires(
+    successors
+        .iter()
+        .flatten()
+        .all(|target| *target < successors.len())
+)]
+#[ensures(
+    ret.len() == successors.len()
+        && ret.iter().copied().collect::<HashSet<_>>().len() == ret.len()
+)]
+fn depth_first_finish_order(successors: &[Vec<usize>]) -> Vec<usize> {
+    let mut seen = vec![false; successors.len()];
+    let mut finished = Vec::with_capacity(successors.len());
+    for start in 0..successors.len() {
+        if seen[start] {
+            continue;
+        }
+        seen[start] = true;
+        let mut stack = vec![(start, 0usize)];
+        while let Some((node, next_successor)) = stack.last_mut() {
+            if *next_successor == successors[*node].len() {
+                finished.push(*node);
+                stack.pop();
+                continue;
+            }
+            let successor = successors[*node][*next_successor];
+            *next_successor += 1;
+            if !seen[successor] {
+                seen[successor] = true;
+                stack.push((successor, 0));
+            }
+        }
+    }
+    finished
+}
+
+#[requires(node > 0 && node < ancestor.len())]
+#[requires(ancestor.len() == label.len() && label.len() == semi.len())]
+#[ensures(ret > 0 && ret < label.len())]
+fn semidominator_eval(
+    node: usize,
+    ancestor: &mut [usize],
+    label: &mut [usize],
+    semi: &[usize],
+) -> usize {
+    if ancestor[node] == 0 {
+        return label[node];
+    }
+    let mut path = Vec::new();
+    let mut current = node;
+    while ancestor[ancestor[current]] != 0 {
+        path.push(current);
+        current = ancestor[current];
+    }
+    for current in path.into_iter().rev() {
+        let parent = ancestor[current];
+        if semi[label[parent]] < semi[label[current]] {
+            label[current] = label[parent];
+        }
+        ancestor[current] = ancestor[parent];
+    }
+    label[node]
+}
+
+#[requires(objects.contains_key(event_key))]
+#[ensures(true)]
+fn generated_event_content_is_derivable(
+    objects: &Map<String, Value>,
+    event_key: &str,
+    content_key: &str,
+) -> bool {
+    let Some(formula) = objects.get(content_key).and_then(Value::as_object) else {
+        return false;
+    };
+    let Some(predication_key) = optional_string(formula, "predication") else {
+        return false;
+    };
+    let Some(predication) = objects.get(predication_key).and_then(Value::as_object) else {
+        return false;
+    };
+    optional_string(formula, "type") == Some("formula")
+        && optional_string(formula, "operator") == Some("atom")
+        && optional_string(predication, "type") == Some("predication")
+        && optional_string(predication, "eventuality") == Some(event_key)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_noncompact_elided_restriction(
+    value: &Value,
+    quantifier_restrictions: &HashSet<(String, String)>,
+) -> bool {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .any(|item| has_noncompact_elided_restriction(item, quantifier_restrictions)),
+        Value::Object(object) => {
+            let noncompact_here = optional_string(object, "value").is_some_and(|referent| {
+                object
+                    .get("relativeClauses")
+                    .and_then(Value::as_array)
+                    .is_some_and(|clauses| {
+                        clauses.iter().map(json_object).any(|clause| {
+                            optional_string(clause, "body").is_some_and(|body| {
+                                quantifier_restrictions
+                                    .contains(&(referent.to_owned(), body.to_owned()))
+                                    && clause.keys().any(|field| {
+                                        !matches!(
+                                            field.as_str(),
+                                            "kind" | "body" | "source" | "introducedBy"
+                                        )
+                                    })
+                            })
+                        })
+                    })
+            });
+            noncompact_here
+                || object
+                    .values()
+                    .any(|item| has_noncompact_elided_restriction(item, quantifier_restrictions))
+        }
+        _ => false,
+    }
+}
+
+#[requires(objects.contains_key(root))]
+#[requires(objects.keys().all(|key| object_keys.contains(key)))]
+#[ensures(
+    ret.is_compact()
+        || matches!(
+            ret.as_data(),
+            data!(XmlRepresentationPlan::TypedGraph { .. })
+        )
+)]
+fn representation_plan(
+    root: &str,
+    objects: &Map<String, Value>,
+    object_keys: &HashSet<String>,
+    context_sites: &HashMap<String, Vec<(String, String)>>,
+    binder_owner_sets: &HashMap<String, BTreeSet<String>>,
+    quantifier_restrictions: &HashSet<(String, String)>,
+) -> XmlRepresentationPlan {
+    let semantic_adjacency = semantic_reference_adjacency(objects, object_keys);
+    let semantic_graph =
+        ReferenceGraph::from_adjacency(objects.keys().cloned().collect(), &semantic_adjacency);
+    let root_index = semantic_graph.index(root);
+    let semantic_root_reachable = semantic_graph.reachable_from(root_index);
+    // `render_graph_components` seeds every object outside the semantic root
+    // component as a possible top-level component. Giving those objects direct
+    // virtual-entry edges is the exact dominance model of that behavior: no
+    // binder in one separately seeded component can enclose another component.
+    let document_root_indexes: Vec<usize> = std::iter::once(root_index)
+        .chain(
+            semantic_graph
+                .keys
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| !semantic_root_reachable[*index])
+                .map(|(index, _)| index),
+        )
+        .collect();
+    let dominators = semantic_graph.dominator_intervals(&document_root_indexes);
+    let mut uses: HashMap<&str, BTreeSet<&str>> = HashMap::new();
+    for (owner, references) in &semantic_adjacency {
+        for referent in references {
+            uses.entry(referent).or_default().insert(owner);
+        }
+    }
+
+    let mut incompatibilities = BTreeSet::new();
+
+    for (key, sites) in context_sites {
+        let object = json_object(
+            objects
+                .get(key)
+                .unwrap_or_else(|| panic!("ground refers to missing object {key:?}")),
+        );
+        for (_, role) in sites {
+            let expected = match role.as_str() {
+                "SPEAKER" => "speaker",
+                "AUDIENCE" => "audience",
+                "TIME" => "now",
+                "PLACE" => "here",
+                _ => unreachable!("context sites use the closed ground role vocabulary"),
+            };
+            if optional_string(object, "indexical") != Some(expected) {
+                incompatibilities.insert(new!(CompactIncompatibility::NonCanonicalGround {
+                    object: key.clone(),
+                    role: role.clone(),
+                }));
+            }
+            if object
+                .get("target")
+                .is_some_and(|target| target.as_str() != Some(key))
+            {
+                incompatibilities.insert(new!(CompactIncompatibility::NonCanonicalGround {
+                    object: key.clone(),
+                    role: role.clone(),
+                }));
+            }
+            if object.keys().any(|field| {
+                !matches!(
+                    field.as_str(),
+                    "type"
+                        | "sort"
+                        | "denotation"
+                        | "category"
+                        | "indexical"
+                        | "target"
+                        | "source"
+                        | "assignedNames"
+                )
+            }) {
+                incompatibilities.insert(new!(CompactIncompatibility::NonCanonicalGround {
+                    object: key.clone(),
+                    role: role.clone(),
+                }));
+            }
+        }
+    }
+
+    for (referent, owners) in binder_owner_sets {
+        if owners.len() != 1 {
+            incompatibilities.insert(new!(CompactIncompatibility::MultipleBinderOwners {
+                referent: referent.clone(),
+            }));
+            continue;
+        }
+        let owner = owners
+            .iter()
+            .next()
+            .expect("one binder owner was established");
+        for use_site in uses
+            .get(referent.as_str())
+            .into_iter()
+            .flat_map(|sites| sites.iter())
+            .filter(|use_site| **use_site != owner)
+        {
+            if !dominators.dominates(semantic_graph.index(owner), semantic_graph.index(use_site)) {
+                incompatibilities.insert(new!(CompactIncompatibility::BinderDoesNotEncloseUse {
+                    referent: referent.clone(),
+                    owner: owner.clone(),
+                    use_site: (*use_site).to_owned(),
+                }));
+            }
+        }
+    }
+
+    for (key, value) in objects {
+        let object = json_object(value);
+        if optional_string(object, "type") == Some("referent") {
+            let has_unique_binder = binder_owner_sets
+                .get(key)
+                .is_some_and(|owners| owners.len() == 1);
+            if !has_unique_binder
+                && !matches!(
+                    optional_string(object, "denotation"),
+                    None | Some("referential")
+                )
+            {
+                incompatibilities.insert(new!(CompactIncompatibility::NonCompactReferent {
+                    referent: key.clone(),
+                    field: "denotation".to_owned(),
+                }));
+            }
+            if !has_unique_binder
+                && !matches!(
+                    optional_string(object, "category"),
+                    None | Some("constant" | "indexical" | "composite")
+                )
+            {
+                incompatibilities.insert(new!(CompactIncompatibility::NonCompactReferent {
+                    referent: key.clone(),
+                    field: "category".to_owned(),
+                }));
+            }
+            if let Some(descriptor) = object.get("descriptor").and_then(Value::as_object)
+                && optional_string(descriptor, "kind") == Some("name")
+                && (optional_string(descriptor, "name").is_none()
+                    || optional_string(descriptor, "speaker").is_none())
+            {
+                incompatibilities.insert(new!(CompactIncompatibility::NonCompactNameDescriptor {
+                    referent: key.clone(),
+                }));
+            }
+            if optional_string(object, "denotation") == Some("generated-bound")
+                && let Some(content) = optional_string(object, "content")
+                && !generated_event_content_is_derivable(objects, key, content)
+            {
+                incompatibilities.insert(new!(
+                    CompactIncompatibility::NonDerivableGeneratedContent {
+                        referent: key.clone(),
+                        content: content.to_owned(),
+                    }
+                ));
+            }
+        }
+
+        if optional_string(object, "type") == Some("formula")
+            && optional_string(object, "operator") == Some("exists")
+            && object.contains_key("restriction")
+        {
+            incompatibilities.insert(new!(CompactIncompatibility::RestrictedExists {
+                formula: key.clone(),
+            }));
+        }
+        if optional_string(object, "type") == Some("sequence")
+            && object
+                .get("relation")
+                .is_some_and(|relation| relation.is_object() || relation.is_array())
+        {
+            incompatibilities.insert(new!(CompactIncompatibility::NonCompactFieldShape {
+                object: key.clone(),
+                field: "relation".to_owned(),
+            }));
+        }
+        if has_noncompact_elided_restriction(value, quantifier_restrictions) {
+            incompatibilities.insert(new!(CompactIncompatibility::NonCompactFieldShape {
+                object: key.clone(),
+                field: "relativeClauses".to_owned(),
+            }));
+        }
+
+        let Some(scope) = object.get("scopeDependence").and_then(Value::as_object) else {
+            continue;
+        };
+        let Some(dependencies) = scope.get("mayDependOn").and_then(Value::as_array) else {
+            continue;
+        };
+        if dependencies.is_empty() {
+            incompatibilities.insert(new!(
+                CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
+                    referent: key.clone(),
+                    dependency: "EMPTY".to_owned(),
+                }
+            ));
+        }
+        for dependency in dependencies {
+            let dependency = dependency
+                .as_str()
+                .unwrap_or_else(|| panic!("scope dependency must be an object id"));
+            let enclosing = binder_owner_sets
+                .get(dependency)
+                .filter(|owners| owners.len() == 1)
+                .and_then(|owners| owners.iter().next())
+                .is_some_and(|owner| {
+                    dominators.dominates(semantic_graph.index(owner), semantic_graph.index(key))
+                });
+            if !enclosing {
+                incompatibilities.insert(new!(
+                    CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
+                        referent: key.clone(),
+                        dependency: dependency.to_owned(),
+                    }
+                ));
+            }
+        }
+    }
+
+    if incompatibilities.is_empty() {
+        new!(XmlRepresentationPlan::Compact)
+    } else {
+        new!(XmlRepresentationPlan::TypedGraph { incompatibilities })
     }
 }
 
@@ -984,6 +1959,11 @@ struct RenderState {
     bound_variable_stack: Vec<String>,
     omissions: Vec<XmlOmission>,
     unaccounted_surfaces: BTreeSet<XmlSurface>,
+    planning_incompatibilities: BTreeSet<CompactIncompatibility>,
+    planning_definition_incompatibilities: BTreeSet<CompactIncompatibility>,
+    planning_object_stack: Vec<String>,
+    planning_compact_adjacency: HashMap<String, BTreeSet<String>>,
+    planning_repeated_single_use: BTreeSet<String>,
 }
 
 impl RenderState {
@@ -1021,6 +2001,11 @@ impl RenderState {
             bound_variable_stack: Vec::new(),
             omissions: Vec::new(),
             unaccounted_surfaces: BTreeSet::new(),
+            planning_incompatibilities: BTreeSet::new(),
+            planning_definition_incompatibilities: BTreeSet::new(),
+            planning_object_stack: Vec::new(),
+            planning_compact_adjacency: HashMap::new(),
+            planning_repeated_single_use: BTreeSet::new(),
         }
     }
 
@@ -1040,6 +2025,9 @@ impl RenderState {
         self.bound_variable_stack.clear();
         self.omissions.clear();
         self.unaccounted_surfaces.clear();
+        self.planning_object_stack.clear();
+        self.planning_compact_adjacency.clear();
+        self.planning_repeated_single_use.clear();
     }
 
     #[requires(true)]
@@ -1085,14 +2073,10 @@ impl RenderState {
             return;
         }
         assert!(
-            self.unaccounted_surfaces.remove(&surface),
+            remove_surface_subtree(&mut self.unaccounted_surfaces, &surface),
             "omitted semantic surface was already accounted: {}",
             surface.path()
         );
-        let descendant_prefix = format!("{}/", surface.path());
-        self.unaccounted_surfaces.retain(|candidate| {
-            candidate.path() != surface.path() && !candidate.path().starts_with(&descendant_prefix)
-        });
         self.omissions.push(new!(XmlOmission {
             waiver: Some(waiver),
             surface,
@@ -1199,6 +2183,7 @@ impl RenderState {
     #[ensures(self.planning)]
     fn start_planning_pass(&mut self, initial: bool) {
         self.reset_traversal_state();
+        self.planning_incompatibilities.clear();
         self.planning = true;
         self.initial_planning_pass = initial;
         self.scope_parent.clear();
@@ -1208,8 +2193,33 @@ impl RenderState {
     }
 
     #[requires(self.planning)]
+    #[requires(self.planning_object_stack.is_empty())]
     #[ensures(!self.planning && !self.initial_planning_pass)]
-    fn finish_planning_pass(&mut self) {
+    fn finish_planning_pass(&mut self, graph: &GraphData) {
+        if !self.planning_repeated_single_use.is_empty() {
+            // These edges are not a separately maintained approximation. They
+            // were recorded by `render_pointer_inner` while the real compact
+            // planning renderer traversed each object. SCCs therefore explain
+            // exact repeated-emission evidence without preclassifying benign
+            // cycles or changing any compact traversal decision.
+            let reference_graph = ReferenceGraph::from_adjacency(
+                graph.objects.keys().cloned().collect(),
+                &self.planning_compact_adjacency,
+            );
+            let components = reference_graph.strongly_connected_components();
+            for key in &self.planning_repeated_single_use {
+                let node = reference_graph.index(key);
+                let incompatibility = if components.node_is_cyclic(&reference_graph, node) {
+                    new!(CompactIncompatibility::UnrepresentableCycle { entry: key.clone() })
+                } else {
+                    new!(CompactIncompatibility::RepeatedSingleUseEmission {
+                        object: key.clone(),
+                    })
+                };
+                self.planning_definition_incompatibilities
+                    .insert(incompatibility);
+            }
+        }
         self.planning = false;
         self.initial_planning_pass = false;
     }
@@ -1247,47 +2257,98 @@ impl RenderState {
         self.scope_declarations = grouped;
     }
 
-    #[requires(true)]
-    #[ensures(graph.ordinary_definition_keys.iter().all(|key| self.declaration_scopes.contains_key(key)))]
-    fn plan_declaration_scopes(&mut self, graph: &GraphData) {
-        if graph.ordinary_definition_keys.is_empty() {
-            return;
-        }
-        self.start_planning_pass(true);
-        let _ = self.render_pointer(graph, &graph.root);
-        for key in &graph.ordinary_definition_keys {
-            let scopes = self
-                .pointer_use_scopes
+    #[requires(
+        graph.ordinary_definition_keys.iter().all(|key| {
+            graph
+                .prototype_non_source_reference_counts
                 .get(key)
-                .unwrap_or_else(|| panic!("shared node has no reachable use site: {key:?}"));
-            self.declaration_scopes
-                .insert(key.clone(), self.least_common_scope(scopes));
-        }
-        self.finish_planning_pass();
-        self.rebuild_scope_declarations(graph);
-
-        for _ in 0..=graph.objects.len() {
-            let previous = self.declaration_scopes.clone();
-            self.start_planning_pass(false);
-            let _ = self.render_pointer(graph, &graph.root);
-            let planned: HashMap<String, Scope> = graph
+                .is_some_and(|count| *count > 1)
+        })
+    )]
+    #[ensures(
+        !ret.is_empty()
+            || graph
                 .ordinary_definition_keys
                 .iter()
-                .map(|key| {
-                    let scopes = self.pointer_use_scopes.get(key).unwrap_or_else(|| {
-                        panic!("shared node has no reachable use site: {key:?}")
-                    });
-                    (key.clone(), self.least_common_scope(scopes))
-                })
-                .collect();
-            self.finish_planning_pass();
+                .all(|key| self.declaration_scopes.contains_key(key))
+    )]
+    fn plan_declaration_scopes(&mut self, graph: &GraphData) -> BTreeSet<CompactIncompatibility> {
+        self.planning_definition_incompatibilities.clear();
+        self.declaration_scopes.clear();
+        self.scope_declarations.clear();
+        self.start_planning_pass(true);
+        let document_scope = vec!["document".to_owned()];
+        let _ = self.scoped_parts(graph, document_scope, |state, graph| {
+            state.render_graph_components(graph)
+        });
+        self.finish_planning_pass(graph);
+        if graph.ordinary_definition_keys.is_empty() {
+            return self.planning_definition_incompatibilities.clone();
+        }
+        for key in &graph.ordinary_definition_keys {
+            match self.pointer_use_scopes.get(key) {
+                Some(scopes) if !scopes.is_empty() => {
+                    self.declaration_scopes
+                        .insert(key.clone(), self.least_common_scope(scopes));
+                }
+                _ => {
+                    // Raw prototype pointer counts intentionally include fields
+                    // that compact SFN may derive or waive. Requiring one use
+                    // observed by the real planning renderer proves that every
+                    // raw-count ID has an actual compact declaration/emission
+                    // site; otherwise the graph form is selected.
+                    self.planning_definition_incompatibilities.insert(new!(
+                        CompactIncompatibility::PrototypeIdWithoutCompactUse {
+                            object: key.clone(),
+                        }
+                    ));
+                }
+            }
+        }
+        if !self.planning_definition_incompatibilities.is_empty() {
+            return self.planning_definition_incompatibilities.clone();
+        }
+        self.rebuild_scope_declarations(graph);
+
+        let iteration_limit = graph.objects.len() + 1;
+        for _ in 0..iteration_limit {
+            let previous = self.declaration_scopes.clone();
+            self.start_planning_pass(false);
+            let document_scope = vec!["document".to_owned()];
+            let _ = self.scoped_parts(graph, document_scope, |state, graph| {
+                state.render_graph_components(graph)
+            });
+            self.finish_planning_pass(graph);
+            let mut planned = HashMap::new();
+            for key in &graph.ordinary_definition_keys {
+                match self.pointer_use_scopes.get(key) {
+                    Some(scopes) if !scopes.is_empty() => {
+                        planned.insert(key.clone(), self.least_common_scope(scopes));
+                    }
+                    _ => {
+                        self.planning_definition_incompatibilities.insert(new!(
+                            CompactIncompatibility::PrototypeIdWithoutCompactUse {
+                                object: key.clone(),
+                            }
+                        ));
+                    }
+                }
+            }
+            if !self.planning_definition_incompatibilities.is_empty() {
+                return self.planning_definition_incompatibilities.clone();
+            }
             self.declaration_scopes = planned;
             self.rebuild_scope_declarations(graph);
             if self.declaration_scopes == previous {
-                return;
+                return BTreeSet::new();
             }
         }
-        panic!("shared-node scope planning did not converge");
+        self.planning_definition_incompatibilities.insert(new!(
+            CompactIncompatibility::DeclarationPlanningDidNotConverge {
+                iterations: iteration_limit,
+            }
+        ));
+        self.planning_definition_incompatibilities.clone()
     }
 
     #[requires(true)]
@@ -1342,8 +2403,11 @@ impl RenderState {
         self.ground_scope_declarations.clear();
         self.planning_grounds = true;
         self.start_planning_pass(false);
-        let _ = self.render_pointer(graph, &graph.root);
-        self.finish_planning_pass();
+        let document_scope = vec!["document".to_owned()];
+        let _ = self.scoped_parts(graph, document_scope, |state, graph| {
+            state.render_graph_components(graph)
+        });
+        self.finish_planning_pass(graph);
         self.planning_grounds = false;
 
         let mut grounds: Vec<Ground> = self.ground_pointer_use_scopes.keys().cloned().collect();
@@ -1366,6 +2430,77 @@ impl RenderState {
                 .or_default()
                 .push(ground);
         }
+    }
+
+    #[requires(self.planning_grounds)]
+    #[requires(!self.ground_scope_stack.is_empty())]
+    #[ensures(self.ground_pointer_use_scopes.contains_key(ground))]
+    fn observe_ground_use(&mut self, ground: &Ground) {
+        let scope = self
+            .ground_scope_stack
+            .last()
+            .expect("precondition ensures a ground scope")
+            .clone();
+        self.ground_pointer_use_scopes
+            .entry(ground.clone())
+            .or_default()
+            .push(scope);
+        if !self.ground_first_use_order.contains_key(ground) {
+            self.ground_first_use_order
+                .insert(ground.clone(), self.ground_use_counter);
+        }
+        self.ground_use_counter += 1;
+    }
+
+    /// Include ordinary compact pointers to a speech-situation referent in the
+    /// placement of every DEICTIC-GROUND that can define it.
+    ///
+    /// Planning provisionally marks context referents defined before walking
+    /// the graph, so merely watching `GROUND=` attributes would miss an anchor
+    /// or other pointer reached through an earlier scoped declaration. Recording
+    /// those real pointer sites makes the ground declaration dominate all four
+    /// constituent referents' uses, not only the owning utterance's `GROUND=`.
+    #[requires(graph.objects.contains_key(key))]
+    #[ensures(true)]
+    fn observe_context_referent_use(&mut self, graph: &GraphData, key: &str) {
+        if !self.planning_grounds {
+            return;
+        }
+        let grounds: BTreeSet<Ground> = graph
+            .context_sites
+            .get(key)
+            .into_iter()
+            .flatten()
+            .map(|(utterance, _)| {
+                graph
+                    .ground_by_utterance
+                    .get(utterance)
+                    .unwrap_or_else(|| {
+                        panic!("context site lacks an utterance ground: {utterance:?}")
+                    })
+                    .clone()
+            })
+            .collect();
+        for ground in grounds {
+            self.observe_ground_use(&ground);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!self.planning)]
+    fn compact_planning_incompatibilities(
+        &mut self,
+        graph: &GraphData,
+    ) -> BTreeSet<CompactIncompatibility> {
+        self.start_planning_pass(false);
+        let document_scope = vec!["document".to_owned()];
+        let _ = self.scoped_parts(graph, document_scope, |state, graph| {
+            state.render_graph_components(graph)
+        });
+        self.finish_planning_pass(graph);
+        let mut incompatibilities = self.planning_incompatibilities.clone();
+        incompatibilities.extend(self.planning_definition_incompatibilities.iter().cloned());
+        incompatibilities
     }
 }
 
@@ -1467,7 +2602,7 @@ impl RenderState {
         self.apply_facets(graph, &mut result, object);
         if let Some(scope) = object.get("scopeDependence").and_then(Value::as_object) {
             self.account_field(graph, object, "scopeDependence");
-            self.apply_scope_dependence(graph, &mut result, scope);
+            self.apply_scope_dependence(graph, key, &mut result, scope);
         }
         if let Some(modifiers) = object.get("intervalModifiers").and_then(Value::as_array) {
             self.account_field(graph, object, "intervalModifiers");
@@ -1837,10 +2972,12 @@ impl RenderState {
                 && literal.len() == 2
             {
                 self.account_value_fields(graph, &object["literal"]);
-                return XmlElement::with_attributes(
+                let mut result = XmlElement::with_attributes(
                     "INTEGER",
                     [("VALUE", scalar_string(&literal["value"]))],
                 );
+                result.extend(self.extras(graph, object, &["type", "literal"]));
+                return result;
             }
             let mut result = XmlElement::new("MATH");
             let mut rendered = XmlElement::new("LITERAL");
@@ -1968,36 +3105,143 @@ fn waiver_messages(omissions: &[XmlOmission]) -> Vec<String> {
     messages
 }
 
+#[requires(true)]
+#[ensures(ret.name == "INCOMPATIBILITY")]
+fn render_compact_incompatibility(reason: &CompactIncompatibility) -> XmlElement {
+    let mut result = XmlElement::with_attributes("INCOMPATIBILITY", [("KIND", reason.kind())]);
+    match reason.as_data() {
+        data!(CompactIncompatibility::NonCanonicalGround { object, role }) => {
+            result.set("OBJECT", object);
+            result.set("ROLE", role);
+        }
+        data!(CompactIncompatibility::MultipleBinderOwners { referent }) => {
+            result.set("REFERENT", referent);
+        }
+        data!(CompactIncompatibility::BinderDoesNotEncloseUse {
+            referent,
+            owner,
+            use_site,
+        }) => {
+            result.set("REFERENT", referent);
+            result.set("OWNER", owner);
+            result.set("USE-SITE", use_site);
+        }
+        data!(
+            CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
+                referent,
+                dependency,
+            }
+        ) => {
+            result.set("REFERENT", referent);
+            result.set("DEPENDENCY", dependency);
+        }
+        data!(CompactIncompatibility::NonCompactReferent { referent, field }) => {
+            result.set("REFERENT", referent);
+            result.set("FIELD", field);
+        }
+        data!(CompactIncompatibility::NonCompactFieldShape { object, field }) => {
+            result.set("OBJECT", object);
+            result.set("FIELD", field);
+        }
+        data!(CompactIncompatibility::NonCompactNameDescriptor { referent }) => {
+            result.set("REFERENT", referent);
+        }
+        data!(CompactIncompatibility::NonDerivableGeneratedContent { referent, content }) => {
+            result.set("REFERENT", referent);
+            result.set("CONTENT", content);
+        }
+        data!(CompactIncompatibility::UnrepresentableCycle { entry }) => {
+            result.set("ENTRY", entry);
+        }
+        data!(CompactIncompatibility::DefinitionSiteDoesNotDominateUse { object }) => {
+            result.set("OBJECT", object);
+        }
+        data!(CompactIncompatibility::RepeatedSingleUseEmission { object }) => {
+            result.set("OBJECT", object);
+        }
+        data!(CompactIncompatibility::PrototypeIdWithoutCompactUse { object }) => {
+            result.set("OBJECT", object);
+        }
+        data!(CompactIncompatibility::DeclarationPlanningDidNotConverge { iterations }) => {
+            result.set("ITERATIONS", iterations.to_string());
+        }
+        data!(CompactIncompatibility::RestrictedExists { formula }) => {
+            result.set("FORMULA", formula);
+        }
+    }
+    result
+}
+
 impl RenderState {
     #[requires(true)]
-    #[ensures(ret.ends_with('\n'))]
-    fn render_document(&mut self, graph: &GraphData, document_name: &str) -> String {
-        let document_scope = vec!["document".to_owned()];
-        self.enter_ground_scope(document_scope.clone());
-        let document_declarations = self.ground_declarations(graph, &document_scope);
-        let graph_root = self.render_pointer(graph, &graph.root);
-        self.leave_ground_scope(&document_scope);
-
-        let mut unreachable: Vec<String> = graph
-            .objects
-            .keys()
-            .filter(|key| !self.emitted.contains(*key))
-            .cloned()
-            .collect();
-        unreachable.sort_by_key(|key| graph.id(key).to_owned());
-        let unreachable = if unreachable.is_empty() {
-            None
-        } else {
-            let mut rendered = XmlElement::new("UNREACHABLE");
-            for key in unreachable {
-                rendered.push(self.render_pointer(graph, &key));
+    #[ensures(self.emitted == graph.object_keys)]
+    fn render_graph_components(&mut self, graph: &GraphData) -> (XmlElement, Option<XmlElement>) {
+        let mut unreachable = XmlElement::new("UNREACHABLE");
+        if self.planning {
+            let mut ground_referents: Vec<String> = graph
+                .context_sites
+                .keys()
+                .filter(|referent| !self.defined.contains(*referent))
+                .cloned()
+                .collect();
+            ground_referents.sort_by_key(|referent| graph.id(referent).to_owned());
+            for referent in ground_referents {
+                if !self.defined.contains(&referent) {
+                    let _ = self.define_at_site(graph, &referent, "planning DEICTIC-GROUND");
+                }
             }
-            Some(rendered)
-        };
-        assert_eq!(
-            self.emitted, graph.object_keys,
-            "some graph objects were not rendered"
-        );
+        }
+        let graph_root = self.render_pointer(graph, &graph.root);
+        loop {
+            let definition_owner = graph
+                .objects
+                .keys()
+                .filter(|key| {
+                    !self.emitted.contains(*key)
+                        && graph.semantic_definition_owners.contains(*key)
+                        && !graph.special_definition_keys.contains(*key)
+                })
+                .min_by_key(|key| graph.id(key))
+                .cloned();
+            let next = definition_owner.or_else(|| {
+                graph
+                    .objects
+                    .keys()
+                    .filter(|key| {
+                        !self.emitted.contains(*key)
+                            && !graph.special_definition_keys.contains(*key)
+                    })
+                    .min_by_key(|key| graph.id(key))
+                    .cloned()
+            });
+            let Some(key) = next else {
+                assert_eq!(
+                    self.emitted, graph.object_keys,
+                    "unrendered special nodes have no remaining semantic definition owner"
+                );
+                break;
+            };
+            unreachable.push(self.render_pointer(graph, &key));
+        }
+        let unreachable = (!unreachable.children.is_empty()).then_some(unreachable);
+        (graph_root, unreachable)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "WAIVERS")]
+    fn waivers_element(&self) -> XmlElement {
+        let mut waivers = XmlElement::new("WAIVERS");
+        for message in waiver_messages(&self.omissions) {
+            let mut waiver = XmlElement::new("WAIVER");
+            waiver.text = Some(message);
+            waivers.push(waiver);
+        }
+        waivers
+    }
+
+    #[requires(true)]
+    #[ensures(self.unaccounted_surfaces.is_empty())]
+    fn finish_omission_accounting(&mut self) {
         self.omissions.extend(
             std::mem::take(&mut self.unaccounted_surfaces)
                 .into_iter()
@@ -2008,6 +3252,230 @@ impl RenderState {
                     })
                 }),
         );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_typed_graph_value(
+        &mut self,
+        graph: &GraphData,
+        value: &Value,
+        descriptor_variable: Option<bool>,
+        quantity_value: bool,
+    ) -> XmlElement {
+        match value {
+            Value::String(value) if graph.object_keys.contains(value) => {
+                XmlElement::with_attributes(
+                    "REFERENCE",
+                    [("REF", graph.id(value)), ("KEY", value.as_str())],
+                )
+            }
+            Value::String(value) => {
+                XmlElement::with_attributes("STRING", [("VALUE", value.as_str())])
+            }
+            Value::Null => XmlElement::new("NULL"),
+            Value::Bool(value) => {
+                XmlElement::with_attributes("BOOLEAN", [("VALUE", value.to_string())])
+            }
+            Value::Number(value) => {
+                XmlElement::with_attributes("NUMBER", [("VALUE", value.to_string())])
+            }
+            Value::Array(items) => {
+                let mut list = XmlElement::new("LIST");
+                for item in items {
+                    let mut element = XmlElement::new("ITEM");
+                    element.push(self.render_typed_graph_value(
+                        graph,
+                        item,
+                        descriptor_variable,
+                        quantity_value,
+                    ));
+                    list.push(element);
+                }
+                list
+            }
+            Value::Object(object) => self.render_typed_graph_record(
+                graph,
+                object,
+                descriptor_variable,
+                quantity_value,
+                false,
+            ),
+        }
+    }
+
+    #[requires(!skip_type || object.contains_key("type"))]
+    #[ensures(ret.name == "RECORD")]
+    fn render_typed_graph_record(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        descriptor_variable: Option<bool>,
+        quantity_value: bool,
+        skip_type: bool,
+    ) -> XmlElement {
+        self.account_object(graph, object);
+        let mut record = XmlElement::new("RECORD");
+        for (field, value) in object {
+            if skip_type && field == "type" {
+                continue;
+            }
+            if field == "source" && is_source_record(value) {
+                self.record_field_omission(graph, object, field, XmlWaiverFamily::SourceRecord);
+                continue;
+            }
+            if field == "assignedNames" {
+                self.account_field(graph, object, field);
+                self.observe_assigned_name_omissions(graph, value);
+                continue;
+            }
+            if field == "introducedBy" {
+                self.record_field_omission(graph, object, field, XmlWaiverFamily::IntroducedBy);
+                continue;
+            }
+            if field == "word"
+                && let Some(variable) = descriptor_variable
+            {
+                let kind = optional_string(object, "kind");
+                if kind == Some("elided") && value.as_str() == Some("zo'e") {
+                    self.account_field(graph, object, field);
+                } else {
+                    self.record_field_omission(
+                        graph,
+                        object,
+                        field,
+                        if variable && kind == Some("proSumti") {
+                            XmlWaiverFamily::BoundVariableWord
+                        } else {
+                            XmlWaiverFamily::DescriptorWord
+                        },
+                    );
+                }
+                continue;
+            }
+            if quantity_value && field == "text" {
+                self.record_field_omission(graph, object, field, XmlWaiverFamily::QuantityText);
+                continue;
+            }
+
+            self.account_field(graph, object, field);
+            let child_descriptor_variable = (field == "descriptor")
+                .then(|| optional_string(object, "category") == Some("variable"));
+            let child_quantity_value =
+                field == "value" && optional_string(object, "type") == Some("quantity");
+            let mut rendered = XmlElement::with_attributes("FIELD", [("NAME", field.as_str())]);
+            rendered.push(self.render_typed_graph_value(
+                graph,
+                value,
+                child_descriptor_variable,
+                child_quantity_value,
+            ));
+            record.push(rendered);
+        }
+        record
+    }
+
+    #[requires(graph.objects.contains_key(key))]
+    #[ensures(ret.name == "OBJECT")]
+    fn render_typed_graph_object(&mut self, graph: &GraphData, key: &str) -> XmlElement {
+        let object = graph.object(key);
+        self.emitted.insert(key.to_owned());
+        self.account_field(graph, object, "type");
+        let mut result = XmlElement::with_attributes(
+            "OBJECT",
+            [
+                ("ID", graph.id(key)),
+                ("KEY", key),
+                ("TYPE", string_field(object, "type")),
+            ],
+        );
+        let record = self.render_typed_graph_record(graph, object, None, false, true);
+        result.extend(record.children);
+        result
+    }
+
+    #[requires(!incompatibilities.is_empty())]
+    #[ensures(ret.ends_with('\n'))]
+    fn render_typed_graph_document(
+        &mut self,
+        graph: &GraphData,
+        document_name: &str,
+        incompatibilities: &BTreeSet<CompactIncompatibility>,
+    ) -> String {
+        let mut typed_graph = XmlElement::with_attributes(
+            "TYPED-GRAPH",
+            [
+                ("ROOT-REF", graph.id(&graph.root)),
+                ("ROOT-KEY", graph.root.as_str()),
+            ],
+        );
+        let mut keys: Vec<&str> = graph.objects.keys().map(String::as_str).collect();
+        keys.sort_by_key(|key| graph.order[*key]);
+        for key in keys {
+            typed_graph.push(self.render_typed_graph_object(graph, key));
+        }
+        assert_eq!(
+            self.emitted, graph.object_keys,
+            "typed graph form must render every semantic object"
+        );
+        self.finish_omission_accounting();
+
+        let mut root = XmlElement::with_attributes(
+            "SFN",
+            [
+                ("VERSION", "0"),
+                ("DOC", document_name),
+                ("FORM", "TYPED-GRAPH"),
+            ],
+        );
+        let mut key = XmlElement::new("KEY");
+        for (topic, prose) in [
+            (
+                "form",
+                "FORM=TYPED-GRAPH is selected exactly when the semantic graph cannot be represented truthfully by the compact SFN prototype vocabulary. It is a typed XML projection of the semantic graph, not a reinterpretation.",
+            ),
+            (
+                "objects",
+                "Each OBJECT is defined once by its canonical graph KEY= and XML ID=. ROOT-REF=/ROOT-KEY= identify the graph root. REFERENCE points to the exact shared object and never clones it.",
+            ),
+            (
+                "fields",
+                "Every non-waived semantic object and field occurrence is represented as typed OBJECT, FIELD, RECORD, LIST, ITEM, REFERENCE, STRING, NUMBER, BOOLEAN, or NULL structure. Child order follows canonical semantic JSON order.",
+            ),
+            (
+                "elided-zohe",
+                "A descriptor word is mechanically omitted only when descriptor KIND is elided and the value is exactly zo'e; every other descriptor word omission is reported by the existing descriptor-word waiver family.",
+            ),
+        ] {
+            let mut rule = XmlElement::with_attributes("RULE", [("TOPIC", topic)]);
+            rule.text = Some(prose.to_owned());
+            key.push(rule);
+        }
+        let mut reasons = XmlElement::new("COMPACT-INCOMPATIBILITIES");
+        for reason in incompatibilities {
+            reasons.push(render_compact_incompatibility(reason));
+        }
+        key.push(reasons);
+        root.push(key);
+        root.push(self.waivers_element());
+        root.push(typed_graph);
+        serialize(&root)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.ends_with('\n'))]
+    fn render_document(&mut self, graph: &GraphData, document_name: &str) -> String {
+        let document_scope = vec!["document".to_owned()];
+        let (document_declarations, components) =
+            self.scoped_parts(graph, document_scope, |state, graph| {
+                state.render_graph_components(graph)
+            });
+        let (graph_root, unreachable) = components;
+        assert_eq!(
+            self.emitted, graph.object_keys,
+            "some graph objects were not rendered"
+        );
+        self.finish_omission_accounting();
 
         let mut root =
             XmlElement::with_attributes("SFN", [("VERSION", "0"), ("DOC", document_name)]);
@@ -2038,13 +3506,7 @@ impl RenderState {
             key.push(rule);
         }
         root.push(key);
-        let mut waivers = XmlElement::new("WAIVERS");
-        for message in waiver_messages(&self.omissions) {
-            let mut waiver = XmlElement::new("WAIVER");
-            waiver.text = Some(message);
-            waivers.push(waiver);
-        }
-        root.push(waivers);
+        root.push(self.waivers_element());
         Self::append_defs(&mut root, document_declarations);
         root.push(graph_root);
         if let Some(rendered) = unreachable {
@@ -2059,11 +3521,27 @@ impl RenderState {
 fn render_xml_value(graph: Value, document_name: &str) -> XmlRender {
     let graph = GraphData::from_value(graph);
     let mut state = RenderState::new();
-    state.plan_declaration_scopes(&graph);
-    state.plan_ground_scopes(&graph);
-    state.reset_traversal_state();
-    state.start_omission_accounting(&graph);
-    let output = state.render_document(&graph, document_name);
+    let preliminary_incompatibilities = match graph.representation.as_data() {
+        data!(XmlRepresentationPlan::Compact) => BTreeSet::new(),
+        data!(XmlRepresentationPlan::TypedGraph { incompatibilities }) => incompatibilities.clone(),
+    };
+    let output = if !preliminary_incompatibilities.is_empty() {
+        state.start_omission_accounting(&graph);
+        state.render_typed_graph_document(&graph, document_name, &preliminary_incompatibilities)
+    } else {
+        let mut planning_incompatibilities = state.plan_declaration_scopes(&graph);
+        if planning_incompatibilities.is_empty() {
+            state.plan_ground_scopes(&graph);
+            planning_incompatibilities = state.compact_planning_incompatibilities(&graph);
+        }
+        state.reset_traversal_state();
+        state.start_omission_accounting(&graph);
+        if planning_incompatibilities.is_empty() {
+            state.render_document(&graph, document_name)
+        } else {
+            state.render_typed_graph_document(&graph, document_name, &planning_incompatibilities)
+        }
+    };
     let omissions = state.omissions;
     new!(XmlRender { output, omissions })
 }
@@ -2179,6 +3657,337 @@ mod tests {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ordered_surface_subtree_removal_matches_full_scan_oracle() {
+        let paths = [
+            "/objects/entity:1/source",
+            "/objects/entity:1/source/span",
+            "/objects/entity:1/source/span/byteStart",
+            "/objects/entity:1/source-lexicographic-sibling",
+            "/objects/entity:1/source0",
+            "/objects/entity:1/sourc",
+            "/objects/entity:2/source/span",
+        ];
+        let inventory: BTreeSet<XmlSurface> = paths
+            .into_iter()
+            .flat_map(|path| {
+                [
+                    object_surface(path.to_owned()),
+                    field_surface(path.to_owned()),
+                ]
+            })
+            .collect();
+
+        for omitted in [
+            object_surface("/objects/entity:1/source".to_owned()),
+            field_surface("/objects/entity:1/source".to_owned()),
+        ] {
+            let mut oracle = inventory.clone();
+            assert!(oracle.remove(&omitted));
+            let descendant_prefix = format!("{}/", omitted.path());
+            oracle.retain(|candidate| {
+                candidate.path() != omitted.path()
+                    && !candidate.path().starts_with(&descendant_prefix)
+            });
+
+            let mut indexed = inventory.clone();
+            assert!(remove_surface_subtree(&mut indexed, &omitted));
+            assert_eq!(indexed, oracle);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_graph_scc_and_dominance_are_structural_and_exact() {
+        let keys = [
+            "entry", "left", "right", "join", "cycle-a", "cycle-b", "orphan",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+        let adjacency = HashMap::from([
+            (
+                "entry".to_owned(),
+                BTreeSet::from(["left".to_owned(), "right".to_owned()]),
+            ),
+            ("left".to_owned(), BTreeSet::from(["join".to_owned()])),
+            ("right".to_owned(), BTreeSet::from(["join".to_owned()])),
+            ("join".to_owned(), BTreeSet::from(["cycle-a".to_owned()])),
+            ("cycle-a".to_owned(), BTreeSet::from(["cycle-b".to_owned()])),
+            ("cycle-b".to_owned(), BTreeSet::from(["cycle-a".to_owned()])),
+            ("orphan".to_owned(), BTreeSet::new()),
+        ]);
+        let graph = ReferenceGraph::from_adjacency(keys, &adjacency);
+        let components = graph.strongly_connected_components();
+        assert_eq!(
+            components.component(graph.index("cycle-a")),
+            components.component(graph.index("cycle-b"))
+        );
+        assert!(components.node_is_cyclic(&graph, graph.index("cycle-a")));
+        assert!(!components.node_is_cyclic(&graph, graph.index("join")));
+
+        let dominators = graph.dominator_intervals(&[graph.index("entry"), graph.index("orphan")]);
+        assert!(dominators.dominates(graph.index("entry"), graph.index("join")));
+        assert!(dominators.dominates(graph.index("join"), graph.index("cycle-b")));
+        assert!(dominators.dominates(graph.index("cycle-a"), graph.index("cycle-b")));
+        assert!(!dominators.dominates(graph.index("left"), graph.index("join")));
+        assert!(!dominators.dominates(graph.index("entry"), graph.index("orphan")));
+        assert!(dominators.dominates(graph.index("orphan"), graph.index("orphan")));
+    }
+
+    #[requires(successors.iter().flatten().all(|node| *node < successors.len()))]
+    #[requires(roots.iter().all(|root| *root < successors.len()))]
+    #[ensures(ret.len() == successors.len())]
+    fn oracle_reachable_without(
+        successors: &[Vec<usize>],
+        roots: &[usize],
+        blocked: Option<usize>,
+    ) -> Vec<bool> {
+        let mut reachable = vec![false; successors.len()];
+        let mut pending = roots.to_vec();
+        while let Some(node) = pending.pop() {
+            if blocked == Some(node) || reachable[node] {
+                continue;
+            }
+            reachable[node] = true;
+            pending.extend(successors[node].iter().copied());
+        }
+        reachable
+    }
+
+    #[requires(successors.iter().flatten().all(|node| *node < successors.len()))]
+    #[ensures(ret.iter().flatten().all(|node| *node < successors.len()))]
+    fn oracle_strong_components(successors: &[Vec<usize>]) -> BTreeSet<Vec<usize>> {
+        let reachability: Vec<Vec<bool>> = (0..successors.len())
+            .map(|root| oracle_reachable_without(successors, &[root], None))
+            .collect();
+        let mut remaining: BTreeSet<usize> = (0..successors.len()).collect();
+        let mut components = BTreeSet::new();
+        while let Some(start) = remaining.pop_first() {
+            let mut component = vec![start];
+            let peers: Vec<usize> = remaining
+                .iter()
+                .copied()
+                .filter(|candidate| {
+                    reachability[start][*candidate] && reachability[*candidate][start]
+                })
+                .collect();
+            for peer in peers {
+                remaining.remove(&peer);
+                component.push(peer);
+            }
+            components.insert(component);
+        }
+        components
+    }
+
+    #[requires(components.component_by_node.len() == graph.keys.len())]
+    #[ensures(ret.iter().flatten().all(|node| *node < graph.keys.len()))]
+    fn normalized_production_components(
+        graph: &ReferenceGraph,
+        components: &StrongComponents,
+    ) -> BTreeSet<Vec<usize>> {
+        components
+            .components
+            .iter()
+            .map(|component| {
+                let mut component = component.clone();
+                component.sort_unstable();
+                component
+            })
+            .collect()
+    }
+
+    #[requires(!successors.is_empty())]
+    #[requires(successors.iter().flatten().all(|node| *node < successors.len()))]
+    #[requires(
+        root_sets.iter().all(|roots| {
+            !roots.is_empty() && roots.iter().all(|root| *root < successors.len())
+        })
+    )]
+    #[ensures(true)]
+    fn assert_graph_algorithms_match_oracles(
+        successors: &[Vec<usize>],
+        root_sets: &[Vec<usize>],
+        label: &str,
+    ) {
+        let keys: Vec<String> = (0..successors.len())
+            .map(|node| format!("node:{node}"))
+            .collect();
+        let adjacency: HashMap<String, BTreeSet<String>> = successors
+            .iter()
+            .enumerate()
+            .map(|(source, targets)| {
+                (
+                    keys[source].clone(),
+                    targets.iter().map(|target| keys[*target].clone()).collect(),
+                )
+            })
+            .collect();
+        let graph = ReferenceGraph::from_adjacency(keys, &adjacency);
+        let components = graph.strongly_connected_components();
+        assert_eq!(
+            normalized_production_components(&graph, &components),
+            oracle_strong_components(successors),
+            "SCC mismatch for {label}"
+        );
+
+        for roots in root_sets {
+            let production = graph.dominator_intervals(roots);
+            for dominator in 0..successors.len() {
+                let reachable_without =
+                    oracle_reachable_without(successors, roots, Some(dominator));
+                for node in 0..successors.len() {
+                    let expected = dominator == node || !reachable_without[node];
+                    assert_eq!(
+                        production.dominates(dominator, node),
+                        expected,
+                        "dominance mismatch for {label}, roots={roots:?}, dominator={dominator}, node={node}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn named_graph_topologies_match_independent_oracles() {
+        let cases = [
+            ("self-loop", vec![vec![0]], vec![vec![0]]),
+            (
+                "diamond",
+                vec![vec![1, 2], vec![3], vec![3], vec![]],
+                vec![vec![0]],
+            ),
+            ("cycle", vec![vec![1], vec![2], vec![1]], vec![vec![0]]),
+            (
+                "disconnected-multi-root",
+                vec![vec![1], vec![], vec![3], vec![]],
+                vec![vec![0, 2]],
+            ),
+        ];
+        for (label, successors, roots) in cases {
+            assert_graph_algorithms_match_oracles(&successors, &roots, label);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn graph_algorithms_match_independent_bounded_oracles() {
+        // Four nodes cover every directed adjacency matrix while remaining a
+        // bounded deterministic test: 65,536 graphs at the largest size.
+        for node_count in 1..=4usize {
+            let edge_slots = node_count * node_count;
+            for edge_mask in 0usize..(1usize << edge_slots) {
+                let mut successors = vec![Vec::new(); node_count];
+                for source in 0..node_count {
+                    for target in 0..node_count {
+                        let edge = source * node_count + target;
+                        if edge_mask & (1usize << edge) != 0 {
+                            successors[source].push(target);
+                        }
+                    }
+                }
+
+                let mut root_sets = Vec::new();
+                for primary_root in 0..node_count {
+                    let primary_reachable =
+                        oracle_reachable_without(&successors, &[primary_root], None);
+                    let roots: Vec<usize> = std::iter::once(primary_root)
+                        .chain(
+                            primary_reachable
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, reachable)| !**reachable)
+                                .map(|(node, _)| node),
+                        )
+                        .collect();
+                    root_sets.push(roots);
+                }
+                assert_graph_algorithms_match_oracles(
+                    &successors,
+                    &root_sets,
+                    &format!("n={node_count}, mask={edge_mask:#x}"),
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn planning_preflight_covers_single_use_cycles_and_raw_only_id_uses() {
+        let single_use_cycle = serde_json::json!({
+            "version": SEMANTIC_JSON_VERSION,
+            "root": "root:1",
+            "objects": {
+                "root:1": {"type": "unknown"},
+                "cycle:2": {"type": "unknown", "next": "cycle:3"},
+                "cycle:3": {"type": "unknown", "next": "cycle:2"}
+            }
+        });
+        let rendered = render_xml_value(single_use_cycle, "<single-use-cycle>");
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(rendered.output.contains("KIND=\"UNREPRESENTABLE-CYCLE\""));
+
+        let raw_only_id_use = serde_json::json!({
+            "version": SEMANTIC_JSON_VERSION,
+            "root": "entity:1",
+            "objects": {
+                "entity:1": {
+                    "type": "referent",
+                    "sort": "entity",
+                    "denotation": "referential",
+                    "category": "constant",
+                    "assignedNames": [{
+                        "first": "entity:2",
+                        "second": "entity:2"
+                    }]
+                },
+                "entity:2": {"type": "unknown"}
+            }
+        });
+        let rendered = render_xml_value(raw_only_id_use, "<raw-only-id-use>");
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(
+            rendered
+                .output
+                .contains("KIND=\"PROTOTYPE-ID-WITHOUT-COMPACT-USE\"")
+        );
+
+        // If semantic binding metadata evolves onto an object whose compact
+        // renderer has no corresponding definition site, preliminary topology
+        // alone cannot reject the owner-local use. The real planning traversal
+        // must still select typed form before final compact emission.
+        let missing_definition_site = serde_json::json!({
+            "version": SEMANTIC_JSON_VERSION,
+            "root": "owner:1",
+            "objects": {
+                "owner:1": {
+                    "type": "unknown",
+                    "boundEventualities": ["eventuality:2"]
+                },
+                "eventuality:2": {
+                    "type": "referent",
+                    "sort": "eventuality",
+                    "denotation": "referential"
+                }
+            }
+        });
+        let rendered = render_xml_value(missing_definition_site, "<missing-definition-site>");
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(
+            rendered
+                .output
+                .contains("KIND=\"DEFINITION-SITE-DOES-NOT-DOMINATE-USE\"")
+        );
     }
 
     #[requires(true)]
@@ -2607,10 +4416,15 @@ impl RenderState {
                             field,
                             XmlWaiverFamily::SourceRecord,
                         );
+                    } else if field == "assignedNames" {
+                        self.account_field(graph, object, field);
+                        self.observe_assigned_name_omissions(graph, value);
                     } else if matches!(
                         field.as_str(),
                         "type" | "sort" | "denotation" | "category" | "indexical"
                     ) {
+                        self.account_field(graph, object, field);
+                    } else if field == "target" && value.as_str() == Some(key) {
                         self.account_field(graph, object, field);
                     }
                 }
@@ -2641,20 +4455,7 @@ impl RenderState {
     #[ensures(!ret.is_empty())]
     fn render_ground_reference(&mut self, graph: &GraphData, ground: &Ground) -> String {
         if self.planning_grounds {
-            let scope = self
-                .ground_scope_stack
-                .last()
-                .expect("precondition ensures a ground scope")
-                .clone();
-            self.ground_pointer_use_scopes
-                .entry(ground.clone())
-                .or_default()
-                .push(scope);
-            if !self.ground_first_use_order.contains_key(ground) {
-                self.ground_first_use_order
-                    .insert(ground.clone(), self.ground_use_counter);
-            }
-            self.ground_use_counter += 1;
+            self.observe_ground_use(ground);
         }
 
         for ((role, expected), key) in [
@@ -2725,6 +4526,18 @@ impl RenderState {
     #[requires(graph.objects.contains_key(key))]
     #[ensures(true)]
     fn render_pointer_inner(&mut self, graph: &GraphData, key: &str) -> XmlElement {
+        // This observation must precede the `defined` fast path below. Context
+        // referents are provisionally predefined during planning, but their
+        // actual compact pointer sites still constrain DEICTIC-GROUND placement.
+        self.observe_context_referent_use(graph, key);
+        if self.planning
+            && let Some(owner) = self.planning_object_stack.last()
+        {
+            self.planning_compact_adjacency
+                .entry(owner.clone())
+                .or_default()
+                .insert(key.to_owned());
+        }
         if graph.ordinary_definition_keys.contains(key) {
             let scope = self
                 .scope_stack
@@ -2773,12 +4586,26 @@ impl RenderState {
             if graph.context_sites.contains_key(key) && self.rendering_declaration {
                 return XmlElement::with_attributes("REFERENCE", [("REF", graph.id(key))]);
             }
+            if self.planning {
+                self.planning_definition_incompatibilities.insert(new!(
+                    CompactIncompatibility::DefinitionSiteDoesNotDominateUse {
+                        object: key.to_owned(),
+                    }
+                ));
+                self.defined.insert(key.to_owned());
+                self.emitted.insert(key.to_owned());
+                *self.definition_sites.entry(key.to_owned()).or_default() += 1;
+                return XmlElement::with_attributes("REFERENCE", [("REF", graph.id(key))]);
+            }
             panic!("node used before its semantic definition site: {key:?}");
         }
-        assert!(
-            !self.emitted.contains(key),
-            "single-use node emitted more than once: {key:?}"
-        );
+        if self.emitted.contains(key) {
+            if self.planning {
+                self.planning_repeated_single_use.insert(key.to_owned());
+                return XmlElement::with_attributes("REFERENCE", [("REF", graph.id(key))]);
+            }
+            panic!("single-use node emitted more than once: {key:?}");
+        }
         self.emitted.insert(key.to_owned());
         self.render_object(graph, key)
     }
@@ -3048,6 +4875,7 @@ impl RenderState {
     fn apply_scope_dependence(
         &mut self,
         graph: &GraphData,
+        referent_key: &str,
         node: &mut XmlElement,
         value: &Map<String, Value>,
     ) {
@@ -3096,10 +4924,20 @@ impl RenderState {
                 let active_set: HashSet<&str> = active.iter().map(String::as_str).collect();
                 let dependency_set: HashSet<&str> =
                     dependencies.iter().map(String::as_str).collect();
-                assert!(
-                    dependency_set.is_subset(&active_set),
-                    "scopeDependence mayDependOn contains a non-enclosing binder"
-                );
+                if !dependency_set.is_subset(&active_set) {
+                    if self.planning {
+                        for dependency in dependency_set.difference(&active_set) {
+                            self.planning_incompatibilities.insert(new!(
+                                CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
+                                    referent: referent_key.to_owned(),
+                                    dependency: (*dependency).to_owned(),
+                                }
+                            ));
+                        }
+                        return;
+                    }
+                    panic!("scopeDependence mayDependOn contains a non-enclosing binder");
+                }
                 let dependency_ids: Vec<String> = dependencies
                     .iter()
                     .map(|dependency| self.pointer_id(graph, dependency, "POSSIBLY-DIFFERENT-PER"))
@@ -3194,7 +5032,7 @@ impl RenderState {
             XmlElement::with_attributes("DESCRIPTOR", [("KIND", enum_string(kind))])
         };
         let mut handled = Vec::from(["kind", "word"]);
-        if kind == "elided" && value.contains_key("word") {
+        if kind == "elided" && optional_string(value, "word") == Some("zo'e") {
             self.account_field(graph, value, "word");
         } else if value.contains_key("word") {
             self.record_field_omission(graph, value, "word", XmlWaiverFamily::DescriptorWord);
@@ -3505,7 +5343,7 @@ impl RenderState {
         }
         if let Some(scope) = object.get("scopeDependence").and_then(Value::as_object) {
             self.account_field(graph, object, "scopeDependence");
-            self.apply_scope_dependence(graph, &mut variable, scope);
+            self.apply_scope_dependence(graph, key, &mut variable, scope);
             handled.push("scopeDependence");
         }
         self.apply_facets(graph, &mut variable, object);
@@ -3985,7 +5823,10 @@ fn structural_adjunct_fill_place<'a>(
                 .then_some(place.as_str())
         })
         .collect();
-    (candidates.len() == 1).then_some(candidates[0])
+    match candidates.as_slice() {
+        [candidate] => Some(*candidate),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -4009,7 +5850,7 @@ fn unique_explicit_body_argument(graph: &GraphData, body_key: &str) -> Option<(S
             if field == "source" && is_source_record(value) {
                 continue;
             }
-            walk_pointer_values(value, &graph.object_keys, &mut pointers);
+            append_prototype_non_source_pointers(value, &graph.object_keys, &mut pointers);
         }
         for target in pointers {
             match optional_string(graph.object(&target), "type") {
@@ -4086,7 +5927,13 @@ impl RenderState {
         if object.contains_key("type") {
             self.account_field(graph, object, "type");
         }
-        match optional_string(object, "type") {
+        if self.planning {
+            self.planning_compact_adjacency
+                .entry(key.to_owned())
+                .or_default();
+            self.planning_object_stack.push(key.to_owned());
+        }
+        let rendered = match optional_string(object, "type") {
             Some("utterance") => self.render_utterance(graph, key, object),
             Some("predication") => self.render_predication(graph, key, object),
             Some("formula") => self.render_formula(graph, key, object),
@@ -4097,7 +5944,15 @@ impl RenderState {
             Some("displayedContent") => self.render_displayed_content(graph, object),
             Some("mathExpression") => self.render_math_expression(graph, object),
             _ => self.render_unknown_object(graph, object),
+        };
+        if self.planning {
+            assert_eq!(
+                self.planning_object_stack.pop().as_deref(),
+                Some(key),
+                "compact planning object stack became unbalanced"
+            );
         }
+        rendered
     }
 
     #[requires(graph.ground_by_utterance.contains_key(key))]
@@ -4562,7 +6417,6 @@ impl RenderState {
                     "body",
                     "quantity",
                     "domainImport",
-                    "boundEventualities",
                 ] {
                     if let Some(value) = object.get(field) {
                         state.account_field(graph, object, field);

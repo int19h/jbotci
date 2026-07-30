@@ -8,7 +8,7 @@
 //! `smusni` is now the default tersmu output format everywhere (CLI and MCP);
 //! the legacy `tree`/`tree+proj` renderers it replaced have been removed. The
 //! research repo's internal profile name for this rendering is `lean3` (a
-//! historical experiment label); `smusni` is its product name. The
+//! historical experiment label); `smusni` is its product name.
 //! [`render_xml`] is the canonical SFN-XML renderer adopted from
 //! `render_xml.py` at research commit `e25eeaf`; its separate result type also
 //! returns occurrence-level omissions. [`NotationProfile`] remains the
