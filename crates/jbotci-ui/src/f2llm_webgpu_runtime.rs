@@ -5,8 +5,8 @@ use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_f2llm_runtime::{
     ArtifactError, ArtifactPath, ArtifactSource, CorpusShard, CorpusVectorSpec,
     DEFAULT_MAX_SEQUENCE_LENGTH, ProgressError, ProgressEvent, ProgressSink, QwenByteBpeTokenizer,
-    RuntimeFuture, RuntimeLoadOptions, VectorStore, VectorStoreError, VectorStoreKey,
-    WebGpuRuntime,
+    RuntimeCapabilities, RuntimeFuture, RuntimeLoadOptions, VectorStore, VectorStoreError,
+    VectorStoreKey, WebGpuRuntime,
 };
 use js_sys::{Array, Float32Array, Function, Object, Promise, Reflect, Uint8Array, Uint32Array};
 use wasm_bindgen::JsCast;
@@ -148,6 +148,17 @@ impl ParsedRuntimeLoadOptions {
             required_string(value, "expectedVersion")?,
             optional_usize(value, "maxSequenceLength")?.unwrap_or(DEFAULT_MAX_SEQUENCE_LENGTH),
             required_usize(value, "dimensions")?,
+            match optional_string(value, "capabilities")?.as_deref() {
+                None | Some("embedding-and-f16-scoring") => {
+                    RuntimeCapabilities::EmbeddingAndF16Scoring
+                }
+                Some("embedding-only") => RuntimeCapabilities::EmbeddingOnly,
+                Some(value) => {
+                    return Err(JsValue::from_str(&format!(
+                        "capabilities must be `embedding-only` or `embedding-and-f16-scoring`, got `{value}`"
+                    )));
+                }
+            },
         );
         Ok(new!(ParsedRuntimeLoadOptions {
             base_url: base_url,
@@ -393,8 +404,8 @@ fn progress_js_error(value: JsValue) -> ProgressError {
     ProgressError::new(js_value_message(&value))
 }
 
-#[requires(!message.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn js_error(message: String) -> JsValue {
-    JsValue::from_str(&message)
+fn js_error(error: impl std::fmt::Display) -> JsValue {
+    JsValue::from_str(&error.to_string())
 }

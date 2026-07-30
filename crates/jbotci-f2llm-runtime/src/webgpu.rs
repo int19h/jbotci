@@ -1,17 +1,20 @@
-//! Browser WebGPU orchestration for F2LLM artifacts.
+//! WebGPU orchestration shared by browser and explicitly enabled native consumers.
 
 use std::collections::{HashMap, VecDeque};
+use std::fmt;
 use std::sync::{Arc, Mutex};
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Duration;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use futures_channel::oneshot;
 use sha2::{Digest, Sha256};
 
 use crate::core::{
-    DEFAULT_MAX_SEQUENCE_LENGTH, QwenByteBpeTokenizer, TokenWindow, mean_pool_normalized,
-    normalize_in_place, pack_token_windows, q4_padded_row_stride,
-    validate_embedding_vector_before_normalize, validate_sha256_hex, validate_token_ids,
+    DEFAULT_MAX_SEQUENCE_LENGTH, EmbeddingVectorError, QwenByteBpeTokenizer, TokenWindow,
+    embedding_normalization_magnitude, mean_pool_normalized, normalize_validated_in_place,
+    pack_token_windows, q4_padded_row_stride, validate_sha256_hex, validate_token_ids,
 };
 use crate::webgpu_manifest::{
     ArtifactManifest, ChunkedSpec, TensorSpec, TokenizerSpec, checked_rank2_shape,
@@ -28,6 +31,8 @@ const ATTENTION_WORKGROUP_WIDTH: u32 = 4;
 const ELEMENTWISE_WORKGROUP_SIZE: u32 = 256;
 const VECTOR_WORKGROUP_SIZE: u32 = 64;
 const GPU_VECTOR_BUFFER_CACHE_LIMIT: usize = 2;
+#[cfg(not(target_arch = "wasm32"))]
+const NATIVE_POLL_TIMEOUT_MILLIS: u64 = 120_000;
 
 const EMBEDDING_ONNX_Q4_SHADER: &str = r#"
 struct Params {
@@ -369,6 +374,225 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 "#;
 
+/// GPU operations enabled for a loaded runtime.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeCapabilities {
+    /// Model loading and f32 embedding inference without optional shader-f16 support.
+    EmbeddingOnly,
+    /// Embedding inference plus the f16 corpus-vector scoring pipeline.
+    EmbeddingAndF16Scoring,
+}
+
+impl fmt::Display for RuntimeCapabilities {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::EmbeddingOnly => "embedding-only",
+            Self::EmbeddingAndF16Scoring => "embedding-and-f16-scoring",
+        })
+    }
+}
+
+/// Typed failures from adapter setup, native progress driving, and GPU execution.
+#[invariant(::Message { message } => !message.is_empty())]
+#[invariant(::AdapterUnavailable { message } => !message.is_empty())]
+#[invariant(::CapabilityUnavailable { operation, .. } => !operation.is_empty())]
+#[invariant(::InvalidEmbedding { operation, .. } => !operation.is_empty())]
+#[invariant(::DevicePollTimeout { operation, timeout_millis } =>
+    !operation.is_empty() && *timeout_millis > 0)]
+#[invariant(::DevicePollFailed { operation, message } =>
+    !operation.is_empty() && !message.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeError {
+    Message {
+        message: String,
+    },
+    AdapterUnavailable {
+        message: String,
+    },
+    CapabilityUnavailable {
+        operation: String,
+        required: RuntimeCapabilities,
+    },
+    InvalidEmbedding {
+        operation: String,
+        error: EmbeddingVectorError,
+    },
+    DevicePollTimeout {
+        operation: String,
+        timeout_millis: u64,
+    },
+    DevicePollFailed {
+        operation: String,
+        message: String,
+    },
+}
+
+impl RuntimeError {
+    #[requires(!message.is_empty())]
+    #[ensures(matches!(
+        ret.as_data(),
+        data!(RuntimeError::AdapterUnavailable { .. })
+    ))]
+    fn adapter_unavailable(message: String) -> Self {
+        new!(RuntimeError::AdapterUnavailable { message: message })
+    }
+
+    #[requires(!operation.is_empty())]
+    #[ensures(matches!(
+        ret.as_data(),
+        data!(RuntimeError::CapabilityUnavailable { .. })
+    ))]
+    fn capability_unavailable(operation: &str) -> Self {
+        new!(RuntimeError::CapabilityUnavailable {
+            operation: operation.to_owned(),
+            required: RuntimeCapabilities::EmbeddingAndF16Scoring,
+        })
+    }
+
+    #[requires(!operation.is_empty())]
+    #[ensures(matches!(
+        ret.as_data(),
+        data!(RuntimeError::InvalidEmbedding { .. })
+    ))]
+    fn invalid_embedding(operation: String, error: EmbeddingVectorError) -> Self {
+        new!(RuntimeError::InvalidEmbedding { operation, error })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(
+        self.as_data(),
+        data!(RuntimeError::CapabilityUnavailable { .. })
+    ))]
+    pub fn unavailable_capability(&self) -> Option<RuntimeCapabilities> {
+        match self.as_data() {
+            data!(RuntimeError::CapabilityUnavailable { required, .. }) => Some(*required),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(
+        self.as_data(),
+        data!(RuntimeError::InvalidEmbedding { .. })
+    ))]
+    pub fn embedding_error(&self) -> Option<&EmbeddingVectorError> {
+        match self.as_data() {
+            data!(RuntimeError::InvalidEmbedding { error, .. }) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for RuntimeError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            data!(RuntimeError::Message { message }) => formatter.write_str(message),
+            data!(RuntimeError::AdapterUnavailable { message }) => {
+                write!(formatter, "failed to request a WebGPU adapter: {message}")
+            }
+            data!(RuntimeError::CapabilityUnavailable {
+                operation,
+                required,
+            }) => write!(
+                formatter,
+                "F2LLM runtime capability `{required}` is unavailable for operation `{operation}`"
+            ),
+            data!(RuntimeError::InvalidEmbedding { operation, error }) => {
+                write!(
+                    formatter,
+                    "F2LLM operation `{operation}` produced an invalid embedding: {error}"
+                )
+            }
+            data!(RuntimeError::DevicePollTimeout {
+                operation,
+                timeout_millis,
+            }) => write!(
+                formatter,
+                "F2LLM native WebGPU operation `{operation}` exceeded its {timeout_millis} ms device-poll timeout"
+            ),
+            data!(RuntimeError::DevicePollFailed { operation, message }) => write!(
+                formatter,
+                "F2LLM native WebGPU operation `{operation}` could not poll the device: {message}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for RuntimeError {}
+
+impl From<String> for RuntimeError {
+    #[requires(!value.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(RuntimeError::Message { .. })))]
+    fn from(value: String) -> Self {
+        new!(RuntimeError::Message { message: value })
+    }
+}
+
+#[requires(dimensions > 0)]
+#[ensures(ret.as_ref().is_ok_and(|vector| {
+    vector.len() == dimensions
+        && vector.iter().all(|value| value.is_finite())
+        && vector.iter().any(|value| *value != 0.0)
+}) || ret.is_err())]
+fn pool_window_embeddings(
+    vectors: &[Vec<f32>],
+    dimensions: usize,
+) -> Result<Vec<f32>, RuntimeError> {
+    mean_pool_normalized(vectors, dimensions).map_err(|error| {
+        RuntimeError::invalid_embedding("pool F2LLM window embeddings".to_owned(), error)
+    })
+}
+
+/// Stable, serializable-by-consumers facts about the selected physical adapter.
+#[invariant(!name.is_empty())]
+#[invariant(!backend.is_empty())]
+#[invariant(!device_type.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeAdapterInfo {
+    name: String,
+    backend: String,
+    device_type: String,
+    driver: String,
+    driver_info: String,
+}
+
+impl RuntimeAdapterInfo {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn backend(&self) -> &str {
+        &self.backend
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn device_type(&self) -> &str {
+        &self.device_type
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn driver(&self) -> &str {
+        &self.driver
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn driver_info(&self) -> &str {
+        &self.driver_info
+    }
+}
+
 #[invariant(::Q4OnnxGather(_) => true)]
 #[invariant(::Q4OnnxMatmul(_) => true)]
 #[invariant(::F32(_) => true)]
@@ -480,6 +704,8 @@ pub struct RuntimeLoadOptions {
     expected_version: String,
     max_sequence_length: usize,
     dimensions: usize,
+    capabilities: RuntimeCapabilities,
+    force_fallback_adapter: bool,
 }
 
 impl RuntimeLoadOptions {
@@ -495,6 +721,7 @@ impl RuntimeLoadOptions {
         expected_version: String,
         max_sequence_length: usize,
         dimensions: usize,
+        capabilities: RuntimeCapabilities,
     ) -> Self {
         new!(RuntimeLoadOptions {
             expected_model_key: expected_model_key,
@@ -502,6 +729,18 @@ impl RuntimeLoadOptions {
             expected_version: expected_version,
             max_sequence_length: max_sequence_length,
             dimensions: dimensions,
+            capabilities: capabilities,
+            force_fallback_adapter: false,
+        })
+    }
+
+    /// Restricts adapter selection to a software/fallback adapter for deterministic test runs.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[requires(true)]
+    #[ensures(ret.force_fallback_adapter)]
+    pub fn with_force_fallback_adapter_for_testing(self) -> Self {
+        self.with_data(data! {
+            force_fallback_adapter: true,
         })
     }
 }
@@ -511,6 +750,8 @@ impl RuntimeLoadOptions {
 pub struct WebGpuRuntime {
     device: wgpu::Device,
     queue: wgpu::Queue,
+    adapter_info: RuntimeAdapterInfo,
+    capabilities: RuntimeCapabilities,
     gpu_failure: Arc<Mutex<Option<String>>>,
     manifest: ArtifactManifest,
     tokenizer: QwenByteBpeTokenizer,
@@ -530,7 +771,7 @@ impl WebGpuRuntime {
         options: RuntimeLoadOptions,
         artifact_source: &dyn ArtifactSource,
         progress: &mut dyn ProgressSink,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, RuntimeError> {
         let manifest_path =
             ArtifactPath::parse("manifest.json").expect("literal artifact path is valid");
         let manifest_bytes =
@@ -545,26 +786,25 @@ impl WebGpuRuntime {
             options.dimensions,
         )?;
 
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::BROWSER_WEBGPU,
-            ..wgpu::InstanceDescriptor::new_without_display_handle()
-        });
+        let instance = wgpu::Instance::new(runtime_instance_descriptor());
         let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                force_fallback_adapter: options.force_fallback_adapter,
+                ..wgpu::RequestAdapterOptions::default()
+            })
             .await
-            .map_err(|error| format!("failed to request WebGPU adapter: {error}"))?;
-        let required_features = if adapter.features().contains(wgpu::Features::SHADER_F16) {
-            wgpu::Features::SHADER_F16
-        } else {
-            return Err("F2LLM WebGPU vector scoring requires the shader-f16 feature".to_owned());
-        };
+            .map_err(|error| RuntimeError::adapter_unavailable(error.to_string()))?;
+        let adapter_info = runtime_adapter_info(&adapter);
+        let required_features = required_features(options.capabilities, adapter.features())?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 required_features,
                 ..wgpu::DeviceDescriptor::default()
             })
             .await
-            .map_err(|error| format!("failed to request WebGPU device: {error}"))?;
+            .map_err(|error| {
+                RuntimeError::from(format!("failed to request WebGPU device: {error}"))
+            })?;
         let gpu_failure = Arc::new(Mutex::new(None));
         install_gpu_failure_handlers(&device, Arc::clone(&gpu_failure));
 
@@ -576,6 +816,8 @@ impl WebGpuRuntime {
         let mut runtime = Self {
             device,
             queue,
+            adapter_info,
+            capabilities: options.capabilities,
             gpu_failure,
             max_sequence_length: options.max_sequence_length.min(
                 manifest
@@ -599,11 +841,31 @@ impl WebGpuRuntime {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn capabilities(&self) -> RuntimeCapabilities {
+        self.capabilities
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.name().is_empty())]
+    pub fn adapter_info(&self) -> &RuntimeAdapterInfo {
+        &self.adapter_info
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|windows| !windows.is_empty()) || ret.is_err())]
+    pub fn token_windows(&self, text: &str) -> Result<Vec<Vec<u32>>, RuntimeError> {
+        self.tokenizer
+            .token_windows(text, self.max_sequence_length)
+            .map_err(RuntimeError::from)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     async fn load_tensors(
         &mut self,
         artifact_source: &dyn ArtifactSource,
         progress: &mut dyn ProgressSink,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeError> {
         let entries = self
             .manifest
             .tensors
@@ -646,7 +908,7 @@ impl WebGpuRuntime {
         artifact_source: &dyn ArtifactSource,
         name: &str,
         spec: &TensorSpec,
-    ) -> Result<Tensor, String> {
+    ) -> Result<Tensor, RuntimeError> {
         match spec.kind.as_str() {
             "q4_onnx_gather" | "q4_onnx_matmul" => {
                 let qweight = spec
@@ -718,7 +980,7 @@ impl WebGpuRuntime {
                     buffer: buffer,
                 })))
             }
-            other => Err(format!("unsupported F2LLM tensor kind for {name}: {other}")),
+            other => Err(format!("unsupported F2LLM tensor kind for {name}: {other}").into()),
         }
     }
 
@@ -729,9 +991,11 @@ impl WebGpuRuntime {
         artifact_source: &dyn ArtifactSource,
         label: &str,
         chunked: &ChunkedSpec,
-    ) -> Result<wgpu::Buffer, String> {
+    ) -> Result<wgpu::Buffer, RuntimeError> {
         if label.is_empty() {
-            return Err("F2LLM chunked buffer label must be non-empty".to_owned());
+            return Err("F2LLM chunked buffer label must be non-empty"
+                .to_owned()
+                .into());
         }
         validate_chunked_spec(label, chunked)?;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -750,13 +1014,15 @@ impl WebGpuRuntime {
                     chunk.url,
                     chunk.byte_length,
                     bytes.len()
-                ));
+                )
+                .into());
             }
             if chunk.byte_offset + chunk.byte_length > chunked.byte_length {
                 return Err(format!(
                     "{label} chunk {} exceeds declared buffer byte length",
                     chunk.url
-                ));
+                )
+                .into());
             }
             verify_sha256(
                 &bytes,
@@ -771,8 +1037,15 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|vectors| vectors.len() == texts.len()) || ret.is_err())]
-    pub async fn embed_texts(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, String> {
+    #[ensures(ret.as_ref().is_ok_and(|vectors| {
+        vectors.len() == texts.len()
+            && vectors.iter().all(|vector| {
+                vector.len() == self.dimensions
+                    && vector.iter().all(|value| value.is_finite())
+                    && vector.iter().any(|value| *value != 0.0)
+            })
+    }) || ret.is_err())]
+    pub async fn embed_texts(&mut self, texts: &[String]) -> Result<Vec<Vec<f32>>, RuntimeError> {
         if texts.is_empty() {
             return Ok(Vec::new());
         }
@@ -795,7 +1068,8 @@ impl WebGpuRuntime {
                     "packed batch row count mismatch: expected {}, got {}",
                     batch.segments.len(),
                     rows.len()
-                ));
+                )
+                .into());
             }
             for (segment, vector) in batch.segments.iter().zip(rows) {
                 window_vectors[segment.text_index].push(vector);
@@ -804,22 +1078,29 @@ impl WebGpuRuntime {
         let mut output = Vec::with_capacity(texts.len());
         for (text_index, vectors) in window_vectors.into_iter().enumerate() {
             if vectors.len() != window_counts[text_index] || vectors.is_empty() {
-                return Err(format!(
-                    "missing F2LLM window embeddings for text row {text_index}"
-                ));
+                return Err(
+                    format!("missing F2LLM window embeddings for text row {text_index}").into(),
+                );
             }
-            output.push(mean_pool_normalized(&vectors, self.dimensions));
+            output.push(pool_window_embeddings(&vectors, self.dimensions)?);
         }
         Ok(output)
     }
 
     #[requires(!segments.is_empty())]
     #[requires(segments.iter().all(|segment| !segment.token_ids.is_empty()))]
-    #[ensures(ret.as_ref().is_ok_and(|rows| rows.len() == segments.len()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|rows| {
+        rows.len() == segments.len()
+            && rows.iter().all(|row| {
+                row.len() == self.dimensions
+                    && row.iter().all(|value| value.is_finite())
+                    && row.iter().any(|value| *value != 0.0)
+            })
+    }) || ret.is_err())]
     async fn embed_packed_batch(
         &mut self,
         segments: &[TokenWindow],
-    ) -> Result<Vec<Vec<f32>>, String> {
+    ) -> Result<Vec<Vec<f32>>, RuntimeError> {
         let total_tokens = segments
             .iter()
             .map(|segment| segment.token_ids.len())
@@ -828,7 +1109,8 @@ impl WebGpuRuntime {
             return Err(format!(
                 "packed F2LLM batch has {total_tokens} tokens, maximum is {}",
                 self.max_sequence_length
-            ));
+            )
+            .into());
         }
         let mut token_ids = Vec::with_capacity(total_tokens);
         let mut local_positions = Vec::with_capacity(total_tokens);
@@ -854,12 +1136,18 @@ impl WebGpuRuntime {
             .await?;
         hidden.destroy();
         let mut rows = Vec::with_capacity(segments.len());
-        for token_offset in last_token_offsets {
+        for (row_index, token_offset) in last_token_offsets.into_iter().enumerate() {
             let start = token_offset * self.manifest.model.hidden_size;
             let end = start + self.manifest.model.hidden_size;
             let mut vector = hidden_values[start..end].to_vec();
-            validate_embedding_vector_before_normalize(&vector, "F2LLM hidden output")?;
-            normalize_in_place(&mut vector);
+            let magnitude =
+                embedding_normalization_magnitude(&vector, self.dimensions).map_err(|error| {
+                    RuntimeError::invalid_embedding(
+                        format!("normalize F2LLM hidden output row {row_index}"),
+                        error,
+                    )
+                })?;
+            normalize_validated_in_place(&mut vector, magnitude);
             rows.push(vector);
         }
         Ok(rows)
@@ -874,7 +1162,7 @@ impl WebGpuRuntime {
         token_ids: &[u32],
         local_positions: &[u32],
         segment_starts: &[u32],
-    ) -> Result<wgpu::Buffer, String> {
+    ) -> Result<wgpu::Buffer, RuntimeError> {
         let sequence_length = token_ids.len();
         let hidden_size = self.manifest.model.hidden_size;
         let token_buffer = self.create_upload_buffer(
@@ -969,7 +1257,7 @@ impl WebGpuRuntime {
         sequence_length: usize,
         local_position_buffer: &wgpu::Buffer,
         segment_start_buffer: &wgpu::Buffer,
-    ) -> Result<wgpu::Buffer, String> {
+    ) -> Result<wgpu::Buffer, RuntimeError> {
         let model = self.manifest.model.clone();
         let prefix = format!("model.layers.{layer}");
         let hidden_bytes = sequence_length * model.hidden_size * 4;
@@ -1180,19 +1468,24 @@ impl WebGpuRuntime {
         corpus: &CorpusVectorSpec,
         query: &[f32],
         vector_store: &dyn VectorStore,
-    ) -> Result<Vec<f32>, String> {
+    ) -> Result<Vec<f32>, RuntimeError> {
+        if self.capabilities != RuntimeCapabilities::EmbeddingAndF16Scoring {
+            return Err(RuntimeError::capability_unavailable("score_f16_vectors"));
+        }
         if query.len() != corpus.dimensions {
             return Err(format!(
                 "query vector dimension mismatch: expected {}, got {}",
                 corpus.dimensions,
                 query.len()
-            ));
+            )
+            .into());
         }
         if corpus.element_type != "f16le" {
             return Err(format!(
                 "F2LLM vector corpus elementType must be f16le, got {}",
                 corpus.element_type
-            ));
+            )
+            .into());
         }
         let row_count = corpus.row_count;
         let vector_buffer = self.vector_buffer_for_corpus(corpus, vector_store).await?;
@@ -1255,12 +1548,13 @@ impl WebGpuRuntime {
         &mut self,
         corpus: &CorpusVectorSpec,
         vector_store: &dyn VectorStore,
-    ) -> Result<VectorBuffer, String> {
+    ) -> Result<VectorBuffer, RuntimeError> {
         if corpus.element_type != "f16le" {
             return Err(format!(
                 "F2LLM vector corpus elementType must be f16le, got {}",
                 corpus.element_type
-            ));
+            )
+            .into());
         }
         let cache_key = corpus_vector_cache_key(corpus);
         if !self.vector_buffers.contains_key(&cache_key) {
@@ -1273,7 +1567,8 @@ impl WebGpuRuntime {
             if total_bytes != expected_bytes {
                 return Err(format!(
                     "f16 vector byte length mismatch: expected {expected_bytes}, got {total_bytes}"
-                ));
+                )
+                .into());
             }
             let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("f2llm vectors"),
@@ -1293,7 +1588,8 @@ impl WebGpuRuntime {
                         shard.key,
                         shard.byte_len,
                         bytes.len()
-                    ));
+                    )
+                    .into());
                 }
                 self.queue.write_buffer(&buffer, offset as u64, &bytes);
                 offset += bytes.len();
@@ -1305,7 +1601,7 @@ impl WebGpuRuntime {
         self.vector_buffers
             .get(&cache_key)
             .cloned()
-            .ok_or_else(|| "failed to cache F2LLM vector buffer".to_owned())
+            .ok_or_else(|| RuntimeError::from("failed to cache F2LLM vector buffer".to_owned()))
     }
 
     #[requires(!weight_name.is_empty())]
@@ -1621,8 +1917,8 @@ impl WebGpuRuntime {
 
     #[requires(true)]
     #[ensures(true)]
-    async fn precompile_pipelines(&mut self) -> Result<(), String> {
-        for (name, shader) in webgpu_pipeline_sources() {
+    async fn precompile_pipelines(&mut self) -> Result<(), RuntimeError> {
+        for (name, shader) in webgpu_pipeline_sources(self.capabilities) {
             let scopes = self.push_gpu_error_scopes();
             let module = self
                 .device
@@ -1640,11 +1936,44 @@ impl WebGpuRuntime {
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     cache: None,
                 });
-            self.check_gpu_error_scopes(&format!("compile pipeline {name}"), scopes)
+            self.check_gpu_error_scopes(&format!("compile pipeline {name}"), scopes, None)
                 .await?;
             self.pipelines.insert(name, pipeline);
         }
         Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[requires(!operation.is_empty())]
+    #[ensures(ret.as_ref().err().is_none_or(|error| matches!(
+        error.as_data(),
+        data!(RuntimeError::DevicePollTimeout { .. })
+            | data!(RuntimeError::DevicePollFailed { .. })
+    )))]
+    fn poll_native_device(
+        &self,
+        operation: &str,
+        submission_index: Option<wgpu::SubmissionIndex>,
+    ) -> Result<(), RuntimeError> {
+        let timeout = Duration::from_millis(NATIVE_POLL_TIMEOUT_MILLIS);
+        match self.device.poll(wgpu::PollType::Wait {
+            submission_index,
+            timeout: Some(timeout),
+        }) {
+            Ok(status) if status.wait_finished() => Ok(()),
+            Ok(status) => Err(new!(RuntimeError::DevicePollFailed {
+                operation: operation.to_owned(),
+                message: format!("unexpected poll status {status:?}"),
+            })),
+            Err(wgpu::PollError::Timeout) => Err(new!(RuntimeError::DevicePollTimeout {
+                operation: operation.to_owned(),
+                timeout_millis: NATIVE_POLL_TIMEOUT_MILLIS,
+            })),
+            Err(error) => Err(new!(RuntimeError::DevicePollFailed {
+                operation: operation.to_owned(),
+                message: error.to_string(),
+            })),
+        }
     }
 
     #[requires(!name.is_empty())]
@@ -1693,12 +2022,13 @@ impl WebGpuRuntime {
         &self,
         label: &str,
         command_buffers: Vec<wgpu::CommandBuffer>,
-    ) -> Result<(), String> {
+    ) -> Result<(), RuntimeError> {
         self.observed_gpu_failure()?;
         let scopes = self.push_gpu_error_scopes();
-        self.queue.submit(command_buffers);
-        self.check_gpu_error_scopes(label, scopes).await?;
-        self.observed_gpu_failure()
+        let submission_index = self.queue.submit(command_buffers);
+        self.check_gpu_error_scopes(label, scopes, Some(submission_index))
+            .await?;
+        self.observed_gpu_failure().map_err(RuntimeError::from)
     }
 
     #[requires(true)]
@@ -1717,10 +2047,18 @@ impl WebGpuRuntime {
         &self,
         label: &str,
         scopes: GpuErrorScopes,
-    ) -> Result<(), String> {
-        let internal = scopes.internal.pop().await;
-        let out_of_memory = scopes.out_of_memory.pop().await;
-        let validation = scopes.validation.pop().await;
+        submission_index: Option<wgpu::SubmissionIndex>,
+    ) -> Result<(), RuntimeError> {
+        let internal = scopes.internal.pop();
+        let out_of_memory = scopes.out_of_memory.pop();
+        let validation = scopes.validation.pop();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.poll_native_device(label, submission_index)?;
+        #[cfg(target_arch = "wasm32")]
+        let _ = submission_index;
+        let internal = internal.await;
+        let out_of_memory = out_of_memory.await;
+        let validation = validation.await;
         for (kind, error) in [
             ("internal", internal),
             ("out-of-memory", out_of_memory),
@@ -1729,7 +2067,7 @@ impl WebGpuRuntime {
             if let Some(error) = error {
                 let message = format!("F2LLM WebGPU {label} failed with {kind} error: {error}");
                 note_gpu_failure(&self.gpu_failure, message.clone());
-                return Err(message);
+                return Err(RuntimeError::from(message));
             }
         }
         Ok(())
@@ -1829,7 +2167,7 @@ impl WebGpuRuntime {
         buffer: &wgpu::Buffer,
         byte_offset: usize,
         elements: usize,
-    ) -> Result<Vec<f32>, String> {
+    ) -> Result<Vec<f32>, RuntimeError> {
         let byte_length = elements * 4;
         let read_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("f2llm readback"),
@@ -1865,16 +2203,19 @@ impl WebGpuRuntime {
         &self,
         buffer: &wgpu::Buffer,
         byte_length: usize,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Result<Vec<u8>, RuntimeError> {
         self.observed_gpu_failure()?;
         let slice = buffer.slice(0..align_to(byte_length as u64, 4));
         let (sender, receiver) = oneshot::channel();
         slice.map_async(wgpu::MapMode::Read, move |result| {
             let _ = sender.send(result.map_err(|error| error.to_string()));
         });
+        #[cfg(not(target_arch = "wasm32"))]
+        self.poll_native_device("buffer map readback", None)?;
         receiver
             .await
-            .map_err(|_| "F2LLM readback map callback was dropped".to_owned())??;
+            .map_err(|_| RuntimeError::from("F2LLM readback map callback was dropped".to_owned()))?
+            .map_err(RuntimeError::from)?;
         let view = slice.get_mapped_range();
         let bytes = view[..byte_length].to_vec();
         drop(view);
@@ -1934,9 +2275,9 @@ fn shader_source_with_workgroups(source: &'static str) -> String {
 }
 
 #[requires(true)]
-#[ensures(ret.len() == 9)]
-fn webgpu_pipeline_sources() -> Vec<(&'static str, String)> {
-    vec![
+#[ensures(ret.len() == if capabilities == RuntimeCapabilities::EmbeddingOnly { 8 } else { 9 })]
+fn webgpu_pipeline_sources(capabilities: RuntimeCapabilities) -> Vec<(&'static str, String)> {
+    let mut sources = vec![
         (
             "embeddingOnnxQ4",
             shader_source_with_workgroups(EMBEDDING_ONNX_Q4_SHADER),
@@ -1960,11 +2301,74 @@ fn webgpu_pipeline_sources() -> Vec<(&'static str, String)> {
         ),
         ("add", shader_source_with_workgroups(ADD_SHADER)),
         ("siluMul", shader_source_with_workgroups(SILU_MUL_SHADER)),
-        (
+    ];
+    if capabilities == RuntimeCapabilities::EmbeddingAndF16Scoring {
+        sources.push((
             "vectorDotF16",
             shader_source_with_workgroups(VECTOR_DOT_F16_SHADER),
-        ),
-    ]
+        ));
+    }
+    sources
+}
+
+#[requires(true)]
+#[ensures(
+    ret.as_ref().is_ok_and(|features| {
+        capabilities != RuntimeCapabilities::EmbeddingOnly || features.is_empty()
+    }) || ret.is_err()
+)]
+fn required_features(
+    capabilities: RuntimeCapabilities,
+    available: wgpu::Features,
+) -> Result<wgpu::Features, RuntimeError> {
+    match capabilities {
+        RuntimeCapabilities::EmbeddingOnly => Ok(wgpu::Features::empty()),
+        RuntimeCapabilities::EmbeddingAndF16Scoring
+            if available.contains(wgpu::Features::SHADER_F16) =>
+        {
+            Ok(wgpu::Features::SHADER_F16)
+        }
+        RuntimeCapabilities::EmbeddingAndF16Scoring => {
+            Err(RuntimeError::capability_unavailable("load runtime"))
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.backends == wgpu::Backends::BROWSER_WEBGPU)]
+fn runtime_instance_descriptor() -> wgpu::InstanceDescriptor {
+    wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::BROWSER_WEBGPU,
+        ..wgpu::InstanceDescriptor::new_without_display_handle()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn runtime_instance_descriptor() -> wgpu::InstanceDescriptor {
+    wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::PRIMARY.with_env(),
+        ..wgpu::InstanceDescriptor::new_without_display_handle_from_env()
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.name.is_empty() && !ret.backend.is_empty() && !ret.device_type.is_empty())]
+fn runtime_adapter_info(adapter: &wgpu::Adapter) -> RuntimeAdapterInfo {
+    let info = adapter.get_info();
+    new!(RuntimeAdapterInfo {
+        name: if info.name.is_empty() {
+            "unnamed-adapter".to_owned()
+        } else {
+            info.name
+        },
+        backend: format!("{:?}", info.backend).to_ascii_lowercase(),
+        device_type: format!("{:?}", info.device_type).to_ascii_lowercase(),
+        driver: info.driver,
+        driver_info: info.driver_info,
+    })
 }
 
 #[requires(true)]
@@ -2177,4 +2581,72 @@ async fn report_progress(
         .report(&event)
         .await
         .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn embedding_only_requests_no_optional_features_or_f16_pipeline() {
+        assert_eq!(
+            required_features(RuntimeCapabilities::EmbeddingOnly, wgpu::Features::all())
+                .expect("embedding-only feature selection"),
+            wgpu::Features::empty()
+        );
+        let names = webgpu_pipeline_sources(RuntimeCapabilities::EmbeddingOnly)
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect::<Vec<_>>();
+        assert_eq!(names.len(), 8);
+        assert!(!names.contains(&"vectorDotF16"));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn cancelling_window_pooling_surfaces_typed_runtime_error() {
+        let error = pool_window_embeddings(&[vec![1.0, 0.0], vec![-1.0, 0.0]], 2)
+            .expect_err("cancelling windows must fail");
+
+        assert!(
+            error
+                .embedding_error()
+                .is_some_and(EmbeddingVectorError::is_zero_norm)
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn f16_scoring_requires_adapter_support_and_compiles_its_pipeline() {
+        let error = required_features(
+            RuntimeCapabilities::EmbeddingAndF16Scoring,
+            wgpu::Features::empty(),
+        )
+        .expect_err("shader-f16 absence must be typed");
+        assert!(matches!(
+            error.as_data(),
+            data!(RuntimeError::CapabilityUnavailable {
+                required: RuntimeCapabilities::EmbeddingAndF16Scoring,
+                ..
+            })
+        ));
+        assert_eq!(
+            required_features(
+                RuntimeCapabilities::EmbeddingAndF16Scoring,
+                wgpu::Features::SHADER_F16,
+            )
+            .expect("supported shader-f16 feature"),
+            wgpu::Features::SHADER_F16
+        );
+        let names = webgpu_pipeline_sources(RuntimeCapabilities::EmbeddingAndF16Scoring)
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect::<Vec<_>>();
+        assert_eq!(names.len(), 9);
+        assert!(names.contains(&"vectorDotF16"));
+    }
 }
