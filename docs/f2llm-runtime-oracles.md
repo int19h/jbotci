@@ -98,8 +98,8 @@ fixture. `tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html` loads the pu
 through `embedTexts`. It records exact token IDs, window arrays, and the little-endian
 bytes and SHA-256 digest of every returned 320-component `f32` vector.
 
-The issue #696 build host exposes software WebGPU but not the optional `shader-f16`
-adapter feature. Its reproducible evidence therefore uses the narrowly scoped
+The issue #696 build host exposed software WebGPU but not the optional `shader-f16`
+adapter feature. N1's historical reproducible evidence therefore used the narrowly scoped
 embedding-only instrumentation in
 `tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py`. The script refuses to
 touch paths outside `/build/jbotci/scratch`; it changes only the requested feature set
@@ -107,6 +107,11 @@ to empty and skips precompilation of `vectorDotF16`. The real product sources re
 the `SHADER_F16` requirement and the `scoreF16Vectors` ABI. `embedTexts` cannot reach
 the skipped pipeline: `vectorDotF16` is dispatched only from the separate
 `score_f16_vectors` method.
+
+After N2, the same behavior is the typed
+`RuntimeCapabilities::EmbeddingOnly` product path. The browser evidence page requests that
+capability directly, so current checkouts require no source instrumentation; the browser worker
+continues to default to `EmbeddingAndF16Scoring`.
 
 An independent reviewer can reproduce both sides from the submitted checkout as
 follows. Replace `<submitted-commit>` with the exact reviewed commit, and leave
@@ -226,19 +231,104 @@ CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo tree -p jbotci-ui --target a
 
 ### N2 — native bring-up
 
+Populate the immutable native artifact mirror once. The three legacy oracle manifests refer to
+pre-content-addressed object names that are no longer published; the downloader joins them to
+current immutable objects by exact byte length and SHA-256, then writes the exact vendored runtime
+manifest. A missing or mismatched payload is a hard error.
+
+```sh
+artifact_root=/build/jbotci/scratch/f2llm-native-artifacts
+published_manifests=/home/int19h.linux/artifacts/jbotci/issue-695/published-webgpu-manifests-2026-07-30/models
+
+python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+  --manifest "$published_manifests/f2llm-v2-80m-webgpu/v1/manifest.json" \
+  --base-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/ \
+  --out "$artifact_root/f2llm-v2-80m-q4-320"
+python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+  --manifest "$published_manifests/f2llm-v2-160m-webgpu/v1/manifest.json" \
+  --runtime-manifest crates/jbotci-f2llm-runtime/testdata/artifacts/legacy-v0.1.0/f2llm-v2-160m-webgpu/v1/manifest.json \
+  --base-url https://assets.jbotci.app/models/f2llm-v2-160m-webgpu/v1/ \
+  --out "$artifact_root/f2llm-v2-160m-q4-640"
+python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+  --manifest "$published_manifests/f2llm-v2-330m-webgpu/v1/manifest.json" \
+  --runtime-manifest crates/jbotci-f2llm-runtime/testdata/artifacts/legacy-v0.1.0/f2llm-v2-330m-webgpu/v1/manifest.json \
+  --base-url https://assets.jbotci.app/models/f2llm-v2-330m-webgpu/v1/ \
+  --out "$artifact_root/f2llm-v2-330m-q4-896"
+python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+  --manifest "$published_manifests/f2llm-v2-0.6b-webgpu/v1/manifest.json" \
+  --runtime-manifest crates/jbotci-f2llm-runtime/testdata/artifacts/legacy-v0.1.0/f2llm-v2-0.6b-webgpu/v1/manifest.json \
+  --base-url https://assets.jbotci.app/models/f2llm-v2-0.6b-webgpu/v1/ \
+  --out "$artifact_root/f2llm-v2-0.6b-q4-1024"
+```
+
+The full four-model dev-box GPU command is:
+
+```sh
+WGPU_BACKEND=vulkan \
+  JBOTCI_F2LLM_ARTIFACT_ROOT=/build/jbotci/scratch/f2llm-native-artifacts \
+  CARGO_TARGET_DIR=/build/jbotci/target/<issue> \
+  cargo test -r -p jbotci-f2llm-runtime --features native \
+  --test native_goldens -- --nocapture
+```
+
+It deliberately leaves `JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER` and
+`VK_ICD_FILENAMES` unset. The evidence prints and records the selected adapter; verify that it is
+the dev box's real GPU. The lavapipe-only 80m command is:
+
+```sh
+WGPU_BACKEND=vulkan \
+  VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json \
+  JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER=1 \
+  JBOTCI_F2LLM_GOLDEN_MODE=80m \
+  JBOTCI_F2LLM_ARTIFACT_ROOT=/build/jbotci/scratch/f2llm-native-artifacts \
+  CARGO_TARGET_DIR=/build/jbotci/target/<issue> \
+  /usr/bin/time -f 'lavapipe 80m native goldens wall time: %E' \
+  cargo test -r -p jbotci-f2llm-runtime --features native \
+  --test native_goldens -- --nocapture
+```
+
+For the D5 direct comparison, build the current wasm app and run the N1 browser evidence page
+against the same 80m artifact directory. `capabilities: "embedding-only"` is part of the checked-in
+page; do not patch runtime source.
+
+```sh
+scratch=/build/jbotci/scratch/<issue>
+(cd apps/jbotci-app &&
+  CARGO_TARGET_DIR=/build/jbotci/target/<issue> dx build)
+cp -a /build/jbotci/target/<issue>/dx/jbotci-app/debug/web/public \
+  "$scratch/current-public"
+cp tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html "$scratch/"
+cp crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json \
+  "$scratch/goldens.json"
+ln -sfn /build/jbotci/scratch/f2llm-native-artifacts/f2llm-v2-80m-q4-320 \
+  "$scratch/gpu-assets"
+python3 -m http.server 8770 --directory "$scratch" \
+  > "$scratch/evidence-http.log" 2>&1 &
+evidence_http_pid=$!
+node tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs \
+  --chrome /snap/chromium/current/usr/lib/chromium-browser/chrome \
+  --url "http://127.0.0.1:8770/wasm-webgpu-extraction-evidence.html?module=/current-public/wasm/jbotci-app.js&wasm=/current-public/wasm/jbotci-app_bg.wasm&goldens=/goldens.json&artifacts=/gpu-assets&implementation=$(git rev-parse HEAD)" \
+  --output "$scratch/wasm.json" \
+  --chrome-log "$scratch/wasm-webgpu-chromium.log" \
+  --profile-dir "$scratch/chrome-profile" \
+  --timeout-seconds 1200 \
+  --debug-port 9224
+kill "$evidence_http_pid"
+```
+
+Then run the frozen N2 gates:
+
 ```sh
 CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime --test pure_core
-VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json \
-  CARGO_TARGET_DIR=/build/jbotci/target/<issue> \
-  cargo test -r -p jbotci-f2llm-runtime --features native-wgpu \
-  --test native_goldens -- --nocapture
 CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \
   f2llm-golden-gate \
   --goldens crates/jbotci-f2llm-runtime/testdata/goldens \
+  --evidence /build/jbotci/target/<issue>/f2llm-native-goldens.json \
   --target native \
   --min-cosine 0.999 \
   --require-exact-token-ids \
   --require-exact-windows \
+  --wasm-evidence /build/jbotci/scratch/<issue>/wasm.json \
   --report-wasm-native-cosine /build/jbotci/scratch/<issue>/wasm-native.json
 ```
 

@@ -208,6 +208,7 @@ struct Cli {
 #[invariant(::BuildF2LlmWebgpuVectors(..) => true)]
 #[invariant(::BuildGgufEmbeddings(..) => true)]
 #[invariant(::F2LlmExtractionGate(..) => true)]
+#[invariant(::F2LlmGoldenGate(..) => true)]
 #[invariant(::F2LlmWasmExportGate(..) => true)]
 #[invariant(::DistServer(..) => true)]
 #[invariant(::PublishWebEmbeddingsR2(..) => true)]
@@ -250,6 +251,8 @@ enum Command {
     BuildGgufEmbeddings(BuildGgufEmbeddingsArgs),
     #[command(name = "f2llm-extraction-gate")]
     F2LlmExtractionGate(F2LlmExtractionGateArgs),
+    #[command(name = "f2llm-golden-gate")]
+    F2LlmGoldenGate(F2LlmGoldenGateArgs),
     #[command(name = "f2llm-wasm-export-gate")]
     F2LlmWasmExportGate(F2LlmWasmExportGateArgs),
     DistServer(DistServerArgs),
@@ -300,6 +303,33 @@ struct F2LlmExtractionGateArgs {
     require_exact_token_ids: bool,
     #[arg(long)]
     require_exact_windows: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(::Native => true)]
+enum F2LlmGoldenTarget {
+    Native,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct F2LlmGoldenGateArgs {
+    #[arg(long)]
+    goldens: PathBuf,
+    #[arg(long)]
+    evidence: PathBuf,
+    #[arg(long, value_enum)]
+    target: F2LlmGoldenTarget,
+    #[arg(long)]
+    min_cosine: f32,
+    #[arg(long)]
+    require_exact_token_ids: bool,
+    #[arg(long)]
+    require_exact_windows: bool,
+    #[arg(long)]
+    wasm_evidence: PathBuf,
+    #[arg(long)]
+    report_wasm_native_cosine: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -1151,6 +1181,7 @@ fn main() -> Result<()> {
         Command::BuildF2LlmWebgpuVectors(args) => build_f2llm_webgpu_vectors(args),
         Command::BuildGgufEmbeddings(args) => build_gguf_embeddings(args),
         Command::F2LlmExtractionGate(args) => f2llm_extraction_gate(args),
+        Command::F2LlmGoldenGate(args) => f2llm_golden_gate(args),
         Command::F2LlmWasmExportGate(args) => f2llm_wasm_export_gate(args),
         Command::DistServer(args) => dist_server(args),
         Command::PublishWebEmbeddingsR2(args) => publish_web_embeddings_r2(args),
@@ -1248,6 +1279,333 @@ fn f2llm_extraction_gate(args: F2LlmExtractionGateArgs) -> Result<()> {
         before_cases.len()
     );
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn f2llm_golden_gate(args: F2LlmGoldenGateArgs) -> Result<()> {
+    if args.target != F2LlmGoldenTarget::Native {
+        bail!("the N2 golden gate supports only --target native");
+    }
+    if !(0.0..=1.0).contains(&args.min_cosine) || args.min_cosine == 0.0 {
+        bail!("--min-cosine must be finite and in (0, 1]");
+    }
+    if !args.require_exact_token_ids || !args.require_exact_windows {
+        bail!("the N2 golden gate requires --require-exact-token-ids and --require-exact-windows");
+    }
+    let evidence = read_json_file(&args.evidence)?;
+    if evidence["schema"] != "jbotci-f2llm-native-goldens-v1"
+        || evidence["target"] != "native"
+        || evidence["runtime"] != "jbotci-webgpu-f2llm"
+        || evidence["capabilities"] != "embedding-only"
+        || evidence["exact_token_ids"] != true
+        || evidence["exact_windows"] != true
+    {
+        bail!(
+            "native evidence `{}` does not satisfy the N2 schema and capability contract",
+            args.evidence.display()
+        );
+    }
+    validate_native_adapter_evidence(&evidence["adapter"], &args.evidence)?;
+    let evidence_models = evidence["models"]
+        .as_array()
+        .with_context(|| format!("`{}` is missing models", args.evidence.display()))?;
+    if evidence_models.is_empty() {
+        bail!("native evidence contains no models");
+    }
+
+    let golden_files = WalkDir::new(&args.goldens)
+        .into_iter()
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .with_context(|| format!("walking golden root `{}`", args.goldens.display()))?
+        .into_iter()
+        .filter(|entry| entry.file_type().is_file() && entry.file_name() == "goldens.json")
+        .map(|entry| entry.into_path())
+        .collect::<Vec<_>>();
+    let mut goldens_by_model = BTreeMap::new();
+    for path in golden_files {
+        let golden = read_json_file(&path)?;
+        let model_key = golden["model_key"]
+            .as_str()
+            .with_context(|| format!("golden `{}` has no model_key", path.display()))?
+            .to_owned();
+        if goldens_by_model
+            .insert(model_key.clone(), (path.clone(), golden))
+            .is_some()
+        {
+            bail!("golden root repeats model key `{model_key}`");
+        }
+    }
+    if evidence_models.len() != goldens_by_model.len() {
+        bail!(
+            "native evidence covers {} models, but golden root contains {}",
+            evidence_models.len(),
+            goldens_by_model.len()
+        );
+    }
+
+    let mut seen_models = BTreeSet::new();
+    let mut global_min_reference_cosine = 1.0_f32;
+    for model in evidence_models {
+        let model_key = model["model_key"]
+            .as_str()
+            .context("native evidence model has no model_key")?;
+        if !seen_models.insert(model_key) {
+            bail!("native evidence repeats model `{model_key}`");
+        }
+        let (golden_path, golden) = goldens_by_model.get(model_key).with_context(|| {
+            format!("native evidence model `{model_key}` has no vendored golden")
+        })?;
+        let dimensions = golden["dimensions"]
+            .as_u64()
+            .with_context(|| format!("golden `{}` has no dimensions", golden_path.display()))?
+            as usize;
+        if dimensions == 0 || model["dimensions"].as_u64() != Some(dimensions as u64) {
+            bail!("native evidence model `{model_key}` has the wrong dimensions");
+        }
+        let golden_cases = golden["cases"]
+            .as_array()
+            .with_context(|| format!("golden `{}` has no cases", golden_path.display()))?;
+        let native_cases = model["cases"]
+            .as_array()
+            .with_context(|| format!("native evidence model `{model_key}` has no cases"))?;
+        if native_cases.len() != golden_cases.len() {
+            bail!(
+                "native evidence model `{model_key}` has {} cases, expected {}",
+                native_cases.len(),
+                golden_cases.len()
+            );
+        }
+        for (golden_case, native_case) in golden_cases.iter().zip(native_cases) {
+            let name = golden_case["name"]
+                .as_str()
+                .context("golden case has no name")?;
+            if native_case["name"] != golden_case["name"] {
+                bail!("native evidence model `{model_key}` case order changed at `{name}`");
+            }
+            require_json_equality(
+                &format!("native `{model_key}` case `{name}` token IDs"),
+                &golden_case["token_ids"],
+                &native_case["token_ids"],
+            )?;
+            let expected_windows = if golden_case["windows"].is_array() {
+                golden_case["windows"].clone()
+            } else {
+                serde_json::json!([golden_case["token_ids"].clone()])
+            };
+            require_json_equality(
+                &format!("native `{model_key}` case `{name}` windows"),
+                &expected_windows,
+                &native_case["windows"],
+            )?;
+            let bytes = f2llm_case_bytes(native_case, dimensions, model_key, name)?;
+            let values = decode_f32le_values(&bytes)?;
+            let reference = golden_case["embedding"]
+                .as_array()
+                .with_context(|| format!("golden `{model_key}` case `{name}` has no embedding"))?
+                .iter()
+                .map(|value| {
+                    value
+                        .as_f64()
+                        .map(|number| number as f32)
+                        .filter(|number| number.is_finite())
+                        .with_context(|| {
+                            format!("golden `{model_key}` case `{name}` has a non-finite embedding")
+                        })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let cosine = f2llm_cosine(&values, &reference)?;
+            global_min_reference_cosine = global_min_reference_cosine.min(cosine);
+            if cosine < args.min_cosine {
+                bail!(
+                    "native `{model_key}` case `{name}` cosine {cosine:.9} is below {:.9}",
+                    args.min_cosine
+                );
+            }
+        }
+    }
+    if seen_models.len() != goldens_by_model.len() {
+        bail!("native evidence omitted one or more vendored golden models");
+    }
+
+    let wasm = read_json_file(&args.wasm_evidence)?;
+    validate_f2llm_extraction_evidence(&wasm, &args.wasm_evidence)?;
+    let native_80m = evidence_models
+        .iter()
+        .find(|model| model["model_key"] == F2LLM_80M_MODEL_KEY)
+        .context("native evidence has no 80m model for the D5 comparison")?;
+    let native_cases = native_80m["cases"]
+        .as_array()
+        .context("native 80m evidence has no cases")?;
+    let wasm_cases = wasm["cases"]
+        .as_array()
+        .context("WASM evidence has no cases")?;
+    if native_cases.len() != wasm_cases.len() {
+        bail!("WASM/native 80m evidence case counts differ");
+    }
+    let mut comparison_cases = Vec::with_capacity(native_cases.len());
+    let mut min_wasm_native_cosine = 1.0_f32;
+    for (native_case, wasm_case) in native_cases.iter().zip(wasm_cases) {
+        let name = native_case["name"]
+            .as_str()
+            .context("native comparison case has no name")?;
+        if wasm_case["name"] != native_case["name"] {
+            bail!("WASM/native case order differs at `{name}`");
+        }
+        require_json_equality(
+            &format!("WASM/native `{name}` token IDs"),
+            &native_case["token_ids"],
+            &wasm_case["token_ids"],
+        )?;
+        require_json_equality(
+            &format!("WASM/native `{name}` windows"),
+            &native_case["windows"],
+            &wasm_case["windows"],
+        )?;
+        let native_bytes = f2llm_case_bytes(native_case, F2LLM_80M_DIMENSIONS, "native", name)?;
+        let wasm_bytes = f2llm_case_bytes(wasm_case, F2LLM_80M_DIMENSIONS, "wasm", name)?;
+        let cosine = f2llm_cosine(
+            &decode_f32le_values(&native_bytes)?,
+            &decode_f32le_values(&wasm_bytes)?,
+        )?;
+        min_wasm_native_cosine = min_wasm_native_cosine.min(cosine);
+        comparison_cases.push(serde_json::json!({
+            "name": name,
+            "cosine": cosine,
+            "native_f32le_sha256": native_case["embedding_f32le_sha256"],
+            "wasm_f32le_sha256": wasm_case["embedding_f32le_sha256"],
+        }));
+    }
+    let comparison = serde_json::json!({
+        "schema": "jbotci-f2llm-wasm-native-cosine-v1",
+        "model_key": F2LLM_80M_MODEL_KEY,
+        "threshold_for_investigation": 0.999,
+        "minimum_cosine": min_wasm_native_cosine,
+        "requires_investigation": min_wasm_native_cosine < 0.999,
+        "wasm_implementation": wasm["implementation"],
+        "wasm_user_agent": wasm["user_agent"],
+        "native_adapter": evidence["adapter"],
+        "cases": comparison_cases,
+    });
+    if let Some(parent) = args.report_wasm_native_cosine.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "creating WASM/native report directory `{}`",
+                parent.display()
+            )
+        })?;
+    }
+    write_json_file(&args.report_wasm_native_cosine, &comparison)?;
+    if min_wasm_native_cosine < 0.999 {
+        eprintln!(
+            "WARNING: D5 WASM/native minimum cosine {min_wasm_native_cosine:.9} is below 0.999 and requires investigation"
+        );
+    }
+    println!(
+        "F2LLM native golden gate passed {} models at min ONNX-reference cosine {:.9}; exact token IDs/windows; D5 WASM/native min cosine {:.9}; report `{}`",
+        evidence_models.len(),
+        global_min_reference_cosine,
+        min_wasm_native_cosine,
+        args.report_wasm_native_cosine.display()
+    );
+    Ok(())
+}
+
+#[requires(true)]
+#[requires(path.components().next().is_some())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_native_adapter_evidence(adapter: &serde_json::Value, path: &Path) -> Result<()> {
+    if !adapter.is_object() {
+        bail!("native evidence `{}` has no adapter object", path.display());
+    }
+    for field in ["name", "backend", "device_type"] {
+        if adapter[field]
+            .as_str()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            bail!(
+                "native evidence `{}` has no adapter `{field}`",
+                path.display()
+            );
+        }
+    }
+    if adapter["force_fallback_adapter"].as_bool().is_none() {
+        bail!(
+            "native evidence `{}` does not record force_fallback_adapter",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
+#[requires(dimensions > 0)]
+#[requires(!implementation.is_empty())]
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|bytes| bytes.len() == dimensions * 4) || ret.is_err())]
+fn f2llm_case_bytes(
+    case: &serde_json::Value,
+    dimensions: usize,
+    implementation: &str,
+    name: &str,
+) -> Result<Vec<u8>> {
+    let encoded = case["embedding_f32le_hex"]
+        .as_str()
+        .with_context(|| format!("{implementation} case `{name}` has no f32 hex bytes"))?;
+    let bytes = decode_lower_hex(encoded)
+        .with_context(|| format!("{implementation} case `{name}` has invalid f32 hex bytes"))?;
+    if bytes.len() != dimensions * 4 {
+        bail!(
+            "{implementation} case `{name}` has {} f32 bytes, expected {}",
+            bytes.len(),
+            dimensions * 4
+        );
+    }
+    let digest = case["embedding_f32le_sha256"]
+        .as_str()
+        .with_context(|| format!("{implementation} case `{name}` has no f32 digest"))?;
+    if sha256_hex(&bytes) != digest {
+        bail!("{implementation} case `{name}` f32 digest does not match its bytes");
+    }
+    Ok(bytes)
+}
+
+#[requires(bytes.len() % 4 == 0)]
+#[ensures(ret.as_ref().is_ok_and(|values| values.len() * 4 == bytes.len()) || ret.is_err())]
+fn decode_f32le_values(bytes: &[u8]) -> Result<Vec<f32>> {
+    bytes
+        .chunks_exact(4)
+        .map(|chunk| {
+            let value = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            if value.is_finite() {
+                Ok(value)
+            } else {
+                bail!("F2LLM evidence contains a non-finite embedding component")
+            }
+        })
+        .collect()
+}
+
+#[requires(!left.is_empty())]
+#[requires(left.len() == right.len())]
+#[ensures(ret.as_ref().is_ok_and(|cosine| cosine.is_finite()) || ret.is_err())]
+fn f2llm_cosine(left: &[f32], right: &[f32]) -> Result<f32> {
+    let dot = left
+        .iter()
+        .zip(right)
+        .map(|(left, right)| left * right)
+        .sum::<f32>();
+    let left_norm = left.iter().map(|value| value * value).sum::<f32>().sqrt();
+    let right_norm = right.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if left_norm == 0.0 || right_norm == 0.0 {
+        bail!("cannot compare a zero F2LLM embedding");
+    }
+    let cosine = dot / (left_norm * right_norm);
+    if !cosine.is_finite() {
+        bail!("F2LLM cosine is not finite");
+    }
+    Ok(cosine)
 }
 
 const F2LLM_EXTRACTION_EVIDENCE_SCHEMA: &str = "jbotci-f2llm-extraction-wasm-webgpu-v1";

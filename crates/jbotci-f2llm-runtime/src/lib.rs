@@ -2,13 +2,15 @@
 
 mod artifact;
 mod core;
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+mod native;
 #[cfg(test)]
 mod oracles;
 mod pack;
 mod progress;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
 mod webgpu;
-#[cfg(any(target_arch = "wasm32", test))]
+#[cfg(any(target_arch = "wasm32", feature = "native", test))]
 mod webgpu_manifest;
 
 pub use artifact::{
@@ -20,6 +22,10 @@ pub use core::{
     DEFAULT_MAX_SEQUENCE_LENGTH, PackedTokenBatch, QwenByteBpeTokenizer, TokenWindow,
     mean_pool_normalized, normalize_in_place, pack_token_windows,
 };
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+pub use native::{
+    DEFAULT_NATIVE_ARTIFACT_ROOT, DirectoryArtifactSource, DirectoryRoot, DirectoryRootError,
+};
 pub use pack::{
     BuildExecution, CompatibleQueryRuntime, CorpusVectorManifest, DistanceMetric, LegacyOnnxBuild,
     Pooling, SourceProvenance, VectorElementType, WebVectorPackManifestV1, WebVectorPackManifestV2,
@@ -28,8 +34,11 @@ pub use pack::{
 pub use progress::{
     ProgressCounter, ProgressError, ProgressEvent, ProgressKind, ProgressPhase, ProgressSink,
 };
-#[cfg(target_arch = "wasm32")]
-pub use webgpu::{CorpusShard, CorpusVectorSpec, RuntimeLoadOptions, WebGpuRuntime};
+#[cfg(any(target_arch = "wasm32", feature = "native"))]
+pub use webgpu::{
+    CorpusShard, CorpusVectorSpec, RuntimeAdapterInfo, RuntimeCapabilities, RuntimeError,
+    RuntimeLoadOptions, WebGpuRuntime,
+};
 
 /// Schema version emitted by the future native web-vector-pack builder.
 pub const WEB_VECTOR_PACK_SCHEMA_VERSION: u32 = 2;

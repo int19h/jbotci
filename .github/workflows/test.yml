@@ -131,6 +131,17 @@ jobs:
       - name: Enforce semantics corpus coverage ratchet
         run: cargo run -r -p xtask-full -- semantics-coverage
 
+      - name: Assert native application graphs contain no wgpu
+        run: |
+          cargo tree -p jbotci > "${RUNNER_TEMP}/jbotci-native-tree.txt"
+          cargo tree -p jbotci-app --features native-desktop > "${RUNNER_TEMP}/jbotci-app-native-tree.txt"
+          if grep -Eq '(^| )wgpu v|jbotci-f2llm-runtime' \
+              "${RUNNER_TEMP}/jbotci-native-tree.txt" \
+              "${RUNNER_TEMP}/jbotci-app-native-tree.txt"; then
+            echo "Native application dependency graph unexpectedly contains the F2LLM/wgpu stack" >&2
+            exit 1
+          fi
+
       - name: Stamp test target cache
         if: ${{ success() && github.event_name != 'pull_request' }}
         uses: ./.github/actions/cargo-cache-mtimes
@@ -160,3 +171,49 @@ jobs:
             .github-cache/cargo-target/test
             .github-cache/home/.dx
           key: ${{ steps.target-cache.outputs.cache-primary-key }}
+
+  f2llm-native-lavapipe:
+    name: F2LLM 80m native goldens (lavapipe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: rust:1-bookworm
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/f2llm-lavapipe
+      CARGO_BUILD_JOBS: 4
+      WGPU_BACKEND: vulkan
+      JBOTCI_F2LLM_ARTIFACT_ROOT: ${{ runner.temp }}/f2llm-native-artifacts
+      JBOTCI_F2LLM_GOLDEN_MODE: 80m
+      JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER: 1
+    steps:
+      - name: Install lavapipe
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git mesa-vulkan-drivers python3 time
+          mapfile -t lavapipe_icds < <(dpkg -L mesa-vulkan-drivers | grep -E '/lvp_icd(\.[^.]+)?\.json$')
+          if [ "${#lavapipe_icds[@]}" -ne 1 ]; then
+            echo "Expected exactly one lavapipe Vulkan ICD, found ${#lavapipe_icds[@]}" >&2
+            printf '%s\n' "${lavapipe_icds[@]}" >&2
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=${lavapipe_icds[0]}" >> "${GITHUB_ENV}"
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Download verified published 80m WebGPU artifact
+        run: |
+          python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+            --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
+            --expected-manifest-sha256 f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2 \
+            --base-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/ \
+            --out "${JBOTCI_F2LLM_ARTIFACT_ROOT}/f2llm-v2-80m-q4-320"
+
+      - name: Run only the 80m native golden suite
+        run: |
+          /usr/bin/time -f 'lavapipe 80m native goldens wall time: %E' \
+            cargo test -r -p jbotci-f2llm-runtime --features native \
+              --test native_goldens -- --nocapture
