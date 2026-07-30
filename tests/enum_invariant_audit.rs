@@ -912,6 +912,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
     ),
     (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::AssignedNameRecord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::BoundVariableWord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::DescriptorWord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::IntroducedBy",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::QuantityText",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlOmissionKind::SourceRecord",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",
         "accepted-progress payload validity is enforced by the invariant-bearing RecoveryProgressTrial type",
     ),

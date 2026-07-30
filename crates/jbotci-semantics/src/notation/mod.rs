@@ -2,20 +2,20 @@
 //! `lojban-semantics-json-1` graph (Phase-B steps 3–4 of the tersmu notation
 //! program; research repo `DESIGN-RECORD.md` / `FREEZE-PHASE-B.md`).
 //!
-//! Today one profile is realised, [`NotationProfile::Smusni`] — the `smusni`
-//! profile, a byte-parity port of the frozen Python oracle
+//! Two product renderings are realised. [`NotationProfile::Smusni`] is the
+//! `smusni` profile, a byte-parity port of the frozen Python oracle
 //! (`experiments/notation-renderer-v0/render_v5.py` at commit `28c7d5f`).
 //! `smusni` is now the default tersmu output format everywhere (CLI and MCP);
 //! the legacy `tree`/`tree+proj` renderers it replaced have been removed. The
 //! research repo's internal profile name for this rendering is `lean3` (a
 //! historical experiment label); `smusni` is its product name. The
-//! [`NotationProfile`] seam is the profile-driven extension point: a future
-//! `dense` (or other) profile adds a variant and its own render path without
-//! disturbing `smusni`.
+//! [`render_xml`] is the canonical SFN-XML renderer adopted from
+//! `render_xml.py` at research commit `e25eeaf`; its separate result type also
+//! returns occurrence-level omissions. [`NotationProfile`] remains the
+//! string-only profile seam, while XML uses its richer explicit entry point.
 //!
-//! [`coverage`] registers this renderer's field coverage against the merged
-//! completeness contract ([`crate::completeness`]); the tests there verify the
-//! coverage audits complete and agrees with the declared `smusni` design intent.
+//! [`coverage`] and [`xml_coverage`] register both renderers against the merged
+//! completeness inventory ([`crate::completeness`]).
 //!
 //! ## QUESTION record design (#622)
 //!
@@ -51,11 +51,14 @@
 pub mod coverage;
 mod render;
 mod writer;
+mod xml;
+pub mod xml_coverage;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 
 pub use render::SmusniConfig;
+pub use xml::{XML_DECLARED_WAIVERS, XmlOmission, XmlOmissionKind, XmlRender, render_xml};
 
 use crate::model::SemanticGraph;
 

@@ -20,4 +20,7 @@ pub use model::{
     semantic_graph_references_are_defined, semantic_object_domain_imports_are_valid,
     semantic_object_scope_dependences_are_derived,
 };
-pub use notation::{NotationProfile, SmusniConfig, render_notation, render_smusni};
+pub use notation::{
+    NotationProfile, SmusniConfig, XML_DECLARED_WAIVERS, XmlOmission, XmlOmissionKind, XmlRender,
+    render_notation, render_smusni, render_xml,
+};

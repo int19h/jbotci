@@ -996,6 +996,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "smusni render config is a single bool provenance toggle; every value is a valid configuration",
     ),
     (
+        "crates/jbotci-semantics/src/notation/xml.rs:GraphData",
+        "XML graph data is validated once from canonical JSON and remains private and immutable thereafter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
+        "XML render state is deliberately mutable; balanced scope and definition transitions are enforced by method contracts and assertions",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlElement",
+        "private mutable XML construction state is constrained by its constructors and canonical serializer rather than a validated wrapper",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/writer.rs:Writer",
         "notation Writer is a mutable line-accumulating builder, not a validated model type; its structural discipline is enforced by the RAII body closures, not a field invariant",
     ),
