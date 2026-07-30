@@ -290,8 +290,10 @@ fn mcp_tools() -> Vec<Value> {
              `POSSIBLY-DIFFERENT-PER=` names a strict subset of enclosing binders on which it may \
              depend; and an absent facet attribute means `UNSPECIFIED` (no commitment). That facet default is \
              distinct from an absent XML structure: do not invent an `UNSPECIFIED` value or a \
-             negative claim for arbitrary absent elements or attributes. Request `smusni` for the \
-             alternative flat declaration listing or `json` for the canonical interchange graph. \
+             negative claim for arbitrary absent elements or attributes. The `SFN FORM=\"TYPED-GRAPH\"` \
+             fallback uses its own embedded `KEY` and `OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` \
+             typed vocabulary; follow that key instead of the ordinary scoped vocabulary. Request \
+             `smusni` for the alternative flat declaration listing or `json` for the canonical interchange graph. \
              For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),

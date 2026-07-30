@@ -1507,7 +1507,7 @@ pub enum ToolTersmuFormat {
     /// Model-facing `smusni` notation: a flat, self-describing declaration
     /// listing of the same graph.
     Smusni,
-    /// The default: canonical scoped SFN-XML rendering of the semantic graph.
+    /// Canonical scoped SFN-XML rendering of the semantic graph.
     Xml,
 }
 
@@ -1537,11 +1537,15 @@ impl ToolTersmuFormat {
     }
 
     #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn content_type(self) -> &'static str {
+    #[ensures(self == Self::Json -> ret == APPLICATION_JSON_CONTENT_TYPE)]
+    #[ensures(self == Self::Smusni -> ret == TEXT_PLAIN_CONTENT_TYPE)]
+    #[ensures(self == Self::Xml && show_defs -> ret == TEXT_PLAIN_CONTENT_TYPE)]
+    #[ensures(self == Self::Xml && !show_defs -> ret == APPLICATION_XML_CONTENT_TYPE)]
+    fn content_type(self, show_defs: bool) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
             Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
+            Self::Xml if show_defs => TEXT_PLAIN_CONTENT_TYPE,
             Self::Xml => APPLICATION_XML_CONTENT_TYPE,
         }
     }
@@ -1747,7 +1751,7 @@ fn tool_gimfihi_source_to_input(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    let content_type = request.format.content_type();
+    let content_type = request.format.content_type(request.show_defs);
     run_tool_command(Command::from(request), Some(content_type))
 }
 
@@ -1985,6 +1989,27 @@ mod tests {
         assert!(ungrounded.starts_with("<SFN "));
         assert!(ungrounded.ends_with("</SFN>\n"));
         roxmltree::Document::parse(ungrounded).expect("unchanged XML document suffix parses");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_content_type_tracks_the_effective_representation() {
+        for (format, show_defs, expected) in [
+            (ToolTersmuFormat::Json, false, APPLICATION_JSON_CONTENT_TYPE),
+            (ToolTersmuFormat::Json, true, APPLICATION_JSON_CONTENT_TYPE),
+            (ToolTersmuFormat::Smusni, false, TEXT_PLAIN_CONTENT_TYPE),
+            (ToolTersmuFormat::Smusni, true, TEXT_PLAIN_CONTENT_TYPE),
+            (ToolTersmuFormat::Xml, false, APPLICATION_XML_CONTENT_TYPE),
+            (ToolTersmuFormat::Xml, true, TEXT_PLAIN_CONTENT_TYPE),
+        ] {
+            let output = run_tool_tersmu(tersmu_request(format, show_defs)).expect("tersmu output");
+            assert_eq!(
+                output.content_type.as_deref(),
+                Some(expected),
+                "{format:?} with show_defs={show_defs}"
+            );
+        }
     }
 
     #[test]
