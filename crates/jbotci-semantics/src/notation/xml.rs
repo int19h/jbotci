@@ -199,6 +199,10 @@ pub struct XmlOmission {
 /// The complete result of one XML render.
 #[invariant(output.ends_with('\n'), "canonical SFN-XML has one trailing newline")]
 #[invariant(omissions.iter().all(|omission| !omission.surface.path().is_empty()))]
+#[expensive_invariant(
+    omissions.iter().collect::<BTreeSet<_>>().len() == omissions.len(),
+    "each omitted semantic occurrence must be reported at most once"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XmlRender {
     pub output: String,
