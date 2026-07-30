@@ -182,7 +182,7 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/f2llm-lavapipe
       CARGO_BUILD_JOBS: 4
       WGPU_BACKEND: vulkan
-      JBOTCI_F2LLM_ARTIFACT_ROOT: ${{ runner.temp }}/f2llm-native-artifacts
+      JBOTCI_F2LLM_ARTIFACT_ROOT: ${{ github.workspace }}/.github-cache/f2llm-native-artifacts
       JBOTCI_F2LLM_GOLDEN_MODE: 80m
       JBOTCI_F2LLM_FORCE_FALLBACK_ADAPTER: 1
     steps:
