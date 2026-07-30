@@ -2096,31 +2096,31 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic hover primary target validity depends on the current diagnostics and is guarded at use sites",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Pair",
+        "crates/jbotci-f2llm-runtime/src/core.rs:MergeSpec::Pair",
         "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Text",
+        "crates/jbotci-f2llm-runtime/src/core.rs:MergeSpec::Text",
         "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::F32",
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:Tensor::F32",
         "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxGather",
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:Tensor::Q4OnnxGather",
         "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxMatmul",
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:Tensor::Q4OnnxMatmul",
         "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::F32",
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:UniformValue::F32",
         "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::U32",
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:UniformValue::U32",
         "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
     ),
     (

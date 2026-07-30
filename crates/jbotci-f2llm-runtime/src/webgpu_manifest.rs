@@ -1,10 +1,12 @@
+//! Validated schema for the WebGPU execution artifact manifest.
+
 use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use serde::Deserialize;
 
-use crate::f2llm_runtime_core::{validate_chunk_layout, validate_q4_tensor_storage};
+use crate::core::{validate_chunk_layout, validate_q4_tensor_storage};
 
 const EXPECTED_SCHEMA_VERSION: u32 = 1;
 

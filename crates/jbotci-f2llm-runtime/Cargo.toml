@@ -1,6 +1,6 @@
 [package]
 name = "jbotci-f2llm-runtime"
-description = "Shared contracts and schemas for the jbotci F2LLM runtime."
+description = "Shared jbotci F2LLM tokenizer, WebGPU runtime, and artifact contracts."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,12 +14,17 @@ expensive_contracts = []
 
 [dependencies]
 bityzba.workspace = true
+fancy-regex.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+unicode-normalization.workspace = true
 
-[dev-dependencies]
-serde_json.workspace = true
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bytemuck.workspace = true
+futures-channel.workspace = true
+wgpu.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }

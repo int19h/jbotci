@@ -105,12 +105,13 @@ use layout::*;
 
 include!("page_find.rs");
 
-#[cfg(any(target_arch = "wasm32", test))]
-mod f2llm_runtime_core;
-#[cfg(any(target_arch = "wasm32", test))]
-mod f2llm_webgpu_manifest;
 #[cfg(target_arch = "wasm32")]
 mod f2llm_webgpu_runtime;
+
+#[cfg(target_arch = "wasm32")]
+pub use jbotci_f2llm_runtime::{
+    F2LLM_RUNTIME_VERSION, F2LLM_WEBGPU_RUNTIME, F2LLM_WEBGPU_RUNTIME_VERSION,
+};
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 // These worker module assets must keep stable public URLs because index.html,
@@ -247,19 +248,26 @@ const F2LLM_NATIVE_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
 #[cfg(not(target_arch = "wasm32"))]
 const F2LLM_NATIVE_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-k-m-1024";
 const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
+#[cfg(any(target_arch = "wasm32", test))]
 const F2LLM_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-896";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-1024";
-const F2LLM_WEBGPU_RUNTIME: &str = "jbotci-webgpu-f2llm";
-const F2LLM_WEBGPU_RUNTIME_VERSION: &str = "0.2.0";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_WASM_RUNTIME: &str = "jbotci-onnxruntime-web-f2llm";
-const F2LLM_WASM_RUNTIME_VERSION: &str = "0.2.0";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_BROWSER_QUERY_PREFIX: &str =
     "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_BROWSER_POOLING: &str = "mean_normalized_windows";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_BROWSER_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
+#[cfg(target_arch = "wasm32")]
 const F2LLM_BROWSER_MAX_SEQUENCE_LENGTH: usize = 512;
+#[cfg(target_arch = "wasm32")]
 const F2LLM_BROWSER_LOCAL_EMBED_BATCH_SIZE: usize = 64;
+#[cfg(target_arch = "wasm32")]
 const MI_B: usize = 1024 * 1024;
 #[cfg(target_arch = "wasm32")]
 const WEB_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
@@ -302,6 +310,7 @@ const NATIVE_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
+#[cfg(target_arch = "wasm32")]
 fn browser_embedding_model_catalog_json() -> String {
     serde_json::to_string(&serde_json::json!({
         "schemaVersion": 1,
@@ -354,6 +363,7 @@ fn browser_embedding_model_catalog_json() -> String {
     .expect("browser embedding model catalog is JSON-serializable")
 }
 
+#[cfg(target_arch = "wasm32")]
 #[requires(!model_key.is_empty())]
 #[requires(!label.is_empty())]
 #[requires(!model_id.is_empty())]
@@ -399,7 +409,7 @@ fn browser_embedding_model_spec_json(
     if let Some(wasm_onnx_url) = wasm_onnx_url {
         value["wasmRuntime"] = serde_json::json!({
             "runtime": F2LLM_WASM_RUNTIME,
-            "version": F2LLM_WASM_RUNTIME_VERSION,
+            "version": F2LLM_RUNTIME_VERSION,
             "onnxUrl": wasm_onnx_url,
             "dtype": "q4",
             "device": "wasm",

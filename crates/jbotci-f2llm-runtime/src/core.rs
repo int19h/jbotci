@@ -1,8 +1,10 @@
+//! Target-neutral tokenizer, windowing, quantization-layout, and vector-pooling logic.
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 use fancy_regex::Regex;
 use serde::Deserialize;
 use unicode_normalization::UnicodeNormalization;
@@ -35,7 +37,9 @@ enum MergeSpec {
     Pair(Vec<String>),
 }
 
-#[invariant(true)]
+#[invariant(!vocab.is_empty())]
+#[invariant(*eos_id > 0)]
+#[invariant(byte_encoder.iter().all(|encoded| !encoded.is_empty()))]
 #[derive(Debug)]
 pub struct QwenByteBpeTokenizer {
     vocab: HashMap<String, u32>,
@@ -61,21 +65,25 @@ impl QwenByteBpeTokenizer {
         if artifact.special_tokens.eos_id == 0 {
             return Err("F2LLM tokenizer eos_id must be positive".to_owned());
         }
+        if artifact.vocab.is_empty() {
+            return Err("F2LLM tokenizer vocabulary must not be empty".to_owned());
+        }
         let mut merge_ranks = HashMap::with_capacity(artifact.merges.len());
         for (rank, merge) in artifact.merges.into_iter().enumerate() {
             if let Some((left, right)) = merge_pair(merge) {
                 merge_ranks.insert((left, right), rank);
             }
         }
-        Ok(Self {
+        let pattern = Regex::new(TOKEN_PATTERN)
+            .map_err(|error| format!("failed to compile F2LLM tokenizer regex: {error}"))?;
+        Ok(new!(QwenByteBpeTokenizer {
             vocab: artifact.vocab,
             eos_id: artifact.special_tokens.eos_id,
             byte_encoder: bytes_to_unicode(),
             merge_ranks,
             cache: RefCell::new(HashMap::new()),
-            pattern: Regex::new(TOKEN_PATTERN)
-                .map_err(|error| format!("failed to compile F2LLM tokenizer regex: {error}"))?,
-        })
+            pattern: pattern,
+        }))
     }
 
     #[requires(true)]
@@ -342,21 +350,67 @@ pub(crate) fn validate_embedding_vector_before_normalize(
     }
 }
 
-#[invariant(true)]
+#[invariant(!token_ids.is_empty())]
 #[derive(Debug, Clone)]
 pub struct TokenWindow {
     pub text_index: usize,
     pub token_ids: Vec<u32>,
 }
 
-#[invariant(true)]
+impl TokenWindow {
+    #[requires(!token_ids.is_empty())]
+    #[ensures(ret.text_index == text_index)]
+    pub fn new(text_index: usize, token_ids: Vec<u32>) -> Self {
+        new!(TokenWindow {
+            text_index: text_index,
+            token_ids: token_ids,
+        })
+    }
+}
+
+#[invariant(!segments.is_empty())]
+#[invariant(*total_tokens > 0)]
+#[expensive_invariant(
+    segments.iter().all(|segment| !segment.token_ids.is_empty())
+        && *total_tokens
+            == segments
+                .iter()
+                .map(|segment| segment.token_ids.len())
+                .sum::<usize>()
+)]
 #[derive(Debug, Clone)]
 pub struct PackedTokenBatch {
     pub segments: Vec<TokenWindow>,
     pub total_tokens: usize,
 }
 
+impl PackedTokenBatch {
+    #[requires(true)]
+    #[ensures(ret.segments.len() == 1)]
+    fn from_window(window: TokenWindow) -> Self {
+        let total_tokens = window.token_ids.len();
+        new!(PackedTokenBatch {
+            segments: vec![window],
+            total_tokens: total_tokens,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.segments.len() == old(self.segments.len()) + 1)]
+    fn with_window(self, window: TokenWindow) -> Self {
+        let mut data = self.into_data();
+        data.total_tokens += window.token_ids.len();
+        data.segments.push(window);
+        Self::from_data(data)
+    }
+}
+
 #[requires(budget > 0)]
+#[requires(
+    windows
+        .iter()
+        .all(|window| !window.token_ids.is_empty() && window.token_ids.len() <= budget)
+)]
 #[ensures(ret.iter().all(|batch| batch.total_tokens <= budget))]
 pub fn pack_token_windows(windows: &[TokenWindow], budget: usize) -> Vec<PackedTokenBatch> {
     let mut sorted = windows.to_vec();
@@ -373,8 +427,10 @@ pub fn pack_token_windows(windows: &[TokenWindow], budget: usize) -> Vec<PackedT
         let mut best_index = None;
         let mut best_remaining = usize::MAX;
         for (index, batch) in batches.iter().enumerate() {
-            if batch.total_tokens + window_len <= budget {
-                let remaining = budget - (batch.total_tokens + window_len);
+            if let Some(combined) = batch.total_tokens.checked_add(window_len)
+                && combined <= budget
+            {
+                let remaining = budget - combined;
                 if remaining < best_remaining {
                     best_remaining = remaining;
                     best_index = Some(index);
@@ -382,13 +438,10 @@ pub fn pack_token_windows(windows: &[TokenWindow], budget: usize) -> Vec<PackedT
             }
         }
         if let Some(index) = best_index {
-            batches[index].total_tokens += window_len;
-            batches[index].segments.push(window);
+            let batch = batches.remove(index).with_window(window);
+            batches.insert(index, batch);
         } else {
-            batches.push(PackedTokenBatch {
-                total_tokens: window_len,
-                segments: vec![window],
-            });
+            batches.push(PackedTokenBatch::from_window(window));
         }
     }
     batches
@@ -485,18 +538,9 @@ mod tests {
     fn packs_token_windows_by_best_fit_decreasing() {
         assert_eq!(DEFAULT_MAX_SEQUENCE_LENGTH, 512);
         let windows = vec![
-            TokenWindow {
-                text_index: 0,
-                token_ids: vec![1; 200],
-            },
-            TokenWindow {
-                text_index: 1,
-                token_ids: vec![2; 300],
-            },
-            TokenWindow {
-                text_index: 2,
-                token_ids: vec![3; 20],
-            },
+            TokenWindow::new(0, vec![1; 200]),
+            TokenWindow::new(1, vec![2; 300]),
+            TokenWindow::new(2, vec![3; 20]),
         ];
         let batches = pack_token_windows(&windows, 512);
         assert_eq!(batches.len(), 2);

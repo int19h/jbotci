@@ -92,6 +92,117 @@ the gate with an ad hoc comparison. All commands use
 
 ### N1 — wasm-only extraction
 
+The extraction gate consumes real browser WebGPU evidence, not vectors supplied by a
+fixture. `tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html` loads the published
+80m tokenizer and tensor objects through the JavaScript ABI and sends every N0 case
+through `embedTexts`. It records exact token IDs, window arrays, and the little-endian
+bytes and SHA-256 digest of every returned 320-component `f32` vector.
+
+The issue #696 build host exposes software WebGPU but not the optional `shader-f16`
+adapter feature. Its reproducible evidence therefore uses the narrowly scoped
+embedding-only instrumentation in
+`tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py`. The script refuses to
+touch paths outside `/build/jbotci/scratch`; it changes only the requested feature set
+to empty and skips precompilation of `vectorDotF16`. The real product sources retain
+the `SHADER_F16` requirement and the `scoreF16Vectors` ABI. `embedTexts` cannot reach
+the skipped pipeline: `vectorDotF16` is dispatched only from the separate
+`score_f16_vectors` method.
+
+An independent reviewer can reproduce both sides from the submitted checkout as
+follows. Replace `<submitted-commit>` with the exact reviewed commit, and leave
+`<issue>` as the review lane name:
+
+```sh
+scratch=/build/jbotci/scratch/<issue>
+base=$scratch/base-evidence
+submitted=$scratch/submitted-evidence
+
+git worktree add --detach "$base" 2a845dea5a3ba996c05aab33319d46bbdff37617
+git worktree add --detach "$submitted" <submitted-commit>
+git -C "$base" submodule update --init vendor/cll
+git -C "$submitted" submodule update --init vendor/cll
+
+python3 tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py \
+  --runtime-source "$base/crates/jbotci-ui/src/f2llm_webgpu_runtime.rs"
+python3 tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py \
+  --runtime-source "$submitted/crates/jbotci-f2llm-runtime/src/webgpu.rs"
+git -C "$base" diff --binary > "$scratch/base-embedding-only-instrumentation.patch"
+git -C "$submitted" diff --binary > "$scratch/submitted-embedding-only-instrumentation.patch"
+sha256sum \
+  tools/f2llm-oracles/instrument-wasm-webgpu-embedding-only.py \
+  "$scratch/base-embedding-only-instrumentation.patch" \
+  "$scratch/submitted-embedding-only-instrumentation.patch"
+
+(cd "$base/apps/jbotci-app" &&
+  CARGO_TARGET_DIR=/build/jbotci/target/<issue> dx build)
+cp -a /build/jbotci/target/<issue>/dx/jbotci-app/debug/web/public \
+  "$scratch/base-instrumented-public"
+(cd "$submitted/apps/jbotci-app" &&
+  CARGO_TARGET_DIR=/build/jbotci/target/<issue> dx build)
+cp -a /build/jbotci/target/<issue>/dx/jbotci-app/debug/web/public \
+  "$scratch/submitted-instrumented-public"
+```
+
+Populate the local, same-origin published-artifact mirror. The runtime checks every
+declared byte length and SHA-256 digest while loading it:
+
+```sh
+artifact_manifest=/home/int19h.linux/artifacts/jbotci/issue-695/published-webgpu-manifests-2026-07-30/models/f2llm-v2-80m-webgpu/v1/manifest.json
+artifact_root=/build/jbotci/scratch/<issue>/gpu-assets
+mkdir -p "$artifact_root"
+cp "$artifact_manifest" "$artifact_root/manifest.json"
+python3 - "$artifact_manifest" <<'PY' |
+import json, sys
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+urls = {manifest["tokenizer"]["url"]}
+for tensor in manifest["tensors"].values():
+    for component in ("qweight", "scales", "zero_points", "data"):
+        urls.update(chunk["url"] for chunk in tensor.get(component, {}).get("chunks", []))
+for url in sorted(urls):
+    print("https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/" + url)
+PY
+  wget -q -x -nH --cut-dirs=3 --directory-prefix="$artifact_root" --input-file=-
+```
+
+Serve the two bundles and run them under identical forced-lavapipe Chrome flags. The
+Node runner polls the browser through DevTools until all GPU work and readback finish;
+it also records the adapter feature inventory:
+
+```sh
+cp tools/f2llm-oracles/wasm-webgpu-extraction-evidence.html "$scratch/"
+cp crates/jbotci-f2llm-runtime/testdata/goldens/current-v0.2.0/f2llm-v2-80m-q4-320/goldens.json \
+  "$scratch/goldens.json"
+python3 -m http.server 8770 --directory "$scratch" \
+  > "$scratch/evidence-http.log" 2>&1 &
+evidence_http_pid=$!
+
+node tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs \
+  --chrome /snap/chromium/current/usr/lib/chromium-browser/chrome \
+  --url "http://127.0.0.1:8770/wasm-webgpu-extraction-evidence.html?module=/base-instrumented-public/wasm/jbotci-app.js&wasm=/base-instrumented-public/wasm/jbotci-app_bg.wasm&goldens=/goldens.json&artifacts=/gpu-assets&implementation=2a845dea5a3ba996c05aab33319d46bbdff37617" \
+  --output "$scratch/before.json" \
+  --chrome-log "$scratch/before-webgpu-chromium.log" \
+  --profile-dir "$scratch/chrome-profile" \
+  --timeout-seconds 1200 \
+  --debug-port 9224
+node tools/f2llm-oracles/run-wasm-webgpu-browser-evidence.mjs \
+  --chrome /snap/chromium/current/usr/lib/chromium-browser/chrome \
+  --url "http://127.0.0.1:8770/wasm-webgpu-extraction-evidence.html?module=/submitted-instrumented-public/wasm/jbotci-app.js&wasm=/submitted-instrumented-public/wasm/jbotci-app_bg.wasm&goldens=/goldens.json&artifacts=/gpu-assets&implementation=<submitted-commit>" \
+  --output "$scratch/after.json" \
+  --chrome-log "$scratch/after-webgpu-chromium.log" \
+  --profile-dir "$scratch/chrome-profile" \
+  --timeout-seconds 1200 \
+  --debug-port 9224
+kill "$evidence_http_pid"
+sha256sum "$scratch/before.json" "$scratch/after.json"
+```
+
+The two evidence-file digests differ because their `implementation` provenance fields
+differ. The named extraction gate below compares the pinned artifact/runtime
+provenance, adapter inventory, awaited progress count, token IDs, windows, exact f32
+bytes, and per-vector f32 digests. The export gate parses the built WebAssembly export
+section and verifies that each pinned JavaScript ABI shim calls its corresponding real
+wasm export.
+
 ```sh
 CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo test -r -p jbotci-f2llm-runtime --test pure_core
 CARGO_TARGET_DIR=/build/jbotci/target/<issue> cargo run -r -p xtask-full -- \

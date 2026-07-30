@@ -207,6 +207,8 @@ struct Cli {
 #[invariant(::BuildF2LlmWebgpuModel(..) => true)]
 #[invariant(::BuildF2LlmWebgpuVectors(..) => true)]
 #[invariant(::BuildGgufEmbeddings(..) => true)]
+#[invariant(::F2LlmExtractionGate(..) => true)]
+#[invariant(::F2LlmWasmExportGate(..) => true)]
 #[invariant(::DistServer(..) => true)]
 #[invariant(::PublishWebEmbeddingsR2(..) => true)]
 #[invariant(::PublishF2LlmWebgpuR2(..) => true)]
@@ -246,6 +248,10 @@ enum Command {
     BuildF2LlmWebgpuVectors(BuildF2LlmWebgpuVectorsArgs),
     #[command(name = "build-gguf-embeddings")]
     BuildGgufEmbeddings(BuildGgufEmbeddingsArgs),
+    #[command(name = "f2llm-extraction-gate")]
+    F2LlmExtractionGate(F2LlmExtractionGateArgs),
+    #[command(name = "f2llm-wasm-export-gate")]
+    F2LlmWasmExportGate(F2LlmWasmExportGateArgs),
     DistServer(DistServerArgs),
     PublishWebEmbeddingsR2(PublishWebEmbeddingsR2Args),
     #[command(name = "publish-f2llm-webgpu-r2")]
@@ -279,6 +285,28 @@ struct WasmStackTestArgs {
     probe: PathBuf,
     #[arg(long = "case")]
     cases: Vec<String>,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct F2LlmExtractionGateArgs {
+    #[arg(long)]
+    before: PathBuf,
+    #[arg(long)]
+    after: PathBuf,
+    #[arg(long)]
+    require_bit_identical_f32: bool,
+    #[arg(long)]
+    require_exact_token_ids: bool,
+    #[arg(long)]
+    require_exact_windows: bool,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct F2LlmWasmExportGateArgs {
+    #[arg(long = "require", required = true)]
+    required: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -1122,6 +1150,8 @@ fn main() -> Result<()> {
         Command::BuildF2LlmWebgpuModel(args) => build_f2llm_webgpu_model(args),
         Command::BuildF2LlmWebgpuVectors(args) => build_f2llm_webgpu_vectors(args),
         Command::BuildGgufEmbeddings(args) => build_gguf_embeddings(args),
+        Command::F2LlmExtractionGate(args) => f2llm_extraction_gate(args),
+        Command::F2LlmWasmExportGate(args) => f2llm_wasm_export_gate(args),
         Command::DistServer(args) => dist_server(args),
         Command::PublishWebEmbeddingsR2(args) => publish_web_embeddings_r2(args),
         Command::PublishF2LlmWebgpuR2(args) => publish_f2llm_webgpu_r2(args),
@@ -1130,6 +1160,457 @@ fn main() -> Result<()> {
         Command::RenderDockerRun(args) => render_docker_run(args),
         Command::WasmStackTest(args) => wasm_stack_test(args),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn f2llm_extraction_gate(args: F2LlmExtractionGateArgs) -> Result<()> {
+    if !args.require_bit_identical_f32
+        || !args.require_exact_token_ids
+        || !args.require_exact_windows
+    {
+        bail!(
+            "the N1 extraction gate requires --require-bit-identical-f32, --require-exact-token-ids, and --require-exact-windows"
+        );
+    }
+    let before = read_json_file(&args.before)?;
+    let after = read_json_file(&args.after)?;
+    if !before.is_object() || !after.is_object() {
+        bail!("F2LLM extraction evidence roots must be JSON objects");
+    }
+    validate_f2llm_extraction_evidence(&before, &args.before)?;
+    validate_f2llm_extraction_evidence(&after, &args.after)?;
+
+    for field in [
+        "schema",
+        "user_agent",
+        "adapter_features",
+        "artifact_manifest_sha256",
+        "tokenizer_sha256",
+        "runtime",
+        "runtime_version",
+        "model_key",
+        "dimensions",
+        "max_sequence_length",
+        "progress_event_count",
+    ] {
+        require_json_equality(
+            &format!("root field `{field}`"),
+            &before[field],
+            &after[field],
+        )?;
+    }
+
+    let before_cases = before["cases"]
+        .as_array()
+        .expect("validated extraction cases");
+    let after_cases = after["cases"]
+        .as_array()
+        .expect("validated extraction cases");
+    if before_cases.len() != after_cases.len() {
+        bail!(
+            "case count changed: before {}, after {}",
+            before_cases.len(),
+            after_cases.len()
+        );
+    }
+    for (case_index, (before_case, after_case)) in before_cases.iter().zip(after_cases).enumerate()
+    {
+        let name = before_case["name"].as_str().expect("validated case name");
+        require_json_equality(
+            &format!("case {case_index} name"),
+            &before_case["name"],
+            &after_case["name"],
+        )?;
+        require_json_equality(
+            &format!("case `{name}` token IDs"),
+            &before_case["token_ids"],
+            &after_case["token_ids"],
+        )?;
+        require_json_equality(
+            &format!("case `{name}` windows"),
+            &before_case["windows"],
+            &after_case["windows"],
+        )?;
+        require_json_equality(
+            &format!("case `{name}` f32 bytes"),
+            &before_case["embedding_f32le_hex"],
+            &after_case["embedding_f32le_hex"],
+        )?;
+        require_json_equality(
+            &format!("case `{name}` f32 digest"),
+            &before_case["embedding_f32le_sha256"],
+            &after_case["embedding_f32le_sha256"],
+        )?;
+    }
+    println!(
+        "F2LLM extraction gate passed: {} published-artifact WASM WebGPU cases have bit-identical f32 bytes, exact token IDs, and exact windows",
+        before_cases.len()
+    );
+    Ok(())
+}
+
+const F2LLM_EXTRACTION_EVIDENCE_SCHEMA: &str = "jbotci-f2llm-extraction-wasm-webgpu-v1";
+const F2LLM_EXTRACTION_ARTIFACT_MANIFEST_SHA256: &str =
+    "f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2";
+const F2LLM_EXTRACTION_TOKENIZER_SHA256: &str =
+    "8e2541c74f028cbcefe6903c7f43f6cb0ee4aa9df9b4bbeb38989c06ed902dd6";
+const F2LLM_EXTRACTION_N0_CASES: [&str; 13] = [
+    "empty",
+    "non-ascii",
+    "query-coi-ro-do",
+    "query-klama-zarci",
+    "document-klama-definition",
+    "batch-filler-5",
+    "batch-filler-6",
+    "batch-last-slot",
+    "batch-next-slot",
+    "token-length-511",
+    "token-length-512",
+    "token-length-513",
+    "multi-window-1025",
+];
+
+#[requires(evidence.is_object())]
+#[requires(path.components().next().is_some())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn validate_f2llm_extraction_evidence(evidence: &serde_json::Value, path: &Path) -> Result<()> {
+    if evidence["schema"] != F2LLM_EXTRACTION_EVIDENCE_SCHEMA {
+        bail!(
+            "extraction evidence `{}` has unsupported schema",
+            path.display()
+        );
+    }
+    for field in ["implementation", "user_agent"] {
+        if evidence[field]
+            .as_str()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            bail!(
+                "extraction evidence `{}` has no `{field}` provenance",
+                path.display()
+            );
+        }
+    }
+    let adapter_features = evidence["adapter_features"]
+        .as_array()
+        .with_context(|| format!("`{}` is missing adapter_features", path.display()))?;
+    if adapter_features.is_empty()
+        || adapter_features
+            .iter()
+            .any(|feature| feature.as_str().is_none_or(str::is_empty))
+    {
+        bail!(
+            "extraction evidence `{}` has no valid WebGPU adapter feature inventory",
+            path.display()
+        );
+    }
+    if evidence["artifact_manifest_sha256"] != F2LLM_EXTRACTION_ARTIFACT_MANIFEST_SHA256
+        || evidence["tokenizer_sha256"] != F2LLM_EXTRACTION_TOKENIZER_SHA256
+    {
+        bail!(
+            "extraction evidence `{}` is not bound to the N0 published artifact bytes",
+            path.display()
+        );
+    }
+    if evidence["runtime"] != "jbotci-webgpu-f2llm"
+        || evidence["runtime_version"] != "0.2.0"
+        || evidence["model_key"] != "f2llm-v2-80m-q4-320"
+        || evidence["dimensions"] != 320
+        || evidence["max_sequence_length"] != 512
+    {
+        bail!(
+            "extraction evidence `{}` is not for the N0 80m WASM WebGPU runtime",
+            path.display()
+        );
+    }
+    if evidence["progress_event_count"]
+        .as_u64()
+        .is_none_or(|count| count == 0)
+    {
+        bail!(
+            "extraction evidence `{}` contains no awaited artifact progress events",
+            path.display()
+        );
+    }
+    let dimensions = evidence["dimensions"]
+        .as_u64()
+        .with_context(|| format!("`{}` is missing dimensions", path.display()))?
+        as usize;
+    if dimensions == 0 {
+        bail!("extraction evidence dimensions must be positive");
+    }
+    let cases = evidence["cases"]
+        .as_array()
+        .with_context(|| format!("`{}` is missing cases", path.display()))?;
+    if cases.is_empty() {
+        bail!("extraction evidence `{}` has no cases", path.display());
+    }
+    if cases.len() != F2LLM_EXTRACTION_N0_CASES.len() {
+        bail!(
+            "extraction evidence `{}` has {} cases, expected all {} N0 cases",
+            path.display(),
+            cases.len(),
+            F2LLM_EXTRACTION_N0_CASES.len()
+        );
+    }
+    let mut names = BTreeSet::new();
+    for (case_index, case) in cases.iter().enumerate() {
+        let name = case["name"]
+            .as_str()
+            .with_context(|| format!("`{}` has a case without a name", path.display()))?;
+        if name != F2LLM_EXTRACTION_N0_CASES[case_index] {
+            bail!(
+                "extraction evidence `{}` case {case_index} is `{name}`, expected `{}`",
+                path.display(),
+                F2LLM_EXTRACTION_N0_CASES[case_index]
+            );
+        }
+        if !names.insert(name) {
+            bail!(
+                "extraction evidence `{}` repeats case `{name}`",
+                path.display()
+            );
+        }
+        let token_ids = case["token_ids"]
+            .as_array()
+            .with_context(|| format!("case `{name}` is missing token_ids"))?;
+        let windows = case["windows"]
+            .as_array()
+            .with_context(|| format!("case `{name}` is missing windows"))?;
+        let mut flattened = Vec::new();
+        for window in windows {
+            let window = window
+                .as_array()
+                .with_context(|| format!("case `{name}` contains a non-array window"))?;
+            if window.is_empty() || window.len() > 512 {
+                bail!("case `{name}` contains an invalid token window length");
+            }
+            if window.iter().any(|token_id| token_id.as_u64().is_none()) {
+                bail!("case `{name}` contains a non-integer token ID");
+            }
+            flattened.extend(window);
+        }
+        if flattened != token_ids.iter().collect::<Vec<_>>() {
+            bail!("case `{name}` token IDs do not exactly flatten from its windows");
+        }
+        let encoded = case["embedding_f32le_hex"]
+            .as_str()
+            .with_context(|| format!("case `{name}` is missing embedding_f32le_hex"))?;
+        let bytes = decode_lower_hex(encoded)
+            .with_context(|| format!("case `{name}` has invalid f32 byte encoding"))?;
+        if bytes.len() != dimensions * 4 {
+            bail!(
+                "case `{name}` has {} f32 bytes, expected {}",
+                bytes.len(),
+                dimensions * 4
+            );
+        }
+        let digest = case["embedding_f32le_sha256"]
+            .as_str()
+            .with_context(|| format!("case `{name}` is missing embedding_f32le_sha256"))?;
+        if sha256_hex(&bytes) != digest {
+            bail!("case `{name}` f32 digest does not match its exact encoded bytes");
+        }
+    }
+    Ok(())
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn require_json_equality(
+    label: &str,
+    before: &serde_json::Value,
+    after: &serde_json::Value,
+) -> Result<()> {
+    if before == after {
+        Ok(())
+    } else {
+        bail!("F2LLM extraction mismatch in {label}")
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bytes| bytes.len() * 2 == encoded.len()) || ret.is_err())]
+fn decode_lower_hex(encoded: &str) -> Result<Vec<u8>> {
+    if encoded.len() % 2 != 0 {
+        bail!("hexadecimal text must contain complete byte pairs");
+    }
+    encoded
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let high = lower_hex_nibble(pair[0])?;
+            let low = lower_hex_nibble(pair[1])?;
+            Ok((high << 4) | low)
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|nibble| *nibble < 16) || ret.is_err())]
+fn lower_hex_nibble(byte: u8) -> Result<u8> {
+    match byte {
+        b'0'..=b'9' => Ok(byte - b'0'),
+        b'a'..=b'f' => Ok(byte - b'a' + 10),
+        _ => bail!("expected lowercase hexadecimal"),
+    }
+}
+
+#[requires(!args.required.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn f2llm_wasm_export_gate(args: F2LlmWasmExportGateArgs) -> Result<()> {
+    let mut unique = BTreeSet::new();
+    for required in &args.required {
+        if required.is_empty() {
+            bail!("required wasm export names must be non-empty");
+        }
+        if !unique.insert(required) {
+            bail!("required wasm export name `{required}` was repeated");
+        }
+    }
+    build_wasm_stack_test_bundle(WasmStackProfile::Debug)?;
+    let paths = wasm_stack_test_bundle_paths(WasmStackProfile::Debug)?;
+    let glue = fs::read_to_string(&paths.js)
+        .with_context(|| format!("reading wasm-bindgen glue `{}`", paths.js.display()))?;
+    let wasm = fs::read(&paths.wasm)
+        .with_context(|| format!("reading wasm module `{}`", paths.wasm.display()))?;
+    if wasm.len() < 8 || &wasm[..4] != b"\0asm" {
+        bail!("`{}` is not a WebAssembly module", paths.wasm.display());
+    }
+    let wasm_exports = wasm_export_names(&wasm)
+        .with_context(|| format!("reading exports from `{}`", paths.wasm.display()))?;
+    for required in &args.required {
+        if !glue.contains(required) {
+            bail!("built wasm-bindgen module is missing required JavaScript ABI name `{required}`");
+        }
+        let wasm_export = f2llm_wasm_export_for_js_name(required)
+            .with_context(|| format!("no pinned wasm export mapping exists for `{required}`"))?;
+        if !glue.contains(&format!("wasm.{wasm_export}")) {
+            bail!(
+                "JavaScript ABI name `{required}` is not bridged to pinned wasm export `{wasm_export}`"
+            );
+        }
+        if !wasm_exports.contains(wasm_export) {
+            bail!(
+                "WebAssembly export section is missing `{wasm_export}` for JavaScript ABI name `{required}`"
+            );
+        }
+    }
+    println!(
+        "F2LLM wasm export gate passed for {} ABI names in `{}` backed by real exports in `{}`",
+        args.required.len(),
+        paths.js.display(),
+        paths.wasm.display()
+    );
+    Ok(())
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.is_some() == matches!(
+    name,
+    "jbotciF2LlmWebGpuRuntimeLoad"
+        | "jbotciF2LlmTokenizerLoad"
+        | "embedTexts"
+        | "scoreF16Vectors"
+))]
+fn f2llm_wasm_export_for_js_name(name: &str) -> Option<&'static str> {
+    match name {
+        "jbotciF2LlmWebGpuRuntimeLoad" => Some("jbotciF2LlmWebGpuRuntimeLoad"),
+        "jbotciF2LlmTokenizerLoad" => Some("jbotciF2LlmTokenizerLoad"),
+        "embedTexts" => Some("jbotcif2llmwebgpuruntime_embedTexts"),
+        "scoreF16Vectors" => Some("jbotcif2llmwebgpuruntime_scoreF16Vectors"),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|exports| !exports.contains("")) || ret.is_err())]
+fn wasm_export_names(bytes: &[u8]) -> Result<BTreeSet<String>> {
+    const WASM_HEADER: &[u8; 8] = b"\0asm\x01\0\0\0";
+    if !bytes.starts_with(WASM_HEADER) {
+        bail!("invalid WebAssembly header or version");
+    }
+    let mut cursor = WASM_HEADER.len();
+    let mut exports = None;
+    while cursor < bytes.len() {
+        let section_id = bytes[cursor];
+        cursor += 1;
+        let section_len = read_wasm_u32(bytes, &mut cursor, "section length")? as usize;
+        let section_end = cursor
+            .checked_add(section_len)
+            .filter(|end| *end <= bytes.len())
+            .context("WebAssembly section extends past the end of the module")?;
+        if section_id == 7 {
+            if exports.is_some() {
+                bail!("WebAssembly module contains more than one export section");
+            }
+            let mut section_cursor = cursor;
+            let export_count = read_wasm_u32(bytes, &mut section_cursor, "export count")? as usize;
+            let mut section_exports = BTreeSet::new();
+            for _ in 0..export_count {
+                let name = read_wasm_name(bytes, &mut section_cursor, section_end)?;
+                if section_cursor >= section_end {
+                    bail!("WebAssembly export is missing its kind");
+                }
+                section_cursor += 1;
+                read_wasm_u32(bytes, &mut section_cursor, "export index")?;
+                if section_cursor > section_end {
+                    bail!("WebAssembly export extends past its section");
+                }
+                if !section_exports.insert(name) {
+                    bail!("WebAssembly export section repeats an export name");
+                }
+            }
+            if section_cursor != section_end {
+                bail!("WebAssembly export section contains trailing bytes");
+            }
+            exports = Some(section_exports);
+        }
+        cursor = section_end;
+    }
+    Ok(exports.unwrap_or_default())
+}
+
+#[requires(*cursor <= bytes.len())]
+#[requires(end <= bytes.len())]
+#[requires(*cursor <= end)]
+#[ensures(ret.as_ref().is_ok_and(|name| !name.is_empty()) || ret.is_err())]
+fn read_wasm_name(bytes: &[u8], cursor: &mut usize, end: usize) -> Result<String> {
+    let name_len = read_wasm_u32(bytes, cursor, "name length")? as usize;
+    let name_end = cursor
+        .checked_add(name_len)
+        .filter(|name_end| *name_end <= end)
+        .context("WebAssembly name extends past its section")?;
+    if name_len == 0 {
+        bail!("WebAssembly export name must not be empty");
+    }
+    let name = std::str::from_utf8(&bytes[*cursor..name_end])
+        .context("WebAssembly export name is not valid UTF-8")?
+        .to_owned();
+    *cursor = name_end;
+    Ok(name)
+}
+
+#[requires(*cursor <= bytes.len())]
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn read_wasm_u32(bytes: &[u8], cursor: &mut usize, label: &str) -> Result<u32> {
+    let mut value = 0u32;
+    for shift in [0, 7, 14, 21, 28] {
+        let byte = *bytes
+            .get(*cursor)
+            .with_context(|| format!("truncated WebAssembly {label}"))?;
+        *cursor += 1;
+        if shift == 28 && byte & 0xf0 != 0 {
+            bail!("WebAssembly {label} exceeds u32");
+        }
+        value |= u32::from(byte & 0x7f) << shift;
+        if byte & 0x80 == 0 {
+            return Ok(value);
+        }
+    }
+    bail!("WebAssembly {label} has an overlong LEB128 encoding")
 }
 
 #[requires(args.stack_size_kb > 0)]
@@ -13037,6 +13518,25 @@ mod tests {
     use super::*;
     use bityzba::requires;
     use jbotci_cll::{CllChapter, CllExampleLine, CllMetadata, CllReference, CllSection};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wasm_export_reader_parses_the_real_export_section_shape() {
+        let module = b"\0asm\x01\0\0\0\x07\x07\x01\x03run\x00\x00";
+        assert_eq!(
+            wasm_export_names(module).unwrap(),
+            BTreeSet::from(["run".to_owned()])
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wasm_export_reader_rejects_truncated_sections() {
+        let truncated = b"\0asm\x01\0\0\0\x07\x07\x01\x03ru";
+        assert!(wasm_export_names(truncated).is_err());
+    }
 
     #[test]
     #[requires(true)]
