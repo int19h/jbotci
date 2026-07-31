@@ -22,6 +22,7 @@ use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 #[cfg(feature = "expensive_contracts")]
 use rayon::prelude::*;
+use sha2::{Digest, Sha256};
 #[cfg(feature = "expensive_contracts")]
 use xtask_common::fixtures::load_fixture_tree;
 
@@ -221,6 +222,35 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
             .output
             .contains("descriptor *.word provenance (1 field)")
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn content_first_question_scope_outputs_are_byte_pinned() {
+    for (source, expected_hash) in [
+        (
+            "mi djuno lo ka ce'u klama makau",
+            "873e9a3050aa58febb0c7d4cdc0afce9affaf520641703a23e58e713ebbb219f",
+        ),
+        (
+            "mi djica lo nu makau klama",
+            "8725c6ca5db24dc9dbe2f1636acb9019e819b9e67b2a404a76d93cc9704b12ba",
+        ),
+    ] {
+        let graph = graph_for_source(source)
+            .unwrap_or_else(|error| panic!("{source:?} must build and validate: {error}"));
+        let rendered = render_xml(&graph, "<scope-dependence-first-visit>");
+        assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert_eq!(rendered.output.matches("<EMBEDDED-QUESTIONS>").count(), 1);
+        assert!(!rendered.output.contains("SAME-FOR-ALL=\"true\""));
+        assert!(!rendered.output.contains("POSSIBLY-DIFFERENT-PER=\""));
+        assert_eq!(
+            format!("{:x}", Sha256::digest(rendered.output.as_bytes())),
+            expected_hash,
+            "{source:?} XML bytes changed",
+        );
+    }
 }
 
 #[cfg(feature = "expensive_contracts")]

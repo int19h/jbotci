@@ -1,4 +1,4 @@
-<SFN VERSION="0" DOC="b36">
+<SFN VERSION="0" DOC="b59">
   <KEY>
     <RULE TOPIC="ids">ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).</RULE>
     <RULE TOPIC="lexical-categories">UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.</RULE>
@@ -22,9 +22,9 @@
     <RULE TOPIC="order">Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.</RULE>
   </KEY>
   <WAIVERS>
-    <WAIVER>*.source provenance (9 records: spans, witness text, construct labels)</WAIVER>
+    <WAIVER>*.source provenance (12 records: spans, witness text, construct labels)</WAIVER>
     <WAIVER>descriptor *.word provenance (1 field)</WAIVER>
-    <WAIVER>*.introducedBy provenance (5 fields)</WAIVER>
+    <WAIVER>*.introducedBy provenance (7 fields)</WAIVER>
   </WAIVERS>
   <DEFS>
     <DEICTIC-GROUND ID="g1" SPEAKER-REF="r1" AUDIENCE-REF="r2" TIME-REF="e3" PLACE-REF="r4"/>
@@ -35,32 +35,86 @@
       <EXISTS>
         <VARIABLE ID="e6" SORT="Eventuality"/>
         <BODY>
-          <PREDICATION PREDICATE="djuno" MODE="ASSERTED">
-            <EVENT REF="e6"/>
-            <ARG INDEX="1" REF="r1"/>
-            <ARG INDEX="2">
-              <PROPOSITION>
-                <VERIDICAL-DESCRIPTION>
+          <FORMULA>
+            <DEFS>
+              <PARAMETER ID="v8" SORT="Entity" ROLE="PROPERTY_SLOT"/>
+            </DEFS>
+            <PREDICATION PREDICATE="djuno" MODE="ASSERTED">
+              <EVENT REF="e6"/>
+              <ARG INDEX="1" REF="r1"/>
+              <ARG INDEX="2">
+                <RELATION PARAMETERS="v8" ARITY="1">
+                  <VERIDICAL-DESCRIPTION/>
                   <BODY>
-                    <EXISTS>
-                      <VARIABLE ID="e7" SORT="Eventuality"/>
-                      <BODY>
-                        <PREDICATION PREDICATE="melbi" MODE="INERT">
-                          <EVENT REF="e7"/>
-                          <ARG INDEX="1" REF="r2"/>
-                          <ARG INDEX="2" REF="SOME"/>
-                          <ARG INDEX="3" REF="SOME"/>
-                          <ARG INDEX="4" REF="SOME"/>
-                        </PREDICATION>
-                      </BODY>
-                    </EXISTS>
+                    <DEFS>
+                      <EXISTS ID="f14">
+                        <VARIABLE ID="e7" SORT="Eventuality"/>
+                        <BODY>
+                          <PREDICATION PREDICATE="klama" MODE="RESTRICTIVE">
+                            <EVENT REF="e7"/>
+                            <ARG INDEX="1" REF="v8"/>
+                            <ARG INDEX="2" REF="v9"/>
+                            <ARG INDEX="3">
+                              <UNSPECIFIED-REFERENT/>
+                            </ARG>
+                            <ARG INDEX="4">
+                              <UNSPECIFIED-REFERENT/>
+                            </ARG>
+                            <ARG INDEX="5">
+                              <UNSPECIFIED-REFERENT/>
+                            </ARG>
+                          </PREDICATION>
+                        </BODY>
+                      </EXISTS>
+                      <PARAMETER ID="v9" SORT="Entity" ROLE="ARGUMENT_QUESTION"/>
+                    </DEFS>
+                    <REFERENCE REF="f14"/>
+                    <EMBEDDED-QUESTIONS>
+                      <UNKNOWN TYPE="question">
+                        <FIELD NAME="body">
+                          <REFERENCE REF="f14"/>
+                        </FIELD>
+                        <FIELD NAME="kind">
+                          <STRING VALUE="argument"/>
+                        </FIELD>
+                        <FIELD NAME="mode">
+                          <STRING VALUE="indirect"/>
+                        </FIELD>
+                        <FIELD NAME="asker">
+                          <REFERENCE REF="r1"/>
+                        </FIELD>
+                        <FIELD NAME="respondent">
+                          <REFERENCE REF="r2"/>
+                        </FIELD>
+                        <FIELD NAME="domain">
+                          <STRING VALUE="entity"/>
+                        </FIELD>
+                        <FIELD NAME="slots">
+                          <LIST>
+                            <ITEM>
+                              <RECORD>
+                                <FIELD NAME="parameter">
+                                  <REFERENCE REF="v9"/>
+                                </FIELD>
+                                <FIELD NAME="role">
+                                  <STRING VALUE="answer"/>
+                                </FIELD>
+                              </RECORD>
+                            </ITEM>
+                          </LIST>
+                        </FIELD>
+                        <FIELD NAME="focus">
+                          <REFERENCE REF="v9"/>
+                        </FIELD>
+                      </UNKNOWN>
+                    </EMBEDDED-QUESTIONS>
                   </BODY>
-                </VERIDICAL-DESCRIPTION>
-              </PROPOSITION>
-            </ARG>
-            <ARG INDEX="3" REF="SOME"/>
-            <ARG INDEX="4" REF="SOME"/>
-          </PREDICATION>
+                </RELATION>
+              </ARG>
+              <ARG INDEX="3" REF="SOME"/>
+              <ARG INDEX="4" REF="SOME"/>
+            </PREDICATION>
+          </FORMULA>
         </BODY>
       </EXISTS>
     </CONTENT>
