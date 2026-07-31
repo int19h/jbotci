@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `e4325d1b5f15e8d9b73a2b5618f6df992f59c0e5`.  Like the frozen `smusni`
+//! `f2a04abacb243a196c554c630e8cebd404475614`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -4769,6 +4769,7 @@ mod tests {
             Value::String("eventuality".to_owned());
         content_abstraction["objects"]["entity:8"]["scopeDependence"] =
             serde_json::json!({"kind": "fixed"});
+        content_abstraction["scopeDependenceBinderUniverses"]["entity:8"] = serde_json::json!([]);
         let content_abstraction = render_xml_value(content_abstraction, "<nu-content-witness>")
             .into_data()
             .output;
@@ -4777,7 +4778,7 @@ mod tests {
         assert!(content_abstraction.contains("<EMBEDDED-QUESTIONS>"));
         assert_eq!(
             format!("{:x}", Sha256::digest(content_abstraction.as_bytes())),
-            "a5e8ac53981fcbe62f8f09f4276d7a2884fb5dd395fe0b22cf3eabc88df74a6e"
+            "47bfb6f659a8eb24f0e6e5f3ad4298b3a2a9286f95febf0bff9ae51fbf866bd9"
         );
 
         let mut direct_question = graph("b58");
