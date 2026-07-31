@@ -3,9 +3,13 @@
 use super::*;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 
 #[invariant(
+    dependences.len() == binder_universes.len(),
+    "every derived dependence must retain one authoritative binder universe"
+)]
+#[expensive_invariant(
     dependences.keys().eq(binder_universes.keys()),
     "every derived dependence must retain its authoritative binder universe"
 )]
@@ -83,7 +87,7 @@ fn derive_semantic_scope_dependences(
 }
 
 #[requires(objects.contains_key(&root))]
-#[ensures(ret.dependences.keys().eq(ret.binder_universes.keys()))]
+#[ensures(ret.dependences.len() == ret.binder_universes.len())]
 fn derive_semantic_scope_dependence_data(
     root: SemanticObjectId,
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
@@ -115,6 +119,103 @@ fn derive_semantic_scope_dependence_data(
         dependences: derived,
         binder_universes,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sequence_bound_eventuality_is_first_visited_disconnected_at_empty_scope() {
+        let root = SemanticObjectId::formula(1);
+        let variable = SemanticObjectId::referent(2);
+        let body = SemanticObjectId::formula(3);
+        let predication = SemanticObjectId::predication(4);
+        let container = SemanticObjectId::eventuality(5);
+        let sequence = SemanticObjectId::sequence(6);
+        let bound = SemanticObjectId::eventuality(7);
+
+        let mut arguments = BTreeMap::new();
+        arguments.insert(PlaceIndex::new(1), ArgumentValue::filled(container, None));
+
+        let container_object =
+            SemanticObject::referential_eventuality(EventualityClass::Event, None, None);
+        let container_object = match container_object.into_data() {
+            data!(SemanticObject::Eventuality(node)) => {
+                new!(SemanticObject::Eventuality(node.with_data(data! {
+                    content: Some(sequence),
+                })))
+            }
+            _ => unreachable!("eventuality constructor returns an eventuality"),
+        };
+        let sequence_object = SemanticObject::sequence(
+            Vec::new(),
+            SequenceRelation::SameTopicContinuation,
+            None,
+            Vec::new(),
+        );
+        let sequence_object = match sequence_object.into_data() {
+            data!(SemanticObject::Sequence(node)) => {
+                new!(SemanticObject::Sequence(node.with_data(data! {
+                    bound_eventualities: vec![GeneratedEventualityId::new(bound)],
+                })))
+            }
+            _ => unreachable!("sequence constructor returns a sequence"),
+        };
+
+        let objects = BTreeMap::from([
+            (
+                root,
+                SemanticObject::quantified_formula(
+                    FormulaOperator::Forall,
+                    variable,
+                    None,
+                    body,
+                    None,
+                    None,
+                    Vec::new(),
+                ),
+            ),
+            (
+                variable,
+                SemanticObject::referent(
+                    ReferentCategory::Variable,
+                    SemanticSort::Entity,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Vec::new(),
+                ),
+            ),
+            (
+                body,
+                SemanticObject::atom_formula(predication, None, Vec::new()),
+            ),
+            (
+                predication,
+                SemanticObject::predication(
+                    "broda".to_owned(),
+                    None,
+                    arguments,
+                    PredicationMode::Asserted,
+                    None,
+                    Vec::new(),
+                ),
+            ),
+            (container, container_object),
+            (sequence, sequence_object),
+            (
+                bound,
+                SemanticObject::referential_eventuality(EventualityClass::Event, None, None),
+            ),
+        ]);
+
+        let universes = semantic_scope_dependence_binder_universes(root, &objects);
+        assert_eq!(universes.get(&bound), Some(&BTreeSet::new()));
+    }
 }
 
 #[requires(objects.contains_key(&id))]

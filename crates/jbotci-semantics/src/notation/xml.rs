@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `1402d85a47ddd0568a768652173cbf692ff0b637`.  Like the frozen `smusni`
+//! `481a531dd42c8b2f3621528db8527d1dd3d0191f`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -18,7 +18,7 @@ use crate::model::{
     SEMANTIC_JSON_VERSION, SemanticGraph, semantic_scope_dependence_binder_universes,
 };
 
-const SCOPE_DEPENDENCE_TEACHING: &str = "A referent mentioned inside enclosing binders — quantifier variables or abstraction/question parameters — may either be one shared thing for all binder values, or a possibly different thing per combination of values; the text does not decide, and nothing is marked when it may depend on every enclosing binder. SAME-FOR-ALL marks the exceptions known to be one and the same across all enclosing binders.";
+const SCOPE_DEPENDENCE_TEACHING: &str = "Scope-dependence markers compare a referent's scopeDependence with the semantic graph derivation's authoritative first-visit binder universe, which is not a lexical-enclosure set. Silence means that the referent may depend on the full first-visit universe. SAME-FOR-ALL means that it is fixed despite a nonempty first-visit universe.";
 
 const KEY_RULES_BEFORE_SORTS: &[(&str, &str)] = &[
     (
@@ -51,7 +51,7 @@ const KEY_RULES_AFTER_SORTS: &[(&str, &str)] = &[
     ("scope-dependence", SCOPE_DEPENDENCE_TEACHING),
     (
         "scope-dependence-subsets",
-        "POSSIBLY-DIFFERENT-PER= is a space-separated list of enclosing quantifier-variable or abstraction/question-parameter ids on which a referent may depend when that list is a strict subset of all enclosing binders.",
+        "POSSIBLY-DIFFERENT-PER= is a space-separated strict nonempty subset of the first-visit quantifier-variable or abstraction/question-parameter ids on which a referent may depend.",
     ),
     (
         "number-neutrality",
@@ -844,6 +844,10 @@ struct TestRenderSuppression {
 // Validated once in `from_value`; fields are private and never mutated.
 #[invariant(objects.contains_key(root), "the root must name a graph object")]
 #[invariant(
+    scope_dependence_binder_universes.len() <= objects.len(),
+    "binder universes index only graph objects"
+)]
+#[invariant(
     object_keys.len() == objects.len()
         && order.len() == objects.len()
         && ids.len() == objects.len()
@@ -859,6 +863,16 @@ struct TestRenderSuppression {
             .keys()
             .all(|key| object_keys.contains(key)),
     "all object-keyed indexes must have the same key domain"
+)]
+#[expensive_invariant(
+    scope_dependence_binder_universes
+        .keys()
+        .all(|key| object_keys.contains(key))
+        && objects.iter().all(|(key, object)| {
+            json_object(object).contains_key("scopeDependence")
+                == scope_dependence_binder_universes.contains_key(key)
+        }),
+    "binder universes have exactly the scope-dependence object domain"
 )]
 #[expensive_invariant(
     ids.values().collect::<HashSet<_>>().len() == ids.len(),
@@ -1116,13 +1130,20 @@ impl GraphData {
             .collect();
 
         let subtype_pairs = subtype_pairs(&objects);
-        let scope_dependence_binder_universes = graph_object
+        let scope_dependence_binder_universes: HashMap<String, BTreeSet<String>> = graph_object
             .remove("scopeDependenceBinderUniverses")
             .map(|value| {
                 serde_json::from_value(value)
                     .expect("scope-dependence binder universes must be string-set records")
             })
             .unwrap_or_default();
+        assert!(
+            objects.iter().all(|(key, object)| {
+                json_object(object).contains_key("scopeDependence")
+                    == scope_dependence_binder_universes.contains_key(key)
+            }),
+            "scope-dependence binder universes must cover exactly every scopeDependence object"
+        );
         let mut value_paths = HashMap::new();
         let mut surface_paths = BTreeSet::new();
         for (key, value) in &objects {
@@ -3713,23 +3734,24 @@ fn render_xml_graph_with_state(
     document_name: &str,
     state: RenderState,
 ) -> XmlRender {
-    let binder_universes = semantic_scope_dependence_binder_universes(graph.root, &graph.objects)
-        .into_iter()
-        .map(|(referent, binders)| {
-            (
-                referent.to_string(),
-                binders
-                    .into_iter()
-                    .map(|binder| binder.to_string())
-                    .collect(),
-            )
-        })
-        .collect();
-    let value =
+    let binder_universes: HashMap<String, BTreeSet<String>> =
+        semantic_scope_dependence_binder_universes(graph.root, &graph.objects)
+            .into_iter()
+            .map(|(referent, binders)| {
+                (
+                    referent.to_string(),
+                    binders
+                        .into_iter()
+                        .map(|binder| binder.to_string())
+                        .collect(),
+                )
+            })
+            .collect();
+    let mut value =
         serde_json::to_value(graph).expect("SemanticGraph's canonical serialization cannot fail");
-    let indexed = GraphData::from_value(value).with_data(data! {
-        scope_dependence_binder_universes: binder_universes
-    });
+    value["scopeDependenceBinderUniverses"] =
+        serde_json::to_value(binder_universes).expect("binder universes serialize as an object");
+    let indexed = GraphData::from_value(value);
     render_indexed_graph_with_state(indexed, document_name, state)
 }
 
@@ -3743,17 +3765,24 @@ fn render_xml_value(graph: Value, document_name: &str) -> XmlRender {
 #[requires(!document_name.is_empty())]
 #[ensures(ret.output.ends_with('\n'))]
 fn render_xml_value_with_binder_universes(
-    graph: Value,
+    mut graph: Value,
     document_name: &str,
     binder_universes: HashMap<String, BTreeSet<String>>,
 ) -> XmlRender {
-    let indexed = GraphData::from_value(graph);
-    let mut merged = indexed.scope_dependence_binder_universes.clone();
-    merged.extend(binder_universes);
-    let indexed = indexed.with_data(data! {
-        scope_dependence_binder_universes: merged
-    });
-    render_indexed_graph_with_state(indexed, document_name, RenderState::new())
+    let injected = graph
+        .as_object_mut()
+        .expect("test graph must be an object")
+        .entry("scopeDependenceBinderUniverses")
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .expect("test binder universes must be an object");
+    for (key, universe) in binder_universes {
+        injected.insert(
+            key,
+            Value::Array(universe.into_iter().map(Value::String).collect()),
+        );
+    }
+    render_xml_value(graph, document_name)
 }
 
 #[cfg(test)]
@@ -3838,8 +3867,6 @@ mod tests {
         "b55",
         "b57",
         "b58",
-        "b59",
-        "b60",
         "medium-quantified",
         "numeral-price",
         "paragraph-narrative",
@@ -4525,7 +4552,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn frozen_xml_corpus_is_exact_and_pinned() {
-        assert_eq!(XML_CORPUS_DOCS.len(), 50);
+        assert_eq!(XML_CORPUS_DOCS.len(), 48);
         let expected: BTreeSet<String> = XML_CORPUS_DOCS
             .iter()
             .flat_map(|document| {
@@ -4551,18 +4578,52 @@ mod tests {
         assert_eq!(actual, expected);
         assert_eq!(
             aggregate_hash("frozen.json"),
-            "a72dd0b4a72c877a48e9d0e214fcba782bb6a47548ce61c367dfd246f6f16aa7"
+            "69ea08a65aba19049f65070b9eb045361834ddfbd2773da972c047be325381b3"
         );
         assert_eq!(
             aggregate_hash("xml.txt"),
-            "839d0d8b8ddb3322d9448fe31685c14565ae767676e091995a1d9012cdb697c0"
+            "62748699159c588e68ce4bf4a6e613990545c57535c5d317025d86dec77fd04a"
+        );
+        let binder_universe_bytes = include_bytes!("../../tests/xml_corpus/BINDER_UNIVERSES.json");
+        assert_eq!(
+            format!("{:x}", Sha256::digest(binder_universe_bytes)),
+            "d672abb2849175b03a18d0c45b854a5094a702ddb11adde6d7075ccd419b5776"
+        );
+        let binder_universes: Map<String, Value> = serde_json::from_slice(binder_universe_bytes)
+            .expect("parse frozen binder-universe projection");
+        let mut expected_projection_documents: BTreeSet<String> = XML_CORPUS_DOCS
+            .iter()
+            .map(|document| (*document).to_owned())
+            .collect();
+        let phaseb_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/phaseb_corpus");
+        expected_projection_documents.extend(
+            std::fs::read_dir(phaseb_dir)
+                .expect("read Phase B corpus")
+                .map(|entry| entry.expect("read Phase B entry").path())
+                .filter(|path| {
+                    path.extension()
+                        .is_some_and(|extension| extension == "json")
+                })
+                .map(|path| {
+                    format!(
+                        "phaseb/{}",
+                        path.file_stem()
+                            .expect("Phase B JSON has a stem")
+                            .to_string_lossy()
+                            .trim_end_matches(".frozen")
+                    )
+                }),
+        );
+        assert_eq!(
+            binder_universes.keys().cloned().collect::<BTreeSet<_>>(),
+            expected_projection_documents
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn xml_matches_the_frozen_prototype_on_all_50_documents() {
+    fn xml_matches_the_frozen_prototype_on_all_48_documents() {
         let mut mismatches = Vec::new();
         for document in XML_CORPUS_DOCS {
             let expected = std::fs::read_to_string(fixture(document, "xml.txt"))
@@ -4713,7 +4774,7 @@ mod tests {
         assert!(content_abstraction.contains("<EMBEDDED-QUESTIONS>"));
         assert_eq!(
             format!("{:x}", Sha256::digest(content_abstraction.as_bytes())),
-            "09cd1d158c177784f603f93c7c782f7da3d4225638b2dc8f56f7fadf3bf88e0e"
+            "a5e8ac53981fcbe62f8f09f4276d7a2884fb5dd395fe0b22cf3eabc88df74a6e"
         );
 
         let mut direct_question = graph("b58");
@@ -4730,7 +4791,7 @@ mod tests {
         assert!(direct_question.contains("<UNKNOWN TYPE=\"question\">"));
         assert_eq!(
             format!("{:x}", Sha256::digest(direct_question.as_bytes())),
-            "22e863b47f1a851282eb1dad9b4ec27a33f2655501c5d7bde22a7fe467c31a77"
+            "f1aa7f9b8ee1fd899cdd0572b07bd6347f8f5dfc9688998e54979bfa68ca00ee"
         );
 
         let mut shared = graph("b58");
@@ -4756,7 +4817,7 @@ mod tests {
         assert_eq!(shared.matches("<EMBEDDED-QUESTIONS>").count(), 1);
         assert_eq!(
             format!("{:x}", Sha256::digest(shared.as_bytes())),
-            "b73a0c08df006f871c7770e8d2056902972371d223ca003f27b96fbba5ca421b"
+            "a2feadddf5c5147d8e77c9766bfbc6972891dc95c5442546a2b92f42de5efbec"
         );
         let content = shared
             .split_once("<CONTENT>")
@@ -4775,7 +4836,22 @@ mod tests {
         assert!(content.contains("<EMBEDDED-QUESTIONS>"));
         assert!(!body.contains("<EMBEDDED-QUESTIONS>"));
 
-        let mut shared_with_slots = graph("b60");
+        let focused_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/xml_focused_regressions/content-first-question-scope/b60.frozen.json");
+        let mut shared_with_slots: Value = serde_json::from_slice(
+            &std::fs::read(&focused_path)
+                .unwrap_or_else(|error| panic!("read {}: {error}", focused_path.display())),
+        )
+        .expect("parse focused b60 graph");
+        shared_with_slots["scopeDependenceBinderUniverses"] = serde_json::json!({
+            "entity:10": [],
+            "entity:11": [],
+            "entity:12": [],
+            "entity:16": [],
+            "entity:9": [],
+            "eventuality/locution:19": [],
+            "eventuality:7": []
+        });
         shared_with_slots["objects"]["eventuality:7"]["body"] =
             shared_with_slots["objects"]["eventuality:7"]["content"].clone();
         shared_with_slots["objects"]["entity:10"]["scopeDependence"] = serde_json::json!({
@@ -4810,7 +4886,7 @@ mod tests {
         assert!(orphan.contains("<FIELD NAME=\"embeddedQuestions\">"));
         assert_eq!(
             format!("{:x}", Sha256::digest(orphan.as_bytes())),
-            "0cc9373ae7b069af80acebc859350bc60b555295751c1c65115df92b0d8d2706"
+            "a0ab3d6cd913092cb068facf668cdac3d5452cf5af3c22cd996f011a8e43b21a"
         );
     }
 
@@ -4864,25 +4940,25 @@ mod tests {
         assert_eq!(
             counts,
             BTreeMap::from([
-                (XmlWaiverFamily::SourceRecord, 646),
+                (XmlWaiverFamily::SourceRecord, 624),
                 (XmlWaiverFamily::AssignedNameRecord, 3),
-                (XmlWaiverFamily::DescriptorWord, 57),
-                (XmlWaiverFamily::IntroducedBy, 247),
+                (XmlWaiverFamily::DescriptorWord, 55),
+                (XmlWaiverFamily::IntroducedBy, 234),
                 (XmlWaiverFamily::QuantityText, 11),
                 (XmlWaiverFamily::BoundVariableWord, 9),
             ])
         );
-        assert_eq!(counts.values().sum::<usize>(), 973);
+        assert_eq!(counts.values().sum::<usize>(), 936);
         assert_eq!(
             documents
                 .into_iter()
                 .map(|(family, documents)| (family, documents.len()))
                 .collect::<BTreeMap<_, _>>(),
             BTreeMap::from([
-                (XmlWaiverFamily::SourceRecord, 50),
+                (XmlWaiverFamily::SourceRecord, 48),
                 (XmlWaiverFamily::AssignedNameRecord, 2),
-                (XmlWaiverFamily::DescriptorWord, 37),
-                (XmlWaiverFamily::IntroducedBy, 47),
+                (XmlWaiverFamily::DescriptorWord, 35),
+                (XmlWaiverFamily::IntroducedBy, 45),
                 (XmlWaiverFamily::QuantityText, 7),
                 (XmlWaiverFamily::BoundVariableWord, 6),
             ])
@@ -4925,7 +5001,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn xml_rendering_is_deterministic_on_all_50_documents() {
+    fn xml_rendering_is_deterministic_on_all_48_documents() {
         for document in XML_CORPUS_DOCS {
             let graph = graph(document);
             assert_eq!(

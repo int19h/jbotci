@@ -1,4 +1,4 @@
-<SFN VERSION="0" DOC="b59">
+<SFN VERSION="0" DOC="b60">
   <KEY>
     <RULE TOPIC="ids">ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).</RULE>
     <RULE TOPIC="lexical-categories">UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.</RULE>
@@ -7,8 +7,8 @@
     <RULE TOPIC="some">REF="SOME" denotes a distinct elided node per occurrence; distinct nodes assert neither identity (=) nor non-identity (≠).</RULE>
     <RULE TOPIC="ground">DEICTIC-GROUND is the shared speech-situation unit selected by UTTERANCE GROUND=. Its g-prefixed ID is a notation-level rendering id because the JSON has no ground object id; if the graph gains context ids, the rendering must align. Ground units share one definition ⇔ their SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF graph referents are pairwise identical.</RULE>
     <RULE TOPIC="quantifiers">EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS writes RESTRICTION exactly when the graph supplies one; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.</RULE>
-    <RULE TOPIC="scope-dependence">A referent mentioned inside enclosing binders — quantifier variables or abstraction/question parameters — may either be one shared thing for all binder values, or a possibly different thing per combination of values; the text does not decide, and nothing is marked when it may depend on every enclosing binder. SAME-FOR-ALL marks the exceptions known to be one and the same across all enclosing binders.</RULE>
-    <RULE TOPIC="scope-dependence-subsets">POSSIBLY-DIFFERENT-PER= is a space-separated list of enclosing quantifier-variable or abstraction/question-parameter ids on which a referent may depend when that list is a strict subset of all enclosing binders.</RULE>
+    <RULE TOPIC="scope-dependence">Scope-dependence markers compare a referent's scopeDependence with the semantic graph derivation's authoritative first-visit binder universe, which is not a lexical-enclosure set. Silence means that the referent may depend on the full first-visit universe. SAME-FOR-ALL means that it is fixed despite a nonempty first-visit universe.</RULE>
+    <RULE TOPIC="scope-dependence-subsets">POSSIBLY-DIFFERENT-PER= is a space-separated strict nonempty subset of the first-visit quantifier-variable or abstraction/question-parameter ids on which a referent may depend.</RULE>
     <RULE TOPIC="number-neutrality">References are number-neutral: a reference may denote one or several individuals; the only number commitments are explicit quantities on descriptions, cardinality binders, or mass restrictions.</RULE>
     <RULE TOPIC="personal-reference">PERSONAL-MASS-MEMBERSHIP states whether SPEAKER and AUDIENCE are INCLUDED or EXCLUDED and points to any additional included OTHERS. DEICTIC-REFERENCE states PROXIMITY to a discourse-referent GROUND-REF. These structures carry the semantics; no pro-sumti label is implied.</RULE>
     <RULE TOPIC="speaker-anchor">A description is anchored to its enclosing utterance's speaker. SPEAKER-REF= on a description, or BY inside NAMED, appears only when the anchor differs from that enclosing speaker.</RULE>
@@ -22,9 +22,9 @@
     <RULE TOPIC="order">Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.</RULE>
   </KEY>
   <WAIVERS>
-    <WAIVER>*.source provenance (12 records: spans, witness text, construct labels)</WAIVER>
+    <WAIVER>*.source provenance (10 records: spans, witness text, construct labels)</WAIVER>
     <WAIVER>descriptor *.word provenance (1 field)</WAIVER>
-    <WAIVER>*.introducedBy provenance (7 fields)</WAIVER>
+    <WAIVER>*.introducedBy provenance (6 fields)</WAIVER>
   </WAIVERS>
   <DEFS>
     <DEICTIC-GROUND ID="g1" SPEAKER-REF="r1" AUDIENCE-REF="r2" TIME-REF="e3" PLACE-REF="r4"/>
@@ -37,82 +37,76 @@
         <BODY>
           <FORMULA>
             <DEFS>
-              <PARAMETER ID="v8" SORT="Entity" ROLE="PROPERTY_SLOT"/>
+              <EVENTUALITY ID="e7">
+                <VERIDICAL-DESCRIPTION/>
+                <CONTENT>
+                  <DEFS>
+                    <PREDICATION ID="f14" PREDICATE="klama" MODE="INERT">
+                      <EVENT REF="e7"/>
+                      <ARG INDEX="1" REF="v8"/>
+                      <ARG INDEX="2">
+                        <UNSPECIFIED-REFERENT/>
+                      </ARG>
+                      <ARG INDEX="3">
+                        <UNSPECIFIED-REFERENT/>
+                      </ARG>
+                      <ARG INDEX="4">
+                        <UNSPECIFIED-REFERENT/>
+                      </ARG>
+                      <ARG INDEX="5">
+                        <UNSPECIFIED-REFERENT/>
+                      </ARG>
+                    </PREDICATION>
+                    <PARAMETER ID="v8" SORT="Entity" ROLE="ARGUMENT_QUESTION"/>
+                  </DEFS>
+                  <REFERENCE REF="f14"/>
+                  <EMBEDDED-QUESTIONS>
+                    <UNKNOWN TYPE="question">
+                      <FIELD NAME="body">
+                        <REFERENCE REF="f14"/>
+                      </FIELD>
+                      <FIELD NAME="kind">
+                        <STRING VALUE="argument"/>
+                      </FIELD>
+                      <FIELD NAME="mode">
+                        <STRING VALUE="indirect"/>
+                      </FIELD>
+                      <FIELD NAME="asker">
+                        <REFERENCE REF="r1"/>
+                      </FIELD>
+                      <FIELD NAME="respondent">
+                        <REFERENCE REF="r2"/>
+                      </FIELD>
+                      <FIELD NAME="domain">
+                        <STRING VALUE="entity"/>
+                      </FIELD>
+                      <FIELD NAME="slots">
+                        <LIST>
+                          <ITEM>
+                            <RECORD>
+                              <FIELD NAME="parameter">
+                                <REFERENCE REF="v8"/>
+                              </FIELD>
+                              <FIELD NAME="role">
+                                <STRING VALUE="answer"/>
+                              </FIELD>
+                            </RECORD>
+                          </ITEM>
+                        </LIST>
+                      </FIELD>
+                      <FIELD NAME="focus">
+                        <REFERENCE REF="v8"/>
+                      </FIELD>
+                    </UNKNOWN>
+                  </EMBEDDED-QUESTIONS>
+                </CONTENT>
+              </EVENTUALITY>
             </DEFS>
-            <PREDICATION PREDICATE="djuno" MODE="ASSERTED">
+            <PREDICATION PREDICATE="djica" MODE="ASSERTED">
               <EVENT REF="e6"/>
               <ARG INDEX="1" REF="r1"/>
-              <ARG INDEX="2">
-                <RELATION PARAMETERS="v8" ARITY="1">
-                  <VERIDICAL-DESCRIPTION/>
-                  <BODY>
-                    <DEFS>
-                      <EXISTS ID="f14">
-                        <VARIABLE ID="e7" SORT="Eventuality"/>
-                        <BODY>
-                          <PREDICATION PREDICATE="klama" MODE="RESTRICTIVE">
-                            <EVENT REF="e7"/>
-                            <ARG INDEX="1" REF="v8"/>
-                            <ARG INDEX="2" REF="v9"/>
-                            <ARG INDEX="3">
-                              <UNSPECIFIED-REFERENT/>
-                            </ARG>
-                            <ARG INDEX="4">
-                              <UNSPECIFIED-REFERENT/>
-                            </ARG>
-                            <ARG INDEX="5">
-                              <UNSPECIFIED-REFERENT/>
-                            </ARG>
-                          </PREDICATION>
-                        </BODY>
-                      </EXISTS>
-                      <PARAMETER ID="v9" SORT="Entity" ROLE="ARGUMENT_QUESTION"/>
-                    </DEFS>
-                    <REFERENCE REF="f14"/>
-                    <EMBEDDED-QUESTIONS>
-                      <UNKNOWN TYPE="question">
-                        <FIELD NAME="body">
-                          <REFERENCE REF="f14"/>
-                        </FIELD>
-                        <FIELD NAME="kind">
-                          <STRING VALUE="argument"/>
-                        </FIELD>
-                        <FIELD NAME="mode">
-                          <STRING VALUE="indirect"/>
-                        </FIELD>
-                        <FIELD NAME="asker">
-                          <REFERENCE REF="r1"/>
-                        </FIELD>
-                        <FIELD NAME="respondent">
-                          <REFERENCE REF="r2"/>
-                        </FIELD>
-                        <FIELD NAME="domain">
-                          <STRING VALUE="entity"/>
-                        </FIELD>
-                        <FIELD NAME="slots">
-                          <LIST>
-                            <ITEM>
-                              <RECORD>
-                                <FIELD NAME="parameter">
-                                  <REFERENCE REF="v9"/>
-                                </FIELD>
-                                <FIELD NAME="role">
-                                  <STRING VALUE="answer"/>
-                                </FIELD>
-                              </RECORD>
-                            </ITEM>
-                          </LIST>
-                        </FIELD>
-                        <FIELD NAME="focus">
-                          <REFERENCE REF="v9"/>
-                        </FIELD>
-                      </UNKNOWN>
-                    </EMBEDDED-QUESTIONS>
-                  </BODY>
-                </RELATION>
-              </ARG>
+              <ARG INDEX="2" REF="e7"/>
               <ARG INDEX="3" REF="SOME"/>
-              <ARG INDEX="4" REF="SOME"/>
             </PREDICATION>
           </FORMULA>
         </BODY>

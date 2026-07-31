@@ -228,14 +228,22 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
 #[requires(true)]
 #[ensures(true)]
 fn content_first_question_scope_outputs_are_byte_pinned() {
-    for (source, expected_hash) in [
+    for (document, source, expected_hash, prototype_xml) in [
         (
+            "b59",
             "mi djuno lo ka ce'u klama makau",
-            "873e9a3050aa58febb0c7d4cdc0afce9affaf520641703a23e58e713ebbb219f",
+            "972581968a0b60dde48af4b94c37fcf404cf177e96b1fa2c6264fc548d33792f",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.xml.txt"
+            ),
         ),
         (
+            "b60",
             "mi djica lo nu makau klama",
-            "8725c6ca5db24dc9dbe2f1636acb9019e819b9e67b2a404a76d93cc9704b12ba",
+            "fb3a0ff771b7831d8b6f6dc4b33f3aa7c3fe85bd88bd97521bf1f3b2d4e125a5",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.xml.txt"
+            ),
         ),
     ] {
         let graph = graph_for_source(source)
@@ -245,6 +253,15 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         assert_eq!(rendered.output.matches("<EMBEDDED-QUESTIONS>").count(), 1);
         assert!(!rendered.output.contains("SAME-FOR-ALL=\"true\""));
         assert!(!rendered.output.contains("POSSIBLY-DIFFERENT-PER=\""));
+        assert_eq!(
+            rendered.output.replacen(
+                "DOC=\"&lt;scope-dependence-first-visit&gt;\"",
+                &format!("DOC=\"{document}\""),
+                1
+            ),
+            prototype_xml,
+            "{source:?} product/prototype XML differs beyond DOC",
+        );
         assert_eq!(
             format!("{:x}", Sha256::digest(rendered.output.as_bytes())),
             expected_hash,
