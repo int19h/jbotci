@@ -3,7 +3,21 @@
 use super::*;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, expensive_ensures, requires};
+use bityzba::{ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
+
+#[invariant(
+    dependences.len() == binder_universes.len(),
+    "every derived dependence must retain one authoritative binder universe"
+)]
+#[expensive_invariant(
+    dependences.keys().eq(binder_universes.keys()),
+    "every derived dependence must retain its authoritative binder universe"
+)]
+#[derive(Debug)]
+struct DerivedScopeDependenceData {
+    dependences: BTreeMap<SemanticObjectId, ScopeDependence>,
+    binder_universes: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
+}
 
 /// Recomputes every constant referent's dependence from the rooted semantic graph.
 #[requires(objects.contains_key(&root))]
@@ -38,6 +52,24 @@ pub fn semantic_object_scope_dependences_are_derived(
     })
 }
 
+/// Returns the binder universe at each constant's authoritative first visit.
+///
+/// This is the same traversal used to derive `scopeDependence`. Consumers that
+/// explain that value must use this universe rather than reconstructing lexical
+/// enclosure from a different traversal order.
+#[requires(objects.contains_key(&root))]
+#[ensures(ret.keys().all(|id| objects.get(id).is_some_and(|object| object.referent_category() == Some(ReferentCategory::Constant))))]
+pub(crate) fn semantic_scope_dependence_binder_universes(
+    root: SemanticObjectId,
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> {
+    let data!(DerivedScopeDependenceData {
+        binder_universes,
+        ..
+    }) = derive_semantic_scope_dependence_data(root, objects).into_data();
+    binder_universes
+}
+
 /// Derives the canonical dependence value at each constant's introduction path.
 ///
 /// Generated graphs are connected after pruning. For hand-built graphs that retain
@@ -49,15 +81,141 @@ fn derive_semantic_scope_dependences(
     root: SemanticObjectId,
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> BTreeMap<SemanticObjectId, ScopeDependence> {
+    let data!(DerivedScopeDependenceData { dependences, .. }) =
+        derive_semantic_scope_dependence_data(root, objects).into_data();
+    dependences
+}
+
+#[requires(objects.contains_key(&root))]
+#[ensures(true)]
+fn derive_semantic_scope_dependence_data(
+    root: SemanticObjectId,
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> DerivedScopeDependenceData {
     let mut expanded = BTreeSet::new();
     let mut derived = BTreeMap::new();
-    visit_scope_object(root, objects, &BTreeSet::new(), &mut expanded, &mut derived);
+    let mut binder_universes = BTreeMap::new();
+    visit_scope_object(
+        root,
+        objects,
+        &BTreeSet::new(),
+        &mut expanded,
+        &mut derived,
+        &mut binder_universes,
+    );
     for id in objects.keys().copied() {
         if !expanded.contains(&id) {
-            visit_scope_object(id, objects, &BTreeSet::new(), &mut expanded, &mut derived);
+            visit_scope_object(
+                id,
+                objects,
+                &BTreeSet::new(),
+                &mut expanded,
+                &mut derived,
+                &mut binder_universes,
+            );
         }
     }
-    derived
+    new!(DerivedScopeDependenceData {
+        dependences: derived,
+        binder_universes,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sequence_bound_eventuality_is_first_visited_disconnected_at_empty_scope() {
+        let root = SemanticObjectId::formula(1);
+        let variable = SemanticObjectId::referent(2);
+        let body = SemanticObjectId::formula(3);
+        let predication = SemanticObjectId::predication(4);
+        let container = SemanticObjectId::eventuality(5);
+        let sequence = SemanticObjectId::sequence(6);
+        let bound = SemanticObjectId::eventuality(7);
+
+        let mut arguments = BTreeMap::new();
+        arguments.insert(PlaceIndex::new(1), ArgumentValue::filled(container, None));
+
+        let container_object =
+            SemanticObject::referential_eventuality(EventualityClass::Event, None, None);
+        let container_object = match container_object.into_data() {
+            data!(SemanticObject::Eventuality(node)) => {
+                new!(SemanticObject::Eventuality(node.with_data(data! {
+                    content: Some(sequence),
+                })))
+            }
+            _ => unreachable!("eventuality constructor returns an eventuality"),
+        };
+        let sequence_object = SemanticObject::sequence(
+            Vec::new(),
+            SequenceRelation::SameTopicContinuation,
+            None,
+            Vec::new(),
+        );
+        let sequence_object = match sequence_object.into_data() {
+            data!(SemanticObject::Sequence(node)) => {
+                new!(SemanticObject::Sequence(node.with_data(data! {
+                    bound_eventualities: vec![GeneratedEventualityId::new(bound)],
+                })))
+            }
+            _ => unreachable!("sequence constructor returns a sequence"),
+        };
+
+        let objects = BTreeMap::from([
+            (
+                root,
+                SemanticObject::quantified_formula(
+                    FormulaOperator::Forall,
+                    variable,
+                    None,
+                    body,
+                    None,
+                    None,
+                    Vec::new(),
+                ),
+            ),
+            (
+                variable,
+                SemanticObject::referent(
+                    ReferentCategory::Variable,
+                    SemanticSort::Entity,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Vec::new(),
+                ),
+            ),
+            (
+                body,
+                SemanticObject::atom_formula(predication, None, Vec::new()),
+            ),
+            (
+                predication,
+                SemanticObject::predication(
+                    "broda".to_owned(),
+                    None,
+                    arguments,
+                    PredicationMode::Asserted,
+                    None,
+                    Vec::new(),
+                ),
+            ),
+            (container, container_object),
+            (sequence, sequence_object),
+            (
+                bound,
+                SemanticObject::referential_eventuality(EventualityClass::Event, None, None),
+            ),
+        ]);
+
+        let universes = semantic_scope_dependence_binder_universes(root, &objects);
+        assert_eq!(universes.get(&bound), Some(&BTreeSet::new()));
+    }
 }
 
 #[requires(objects.contains_key(&id))]
@@ -69,11 +227,15 @@ fn visit_scope_object(
     binders: &BTreeSet<SemanticObjectId>,
     expanded: &mut BTreeSet<SemanticObjectId>,
     derived: &mut BTreeMap<SemanticObjectId, ScopeDependence>,
+    binder_universes: &mut BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
 ) {
     let object = objects
         .get(&id)
         .expect("scope traversal requires graph references to be defined");
     if object.referent_category() == Some(ReferentCategory::Constant) {
+        binder_universes
+            .entry(id)
+            .or_insert_with(|| binders.clone());
         derived.entry(id).or_insert_with(|| {
             if binders.is_empty() {
                 ScopeDependence::fixed()
@@ -100,10 +262,18 @@ fn visit_scope_object(
                 &unbound,
                 expanded,
                 derived,
+                binder_universes,
             );
         }
         data!(SemanticObject::Formula(formula)) => {
-            visit_formula_scope(formula, objects, binders, expanded, derived);
+            visit_formula_scope(
+                formula,
+                objects,
+                binders,
+                expanded,
+                derived,
+                binder_universes,
+            );
         }
         data!(SemanticObject::Sequence(node)) => {
             visit_ids(
@@ -115,6 +285,7 @@ fn visit_scope_object(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
             let mut references = Vec::new();
             object.references_without_event_bindings_into(&mut references);
@@ -127,6 +298,7 @@ fn visit_scope_object(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
         }
         data!(SemanticObject::Eventuality(node)) => {
@@ -139,6 +311,7 @@ fn visit_scope_object(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
         }
         data!(SemanticObject::Referent(node)) => {
@@ -151,6 +324,7 @@ fn visit_scope_object(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
         }
         data!(SemanticObject::Question(node)) => {
@@ -164,17 +338,32 @@ fn visit_scope_object(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
             let scoped = binders_with(
                 binders,
                 node.slots.iter().filter_map(QuestionSlot::parameter),
             );
-            visit_scope_object(node.body, objects, &scoped, expanded, derived);
+            visit_scope_object(
+                node.body,
+                objects,
+                &scoped,
+                expanded,
+                derived,
+                binder_universes,
+            );
         }
         _ => {
             let mut references = Vec::new();
             object.references_into(&mut references);
-            visit_ids(references, objects, binders, expanded, derived);
+            visit_ids(
+                references,
+                objects,
+                binders,
+                expanded,
+                derived,
+                binder_universes,
+            );
         }
     }
 }
@@ -188,9 +377,17 @@ fn visit_ids(
     binders: &BTreeSet<SemanticObjectId>,
     expanded: &mut BTreeSet<SemanticObjectId>,
     derived: &mut BTreeMap<SemanticObjectId, ScopeDependence>,
+    binder_universes: &mut BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
 ) {
     for reference in references {
-        visit_scope_object(reference, objects, binders, expanded, derived);
+        visit_scope_object(
+            reference,
+            objects,
+            binders,
+            expanded,
+            derived,
+            binder_universes,
+        );
     }
 }
 
@@ -207,6 +404,7 @@ fn visit_abstraction_scope(
     binders: &BTreeSet<SemanticObjectId>,
     expanded: &mut BTreeSet<SemanticObjectId>,
     derived: &mut BTreeMap<SemanticObjectId, ScopeDependence>,
+    binder_universes: &mut BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
 ) {
     let mut references = Vec::new();
     object.references_into(&mut references);
@@ -219,6 +417,7 @@ fn visit_abstraction_scope(
         binders,
         expanded,
         derived,
+        binder_universes,
     );
     visit_ids(
         parameters.iter().copied(),
@@ -226,6 +425,7 @@ fn visit_abstraction_scope(
         binders,
         expanded,
         derived,
+        binder_universes,
     );
     visit_ids(
         references[suffix_start..].iter().copied(),
@@ -233,10 +433,11 @@ fn visit_abstraction_scope(
         binders,
         expanded,
         derived,
+        binder_universes,
     );
     if let Some(body) = body {
         let scoped = binders_with(binders, parameters.iter().copied());
-        visit_scope_object(body, objects, &scoped, expanded, derived);
+        visit_scope_object(body, objects, &scoped, expanded, derived, binder_universes);
     }
 }
 
@@ -260,10 +461,18 @@ fn visit_formula_scope(
     binders: &BTreeSet<SemanticObjectId>,
     expanded: &mut BTreeSet<SemanticObjectId>,
     derived: &mut BTreeMap<SemanticObjectId, ScopeDependence>,
+    binder_universes: &mut BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
 ) {
     match formula.as_data() {
         data!(FormulaNode::Atom(node)) => {
-            visit_scope_object(node.predication, objects, binders, expanded, derived);
+            visit_scope_object(
+                node.predication,
+                objects,
+                binders,
+                expanded,
+                derived,
+                binder_universes,
+            );
         }
         data!(FormulaNode::Connective(node)) => {
             visit_ids(
@@ -279,6 +488,7 @@ fn visit_formula_scope(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
         }
         data!(FormulaNode::Quantified(node)) => {
@@ -292,6 +502,7 @@ fn visit_formula_scope(
                 binders,
                 expanded,
                 derived,
+                binder_universes,
             );
             let scoped = binders_with(binders, [node.variable]);
             visit_ids(
@@ -300,6 +511,7 @@ fn visit_formula_scope(
                 &scoped,
                 expanded,
                 derived,
+                binder_universes,
             );
         }
         data!(FormulaNode::QuantifierBundle(node)) => {
@@ -323,10 +535,25 @@ fn visit_formula_scope(
                     binders,
                     expanded,
                     derived,
+                    binder_universes,
                 );
-                visit_ids(binding.restriction, objects, &scoped, expanded, derived);
+                visit_ids(
+                    binding.restriction,
+                    objects,
+                    &scoped,
+                    expanded,
+                    derived,
+                    binder_universes,
+                );
             }
-            visit_scope_object(node.body, objects, &scoped, expanded, derived);
+            visit_scope_object(
+                node.body,
+                objects,
+                &scoped,
+                expanded,
+                derived,
+                binder_universes,
+            );
         }
         data!(FormulaNode::RespectivelyDistribution(node)) => {
             let scoped = binders_with(binders, node.streams.iter().map(|stream| stream.slot));
@@ -340,10 +567,25 @@ fn visit_formula_scope(
                     binders,
                     expanded,
                     derived,
+                    binder_universes,
                 );
-                visit_ids(stream.restriction, objects, &scoped, expanded, derived);
+                visit_ids(
+                    stream.restriction,
+                    objects,
+                    &scoped,
+                    expanded,
+                    derived,
+                    binder_universes,
+                );
             }
-            visit_scope_object(node.body, objects, &scoped, expanded, derived);
+            visit_scope_object(
+                node.body,
+                objects,
+                &scoped,
+                expanded,
+                derived,
+                binder_universes,
+            );
         }
     }
 }

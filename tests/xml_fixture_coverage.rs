@@ -6,7 +6,6 @@
 //! and parse as XML.
 
 use std::collections::BTreeSet;
-#[cfg(feature = "expensive_contracts")]
 use std::path::PathBuf;
 
 #[allow(unused_imports)]
@@ -22,6 +21,7 @@ use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 #[cfg(feature = "expensive_contracts")]
 use rayon::prelude::*;
+use sha2::{Digest, Sha256};
 #[cfg(feature = "expensive_contracts")]
 use xtask_common::fixtures::load_fixture_tree;
 
@@ -50,10 +50,7 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
             ".a'enai do ranji bacru",
             None,
         ),
-        (
-            "li xo jei do curve",
-            Some("SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER"),
-        ),
+        ("li xo jei do curve", None),
         (
             "doi mo do'udai",
             Some("NON-CANONICAL-GROUND"),
@@ -80,7 +77,7 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
         ),
         (
             "sa pu tcidu da poi srana le terfrica be zo y'ybu bei zo xy",
-            Some("RESTRICTED-EXISTS"),
+            None,
         ),
         (
             "su'oda zo'u mi prami da .ije naku do prami da",
@@ -226,6 +223,143 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
     );
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn content_first_question_scope_outputs_are_byte_pinned() {
+    let cases = [
+        (
+            "b59",
+            "mi djuno lo ka ce'u klama makau",
+            "972581968a0b60dde48af4b94c37fcf404cf177e96b1fa2c6264fc548d33792f",
+            "content-first-question-scope/b59.frozen.json",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.frozen.json"
+            ),
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.xml.txt"
+            ),
+            1,
+        ),
+        (
+            "b60",
+            "mi djica lo nu makau klama",
+            "fb3a0ff771b7831d8b6f6dc4b33f3aa7c3fe85bd88bd97521bf1f3b2d4e125a5",
+            "content-first-question-scope/b60.frozen.json",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.frozen.json"
+            ),
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.xml.txt"
+            ),
+            1,
+        ),
+        (
+            "b61",
+            "mi facki lo ni ma kau clani",
+            "8d39bd556d471b631f711647cfba208deeff09043f193d84f495ec2721f753fa",
+            "referent-sort-abstraction/b61.frozen.json",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/referent-sort-abstraction/b61.frozen.json"
+            ),
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/referent-sort-abstraction/b61.xml.txt"
+            ),
+            1,
+        ),
+        (
+            "b62",
+            "mi cusku lu ro da klama li'u",
+            "d0f9203c2a6d4da9f98f83867f382d097ce2c97098c3f50b8ff39e5b33069f62",
+            "sign-quotation/b62.frozen.json",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/sign-quotation/b62.frozen.json"
+            ),
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/sign-quotation/b62.xml.txt"
+            ),
+            0,
+        ),
+    ];
+
+    let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("crates/jbotci-semantics/tests/xml_focused_regressions");
+    let expected_frozen_json: BTreeSet<PathBuf> =
+        cases.iter().map(|case| fixture_root.join(case.3)).collect();
+    let mut actual_frozen_json = BTreeSet::new();
+    for group in std::fs::read_dir(&fixture_root)
+        .unwrap_or_else(|error| panic!("read {}: {error}", fixture_root.display()))
+    {
+        let group = group.expect("focused fixture group entry must be readable");
+        if !group
+            .file_type()
+            .expect("focused fixture group type must be readable")
+            .is_dir()
+        {
+            continue;
+        }
+        for fixture in std::fs::read_dir(group.path())
+            .unwrap_or_else(|error| panic!("read {}: {error}", group.path().display()))
+        {
+            let fixture = fixture.expect("focused fixture entry must be readable");
+            if fixture
+                .file_name()
+                .to_string_lossy()
+                .ends_with(".frozen.json")
+            {
+                actual_frozen_json.insert(fixture.path());
+            }
+        }
+    }
+    assert_eq!(
+        actual_frozen_json, expected_frozen_json,
+        "every focused frozen JSON fixture must be consumed by this byte-parity test",
+    );
+
+    for (
+        document,
+        source,
+        expected_hash,
+        _frozen_path,
+        frozen_json,
+        prototype_xml,
+        expected_embedded_questions,
+    ) in cases
+    {
+        let graph = graph_for_source(source)
+            .unwrap_or_else(|error| panic!("{source:?} must build and validate: {error}"));
+        let frozen_graph: serde_json::Value = serde_json::from_str(frozen_json)
+            .unwrap_or_else(|error| panic!("{document} frozen JSON must parse: {error}"));
+        assert_eq!(
+            serde_json::to_value(&graph).expect("generated graph serializes"),
+            frozen_graph,
+            "{source:?} generated graph differs from pinned JSON",
+        );
+        let rendered = render_xml(&graph, "<scope-dependence-first-visit>");
+        assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert_eq!(
+            rendered.output.matches("<EMBEDDED-QUESTIONS>").count(),
+            expected_embedded_questions,
+        );
+        assert!(!rendered.output.contains("SAME-FOR-ALL=\"true\""));
+        assert!(!rendered.output.contains("POSSIBLY-DIFFERENT-PER=\""));
+        assert_eq!(
+            rendered.output.replacen(
+                "DOC=\"&lt;scope-dependence-first-visit&gt;\"",
+                &format!("DOC=\"{document}\""),
+                1
+            ),
+            prototype_xml,
+            "{source:?} product/prototype XML differs beyond DOC",
+        );
+        assert_eq!(
+            format!("{:x}", Sha256::digest(rendered.output.as_bytes())),
+            expected_hash,
+            "{source:?} XML bytes changed",
+        );
+    }
+}
+
 #[cfg(feature = "expensive_contracts")]
 #[test]
 #[requires(true)]
@@ -288,7 +422,6 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
         "NON-COMPACT-REFERENT",
         "NON-DERIVABLE-GENERATED-CONTENT",
         "REPEATED-SINGLE-USE-EMISSION",
-        "RESTRICTED-EXISTS",
         "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
         "UNREPRESENTABLE-CYCLE",
     ] {

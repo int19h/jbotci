@@ -10,7 +10,9 @@
 //! research repo's internal profile name for this rendering is `lean3` (a
 //! historical experiment label); `smusni` is its product name.
 //! [`render_xml`] is the canonical SFN-XML renderer adopted from
-//! `render_xml.py` at research commit `e25eeaf`; its separate result type also
+//! `render_xml.py` at research commit `e25eeaf`, the original adoption point;
+//! [`xml`] and the corpus provenance pin the current paired prototype oracle.
+//! Its separate result type also
 //! returns occurrence-level omissions. [`NotationProfile`] remains the
 //! string-only profile seam, while XML uses its richer explicit entry point.
 //!

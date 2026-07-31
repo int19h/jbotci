@@ -1003,6 +1003,7 @@ pub(crate) use event_binding::apply_semantic_event_bindings;
 pub use event_binding::semantic_event_bindings_are_derived;
 pub(crate) use scope_dependence::apply_semantic_scope_dependence;
 pub use scope_dependence::semantic_object_scope_dependences_are_derived;
+pub(crate) use scope_dependence::semantic_scope_dependence_binder_universes;
 pub use semantic_object::*;
 
 #[requires(true)]
