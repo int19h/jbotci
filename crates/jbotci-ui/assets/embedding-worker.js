@@ -14,6 +14,12 @@ const BLOB_STORE = "blobs";
 const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings worker]";
 const LOCAL_VECTOR_CHUNK_ROWS = 256;
+const NEEDS_UPDATE_STATUS = "needs-update";
+const NEEDS_UPDATE_ERROR_CODE = "embedding-index-needs-update";
+const NEEDS_UPDATE_DETAIL =
+  "Embedding index is outdated for the current dictionary and CLL. Update semantic search before searching.";
+const NEEDS_UPDATE_SEARCH_MESSAGE =
+  "Semantic search index is outdated. Open Settings and click Update.";
 const ACTIVE_SETUP_STATUSES = new Set([
   "checking",
   "downloading-index",
@@ -75,7 +81,10 @@ self.onmessage = async (event) => {
     await resolveActiveModel(forceWasm);
     let value;
     if (type === "status") {
-      value = await status(payload?.setupActive === true);
+      value = await status(
+        payload?.corpusIdentityJson,
+        payload?.setupActive === true,
+      );
     } else if (type === "setup") {
       value = await setup(
         payload?.corpusJson || "{}",
@@ -86,6 +95,7 @@ self.onmessage = async (event) => {
       value = await removeSelectedModel();
     } else if (type === "search") {
       value = await search(
+        payload?.corpusIdentityJson,
         payload?.corpusId,
         payload?.query,
         payload?.limit || 0,
@@ -370,11 +380,13 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
   const spec = activeModelSpec();
   if (setupInProgress) {
     logInfo("setup request ignored because setup is already active");
-    return status();
+    const corpusIdentity = corpusIdentityFromCorpus(normalizeCorpus(JSON.parse(corpusJson)));
+    return status(corpusIdentity);
   }
   setupInProgress = true;
   try {
     const corpus = normalizeCorpus(JSON.parse(corpusJson));
+    const corpusIdentity = corpusIdentityFromCorpus(corpus);
     logInfo("setup started", {
       modelKey: spec.modelKey,
       modelLabel: spec.label,
@@ -408,7 +420,7 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
     await updateStatus("ready", pack?.source === "remote"
       ? "Using cached vector pack with local query embeddings."
       : "Using a browser-built vector pack with local query embeddings.");
-    return status();
+    return status(corpusIdentity);
   } catch (error) {
     await updateStatus("error", `Embedding setup failed: ${errorMessage(error)}`);
     throw error;
@@ -417,13 +429,19 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
   }
 }
 
-async function status(setupActive = false) {
+async function status(corpusIdentityJson = null, setupActive = false) {
   const spec = activeModelSpec();
   const meta = activeStatusMeta(await getModelMeta("status"));
   const pack = activeModelPack(await getModelMeta("pack"));
+  const corpusIdentity = pack === null
+    ? null
+    : normalizeCorpusIdentity(corpusIdentityJson);
+  const compatibilityIssue = pack === null
+    ? null
+    : packCompatibilityIssue(pack, corpusIdentity);
   const storedModelRuntime = activeStoredModelRuntime(modelRuntime || await getModelMeta("modelRuntime"));
   const indexBytes = await packIndexBytes(pack);
-  const display = statusDisplay(meta, pack, setupActive);
+  const display = statusDisplay(meta, pack, setupActive, compatibilityIssue);
   if (display.rewriteStoredStatus) {
     await updateStatus(display.status, display.detail, display.progress);
   }
@@ -448,13 +466,23 @@ async function status(setupActive = false) {
   };
 }
 
-function statusDisplay(meta, pack, setupActive = false) {
+function statusDisplay(meta, pack, setupActive = false, compatibilityIssue = null) {
   if ((setupInProgress || setupActive) && ACTIVE_SETUP_STATUSES.has(meta?.status)) {
     return {
       status: meta.status,
       detail: meta.detail || "Embeddings are being prepared.",
       progress: meta.progress || null,
       rewriteStoredStatus: false,
+    };
+  }
+  if (pack && compatibilityIssue !== null) {
+    return {
+      status: NEEDS_UPDATE_STATUS,
+      detail: NEEDS_UPDATE_DETAIL,
+      progress: null,
+      rewriteStoredStatus: meta?.status !== NEEDS_UPDATE_STATUS
+        || meta?.detail !== NEEDS_UPDATE_DETAIL
+        || meta?.progress !== null,
     };
   }
   if (ACTIVE_SETUP_STATUSES.has(meta?.status)) {
@@ -469,6 +497,14 @@ function statusDisplay(meta, pack, setupActive = false) {
     return {
       status: "not-installed",
       detail: "Previous embedding setup was interrupted. Click Download to restart indexing; cached model files will be reused.",
+      progress: null,
+      rewriteStoredStatus: true,
+    };
+  }
+  if (pack && meta?.status === NEEDS_UPDATE_STATUS) {
+    return {
+      status: "ready",
+      detail: "Embedding index is cached in this browser.",
       progress: null,
       rewriteStoredStatus: true,
     };
@@ -535,7 +571,7 @@ async function removeSelectedModel() {
   return status();
 }
 
-async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
+async function search(corpusIdentityJson, corpusId, query, limit, kindFiltersJson, forceWasm) {
   const trimmedQuery = String(query || "").trim();
   if (!trimmedQuery) {
     return { hits: [], message: null };
@@ -549,6 +585,11 @@ async function search(corpusId, query, limit, kindFiltersJson, forceWasm) {
       hits: [],
       message: "Download model and embeddings to use semantic search",
     };
+  }
+  const corpusIdentity = normalizeCorpusIdentity(corpusIdentityJson);
+  const compatibilityIssue = packCompatibilityIssue(pack, corpusIdentity);
+  if (compatibilityIssue !== null) {
+    return searchPackCompatibilityError(compatibilityIssue);
   }
   const corpus = pack.corpora?.[corpusId];
   if (!corpus) {
@@ -913,6 +954,63 @@ function normalizeCorpus(raw) {
     }
   }
   return corpus;
+}
+
+function corpusIdentityFromCorpus(corpus) {
+  return {
+    inputHash: corpus.inputHash,
+    inputFormatVersion: corpus.inputFormatVersion,
+    corpora: {
+      "vlacku-en": {
+        inputHash: corpus.dictionaryHash,
+        rowCount: corpus.dictionary.length,
+      },
+      "cukta-cll": {
+        inputHash: corpus.cllHash,
+        rowCount: corpus.cll.length,
+      },
+    },
+  };
+}
+
+function normalizeCorpusIdentity(value) {
+  let raw = value;
+  if (typeof value === "string") {
+    if (value.length === 0) {
+      throw new Error("embedding corpus identity is empty");
+    }
+    try {
+      raw = JSON.parse(value);
+    } catch (error) {
+      throw new Error(`invalid embedding corpus identity JSON: ${errorMessage(error)}`);
+    }
+  }
+  const identity = {
+    inputHash: raw?.inputHash || raw?.input_hash || "",
+    inputFormatVersion: raw?.inputFormatVersion || raw?.input_format_version || "",
+    corpora: {},
+  };
+  for (const [name, field] of [
+    ["inputHash", identity.inputHash],
+    ["inputFormatVersion", identity.inputFormatVersion],
+  ]) {
+    if (typeof field !== "string" || field.length === 0) {
+      throw new Error(`embedding corpus identity is missing ${name}`);
+    }
+  }
+  for (const corpusId of ["vlacku-en", "cukta-cll"]) {
+    const rawCorpus = raw?.corpora?.[corpusId];
+    const inputHash = rawCorpus?.inputHash || rawCorpus?.input_hash || "";
+    const rowCount = Number(rawCorpus?.rowCount ?? rawCorpus?.row_count);
+    if (typeof inputHash !== "string" || inputHash.length === 0) {
+      throw new Error(`embedding corpus identity is missing ${corpusId} inputHash`);
+    }
+    if (!Number.isSafeInteger(rowCount) || rowCount < 0) {
+      throw new Error(`embedding corpus identity has an invalid ${corpusId} rowCount`);
+    }
+    identity.corpora[corpusId] = { inputHash, rowCount };
+  }
+  return identity;
 }
 
 function normalizeInputDocuments(docs, label) {
@@ -1770,6 +1868,115 @@ function activeModelPack(pack) {
   return pack?.modelKey === activeModelSpec().modelKey ? pack : null;
 }
 
+function packCompatibilityIssue(pack, corpusIdentity) {
+  const corpusIssue = packCorpusCompatibilityIssue(pack, corpusIdentity);
+  if (corpusIssue !== null) {
+    return corpusIssue;
+  }
+  const spec = activeModelSpec();
+  for (const [field, actual, expected] of [
+    ["modelKey", pack.modelKey, spec.modelKey],
+    ["vectorSpaceKey", pack.vectorSpaceKey, spec.localVectorSpaceKey],
+    ["pooling", pack.pooling, spec.outputPooling],
+    ["maxWindowTokens", pack.maxWindowTokens, spec.maxSequenceLength],
+  ]) {
+    if (actual !== expected) {
+      return {
+        field,
+        expected: summarizeCompatibilityValue(expected),
+        actual: summarizeCompatibilityValue(actual),
+      };
+    }
+  }
+  for (const corpusId of ["vlacku-en", "cukta-cll"]) {
+    const corpus = pack.corpora[corpusId];
+    if (corpus.dimensions !== spec.dimensions) {
+      return {
+        field: "dimensions",
+        corpusId,
+        expected: spec.dimensions,
+        actual: corpus.dimensions ?? null,
+      };
+    }
+  }
+  const runtime = expectedQueryRuntime();
+  if (!packCompatibleWithRuntime(pack, runtime)) {
+    return {
+      field: "compatibleQueryRuntimes",
+      expected: runtime,
+      actual: pack.compatibleQueryRuntimes || (pack.runtime ? [pack.runtime] : []),
+    };
+  }
+  return null;
+}
+
+function packCorpusCompatibilityIssue(pack, corpusIdentity) {
+  if (!pack || !corpusIdentity) {
+    return {
+      field: "pack",
+      expected: "persisted pack and current corpus identity",
+      actual: pack ? "missing corpus identity" : "missing pack",
+    };
+  }
+  for (const [field, actual, expected] of [
+    ["inputHash", pack.inputHash, corpusIdentity.inputHash],
+    ["inputFormatVersion", pack.inputFormatVersion, corpusIdentity.inputFormatVersion],
+  ]) {
+    if (actual !== expected) {
+      return {
+        field,
+        expected: summarizeCompatibilityValue(expected),
+        actual: summarizeCompatibilityValue(actual),
+      };
+    }
+  }
+  for (const corpusId of ["vlacku-en", "cukta-cll"]) {
+    const actual = pack.corpora?.[corpusId];
+    const expected = corpusIdentity.corpora?.[corpusId];
+    if (!actual || !expected) {
+      return {
+        field: "corpora",
+        corpusId,
+        expected: expected || "current corpus identity",
+        actual: actual || "persisted pack corpus",
+      };
+    }
+    for (const [field, actualValue, expectedValue] of [
+      ["inputHash", actual.inputHash, expected.inputHash],
+      ["rowCount", actual.rowCount, expected.rowCount],
+      ["items.length", Array.isArray(actual.items) ? actual.items.length : null, expected.rowCount],
+    ]) {
+      if (actualValue !== expectedValue) {
+        return {
+          field,
+          corpusId,
+          expected: summarizeCompatibilityValue(expectedValue),
+          actual: summarizeCompatibilityValue(actualValue),
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function expectedQueryRuntime() {
+  const spec = activeModelSpec();
+  const runtime = activeRuntimeMode === "wasm" ? spec.wasmRuntime : spec.customRuntime;
+  return f2llmRuntimeDescriptor(runtime);
+}
+
+function searchPackCompatibilityError(compatibilityIssue) {
+  return {
+    hits: [],
+    message: NEEDS_UPDATE_SEARCH_MESSAGE,
+    error: {
+      code: NEEDS_UPDATE_ERROR_CODE,
+      message: NEEDS_UPDATE_SEARCH_MESSAGE,
+      compatibilityIssue,
+    },
+  };
+}
+
 function activeStoredModelRuntime(runtime) {
   if (!runtime) {
     return null;
@@ -2619,3 +2826,9 @@ async function removeOpfsDirectory(root, path) {
   const next = await root.getDirectoryHandle(path[0]);
   await removeOpfsDirectory(next, path.slice(1));
 }
+
+export {
+  packCorpusCompatibilityIssue,
+  searchPackCompatibilityError,
+  statusDisplay,
+};

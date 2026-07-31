@@ -249,10 +249,32 @@ function request(channel, type, payload = {}) {
   return client.request(channel, { type, payload: requestPayload });
 }
 
-export function jbotciEmbeddingStatus() {
-  return request(CHANNEL_STATUS, "status", {
+export async function jbotciEmbeddingStatus(corpusIdentityJson, corpusJson) {
+  const statusJson = await request(CHANNEL_STATUS, "status", {
+    corpusIdentityJson,
     setupActive: client.hasPending(CHANNEL_SETUP),
   });
+  let status;
+  try {
+    status = JSON.parse(statusJson);
+  } catch (_) {
+    return statusJson;
+  }
+  if (embeddingStatusShouldAutoUpdate(status) && !client.hasPending(CHANNEL_SETUP)) {
+    logInfo("updating stale downloaded embedding pack", {
+      modelKey: activeModelKey(),
+      packId: status.packId || null,
+    });
+    return request(CHANNEL_SETUP, "setup", {
+      corpusJson,
+      remoteBaseUrl: configuredRemoteBaseUrl,
+    });
+  }
+  return statusJson;
+}
+
+function embeddingStatusShouldAutoUpdate(status) {
+  return status?.status === "needs-update" && status?.source === "remote";
 }
 
 export function jbotciEmbeddingSetup(corpusJson, remoteBaseUrl = configuredRemoteBaseUrl) {
@@ -263,8 +285,21 @@ export function jbotciEmbeddingRemove() {
   return request(CHANNEL_REMOVE, "remove");
 }
 
-export function jbotciEmbeddingSearch(channel, corpusId, query, limit, kindFiltersJson = "[]") {
-  return request(channel, "search", { corpusId, query, limit, kindFiltersJson });
+export function jbotciEmbeddingSearch(
+  channel,
+  corpusId,
+  query,
+  limit,
+  kindFiltersJson = "[]",
+  corpusIdentityJson,
+) {
+  return request(channel, "search", {
+    corpusIdentityJson,
+    corpusId,
+    query,
+    limit,
+    kindFiltersJson,
+  });
 }
 
 function requireCatalog() {
@@ -277,3 +312,5 @@ function requireCatalog() {
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
+
+export { embeddingStatusShouldAutoUpdate };

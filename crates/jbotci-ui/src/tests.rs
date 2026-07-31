@@ -985,6 +985,78 @@ fn browser_embedding_js_default_model_keys_match_rust_catalog() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn embedding_corpus_identity_is_compact_and_complete() {
+    let corpus = serde_json::json!({
+        "inputHash": "aggregate",
+        "inputFormatVersion": "format-v1",
+        "dictionaryHash": "dictionary",
+        "cllHash": "cll",
+        "dictionary": [{ "input": "one" }, { "input": "two" }],
+        "cll": [{ "input": "three" }],
+    });
+
+    let identity_json = embedding_corpus_identity_json(&corpus.to_string()).unwrap();
+    let identity: serde_json::Value = serde_json::from_str(&identity_json).unwrap();
+
+    assert_eq!(identity["inputHash"], "aggregate");
+    assert_eq!(identity["inputFormatVersion"], "format-v1");
+    assert_eq!(identity["corpora"]["vlacku-en"]["inputHash"], "dictionary");
+    assert_eq!(identity["corpora"]["vlacku-en"]["rowCount"], 2);
+    assert_eq!(identity["corpora"]["cukta-cll"]["inputHash"], "cll");
+    assert_eq!(identity["corpora"]["cukta-cll"]["rowCount"], 1);
+    assert!(identity.get("dictionary").is_none());
+    assert!(identity.get("cll").is_none());
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn embedding_worker_stale_pack_regressions_pass() {
+    let test_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/embedding-worker.test.mjs");
+    let output = std::process::Command::new("node")
+        .args(["--test", test_path.to_str().unwrap()])
+        .output()
+        .expect("Node.js must run the embedding worker regression tests");
+
+    assert!(
+        output.status.success(),
+        "embedding worker regression tests failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn semantic_search_surfaces_typed_worker_error_message() {
+    let json = serde_json::json!({
+        "hits": [],
+        "message": "fallback",
+        "error": {
+            "code": "embedding-index-needs-update",
+            "message": "Semantic search index is outdated. Open Settings and click Update.",
+        },
+    })
+    .to_string();
+
+    let (vlacku_hits, vlacku_message) = parse_vlacku_semantic_search_json(&json);
+    let (cukta_hits, cukta_message) = parse_cukta_semantic_search_json(&json);
+
+    assert!(vlacku_hits.is_empty());
+    assert!(cukta_hits.is_empty());
+    assert_eq!(
+        vlacku_message.as_deref(),
+        Some("Semantic search index is outdated. Open Settings and click Update.")
+    );
+    assert_eq!(cukta_message, vlacku_message);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn embedding_progress_display_formats_byte_progress() {
     let state = EmbeddingSettingsState {
         progress_kind: Some("download".to_owned()),
