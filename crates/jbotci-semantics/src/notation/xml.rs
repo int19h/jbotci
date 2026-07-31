@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `2ee9d5ac6ad05c6c9c59b0f481c84b836f756cee`.  Like the frozen `smusni`
+//! `c5d369e98358bffe9026898bb9f21cb8885e4a9b`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -30,6 +30,10 @@ const KEY_RULES_BEFORE_SORTS: &[(&str, &str)] = &[
 ];
 
 const KEY_RULES_AFTER_SORTS: &[(&str, &str)] = &[
+    (
+        "embedded-questions",
+        "EMBEDDED-QUESTIONS preserves question metadata attached to an abstraction formula. UNKNOWN TYPE=\"question\" is the typed escape hatch for that metadata: FIELD names are JSON field names, and RECORD/LIST/STRING preserve its interchange values without claiming a compact question notation.",
+    ),
     (
         "some",
         "REF=\"SOME\" denotes a distinct elided node per occurrence; distinct nodes assert neither identity (=) nor non-identity (≠).",
@@ -996,11 +1000,7 @@ impl GraphData {
                     .entry(variable.to_owned())
                     .or_default()
                     .insert(owner.clone());
-                if matches!(
-                    optional_string(object, "operator"),
-                    Some("exists" | "forall" | "cardinality")
-                ) && let Some(restriction) = optional_string(object, "restriction")
-                {
+                if let Some(restriction) = optional_string(object, "restriction") {
                     quantifier_restrictions.insert((variable.to_owned(), restriction.to_owned()));
                 }
             }
@@ -1031,27 +1031,23 @@ impl GraphData {
                         );
                         let owners = binder_owner_sets.entry(parameter.to_owned()).or_default();
                         if let Some(abstractions) = embedding_abstractions.get(owner) {
-                            let question_body = optional_string(object, "body");
-                            let matching_abstractions: Vec<String> = abstractions
-                                .iter()
-                                .filter(|abstraction| {
-                                    optional_string(
-                                        json_object(objects.get(*abstraction).unwrap_or_else(
-                                            || {
-                                                panic!(
-                                                    "missing embedding abstraction: {abstraction:?}"
-                                                )
-                                            },
-                                        )),
-                                        "body",
-                                    ) == question_body
-                                })
-                                .cloned()
-                                .collect();
-                            if matching_abstractions.is_empty() {
+                            let question_body = string_field(object, "body");
+                            let mut matched_abstraction = false;
+                            for abstraction in abstractions {
+                                let abstraction_object =
+                                    json_object(objects.get(abstraction).unwrap_or_else(|| {
+                                        panic!("missing embedding abstraction: {abstraction:?}")
+                                    }));
+                                if ["body", "content"].into_iter().any(|field| {
+                                    optional_string(abstraction_object, field)
+                                        == Some(question_body)
+                                }) {
+                                    owners.insert(abstraction.clone());
+                                    matched_abstraction = true;
+                                }
+                            }
+                            if !matched_abstraction {
                                 owners.insert(owner.clone());
-                            } else {
-                                owners.extend(matching_abstractions);
                             }
                         } else {
                             owners.insert(owner.clone());
@@ -2644,7 +2640,6 @@ impl RenderState {
             "personalMassMembership",
             "deicticReference",
             "generatedReferent",
-            "embeddedQuestions",
         ]);
         handled.extend(FACET_FIELDS.iter().copied());
         if let Some(assigned_names) = object.get("assignedNames") {
@@ -2736,15 +2731,12 @@ impl RenderState {
         }
         if let Some(body_key) = optional_string(object, "body") {
             self.account_field(graph, object, "body");
-            let parameters = abstraction_parameters(graph, object);
+            let parameters = abstraction_parameters(graph, object, body_key);
             self.bound_variable_stack.extend(parameters.iter().cloned());
-            let embedded_questions = object
-                .get("embeddedQuestions")
-                .and_then(Value::as_array)
-                .map(Vec::as_slice)
-                .unwrap_or_default();
-            if object.contains_key("embeddedQuestions") {
+            let embedded_questions = embedded_questions_for_formula(graph, object, body_key);
+            if !embedded_questions.is_empty() {
                 self.account_field(graph, object, "embeddedQuestions");
+                handled.push("embeddedQuestions");
             }
             let (declarations, (rendered_body, rendered_questions)) = self.scoped_parts(
                 graph,
@@ -2753,14 +2745,7 @@ impl RenderState {
                     let rendered_body = state.render_pointer(graph, body_key);
                     let rendered_questions: Vec<XmlElement> = embedded_questions
                         .iter()
-                        .map(|question| {
-                            state.render_pointer(
-                                graph,
-                                question
-                                    .as_str()
-                                    .unwrap_or_else(|| panic!("embedded question must be an id")),
-                            )
-                        })
+                        .map(|question| state.render_pointer(graph, question))
                         .collect();
                     (rendered_body, rendered_questions)
                 },
@@ -2785,12 +2770,36 @@ impl RenderState {
         }
         if let Some(content) = optional_string(object, "content") {
             self.account_field(graph, object, "content");
-            result.push(self.scoped_pointer(
+            let parameters = abstraction_parameters(graph, object, content);
+            self.bound_variable_stack.extend(parameters.iter().cloned());
+            let embedded_questions = embedded_questions_for_formula(graph, object, content);
+            if !embedded_questions.is_empty() {
+                self.account_field(graph, object, "embeddedQuestions");
+                handled.push("embeddedQuestions");
+            }
+            let (declarations, (rendered_content, rendered_questions)) = self.scoped_parts(
                 graph,
-                "CONTENT",
-                content,
                 vec!["description-content".to_owned(), key.to_owned()],
-            ));
+                |state, graph| {
+                    let rendered_content = state.render_pointer(graph, content);
+                    let rendered_questions: Vec<XmlElement> = embedded_questions
+                        .iter()
+                        .map(|question| state.render_pointer(graph, question))
+                        .collect();
+                    (rendered_content, rendered_questions)
+                },
+            );
+            self.bound_variable_stack
+                .truncate(self.bound_variable_stack.len() - parameters.len());
+            let mut rendered = XmlElement::new("CONTENT");
+            Self::append_defs(&mut rendered, declarations);
+            rendered.push(rendered_content);
+            if !rendered_questions.is_empty() {
+                let mut questions = XmlElement::new("EMBEDDED-QUESTIONS");
+                questions.extend(rendered_questions);
+                rendered.push(questions);
+            }
+            result.push(rendered);
         }
         if let Some(parameters) = object.get("parameters").and_then(Value::as_array) {
             self.account_field(graph, object, "parameters");
@@ -4471,7 +4480,7 @@ mod tests {
         );
         assert_eq!(
             aggregate_hash("xml.txt"),
-            "d32fc7da5ccfe8ab3c4f88944e4c51f4d9df99da406f2a24d85cf7dcd6e8dafe"
+            "220c7b2e2d73ae4b0f98ba7e2927bc4108b351bc04267e040012eaa55e0ce3fd"
         );
     }
 
@@ -4562,6 +4571,48 @@ mod tests {
         malformed["objects"]["question:11"]["slots"][0]["parameter"] = Value::Number(7.into());
         assert!(
             std::panic::catch_unwind(|| render_xml_value(malformed, "<malformed-slot>")).is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstraction_content_and_direct_question_scopes_are_byte_pinned() {
+        let mut content_abstraction = graph("b58");
+        let formula = content_abstraction["objects"]["proposition:12"]
+            .as_object_mut()
+            .expect("b58 abstraction")
+            .remove("body")
+            .expect("b58 abstraction body");
+        content_abstraction["objects"]["proposition:12"]["content"] = formula;
+        content_abstraction["objects"]["proposition:12"]["sort"] =
+            Value::String("eventuality".to_owned());
+        let content_abstraction = render_xml_value(content_abstraction, "<nu-content-witness>")
+            .into_data()
+            .output;
+        assert!(!content_abstraction.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(content_abstraction.contains("<CONTENT>"));
+        assert!(content_abstraction.contains("<EMBEDDED-QUESTIONS>"));
+        assert_eq!(
+            format!("{:x}", Sha256::digest(content_abstraction.as_bytes())),
+            "4615f37c9f6f54276bb40fc9a2aed07abff9c95de27a2fa0dc962410bdf0e082"
+        );
+
+        let mut direct_question = graph("b58");
+        direct_question["objects"]["utterance:5"]["content"] =
+            Value::String("question:11".to_owned());
+        direct_question["objects"]
+            .as_object_mut()
+            .expect("b58 objects")
+            .remove("proposition:12");
+        let direct_question = render_xml_value(direct_question, "<direct-question-witness>")
+            .into_data()
+            .output;
+        assert!(!direct_question.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(direct_question.contains("<UNKNOWN TYPE=\"question\">"));
+        assert_eq!(
+            format!("{:x}", Sha256::digest(direct_question.as_bytes())),
+            "26d32fcbe81ce58d1f493ac4954e573b2ef9de1ddc071121d92374a5a72de274"
         );
     }
 
@@ -6360,8 +6411,33 @@ fn question_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec<St
 }
 
 #[requires(true)]
+#[ensures(ret.iter().all(|question| graph.objects.contains_key(*question)))]
+fn embedded_questions_for_formula<'a>(
+    graph: &'a GraphData,
+    object: &'a Map<String, Value>,
+    formula: &str,
+) -> Vec<&'a str> {
+    let mut questions = Vec::new();
+    if let Some(embedded) = object.get("embeddedQuestions").and_then(Value::as_array) {
+        for question in embedded {
+            let question = question
+                .as_str()
+                .unwrap_or_else(|| panic!("embedded question must be an id"));
+            if string_field(graph.object(question), "body") == formula {
+                questions.push(question);
+            }
+        }
+    }
+    questions
+}
+
+#[requires(true)]
 #[ensures(ret.iter().all(|parameter| graph.objects.contains_key(parameter)))]
-fn abstraction_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec<String> {
+fn abstraction_parameters(
+    graph: &GraphData,
+    object: &Map<String, Value>,
+    formula: &str,
+) -> Vec<String> {
     let mut parameters = Vec::new();
     if let Some(explicit) = object.get("parameters").and_then(Value::as_array) {
         parameters.extend(explicit.iter().map(|parameter| {
@@ -6372,13 +6448,12 @@ fn abstraction_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec
         }));
     }
     if let Some(questions) = object.get("embeddedQuestions").and_then(Value::as_array) {
-        let abstraction_body = optional_string(object, "body");
         for question in questions {
             let question = question
                 .as_str()
                 .unwrap_or_else(|| panic!("embedded question must be an id"));
             let question = graph.object(question);
-            if optional_string(question, "body") == abstraction_body {
+            if string_field(question, "body") == formula {
                 parameters.extend(question_parameters(graph, question));
             }
         }
@@ -6463,14 +6538,16 @@ impl RenderState {
                 Self::append_defs(&mut rendered, declarations);
                 rendered.push(body);
             } else {
-                let active = std::mem::take(&mut self.bound_variable_stack);
-                self.bound_variable_stack = active
-                    .iter()
-                    .filter(|binder| !parameters.contains(binder))
-                    .cloned()
-                    .collect();
+                let mut removed = Vec::new();
+                for index in (0..self.bound_variable_stack.len()).rev() {
+                    if parameters.contains(&self.bound_variable_stack[index]) {
+                        removed.push((index, self.bound_variable_stack.remove(index)));
+                    }
+                }
                 rendered.push(self.generic_value(graph, value));
-                self.bound_variable_stack = active;
+                for (index, binder) in removed.into_iter().rev() {
+                    self.bound_variable_stack.insert(index, binder);
+                }
             }
             result.push(rendered);
         }

@@ -2,7 +2,7 @@
 
 This directory vendors the authoritative SFN-XML adoption corpus from
 `int19h/tersmu-dsl-research` commit
-`2ee9d5ac6ad05c6c9c59b0f481c84b836f756cee`.
+`c5d369e98358bffe9026898bb9f21cb8885e4a9b`.
 
 - `*.frozen.json` are the 48 comparable canonical source graphs from
   `experiments/phase-a/battery-renders-smusni/fresh-json-v2`.
@@ -32,12 +32,12 @@ The prototype's default and provenance checks passed all 49 research
 documents, including the separate `b56-quote` witness. The selected
 48-document relative-name/content `sha256sum` manifests for the research and
 product XML directories both have aggregate SHA-256
-`e1ca608784eccec9828cc6bf13ea3c480b90bb894fe6107aef72a24ab513c633`.
+`9644ddd70564839c07db59a36b53121c0ab1e18f351eb72044e752294858eb5b`.
 All 48 product JSON files also compare byte-for-byte with the pinned research
 sources. Product tests independently pin ordered name/content hashes
 `69ea08a65aba19049f65070b9eb045361834ddfbd2773da972c047be325381b3`
 for JSON and
-`d32fc7da5ccfe8ab3c4f88944e4c51f4d9df99da406f2a24d85cf7dcd6e8dafe`
+`220c7b2e2d73ae4b0f98ba7e2927bc4108b351bc04267e040012eaa55e0ce3fd`
 for XML.
 
 The files are frozen evidence. Update them only after a separately reviewed
