@@ -50,10 +50,7 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
             ".a'enai do ranji bacru",
             None,
         ),
-        (
-            "li xo jei do curve",
-            Some("SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER"),
-        ),
+        ("li xo jei do curve", None),
         (
             "doi mo do'udai",
             Some("NON-CANONICAL-GROUND"),
