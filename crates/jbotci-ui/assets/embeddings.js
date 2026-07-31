@@ -260,21 +260,34 @@ export async function jbotciEmbeddingStatus(corpusIdentityJson, corpusJson) {
   } catch (_) {
     return statusJson;
   }
-  if (embeddingStatusShouldAutoUpdate(status) && !client.hasPending(CHANNEL_SETUP)) {
+  const automaticSetupPayload = embeddingAutomaticSetupPayload(
+    status,
+    corpusJson,
+    client.hasPending(CHANNEL_SETUP),
+  );
+  if (automaticSetupPayload !== null) {
     logInfo("updating stale downloaded embedding pack", {
       modelKey: activeModelKey(),
       packId: status.packId || null,
     });
-    return request(CHANNEL_SETUP, "setup", {
-      corpusJson,
-      remoteBaseUrl: configuredRemoteBaseUrl,
-    });
+    return request(CHANNEL_SETUP, "setup", automaticSetupPayload);
   }
   return statusJson;
 }
 
 function embeddingStatusShouldAutoUpdate(status) {
   return status?.status === "needs-update" && status?.source === "remote";
+}
+
+function embeddingAutomaticSetupPayload(status, corpusJson, setupPending) {
+  if (!embeddingStatusShouldAutoUpdate(status) || setupPending) {
+    return null;
+  }
+  return {
+    corpusJson,
+    remoteBaseUrl: configuredRemoteBaseUrl,
+    allowBrowserLocalBuild: false,
+  };
 }
 
 export function jbotciEmbeddingSetup(corpusJson, remoteBaseUrl = configuredRemoteBaseUrl) {
@@ -313,4 +326,7 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export { embeddingStatusShouldAutoUpdate };
+export {
+  embeddingAutomaticSetupPayload,
+  embeddingStatusShouldAutoUpdate,
+};

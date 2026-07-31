@@ -4,11 +4,15 @@ import test from "node:test";
 globalThis.self = globalThis;
 
 const {
+  installPackForSetup,
   packCorpusCompatibilityIssue,
   searchPackCompatibilityError,
   statusDisplay,
 } = await import("../assets/embedding-worker.js");
-const { embeddingStatusShouldAutoUpdate } = await import("../assets/embeddings.js");
+const {
+  embeddingAutomaticSetupPayload,
+  embeddingStatusShouldAutoUpdate,
+} = await import("../assets/embeddings.js");
 
 const currentIdentity = {
   inputHash: "current-aggregate-hash",
@@ -82,4 +86,85 @@ test("only stale downloaded packs are auto-updated", () => {
     embeddingStatusShouldAutoUpdate({ status: "ready", source: "remote" }),
     false,
   );
+  assert.equal(
+    embeddingAutomaticSetupPayload(
+      { status: "needs-update", source: "remote" },
+      "{\"corpus\":true}",
+      false,
+    )?.allowBrowserLocalBuild,
+    false,
+  );
+  assert.equal(
+    embeddingAutomaticSetupPayload(
+      { status: "needs-update", source: "remote" },
+      "{\"corpus\":true}",
+      true,
+    ),
+    null,
+  );
+});
+
+test("automatic remote repair never falls back to browser-local indexing", async (t) => {
+  const structuredMissReasons = [
+    "catalog-unavailable",
+    "no-compatible-vector-space",
+    "manifest-unavailable",
+    "manifest-incompatible",
+    "corpus-manifest-incompatible",
+  ];
+  const remoteResults = structuredMissReasons.map((reason) => ({
+    name: reason,
+    expectedReason: reason,
+    loadRemotePack: async () => ({
+      loaded: false,
+      reason,
+      detail: { test: reason },
+    }),
+  }));
+  remoteResults.push(
+    {
+      name: "download failure",
+      expectedReason: "remote-update-failed",
+      loadRemotePack: async () => {
+        throw new Error("remote vector download failed");
+      },
+    },
+  );
+
+  for (const remoteResult of remoteResults) {
+    await t.test(remoteResult.name, async () => {
+      let localBuildCount = 0;
+      const outcome = await installPackForSetup({
+        allowBrowserLocalBuild: false,
+        loadRemotePack: remoteResult.loadRemotePack,
+        buildLocalPack: async () => {
+          localBuildCount += 1;
+        },
+      });
+
+      assert.equal(localBuildCount, 0);
+      assert.equal(outcome.installed, false);
+      assert.equal(outcome.status, "needs-update");
+      assert.match(outcome.detail, /outdated/i);
+      assert.equal(outcome.remoteReason, remoteResult.expectedReason);
+    });
+  }
+});
+
+test("explicit setup retains browser-local fallback after a remote miss", async () => {
+  let localBuildCount = 0;
+  const outcome = await installPackForSetup({
+    allowBrowserLocalBuild: true,
+    loadRemotePack: async () => ({
+      loaded: false,
+      reason: "catalog-unavailable",
+      detail: null,
+    }),
+    buildLocalPack: async () => {
+      localBuildCount += 1;
+    },
+  });
+
+  assert.equal(localBuildCount, 1);
+  assert.equal(outcome.installed, true);
 });

@@ -90,6 +90,7 @@ self.onmessage = async (event) => {
         payload?.corpusJson || "{}",
         normalizeRemoteBaseUrl(payload?.remoteBaseUrl),
         forceWasm,
+        payload?.allowBrowserLocalBuild !== false,
       );
     } else if (type === "remove") {
       value = await removeSelectedModel();
@@ -376,7 +377,7 @@ function packSummary(pack) {
   };
 }
 
-async function setup(corpusJson, remoteBaseUrl, forceWasm) {
+async function setup(corpusJson, remoteBaseUrl, forceWasm, allowBrowserLocalBuild = true) {
   const spec = activeModelSpec();
   if (setupInProgress) {
     logInfo("setup request ignored because setup is already active");
@@ -384,13 +385,15 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
     return status(corpusIdentity);
   }
   setupInProgress = true;
+  let corpusIdentity = null;
   try {
     const corpus = normalizeCorpus(JSON.parse(corpusJson));
-    const corpusIdentity = corpusIdentityFromCorpus(corpus);
+    corpusIdentity = corpusIdentityFromCorpus(corpus);
     logInfo("setup started", {
       modelKey: spec.modelKey,
       modelLabel: spec.label,
       remoteBaseUrl,
+      allowBrowserLocalBuild,
       corpus: corpusSummary(corpus),
     });
     await requestPersistentStorage();
@@ -400,18 +403,29 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
     logInfo("query model ready", { runtime: activeQueryRuntime() });
     await checkQuota(forceWasm);
     await updateStatus("checking", "Looking for a vector pack.");
-    const remoteAttempt = await loadRemotePackIfAvailable(corpus, remoteBaseUrl);
-    if (!remoteAttempt.loaded) {
-      if (spec.browserLocalIndexing === false) {
-        throw new Error(
-          `${spec.label} requires a compatible prebuilt remote vector pack; ${remoteAttempt.reason}.`,
-        );
-      }
-      logWarn("remote vector pack unavailable; falling back to browser-local indexing", {
-        reason: remoteAttempt.reason,
-        detail: remoteAttempt.detail || null,
+    const packSetup = await installPackForSetup({
+      allowBrowserLocalBuild,
+      loadRemotePack: () => loadRemotePackIfAvailable(corpus, remoteBaseUrl),
+      buildLocalPack: async (remoteAttempt) => {
+        if (spec.browserLocalIndexing === false) {
+          throw new Error(
+            `${spec.label} requires a compatible prebuilt remote vector pack; ${remoteAttempt.reason}.`,
+          );
+        }
+        logWarn("remote vector pack unavailable; falling back to browser-local indexing", {
+          reason: remoteAttempt.reason,
+          detail: remoteAttempt.detail || null,
+        });
+        await buildLocalPack(corpus);
+      },
+    });
+    if (!packSetup.installed) {
+      logWarn("automatic remote update unavailable; keeping stale embedding pack", {
+        reason: packSetup.remoteReason,
+        detail: packSetup.remoteDetail,
       });
-      await buildLocalPack(corpus);
+      await updateStatus(packSetup.status, packSetup.detail);
+      return status(corpusIdentity);
     }
     const pack = await getModelMeta("pack");
     logInfo("setup finished", {
@@ -422,11 +436,53 @@ async function setup(corpusJson, remoteBaseUrl, forceWasm) {
       : "Using a browser-built vector pack with local query embeddings.");
     return status(corpusIdentity);
   } catch (error) {
+    if (!allowBrowserLocalBuild && corpusIdentity !== null) {
+      logWarn("automatic remote update failed; keeping stale embedding pack", {
+        error: errorMessage(error),
+      });
+      await updateStatus(NEEDS_UPDATE_STATUS, NEEDS_UPDATE_DETAIL);
+      return status(corpusIdentity);
+    }
     await updateStatus("error", `Embedding setup failed: ${errorMessage(error)}`);
     throw error;
   } finally {
     setupInProgress = false;
   }
+}
+
+async function installPackForSetup({
+  allowBrowserLocalBuild,
+  loadRemotePack,
+  buildLocalPack: buildBrowserLocalPack,
+}) {
+  try {
+    const remoteAttempt = await loadRemotePack();
+    if (remoteAttempt.loaded) {
+      return { installed: true };
+    }
+    if (!allowBrowserLocalBuild) {
+      return setupNeedsUpdate(remoteAttempt.reason, remoteAttempt.detail);
+    }
+    await buildBrowserLocalPack(remoteAttempt);
+    return { installed: true };
+  } catch (error) {
+    if (!allowBrowserLocalBuild) {
+      return setupNeedsUpdate("remote-update-failed", {
+        error: errorMessage(error),
+      });
+    }
+    throw error;
+  }
+}
+
+function setupNeedsUpdate(remoteReason, remoteDetail = null) {
+  return {
+    installed: false,
+    status: NEEDS_UPDATE_STATUS,
+    detail: NEEDS_UPDATE_DETAIL,
+    remoteReason,
+    remoteDetail,
+  };
 }
 
 async function status(corpusIdentityJson = null, setupActive = false) {
@@ -2828,6 +2884,7 @@ async function removeOpfsDirectory(root, path) {
 }
 
 export {
+  installPackForSetup,
   packCorpusCompatibilityIssue,
   searchPackCompatibilityError,
   statusDisplay,
