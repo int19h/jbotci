@@ -2,7 +2,7 @@
 
 This directory vendors the authoritative SFN-XML adoption corpus from
 `int19h/tersmu-dsl-research` commit
-`c29cf9147378fa424c58bdbd55c4ad4e92a193f1`.
+`51c19cf18d1df2e880744fc9ceb2846d92338571`.
 
 - `*.frozen.json` are the 48 comparable canonical source graphs from
   `experiments/phase-a/battery-renders-smusni/fresh-json-v2`.
@@ -58,15 +58,34 @@ The fallback sweep replaced every known compact occurrence that formerly used
 | two semantic diagnostics | 6 | repeatable `WARNING` text elements | 2 |
 
 The 50-document Phase-B sweep additionally pins place questions, tense-modal
-pointers, questioned math operators, and quantity question parameters.
+pointers, questioned math operators, and quantity question parameters, with
+the representation population fixed at exactly 49 compact documents and one
+typed graph.
 Focused live/synthetic witnesses pin lexical `RELATION-METADATA` (including
 place descriptions, expansion, and rafsi bindings), orphan embedded questions,
-and a genuinely novel nested field that must still use the lossless fallback.
+and genuinely novel nested fields that must still use the lossless fallback.
+In particular, a text-form quantity retains `VALUE` when an unknown companion
+adds fallback children, and its `QuantityText` waiver remains exact with either
+`questionParameters` or unknown keys. A typed-graph witness also proves that
+only `relationLabel` structurally inside a predication's `tanruLink` receives
+the composition-provenance waiver; an unrelated field of the same name remains
+a generic `FIELD` with its value preserved.
 The static semantic field inventory is the closed known-field registry. Product
 tests require zero generic scaffolding in every compact primary, focused,
 Phase-B, and reviewer-regression render. `FORM="TYPED-GRAPH"` remains the
 deliberate whole-document projection boundary and is exempt from that compact
 assertion.
+
+The first adversarial review also recorded explicit future boundaries. Current
+semantic construction emits warning diagnostics only and interval modifiers
+remain closed to aspect/recurrence; new variants require new typed forms. A
+nested-record `diagnostics` key currently fails loud through omission
+accounting but lacks a dedicated witness. Body `RELATION-METADATA` is an
+interim preservation form pending WORD-card deduplication in #709/#711, and
+`PREDICATE="tanru"` remains frozen JSON data rather than structural vocabulary.
+The prototype's pre-existing rejection of the Phase-B multiple-domain question
+remains outside the 48-document parity contract. The paired research README at
+the pinned commit records these follow-ups in full.
 
 Before these files were imported, a fresh run from the clean research checkout
 at the pinned commit was performed:
@@ -99,8 +118,8 @@ The files are frozen evidence. Update them only after a separately reviewed
 notation decision and a fresh, pinned-oracle parity proof.
 
 `BINDER_UNIVERSES.json` is the exact first-visit binder-universe projection
-for the 48 XML corpus graphs and the Phase B test graphs. It was generated
-by the corrected mechanical traversal at the pinned research commit; its
+for the 48 XML corpus graphs and the Phase B test graphs. It is validated by
+the corrected mechanical traversal at the pinned research commit; its
 SHA-256 is
 `d672abb2849175b03a18d0c45b854a5094a702ddb11adde6d7075ccd419b5776`.
 The XML corpus test mechanically pins both this digest and the exact

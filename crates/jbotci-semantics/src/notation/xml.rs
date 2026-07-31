@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `c29cf9147378fa424c58bdbd55c4ad4e92a193f1`. Like the frozen `smusni`
+//! `51c19cf18d1df2e880744fc9ceb2846d92338571`. Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -454,6 +454,14 @@ fn string_field<'a>(object: &'a Map<String, Value>, field: &str) -> &'a str {
 #[ensures(true)]
 fn optional_string<'a>(object: &'a Map<String, Value>, field: &str) -> Option<&'a str> {
     object.get(field).and_then(Value::as_str)
+}
+
+#[requires(true)]
+#[ensures(ret -> field == "tanruLink" && value.is_object())]
+fn is_composition_link_field(parent: &Map<String, Value>, field: &str, value: &Value) -> bool {
+    optional_string(parent, "type") == Some("predication")
+        && field == "tanruLink"
+        && value.is_object()
 }
 
 #[requires(true)]
@@ -3014,7 +3022,10 @@ impl RenderState {
                 value,
                 &["integer", "text", "mathExpression", "questionParameters"],
             ));
-            if primary[0] != "text" || !rendered.attributes.is_empty() {
+            if primary[0] != "text"
+                || !rendered.attributes.is_empty()
+                || !rendered.children.is_empty()
+            {
                 result.push(rendered);
             }
         }
@@ -3806,6 +3817,7 @@ impl RenderState {
         value: &Value,
         descriptor_variable: Option<bool>,
         quantity_value: bool,
+        composition_link: bool,
     ) -> XmlElement {
         match value {
             Value::String(value) if graph.object_keys.contains(value) => {
@@ -3833,6 +3845,7 @@ impl RenderState {
                         item,
                         descriptor_variable,
                         quantity_value,
+                        composition_link,
                     ));
                     list.push(element);
                 }
@@ -3843,6 +3856,7 @@ impl RenderState {
                 object,
                 descriptor_variable,
                 quantity_value,
+                composition_link,
                 false,
             ),
         }
@@ -3856,6 +3870,7 @@ impl RenderState {
         object: &Map<String, Value>,
         descriptor_variable: Option<bool>,
         quantity_value: bool,
+        composition_link: bool,
         skip_type: bool,
     ) -> XmlElement {
         self.account_object(graph, object);
@@ -3877,7 +3892,7 @@ impl RenderState {
                 self.record_field_omission(graph, object, field, XmlWaiverFamily::IntroducedBy);
                 continue;
             }
-            if field == "relationLabel" {
+            if composition_link && field == "relationLabel" {
                 self.record_field_omission(
                     graph,
                     object,
@@ -3921,12 +3936,14 @@ impl RenderState {
                 .then(|| optional_string(object, "category") == Some("variable"));
             let child_quantity_value =
                 field == "value" && optional_string(object, "type") == Some("quantity");
+            let child_composition_link = is_composition_link_field(object, field, value);
             let mut rendered = XmlElement::with_attributes("FIELD", [("NAME", field.as_str())]);
             rendered.push(self.render_typed_graph_value(
                 graph,
                 value,
                 child_descriptor_variable,
                 child_quantity_value,
+                child_composition_link,
             ));
             record.push(rendered);
         }
@@ -3947,7 +3964,7 @@ impl RenderState {
                 ("TYPE", string_field(object, "type")),
             ],
         );
-        let record = self.render_typed_graph_record(graph, object, None, false, true);
+        let record = self.render_typed_graph_record(graph, object, None, false, false, true);
         result.extend(record.children);
         result
     }
@@ -4931,6 +4948,7 @@ mod tests {
         value: &Value,
         path: &str,
         descriptor_variable: Option<bool>,
+        composition_link: bool,
         output: &mut BTreeSet<XmlOmission>,
     ) {
         match value {
@@ -4940,6 +4958,7 @@ mod tests {
                         item,
                         &format!("{path}/{index}"),
                         None,
+                        false,
                         output,
                     );
                 }
@@ -4967,7 +4986,6 @@ mod tests {
                 }
                 if optional_string(object, "type") == Some("quantity")
                     && let Some(quantity) = object.get("value").and_then(Value::as_object)
-                    && quantity.len() == 1
                     && quantity.get("text").is_some_and(Value::is_string)
                 {
                     output.insert(new!(XmlOmission {
@@ -4989,7 +5007,7 @@ mod tests {
                             surface: field_surface(field_path.clone()),
                         }));
                     }
-                    if field == "relationLabel" && path.ends_with("/tanruLink") {
+                    if composition_link && field == "relationLabel" {
                         output.insert(new!(XmlOmission {
                             waiver: Some(XmlWaiverFamily::CompositionRelationLabel),
                             surface: field_surface(field_path.clone()),
@@ -5010,6 +5028,7 @@ mod tests {
                         &field_path,
                         (field == "descriptor")
                             .then(|| optional_string(object, "category") == Some("variable")),
+                        is_composition_link_field(object, field, item),
                         output,
                     );
                 }
@@ -5022,7 +5041,7 @@ mod tests {
     #[ensures(true)]
     fn declared_waiver_occurrences(graph: &Value) -> BTreeSet<XmlOmission> {
         let mut occurrences = BTreeSet::new();
-        collect_declared_waiver_occurrences(graph, "", None, &mut occurrences);
+        collect_declared_waiver_occurrences(graph, "", None, false, &mut occurrences);
         occurrences
     }
 
@@ -5576,6 +5595,108 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn text_quantity_companions_are_accounted_and_unknown_children_survive() {
+        let mut unknown = graph("b23");
+        unknown["objects"]["quantity:20"]["value"]["novelNested"] = serde_json::json!({
+            "inner": ["must-render"]
+        });
+        let expected = declared_waiver_occurrences(&unknown);
+        assert!(expected.contains(&new!(XmlOmission {
+            waiver: Some(XmlWaiverFamily::QuantityText),
+            surface: field_surface("/objects/quantity:20/value/text".to_owned()),
+        })));
+
+        let rendered = render_xml_value(unknown, "<text-quantity-unknown-child>");
+        assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        for preserved in [
+            "<VALUE>",
+            "<EXTRA>",
+            "<FIELD NAME=\"novelNested\">",
+            "<FIELD NAME=\"inner\">",
+            "<LIST>",
+            "<ITEM>",
+            "<STRING VALUE=\"must-render\"/>",
+        ] {
+            assert!(rendered.output.contains(preserved), "missing {preserved}");
+        }
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected,
+            "an emitted fallback child must not disappear from occurrence accounting"
+        );
+
+        let question_quantity = phaseb_graph("question-multiple-domains");
+        let expected = declared_waiver_occurrences(&question_quantity);
+        assert!(expected.contains(&new!(XmlOmission {
+            waiver: Some(XmlWaiverFamily::QuantityText),
+            surface: field_surface("/objects/quantity:15/value/text".to_owned()),
+        })));
+        let rendered = render_xml_value(question_quantity, "<text-quantity-question-parameter>");
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected,
+            "text plus questionParameters must use the same exact QuantityText waiver oracle"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn typed_graph_waives_only_structural_composition_relation_labels() {
+        let mut typed = graph("b39");
+        let root = typed["root"].as_str().expect("b39 root").to_owned();
+        typed["objects"][root.as_str()]["relationLabel"] =
+            Value::String("unrelated-novel-label".to_owned());
+        typed["objects"]["cycle:90"] = serde_json::json!({
+            "type": "unknown",
+            "next": "cycle:91"
+        });
+        typed["objects"]["cycle:91"] = serde_json::json!({
+            "type": "unknown",
+            "next": "cycle:90"
+        });
+        let expected = declared_waiver_occurrences(&typed);
+
+        let rendered = render_xml_value(typed, "<typed-unrelated-relation-label>");
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(rendered.output.contains("<FIELD NAME=\"relationLabel\">"));
+        assert!(
+            rendered
+                .output
+                .contains("<STRING VALUE=\"unrelated-novel-label\"/>")
+        );
+        assert_eq!(
+            rendered
+                .omissions
+                .iter()
+                .filter(|omission| {
+                    omission.waiver == Some(XmlWaiverFamily::CompositionRelationLabel)
+                })
+                .count(),
+            2,
+            "only b39's two structural composition links are provenance-only"
+        );
+        assert_eq!(
+            rendered
+                .into_data()
+                .omissions
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
+            expected
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn xml_rendering_is_deterministic_on_all_48_documents() {
         for document in XML_CORPUS_DOCS {
             let graph = graph(document);
@@ -5618,7 +5739,7 @@ mod tests {
                 assert_no_compact_generic_fallback(&rendered.output, &document);
             }
         }
-        assert!(compact > 0, "Phase B compact form was not exercised");
+        assert_eq!(compact, 49, "Phase B compact population changed");
     }
 }
 
