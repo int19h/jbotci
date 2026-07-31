@@ -207,9 +207,14 @@ jobs:
 
       - name: Download verified published 80m WebGPU artifact
         run: |
+          # Regenerate consciously (copy the digest below and the component pin into
+          # tools/f2llm-oracles/webgpu-artifact-identity-pins.json):
+          # python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
+          #   --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
+          #   --print-artifact-identity
           python3 tools/f2llm-oracles/download-webgpu-artifacts.py \
             --manifest-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/manifest.json \
-            --expected-manifest-sha256 f25482d5612b2f74f5b76739eb33bdb52862866918cc7a5e4fb7dfb3aa06c6c2 \
+            --expected-artifact-identity 6aa5a067235c8b8a78855e2ebed1d112db5a1a702ae228686bf10eae4b3834aa \
             --base-url https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1/ \
             --out "${JBOTCI_F2LLM_ARTIFACT_ROOT}/f2llm-v2-80m-q4-320"
 

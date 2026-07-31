@@ -875,6 +875,20 @@ pub(super) fn dialect_highlight_class(token: &str) -> &'static str {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[invariant(!corpus_json.is_empty() && !identity_json.is_empty())]
+#[derive(Debug, Clone)]
+struct BrowserEmbeddingCorpus {
+    corpus_json: Rc<str>,
+    identity_json: Rc<str>,
+}
+
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    static BROWSER_EMBEDDING_CORPUS: RefCell<Option<BrowserEmbeddingCorpus>> =
+        const { RefCell::new(None) };
+}
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(module = "/assets/embeddings.js")]
 extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureWorker)]
@@ -896,7 +910,7 @@ extern "C" {
     fn js_embedding_preferred_model_key() -> String;
 
     #[wasm_bindgen(js_name = jbotciEmbeddingStatus)]
-    fn js_embedding_status() -> js_sys::Promise;
+    fn js_embedding_status(corpus_identity_json: &str, corpus_json: &str) -> js_sys::Promise;
 
     #[wasm_bindgen(js_name = jbotciEmbeddingSetup)]
     fn js_embedding_setup(corpus_json: &str, remote_base_url: &str) -> js_sys::Promise;
@@ -914,6 +928,7 @@ extern "C" {
         query: &str,
         limit: usize,
         kind_filters_json: &str,
+        corpus_identity_json: &str,
     ) -> js_sys::Promise;
 }
 
@@ -1135,7 +1150,9 @@ pub(super) async fn setup_embeddings(mut settings: Signal<EmbeddingSettingsState
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 pub(super) async fn embedding_setup_corpus_json() -> Result<String, String> {
-    embedding_corpus_json_from_compute_worker().await
+    browser_embedding_corpus()
+        .await
+        .map(|corpus| corpus.corpus_json.to_string())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1158,6 +1175,70 @@ pub(super) async fn embedding_corpus_json_from_compute_worker() -> Result<String
         return Err("compute worker returned the wrong embedding corpus response".to_owned());
     };
     Ok(json)
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+async fn browser_embedding_corpus() -> Result<BrowserEmbeddingCorpus, String> {
+    if let Some(corpus) = BROWSER_EMBEDDING_CORPUS.with(|cache| cache.borrow().clone()) {
+        return Ok(corpus);
+    }
+    let corpus_json = embedding_corpus_json_from_compute_worker().await?;
+    let identity_json = embedding_corpus_identity_json(&corpus_json)?;
+    let corpus = new!(BrowserEmbeddingCorpus {
+        corpus_json: Rc::<str>::from(corpus_json),
+        identity_json: Rc::<str>::from(identity_json),
+    });
+    BROWSER_EMBEDDING_CORPUS.with(|cache| {
+        cache.replace(Some(corpus.clone()));
+    });
+    Ok(corpus)
+}
+
+#[requires(!corpus_json.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
+pub(super) fn embedding_corpus_identity_json(corpus_json: &str) -> Result<String, String> {
+    let corpus: serde_json::Value =
+        serde_json::from_str(corpus_json).map_err(|error| error.to_string())?;
+    let string_field = |camel_case: &str, snake_case: &str| {
+        corpus
+            .get(camel_case)
+            .or_else(|| corpus.get(snake_case))
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| format!("embedding corpus is missing {camel_case}"))
+    };
+    let input_hash = string_field("inputHash", "input_hash")?;
+    let input_format_version = string_field("inputFormatVersion", "input_format_version")?;
+    let dictionary_hash = string_field("dictionaryHash", "dictionary_hash")?;
+    let cll_hash = string_field("cllHash", "cll_hash")?;
+    let dictionary_rows = corpus
+        .get("dictionary")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::len)
+        .ok_or_else(|| "embedding corpus dictionary must be an array".to_owned())?;
+    let cll_rows = corpus
+        .get("cll")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::len)
+        .ok_or_else(|| "embedding corpus CLL must be an array".to_owned())?;
+    serde_json::to_string(&serde_json::json!({
+        "inputHash": input_hash,
+        "inputFormatVersion": input_format_version,
+        "corpora": {
+            "vlacku-en": {
+                "inputHash": dictionary_hash,
+                "rowCount": dictionary_rows,
+            },
+            "cukta-cll": {
+                "inputHash": cll_hash,
+                "rowCount": cll_rows,
+            },
+        },
+    }))
+    .map_err(|error| error.to_string())
 }
 
 #[requires(true)]
@@ -1687,7 +1768,12 @@ pub(super) fn cukta_compute_request(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 pub(super) async fn embedding_status_json() -> Result<String, String> {
-    promise_to_string(js_embedding_status()).await
+    let corpus = browser_embedding_corpus().await?;
+    promise_to_string(js_embedding_status(
+        &corpus.identity_json,
+        &corpus.corpus_json,
+    ))
+    .await
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -1771,12 +1857,14 @@ pub(super) async fn embedding_search_json(
 ) -> Result<String, String> {
     configure_embedding_model_key(&load_embedding_model_key());
     let kind_filters_json = serde_json::to_string(kind_filters).unwrap_or_else(|_| "[]".to_owned());
+    let corpus = browser_embedding_corpus().await?;
     promise_to_string(js_embedding_search(
         channel,
         corpus_id,
         query,
         limit,
         &kind_filters_json,
+        &corpus.identity_json,
     ))
     .await
 }
@@ -2609,7 +2697,7 @@ pub(super) fn parse_vlacku_semantic_search_json(
     json: &str,
 ) -> (Vec<VlackuSemanticSearchHit>, Option<String>) {
     let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
-    let message = json_string(&value, "message");
+    let message = semantic_search_response_message(&value);
     let hits = value
         .get("hits")
         .and_then(serde_json::Value::as_array)
@@ -2631,7 +2719,7 @@ pub(super) fn parse_cukta_semantic_search_json(
     json: &str,
 ) -> (Vec<CuktaSemanticSearchHit>, Option<String>) {
     let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or(serde_json::Value::Null);
-    let message = json_string(&value, "message");
+    let message = semantic_search_response_message(&value);
     let hits = value
         .get("hits")
         .and_then(serde_json::Value::as_array)
@@ -2645,6 +2733,15 @@ pub(super) fn parse_cukta_semantic_search_json(
         })
         .collect();
     (hits, message)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|message| !message.is_empty()))]
+fn semantic_search_response_message(value: &serde_json::Value) -> Option<String> {
+    value
+        .get("error")
+        .and_then(|error| json_string(error, "message"))
+        .or_else(|| json_string(value, "message"))
 }
 
 #[requires(true)]
