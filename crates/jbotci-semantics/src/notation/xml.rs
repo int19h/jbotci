@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `f2a04abacb243a196c554c630e8cebd404475614`.  Like the frozen `smusni`
+//! `c29cf9147378fa424c58bdbd55c4ad4e92a193f1`. Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -34,7 +34,15 @@ const KEY_RULES_BEFORE_SORTS: &[(&str, &str)] = &[
 const KEY_RULES_AFTER_SORTS: &[(&str, &str)] = &[
     (
         "embedded-questions",
-        "EMBEDDED-QUESTIONS preserves question metadata attached to the abstraction formula named by the question body. An attachment whose question body is neither the abstraction BODY nor CONTENT remains visibly typed as EXTRA/FIELD NAME=\"embeddedQuestions\". UNKNOWN TYPE=\"question\" is the typed escape hatch for question metadata: FIELD names are JSON field names, and RECORD/LIST/STRING preserve its interchange values without claiming a compact question notation.",
+        "EMBEDDED-QUESTIONS preserves typed QUESTION metadata attached to the abstraction formula named by QUESTION/BODY. KIND, MODE, and DOMAIN classify the question; ASKER, RESPONDENT, SLOTS, FOCUS, and PRESUPPOSED-ANSWER preserve its participants. SLOT parameters bind only the question BODY.",
+    ),
+    (
+        "kind-composition",
+        "KIND-COMPOSITION is first-class predication content: MODIFIER A of KIND B denotes an A-modified kind of B while retaining B's place structure. The exact modifier-to-kind relation remains unspecified; nesting preserves the semantic graph's grouping. RELATION-LABEL is derivational provenance and appears only in provenance mode.",
+    ),
+    (
+        "warnings",
+        "Each semantic diagnostic is one repeatable WARNING text element; its character content is the diagnostic message.",
     ),
     (
         "some",
@@ -157,6 +165,7 @@ const DESCRIPTOR_KINDS: &[&str] = &[
 #[invariant(::IntroducedBy => true)]
 #[invariant(::QuantityText => true)]
 #[invariant(::BoundVariableWord => true)]
+#[invariant(::CompositionRelationLabel => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum XmlWaiverFamily {
     SourceRecord,
@@ -165,6 +174,7 @@ pub enum XmlWaiverFamily {
     IntroducedBy,
     QuantityText,
     BoundVariableWord,
+    CompositionRelationLabel,
 }
 
 /// One typed object or field occurrence in canonical semantic-graph JSON.
@@ -223,6 +233,7 @@ pub const XML_DECLARED_WAIVERS: &[XmlWaiverFamily] = &[
     XmlWaiverFamily::IntroducedBy,
     XmlWaiverFamily::QuantityText,
     XmlWaiverFamily::BoundVariableWord,
+    XmlWaiverFamily::CompositionRelationLabel,
 ];
 
 #[requires(path.starts_with("/objects/"))]
@@ -2670,7 +2681,9 @@ impl RenderState {
             "kind",
             "category",
             "quotation",
+            "tenseModal",
             "intervalModifiers",
+            "spatialIntervalModifiers",
             "adjuncts",
             "personalMassMembership",
             "deicticReference",
@@ -2728,9 +2741,24 @@ impl RenderState {
             self.account_field(graph, object, "scopeDependence");
             self.apply_scope_dependence(graph, key, &mut result, scope);
         }
+        if let Some(tense_modal) = optional_string(object, "tenseModal") {
+            self.account_field(graph, object, "tenseModal");
+            result.push(self.wrap_pointer(graph, "TENSE-MODAL", tense_modal, Vec::new()));
+        }
         if let Some(modifiers) = object.get("intervalModifiers").and_then(Value::as_array) {
             self.account_field(graph, object, "intervalModifiers");
             let mut rendered = XmlElement::new("INTERVAL-MODIFIERS");
+            for modifier in modifiers {
+                rendered.push(self.render_interval_modifier(graph, json_object(modifier)));
+            }
+            result.push(rendered);
+        }
+        if let Some(modifiers) = object
+            .get("spatialIntervalModifiers")
+            .and_then(Value::as_array)
+        {
+            self.account_field(graph, object, "spatialIntervalModifiers");
+            let mut rendered = XmlElement::new("SPATIAL-INTERVAL-MODIFIERS");
             for modifier in modifiers {
                 rendered.push(self.render_interval_modifier(graph, json_object(modifier)));
             }
@@ -2764,6 +2792,8 @@ impl RenderState {
             self.account_field(graph, descriptor, "kind");
             self.account_field(graph, descriptor, "word");
         }
+        let mut embedded_questions_accounted = false;
+        let mut rendered_embedded_questions = HashSet::new();
         if let Some(body_key) = optional_string(object, "body") {
             self.account_field(graph, object, "body");
             let parameters = abstraction_body_parameters(graph, object, body_key);
@@ -2771,7 +2801,9 @@ impl RenderState {
             let embedded_questions = embedded_questions_rendered_with_body(graph, object, body_key);
             if !embedded_questions.is_empty() {
                 self.account_field(graph, object, "embeddedQuestions");
+                embedded_questions_accounted = true;
                 handled.push("embeddedQuestions");
+                rendered_embedded_questions.extend(embedded_questions.iter().copied());
             }
             let (declarations, (rendered_body, rendered_questions)) = self.scoped_parts(
                 graph,
@@ -2810,8 +2842,12 @@ impl RenderState {
             let embedded_questions =
                 embedded_questions_rendered_with_content(graph, object, content);
             if !embedded_questions.is_empty() {
-                self.account_field(graph, object, "embeddedQuestions");
-                handled.push("embeddedQuestions");
+                if !embedded_questions_accounted {
+                    self.account_field(graph, object, "embeddedQuestions");
+                    embedded_questions_accounted = true;
+                    handled.push("embeddedQuestions");
+                }
+                rendered_embedded_questions.extend(embedded_questions.iter().copied());
             }
             let (declarations, (rendered_content, rendered_questions)) = self.scoped_parts(
                 graph,
@@ -2836,6 +2872,28 @@ impl RenderState {
                 rendered.push(questions);
             }
             result.push(rendered);
+        }
+        if let Some(questions) = object.get("embeddedQuestions").and_then(Value::as_array) {
+            if !embedded_questions_accounted {
+                self.account_field(graph, object, "embeddedQuestions");
+                handled.push("embeddedQuestions");
+            }
+            let remaining = questions
+                .iter()
+                .map(|question| {
+                    question
+                        .as_str()
+                        .unwrap_or_else(|| panic!("embedded question must be an id"))
+                })
+                .filter(|question| !rendered_embedded_questions.contains(question))
+                .collect::<Vec<_>>();
+            if !remaining.is_empty() {
+                let mut rendered = XmlElement::new("EMBEDDED-QUESTIONS");
+                for question in remaining {
+                    rendered.push(self.render_pointer(graph, question));
+                }
+                result.push(rendered);
+            }
         }
         if let Some(parameters) = object.get("parameters").and_then(Value::as_array) {
             self.account_field(graph, object, "parameters");
@@ -2904,44 +2962,190 @@ impl RenderState {
         }
         if let Some(value) = object.get("value") {
             self.account_field(graph, object, "value");
-            if let Some(value_object) = value.as_object() {
-                self.account_object(graph, value_object);
-            }
-            let rendered = if let Some(value) = value.as_object()
-                && value.len() == 1
-                && value.get("text").is_some_and(Value::is_string)
-            {
-                assert!(
-                    object.contains_key("form"),
-                    "quantity text cannot be provenance-only without FORM"
-                );
-                self.record_field_omission(graph, value, "text", XmlWaiverFamily::QuantityText);
-                None
-            } else if let Some(value) = value.as_object()
-                && value.len() == 1
-                && let Some(integer) = value.get("integer")
-            {
-                self.account_field(graph, value, "integer");
-                Some(XmlElement::with_attributes(
-                    "INTEGER",
-                    [("VALUE", scalar_string(integer))],
-                ))
-            } else if let Some(value) = value.as_object()
-                && value.len() == 1
-                && let Some(expression) = optional_string(value, "mathExpression")
-            {
-                self.account_field(graph, value, "mathExpression");
-                Some(self.render_pointer(graph, expression))
-            } else {
-                Some(self.generic_value(graph, value))
+            let Some(value) = value.as_object() else {
+                let mut rendered = XmlElement::new("VALUE");
+                rendered.push(self.generic_value(graph, value));
+                result.push(rendered);
+                result.extend(self.extras(graph, object, &["type", "form", "scale", "value"]));
+                return result;
             };
-            if let Some(rendered) = rendered {
-                let mut value = XmlElement::new("VALUE");
-                value.push(rendered);
-                result.push(value);
+            self.account_object(graph, value);
+            let primary = ["integer", "text", "mathExpression"]
+                .into_iter()
+                .filter(|field| value.contains_key(*field))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                primary.len(),
+                1,
+                "quantity value must have one quantity representation"
+            );
+            let mut rendered = XmlElement::new("VALUE");
+            if let Some(parameters) = value.get("questionParameters").and_then(Value::as_array) {
+                self.account_field(graph, value, "questionParameters");
+                rendered.set(
+                    "QUESTION-PARAMETERS",
+                    self.pointer_list(graph, parameters, "QUESTION-PARAMETERS"),
+                );
+            }
+            match primary[0] {
+                "integer" => {
+                    self.account_field(graph, value, "integer");
+                    rendered.push(XmlElement::with_attributes(
+                        "INTEGER",
+                        [("VALUE", scalar_string(&value["integer"]))],
+                    ));
+                }
+                "mathExpression" => {
+                    let expression = string_field(value, "mathExpression");
+                    self.account_field(graph, value, "mathExpression");
+                    rendered.push(self.render_pointer(graph, expression));
+                }
+                "text" => {
+                    assert!(
+                        object.contains_key("form"),
+                        "quantity text cannot be provenance-only without FORM"
+                    );
+                    self.record_field_omission(graph, value, "text", XmlWaiverFamily::QuantityText);
+                }
+                _ => unreachable!("primary fields are closed"),
+            }
+            rendered.extend(self.extras(
+                graph,
+                value,
+                &["integer", "text", "mathExpression", "questionParameters"],
+            ));
+            if primary[0] != "text" || !rendered.attributes.is_empty() {
+                result.push(rendered);
             }
         }
         result.extend(self.extras(graph, object, &["type", "form", "scale", "value"]));
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "PLACE")]
+    fn render_place_description(
+        &mut self,
+        graph: &GraphData,
+        value: &Map<String, Value>,
+    ) -> XmlElement {
+        self.account_object(graph, value);
+        self.account_field(graph, value, "place");
+        self.account_field(graph, value, "description");
+        let mut result = XmlElement::with_attributes(
+            "PLACE",
+            [
+                ("INDEX", place_label(string_field(value, "place"))),
+                ("DESCRIPTION", string_field(value, "description")),
+            ],
+        );
+        result.extend(self.extras(graph, value, &["place", "description"]));
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "RAFSI-BINDING")]
+    fn render_rafsi_binding(
+        &mut self,
+        graph: &GraphData,
+        value: &Map<String, Value>,
+    ) -> XmlElement {
+        self.account_object(graph, value);
+        self.account_field(graph, value, "rafsi");
+        let mut result =
+            XmlElement::with_attributes("RAFSI-BINDING", [("RAFSI", string_field(value, "rafsi"))]);
+        let mut handled = Vec::from(["rafsi"]);
+        if let Some(source_word) = optional_string(value, "sourceWord") {
+            self.account_field(graph, value, "sourceWord");
+            result.set("SOURCE-WORD", source_word);
+            handled.push("sourceWord");
+        }
+        if let Some(referent) = optional_string(value, "referent") {
+            self.account_field(graph, value, "referent");
+            result.push(self.wrap_pointer(graph, "REFERENT", referent, Vec::new()));
+            handled.push("referent");
+        }
+        result.extend(self.extras(graph, value, &handled));
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "EXPANSION")]
+    fn render_relation_expansion(
+        &mut self,
+        graph: &GraphData,
+        value: &Map<String, Value>,
+    ) -> XmlElement {
+        self.account_object(graph, value);
+        self.account_field(graph, value, "kind");
+        let mut result =
+            XmlElement::with_attributes("EXPANSION", [("KIND", enum_token(&value["kind"]))]);
+        let mut handled = Vec::from(["kind"]);
+        if let Some(words) = value.get("sourceWords").and_then(Value::as_array) {
+            self.account_field(graph, value, "sourceWords");
+            let mut rendered_words = XmlElement::new("SOURCE-WORDS");
+            for word in words {
+                rendered_words.push(XmlElement::with_attributes(
+                    "WORD",
+                    [("VALUE", scalar_string(word))],
+                ));
+            }
+            result.push(rendered_words);
+            handled.push("sourceWords");
+        }
+        if let Some(bindings) = value.get("rafsiBindings").and_then(Value::as_array) {
+            self.account_field(graph, value, "rafsiBindings");
+            let mut rendered_bindings = XmlElement::new("RAFSI-BINDINGS");
+            for binding in bindings {
+                rendered_bindings.push(self.render_rafsi_binding(graph, json_object(binding)));
+            }
+            result.push(rendered_bindings);
+            handled.push("rafsiBindings");
+        }
+        result.extend(self.extras(graph, value, &handled));
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "RELATION-METADATA")]
+    fn render_relation_metadata(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+    ) -> XmlElement {
+        self.account_field(graph, object, "relation");
+        let mut result = XmlElement::with_attributes(
+            "RELATION-METADATA",
+            [("RELATION", string_field(object, "relation"))],
+        );
+        let mut handled = Vec::from(["type", "relation"]);
+        if let Some(words) = object.get("sourceWords").and_then(Value::as_array) {
+            self.account_field(graph, object, "sourceWords");
+            let mut rendered_words = XmlElement::new("SOURCE-WORDS");
+            for word in words {
+                rendered_words.push(XmlElement::with_attributes(
+                    "WORD",
+                    [("VALUE", scalar_string(word))],
+                ));
+            }
+            result.push(rendered_words);
+            handled.push("sourceWords");
+        }
+        if let Some(places) = object.get("placeStructure").and_then(Value::as_array) {
+            self.account_field(graph, object, "placeStructure");
+            let mut rendered_places = XmlElement::new("PLACE-STRUCTURE");
+            for place in places {
+                rendered_places.push(self.render_place_description(graph, json_object(place)));
+            }
+            result.push(rendered_places);
+            handled.push("placeStructure");
+        }
+        if let Some(expansion) = object.get("expansion").and_then(Value::as_object) {
+            self.account_field(graph, object, "expansion");
+            result.push(self.render_relation_expansion(graph, expansion));
+            handled.push("expansion");
+        }
+        result.extend(self.extras(graph, object, &handled));
         result
     }
 
@@ -3029,7 +3233,8 @@ impl RenderState {
         }
         let scope = vec!["sequence".to_owned(), key.to_owned()];
         let (declarations, parts) = self.scoped_parts(graph, scope, |state, graph| {
-            let mut handled = Vec::from(["type", "items", "relation", "boundEventualities"]);
+            let mut handled =
+                Vec::from(["type", "items", "relation", "boundEventualities", "force"]);
             let mut items = Vec::new();
             if let Some(values) = object.get("items").and_then(Value::as_array) {
                 state.account_field(graph, object, "items");
@@ -3043,20 +3248,96 @@ impl RenderState {
                     );
                 }
             }
-            let mut metadata = Vec::new();
-            for field in ["connectionClaims", "nonlogicalConnection"] {
-                if let Some(value) = object.get(field) {
-                    state.account_field(graph, object, field);
-                    let mut rendered = XmlElement::new(enum_string(field).replace('_', "-"));
-                    rendered.push(state.generic_value(graph, value));
-                    metadata.push(rendered);
-                    handled.push(field);
-                }
+            let mut semantic_entries = Vec::new();
+            if let Some(content) = optional_string(object, "content") {
+                state.account_field(graph, object, "content");
+                semantic_entries.push(state.wrap_pointer(graph, "CONTENT", content, Vec::new()));
+                handled.push("content");
             }
-            metadata.extend(state.extras(graph, object, &handled));
-            (items, metadata)
+            if let Some(claims) = object.get("connectionClaims").and_then(Value::as_array) {
+                state.account_field(graph, object, "connectionClaims");
+                let mut rendered = XmlElement::new("CONNECTION-CLAIMS");
+                for claim in claims {
+                    rendered.push(
+                        state.wrap_pointer(
+                            graph,
+                            "CONNECTION-CLAIM",
+                            claim
+                                .as_str()
+                                .unwrap_or_else(|| panic!("connection claim must be an id")),
+                            Vec::new(),
+                        ),
+                    );
+                }
+                semantic_entries.push(rendered);
+                handled.push("connectionClaims");
+            }
+            if let Some(labels) = object.get("ordinalLabels").and_then(Value::as_array) {
+                state.account_field(graph, object, "ordinalLabels");
+                let mut rendered_labels = XmlElement::new("ORDINAL-LABELS");
+                for label in labels {
+                    let label = json_object(label);
+                    state.account_object(graph, label);
+                    state.account_field(graph, label, "level");
+                    let mut rendered = XmlElement::with_attributes(
+                        "ORDINAL-LABEL",
+                        [("LEVEL", enum_token(&label["level"]))],
+                    );
+                    let mut label_handled = Vec::from(["level"]);
+                    if let Some(target) = optional_string(label, "target") {
+                        state.account_field(graph, label, "target");
+                        rendered.push(state.wrap_pointer(graph, "TARGET", target, Vec::new()));
+                        label_handled.push("target");
+                    }
+                    let value = string_field(label, "value");
+                    state.account_field(graph, label, "value");
+                    rendered.push(state.wrap_pointer(graph, "VALUE", value, Vec::new()));
+                    label_handled.push("value");
+                    if label.contains_key("introducedBy") {
+                        state.record_field_omission(
+                            graph,
+                            label,
+                            "introducedBy",
+                            XmlWaiverFamily::IntroducedBy,
+                        );
+                        label_handled.push("introducedBy");
+                    }
+                    rendered.extend(state.extras(graph, label, &label_handled));
+                    rendered_labels.push(rendered);
+                }
+                semantic_entries.push(rendered_labels);
+                handled.push("ordinalLabels");
+            }
+            if let Some(connection) = object
+                .get("nonlogicalConnection")
+                .and_then(Value::as_object)
+            {
+                state.account_field(graph, object, "nonlogicalConnection");
+                state.account_object(graph, connection);
+                state.account_field(graph, connection, "operator");
+                let mut rendered = XmlElement::with_attributes(
+                    "NONLOGICAL-CONNECTION",
+                    [("OPERATOR", string_field(connection, "operator"))],
+                );
+                let connector = connection
+                    .get("connector")
+                    .and_then(Value::as_object)
+                    .unwrap_or_else(|| panic!("nonlogical connection lacks connector"));
+                state.account_field(graph, connection, "connector");
+                rendered.push(state.render_connector(graph, connector));
+                rendered.extend(state.extras(graph, connection, &["operator", "connector"]));
+                semantic_entries.push(rendered);
+                handled.push("nonlogicalConnection");
+            }
+            if let Some(operand) = object.get("elidedConnectionOperand") {
+                state.account_field(graph, object, "elidedConnectionOperand");
+                semantic_entries.push(Self::scalar("ELIDED-CONNECTION-OPERAND", operand));
+                handled.push("elidedConnectionOperand");
+            }
+            semantic_entries.extend(state.extras(graph, object, &handled));
+            (items, semantic_entries)
         });
-        let (items, metadata) = parts;
+        let (items, semantic_entries) = parts;
         if object.contains_key("relation") {
             self.account_field(graph, object, "relation");
         }
@@ -3070,13 +3351,13 @@ impl RenderState {
                     .unwrap_or_else(|| "SEQUENCE".to_owned()),
             )],
         );
+        if let Some(force) = object.get("force") {
+            self.account_field(graph, object, "force");
+            result.set("FORCE", enum_token(force));
+        }
         Self::append_defs(&mut result, declarations);
         result.extend(items);
-        if !metadata.is_empty() {
-            let mut rendered = XmlElement::new("META");
-            rendered.extend(metadata);
-            result.push(rendered);
-        }
+        result.extend(semantic_entries);
         result
     }
 
@@ -3124,42 +3405,87 @@ impl RenderState {
         graph: &GraphData,
         object: &Map<String, Value>,
     ) -> XmlElement {
-        if let Some(literal) = object.get("literal") {
+        let mut handled = Vec::from(["type"]);
+        let mut result = if let Some(literal) = object.get("literal") {
             self.account_field(graph, object, "literal");
-            if let Some(literal) = literal.as_object()
-                && optional_string(literal, "kind") == Some("integer")
-                && literal.len() == 2
-            {
-                self.account_value_fields(graph, &object["literal"]);
-                let mut result = XmlElement::with_attributes(
+            handled.push("literal");
+            let literal = literal
+                .as_object()
+                .unwrap_or_else(|| panic!("math literal must be a record"));
+            self.account_object(graph, literal);
+            let kind = string_field(literal, "kind");
+            self.account_field(graph, literal, "kind");
+            self.account_field(graph, literal, "value");
+            let mut rendered = match kind {
+                "integer" => XmlElement::with_attributes(
                     "INTEGER",
                     [("VALUE", scalar_string(&literal["value"]))],
-                );
-                result.extend(self.extras(graph, object, &["type", "literal"]));
-                return result;
+                ),
+                "mixedRadix" => {
+                    let mixed = literal["value"]
+                        .as_object()
+                        .unwrap_or_else(|| panic!("mixed-radix literal must be a record"));
+                    self.account_object(graph, mixed);
+                    self.account_field(graph, mixed, "components");
+                    let components = mixed["components"]
+                        .as_array()
+                        .unwrap_or_else(|| panic!("mixed-radix components must be a list"));
+                    let mut mixed_radix = XmlElement::new("MIXED-RADIX");
+                    for component in components {
+                        let component = json_object(component);
+                        self.account_object(graph, component);
+                        self.account_field(graph, component, "text");
+                        let mut rendered_component = XmlElement::with_attributes(
+                            "COMPONENT",
+                            [("TEXT", string_field(component, "text"))],
+                        );
+                        let mut component_handled = Vec::from(["text"]);
+                        if let Some(integer) = component.get("integer") {
+                            self.account_field(graph, component, "integer");
+                            rendered_component.set("INTEGER", scalar_string(integer));
+                            component_handled.push("integer");
+                        }
+                        rendered_component.extend(self.extras(
+                            graph,
+                            component,
+                            &component_handled,
+                        ));
+                        mixed_radix.push(rendered_component);
+                    }
+                    mixed_radix.extend(self.extras(graph, mixed, &["components"]));
+                    mixed_radix
+                }
+                _ => XmlElement::with_attributes(
+                    "MATH-LITERAL",
+                    [
+                        ("KIND", enum_string(kind)),
+                        ("VALUE", scalar_string(&literal["value"])),
+                    ],
+                ),
+            };
+            rendered.extend(self.extras(graph, literal, &["kind", "value"]));
+            rendered
+        } else {
+            let mut rendered = XmlElement::new("MATH");
+            if let Some(operator) = object.get("operator") {
+                self.account_field(graph, object, "operator");
+                rendered.set("OPERATOR", enum_token(operator));
+                handled.push("operator");
+            } else if let Some(parameter) = optional_string(object, "operatorParameter") {
+                self.account_field(graph, object, "operatorParameter");
+                rendered.push(self.wrap_pointer(
+                    graph,
+                    "OPERATOR-PARAMETER",
+                    parameter,
+                    Vec::new(),
+                ));
+                handled.push("operatorParameter");
             }
-            let mut result = XmlElement::new("MATH");
-            let mut rendered = XmlElement::new("LITERAL");
-            rendered.push(self.generic_value(graph, literal));
-            result.push(rendered);
-            result.extend(self.extras(graph, object, &["type", "literal"]));
-            return result;
-        }
-        let mut result = XmlElement::with_attributes(
-            "MATH",
-            [(
-                "OPERATOR",
-                object
-                    .get("operator")
-                    .map(enum_token)
-                    .unwrap_or_else(|| "MATH".to_owned()),
-            )],
-        );
-        if object.contains_key("operator") {
-            self.account_field(graph, object, "operator");
-        }
+            rendered
+        };
         if let Some(operands) = object.get("operands").and_then(Value::as_array) {
             self.account_field(graph, object, "operands");
+            handled.push("operands");
             for operand in operands {
                 result.push(
                     self.render_pointer(
@@ -3171,7 +3497,45 @@ impl RenderState {
                 );
             }
         }
-        result.extend(self.extras(graph, object, &["type", "operator", "operands"]));
+        for (field, tag) in [
+            ("denotes", "DENOTES"),
+            ("operatorDenotes", "OPERATOR-DENOTES"),
+        ] {
+            if let Some(pointer) = optional_string(object, field) {
+                self.account_field(graph, object, field);
+                result.push(self.wrap_pointer(graph, tag, pointer, Vec::new()));
+                handled.push(field);
+            }
+        }
+        if let Some(inclusion) = object.get("endpointInclusion") {
+            self.account_field(graph, object, "endpointInclusion");
+            result.push(Self::scalar("ENDPOINT-INCLUSION", inclusion));
+            handled.push("endpointInclusion");
+        }
+        if let Some(negation) = object.get("scalarNegation").and_then(Value::as_object) {
+            self.account_field(graph, object, "scalarNegation");
+            result.push(self.render_scalar_negation(graph, negation));
+            handled.push("scalarNegation");
+        }
+        if let Some(subscript) = object.get("subscript").and_then(Value::as_object) {
+            self.account_field(graph, object, "subscript");
+            self.account_object(graph, subscript);
+            let value = string_field(subscript, "value");
+            self.account_field(graph, subscript, "value");
+            let mut rendered = self.wrap_pointer(graph, "SUBSCRIPT", value, Vec::new());
+            if subscript.contains_key("introducedBy") {
+                self.record_field_omission(
+                    graph,
+                    subscript,
+                    "introducedBy",
+                    XmlWaiverFamily::IntroducedBy,
+                );
+            }
+            rendered.extend(self.extras(graph, subscript, &["value", "introducedBy"]));
+            result.push(rendered);
+            handled.push("subscript");
+        }
+        result.extend(self.extras(graph, object, &handled));
         result
     }
 
@@ -3188,6 +3552,9 @@ impl RenderState {
         );
         for (key, value) in object {
             if key == "type" {
+                continue;
+            }
+            if key == "diagnostics" {
                 continue;
             }
             if key == "source" && is_source_record(value) {
@@ -3259,6 +3626,13 @@ fn waiver_messages(omissions: &[XmlOmission]) -> Vec<String> {
         messages.push(format!(
             "bound-variable surface word provenance ({})",
             counted(bound, "field")
+        ));
+    }
+    let relation_labels = count(XmlWaiverFamily::CompositionRelationLabel);
+    if relation_labels > 0 {
+        messages.push(format!(
+            "kind-composition relation-label provenance ({})",
+            counted(relation_labels, "field")
         ));
     }
     messages
@@ -3501,6 +3875,15 @@ impl RenderState {
             }
             if field == "introducedBy" {
                 self.record_field_omission(graph, object, field, XmlWaiverFamily::IntroducedBy);
+                continue;
+            }
+            if field == "relationLabel" {
+                self.record_field_omission(
+                    graph,
+                    object,
+                    field,
+                    XmlWaiverFamily::CompositionRelationLabel,
+                );
                 continue;
             }
             if field == "word"
@@ -3938,6 +4321,22 @@ mod tests {
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect()
+    }
+
+    const COMPACT_GENERIC_FALLBACK_MARKERS: &[&str] = &[
+        "<EXTRA>", "<FIELD ", "<LIST>", "<ITEM>", "<RECORD>", "<UNKNOWN",
+    ];
+
+    #[requires(output.ends_with('\n'))]
+    #[requires(!output.contains("FORM=\"TYPED-GRAPH\""))]
+    #[ensures(true)]
+    fn assert_no_compact_generic_fallback(output: &str, document: &str) {
+        for marker in COMPACT_GENERIC_FALLBACK_MARKERS {
+            assert!(
+                !output.contains(marker),
+                "{document}: known compact semantics reached generic {marker} scaffolding"
+            );
+        }
     }
 
     #[test]
@@ -4456,6 +4855,76 @@ mod tests {
         assert!(synthetic.omissions.is_empty());
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn known_exceptional_quantity_and_relation_metadata_are_typed() {
+        let mut graph = graph("b13");
+        graph["objects"]["predication:18"]["relationMetadata"] =
+            Value::String("relationMetadata:99".to_owned());
+        graph["objects"]["relationMetadata:99"] = serde_json::json!({
+            "type": "relationMetadata",
+            "relation": "test-lujvo",
+            "sourceWords": ["test", "lujvo"],
+            "placeStructure": [{"place": "x1", "description": "the test participant"}],
+            "expansion": {
+                "kind": "lujvo",
+                "sourceWords": ["tes", "luj"],
+                "rafsiBindings": [{
+                    "rafsi": "tes",
+                    "sourceWord": "test",
+                    "referent": "entity:17"
+                }]
+            }
+        });
+        graph["objects"]["math:97"] = serde_json::json!({
+            "type": "mathExpression",
+            "literal": {"kind": "integer", "value": 2}
+        });
+        graph["objects"]["quantity:98"] = serde_json::json!({
+            "type": "quantity",
+            "form": "exact",
+            "scale": "count",
+            "value": {
+                "mathExpression": "math:97",
+                "questionParameters": ["parameter:15"]
+            }
+        });
+        graph["objects"]["predication:18"]["arguments"]["x2"]["value"] =
+            Value::String("quantity:98".to_owned());
+        graph["objects"]
+            .as_object_mut()
+            .expect("b13 objects")
+            .remove("entity:16");
+        graph["scopeDependenceBinderUniverses"]
+            .as_object_mut()
+            .expect("b13 binder universes")
+            .remove("entity:16");
+
+        let rendered = render_xml_value(graph, "<known-exceptional-fields>");
+        assert!(rendered.output.contains("<RELATION-METADATA "));
+        assert!(rendered.output.contains("RELATION=\"test-lujvo\""));
+        assert!(rendered.output.contains("<WORD VALUE=\"test\"/>"));
+        assert!(
+            rendered
+                .output
+                .contains("<PLACE INDEX=\"1\" DESCRIPTION=\"the test participant\"/>")
+        );
+        assert!(rendered.output.contains("<EXPANSION KIND=\"LUJVO\">"));
+        assert!(
+            rendered
+                .output
+                .contains("<RAFSI-BINDING RAFSI=\"tes\" SOURCE-WORD=\"test\">")
+        );
+        assert!(rendered.output.contains("<REFERENT REF=\"r17\"/>"));
+        assert!(
+            rendered
+                .output
+                .contains("<VALUE QUESTION-PARAMETERS=\"v15\">")
+        );
+        assert_no_compact_generic_fallback(&rendered.output, "<known-exceptional-fields>");
+    }
+
     #[requires(true)]
     #[ensures(output.len() >= old(output.len()))]
     fn collect_declared_waiver_occurrences(
@@ -4517,6 +4986,12 @@ mod tests {
                     if field == "introducedBy" {
                         output.insert(new!(XmlOmission {
                             waiver: Some(XmlWaiverFamily::IntroducedBy),
+                            surface: field_surface(field_path.clone()),
+                        }));
+                    }
+                    if field == "relationLabel" && path.ends_with("/tanruLink") {
+                        output.insert(new!(XmlOmission {
+                            waiver: Some(XmlWaiverFamily::CompositionRelationLabel),
                             surface: field_surface(field_path.clone()),
                         }));
                     }
@@ -4585,7 +5060,7 @@ mod tests {
         );
         assert_eq!(
             aggregate_hash("xml.txt"),
-            "62748699159c588e68ce4bf4a6e613990545c57535c5d317025d86dec77fd04a"
+            "8054b126268d07532363b576a1a5e27c5c4eb446aa4370b0a020284b159e5220"
         );
         let binder_universe_bytes = include_bytes!("../../tests/xml_corpus/BINDER_UNIVERSES.json");
         assert_eq!(
@@ -4632,6 +5107,7 @@ mod tests {
             let expected = std::fs::read_to_string(fixture(document, "xml.txt"))
                 .unwrap_or_else(|error| panic!("read {document}.xml.txt: {error}"));
             let actual = render_xml_value(graph(document), document);
+            assert_no_compact_generic_fallback(&actual.output, document);
             if actual.output != expected {
                 let first = expected
                     .lines()
@@ -4778,7 +5254,7 @@ mod tests {
         assert!(content_abstraction.contains("<EMBEDDED-QUESTIONS>"));
         assert_eq!(
             format!("{:x}", Sha256::digest(content_abstraction.as_bytes())),
-            "47bfb6f659a8eb24f0e6e5f3ad4298b3a2a9286f95febf0bff9ae51fbf866bd9"
+            "0865509d9b4344749b7d99024915839d4f3c609bcde4b6772919f72372cb8b75"
         );
 
         let mut direct_question = graph("b58");
@@ -4796,10 +5272,11 @@ mod tests {
             .into_data()
             .output;
         assert!(!direct_question.contains("FORM=\"TYPED-GRAPH\""));
-        assert!(direct_question.contains("<UNKNOWN TYPE=\"question\">"));
+        assert!(direct_question.contains("<QUESTION KIND=\"ARGUMENT\""));
+        assert_no_compact_generic_fallback(&direct_question, "<direct-question-witness>");
         assert_eq!(
             format!("{:x}", Sha256::digest(direct_question.as_bytes())),
-            "f1aa7f9b8ee1fd899cdd0572b07bd6347f8f5dfc9688998e54979bfa68ca00ee"
+            "cabd9f5c468c4d4645f76099b0ad10e5f7cc56d00c81ee99432bd0809a5431a5"
         );
 
         let mut shared = graph("b58");
@@ -4825,7 +5302,7 @@ mod tests {
         assert_eq!(shared.matches("<EMBEDDED-QUESTIONS>").count(), 1);
         assert_eq!(
             format!("{:x}", Sha256::digest(shared.as_bytes())),
-            "a2feadddf5c5147d8e77c9766bfbc6972891dc95c5442546a2b92f42de5efbec"
+            "bbeef899f72757dc5a012eadaf4e5d4c791fc2e23c38babb9787d36ea3e8c71e"
         );
         let content = shared
             .split_once("<CONTENT>")
@@ -4889,13 +5366,90 @@ mod tests {
         orphan["objects"]["predication:9"]["arguments"]["x1"]["value"] =
             Value::String("entity:8".to_owned());
         orphan["objects"]["entity:8"]["scopeDependence"] = serde_json::json!({"kind": "fixed"});
-        let orphan = render_xml_value(orphan, "<orphan>").into_data().output;
-        assert!(orphan.contains("<EXTRA>"));
-        assert!(orphan.contains("<FIELD NAME=\"embeddedQuestions\">"));
+        let orphan = render_xml_value_with_binder_universes(
+            orphan,
+            "<orphan>",
+            HashMap::from([("entity:8".to_owned(), BTreeSet::new())]),
+        )
+        .into_data()
+        .output;
+        assert!(orphan.contains("<EMBEDDED-QUESTIONS>"));
+        assert!(orphan.contains("<QUESTION KIND=\"ARGUMENT\""));
+        assert_no_compact_generic_fallback(&orphan, "<orphan>");
         assert_eq!(
             format!("{:x}", Sha256::digest(orphan.as_bytes())),
-            "a0ab3d6cd913092cb068facf668cdac3d5452cf5af3c22cd996f011a8e43b21a"
+            "c028d711d3b6d636ca8905d9161e59b3b89809f897a986fa2672bc38b85bbb8a"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn kind_composition_is_first_class_nested_and_provenance_free() {
+        let rendered = render_xml_value(graph("b39"), "b39");
+        assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert_eq!(rendered.output.matches("<KIND-COMPOSITION>").count(), 2);
+        assert!(rendered.output.contains(
+            "<KIND-COMPOSITION>\n                                              <KIND REF=\"p15\"/>\n                                              <MODIFIER REF=\"r22\"/>"
+        ));
+        assert!(rendered.output.contains(
+            "<KIND-COMPOSITION>\n                              <KIND REF=\"p8\"/>\n                              <MODIFIER REF=\"r26\"/>"
+        ));
+        assert!(!rendered.output.contains("TANRU-LINK"));
+        assert!(!rendered.output.contains("<RELATION-LABEL"));
+        assert!(!rendered.output.contains("FIELD NAME=\"tanruLink\""));
+        assert_eq!(
+            rendered
+                .omissions
+                .iter()
+                .filter(|omission| {
+                    omission.waiver == Some(XmlWaiverFamily::CompositionRelationLabel)
+                })
+                .count(),
+            2
+        );
+        assert_no_compact_generic_fallback(&rendered.output, "b39");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostics_are_repeatable_escaped_warning_text_nodes() {
+        let mut warning_graph = graph("b57");
+        for object in warning_graph["objects"]
+            .as_object_mut()
+            .expect("b57 objects")
+            .values_mut()
+        {
+            if let Some(object) = object.as_object_mut() {
+                object.remove("diagnostics");
+            }
+        }
+        warning_graph["objects"]["predication:10"]["diagnostics"] = serde_json::json!([
+            {"severity": "warning", "message": "one < two & three > zero"},
+            {"severity": "warning", "message": "quoted \"warning\" remains text"}
+        ]);
+
+        let rendered = render_xml_value(warning_graph, "<warning-escaping>");
+        assert_eq!(rendered.output.matches("<WARNING>").count(), 2);
+        assert!(
+            rendered
+                .output
+                .contains("<WARNING>one &lt; two &amp; three &gt; zero</WARNING>")
+        );
+        assert!(
+            rendered
+                .output
+                .contains("<WARNING>quoted \"warning\" remains text</WARNING>")
+        );
+        for known_field in ["diagnostics", "severity", "message"] {
+            assert!(
+                !rendered
+                    .output
+                    .contains(&format!("<FIELD NAME=\"{known_field}\">"))
+            );
+        }
+        assert_no_compact_generic_fallback(&rendered.output, "<warning-escaping>");
     }
 
     #[test]
@@ -4911,6 +5465,7 @@ mod tests {
                 XmlWaiverFamily::IntroducedBy,
                 XmlWaiverFamily::QuantityText,
                 XmlWaiverFamily::BoundVariableWord,
+                XmlWaiverFamily::CompositionRelationLabel,
             ]
         );
         let mut counts: BTreeMap<XmlWaiverFamily, usize> = BTreeMap::new();
@@ -4954,9 +5509,10 @@ mod tests {
                 (XmlWaiverFamily::IntroducedBy, 234),
                 (XmlWaiverFamily::QuantityText, 11),
                 (XmlWaiverFamily::BoundVariableWord, 9),
+                (XmlWaiverFamily::CompositionRelationLabel, 5),
             ])
         );
-        assert_eq!(counts.values().sum::<usize>(), 936);
+        assert_eq!(counts.values().sum::<usize>(), 941);
         assert_eq!(
             documents
                 .into_iter()
@@ -4969,6 +5525,7 @@ mod tests {
                 (XmlWaiverFamily::IntroducedBy, 45),
                 (XmlWaiverFamily::QuantityText, 7),
                 (XmlWaiverFamily::BoundVariableWord, 6),
+                (XmlWaiverFamily::CompositionRelationLabel, 3),
             ])
         );
     }
@@ -4978,14 +5535,24 @@ mod tests {
     #[ensures(true)]
     fn occurrence_ledger_renders_unknown_fields_and_exposes_silent_drops() {
         let mut unknown = graph("b13");
-        unknown["objects"]["utterance:5"]["futureSemanticField"] =
-            Value::String("must-render".to_owned());
+        unknown["objects"]["utterance:5"]["futureSemanticField"] = serde_json::json!({
+            "nested": ["must-render"]
+        });
         let rendered = render_xml_value(unknown, "ledger-unknown");
         assert!(
             rendered
                 .output
                 .contains("<FIELD NAME=\"futureSemanticField\">")
         );
+        for preserved in [
+            "<RECORD>",
+            "<FIELD NAME=\"nested\">",
+            "<LIST>",
+            "<ITEM>",
+            "<STRING VALUE=\"must-render\"/>",
+        ] {
+            assert!(rendered.output.contains(preserved), "missing {preserved}");
+        }
         assert!(
             rendered
                 .omissions
@@ -5018,6 +5585,40 @@ mod tests {
                 "{document}"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_phase_b_known_compact_field_avoids_generic_fallback() {
+        let phaseb_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/phaseb_corpus");
+        let mut documents: Vec<String> = std::fs::read_dir(&phaseb_dir)
+            .expect("read Phase B corpus")
+            .map(|entry| entry.expect("read Phase B entry").path())
+            .filter(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().ends_with(".frozen.json"))
+            })
+            .map(|path| {
+                path.file_name()
+                    .expect("Phase B JSON has a filename")
+                    .to_string_lossy()
+                    .trim_end_matches(".frozen.json")
+                    .to_owned()
+            })
+            .collect();
+        documents.sort();
+        assert_eq!(documents.len(), 50, "Phase B inventory changed");
+
+        let mut compact = 0usize;
+        for document in documents {
+            let rendered = render_xml_value(phaseb_graph(&document), &format!("phaseb/{document}"));
+            if !rendered.output.contains("FORM=\"TYPED-GRAPH\"") {
+                compact += 1;
+                assert_no_compact_generic_fallback(&rendered.output, &document);
+            }
+        }
+        assert!(compact > 0, "Phase B compact form was not exercised");
     }
 }
 
@@ -5562,6 +6163,11 @@ impl RenderState {
             if handled.contains(&key.as_str()) {
                 continue;
             }
+            if key == "diagnostics" {
+                // Semantic-object diagnostics are rendered once, centrally,
+                // after the object's typed semantic content.
+                continue;
+            }
             if key == "source" && is_source_record(value) {
                 self.record_field_omission(graph, object, key, XmlWaiverFamily::SourceRecord);
                 continue;
@@ -6096,6 +6702,25 @@ impl RenderState {
         }
         self.apply_facets(graph, &mut variable, object);
         handled.extend(FACET_FIELDS.iter().copied());
+        for (field, tag) in [
+            ("intervalModifiers", "INTERVAL-MODIFIERS"),
+            ("spatialIntervalModifiers", "SPATIAL-INTERVAL-MODIFIERS"),
+        ] {
+            if let Some(modifiers) = object.get(field).and_then(Value::as_array) {
+                self.account_field(graph, object, field);
+                let mut rendered = XmlElement::new(tag);
+                for modifier in modifiers {
+                    rendered.push(self.render_interval_modifier(graph, json_object(modifier)));
+                }
+                variable.push(rendered);
+                handled.push(field);
+            }
+        }
+        if let Some(tense_modal) = optional_string(object, "tenseModal") {
+            self.account_field(graph, object, "tenseModal");
+            variable.push(self.wrap_pointer(graph, "TENSE-MODAL", tense_modal, Vec::new()));
+            handled.push("tenseModal");
+        }
         variable.extend(self.extras(graph, object, &handled));
         variable
     }
@@ -6146,6 +6771,108 @@ impl RenderState {
             result.push(self.wrap_pointer(graph, "QUANTITY", quantity, Vec::new()));
             handled.push("quantity");
         }
+        if let Some(connection) = value.get("connection").and_then(Value::as_object) {
+            self.account_field(graph, value, "connection");
+            self.account_object(graph, connection);
+            self.account_field(graph, connection, "kind");
+            let mut rendered = XmlElement::with_attributes(
+                "CONNECTION",
+                [("KIND", enum_token(&connection["kind"]))],
+            );
+            if connection.contains_key("introducedBy") {
+                self.record_field_omission(
+                    graph,
+                    connection,
+                    "introducedBy",
+                    XmlWaiverFamily::IntroducedBy,
+                );
+            }
+            rendered.extend(self.extras(graph, connection, &["kind", "introducedBy"]));
+            result.push(rendered);
+            handled.push("connection");
+        }
+        if let Some(quantity_value) = value.get("value").and_then(Value::as_object) {
+            self.account_field(graph, value, "value");
+            self.account_object(graph, quantity_value);
+            let primary = ["integer", "text", "mathExpression"]
+                .into_iter()
+                .filter(|field| quantity_value.contains_key(*field))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                primary.len(),
+                1,
+                "recurrence value must have one quantity representation"
+            );
+            let mut rendered = XmlElement::new("VALUE");
+            match primary[0] {
+                "integer" => {
+                    self.account_field(graph, quantity_value, "integer");
+                    rendered.push(XmlElement::with_attributes(
+                        "INTEGER",
+                        [("VALUE", scalar_string(&quantity_value["integer"]))],
+                    ));
+                }
+                "mathExpression" => {
+                    let expression = string_field(quantity_value, "mathExpression");
+                    self.account_field(graph, quantity_value, "mathExpression");
+                    rendered.push(self.wrap_pointer(
+                        graph,
+                        "MATH-EXPRESSION",
+                        expression,
+                        Vec::new(),
+                    ));
+                }
+                "text" => {
+                    self.record_field_omission(
+                        graph,
+                        quantity_value,
+                        "text",
+                        XmlWaiverFamily::QuantityText,
+                    );
+                }
+                _ => unreachable!("primary fields are closed"),
+            }
+            if let Some(parameters) = quantity_value
+                .get("questionParameters")
+                .and_then(Value::as_array)
+            {
+                self.account_field(graph, quantity_value, "questionParameters");
+                rendered.set(
+                    "QUESTION-PARAMETERS",
+                    self.pointer_list(graph, parameters, "QUESTION-PARAMETERS"),
+                );
+            }
+            rendered.extend(self.extras(
+                graph,
+                quantity_value,
+                &["integer", "text", "mathExpression", "questionParameters"],
+            ));
+            result.push(rendered);
+            handled.push("value");
+        }
+        if let Some(interval) = optional_string(value, "interval") {
+            self.account_field(graph, value, "interval");
+            result.push(self.wrap_pointer(graph, "INTERVAL", interval, Vec::new()));
+            handled.push("interval");
+        }
+        if let Some(negation) = value.get("negation").and_then(Value::as_object) {
+            self.account_field(graph, value, "negation");
+            self.account_object(graph, negation);
+            self.account_field(graph, negation, "kind");
+            let mut rendered =
+                XmlElement::with_attributes("NEGATION", [("KIND", enum_token(&negation["kind"]))]);
+            if negation.contains_key("introducedBy") {
+                self.record_field_omission(
+                    graph,
+                    negation,
+                    "introducedBy",
+                    XmlWaiverFamily::IntroducedBy,
+                );
+            }
+            rendered.extend(self.extras(graph, negation, &["kind", "introducedBy"]));
+            result.push(rendered);
+            handled.push("negation");
+        }
         result.extend(self.extras(graph, value, &handled));
         result
     }
@@ -6157,19 +6884,43 @@ impl RenderState {
         graph: &GraphData,
         value: &Map<String, Value>,
     ) -> XmlElement {
-        let kind = value
-            .get("kind")
-            .map(enum_token)
-            .unwrap_or_else(|| "INTERVAL".to_owned());
+        let kind_value = optional_string(value, "kind").unwrap_or("interval");
+        let kind = enum_string(kind_value);
         if value.contains_key("kind") {
             self.account_field(graph, value, "kind");
         }
         let mut result = XmlElement::with_attributes("INTERVAL-MODIFIER", [("KIND", kind)]);
-        if let Some(field_value) = value.get("value") {
-            self.account_field(graph, value, "value");
-            let mut rendered = XmlElement::new("VALUE");
-            rendered.push(self.generic_value(graph, field_value));
-            result.push(rendered);
+        let nested_value = value
+            .get("value")
+            .unwrap_or_else(|| panic!("interval modifier lacks value"));
+        let nested = nested_value
+            .as_object()
+            .unwrap_or_else(|| panic!("interval modifier value must be a record"));
+        self.account_field(graph, value, "value");
+        match kind_value {
+            "aspect" => {
+                self.account_object(graph, nested);
+                self.account_field(graph, nested, "contour");
+                let mut aspect = XmlElement::with_attributes(
+                    "ASPECT",
+                    [("CONTOUR", enum_token(&nested["contour"]))],
+                );
+                let mut handled = Vec::from(["contour"]);
+                if let Some(anchor) = optional_string(nested, "anchor") {
+                    self.account_field(graph, nested, "anchor");
+                    aspect.push(self.wrap_pointer(graph, "ANCHOR", anchor, Vec::new()));
+                    handled.push("anchor");
+                }
+                if let Some(negation) = nested.get("scalarNegation").and_then(Value::as_object) {
+                    self.account_field(graph, nested, "scalarNegation");
+                    aspect.push(self.render_scalar_negation(graph, negation));
+                    handled.push("scalarNegation");
+                }
+                aspect.extend(self.extras(graph, nested, &handled));
+                result.push(aspect);
+            }
+            "recurrence" => result.push(self.render_recurrence_item(graph, nested_value)),
+            _ => panic!("unknown interval modifier kind: {kind_value:?}"),
         }
         result.extend(self.extras(graph, value, &["kind", "value"]));
         result
@@ -6243,6 +6994,46 @@ impl RenderState {
             handled.push("argumentScope");
         }
         result.extend(self.extras(graph, value, &handled));
+        result
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "PLACE-QUESTION")]
+    fn render_place_question(
+        &mut self,
+        graph: &GraphData,
+        value: &Map<String, Value>,
+    ) -> XmlElement {
+        self.account_object(graph, value);
+        let candidates = value
+            .get("candidatePlaces")
+            .and_then(Value::as_array)
+            .filter(|candidates| !candidates.is_empty())
+            .unwrap_or_else(|| panic!("place question must have candidate place labels"));
+        self.account_field(graph, value, "candidatePlaces");
+        let candidate_places = candidates
+            .iter()
+            .map(|place| {
+                place_label(
+                    place
+                        .as_str()
+                        .unwrap_or_else(|| panic!("candidate place must be a string")),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let mut result =
+            XmlElement::with_attributes("PLACE-QUESTION", [("CANDIDATE-PLACES", candidate_places)]);
+        let parameter = string_field(value, "parameter");
+        self.account_field(graph, value, "parameter");
+        result.push(self.wrap_pointer(graph, "PARAMETER", parameter, Vec::new()));
+        let argument = value
+            .get("argument")
+            .and_then(Value::as_object)
+            .unwrap_or_else(|| panic!("place question argument must be a record"));
+        self.account_field(graph, value, "argument");
+        result.push(self.render_argument(graph, argument, None, false));
+        result.extend(self.extras(graph, value, &["parameter", "argument", "candidatePlaces"]));
         result
     }
 
@@ -6805,6 +7596,47 @@ fn abstraction_content_parameters(
 }
 
 impl RenderState {
+    #[requires(true)]
+    #[ensures(ret.iter().all(|warning| warning.name == "WARNING"))]
+    fn render_diagnostics(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+    ) -> Vec<XmlElement> {
+        let Some(diagnostics) = object.get("diagnostics") else {
+            return Vec::new();
+        };
+        self.account_field(graph, object, "diagnostics");
+        diagnostics
+            .as_array()
+            .unwrap_or_else(|| panic!("semantic diagnostics must be a list"))
+            .iter()
+            .map(|diagnostic| {
+                let diagnostic = diagnostic
+                    .as_object()
+                    .unwrap_or_else(|| panic!("semantic diagnostic must be a record"));
+                self.account_object(graph, diagnostic);
+                assert_eq!(
+                    diagnostic.len(),
+                    2,
+                    "semantic diagnostic has an unknown field shape"
+                );
+                let severity = string_field(diagnostic, "severity");
+                self.account_field(graph, diagnostic, "severity");
+                assert_eq!(
+                    severity, "warning",
+                    "SFN-XML WARNING requires warning diagnostic severity"
+                );
+                let message = string_field(diagnostic, "message");
+                self.account_field(graph, diagnostic, "message");
+                assert!(!message.is_empty(), "semantic diagnostic message is empty");
+                let mut warning = XmlElement::new("WARNING");
+                warning.text = Some(message.to_owned());
+                warning
+            })
+            .collect()
+    }
+
     #[requires(graph.objects.contains_key(key))]
     #[ensures(!ret.name.is_empty())]
     fn render_object(&mut self, graph: &GraphData, key: &str) -> XmlElement {
@@ -6819,7 +7651,7 @@ impl RenderState {
                 .or_default();
             self.planning_object_stack.push(key.to_owned());
         }
-        let rendered = match optional_string(object, "type") {
+        let mut rendered = match optional_string(object, "type") {
             Some("utterance") => self.render_utterance(graph, key, object),
             Some("predication") => self.render_predication(graph, key, object),
             Some("formula") => self.render_formula(graph, key, object),
@@ -6829,9 +7661,11 @@ impl RenderState {
             Some("sequence") => self.render_sequence(graph, key, object),
             Some("displayedContent") => self.render_displayed_content(graph, object),
             Some("mathExpression") => self.render_math_expression(graph, object),
+            Some("relationMetadata") => self.render_relation_metadata(graph, object),
             Some("question") => self.render_question(graph, key, object),
             _ => self.render_unknown_object(graph, object),
         };
+        rendered.extend(self.render_diagnostics(graph, object));
         if self.planning {
             assert_eq!(
                 self.planning_object_stack.pop().as_deref(),
@@ -6843,7 +7677,7 @@ impl RenderState {
     }
 
     #[requires(true)]
-    #[ensures(ret.name == "UNKNOWN")]
+    #[ensures(ret.name == "QUESTION")]
     fn render_question(
         &mut self,
         graph: &GraphData,
@@ -6851,47 +7685,101 @@ impl RenderState {
         object: &Map<String, Value>,
     ) -> XmlElement {
         let parameters = question_parameters(graph, object);
-        let mut result = XmlElement::with_attributes("UNKNOWN", [("TYPE", "question")]);
-        for (field, value) in object {
-            if field == "type" {
-                continue;
+        self.account_field(graph, object, "kind");
+        self.account_field(graph, object, "mode");
+        self.account_field(graph, object, "domain");
+        let mut result = XmlElement::with_attributes(
+            "QUESTION",
+            [
+                ("KIND", enum_token(&object["kind"])),
+                ("MODE", enum_token(&object["mode"])),
+                ("DOMAIN", flat_sort_name(&object["domain"])),
+            ],
+        );
+        let mut handled = Vec::from(["type", "kind", "mode", "domain", "body"]);
+
+        let mut removed = Vec::new();
+        for index in (0..self.bound_variable_stack.len()).rev() {
+            if parameters.contains(&self.bound_variable_stack[index]) {
+                removed.push((index, self.bound_variable_stack.remove(index)));
             }
-            if field == "source" && is_source_record(value) {
-                self.record_field_omission(graph, object, field, XmlWaiverFamily::SourceRecord);
-                continue;
-            }
-            self.account_field(graph, object, field);
-            let mut rendered = XmlElement::with_attributes("FIELD", [("NAME", field.as_str())]);
-            if field == "body" {
-                let missing: Vec<String> = parameters
-                    .iter()
-                    .filter(|parameter| !self.bound_variable_stack.contains(parameter))
-                    .cloned()
-                    .collect();
-                self.bound_variable_stack.extend(missing.iter().cloned());
-                let (declarations, body) = self.scoped_parts(
-                    graph,
-                    vec!["question-body".to_owned(), key.to_owned()],
-                    |state, graph| state.generic_value(graph, value),
-                );
-                self.bound_variable_stack
-                    .truncate(self.bound_variable_stack.len() - missing.len());
-                Self::append_defs(&mut rendered, declarations);
-                rendered.push(body);
-            } else {
-                let mut removed = Vec::new();
-                for index in (0..self.bound_variable_stack.len()).rev() {
-                    if parameters.contains(&self.bound_variable_stack[index]) {
-                        removed.push((index, self.bound_variable_stack.remove(index)));
-                    }
-                }
-                rendered.push(self.generic_value(graph, value));
-                for (index, binder) in removed.into_iter().rev() {
-                    self.bound_variable_stack.insert(index, binder);
-                }
-            }
-            result.push(rendered);
         }
+        for (field, tag) in [("asker", "ASKER"), ("respondent", "RESPONDENT")] {
+            let pointer = string_field(object, field);
+            self.account_field(graph, object, field);
+            result.push(self.wrap_pointer(graph, tag, pointer, Vec::new()));
+            handled.push(field);
+        }
+        if let Some(slots) = object.get("slots").and_then(Value::as_array) {
+            self.account_field(graph, object, "slots");
+            let mut rendered_slots = XmlElement::new("SLOTS");
+            for slot in slots {
+                let slot = json_object(slot);
+                self.account_object(graph, slot);
+                self.account_field(graph, slot, "role");
+                let mut rendered_slot =
+                    XmlElement::with_attributes("SLOT", [("ROLE", enum_token(&slot["role"]))]);
+                let mut slot_handled = Vec::from(["role"]);
+                if let Some(kind) = slot.get("kind") {
+                    self.account_field(graph, slot, "kind");
+                    rendered_slot.set("KIND", enum_token(kind));
+                    slot_handled.push("kind");
+                }
+                if let Some(domain) = slot.get("domain") {
+                    self.account_field(graph, slot, "domain");
+                    rendered_slot.set("DOMAIN", flat_sort_name(domain));
+                    slot_handled.push("domain");
+                }
+                if let Some(parameter) = optional_string(slot, "parameter") {
+                    self.account_field(graph, slot, "parameter");
+                    rendered_slot.push(self.wrap_pointer(
+                        graph,
+                        "PARAMETER",
+                        parameter,
+                        Vec::new(),
+                    ));
+                    slot_handled.push("parameter");
+                }
+                rendered_slot.extend(self.extras(graph, slot, &slot_handled));
+                rendered_slots.push(rendered_slot);
+            }
+            result.push(rendered_slots);
+            handled.push("slots");
+        }
+        for (field, tag) in [
+            ("focus", "FOCUS"),
+            ("presupposedAnswer", "PRESUPPOSED-ANSWER"),
+        ] {
+            if let Some(pointer) = optional_string(object, field) {
+                self.account_field(graph, object, field);
+                result.push(self.wrap_pointer(graph, tag, pointer, Vec::new()));
+                handled.push(field);
+            }
+        }
+        for (index, binder) in removed.into_iter().rev() {
+            self.bound_variable_stack.insert(index, binder);
+        }
+
+        let body_key = string_field(object, "body");
+        self.account_field(graph, object, "body");
+        let missing: Vec<String> = parameters
+            .iter()
+            .filter(|parameter| !self.bound_variable_stack.contains(parameter))
+            .cloned()
+            .collect();
+        self.bound_variable_stack.extend(missing.iter().cloned());
+        let (declarations, rendered_body) = self.scoped_parts(
+            graph,
+            vec!["question-body".to_owned(), key.to_owned()],
+            |state, graph| state.render_pointer(graph, body_key),
+        );
+        self.bound_variable_stack
+            .truncate(self.bound_variable_stack.len() - missing.len());
+        let mut body = XmlElement::new("BODY");
+        Self::append_defs(&mut body, declarations);
+        body.push(rendered_body);
+        result.push(body);
+        result.extend(self.extras(graph, object, &handled));
         result
     }
 
@@ -7074,35 +7962,43 @@ impl RenderState {
             }
         }
 
-        let mut metadata = XmlElement::new("META");
-        if let Some(questions) = object.get("placeQuestions") {
+        if let Some(questions) = object.get("placeQuestions").and_then(Value::as_array) {
             self.account_field(graph, object, "placeQuestions");
             let mut rendered = XmlElement::new("PLACE-QUESTIONS");
-            rendered.push(self.generic_value(graph, questions));
-            metadata.push(rendered);
+            for question in questions {
+                rendered.push(self.render_place_question(graph, json_object(question)));
+            }
+            result.push(rendered);
             handled.push("placeQuestions");
         }
+
         if let Some(link) = object.get("tanruLink").and_then(Value::as_object) {
             self.account_field(graph, object, "tanruLink");
-            let mut rendered = XmlElement::new("TANRU-LINK");
-            if let Some(head) = optional_string(link, "head") {
-                self.account_field(graph, link, "head");
-                rendered.push(self.wrap_pointer(graph, "HEAD", head, Vec::new()));
+            let mut composition = XmlElement::new("KIND-COMPOSITION");
+            let head = string_field(link, "head");
+            self.account_field(graph, link, "head");
+            composition.push(self.wrap_pointer(graph, "KIND", head, Vec::new()));
+            let modifier = string_field(link, "modifier");
+            self.account_field(graph, link, "modifier");
+            composition.push(self.wrap_pointer(graph, "MODIFIER", modifier, Vec::new()));
+            if link.contains_key("relationLabel") {
+                self.record_field_omission(
+                    graph,
+                    link,
+                    "relationLabel",
+                    XmlWaiverFamily::CompositionRelationLabel,
+                );
             }
-            if let Some(modifier) = optional_string(link, "modifier") {
-                self.account_field(graph, link, "modifier");
-                rendered.push(self.wrap_pointer(graph, "MODIFIER", modifier, Vec::new()));
-            }
-            if let Some(label) = optional_string(link, "relationLabel") {
-                self.account_field(graph, link, "relationLabel");
-                rendered.push(XmlElement::with_attributes(
-                    "RELATION-LABEL",
-                    [("VALUE", label)],
-                ));
-            }
-            rendered.extend(self.extras(graph, link, &["head", "modifier", "relationLabel"]));
-            metadata.push(rendered);
+            composition.extend(self.extras(graph, link, &["head", "modifier", "relationLabel"]));
+            result.push(composition);
             handled.push("tanruLink");
+        }
+
+        let mut metadata = XmlElement::new("META");
+        if let Some(relation_metadata) = optional_string(object, "relationMetadata") {
+            self.account_field(graph, object, "relationMetadata");
+            metadata.push(self.render_pointer(graph, relation_metadata));
+            handled.push("relationMetadata");
         }
         if let Some(negation) = object.get("scalarNegation").and_then(Value::as_object) {
             self.account_field(graph, object, "scalarNegation");
@@ -7350,25 +8246,42 @@ impl RenderState {
                 }
                 handled.push("children");
             } else {
+                if let Some(children) = object.get("children").and_then(Value::as_array) {
+                    state.account_field(graph, object, "children");
+                    operands.extend(children.iter().map(|child| {
+                        state.render_pointer(
+                            graph,
+                            child
+                                .as_str()
+                                .unwrap_or_else(|| panic!("formula child must be an id")),
+                        )
+                    }));
+                    handled.push("children");
+                }
                 for field in [
-                    "children",
                     "predication",
                     "variable",
+                    "sourceVariable",
                     "restriction",
                     "body",
                     "quantity",
-                    "domainImport",
+                    "eventuality",
                 ] {
-                    if let Some(value) = object.get(field) {
+                    if let Some(pointer) = optional_string(object, field) {
                         state.account_field(graph, object, field);
-                        let mut operand = XmlElement::with_attributes(
-                            "OPERAND",
-                            [("ROLE", enum_string(field).replace('_', "-"))],
-                        );
-                        operand.push(state.generic_value(graph, value));
-                        operands.push(operand);
+                        operands.push(state.wrap_pointer(
+                            graph,
+                            &enum_string(field).replace('_', "-"),
+                            pointer,
+                            Vec::new(),
+                        ));
                         handled.push(field);
                     }
+                }
+                if let Some(import) = object.get("domainImport") {
+                    state.account_field(graph, object, "domainImport");
+                    operands.push(Self::scalar("DOMAIN-IMPORT", import));
+                    handled.push("domainImport");
                 }
             }
             let mut post = Vec::new();

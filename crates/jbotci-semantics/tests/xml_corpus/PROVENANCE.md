@@ -2,7 +2,7 @@
 
 This directory vendors the authoritative SFN-XML adoption corpus from
 `int19h/tersmu-dsl-research` commit
-`f2a04abacb243a196c554c630e8cebd404475614`.
+`c29cf9147378fa424c58bdbd55c4ad4e92a193f1`.
 
 - `*.frozen.json` are the 48 comparable canonical source graphs from
   `experiments/phase-a/battery-renders-smusni/fresh-json-v2`.
@@ -38,23 +38,62 @@ The pinned research directories also contain `b56-quote`, which the research
 PM-verified comparison golden. It is therefore intentionally excluded from
 this 48-document product parity corpus.
 
+XML profile rev 6 makes modifier/head structure first-class as
+`KIND-COMPOSITION` with `KIND` naming the place-structure-bearing head and
+`MODIFIER` naming what modifies it. The relation remains intentionally
+unspecified. `RELATION-LABEL` is derivational provenance: the default product
+records its omission under the closed `CompositionRelationLabel` waiver, while
+the prototype's `--provenance` mode emits it. Semantic diagnostics are exact,
+repeatable escaped text nodes: `<WARNING>message</WARNING>`.
+
+The fallback sweep replaced every known compact occurrence that formerly used
+`EXTRA/FIELD/RECORD/LIST/ITEM/UNKNOWN`. The old 48+4 corpus contained exactly
+59 generic `FIELD` elements:
+
+| Known shape | Old generic fields | Rev-6 first-class form | Occurrences |
+|---|---:|---|---:|
+| four `Question` records and four `QuestionSlot` records | 40 | `QUESTION`, participants, `SLOTS/SLOT`, focus, binder-scoped `BODY` | 4 + 4 |
+| two interval modifiers, including aspect/recurrence values | 8 | `INTERVAL-MODIFIERS/INTERVAL-MODIFIER`, `ASPECT`/`OCCURRENCE` | 2 |
+| one sequence connection claim and nonlogical connector | 5 | `CONNECTION-CLAIMS`, `NONLOGICAL-CONNECTION`, `CONNECTOR` | 1 + 1 |
+| two semantic diagnostics | 6 | repeatable `WARNING` text elements | 2 |
+
+The 50-document Phase-B sweep additionally pins place questions, tense-modal
+pointers, questioned math operators, and quantity question parameters.
+Focused live/synthetic witnesses pin lexical `RELATION-METADATA` (including
+place descriptions, expansion, and rafsi bindings), orphan embedded questions,
+and a genuinely novel nested field that must still use the lossless fallback.
+The static semantic field inventory is the closed known-field registry. Product
+tests require zero generic scaffolding in every compact primary, focused,
+Phase-B, and reviewer-regression render. `FORM="TYPED-GRAPH"` remains the
+deliberate whole-document projection boundary and is exempt from that compact
+assertion.
+
 Before these files were imported, a fresh run from the clean research checkout
 at the pinned commit was performed:
 
 ```text
 PYTHONDONTWRITEBYTECODE=1 python3 render_xml.py --check --output-dir <scratch>
 diff -qr <scratch> experiments/phase-a/battery-renders-xml
+PYTHONDONTWRITEBYTECODE=1 python3 render_xml.py --provenance --check --output-dir <provenance-scratch>
 ```
 
 The prototype's default and provenance checks passed all 49 primary research
 documents, including the separate `b56-quote` witness. The selected
-48-document product XML files compare byte-for-byte with the research
-prototype outputs. All 48 product JSON files also compare byte-for-byte with the pinned research
+48-document product XML files compare byte-for-byte with fresh default
+prototype outputs, and the four focused XML files compare byte-for-byte with
+their paired research goldens after the intentional `DOC=` substitution. All
+48 product JSON files also compare byte-for-byte with the pinned research
 sources. Product tests independently pin ordered name/content hashes
 `69ea08a65aba19049f65070b9eb045361834ddfbd2773da972c047be325381b3`
 for JSON and
-`62748699159c588e68ce4bf4a6e613990545c57535c5d317025d86dec77fd04a`
+`8054b126268d07532363b576a1a5e27c5c4eb446aa4370b0a020284b159e5220`
 for XML.
+
+Across the 48 comparable product documents, observed omissions equal the
+independently expanded waiver set exactly: source records 624, assigned-name
+records 3, descriptor words 55, `introducedBy` fields 234, quantity text
+fields 11, bound-variable words 9, and composition relation labels 5, for 941
+occurrences total. There are no unwaived or duplicate omissions.
 
 The files are frozen evidence. Update them only after a separately reviewed
 notation decision and a fresh, pinned-oracle parity proof.

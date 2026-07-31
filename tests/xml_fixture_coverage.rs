@@ -167,6 +167,26 @@ fn assert_render_contract(graph: &SemanticGraph, document_name: &str) -> BTreeSe
     let root = document.root_element();
     assert_eq!(root.tag_name().name(), "SFN", "{document_name}");
     let typed = root.attribute("FORM") == Some("TYPED-GRAPH");
+    if !typed {
+        let generic_nodes: Vec<String> = document
+            .descendants()
+            .filter(|node| {
+                node.is_element()
+                    && matches!(
+                        node.tag_name().name(),
+                        "EXTRA" | "FIELD" | "LIST" | "ITEM" | "RECORD" | "UNKNOWN"
+                    )
+            })
+            .map(|node| match node.attribute("NAME") {
+                Some(field) => format!("{}[{field}]", node.tag_name().name()),
+                None => node.tag_name().name().to_owned(),
+            })
+            .collect();
+        assert!(
+            generic_nodes.is_empty(),
+            "{document_name}: known compact semantics reached generic scaffolding: {generic_nodes:?}"
+        );
+    }
     let reasons: BTreeSet<String> = document
         .descendants()
         .filter(|node| node.has_tag_name("INCOMPATIBILITY"))
@@ -191,7 +211,8 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
     for case in reviewer_regressions() {
         let graph =
             graph_for_source(&case.text).unwrap_or_else(|error| panic!("{:?}: {error}", case.text));
-        let reasons = assert_render_contract(&graph, "<reviewer-regression>");
+        let reasons =
+            assert_render_contract(&graph, &format!("<reviewer-regression:{}>", case.text));
         match &case.typed_reason {
             Some(reason) => assert!(
                 reasons.contains(reason),
@@ -231,7 +252,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b59",
             "mi djuno lo ka ce'u klama makau",
-            "972581968a0b60dde48af4b94c37fcf404cf177e96b1fa2c6264fc548d33792f",
+            "333d657bb822e83c89b28d4e358a3d2fe2e629f1238cbc5e101c330dec9ea9c6",
             "content-first-question-scope/b59.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.frozen.json"
@@ -244,7 +265,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b60",
             "mi djica lo nu makau klama",
-            "fb3a0ff771b7831d8b6f6dc4b33f3aa7c3fe85bd88bd97521bf1f3b2d4e125a5",
+            "8291b682a0673c28111138daaf85878b9c3ec5487a767b219bdf1fe75386227e",
             "content-first-question-scope/b60.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.frozen.json"
@@ -257,7 +278,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b61",
             "mi facki lo ni ma kau clani",
-            "8d39bd556d471b631f711647cfba208deeff09043f193d84f495ec2721f753fa",
+            "23f61eacc63c40d895c9246b1097d8c21794b1f3a607c7c1e36558077fb18c58",
             "referent-sort-abstraction/b61.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/referent-sort-abstraction/b61.frozen.json"
@@ -270,7 +291,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b62",
             "mi cusku lu ro da klama li'u",
-            "d0f9203c2a6d4da9f98f83867f382d097ce2c97098c3f50b8ff39e5b33069f62",
+            "ff1eec3b104dcd978d3da8b24fbea591166dc699fe0baa23f9c308c4be30ef5a",
             "sign-quotation/b62.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/sign-quotation/b62.frozen.json"
@@ -343,6 +364,26 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         );
         assert!(!rendered.output.contains("SAME-FOR-ALL=\"true\""));
         assert!(!rendered.output.contains("POSSIBLY-DIFFERENT-PER=\""));
+        let parsed = roxmltree::Document::parse(&rendered.output)
+            .unwrap_or_else(|error| panic!("{document} XML must parse: {error}"));
+        let generic_nodes: Vec<String> = parsed
+            .descendants()
+            .filter(|node| {
+                node.is_element()
+                    && matches!(
+                        node.tag_name().name(),
+                        "EXTRA" | "FIELD" | "LIST" | "ITEM" | "RECORD" | "UNKNOWN"
+                    )
+            })
+            .map(|node| match node.attribute("NAME") {
+                Some(field) => format!("{}[{field}]", node.tag_name().name()),
+                None => node.tag_name().name().to_owned(),
+            })
+            .collect();
+        assert!(
+            generic_nodes.is_empty(),
+            "{document}: focused compact output reached generic scaffolding: {generic_nodes:?}"
+        );
         assert_eq!(
             rendered.output.replacen(
                 "DOC=\"&lt;scope-dependence-first-visit&gt;\"",
