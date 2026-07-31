@@ -1,4 +1,4 @@
-<SFN VERSION="0" DOC="b54">
+<SFN VERSION="0" DOC="b58">
   <KEY>
     <RULE TOPIC="ids">ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).</RULE>
     <RULE TOPIC="lexical-categories">UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.</RULE>
@@ -21,54 +21,77 @@
     <RULE TOPIC="order">Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.</RULE>
   </KEY>
   <WAIVERS>
-    <WAIVER>*.source provenance (15 records: spans, witness text, construct labels)</WAIVER>
-    <WAIVER>*.assignedNames provenance (2 records)</WAIVER>
-    <WAIVER>descriptor *.word provenance (2 fields)</WAIVER>
+    <WAIVER>*.source provenance (8 records: spans, witness text, construct labels)</WAIVER>
+    <WAIVER>descriptor *.word provenance (1 field)</WAIVER>
     <WAIVER>*.introducedBy provenance (2 fields)</WAIVER>
   </WAIVERS>
-  <SEQUENCE RELATION="SAME_TOPIC_CONTINUATION">
-    <DEFS>
-      <DEICTIC-GROUND ID="g1" SPEAKER-REF="r1" AUDIENCE-REF="r2" TIME-REF="e3" PLACE-REF="r4"/>
-      <ENTITY ID="r8">
-        <NAMED TEXT="alis">
-          <BY REF="r1"/>
-        </NAMED>
-      </ENTITY>
-      <ENTITY ID="r9">
-        <NAMED TEXT="bob">
-          <BY REF="r1"/>
-        </NAMED>
-      </ENTITY>
-    </DEFS>
-    <UTTERANCE FORCE="ASSERT" GROUND="g1">
-      <LOCUTION ACTUALITY="ACTUAL"/>
-      <CONTENT>
-        <EXISTS>
-          <VARIABLE ID="e7" SORT="Eventuality"/>
+  <DEFS>
+    <DEICTIC-GROUND ID="g1" SPEAKER-REF="r1" AUDIENCE-REF="r2" TIME-REF="e3" PLACE-REF="r4"/>
+  </DEFS>
+  <UTTERANCE FORCE="MENTION" GROUND="g1">
+    <LOCUTION ACTUALITY="ACTUAL"/>
+    <CONTENT>
+      <PROPOSITION>
+        <VERIDICAL-DESCRIPTION>
           <BODY>
-            <PREDICATION PREDICATE="identity" MODE="DEFINITIONAL">
-              <EVENT REF="e7"/>
-              <ARG INDEX="1" REF="r8"/>
-              <ARG INDEX="2" REF="r9"/>
-            </PREDICATION>
+            <DEFS>
+              <EXISTS ID="f10">
+                <VARIABLE ID="e6" SORT="Eventuality"/>
+                <BODY>
+                  <PREDICATION PREDICATE="cortu" MODE="INERT">
+                    <EVENT REF="e6"/>
+                    <ARG INDEX="1" REF="v7"/>
+                    <ARG INDEX="2">
+                      <UNSPECIFIED-REFERENT/>
+                    </ARG>
+                  </PREDICATION>
+                </BODY>
+              </EXISTS>
+              <PARAMETER ID="v7" SORT="Entity" ROLE="ARGUMENT_QUESTION"/>
+            </DEFS>
+            <REFERENCE REF="f10"/>
+            <EMBEDDED-QUESTIONS>
+              <UNKNOWN TYPE="question">
+                <FIELD NAME="body">
+                  <REFERENCE REF="f10"/>
+                </FIELD>
+                <FIELD NAME="kind">
+                  <STRING VALUE="argument"/>
+                </FIELD>
+                <FIELD NAME="mode">
+                  <STRING VALUE="indirect"/>
+                </FIELD>
+                <FIELD NAME="asker">
+                  <REFERENCE REF="r1"/>
+                </FIELD>
+                <FIELD NAME="respondent">
+                  <REFERENCE REF="r2"/>
+                </FIELD>
+                <FIELD NAME="domain">
+                  <STRING VALUE="entity"/>
+                </FIELD>
+                <FIELD NAME="slots">
+                  <LIST>
+                    <ITEM>
+                      <RECORD>
+                        <FIELD NAME="parameter">
+                          <REFERENCE REF="v7"/>
+                        </FIELD>
+                        <FIELD NAME="role">
+                          <STRING VALUE="answer"/>
+                        </FIELD>
+                      </RECORD>
+                    </ITEM>
+                  </LIST>
+                </FIELD>
+                <FIELD NAME="focus">
+                  <REFERENCE REF="v7"/>
+                </FIELD>
+              </UNKNOWN>
+            </EMBEDDED-QUESTIONS>
           </BODY>
-        </EXISTS>
-      </CONTENT>
-    </UTTERANCE>
-    <UTTERANCE FORCE="ASSERT" GROUND="g1">
-      <LOCUTION ACTUALITY="ACTUAL"/>
-      <CONTENT>
-        <EXISTS>
-          <VARIABLE ID="e13" SORT="Eventuality"/>
-          <BODY>
-            <PREDICATION PREDICATE="identity" MODE="DEFINITIONAL">
-              <EVENT REF="e13"/>
-              <ARG INDEX="1" REF="r9"/>
-              <ARG INDEX="2" REF="r8"/>
-            </PREDICATION>
-          </BODY>
-        </EXISTS>
-      </CONTENT>
-    </UTTERANCE>
-  </SEQUENCE>
+        </VERIDICAL-DESCRIPTION>
+      </PROPOSITION>
+    </CONTENT>
+  </UTTERANCE>
 </SFN>

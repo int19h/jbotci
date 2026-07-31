@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `e25eeaf09bab4f14eea98e73cd1244ac464346da`.  Like the frozen `smusni`
+//! `a9b7ee05f002187018ae73fd9e2596e76e0268f9`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 
 use crate::model::{SEMANTIC_JSON_VERSION, SemanticGraph};
 
-const SCOPE_DEPENDENCE_TEACHING: &str = "A referent mentioned inside a quantifier may either be one shared thing for all values of the bound variable, or a possibly different thing per value — the text does not decide, and nothing is marked in that default case. SAME-FOR-ALL marks the exceptions known to be one and the same across all values.";
+const SCOPE_DEPENDENCE_TEACHING: &str = "A referent mentioned inside enclosing binders — quantifier variables or abstraction/question parameters — may either be one shared thing for all binder values, or a possibly different thing per combination of values; the text does not decide, and nothing is marked when it may depend on every enclosing binder. SAME-FOR-ALL marks the exceptions known to be one and the same across all enclosing binders.";
 
 const KEY_RULES_BEFORE_SORTS: &[(&str, &str)] = &[
     (
@@ -40,12 +40,12 @@ const KEY_RULES_AFTER_SORTS: &[(&str, &str)] = &[
     ),
     (
         "quantifiers",
-        "EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS has no RESTRICTION; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.",
+        "EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS writes RESTRICTION exactly when the graph supplies one; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.",
     ),
     ("scope-dependence", SCOPE_DEPENDENCE_TEACHING),
     (
         "scope-dependence-subsets",
-        "POSSIBLY-DIFFERENT-PER= is a space-separated list of the enclosing bound-variable ids on which a referent may depend when that list is a strict subset of all enclosing binders.",
+        "POSSIBLY-DIFFERENT-PER= is a space-separated list of enclosing quantifier-variable or abstraction/question-parameter ids on which a referent may depend when that list is a strict subset of all enclosing binders.",
     ),
     (
         "number-neutrality",
@@ -717,7 +717,6 @@ type Ground = [String; 4];
 #[invariant(::PrototypeIdWithoutCompactUse { object } => !object.is_empty())]
 #[invariant(::DefinitionSiteDoesNotDominateUse { object } => !object.is_empty())]
 #[invariant(::DeclarationPlanningDidNotConverge { iterations } => *iterations > 0)]
-#[invariant(::RestrictedExists { formula } => !formula.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum CompactIncompatibility {
     NonCanonicalGround {
@@ -766,9 +765,6 @@ enum CompactIncompatibility {
     DeclarationPlanningDidNotConverge {
         iterations: usize,
     },
-    RestrictedExists {
-        formula: String,
-    },
 }
 
 impl CompactIncompatibility {
@@ -805,7 +801,6 @@ impl CompactIncompatibility {
             data!(CompactIncompatibility::DeclarationPlanningDidNotConverge { .. }) => {
                 "DECLARATION-PLANNING-DID-NOT-CONVERGE"
             }
-            data!(CompactIncompatibility::RestrictedExists { .. }) => "RESTRICTED-EXISTS",
         }
     }
 }
@@ -952,6 +947,23 @@ impl GraphData {
         let mut binder_owner_sets: HashMap<String, BTreeSet<String>> = HashMap::new();
         let mut quantifier_owner_sets: HashMap<String, BTreeSet<String>> = HashMap::new();
         let mut quantifier_restrictions = HashSet::new();
+        let mut embedding_abstractions: HashMap<String, BTreeSet<String>> = HashMap::new();
+        for (owner, value) in &objects {
+            if let Some(questions) = json_object(value)
+                .get("embeddedQuestions")
+                .and_then(Value::as_array)
+            {
+                for question in questions {
+                    let question = question
+                        .as_str()
+                        .unwrap_or_else(|| panic!("embedded question must be an id"));
+                    embedding_abstractions
+                        .entry(question.to_owned())
+                        .or_default()
+                        .insert(owner.clone());
+                }
+            }
+        }
         for (owner, value) in &objects {
             let object = json_object(value);
             if let Some(bound) = object.get("boundEventualities").and_then(Value::as_array) {
@@ -986,7 +998,7 @@ impl GraphData {
                     .insert(owner.clone());
                 if matches!(
                     optional_string(object, "operator"),
-                    Some("forall" | "cardinality")
+                    Some("exists" | "forall" | "cardinality")
                 ) && let Some(restriction) = optional_string(object, "restriction")
                 {
                     quantifier_restrictions.insert((variable.to_owned(), restriction.to_owned()));
@@ -1001,6 +1013,29 @@ impl GraphData {
                         .entry(parameter.to_owned())
                         .or_default()
                         .insert(owner.clone());
+                }
+            }
+            if optional_string(object, "type") == Some("question") {
+                let slots = object.get("slots").map(json_array).unwrap_or_default();
+                for slot in slots {
+                    let slot = json_object(slot);
+                    if slot.contains_key("parameter") {
+                        let parameter = string_field(slot, "parameter");
+                        assert_eq!(
+                            objects
+                                .get(parameter)
+                                .and_then(Value::as_object)
+                                .and_then(|parameter| optional_string(parameter, "type")),
+                            Some("parameter"),
+                            "question slot parameter must reference a parameter object"
+                        );
+                        let owners = binder_owner_sets.entry(parameter.to_owned()).or_default();
+                        if let Some(abstractions) = embedding_abstractions.get(owner) {
+                            owners.extend(abstractions.iter().cloned());
+                        } else {
+                            owners.insert(owner.clone());
+                        }
+                    }
                 }
             }
         }
@@ -1748,14 +1783,6 @@ fn representation_plan(
             }
         }
 
-        if optional_string(object, "type") == Some("formula")
-            && optional_string(object, "operator") == Some("exists")
-            && object.contains_key("restriction")
-        {
-            incompatibilities.insert(new!(CompactIncompatibility::RestrictedExists {
-                formula: key.clone(),
-            }));
-        }
         if optional_string(object, "type") == Some("sequence")
             && object
                 .get("relation")
@@ -2596,6 +2623,7 @@ impl RenderState {
             "personalMassMembership",
             "deicticReference",
             "generatedReferent",
+            "embeddedQuestions",
         ]);
         handled.extend(FACET_FIELDS.iter().copied());
         if let Some(assigned_names) = object.get("assignedNames") {
@@ -2687,27 +2715,45 @@ impl RenderState {
         }
         if let Some(body_key) = optional_string(object, "body") {
             self.account_field(graph, object, "body");
-            let parameters = object
-                .get("parameters")
+            let parameters = abstraction_parameters(graph, object);
+            self.bound_variable_stack.extend(parameters.iter().cloned());
+            let embedded_questions = object
+                .get("embeddedQuestions")
                 .and_then(Value::as_array)
                 .map(Vec::as_slice)
                 .unwrap_or_default();
-            for parameter in parameters {
-                self.bound_variable_stack.push(
-                    parameter
-                        .as_str()
-                        .unwrap_or_else(|| panic!("referent parameter must be an id"))
-                        .to_owned(),
-                );
+            if object.contains_key("embeddedQuestions") {
+                self.account_field(graph, object, "embeddedQuestions");
             }
-            let body = self.scoped_pointer(
+            let (declarations, (rendered_body, rendered_questions)) = self.scoped_parts(
                 graph,
-                "BODY",
-                body_key,
                 vec!["description-body".to_owned(), key.to_owned()],
+                |state, graph| {
+                    let rendered_body = state.render_pointer(graph, body_key);
+                    let rendered_questions: Vec<XmlElement> = embedded_questions
+                        .iter()
+                        .map(|question| {
+                            state.render_pointer(
+                                graph,
+                                question
+                                    .as_str()
+                                    .unwrap_or_else(|| panic!("embedded question must be an id")),
+                            )
+                        })
+                        .collect();
+                    (rendered_body, rendered_questions)
+                },
             );
             self.bound_variable_stack
                 .truncate(self.bound_variable_stack.len() - parameters.len());
+            let mut body = XmlElement::new("BODY");
+            Self::append_defs(&mut body, declarations);
+            body.push(rendered_body);
+            if !rendered_questions.is_empty() {
+                let mut questions = XmlElement::new("EMBEDDED-QUESTIONS");
+                questions.extend(rendered_questions);
+                body.push(questions);
+            }
             let proposition =
                 object.get("sort").map(flat_sort_name).as_deref() == Some("Proposition");
             if proposition && let Some(index) = descriptor_index {
@@ -3212,9 +3258,6 @@ fn render_compact_incompatibility(reason: &CompactIncompatibility) -> XmlElement
         data!(CompactIncompatibility::DeclarationPlanningDidNotConverge { iterations }) => {
             result.set("ITERATIONS", iterations.to_string());
         }
-        data!(CompactIncompatibility::RestrictedExists { formula }) => {
-            result.set("FORMULA", formula);
-        }
     }
     result
 }
@@ -3703,6 +3746,8 @@ mod tests {
         "b53",
         "b54",
         "b55",
+        "b57",
+        "b58",
         "medium-quantified",
         "numeral-price",
         "paragraph-narrative",
@@ -4375,7 +4420,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn frozen_xml_corpus_is_exact_and_pinned() {
-        assert_eq!(XML_CORPUS_DOCS.len(), 46);
+        assert_eq!(XML_CORPUS_DOCS.len(), 48);
         let expected: BTreeSet<String> = XML_CORPUS_DOCS
             .iter()
             .flat_map(|document| {
@@ -4401,18 +4446,18 @@ mod tests {
         assert_eq!(actual, expected);
         assert_eq!(
             aggregate_hash("frozen.json"),
-            "f01d67efab5d2d90473481d80702dfa593d47747447546c63b1bb821bd0cf102"
+            "69ea08a65aba19049f65070b9eb045361834ddfbd2773da972c047be325381b3"
         );
         assert_eq!(
             aggregate_hash("xml.txt"),
-            "f1bb35a70f818bf15850bfb74f3986fa69900431b88a59d8dcb1919bd595d66d"
+            "d32fc7da5ccfe8ab3c4f88944e4c51f4d9df99da406f2a24d85cf7dcd6e8dafe"
         );
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn xml_matches_the_frozen_prototype_on_all_46_documents() {
+    fn xml_matches_the_frozen_prototype_on_all_48_documents() {
         let mut mismatches = Vec::new();
         for document in XML_CORPUS_DOCS {
             let expected = std::fs::read_to_string(fixture(document, "xml.txt"))
@@ -4433,6 +4478,47 @@ mod tests {
             mismatches.len(),
             XML_CORPUS_DOCS.len(),
             mismatches.join("\n")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstraction_parameters_share_scope_dependence_binder_semantics() {
+        let default = render_xml_value(graph("b58"), "<parameter-default>");
+        assert!(!default.output.contains("SAME-FOR-ALL=\"true\""));
+        assert!(!default.output.contains("POSSIBLY-DIFFERENT-PER=\""));
+
+        let mut fixed = graph("b58");
+        fixed["objects"]["entity:8"]["scopeDependence"] = serde_json::json!({"kind": "fixed"});
+        let fixed = render_xml_value(fixed, "<parameter-fixed>");
+        assert!(
+            fixed
+                .output
+                .contains("<UNSPECIFIED-REFERENT SAME-FOR-ALL=\"true\"/>")
+        );
+
+        let mut subset = graph("b58");
+        subset["objects"]["parameter:99"] = serde_json::json!({
+            "type": "parameter",
+            "sort": "entity",
+            "role": "argumentQuestion"
+        });
+        subset["objects"]["question:11"]["slots"]
+            .as_array_mut()
+            .expect("b58 question slots")
+            .push(serde_json::json!({
+                "parameter": "parameter:99",
+                "role": "answer"
+            }));
+        let subset = render_xml_value(subset, "<parameter-subset>");
+        assert!(subset.output.contains("POSSIBLY-DIFFERENT-PER=\"v7\""));
+        assert!(!subset.output.contains("FORM=\"TYPED-GRAPH\""));
+
+        let mut malformed = graph("b58");
+        malformed["objects"]["question:11"]["slots"][0]["parameter"] = Value::Number(7.into());
+        assert!(
+            std::panic::catch_unwind(|| render_xml_value(malformed, "<malformed-slot>")).is_err()
         );
     }
 
@@ -4486,27 +4572,27 @@ mod tests {
         assert_eq!(
             counts,
             BTreeMap::from([
-                (XmlWaiverFamily::SourceRecord, 605),
+                (XmlWaiverFamily::SourceRecord, 624),
                 (XmlWaiverFamily::AssignedNameRecord, 3),
-                (XmlWaiverFamily::DescriptorWord, 54),
-                (XmlWaiverFamily::IntroducedBy, 232),
+                (XmlWaiverFamily::DescriptorWord, 55),
+                (XmlWaiverFamily::IntroducedBy, 234),
                 (XmlWaiverFamily::QuantityText, 11),
-                (XmlWaiverFamily::BoundVariableWord, 8),
+                (XmlWaiverFamily::BoundVariableWord, 9),
             ])
         );
-        assert_eq!(counts.values().sum::<usize>(), 913);
+        assert_eq!(counts.values().sum::<usize>(), 936);
         assert_eq!(
             documents
                 .into_iter()
                 .map(|(family, documents)| (family, documents.len()))
                 .collect::<BTreeMap<_, _>>(),
             BTreeMap::from([
-                (XmlWaiverFamily::SourceRecord, 46),
+                (XmlWaiverFamily::SourceRecord, 48),
                 (XmlWaiverFamily::AssignedNameRecord, 2),
-                (XmlWaiverFamily::DescriptorWord, 34),
-                (XmlWaiverFamily::IntroducedBy, 44),
+                (XmlWaiverFamily::DescriptorWord, 35),
+                (XmlWaiverFamily::IntroducedBy, 45),
                 (XmlWaiverFamily::QuantityText, 7),
-                (XmlWaiverFamily::BoundVariableWord, 5),
+                (XmlWaiverFamily::BoundVariableWord, 6),
             ])
         );
     }
@@ -4547,7 +4633,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn xml_rendering_is_deterministic_on_all_46_documents() {
+    fn xml_rendering_is_deterministic_on_all_48_documents() {
         for document in XML_CORPUS_DOCS {
             let graph = graph(document);
             assert_eq!(
@@ -6205,6 +6291,56 @@ fn is_bare_zohe(object: &Map<String, Value>) -> bool {
         })
 }
 
+#[requires(true)]
+#[ensures(ret.iter().all(|parameter| graph.objects.contains_key(parameter)))]
+fn question_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec<String> {
+    let slots = object.get("slots").map(json_array).unwrap_or_default();
+    let mut parameters = Vec::new();
+    for slot in slots {
+        let slot = json_object(slot);
+        let Some(parameter) = slot.get("parameter") else {
+            continue;
+        };
+        let parameter = parameter
+            .as_str()
+            .unwrap_or_else(|| panic!("question slot parameter must be an id"));
+        assert_eq!(
+            optional_string(graph.object(parameter), "type"),
+            Some("parameter"),
+            "question slot parameter must reference a parameter object"
+        );
+        parameters.push(parameter.to_owned());
+    }
+    parameters.sort();
+    parameters.dedup();
+    parameters
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|parameter| graph.objects.contains_key(parameter)))]
+fn abstraction_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec<String> {
+    let mut parameters = Vec::new();
+    if let Some(explicit) = object.get("parameters").and_then(Value::as_array) {
+        parameters.extend(explicit.iter().map(|parameter| {
+            parameter
+                .as_str()
+                .unwrap_or_else(|| panic!("abstraction parameter must be an id"))
+                .to_owned()
+        }));
+    }
+    if let Some(questions) = object.get("embeddedQuestions").and_then(Value::as_array) {
+        for question in questions {
+            let question = question
+                .as_str()
+                .unwrap_or_else(|| panic!("embedded question must be an id"));
+            parameters.extend(question_parameters(graph, graph.object(question)));
+        }
+    }
+    parameters.sort();
+    parameters.dedup();
+    parameters
+}
+
 impl RenderState {
     #[requires(graph.objects.contains_key(key))]
     #[ensures(!ret.name.is_empty())]
@@ -6230,6 +6366,7 @@ impl RenderState {
             Some("sequence") => self.render_sequence(graph, key, object),
             Some("displayedContent") => self.render_displayed_content(graph, object),
             Some("mathExpression") => self.render_math_expression(graph, object),
+            Some("question") => self.render_question(graph, key, object),
             _ => self.render_unknown_object(graph, object),
         };
         if self.planning {
@@ -6240,6 +6377,57 @@ impl RenderState {
             );
         }
         rendered
+    }
+
+    #[requires(true)]
+    #[ensures(ret.name == "UNKNOWN")]
+    fn render_question(
+        &mut self,
+        graph: &GraphData,
+        key: &str,
+        object: &Map<String, Value>,
+    ) -> XmlElement {
+        let parameters = question_parameters(graph, object);
+        let mut result = XmlElement::with_attributes("UNKNOWN", [("TYPE", "question")]);
+        for (field, value) in object {
+            if field == "type" {
+                continue;
+            }
+            if field == "source" && is_source_record(value) {
+                self.record_field_omission(graph, object, field, XmlWaiverFamily::SourceRecord);
+                continue;
+            }
+            self.account_field(graph, object, field);
+            let mut rendered = XmlElement::with_attributes("FIELD", [("NAME", field.as_str())]);
+            if field == "body" {
+                let missing: Vec<String> = parameters
+                    .iter()
+                    .filter(|parameter| !self.bound_variable_stack.contains(parameter))
+                    .cloned()
+                    .collect();
+                self.bound_variable_stack.extend(missing.iter().cloned());
+                let (declarations, body) = self.scoped_parts(
+                    graph,
+                    vec!["question-body".to_owned(), key.to_owned()],
+                    |state, graph| state.generic_value(graph, value),
+                );
+                self.bound_variable_stack
+                    .truncate(self.bound_variable_stack.len() - missing.len());
+                Self::append_defs(&mut rendered, declarations);
+                rendered.push(body);
+            } else {
+                let active = std::mem::take(&mut self.bound_variable_stack);
+                self.bound_variable_stack = active
+                    .iter()
+                    .filter(|binder| !parameters.contains(binder))
+                    .cloned()
+                    .collect();
+                rendered.push(self.generic_value(graph, value));
+                self.bound_variable_stack = active;
+            }
+            result.push(rendered);
+        }
+        result
     }
 
     #[requires(graph.ground_by_utterance.contains_key(key))]
@@ -6631,10 +6819,9 @@ impl RenderState {
             result.push(quantity);
         }
         if operator == "exists" {
-            assert!(
-                !content.contains_key("restriction"),
-                "EXISTS cannot carry a RESTRICTION in SFN-XML"
-            );
+            if let Some(restriction) = content.remove("restriction") {
+                result.push(restriction);
+            }
         } else {
             result.push(
                 content

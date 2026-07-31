@@ -80,7 +80,7 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
         ),
         (
             "sa pu tcidu da poi srana le terfrica be zo y'ybu bei zo xy",
-            Some("RESTRICTED-EXISTS"),
+            None,
         ),
         (
             "su'oda zo'u mi prami da .ije naku do prami da",
@@ -288,7 +288,6 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
         "NON-COMPACT-REFERENT",
         "NON-DERIVABLE-GENERATED-CONTENT",
         "REPEATED-SINGLE-USE-EMISSION",
-        "RESTRICTED-EXISTS",
         "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
         "UNREPRESENTABLE-CYCLE",
     ] {
