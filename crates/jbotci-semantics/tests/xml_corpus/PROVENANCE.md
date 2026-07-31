@@ -2,7 +2,7 @@
 
 This directory vendors the authoritative SFN-XML adoption corpus from
 `int19h/tersmu-dsl-research` commit
-`a9b7ee05f002187018ae73fd9e2596e76e0268f9`.
+`2ee9d5ac6ad05c6c9c59b0f481c84b836f756cee`.
 
 - `*.frozen.json` are the 48 comparable canonical source graphs from
   `experiments/phase-a/battery-renders-smusni/fresh-json-v2`.

@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `a9b7ee05f002187018ae73fd9e2596e76e0268f9`.  Like the frozen `smusni`
+//! `2ee9d5ac6ad05c6c9c59b0f481c84b836f756cee`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -1031,7 +1031,28 @@ impl GraphData {
                         );
                         let owners = binder_owner_sets.entry(parameter.to_owned()).or_default();
                         if let Some(abstractions) = embedding_abstractions.get(owner) {
-                            owners.extend(abstractions.iter().cloned());
+                            let question_body = optional_string(object, "body");
+                            let matching_abstractions: Vec<String> = abstractions
+                                .iter()
+                                .filter(|abstraction| {
+                                    optional_string(
+                                        json_object(objects.get(*abstraction).unwrap_or_else(
+                                            || {
+                                                panic!(
+                                                    "missing embedding abstraction: {abstraction:?}"
+                                                )
+                                            },
+                                        )),
+                                        "body",
+                                    ) == question_body
+                                })
+                                .cloned()
+                                .collect();
+                            if matching_abstractions.is_empty() {
+                                owners.insert(owner.clone());
+                            } else {
+                                owners.extend(matching_abstractions);
+                            }
                         } else {
                             owners.insert(owner.clone());
                         }
@@ -4515,6 +4536,28 @@ mod tests {
         assert!(subset.output.contains("POSSIBLY-DIFFERENT-PER=\"v7\""));
         assert!(!subset.output.contains("FORM=\"TYPED-GRAPH\""));
 
+        let mut distinct_question_body = graph("b58");
+        distinct_question_body["objects"]["formula:99"] =
+            distinct_question_body["objects"]["formula:10"].clone();
+        distinct_question_body["objects"]["formula:99"]
+            .as_object_mut()
+            .expect("cloned b58 formula")
+            .remove("boundEventualities");
+        distinct_question_body["objects"]["question:11"]["body"] =
+            Value::String("formula:99".to_owned());
+        let distinct_question_body =
+            render_xml_value(distinct_question_body, "<distinct-question-body>");
+        assert!(
+            distinct_question_body
+                .output
+                .contains("FORM=\"TYPED-GRAPH\"")
+        );
+        assert!(
+            distinct_question_body
+                .output
+                .contains("BINDER-DOES-NOT-ENCLOSE-USE")
+        );
+
         let mut malformed = graph("b58");
         malformed["objects"]["question:11"]["slots"][0]["parameter"] = Value::Number(7.into());
         assert!(
@@ -6329,11 +6372,15 @@ fn abstraction_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec
         }));
     }
     if let Some(questions) = object.get("embeddedQuestions").and_then(Value::as_array) {
+        let abstraction_body = optional_string(object, "body");
         for question in questions {
             let question = question
                 .as_str()
                 .unwrap_or_else(|| panic!("embedded question must be an id"));
-            parameters.extend(question_parameters(graph, graph.object(question)));
+            let question = graph.object(question);
+            if optional_string(question, "body") == abstraction_body {
+                parameters.extend(question_parameters(graph, question));
+            }
         }
     }
     parameters.sort();
