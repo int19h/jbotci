@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `c5d369e98358bffe9026898bb9f21cb8885e4a9b`.  Like the frozen `smusni`
+//! `1402d85a47ddd0568a768652173cbf692ff0b637`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -2731,9 +2731,9 @@ impl RenderState {
         }
         if let Some(body_key) = optional_string(object, "body") {
             self.account_field(graph, object, "body");
-            let parameters = abstraction_parameters(graph, object, body_key);
+            let parameters = abstraction_body_parameters(graph, object, body_key);
             self.bound_variable_stack.extend(parameters.iter().cloned());
-            let embedded_questions = embedded_questions_for_formula(graph, object, body_key);
+            let embedded_questions = embedded_questions_rendered_with_body(graph, object, body_key);
             if !embedded_questions.is_empty() {
                 self.account_field(graph, object, "embeddedQuestions");
                 handled.push("embeddedQuestions");
@@ -2770,9 +2770,10 @@ impl RenderState {
         }
         if let Some(content) = optional_string(object, "content") {
             self.account_field(graph, object, "content");
-            let parameters = abstraction_parameters(graph, object, content);
+            let parameters = abstraction_content_parameters(graph, object, content);
             self.bound_variable_stack.extend(parameters.iter().cloned());
-            let embedded_questions = embedded_questions_for_formula(graph, object, content);
+            let embedded_questions =
+                embedded_questions_rendered_with_content(graph, object, content);
             if !embedded_questions.is_empty() {
                 self.account_field(graph, object, "embeddedQuestions");
                 handled.push("embeddedQuestions");
@@ -4614,6 +4615,93 @@ mod tests {
             format!("{:x}", Sha256::digest(direct_question.as_bytes())),
             "26d32fcbe81ce58d1f493ac4954e573b2ef9de1ddc071121d92374a5a72de274"
         );
+
+        let mut distinct = graph("b58");
+        distinct["objects"]["proposition:12"]["sort"] = Value::String("eventuality".to_owned());
+        distinct["objects"]["proposition:12"]["parameters"] = serde_json::json!(["parameter:98"]);
+        distinct["objects"]["parameter:98"] = serde_json::json!({
+            "type": "parameter",
+            "sort": "entity",
+            "role": "abstraction"
+        });
+        distinct["objects"]["entity:8"]["scopeDependence"]["mayDependOn"]
+            .as_array_mut()
+            .expect("b58 dependence list")
+            .push(Value::String("parameter:98".to_owned()));
+        distinct["objects"]["formula:99"] = serde_json::json!({
+            "type": "formula",
+            "operator": "atom",
+            "predication": "predication:99",
+            "boundEventualities": ["eventuality:99"]
+        });
+        distinct["objects"]["predication:99"] = distinct["objects"]["predication:9"].clone();
+        for argument in distinct["objects"]["predication:99"]["arguments"]
+            .as_object_mut()
+            .expect("b58 predication arguments")
+            .values_mut()
+        {
+            argument["value"] = Value::String("entity:98".to_owned());
+        }
+        distinct["objects"]["predication:99"]["eventuality"] =
+            Value::String("eventuality:99".to_owned());
+        distinct["objects"]["eventuality:99"] = distinct["objects"]["eventuality:6"].clone();
+        distinct["objects"]["entity:98"] = distinct["objects"]["entity:8"].clone();
+        distinct["objects"]["entity:98"]["scopeDependence"] = serde_json::json!({"kind": "fixed"});
+        distinct["objects"]["proposition:12"]["content"] = Value::String("formula:99".to_owned());
+        let distinct = render_xml_value(distinct, "<distinct-body-content>")
+            .into_data()
+            .output;
+        assert!(!distinct.contains("FORM=\"TYPED-GRAPH\""), "{distinct}");
+        assert_eq!(
+            format!("{:x}", Sha256::digest(distinct.as_bytes())),
+            "bbfc232d724ed4ef1c5ef30cb84ea15f666b2ab2ec3c57846554e866815f898d"
+        );
+        let content = distinct
+            .split_once("<CONTENT>")
+            .expect("distinct content start")
+            .1
+            .split_once("</CONTENT>")
+            .expect("distinct content end")
+            .0;
+        assert!(!content.contains("SAME-FOR-ALL=\"true\""));
+
+        let mut shared = graph("b58");
+        shared["objects"]["proposition:12"]["sort"] = Value::String("eventuality".to_owned());
+        shared["objects"]["proposition:12"]["content"] =
+            shared["objects"]["proposition:12"]["body"].clone();
+        shared["objects"]["question:11"]["slots"] = serde_json::json!([]);
+        shared["objects"]["question:11"]
+            .as_object_mut()
+            .expect("b58 question")
+            .remove("focus");
+        shared["objects"]["predication:9"]["arguments"]["x1"]["value"] =
+            Value::String("entity:8".to_owned());
+        shared["objects"]["entity:8"]["scopeDependence"] = serde_json::json!({"kind": "fixed"});
+        let shared = render_xml_value(shared, "<shared-body-content>")
+            .into_data()
+            .output;
+        assert!(!shared.contains("FORM=\"TYPED-GRAPH\""));
+        assert_eq!(shared.matches("<EMBEDDED-QUESTIONS>").count(), 1);
+        assert_eq!(
+            format!("{:x}", Sha256::digest(shared.as_bytes())),
+            "a40a32c5a217c69f7706db3bbc200cab63bafabe2ef379cbc6d00aa39856caea"
+        );
+        let content = shared
+            .split_once("<CONTENT>")
+            .expect("shared content start")
+            .1
+            .split_once("</CONTENT>")
+            .expect("shared content end")
+            .0;
+        let body = shared
+            .split_once("<BODY>")
+            .expect("shared body start")
+            .1
+            .split_once("</BODY>")
+            .expect("shared body end")
+            .0;
+        assert!(content.contains("<EMBEDDED-QUESTIONS>"));
+        assert!(!body.contains("<EMBEDDED-QUESTIONS>"));
     }
 
     #[test]
@@ -6412,7 +6500,36 @@ fn question_parameters(graph: &GraphData, object: &Map<String, Value>) -> Vec<St
 
 #[requires(true)]
 #[ensures(ret.iter().all(|question| graph.objects.contains_key(*question)))]
-fn embedded_questions_for_formula<'a>(
+fn embedded_questions_rendered_with_content<'a>(
+    graph: &'a GraphData,
+    object: &'a Map<String, Value>,
+    formula: &str,
+) -> Vec<&'a str> {
+    embedded_questions_for_required_body(graph, object, formula)
+}
+
+/// Returns questions rendered at the typed `ReferentNode.body` reference site.
+///
+/// `EventualityNode::references_into` visits `content` before `body`, then its
+/// parameters and `embeddedQuestions`; `ReferentNode` has only `body`.  A shared
+/// content/body formula is therefore represented at `CONTENT` exactly once.
+#[requires(true)]
+#[ensures(ret.iter().all(|question| graph.objects.contains_key(*question)))]
+fn embedded_questions_rendered_with_body<'a>(
+    graph: &'a GraphData,
+    object: &'a Map<String, Value>,
+    formula: &str,
+) -> Vec<&'a str> {
+    if optional_string(object, "content") == Some(formula) {
+        Vec::new()
+    } else {
+        embedded_questions_for_required_body(graph, object, formula)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|question| graph.objects.contains_key(*question)))]
+fn embedded_questions_for_required_body<'a>(
     graph: &'a GraphData,
     object: &'a Map<String, Value>,
     formula: &str,
@@ -6433,20 +6550,12 @@ fn embedded_questions_for_formula<'a>(
 
 #[requires(true)]
 #[ensures(ret.iter().all(|parameter| graph.objects.contains_key(parameter)))]
-fn abstraction_parameters(
+fn embedded_question_parameters_for_formula(
     graph: &GraphData,
     object: &Map<String, Value>,
     formula: &str,
 ) -> Vec<String> {
     let mut parameters = Vec::new();
-    if let Some(explicit) = object.get("parameters").and_then(Value::as_array) {
-        parameters.extend(explicit.iter().map(|parameter| {
-            parameter
-                .as_str()
-                .unwrap_or_else(|| panic!("abstraction parameter must be an id"))
-                .to_owned()
-        }));
-    }
     if let Some(questions) = object.get("embeddedQuestions").and_then(Value::as_array) {
         for question in questions {
             let question = question
@@ -6461,6 +6570,45 @@ fn abstraction_parameters(
     parameters.sort();
     parameters.dedup();
     parameters
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|parameter| graph.objects.contains_key(parameter)))]
+fn abstraction_body_parameters(
+    graph: &GraphData,
+    object: &Map<String, Value>,
+    formula: &str,
+) -> Vec<String> {
+    let mut parameters = object
+        .get("parameters")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|parameter| {
+            parameter
+                .as_str()
+                .unwrap_or_else(|| panic!("abstraction parameter must be an id"))
+                .to_owned()
+        })
+        .collect::<Vec<_>>();
+    parameters.extend(embedded_question_parameters_for_formula(
+        graph, object, formula,
+    ));
+    parameters.sort();
+    parameters.dedup();
+    parameters
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|parameter| graph.objects.contains_key(parameter)))]
+fn abstraction_content_parameters(
+    graph: &GraphData,
+    object: &Map<String, Value>,
+    formula: &str,
+) -> Vec<String> {
+    // visit_abstraction_scope traverses content in the current environment;
+    // only a question whose required body is this formula adds binders here.
+    embedded_question_parameters_for_formula(graph, object, formula)
 }
 
 impl RenderState {
