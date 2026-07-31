@@ -125,7 +125,7 @@ pub fn gate_lojban(
         }
         let tersmu_rendering = match &format {
             TersmuFormat::External(command) => run_external_renderer(command, &output.stdout)?,
-            TersmuFormat::Json | TersmuFormat::Smusni => output.stdout,
+            TersmuFormat::Json | TersmuFormat::Smusni | TersmuFormat::Xml => output.stdout,
         };
         return Ok(new!(GateOutcome::Success { tersmu_rendering }));
     }
@@ -194,6 +194,7 @@ fn tool_tersmu_format(format: &TersmuFormat) -> ToolTersmuFormat {
     match format {
         TersmuFormat::Json => ToolTersmuFormat::Json,
         TersmuFormat::Smusni => ToolTersmuFormat::Smusni,
+        TersmuFormat::Xml => ToolTersmuFormat::Xml,
         TersmuFormat::External(_) => ToolTersmuFormat::Json,
     }
 }
@@ -800,6 +801,32 @@ mod tests {
         assert_eq!(smusni, default, "smusni is now the default rendering");
         assert_ne!(smusni, json, "smusni is a distinct rendering from json");
         assert_eq!(smusni, direct_smusni.stdout);
+
+        let xml = gate_lojban("mi klama".to_owned(), Some(TersmuFormat::Xml), None)
+            .expect("XML gate")
+            .tersmu_rendering()
+            .expect("XML success")
+            .to_owned();
+        let direct_xml = run_tool_tersmu(ToolTersmuRequest {
+            text: "mi klama".to_owned(),
+            format: ToolTersmuFormat::Xml,
+            dialect: None,
+            show_defs: true,
+            story_time: false,
+            indent: None,
+        })
+        .expect("direct XML call");
+        assert_eq!(xml, direct_xml.stdout);
+        assert_ne!(xml, json, "xml is a distinct rendering from json");
+        assert_ne!(xml, smusni, "xml is a distinct rendering from smusni");
+        // The gate always requests show-defs, whose definitions preamble
+        // precedes the XML document, so the canonical `<SFN` root follows the
+        // definitions rather than opening the payload.
+        assert!(
+            xml.windows(b"<SFN ".len())
+                .any(|window| window == b"<SFN "),
+            "xml gate must contain the canonical scoped SFN-XML rendering"
+        );
 
         let invalid_dialect = "(definitely-not-a-jbotci-dialect)".to_owned();
         let direct_error = run_tool_tersmu(ToolTersmuRequest {

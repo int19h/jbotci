@@ -1577,6 +1577,7 @@ fn tersmu_format_name(format: &crate::TersmuFormat) -> String {
     match format {
         crate::TersmuFormat::Json => "json".to_owned(),
         crate::TersmuFormat::Smusni => "smusni".to_owned(),
+        crate::TersmuFormat::Xml => "xml".to_owned(),
         crate::TersmuFormat::External(command) => {
             let mut argv = vec![command.program().to_owned()];
             argv.extend(command.args().iter().cloned());
