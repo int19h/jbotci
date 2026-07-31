@@ -227,6 +227,7 @@ impl ExternalRendererCommand {
 /// Semantic rendering selected for the jbotci gate.
 #[invariant(::Json => true)]
 #[invariant(::Smusni => true)]
+#[invariant(::Xml => true)]
 #[invariant(::External(_) => true)]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -236,6 +237,8 @@ pub enum TersmuFormat {
     #[default]
     Smusni,
     Json,
+    /// Canonical scoped SFN-XML rendering produced by the in-product renderer.
+    Xml,
     /// Pipe the JSON graph through a caller-configured renderer.
     External(ExternalRendererCommand),
 }
@@ -380,6 +383,7 @@ system-prompt = "Speak only Lojban."
         for (configured, expected) in [
             ("json", TersmuFormat::Json),
             ("smusni", TersmuFormat::Smusni),
+            ("xml", TersmuFormat::Xml),
         ] {
             let source = VALID_CONFIG.replace(
                 "scenario = \"schedule-negotiation\"",

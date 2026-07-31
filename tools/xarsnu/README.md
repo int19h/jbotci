@@ -80,6 +80,12 @@ The `[client]` table is optional. `http-timeout-seconds` defaults to 60, and
 OpenAI-compatible endpoint or routing proxy; xarsnu still reads and sends
 `OPENROUTER_API_KEY` unchanged.
 
+`tersmu-format` selects how the gate renders candidate semantics: `smusni`
+(the default, model-facing declaration notation), `json` (the canonical
+interchange graph), `xml` (the canonical scoped SFN-XML rendering produced by
+the in-product renderer), or `tersmu-format = { external = ["renderer", ...] }`
+to pipe the JSON graph through a caller-configured command.
+
 Scenario instances may set `answers-close-dialog = true|false`. It defaults to
 `true` for referential games and `false` for negotiation and deduction. When
 enabled, completing the first answer-eligible round closes the visible dialog:
