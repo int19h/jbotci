@@ -3,8 +3,10 @@
 //! This inventory contract is intentionally paired with, not substituted for,
 //! the occurrence-level omission accounting in [`super::render_xml`]. The
 //! contract proves every authored semantic surface has a disposition; the
-//! frozen 46-document tests prove the renderer's observed omissions are exactly
-//! the six owner-audited provenance families.
+//! frozen 48-document tests prove that every known compact surface avoids the
+//! generic fallback and that observed omissions are exactly the seven
+//! owner-audited provenance families. `TYPED-GRAPH` is a deliberately separate
+//! whole-document projection and is not part of this compact-form assertion.
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, requires};
@@ -23,6 +25,7 @@ const INTRODUCED_BY_REASON: &str =
     "surface introducer provenance; ordinary SFN-XML omits introducedBy fields";
 const QUANTITY_TEXT_REASON: &str =
     "quantity surface-text provenance; SFN-XML renders the semantic quantity form";
+const COMPOSITION_RELATION_LABEL_REASON: &str = "composition relation-label provenance; ordinary SFN-XML preserves the modifier/kind structure while provenance mode alone renders the derivational label";
 
 #[requires(true)]
 #[ensures(ret == (matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
@@ -54,6 +57,9 @@ fn waiver_reason(entry: &InventoryEntry) -> Option<&'static str> {
     }
     if entry.surface.name == "QuantityValue" && entry.field == "text" {
         return Some(QUANTITY_TEXT_REASON);
+    }
+    if entry.surface.name == "TanruLink" && entry.field == "relationLabel" {
+        return Some(COMPOSITION_RELATION_LABEL_REASON);
     }
     None
 }

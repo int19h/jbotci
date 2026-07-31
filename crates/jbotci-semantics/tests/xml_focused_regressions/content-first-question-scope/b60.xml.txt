@@ -3,7 +3,9 @@
     <RULE TOPIC="ids">ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).</RULE>
     <RULE TOPIC="lexical-categories">UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.</RULE>
     <RULE TOPIC="sorts">SORT= values are flat PascalCase sort names. Subtype facts derived from encountered JSON sort paths: Locution ⊂ Eventuality. LOCUTION implies sort Locution and therefore omits SORT=.</RULE>
-    <RULE TOPIC="embedded-questions">EMBEDDED-QUESTIONS preserves question metadata attached to the abstraction formula named by the question body. An attachment whose question body is neither the abstraction BODY nor CONTENT remains visibly typed as EXTRA/FIELD NAME="embeddedQuestions". UNKNOWN TYPE="question" is the typed escape hatch for question metadata: FIELD names are JSON field names, and RECORD/LIST/STRING preserve its interchange values without claiming a compact question notation.</RULE>
+    <RULE TOPIC="embedded-questions">EMBEDDED-QUESTIONS preserves typed QUESTION metadata attached to the abstraction formula named by QUESTION/BODY. KIND, MODE, and DOMAIN classify the question; ASKER, RESPONDENT, SLOTS, FOCUS, and PRESUPPOSED-ANSWER preserve its participants. SLOT parameters bind only the question BODY.</RULE>
+    <RULE TOPIC="kind-composition">KIND-COMPOSITION is first-class predication content: MODIFIER A of KIND B denotes an A-modified kind of B while retaining B's place structure. The exact modifier-to-kind relation remains unspecified; nesting preserves the semantic graph's grouping. RELATION-LABEL is derivational provenance and appears only in provenance mode.</RULE>
+    <RULE TOPIC="warnings">Each semantic diagnostic is one repeatable WARNING text element; its character content is the diagnostic message.</RULE>
     <RULE TOPIC="some">REF="SOME" denotes a distinct elided node per occurrence; distinct nodes assert neither identity (=) nor non-identity (≠).</RULE>
     <RULE TOPIC="ground">DEICTIC-GROUND is the shared speech-situation unit selected by UTTERANCE GROUND=. Its g-prefixed ID is a notation-level rendering id because the JSON has no ground object id; if the graph gains context ids, the rendering must align. Ground units share one definition ⇔ their SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF graph referents are pairwise identical.</RULE>
     <RULE TOPIC="quantifiers">EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS writes RESTRICTION exactly when the graph supplies one; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.</RULE>
@@ -61,43 +63,19 @@
                   </DEFS>
                   <REFERENCE REF="f14"/>
                   <EMBEDDED-QUESTIONS>
-                    <UNKNOWN TYPE="question">
-                      <FIELD NAME="body">
+                    <QUESTION KIND="ARGUMENT" MODE="INDIRECT" DOMAIN="Entity">
+                      <ASKER REF="r1"/>
+                      <RESPONDENT REF="r2"/>
+                      <SLOTS>
+                        <SLOT ROLE="ANSWER">
+                          <PARAMETER REF="v8"/>
+                        </SLOT>
+                      </SLOTS>
+                      <FOCUS REF="v8"/>
+                      <BODY>
                         <REFERENCE REF="f14"/>
-                      </FIELD>
-                      <FIELD NAME="kind">
-                        <STRING VALUE="argument"/>
-                      </FIELD>
-                      <FIELD NAME="mode">
-                        <STRING VALUE="indirect"/>
-                      </FIELD>
-                      <FIELD NAME="asker">
-                        <REFERENCE REF="r1"/>
-                      </FIELD>
-                      <FIELD NAME="respondent">
-                        <REFERENCE REF="r2"/>
-                      </FIELD>
-                      <FIELD NAME="domain">
-                        <STRING VALUE="entity"/>
-                      </FIELD>
-                      <FIELD NAME="slots">
-                        <LIST>
-                          <ITEM>
-                            <RECORD>
-                              <FIELD NAME="parameter">
-                                <REFERENCE REF="v8"/>
-                              </FIELD>
-                              <FIELD NAME="role">
-                                <STRING VALUE="answer"/>
-                              </FIELD>
-                            </RECORD>
-                          </ITEM>
-                        </LIST>
-                      </FIELD>
-                      <FIELD NAME="focus">
-                        <REFERENCE REF="v8"/>
-                      </FIELD>
-                    </UNKNOWN>
+                      </BODY>
+                    </QUESTION>
                   </EMBEDDED-QUESTIONS>
                 </CONTENT>
               </EVENTUALITY>
