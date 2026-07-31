@@ -2,7 +2,7 @@
 
 This directory vendors the authoritative SFN-XML adoption corpus from
 `int19h/tersmu-dsl-research` commit
-`481a531dd42c8b2f3621528db8527d1dd3d0191f`.
+`e4325d1b5f15e8d9b73a2b5618f6df992f59c0e5`.
 
 - `*.frozen.json` are the 48 comparable canonical source graphs from
   `experiments/phase-a/battery-renders-smusni/fresh-json-v2`.
@@ -20,6 +20,11 @@ The `b59` (`mi djuno lo ka ce'u klama makau`) and `b60`
 `../xml_focused_regressions/content-first-question-scope`. They permanently
 pin the public typed product path against the prototype without enlarging this
 owner-scoped parity corpus.
+
+The `b61` (`mi facki lo ni ma kau clani`) JSON/XML pair under
+`../xml_focused_regressions/referent-sort-abstraction` pins the same public
+product/prototype parity for abstraction scoping on a non-allowlisted referent
+sort. It remains outside both primary corpora.
 
 The pinned research directories also contain `b56-quote`, which the research
 `README-xml.md` identifies as a separate XML check witness rather than a

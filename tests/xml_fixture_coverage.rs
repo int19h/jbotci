@@ -228,11 +228,14 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
 #[requires(true)]
 #[ensures(true)]
 fn content_first_question_scope_outputs_are_byte_pinned() {
-    for (document, source, expected_hash, prototype_xml) in [
+    for (document, source, expected_hash, frozen_json, prototype_xml) in [
         (
             "b59",
             "mi djuno lo ka ce'u klama makau",
             "972581968a0b60dde48af4b94c37fcf404cf177e96b1fa2c6264fc548d33792f",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.frozen.json"
+            ),
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.xml.txt"
             ),
@@ -242,12 +245,33 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
             "mi djica lo nu makau klama",
             "fb3a0ff771b7831d8b6f6dc4b33f3aa7c3fe85bd88bd97521bf1f3b2d4e125a5",
             include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.frozen.json"
+            ),
+            include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.xml.txt"
+            ),
+        ),
+        (
+            "b61",
+            "mi facki lo ni ma kau clani",
+            "8d39bd556d471b631f711647cfba208deeff09043f193d84f495ec2721f753fa",
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/referent-sort-abstraction/b61.frozen.json"
+            ),
+            include_str!(
+                "../crates/jbotci-semantics/tests/xml_focused_regressions/referent-sort-abstraction/b61.xml.txt"
             ),
         ),
     ] {
         let graph = graph_for_source(source)
             .unwrap_or_else(|error| panic!("{source:?} must build and validate: {error}"));
+        let frozen_graph: serde_json::Value = serde_json::from_str(frozen_json)
+            .unwrap_or_else(|error| panic!("{document} frozen JSON must parse: {error}"));
+        assert_eq!(
+            serde_json::to_value(&graph).expect("generated graph serializes"),
+            frozen_graph,
+            "{source:?} generated graph differs from pinned JSON",
+        );
         let rendered = render_xml(&graph, "<scope-dependence-first-visit>");
         assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
         assert_eq!(rendered.output.matches("<EMBEDDED-QUESTIONS>").count(), 1);

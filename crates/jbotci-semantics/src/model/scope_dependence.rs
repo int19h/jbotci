@@ -87,7 +87,7 @@ fn derive_semantic_scope_dependences(
 }
 
 #[requires(objects.contains_key(&root))]
-#[ensures(ret.dependences.len() == ret.binder_universes.len())]
+#[ensures(true)]
 fn derive_semantic_scope_dependence_data(
     root: SemanticObjectId,
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,

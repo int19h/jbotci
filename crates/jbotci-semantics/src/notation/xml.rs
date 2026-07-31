@@ -1,7 +1,7 @@
 //! Canonical SFN-XML rendering for `lojban-semantics-json-1`.
 //!
 //! This is a faithful Rust port of `render_xml.py` at research commit
-//! `481a531dd42c8b2f3621528db8527d1dd3d0191f`.  Like the frozen `smusni`
+//! `e4325d1b5f15e8d9b73a2b5618f6df992f59c0e5`.  Like the frozen `smusni`
 //! renderer, it deliberately walks [`SemanticGraph`]'s own canonical JSON
 //! serialization: the notation is specified over that interchange surface, and
 //! using it directly avoids a second, drift-prone reconstruction of the serde
@@ -1138,10 +1138,13 @@ impl GraphData {
             })
             .unwrap_or_default();
         assert!(
-            objects.iter().all(|(key, object)| {
-                json_object(object).contains_key("scopeDependence")
-                    == scope_dependence_binder_universes.contains_key(key)
-            }),
+            scope_dependence_binder_universes
+                .keys()
+                .all(|key| objects.contains_key(key))
+                && objects.iter().all(|(key, object)| {
+                    json_object(object).contains_key("scopeDependence")
+                        == scope_dependence_binder_universes.contains_key(key)
+                }),
             "scope-dependence binder universes must cover exactly every scopeDependence object"
         );
         let mut value_paths = HashMap::new();
@@ -4783,6 +4786,10 @@ mod tests {
         direct_question["objects"]
             .as_object_mut()
             .expect("b58 objects")
+            .remove("proposition:12");
+        direct_question["scopeDependenceBinderUniverses"]
+            .as_object_mut()
+            .expect("b58 binder universes")
             .remove("proposition:12");
         let direct_question = render_xml_value(direct_question, "<direct-question-witness>")
             .into_data()
