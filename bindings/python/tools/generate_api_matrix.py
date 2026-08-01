@@ -60,6 +60,10 @@ RUST_ONLY_CONCEPTS: dict[tuple[str, str], tuple[str, str]] = {
         "implementation-representation",
         "Test-harness aggregate for comparing internal recovery reachability behavior under expensive contracts; it is not parser output or a consumer domain value.",
     ),
+    ("jbotci_dictionary", "places"): (
+        "implementation-representation",
+        "Definition place-marker parsing and line segmentation are Rust-side definition-text rendering machinery shared by the output and semantics crates (moved from jbotci-output, which is outside the Python API scope); Python dictionary results carry the raw definition and notes text and no line-formatting internals.",
+    ),
     ("jbotci_syntax", "with_recovery_reachability_instrumentation"): (
         "implementation-representation",
         "Feature-gated test-harness entry point that toggles an internal recovery filter and captures cross-check counters; it is not a consumer parser operation.",
