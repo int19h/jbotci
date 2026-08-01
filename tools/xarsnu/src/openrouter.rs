@@ -143,9 +143,14 @@ enum ToolKind {
     Function,
 }
 
-/// The model-selected function and its JSON-encoded arguments.
+/// The model-selected function and its raw argument payload.
+///
+/// `arguments` is whatever the provider emitted, including empty or otherwise
+/// malformed text: a malformed payload is itself data the runtime must process
+/// and record losslessly (issue #720), so it cannot be rejected here.
+/// Object-shape validation belongs to [`ToolCall::arguments`].
 #[invariant(!name.trim().is_empty(), "tool-call function names cannot be empty")]
-#[invariant(!arguments.trim().is_empty(), "tool-call arguments cannot be empty")]
+#[invariant(true, "raw argument payloads may be empty or malformed on the wire")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionCall {
     pub name: String,
@@ -359,8 +364,8 @@ pub struct ProviderCallObservation {
 /// transcript layer can record what was actually malformed instead of only the
 /// fact that something was (issue #720).
 #[invariant(!tool_name.trim().is_empty(), "malformed-call tool names cannot be empty")]
-#[invariant(!arguments.trim().is_empty(), "malformed-call payloads cannot be empty")]
 #[invariant(!message.trim().is_empty(), "malformed-call validation messages cannot be empty")]
+#[invariant(true, "an empty payload is itself a legitimate lossless malformed capture")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MalformedToolCall {
     pub tool_name: String,

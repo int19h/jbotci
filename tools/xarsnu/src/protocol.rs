@@ -675,7 +675,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::ReferenceResearchNudge { participant, consecutive_calls, message, .. } => !participant.trim().is_empty() && *consecutive_calls > 0 && !message.trim().is_empty())]
 #[invariant(::EmbeddingSearchDegraded { message } => !message.trim().is_empty())]
 #[invariant(::ProseRejected { turn_number, participant, attempt, maximum_attempts, .. } => *turn_number > 0 && !participant.trim().is_empty() && *attempt > 0 && *maximum_attempts > 0 && attempt <= maximum_attempts)]
-#[invariant(::ToolCallMalformed { turn_number, participant, tool_name, arguments, message } => *turn_number > 0 && !participant.trim().is_empty() && !tool_name.trim().is_empty() && !arguments.trim().is_empty() && !message.trim().is_empty())]
+#[invariant(::ToolCallMalformed { turn_number, participant, tool_name, message, .. } => *turn_number > 0 && !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty(), "the raw payload may legitimately be empty")]
 #[invariant(::ListenerFlowAbandoned { turn_number, listener, .. } => *turn_number > 0 && !listener.trim().is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::TurnForfeited { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]

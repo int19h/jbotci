@@ -1911,12 +1911,24 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
             }
             let model = ScriptedModel::new(participant, steps);
             if *participant == "alice" {
-                model.with_malformed_tool_calls(vec![new!(MalformedToolCall {
-                    tool_name: "submit_lojban".to_owned(),
-                    arguments: "{\"text\": \"mi klama\",".to_owned(),
-                    message: "invalid call to tool `submit_lojban`: EOF while parsing an object"
-                        .to_owned(),
-                })])
+                model.with_malformed_tool_calls(vec![
+                    new!(MalformedToolCall {
+                        tool_name: "submit_lojban".to_owned(),
+                        arguments: "{\"text\": \"mi klama\",".to_owned(),
+                        message:
+                            "invalid call to tool `submit_lojban`: EOF while parsing an object"
+                                .to_owned(),
+                    }),
+                    // An empty payload is itself a legitimate lossless malformed
+                    // capture and must reach the transcript verbatim (issue #720).
+                    new!(MalformedToolCall {
+                        tool_name: "confirm_meaning".to_owned(),
+                        arguments: String::new(),
+                        message:
+                            "invalid call to tool `confirm_meaning`: EOF while parsing a value"
+                                .to_owned(),
+                    }),
+                ])
             } else {
                 model
             }
@@ -1969,7 +1981,7 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
             bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
         ))
         .collect::<Vec<_>>();
-    assert_eq!(malformed_events.len(), 1);
+    assert_eq!(malformed_events.len(), 2);
     let bityzba::data!(ProtocolEvent::ToolCallMalformed {
         turn_number,
         participant,
@@ -1985,6 +1997,23 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
     assert_eq!(tool_name, "submit_lojban");
     assert_eq!(arguments, "{\"text\": \"mi klama\",");
     assert!(message.contains("invalid call to tool `submit_lojban`"));
+    let bityzba::data!(ProtocolEvent::ToolCallMalformed {
+        turn_number: empty_turn,
+        participant: empty_participant,
+        tool_name: empty_tool,
+        arguments: empty_arguments,
+        ..
+    }) = malformed_events[1].as_data()
+    else {
+        unreachable!("filtered to malformed-call events");
+    };
+    assert_eq!(*empty_turn, 1);
+    assert_eq!(empty_participant, "alice");
+    assert_eq!(empty_tool, "confirm_meaning");
+    assert_eq!(
+        empty_arguments, "",
+        "the empty payload reaches the event verbatim"
+    );
 
     let records = read_transcript(&transcript_path).expect("debate transcript validates");
     assert_eq!(records.len(), runner.events().len());
@@ -1993,10 +2022,16 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
         bityzba::data!(ProtocolEvent::ToolCallMalformed { arguments, .. })
             if arguments == "{\"text\": \"mi klama\","
     )));
+    assert!(records.iter().any(|record| matches!(
+        record.event.as_data(),
+        bityzba::data!(ProtocolEvent::ToolCallMalformed { tool_name, arguments, .. })
+            if tool_name == "confirm_meaning" && arguments.is_empty()
+    )));
     let report = report_file(&transcript_path).expect("debate report renders");
     assert!(report.contains("### Malformed tool call — `alice` / `submit_lojban`"));
+    assert!(report.contains("### Malformed tool call — `alice` / `confirm_meaning`"));
     assert!(report.contains("{\"text\": \"mi klama\","));
-    assert!(report.contains("- Malformed tool calls: 1"));
+    assert!(report.contains("- Malformed tool calls: 2"));
     fs::remove_file(transcript_path).expect("remove debate transcript");
 }
 
