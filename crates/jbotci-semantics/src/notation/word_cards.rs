@@ -726,9 +726,10 @@ fn escalation_is_consistent<B: Copy + PartialEq>(
 // ---------------------------------------------------------------------------
 
 /// Prefix operators classified from the closed operator table. `Swap` place
-/// validity is enforced by the validated [`ApproxExpr::SwappedPlaces`] node
-/// built from it.
-#[invariant(::Swap { .. } => true)]
+/// validity is enforced at the token itself by the same rule as the validated
+/// [`ApproxExpr::SwappedPlaces`] node built from it.
+#[invariant(::Swap { first, second } => *first == 1 && (2..=5).contains(second),
+    "SE conversions swap place 1 with place 2-5")]
 #[invariant(::ScalarNegation(_) => true)]
 #[invariant(::Abstraction(_) => true)]
 #[invariant(::TaggedPlace => true)]
@@ -763,7 +764,7 @@ enum PostfixOp {
 }
 
 /// One numeric token inside a number run.
-#[invariant(::Digit(_) => true)]
+#[invariant(::Digit(digit) => *digit <= 9, "a digit token is one decimal digit 0-9")]
 #[invariant(::Point => true)]
 #[invariant(::Percent => true)]
 #[invariant(::Quantifier(_) => true)]
@@ -789,9 +790,12 @@ enum Piece {
 
 /// Structural tokens after classification; `Group`/`ScopeGroup` appear only
 /// after the grouping resolution passes (their non-emptiness is enforced by
-/// the resolution passes that construct them).
-#[invariant(::ScopeGroup { .. } => true)]
-#[invariant(::Group(_) => true)]
+/// the type invariant; the resolution passes fail closed on an empty payload
+/// before construction).
+#[invariant(::ScopeGroup { inner, .. } => !inner.is_empty(),
+    "a resolved kei scope wraps at least one token")]
+#[invariant(::Group(tokens) => !tokens.is_empty(),
+    "a resolved ke...ke'e group wraps at least one token")]
 #[invariant(::Expr(_) => true)]
 #[invariant(::Prefix(_) => true)]
 #[invariant(::Na => true)]
@@ -833,16 +837,23 @@ enum Tok {
 #[requires(true)]
 #[ensures(true)]
 fn classify_cmavo_piece(cmavo: Cmavo) -> Option<Piece> {
-    let swap = |first: u8, second: u8| Piece::Tok(Tok::Prefix(PrefixOp::Swap { first, second }));
-    let scalar = |polarity: ScalarNegationPolarity| {
-        Piece::Tok(Tok::Prefix(PrefixOp::ScalarNegation(polarity)))
+    let swap = |first: u8, second: u8| {
+        Piece::Tok(new!(Tok::Prefix(new!(PrefixOp::Swap {
+            first: first,
+            second: second,
+        }))))
     };
-    let abstraction = |kind: AbstractionKind| Piece::Tok(Tok::Prefix(PrefixOp::Abstraction(kind)));
-    let prefix = |op: PrefixOp| Piece::Tok(Tok::Prefix(op));
-    let connective = |operator: ApproxConnective| Piece::Tok(Tok::Connective(operator));
-    let postfix = |op: PostfixOp| Piece::Tok(Tok::Postfix(op));
-    let quantifier = |form: ApproxQuantityForm| Piece::Num(NumTok::Quantifier(form));
-    let expr = |expr: ApproxExpr| Piece::Tok(Tok::Expr(expr));
+    let scalar = |polarity: ScalarNegationPolarity| {
+        Piece::Tok(new!(Tok::Prefix(new!(PrefixOp::ScalarNegation(polarity)))))
+    };
+    let abstraction = |kind: AbstractionKind| {
+        Piece::Tok(new!(Tok::Prefix(new!(PrefixOp::Abstraction(kind)))))
+    };
+    let prefix = |op: PrefixOp| Piece::Tok(new!(Tok::Prefix(op)));
+    let connective = |operator: ApproxConnective| Piece::Tok(new!(Tok::Connective(operator)));
+    let postfix = |op: PostfixOp| Piece::Tok(new!(Tok::Postfix(op)));
+    let quantifier = |form: ApproxQuantityForm| Piece::Num(new!(NumTok::Quantifier(form)));
+    let expr = |expr: ApproxExpr| Piece::Tok(new!(Tok::Expr(expr)));
     let context = |role: VariableContextRole, proximity: Option<Proximity>, slot: Option<u8>| {
         expr(new!(ApproxExpr::ReferentOf {
             referent: new!(ApproxReferent::Context {
@@ -872,12 +883,12 @@ fn classify_cmavo_piece(cmavo: Cmavo) -> Option<Piece> {
         Cmavo::Duhu => abstraction(AbstractionKind::Proposition),
         Cmavo::Lihi => abstraction(AbstractionKind::Experience),
         Cmavo::Suhu => abstraction(AbstractionKind::Unspecified),
-        Cmavo::Na => Piece::Tok(Tok::Na),
-        Cmavo::Ke => Piece::Tok(Tok::Ke),
-        Cmavo::Kehe => Piece::Tok(Tok::Kee),
-        Cmavo::Kei => Piece::Tok(Tok::Kei),
-        Cmavo::Bo => Piece::Tok(Tok::Bo),
-        Cmavo::Co => Piece::Tok(Tok::Co),
+        Cmavo::Na => Piece::Tok(new!(Tok::Na)),
+        Cmavo::Ke => Piece::Tok(new!(Tok::Ke)),
+        Cmavo::Kehe => Piece::Tok(new!(Tok::Kee)),
+        Cmavo::Kei => Piece::Tok(new!(Tok::Kei)),
+        Cmavo::Bo => Piece::Tok(new!(Tok::Bo)),
+        Cmavo::Co => Piece::Tok(new!(Tok::Co)),
         Cmavo::Ja => connective(ApproxConnective::Or),
         Cmavo::Je => connective(ApproxConnective::And),
         Cmavo::Jo => connective(ApproxConnective::Iff),
@@ -890,22 +901,22 @@ fn classify_cmavo_piece(cmavo: Cmavo) -> Option<Piece> {
         Cmavo::Kuha => connective(ApproxConnective::Intersection),
         Cmavo::Pihu => connective(ApproxConnective::CartesianProduct),
         Cmavo::Bihi => connective(ApproxConnective::Interval),
-        Cmavo::Jai => prefix(PrefixOp::TaggedPlace),
-        Cmavo::Ziho => prefix(PrefixOp::PlaceDeletion),
-        Cmavo::Peha => prefix(PrefixOp::Figurative),
+        Cmavo::Jai => prefix(new!(PrefixOp::TaggedPlace)),
+        Cmavo::Ziho => prefix(new!(PrefixOp::PlaceDeletion)),
+        Cmavo::Peha => prefix(new!(PrefixOp::Figurative)),
         Cmavo::Du => expr(new!(ApproxExpr::Identity)),
-        Cmavo::Pa => Piece::Num(NumTok::Digit(1)),
-        Cmavo::Re => Piece::Num(NumTok::Digit(2)),
-        Cmavo::Ci => Piece::Num(NumTok::Digit(3)),
-        Cmavo::Vo => Piece::Num(NumTok::Digit(4)),
-        Cmavo::Mu => Piece::Num(NumTok::Digit(5)),
-        Cmavo::Xa => Piece::Num(NumTok::Digit(6)),
-        Cmavo::Ze => Piece::Num(NumTok::Digit(7)),
-        Cmavo::Bi => Piece::Num(NumTok::Digit(8)),
-        Cmavo::So => Piece::Num(NumTok::Digit(9)),
-        Cmavo::No => Piece::Num(NumTok::Digit(0)),
-        Cmavo::Pi => Piece::Num(NumTok::Point),
-        Cmavo::Cehi => Piece::Num(NumTok::Percent),
+        Cmavo::Pa => Piece::Num(new!(NumTok::Digit(1))),
+        Cmavo::Re => Piece::Num(new!(NumTok::Digit(2))),
+        Cmavo::Ci => Piece::Num(new!(NumTok::Digit(3))),
+        Cmavo::Vo => Piece::Num(new!(NumTok::Digit(4))),
+        Cmavo::Mu => Piece::Num(new!(NumTok::Digit(5))),
+        Cmavo::Xa => Piece::Num(new!(NumTok::Digit(6))),
+        Cmavo::Ze => Piece::Num(new!(NumTok::Digit(7))),
+        Cmavo::Bi => Piece::Num(new!(NumTok::Digit(8))),
+        Cmavo::So => Piece::Num(new!(NumTok::Digit(9))),
+        Cmavo::No => Piece::Num(new!(NumTok::Digit(0))),
+        Cmavo::Pi => Piece::Num(new!(NumTok::Point)),
+        Cmavo::Cehi => Piece::Num(new!(NumTok::Percent)),
         Cmavo::Ro => quantifier(ApproxQuantityForm::All),
         Cmavo::Suho => quantifier(ApproxQuantityForm::AtLeast),
         Cmavo::Suhe => quantifier(ApproxQuantityForm::AtMost),
@@ -919,22 +930,22 @@ fn classify_cmavo_piece(cmavo: Cmavo) -> Option<Piece> {
         Cmavo::Mei => postfix(PostfixOp::Cardinal),
         Cmavo::Roi => postfix(PostfixOp::Recurrence),
         Cmavo::Bu => postfix(PostfixOp::LetterOf),
-        Cmavo::Caha => prefix(PrefixOp::Actuality(ActualityKind::Actual)),
-        Cmavo::Kahe => prefix(PrefixOp::Actuality(ActualityKind::Capable)),
-        Cmavo::Nuho => prefix(PrefixOp::Actuality(ActualityKind::Potential)),
-        Cmavo::Puhi => prefix(PrefixOp::Actuality(ActualityKind::Demonstrated)),
-        Cmavo::Puho => prefix(PrefixOp::Aspect(ApproxAspectContour::Prospective)),
-        Cmavo::Caho => prefix(PrefixOp::Aspect(ApproxAspectContour::Continuative)),
-        Cmavo::Baho => prefix(PrefixOp::Aspect(ApproxAspectContour::Retrospective)),
-        Cmavo::Coha => prefix(PrefixOp::Aspect(ApproxAspectContour::Initiative)),
-        Cmavo::Cohu => prefix(PrefixOp::Aspect(ApproxAspectContour::Cessative)),
-        Cmavo::Mohu => prefix(PrefixOp::Aspect(ApproxAspectContour::Completive)),
-        Cmavo::Zaho => prefix(PrefixOp::Aspect(ApproxAspectContour::Superfective)),
-        Cmavo::Cohi => prefix(PrefixOp::Aspect(ApproxAspectContour::Achievative)),
-        Cmavo::Deha => prefix(PrefixOp::Aspect(ApproxAspectContour::Pausative)),
-        Cmavo::Diha => prefix(PrefixOp::Aspect(ApproxAspectContour::Resumptive)),
-        Cmavo::Vehe => prefix(PrefixOp::SpaceWhole),
-        Cmavo::Zehe => prefix(PrefixOp::TimeWhole),
+        Cmavo::Caha => prefix(new!(PrefixOp::Actuality(ActualityKind::Actual))),
+        Cmavo::Kahe => prefix(new!(PrefixOp::Actuality(ActualityKind::Capable))),
+        Cmavo::Nuho => prefix(new!(PrefixOp::Actuality(ActualityKind::Potential))),
+        Cmavo::Puhi => prefix(new!(PrefixOp::Actuality(ActualityKind::Demonstrated))),
+        Cmavo::Puho => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Prospective))),
+        Cmavo::Caho => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Continuative))),
+        Cmavo::Baho => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Retrospective))),
+        Cmavo::Coha => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Initiative))),
+        Cmavo::Cohu => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Cessative))),
+        Cmavo::Mohu => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Completive))),
+        Cmavo::Zaho => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Superfective))),
+        Cmavo::Cohi => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Achievative))),
+        Cmavo::Deha => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Pausative))),
+        Cmavo::Diha => prefix(new!(PrefixOp::Aspect(ApproxAspectContour::Resumptive))),
+        Cmavo::Vehe => prefix(new!(PrefixOp::SpaceWhole)),
+        Cmavo::Zehe => prefix(new!(PrefixOp::TimeWhole)),
         Cmavo::Mi => context(VariableContextRole::Speaker, None, None),
         Cmavo::Do => context(VariableContextRole::Audience, None, None),
         Cmavo::Ti => context(
@@ -1064,24 +1075,24 @@ fn classify_cmavo_piece(cmavo: Cmavo) -> Option<Piece> {
 #[requires(true)]
 #[ensures(true)]
 fn personal_mass(speaker: Inclusion, audience: Inclusion, others: bool) -> Piece {
-    Piece::Tok(Tok::Expr(new!(ApproxExpr::ReferentOf {
+    Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::ReferentOf {
         referent: new!(ApproxReferent::PersonalMass {
             speaker: speaker,
             audience: audience,
             others: others,
         }),
-    })))
+    }))))
 }
 
 #[requires((1..=3).contains(&series))]
 #[ensures(true)]
 fn logical_variable(sort: LogicalVariableSort, series: u8) -> Piece {
-    Piece::Tok(Tok::Expr(new!(ApproxExpr::ReferentOf {
+    Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::ReferentOf {
         referent: new!(ApproxReferent::LogicalVariable {
             sort: sort,
             series: series,
         }),
-    })))
+    }))))
 }
 
 /// Number reduction: fold maximal runs of numeric tokens into single
@@ -1097,7 +1108,7 @@ fn reduce_number_runs(pieces: Vec<Piece>) -> Option<Vec<Tok>> {
         }
         let quantity = reduce_number_run(run)?;
         run.clear();
-        tokens.push(Tok::Expr(quantity));
+        tokens.push(new!(Tok::Expr(quantity)));
         Some(())
     };
     for piece in pieces {
@@ -1122,11 +1133,14 @@ fn reduce_number_runs(pieces: Vec<Piece>) -> Option<Vec<Tok>> {
 #[requires(!run.is_empty())]
 #[ensures(ret.as_ref().is_some_and(|expr| matches!(expr.as_data(), data!(ApproxExpr::Quantity { .. }))) || ret.is_none())]
 fn reduce_number_run(run: &[NumTok]) -> Option<ApproxExpr> {
-    let (form, tail) = match run.first() {
-        Some(NumTok::Quantifier(form)) => (Some(*form), &run[1..]),
+    let (form, tail) = match run.first().map(NumTok::as_data) {
+        Some(data!(NumTok::Quantifier(form))) => (Some(*form), &run[1..]),
         _ => (None, run),
     };
-    if tail.iter().any(|token| matches!(token, NumTok::Quantifier(_))) {
+    if tail
+        .iter()
+        .any(|token| matches!(token.as_data(), data!(NumTok::Quantifier(_))))
+    {
         return None;
     }
     let mut integer: i64 = 0;
@@ -1136,8 +1150,8 @@ fn reduce_number_run(run: &[NumTok]) -> Option<ApproxExpr> {
     let mut point_seen = false;
     let mut percent_seen = false;
     for (index, token) in tail.iter().enumerate() {
-        match token {
-            NumTok::Digit(digit) => {
+        match token.as_data() {
+            data!(NumTok::Digit(digit)) => {
                 digit_count += 1;
                 integer = integer.checked_mul(10)?.checked_add(i64::from(*digit))?;
                 let digits = if point_seen {
@@ -1147,19 +1161,21 @@ fn reduce_number_run(run: &[NumTok]) -> Option<ApproxExpr> {
                 };
                 digits.push(char::from(b'0' + *digit));
             }
-            NumTok::Point => {
+            data!(NumTok::Point) => {
                 if point_seen || percent_seen {
                     return None;
                 }
                 point_seen = true;
             }
-            NumTok::Percent => {
+            data!(NumTok::Percent) => {
                 if percent_seen || index + 1 != tail.len() {
                     return None;
                 }
                 percent_seen = true;
             }
-            NumTok::Quantifier(_) => unreachable!("a second quantifier was rejected above"),
+            data!(NumTok::Quantifier(_)) => {
+                unreachable!("a second quantifier was rejected above")
+            }
         }
     }
     if point_seen || percent_seen {
@@ -1225,9 +1241,9 @@ fn reduce_number_run(run: &[NumTok]) -> Option<ApproxExpr> {
 fn group_ke_tokens(input: Vec<Tok>) -> Option<Vec<Tok>> {
     let mut stack: Vec<Vec<Tok>> = vec![Vec::new()];
     for token in input {
-        match token {
-            Tok::Ke => stack.push(Vec::new()),
-            Tok::Kee => {
+        match token.into_data() {
+            data!(Tok::Ke) => stack.push(Vec::new()),
+            data!(Tok::Kee) => {
                 if stack.len() < 2 {
                     return None;
                 }
@@ -1238,12 +1254,14 @@ fn group_ke_tokens(input: Vec<Tok>) -> Option<Vec<Tok>> {
                 stack
                     .last_mut()
                     .expect("the length check guarantees a parent frame")
-                    .push(Tok::Group(inner));
+                    .push(new!(Tok::Group(inner)));
             }
+            // The token came from a validated `Tok`, so re-wrapping its data
+            // cannot fail.
             other => stack
                 .last_mut()
                 .expect("the base frame always exists")
-                .push(other),
+                .push(Tok::from_data(other)),
         }
     }
     if stack.len() != 1 {
@@ -1260,32 +1278,42 @@ fn group_ke_tokens(input: Vec<Tok>) -> Option<Vec<Tok>> {
 fn resolve_kei_scopes(tokens: Vec<Tok>) -> Option<Vec<Tok>> {
     let mut resolved = Vec::with_capacity(tokens.len());
     for token in tokens {
-        resolved.push(match token {
-            Tok::Group(inner) => Tok::Group(resolve_kei_scopes(inner)?),
-            other => other,
+        resolved.push(match token.into_data() {
+            data!(Tok::Group(inner)) => new!(Tok::Group(resolve_kei_scopes(inner)?)),
+            // The token came from a validated `Tok`, so re-wrapping its data
+            // cannot fail.
+            other => Tok::from_data(other),
         });
     }
     let mut output: Vec<Tok> = Vec::new();
     let mut open_abstractions: Vec<usize> = Vec::new();
     for token in resolved {
-        match token {
-            Tok::Prefix(PrefixOp::Abstraction(..)) => {
-                open_abstractions.push(output.len());
-                output.push(token);
+        if matches!(
+            token.as_data(),
+            data!(Tok::Prefix(prefix_op))
+                if matches!(prefix_op.as_data(), data!(PrefixOp::Abstraction(..)))
+        ) {
+            open_abstractions.push(output.len());
+            output.push(token);
+        } else if matches!(token.as_data(), data!(Tok::Kei)) {
+            let position = open_abstractions.pop()?;
+            let mut drained = output.drain(position..);
+            let Some(first) = drained.next() else {
+                unreachable!("the recorded position holds an abstraction prefix");
+            };
+            let data!(Tok::Prefix(prefix_op)) = first.into_data() else {
+                unreachable!("the recorded position holds an abstraction prefix");
+            };
+            let data!(PrefixOp::Abstraction(kind)) = prefix_op.into_data() else {
+                unreachable!("the recorded position holds an abstraction prefix");
+            };
+            let inner: Vec<Tok> = drained.collect();
+            if inner.is_empty() {
+                return None;
             }
-            Tok::Kei => {
-                let position = open_abstractions.pop()?;
-                let mut drained = output.drain(position..);
-                let Some(Tok::Prefix(PrefixOp::Abstraction(kind))) = drained.next() else {
-                    unreachable!("the recorded position holds an abstraction prefix");
-                };
-                let inner: Vec<Tok> = drained.collect();
-                if inner.is_empty() {
-                    return None;
-                }
-                output.push(Tok::ScopeGroup { kind, inner });
-            }
-            other => output.push(other),
+            output.push(new!(Tok::ScopeGroup { kind: kind, inner: inner }));
+        } else {
+            output.push(token);
         }
     }
     Some(output)
@@ -1472,7 +1500,7 @@ fn parse_sequence(tokens: &[&Tok], ke_group_content: bool) -> Option<ApproxExpr>
     let mut na_count = 0usize;
     let mut rest = Vec::with_capacity(tokens.len());
     for token in tokens {
-        if matches!(token, Tok::Na) {
+        if matches!(token.as_data(), data!(Tok::Na)) {
             na_count += 1;
         } else {
             rest.push(*token);
@@ -1496,7 +1524,7 @@ fn parse_connectives(tokens: &[&Tok], ke_group_content: bool) -> Option<ApproxEx
     let mut segments: Vec<&[&Tok]> = Vec::new();
     let mut start = 0usize;
     for (index, token) in tokens.iter().enumerate() {
-        if let Tok::Connective(operator) = token {
+        if let data!(Tok::Connective(operator)) = token.as_data() {
             operators.push(*operator);
             segments.push(&tokens[start..index]);
             start = index + 1;
@@ -1526,7 +1554,7 @@ fn parse_co_expression(tokens: &[&Tok], ke_group_content: bool) -> Option<Approx
     let mut segments: Vec<&[&Tok]> = Vec::new();
     let mut start = 0usize;
     for (index, token) in tokens.iter().enumerate() {
-        if matches!(token, Tok::Co) {
+        if matches!(token.as_data(), data!(Tok::Co)) {
             segments.push(&tokens[start..index]);
             start = index + 1;
         }
@@ -1604,11 +1632,17 @@ fn parse_bo_chain(
     start: usize,
 ) -> Option<(ApproxExpr, UnitBoundary, usize)> {
     let (first, first_boundary, mut position) = parse_unit(tokens, start)?;
-    if !matches!(tokens.get(position), Some(Tok::Bo)) {
+    if !matches!(
+        tokens.get(position).map(|token| token.as_data()),
+        Some(data!(Tok::Bo))
+    ) {
         return Some((first, first_boundary, position));
     }
     let mut units = vec![first];
-    while matches!(tokens.get(position), Some(Tok::Bo)) {
+    while matches!(
+        tokens.get(position).map(|token| token.as_data()),
+        Some(data!(Tok::Bo))
+    ) {
         position += 1;
         let (unit, _, next) = parse_unit(tokens, position)?;
         units.push(unit);
@@ -1632,20 +1666,23 @@ fn parse_bo_chain(
 #[ensures(ret.as_ref().is_none_or(|(_, _, next)| *next > position))]
 fn parse_unit(tokens: &[&Tok], position: usize) -> Option<(ApproxExpr, UnitBoundary, usize)> {
     let token = tokens.get(position)?;
-    let (mut expr, boundary, mut position) = match token {
-        Tok::Expr(leaf) => (leaf.clone(), UnitBoundary::None, position + 1),
-        Tok::Group(inner) => {
+    let (mut expr, boundary, mut position) = match token.as_data() {
+        data!(Tok::Expr(leaf)) => (leaf.clone(), UnitBoundary::None, position + 1),
+        data!(Tok::Group(inner)) => {
             let references: Vec<&Tok> = inner.iter().collect();
-            let simple = !inner
-                .iter()
-                .any(|token| matches!(token, Tok::Connective(..) | Tok::Co));
+            let simple = !inner.iter().any(|token| {
+                matches!(
+                    token.as_data(),
+                    data!(Tok::Connective(..)) | data!(Tok::Co)
+                )
+            });
             (
                 parse_sequence(&references, simple)?,
                 UnitBoundary::KeGroup,
                 position + 1,
             )
         }
-        Tok::ScopeGroup { kind, inner } => {
+        data!(Tok::ScopeGroup { kind, inner }) => {
             let references: Vec<&Tok> = inner.iter().collect();
             (
                 new!(ApproxExpr::Abstraction {
@@ -1657,7 +1694,7 @@ fn parse_unit(tokens: &[&Tok], position: usize) -> Option<(ApproxExpr, UnitBound
                 position + 1,
             )
         }
-        Tok::Prefix(op) => {
+        data!(Tok::Prefix(op)) => {
             let (operand, operand_boundary, next) = parse_unit(tokens, position + 1)?;
             (
                 apply_prefix_operator(*op, operand, operand_boundary),
@@ -1665,16 +1702,16 @@ fn parse_unit(tokens: &[&Tok], position: usize) -> Option<(ApproxExpr, UnitBound
                 next,
             )
         }
-        Tok::Na
-        | Tok::Ke
-        | Tok::Kee
-        | Tok::Kei
-        | Tok::Bo
-        | Tok::Co
-        | Tok::Connective(..)
-        | Tok::Postfix(..) => return None,
+        data!(Tok::Na)
+        | data!(Tok::Ke)
+        | data!(Tok::Kee)
+        | data!(Tok::Kei)
+        | data!(Tok::Bo)
+        | data!(Tok::Co)
+        | data!(Tok::Connective(..))
+        | data!(Tok::Postfix(..)) => return None,
     };
-    while let Some(Tok::Postfix(op)) = tokens.get(position) {
+    while let Some(data!(Tok::Postfix(op))) = tokens.get(position).map(|token| token.as_data()) {
         expr = apply_postfix_operator(*op, expr);
         position += 1;
     }
@@ -1693,41 +1730,41 @@ fn apply_prefix_operator(
     } else {
         ScopeBasis::AssumedShort
     });
-    match op {
-        PrefixOp::Swap { first, second } => new!(ApproxExpr::SwappedPlaces {
-            first: first,
-            second: second,
+    match op.as_data() {
+        data!(PrefixOp::Swap { first, second }) => new!(ApproxExpr::SwappedPlaces {
+            first: *first,
+            second: *second,
             inner: Box::new(operand),
             scope: scope,
         }),
-        PrefixOp::ScalarNegation(polarity) => new!(ApproxExpr::ScalarNegation {
-            polarity: polarity,
+        data!(PrefixOp::ScalarNegation(polarity)) => new!(ApproxExpr::ScalarNegation {
+            polarity: *polarity,
             inner: Box::new(operand),
             scope: scope,
         }),
-        PrefixOp::Abstraction(kind) => new!(ApproxExpr::Abstraction {
-            kind: kind,
+        data!(PrefixOp::Abstraction(kind)) => new!(ApproxExpr::Abstraction {
+            kind: *kind,
             inner: Box::new(operand),
             scope: scope,
         }),
-        PrefixOp::TaggedPlace => new!(ApproxExpr::TaggedPlace {
+        data!(PrefixOp::TaggedPlace) => new!(ApproxExpr::TaggedPlace {
             inner: Box::new(operand),
         }),
-        PrefixOp::PlaceDeletion => new!(ApproxExpr::PlaceDeletion {
+        data!(PrefixOp::PlaceDeletion) => new!(ApproxExpr::PlaceDeletion {
             index: 1,
             inner: Box::new(operand),
         }),
-        PrefixOp::Figurative => new!(ApproxExpr::Figurative {
+        data!(PrefixOp::Figurative) => new!(ApproxExpr::Figurative {
             inner: Box::new(operand),
         }),
-        PrefixOp::Actuality(actuality) => {
-            apply_tense_modal_facet(operand, Some(actuality), None, false, false)
+        data!(PrefixOp::Actuality(actuality)) => {
+            apply_tense_modal_facet(operand, Some(*actuality), None, false, false)
         }
-        PrefixOp::Aspect(aspect) => {
-            apply_tense_modal_facet(operand, None, Some(aspect), false, false)
+        data!(PrefixOp::Aspect(aspect)) => {
+            apply_tense_modal_facet(operand, None, Some(*aspect), false, false)
         }
-        PrefixOp::SpaceWhole => apply_tense_modal_facet(operand, None, None, true, false),
-        PrefixOp::TimeWhole => apply_tense_modal_facet(operand, None, None, false, true),
+        data!(PrefixOp::SpaceWhole) => apply_tense_modal_facet(operand, None, None, true, false),
+        data!(PrefixOp::TimeWhole) => apply_tense_modal_facet(operand, None, None, false, true),
     }
 }
 
@@ -1843,7 +1880,8 @@ struct WordCardBuilder<'dict> {
 
 impl<'dict> WordCardBuilder<'dict> {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
+        "every accumulated card's id is registered in built_ids")]
     fn push_word_like_cards(&mut self, word_like: &WordLike) {
         match word_like.as_data() {
             data!(WordLike::PlainWord(word)) => self.push_content_word_cards(word),
@@ -1868,7 +1906,8 @@ impl<'dict> WordCardBuilder<'dict> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
+        "every accumulated card's id is registered in built_ids")]
     fn push_content_word_cards(&mut self, word: &Word) {
         match word.kind() {
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
@@ -1895,7 +1934,8 @@ impl<'dict> WordCardBuilder<'dict> {
     /// words referenced by the compound's own rafsi — the guard is
     /// defense-in-depth, not a load-bearing assumption.)
     #[requires(!word_text.is_empty())]
-    #[ensures(true)]
+    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
+        "every accumulated card's id is registered in built_ids")]
     fn push_brivla_card(&mut self, word_text: String, kind: WordCardKind) {
         if self.built_ids.contains(&word_text) {
             return;
@@ -1933,7 +1973,8 @@ impl<'dict> WordCardBuilder<'dict> {
     }
 
     #[requires(!word_text.is_empty())]
-    #[ensures(true)]
+    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
+        "every accumulated card's id is registered in built_ids")]
     fn push_unknown_lujvo_card(&mut self, word_text: String) {
         let composed = self.compose_lujvo(&word_text);
         match composed {
@@ -1994,7 +2035,8 @@ impl<'dict> WordCardBuilder<'dict> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
+        "every accumulated card's id is registered in built_ids")]
     fn push_zei_compound_card(&mut self, word_like: &WordLike) {
         let mut parts = Vec::new();
         flatten_zei_parts(word_like, &mut parts);
@@ -2132,9 +2174,9 @@ fn classify_lujvo_source(
     }
     let kind = brivla_kind_for_source(source)?;
     push_unique_component(components, source.to_owned(), kind);
-    Some(Piece::Tok(Tok::Expr(new!(ApproxExpr::Component {
+    Some(Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::Component {
         word: source.to_owned(),
-    }))))
+    })))))
 }
 
 /// Morphologically classify a non-cmavo source word as a brivla card kind.
@@ -2335,11 +2377,11 @@ fn classify_zei_part(
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
                 let text = word_piece_text(word);
                 push_unique_component(components, text.clone(), word_card_kind_for_brivla(word.kind()));
-                Some(Piece::Tok(Tok::Expr(new!(ApproxExpr::Component {
+                Some(Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::Component {
                     word: text,
-                }))))
+                })))))
             }
-            WordKind::Cmevla => Some(Piece::Tok(Tok::Expr(new!(ApproxExpr::ReferentOf {
+            WordKind::Cmevla => Some(Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::ReferentOf {
                 referent: new!(ApproxReferent::Named {
                     text: word_piece_text(word),
                     by: Some(Box::new(new!(ApproxReferent::Context {
@@ -2348,16 +2390,16 @@ fn classify_zei_part(
                         slot: None,
                     }))),
                 }),
-            })))),
+            }))))),
             WordKind::Cmavo => classify_cmavo_piece(
                 word.cmavo().expect("a word of kind Cmavo has a cmavo variant"),
             ),
         },
         ZeiPartRef::WordLike(word_like) => match word_like.as_data() {
             data!(WordLike::LerfuWord { .. }) => {
-                Some(Piece::Tok(Tok::Expr(new!(ApproxExpr::Letter {
+                Some(Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::Letter {
                     text: zei_part_piece_text(part),
-                }))))
+                })))))
             }
             _ => None,
         },
@@ -2366,6 +2408,9 @@ fn classify_zei_part(
 
 #[cfg(test)]
 mod tests {
+    // The requires macro absorbs the ensures attributes, so rustc sees the
+    // import as unused; the syntactic contract scanner still needs it.
+    #[allow(unused_imports)]
     use bityzba::{ensures, requires};
 
     use super::*;
@@ -3203,42 +3248,44 @@ mod tests {
     fn number_reduction_unit_cases() {
         let quantity = |run: &[NumTok]| reduce_number_run(run);
         assert_quantity(
-            &quantity(&[NumTok::Digit(1), NumTok::Digit(2)]).expect("12"),
+            &quantity(&[new!(NumTok::Digit(1)), new!(NumTok::Digit(2))]).expect("12"),
             ApproxQuantityForm::Exact,
             Some(12),
             None,
         );
         assert_quantity(
-            &quantity(&[NumTok::Digit(1), NumTok::Point, NumTok::Digit(2)]).expect("1.2"),
+            &quantity(&[new!(NumTok::Digit(1)), new!(NumTok::Point), new!(NumTok::Digit(2))])
+                .expect("1.2"),
             ApproxQuantityForm::Exact,
             None,
             Some("1.2"),
         );
         assert_quantity(
-            &quantity(&[NumTok::Digit(1), NumTok::Digit(2), NumTok::Percent]).expect("12%"),
+            &quantity(&[new!(NumTok::Digit(1)), new!(NumTok::Digit(2)), new!(NumTok::Percent)])
+                .expect("12%"),
             ApproxQuantityForm::Exact,
             None,
             Some("12%"),
         );
         assert_quantity(
-            &quantity(&[NumTok::Quantifier(ApproxQuantityForm::AllBut)]).expect("da'a"),
+            &quantity(&[new!(NumTok::Quantifier(ApproxQuantityForm::AllBut))]).expect("da'a"),
             ApproxQuantityForm::AllBut,
             Some(1),
             None,
         );
         assert_quantity(
-            &quantity(&[NumTok::Quantifier(ApproxQuantityForm::Few)]).expect("so'u"),
+            &quantity(&[new!(NumTok::Quantifier(ApproxQuantityForm::Few))]).expect("so'u"),
             ApproxQuantityForm::Few,
             None,
             None,
         );
         // Malformed runs fail closed.
         for run in [
-            &[NumTok::Quantifier(ApproxQuantityForm::All), NumTok::Digit(1)][..],
-            &[NumTok::Digit(1), NumTok::Point, NumTok::Point][..],
-            &[NumTok::Digit(1), NumTok::Percent, NumTok::Digit(2)][..],
-            &[NumTok::Quantifier(ApproxQuantityForm::All), NumTok::Quantifier(ApproxQuantityForm::Few)][..],
-            &[NumTok::Point][..],
+            &[new!(NumTok::Quantifier(ApproxQuantityForm::All)), new!(NumTok::Digit(1))][..],
+            &[new!(NumTok::Digit(1)), new!(NumTok::Point), new!(NumTok::Point)][..],
+            &[new!(NumTok::Digit(1)), new!(NumTok::Percent), new!(NumTok::Digit(2))][..],
+            &[new!(NumTok::Quantifier(ApproxQuantityForm::All)), new!(NumTok::Quantifier(ApproxQuantityForm::Few))][..],
+            &[new!(NumTok::Point)][..],
         ] {
             assert!(quantity(run).is_none(), "run {run:?} must fail closed");
         }
@@ -3392,4 +3439,3 @@ mod tests {
         assert_eq!(cards[1].id, "cmalu");
     }
 }
-

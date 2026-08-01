@@ -1021,7 +1021,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
-        "mutable card-assembly accumulator; card validity is enforced by the validated WordCard values it appends and the built_ids dedup registry, not by a field invariant",
+        "word-card assembly accumulator is deliberately mutable; the cards/built_ids cross-field discipline (every accumulated card's id is registered) is enforced by method postconditions",
     ),
     (
         "crates/jbotci-semantics/src/notation/writer.rs:Writer",

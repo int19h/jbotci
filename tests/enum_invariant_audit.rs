@@ -1124,10 +1124,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "context-referent variant whose payload is constrained by its own field types and the enum's other arms; no additional cross-field invariant",
     ),
     (
-        "crates/jbotci-semantics/src/notation/word_cards.rs:NumTok::Digit",
-        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/word_cards.rs:NumTok::Percent",
         "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
     ),
@@ -1176,10 +1172,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
     ),
     (
-        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::Swap",
-        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::TaggedPlace",
         "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
     ),
@@ -1204,10 +1196,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
     ),
     (
-        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Group",
-        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Ke",
         "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
     ),
@@ -1229,10 +1217,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Prefix",
-        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::ScopeGroup",
         "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
     ),
     (
