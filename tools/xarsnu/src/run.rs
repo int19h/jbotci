@@ -12,8 +12,8 @@ use bityzba::{ensures, invariant, new, requires};
 
 use crate::protocol::ProtocolRunOutcomeData;
 use crate::{
-    EmbeddingSearchPreflightError, MeaningReviewer, OpenRouterClient, OpenRouterError,
-    OpenRouterParticipant, OpenRouterReviewer, ProtocolModel, ProtocolRunError,
+    CompletionTokenLimit, EmbeddingSearchPreflightError, MeaningReviewer, OpenRouterClient,
+    OpenRouterError, OpenRouterParticipant, OpenRouterReviewer, ProtocolModel, ProtocolRunError,
     ProtocolRunOutcome, ProtocolRunner, ReferenceToolDispatcher, RunConfig, RunHeader,
     ScenarioInstance, TaskOutcome, TaskStatus, ToolDispatcher, preflight_embedding_search,
 };
@@ -335,22 +335,28 @@ where
         config,
         scenario,
     }) = loaded.into_data();
+    let default_max_completion_tokens =
+        CompletionTokenLimit::new(config.client.max_completion_tokens);
     let participants = config
         .participants
         .iter()
-        .map(|participant| OpenRouterParticipant::new(participant, &client))
+        .map(|participant| {
+            OpenRouterParticipant::new(participant, &client, default_max_completion_tokens)
+        })
         .collect::<Vec<_>>();
     let caps = config.caps.clone();
     let listener_mode = config.listener_mode;
     let tersmu_format = config.tersmu_format.clone();
     // The adversarial reviewer is prepared before the config moves into the
     // transcript header; `OpenRouterReviewer::new` requires `enabled` (issue #723).
-    let reviewer = config
-        .meaning_review
-        .enabled
-        .then(|| {
-            OpenRouterReviewer::new(&config.participants, config.meaning_review.clone(), &client)
-        });
+    let reviewer = config.meaning_review.enabled.then(|| {
+        OpenRouterReviewer::new(
+            &config.participants,
+            config.meaning_review.clone(),
+            &client,
+            default_max_completion_tokens,
+        )
+    });
     let header = RunHeader::new(config, &scenario).map_err(|error| {
         new!(RunError::Header {
             message: error.to_string(),

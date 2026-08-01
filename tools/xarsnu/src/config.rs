@@ -10,6 +10,7 @@ use thiserror::Error;
 const DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE: usize = 30;
 const DEFAULT_REFERENCE_NUDGE_AFTER: usize = 10;
 const DEFAULT_HTTP_TIMEOUT_SECONDS: u64 = 60;
+const DEFAULT_MAX_COMPLETION_TOKENS: u32 = 16_384;
 
 #[requires(true)]
 #[ensures(ret == DEFAULT_MAX_REFERENCE_CALLS_PER_PHASE)]
@@ -33,6 +34,12 @@ const fn default_reference_nudge_after() -> usize {
 #[ensures(ret == DEFAULT_HTTP_TIMEOUT_SECONDS)]
 const fn default_http_timeout_seconds() -> u64 {
     DEFAULT_HTTP_TIMEOUT_SECONDS
+}
+
+#[requires(true)]
+#[ensures(ret == DEFAULT_MAX_COMPLETION_TOKENS)]
+const fn default_max_completion_tokens() -> u32 {
+    DEFAULT_MAX_COMPLETION_TOKENS
 }
 
 /// Whether xarsnu should manage provider prompt-cache breakpoints.
@@ -117,6 +124,7 @@ where
 #[invariant(!model.trim().is_empty(), "participant model ids cannot be empty")]
 #[invariant(temperature.is_finite() && (0.0..=2.0).contains(temperature), "temperature must be finite and between 0 and 2")]
 #[invariant(!system_prompt.trim().is_empty(), "participant system prompts cannot be empty")]
+#[invariant(max_completion_tokens.is_none_or(|value| value > 0), "participant completion token limit must be positive")]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ParticipantConfig {
@@ -138,6 +146,21 @@ pub struct ParticipantConfig {
     pub reasoning: Option<ReasoningConfig>,
     pub temperature: f64,
     pub system_prompt: String,
+    /// Per-participant completion token limit override; the `[client]` default
+    /// when absent (issue #726).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_completion_tokens: Option<u32>,
+}
+
+impl ParticipantConfig {
+    /// This participant's completion token limit: its own override when set,
+    /// otherwise the run-wide `[client]` default (issue #726).
+    #[requires(client_default > 0)]
+    #[ensures(ret > 0)]
+    #[ensures(ret == self.max_completion_tokens.unwrap_or(client_default))]
+    pub fn effective_max_completion_tokens(&self, client_default: u32) -> u32 {
+        self.max_completion_tokens.unwrap_or(client_default)
+    }
 }
 
 /// Hard limits that make a run bounded and reviewable.
@@ -166,6 +189,7 @@ pub struct CapsConfig {
 /// HTTP settings for OpenRouter requests made during one run.
 #[invariant(base_url.as_ref().is_none_or(|value| !value.trim().is_empty()), "client base URL cannot be empty")]
 #[invariant(*http_timeout_seconds > 0, "HTTP timeout must be positive")]
+#[invariant(*max_completion_tokens > 0, "completion token limit must be positive")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ClientConfig {
@@ -173,16 +197,21 @@ pub struct ClientConfig {
     pub base_url: Option<String>,
     #[serde(default = "default_http_timeout_seconds")]
     pub http_timeout_seconds: u64,
+    /// Run-wide completion token limit; per-participant overrides win (issue #726).
+    #[serde(default = "default_max_completion_tokens")]
+    pub max_completion_tokens: u32,
 }
 
 impl Default for ClientConfig {
     #[requires(true)]
     #[ensures(ret.base_url.is_none())]
     #[ensures(ret.http_timeout_seconds == DEFAULT_HTTP_TIMEOUT_SECONDS)]
+    #[ensures(ret.max_completion_tokens == DEFAULT_MAX_COMPLETION_TOKENS)]
     fn default() -> Self {
         Self::from_data(bityzba::data!(ClientConfig {
             base_url: None,
             http_timeout_seconds: DEFAULT_HTTP_TIMEOUT_SECONDS,
+            max_completion_tokens: DEFAULT_MAX_COMPLETION_TOKENS,
         }))
     }
 }
@@ -388,6 +417,13 @@ system-prompt = "Speak only Lojban."
         assert_eq!(config.caps.reference_nudge_after, 10);
         assert_eq!(config.client.base_url, None);
         assert_eq!(config.client.http_timeout(), Duration::from_secs(60));
+        assert_eq!(config.client.max_completion_tokens, 16_384);
+        assert!(
+            config
+                .participants
+                .iter()
+                .all(|participant| participant.max_completion_tokens.is_none())
+        );
         assert!(
             config
                 .participants
@@ -513,6 +549,70 @@ system-prompt = "Speak only Lojban."
         let unknown = enabled.replace("enabled = true", "enabled = true\nmodel = \"other/model\"");
         let error = RunConfig::from_toml(&unknown).expect_err("reviewer model is not configurable");
         assert!(error.to_string().contains("unknown field `model`"), "{error}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn completion_token_limits_are_configurable_and_validated() {
+        // Issue #726: the completion token limit is a `[client]` default with
+        // an optional per-participant override; both must be positive.
+        let configured = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\n\n[client]\nmax-completion-tokens = 32768",
+        );
+        let config = RunConfig::from_toml(&configured).expect("valid client token limit");
+        assert_eq!(config.client.max_completion_tokens, 32_768);
+        assert!(
+            config
+                .participants
+                .iter()
+                .all(|participant| participant.max_completion_tokens.is_none())
+        );
+        assert_eq!(
+            config.participants[0].effective_max_completion_tokens(config.client.max_completion_tokens),
+            32_768,
+            "participants without an override inherit the client default"
+        );
+
+        let overridden = configured.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\nmax-completion-tokens = 8192",
+        );
+        let config = RunConfig::from_toml(&overridden).expect("valid participant override");
+        assert_eq!(config.participants[0].max_completion_tokens, Some(8_192));
+        assert_eq!(config.participants[1].max_completion_tokens, None);
+        assert_eq!(
+            config.participants[0].effective_max_completion_tokens(config.client.max_completion_tokens),
+            8_192,
+            "the per-participant override wins over the client default"
+        );
+        assert_eq!(
+            config.participants[1].effective_max_completion_tokens(config.client.max_completion_tokens),
+            32_768
+        );
+
+        let invalid = configured.replace("max-completion-tokens = 32768", "max-completion-tokens = 0");
+        let error = RunConfig::from_toml(&invalid).expect_err("zero client limit must be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("completion token limit must be positive"),
+            "{error}"
+        );
+
+        let invalid = VALID_CONFIG.replace(
+            "model = \"example/alice\"",
+            "model = \"example/alice\"\nmax-completion-tokens = 0",
+        );
+        let error =
+            RunConfig::from_toml(&invalid).expect_err("zero participant limit must be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("participant completion token limit must be positive"),
+            "{error}"
+        );
     }
 
     #[test]

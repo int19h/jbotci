@@ -21,10 +21,10 @@ pub use jbotci_tools::{
 };
 pub use model_capabilities::ProviderToolChoice;
 pub use openrouter::{
-    AbortKind, AbortRecord, ChatMessage, FunctionCall, FunctionToolDefinition, MalformedToolCall,
-    ModelTurn, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    ProviderCallObservation, ProviderUsageValidationError, RetryPolicy, RunAccounting,
-    ThinkingTrace, ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError,
+    AbortKind, AbortRecord, ChatMessage, CompletionTokenLimit, FunctionCall, FunctionToolDefinition,
+    MalformedToolCall, ModelTurn, OpenRouterClient, OpenRouterClientConfig, OpenRouterError,
+    ParticipantConversation, ProviderCallObservation, ProviderUsageValidationError, RetryPolicy,
+    RunAccounting, ThinkingTrace, ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError,
     ToolDispatcher, Usage, UsageTotals,
 };
 pub use protocol::{

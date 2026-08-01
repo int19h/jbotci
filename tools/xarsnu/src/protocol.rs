@@ -15,11 +15,11 @@ use crate::model_capabilities::ParticipantModelPolicy;
 use crate::openrouter::{MalformedToolCallData, ModelTurnData, REQUIRED_TOOL_CORRECTION};
 use crate::transcript::TranscriptWriter;
 use crate::{
-    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, MeaningReviewConfig,
-    OpenRouterClient, ParticipantConfig, ParticipantConversation, ProviderCallObservation,
-    ProviderToolChoice, ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ThinkingTrace,
-    ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
-    TranscriptError, Usage,
+    AbortRecord, CapsConfig, CompletionTokenLimit, DiagnosticCategory, ListenerMode,
+    MalformedToolCall, MeaningReviewConfig, OpenRouterClient, ParticipantConfig,
+    ParticipantConversation, ProviderCallObservation, ProviderToolChoice, ReferenceTools,
+    RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
+    ToolDefinitionError, ToolDispatchError, ToolDispatcher, TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
 
@@ -592,17 +592,19 @@ impl<'client> OpenRouterReviewSession<'client> {
     /// The session shares the participant's model, provider routing, and
     /// prompt-caching policy; temperature and reasoning come from the
     /// meaning-review config when it overrides them and otherwise from the
-    /// participant. Tool choice resolves through the same model-capability
-    /// metadata as participants, so thinking-mode providers that reject
-    /// `tool_choice: required` get the automatic corrective loop instead. The
-    /// session deliberately inherits none of the participant's message
-    /// history, persona, or standing protocol rules.
+    /// participant. The completion token limit is the participant's effective
+    /// limit (issue #726). Tool choice resolves through the same
+    /// model-capability metadata as participants, so thinking-mode providers
+    /// that reject `tool_choice: required` get the automatic corrective loop
+    /// instead. The session deliberately inherits none of the participant's
+    /// message history, persona, or standing protocol rules.
     #[requires(true)]
     #[ensures(ret.reviews_completed == 0)]
     pub fn new(
         participant: &ParticipantConfig,
         review: &MeaningReviewConfig,
         client: &'client OpenRouterClient,
+        default_max_completion_tokens: CompletionTokenLimit,
     ) -> Self {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
@@ -617,6 +619,10 @@ impl<'client> OpenRouterReviewSession<'client> {
                 participant.prompt_caching,
                 policy.reasoning,
                 review.temperature.unwrap_or(participant.temperature),
+                CompletionTokenLimit::new(
+                    participant
+                        .effective_max_completion_tokens(default_max_completion_tokens.tokens()),
+                ),
                 MEANING_REVIEW_SYSTEM_PROMPT.to_owned(),
             ),
             tool_choice: policy.tool_choice,
@@ -731,6 +737,7 @@ pub struct OpenRouterReviewer<'client> {
     participants: BTreeMap<String, ParticipantConfig>,
     config: MeaningReviewConfig,
     client: &'client OpenRouterClient,
+    default_max_completion_tokens: CompletionTokenLimit,
 }
 
 impl<'client> OpenRouterReviewer<'client> {
@@ -742,6 +749,7 @@ impl<'client> OpenRouterReviewer<'client> {
         participants: &[ParticipantConfig],
         config: MeaningReviewConfig,
         client: &'client OpenRouterClient,
+        default_max_completion_tokens: CompletionTokenLimit,
     ) -> Self {
         new!(OpenRouterReviewer {
             participants: participants
@@ -750,6 +758,7 @@ impl<'client> OpenRouterReviewer<'client> {
                 .collect(),
             config,
             client,
+            default_max_completion_tokens,
         })
     }
 }
@@ -763,7 +772,12 @@ impl<'client> MeaningReviewer for OpenRouterReviewer<'client> {
             .participants
             .get(speaker)
             .expect("reviewer sessions are started only for run participants");
-        OpenRouterReviewSession::new(participant, &self.config, self.client)
+        OpenRouterReviewSession::new(
+            participant,
+            &self.config,
+            self.client,
+            self.default_max_completion_tokens,
+        )
     }
 }
 
@@ -1209,6 +1223,14 @@ pub enum ProtocolEvent {
         tool_name: String,
         arguments: String,
         message: String,
+        /// True when the provider stopped this response at the completion
+        /// token limit (`finish_reason: "length"`). The condition is
+        /// choice-level: the captured payload may be a truncation artifact
+        /// rather than a model formatting error (issue #726). Additive
+        /// schema-v1 field; absent means false in transcripts written before
+        /// it existed.
+        #[serde(default)]
+        truncated: bool,
     },
     ListenerFlowAbandoned {
         turn_number: usize,
@@ -1244,6 +1266,12 @@ pub enum ProtocolEvent {
         turn_number: usize,
         participant: String,
         usage: Usage,
+        /// True when the provider stopped this call's response at the
+        /// completion token limit (`finish_reason: "length"`), so its content
+        /// or tool-call payloads may be truncated (issue #726). Additive
+        /// schema-v1 field; absent means false in older transcripts.
+        #[serde(default)]
+        truncated: bool,
     },
     ThinkingRecorded {
         turn_number: usize,
@@ -1684,7 +1712,11 @@ impl<'client> OpenRouterParticipant<'client> {
     /// before the first request.
     #[requires(true)]
     #[ensures(ret.conversation.participant_name() == participant.name)]
-    pub fn new(participant: &ParticipantConfig, client: &'client OpenRouterClient) -> Self {
+    pub fn new(
+        participant: &ParticipantConfig,
+        client: &'client OpenRouterClient,
+        default_max_completion_tokens: CompletionTokenLimit,
+    ) -> Self {
         let system_prompt = format!("{}\n\n{STANDING_PROTOCOL_RULES}", participant.system_prompt);
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
@@ -1699,6 +1731,10 @@ impl<'client> OpenRouterParticipant<'client> {
                 participant.prompt_caching,
                 policy.reasoning,
                 participant.temperature,
+                CompletionTokenLimit::new(
+                    participant
+                        .effective_max_completion_tokens(default_max_completion_tokens.tokens()),
+                ),
                 system_prompt,
             ),
             tool_choice: policy.tool_choice,
@@ -4189,6 +4225,7 @@ fn record_drained_observations(
             turn_number,
             participant: participant.to_owned(),
             usage: observation.usage,
+            truncated: observation.truncated,
         }));
     }
     for malformed in malformed_tool_calls {
@@ -4196,6 +4233,7 @@ fn record_drained_observations(
             tool_name,
             arguments,
             message,
+            truncated,
         }) = malformed.into_data();
         events.push(new!(ProtocolEvent::ToolCallMalformed {
             turn_number,
@@ -4203,6 +4241,7 @@ fn record_drained_observations(
             tool_name,
             arguments,
             message,
+            truncated,
         }));
     }
 }

@@ -27,6 +27,7 @@ allow-degraded-search = false
 [client]
 # base-url = "http://127.0.0.1:1234/v1"
 http-timeout-seconds = 60
+max-completion-tokens = 16384
 
 [caps]
 max-parse-attempts-per-turn = 3
@@ -80,6 +81,19 @@ The `[client]` table is optional. `http-timeout-seconds` defaults to 60, and
 OpenAI-compatible endpoint or routing proxy; xarsnu still reads and sends
 `OPENROUTER_API_KEY` unchanged.
 
+`max-completion-tokens` is the completion token limit sent as `max_tokens` on
+every request; it defaults to 16384 and must be positive. Providers count
+reasoning tokens against it, so long-thinking models can exhaust the budget
+mid-response (issue #726). A per-participant `max-completion-tokens` overrides
+the run-wide default for that participant, and adversarial reviewer sessions
+inherit their participant's effective limit. When a provider stops a response
+at the limit it reports `finish_reason: "length"`; xarsnu records that
+choice-level condition as a `truncated` marker on the call's `usage-recorded`
+event and on any `tool-call-malformed` event from the same response, whose
+captured arguments may then be a truncation artifact rather than a model
+formatting error — so token exhaustion is diagnosable without inspecting
+payloads.
+
 `tersmu-format` selects how the gate renders candidate semantics: `smusni`
 (the default, model-facing declaration notation), `json` (the canonical
 interchange graph), `xml` (the canonical scoped SFN-XML rendering produced by
@@ -119,7 +133,8 @@ intent reuse the reviewer session so it can verify that reported problems were
 fixed; registering a new intent — first declaration or revision — resets it to
 a fresh session. The reviewer shares the participant's model, provider routing,
 and prompt-caching policy; its `temperature` and `reasoning` inherit the
-participant's settings unless the table overrides them, and its tool choice
+participant's settings unless the table overrides them, its completion token
+limit is the participant's effective limit, and its tool choice
 resolves through the same model-capability metadata as participants. Reviewer
 usage counts into the run's cost budget, and the transcript records
 `review-requested`, `review-report` (the complete report text, losslessly),

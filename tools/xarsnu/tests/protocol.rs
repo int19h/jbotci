@@ -1951,6 +1951,7 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
                 reasoning: None,
                 temperature: 0.7,
                 system_prompt: "Use the gated protocol.".to_owned(),
+                max_completion_tokens: None,
             }))
             .collect(),
         scenario: "debate-consciousness-1.toml".to_owned(),
@@ -2025,12 +2026,17 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
             let model = ScriptedModel::new(participant, steps);
             if *participant == "alice" {
                 model.with_malformed_tool_calls(vec![
+                    // A provider-reported truncation (`finish_reason: "length"`)
+                    // must stay attached to its lossless capture so token
+                    // exhaustion is diagnosable without payload inspection
+                    // (issue #726).
                     new!(MalformedToolCall {
                         tool_name: "submit_lojban".to_owned(),
                         arguments: "{\"text\": \"mi klama\",".to_owned(),
                         message:
                             "invalid call to tool `submit_lojban`: EOF while parsing an object"
                                 .to_owned(),
+                        truncated: true,
                     }),
                     // An empty payload is itself a legitimate lossless malformed
                     // capture and must reach the transcript verbatim (issue #720).
@@ -2040,6 +2046,7 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
                         message:
                             "invalid call to tool `confirm_meaning`: EOF while parsing a value"
                                 .to_owned(),
+                        truncated: false,
                     }),
                 ])
             } else {
@@ -2060,6 +2067,7 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
                 reasoning: None,
                 temperature: 0.7,
                 system_prompt: "Use the gated protocol.".to_owned(),
+                max_completion_tokens: None,
             }))
             .collect(),
         scenario: "debate-consciousness-1.toml".to_owned(),
@@ -2102,6 +2110,7 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
         tool_name,
         arguments,
         message,
+        truncated,
     }) = malformed_events[0].as_data()
     else {
         unreachable!("filtered to malformed-call events");
@@ -2111,11 +2120,13 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
     assert_eq!(tool_name, "submit_lojban");
     assert_eq!(arguments, "{\"text\": \"mi klama\",");
     assert!(message.contains("invalid call to tool `submit_lojban`"));
+    assert!(truncated, "the truncation marker survives into the event");
     let bityzba::data!(ProtocolEvent::ToolCallMalformed {
         turn_number: empty_turn,
         participant: empty_participant,
         tool_name: empty_tool,
         arguments: empty_arguments,
+        truncated: empty_truncated,
         ..
     }) = malformed_events[1].as_data()
     else {
@@ -2128,13 +2139,14 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
         empty_arguments, "",
         "the empty payload reaches the event verbatim"
     );
+    assert!(!empty_truncated);
 
     let records = read_transcript(&transcript_path).expect("debate transcript validates");
     assert_eq!(records.len(), runner.events().len());
     assert!(records.iter().any(|record| matches!(
         record.event.as_data(),
-        bityzba::data!(ProtocolEvent::ToolCallMalformed { arguments, .. })
-            if arguments == "{\"text\": \"mi klama\","
+        bityzba::data!(ProtocolEvent::ToolCallMalformed { arguments, truncated, .. })
+            if arguments == "{\"text\": \"mi klama\"," && *truncated
     )));
     assert!(records.iter().any(|record| matches!(
         record.event.as_data(),
@@ -2145,6 +2157,10 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
     assert!(report.contains("### Malformed tool call — `alice` / `submit_lojban`"));
     assert!(report.contains("### Malformed tool call — `alice` / `confirm_meaning`"));
     assert!(report.contains("{\"text\": \"mi klama\","));
+    assert!(
+        report.contains("completion token limit"),
+        "the truncated malformed call is marked in the report"
+    );
     assert!(report.contains("- Malformed tool calls: 2"));
     fs::remove_file(transcript_path).expect("remove debate transcript");
 }
@@ -2259,6 +2275,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
                     reasoning: None,
                     temperature: 0.25,
                     system_prompt: "Use the gated protocol.".to_owned(),
+                    max_completion_tokens: None,
                 }))
                 .collect(),
             scenario: "schedule-negotiation-1.toml".to_owned(),

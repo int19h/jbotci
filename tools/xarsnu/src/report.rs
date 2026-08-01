@@ -628,17 +628,23 @@ fn render_participant_loop(
             bityzba::data!(ProtocolEvent::UsageRecorded {
                 participant: actor,
                 usage,
+                truncated,
                 ..
             }) if actor == participant => {
                 writeln!(
                     report,
-                    "*[usage: {} tokens; ${:.6}{}]*\n",
+                    "*[usage: {} tokens; ${:.6}{}{}]*\n",
                     usage.total_tokens,
                     usage.cost,
                     usage
                         .provider
                         .as_ref()
-                        .map_or_else(String::new, |provider| format!(" via {provider}"))
+                        .map_or_else(String::new, |provider| format!(" via {provider}")),
+                    if *truncated {
+                        "; hit the completion token limit (output may be truncated)"
+                    } else {
+                        ""
+                    },
                 )
                 .expect("writing to String cannot fail");
             }
@@ -1185,14 +1191,21 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 tool_name,
                 arguments,
                 message,
+                truncated,
                 ..
             }) => {
                 writeln!(
                     report,
-                    "### Malformed tool call — `{participant}` / `{tool_name}`\n\nThe model's arguments were not a valid JSON object: {}\n\nRaw arguments:\n",
+                    "### Malformed tool call — `{participant}` / `{tool_name}`\n\nThe model's arguments were not a valid JSON object: {}\n",
                     first_nonempty_line(message)
                 )
                 .expect("writing to String cannot fail");
+                if *truncated {
+                    report.push_str(
+                        "The provider stopped this response at the completion token limit (`finish_reason: \"length\"`), a choice-level condition: the captured arguments may be a truncation artifact rather than a model formatting error.\n\n",
+                    );
+                }
+                report.push_str("Raw arguments:\n\n");
                 quote(&mut report, arguments);
                 report.push('\n');
                 summary.malformed_tool_calls += 1;
@@ -1300,6 +1313,7 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
             bityzba::data!(ProtocolEvent::UsageRecorded {
                 participant,
                 usage,
+                truncated,
                 ..
             }) => {
                 writeln!(
@@ -1313,6 +1327,11 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     usage.cache_write_tokens.unwrap_or(0),
                 )
                 .expect("writing to String cannot fail");
+                if *truncated {
+                    report.push_str(
+                        "The provider stopped this response at the completion token limit (`finish_reason: \"length\"`); content or tool-call payloads from this call may be truncated.\n\n",
+                    );
+                }
                 if let Some(provider) = &usage.provider {
                     writeln!(report, "Serving provider: `{provider}`\n")
                         .expect("writing to String cannot fail");
