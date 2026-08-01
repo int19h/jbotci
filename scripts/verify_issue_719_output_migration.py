@@ -483,10 +483,26 @@ def expand_inlineable(items: list) -> list:
     return expanded
 
 
-def compare_smusni_trees(old: list, new: list, path: str, valid_loci: set[str]) -> None:
+def declaration_id_of(head: str, expected_by_id: dict) -> str | None:
+    """The graph-derived declaration id inside a group head, if any."""
+    for token in head.split():
+        if token in expected_by_id:
+            return token
+    return None
+
+
+def compare_smusni_trees(
+    old: list,
+    new: list,
+    path: str,
+    expected_by_id: dict,
+    current_decl: str | None = None,
+) -> None:
     """Exact structural comparison, allowing precisely the provenance-profile
-    LOCUS insertions (each must immediately follow a CONNECTIVE SOURCE field
-    and take a value from the document's own connector loci)."""
+    LOCUS insertions. Each inserted LOCUS must immediately follow a CONNECTIVE
+    SOURCE field and equal the exact locus of THAT declaration's connector as
+    derived from the base graph (per-occurrence association — a swap of two
+    connectors' loci is rejected)."""
     old = expand_inlineable(old)
     new = expand_inlineable(new)
     old_index = 0
@@ -506,7 +522,13 @@ def compare_smusni_trees(old: list, new: list, path: str, valid_loci: set[str]) 
             and old_item.head == new_item.head
             and old_item.closer == new_item.closer
         ):
-            compare_smusni_trees(old_item.items, new_item.items, path, valid_loci)
+            compare_smusni_trees(
+                old_item.items,
+                new_item.items,
+                path,
+                expected_by_id,
+                declaration_id_of(new_item.head, expected_by_id) or current_decl,
+            )
             old_index += 1
             new_index += 1
             previous_new_field = new_item
@@ -528,8 +550,16 @@ def compare_smusni_trees(old: list, new: list, path: str, valid_loci: set[str]) 
             and isinstance(previous_new_field, SField)
             and previous_new_field.name == "CONNECTIVE SOURCE"
         ):
-            if new_item.value not in valid_loci:
-                raise Flag(f"{path}: added LOCUS value {new_item.value!r} not in document loci")
+            expected = expected_by_id.get(current_decl)
+            if expected is None:
+                raise Flag(
+                    f"{path}: LOCUS added on a declaration with no connector in the base graph"
+                )
+            if new_item.value != expected:
+                raise Flag(
+                    f"{path}: connector {current_decl} must render LOCUS {expected!r}, "
+                    f"found {new_item.value!r} (per-occurrence association)"
+                )
             new_index += 1
             previous_new_field = new_item
             continue
@@ -540,21 +570,12 @@ def compare_smusni_trees(old: list, new: list, path: str, valid_loci: set[str]) 
             and trailing.name == "LOCUS"
             and isinstance(previous_new_field, SField)
             and previous_new_field.name == "CONNECTIVE SOURCE"
-            and trailing.value in valid_loci
+            and expected_by_id.get(current_decl) == trailing.value
         ):
             raise Flag(f"{path}: trailing item {trailing!r}")
         previous_new_field = trailing
     if old_index != len(old):
         raise Flag(f"{path}: items missing at the end: {old[old_index]!r}")
-
-
-def collect_loci(items: list, into: set[str]) -> None:
-    for item in items:
-        if isinstance(item, SField) and item.name == "LOCUS":
-            renamed = LOCUS_RENDER_RENAMES.get(item.value, item.value)
-            into.add(renamed)
-        elif isinstance(item, SGroup):
-            collect_loci(item.items, into)
 
 
 JSON_LOCUS_TO_RENDER = {
@@ -581,45 +602,85 @@ JSON_LOCUS_TO_RENDER = {
 }
 
 
-def expected_locus_multiset(path: Path) -> "collections.Counter":
-    """The LOCUS values the document's own connectors must produce, derived
-    from the BASE frozen graph's connector loci (never from the new output —
-    a self-authorizing set proves nothing)."""
-    import collections
+SMUSNI_PREFIX = {
+    "reference": "r",
+    "predication": "p",
+    "formula": "f",
+    "quantity": "q",
+    "utterance": "u",
+    "sequence": "s",
+    "mathExpression": "m",
+    "parameter": "x",
+    "relation_expression": "l",
+    "displayed_content": "d",
+    "question": "qu",
+}
+
+
+def smusni_id_map(objects: dict) -> dict:
+    """Replicate the smusni renderer's graph-key -> rendered-id map
+    (build_id_map: <prefix><key-number> with the collision-disambiguation
+    loop), so every FORMULA/NONLOGICAL declaration's id resolves to its graph
+    object and therefore to its connector's expected locus."""
+
+    def id_kind_for(obj):
+        if obj.get("type") == "referent":
+            return "relation_expression" if obj.get("sort") == "relation" else "reference"
+        if obj.get("type") == "displayedContent":
+            return "displayed_content"
+        return obj.get("type", "")
+
+    def key_number(key):
+        match = re.search(r"(\d+)$", key)
+        if match:
+            return match.group(1)
+        return re.sub(r"\W+", "_", key)
+
+    id_map = {}
+    used = set()
+    for key, obj in objects.items():
+        kind = id_kind_for(obj)
+        prefix = SMUSNI_PREFIX.get(kind)
+        base = f"{prefix}{key_number(key)}" if prefix else f"{kind}_{key_number(key)}"
+        vid = base
+        if vid in used:
+            disambiguated = f"{base}_{key.replace(':', '_').replace('/', '_')}"
+            vid = disambiguated
+            n = 2
+            while vid in used:
+                vid = f"{disambiguated}_{n}"
+                n += 1
+        used.add(vid)
+        id_map[key] = vid
+    return id_map
+
+
+def expected_locus_by_declaration_id(path: Path) -> dict:
+    """Each declaration id -> the exact LOCUS value its connector must render,
+    derived from the BASE frozen graph's own connector records (formula
+    connectors and nonlogical-connection connectors)."""
     import json
 
     frozen_name = path.name.replace(".smusni-prov.txt", ".frozen.json").replace(
         ".smusni.txt", ".frozen.json"
     )
     frozen = json.loads(git_base(path.with_name(frozen_name)))
-    expected = collections.Counter()
-
-    def walk(value):
-        if isinstance(value, dict):
-            connector = value.get("connector")
-            if isinstance(connector, dict) and isinstance(connector.get("locus"), str):
-                locus = connector["locus"]
-                if locus not in JSON_LOCUS_TO_RENDER:
-                    raise Flag(f"{path}: unmapped base connector.locus {locus!r}")
-                expected[JSON_LOCUS_TO_RENDER[locus]] += 1
-            for item in value.values():
-                walk(item)
-        elif isinstance(value, list):
-            for item in value:
-                walk(item)
-
-    walk(frozen)
+    objects = frozen["objects"]
+    id_map = smusni_id_map(objects)
+    expected = {}
+    for key, obj in objects.items():
+        connector = obj.get("connector")
+        if not isinstance(connector, dict):
+            connection = obj.get("nonlogicalConnection")
+            if isinstance(connection, dict):
+                connector = connection.get("connector")
+        if not isinstance(connector, dict) or not isinstance(connector.get("locus"), str):
+            continue
+        locus = connector["locus"]
+        if locus not in JSON_LOCUS_TO_RENDER:
+            raise Flag(f"{path}: unmapped base connector.locus {locus!r}")
+        expected[id_map[key]] = JSON_LOCUS_TO_RENDER[locus]
     return expected
-
-
-def actual_locus_multiset(items: list, into: "collections.Counter") -> None:
-    import collections
-
-    for item in items:
-        if isinstance(item, SField) and item.name == "LOCUS":
-            into[item.value] += 1
-        elif isinstance(item, SGroup):
-            actual_locus_multiset(item.items, into)
 
 
 def verify_smusni() -> int:
@@ -636,23 +697,81 @@ def verify_smusni() -> int:
             continue
         if not provenance:
             raise Flag(f"{path}: default-profile delta is not the mechanical transformation")
-        # Base-derived expected values: every added LOCUS must come from the
-        # base graph's own connector loci, and the multiset of rendered LOCUS
-        # fields must equal the base connector multiset exactly (value AND
-        # connector association, not a self-authorizing set).
-        expected = expected_locus_multiset(path)
-        actual: "collections.Counter" = collections.Counter()
-        actual_locus_multiset(new, actual)
-        if actual != expected:
-            raise Flag(
-                f"{path}: rendered LOCUS multiset differs from the base "
-                f"connector loci: expected {dict(expected)}, found {dict(actual)}"
-            )
-        compare_smusni_trees(transformed, new, path, set(expected))
+        # Base-derived per-occurrence association: every added LOCUS must
+        # equal the exact locus of THAT declaration's connector in the base
+        # graph (a swap of two connectors' loci is rejected).
+        expected_by_id = expected_locus_by_declaration_id(path)
+        compare_smusni_trees(transformed, new, path, expected_by_id)
     return len(paths)
 
 
+def self_test() -> int:
+    """Negative checks for the proof itself: known-bad mutations must all be
+    flagged (the reviewer's probes)."""
+    import collections
+
+    failures = []
+
+    # A spurious PARAMETER= on a CONNECTIVE whose base connector supplied none.
+    path = Path("crates/jbotci-semantics/tests/xml_corpus/b25.xml.txt")
+    corrupted = path.read_text(encoding="utf-8").replace(
+        '<CONNECTIVE OPERATOR="OR" TRUTH-TABLE="TFTT">',
+        '<CONNECTIVE OPERATOR="OR" TRUTH-TABLE="TFTT" PARAMETER="r1">',
+    )
+    try:
+        verify_xml_document(path, git_base(path), corrupted)
+        failures.append("spurious PARAMETER= on b25 CONNECTIVE was ACCEPTED")
+    except Flag:
+        pass
+
+    # A dropped non-derivable TRUTH-TABLE=.
+    corrupted = path.read_text(encoding="utf-8").replace(' TRUTH-TABLE="TFTT">', ">", 1)
+    try:
+        verify_xml_document(path, git_base(path), corrupted)
+        failures.append("dropped TRUTH-TABLE= on b25 CONNECTIVE was ACCEPTED")
+    except Flag:
+        pass
+
+    # The reviewer's b39 locus swap: PROPERTY ABSTRACTION (f25) <->
+    # DESCRIPTION (f29) must be rejected per-occurrence.
+    path = Path("crates/jbotci-semantics/tests/phaseb_corpus/b39.smusni-prov.txt")
+    new = path.read_text(encoding="utf-8")
+    spans = [(m.group(0), m.start()) for m in re.finditer(r"LOCUS: [A-Z ]+;", new)]
+    if len(spans) < 2:
+        failures.append("b39 self-test could not locate two LOCUS fields to swap")
+    else:
+        values = [value for value, _ in spans]
+        corrupted = (
+            new[: spans[0][1]]
+            + values[1]
+            + new[spans[0][1] + len(values[0]) : spans[1][1]]
+            + values[0]
+            + new[spans[1][1] + len(values[1]) :]
+        )
+        try:
+            old = parse_smusni(git_base(path))
+            transformed = transform_smusni_tree(old, True)
+            compare_smusni_trees(
+                transformed,
+                parse_smusni(corrupted),
+                str(path),
+                expected_locus_by_declaration_id(path),
+            )
+            failures.append("b39 PROPERTY ABSTRACTION/DESCRIPTION locus swap was ACCEPTED")
+        except Flag:
+            pass
+
+    if failures:
+        for failure in failures:
+            print(f"SELF-TEST FAILURE: {failure}", file=sys.stderr)
+        return 1
+    print("self-test: all 3 negative probes correctly flagged")
+    return 0
+
+
 def main() -> int:
+    if "--self-test" in sys.argv:
+        return self_test()
     failures = []
     try:
         outcomes = verify_xml()
