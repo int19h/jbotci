@@ -12,10 +12,11 @@ use xarsnu::protocol::{
     ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
 };
 use xarsnu::{
-    CapsConfig, ListenerMode, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel,
-    ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher,
-    RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall,
-    ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript, report_file,
+    CapsConfig, ListenerMode, MalformedToolCall, ModelTurn, ParticipantConfig, ProtocolEvent,
+    ProtocolModel, ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice,
+    ReferenceToolDispatcher, RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus,
+    TersmuFormat, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher,
+    read_transcript, report_file,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -88,6 +89,7 @@ struct ScriptedModel {
     max_tool_reprompts: usize,
     prose_responses: VecDeque<String>,
     steps: VecDeque<ScriptStep>,
+    malformed_tool_calls: Vec<MalformedToolCall>,
     user_messages: Vec<String>,
     request_user_messages: Vec<Vec<String>>,
     request_tool_choices: Vec<ProviderToolChoice>,
@@ -107,6 +109,7 @@ impl ScriptedModel {
             max_tool_reprompts: 0,
             prose_responses: VecDeque::new(),
             steps: steps.into(),
+            malformed_tool_calls: Vec::new(),
             user_messages: Vec::new(),
             request_user_messages: Vec::new(),
             request_tool_choices: Vec::new(),
@@ -132,6 +135,7 @@ impl ScriptedModel {
             max_tool_reprompts,
             prose_responses: prose_responses.into(),
             steps: steps.into(),
+            malformed_tool_calls: Vec::new(),
             user_messages: Vec::new(),
             request_user_messages: Vec::new(),
             request_tool_choices: Vec::new(),
@@ -151,6 +155,14 @@ impl ScriptedModel {
     #[ensures(ret.supports_prefill)]
     fn with_prefill(mut self) -> Self {
         self.supports_prefill = true;
+        self
+    }
+
+    /// Queue malformed-call records drained after the model's next request.
+    #[requires(true)]
+    #[ensures(ret.malformed_tool_calls.len() == old(malformed.len()))]
+    fn with_malformed_tool_calls(mut self, malformed: Vec<MalformedToolCall>) -> Self {
+        self.malformed_tool_calls = malformed;
         self
     }
 }
@@ -239,6 +251,10 @@ impl ProtocolModel for ScriptedModel {
             tool_name: call.function.name.clone(),
             content,
         }));
+    }
+
+    fn take_malformed_tool_calls(&mut self) -> Vec<MalformedToolCall> {
+        std::mem::take(&mut self.malformed_tool_calls)
     }
 }
 
@@ -1870,6 +1886,117 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
     assert!(report.contains("Outcome: **dialog completed** after 10 turn(s)."));
     assert!(report.contains("Aggregate: **not scored**"));
     assert!(!report.contains("### Scenario checker"));
+    fs::remove_file(transcript_path).expect("remove debate transcript");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
+    let scenario =
+        ScenarioInstance::from_toml(include_str!("../scenarios/debate-consciousness-1.toml"))
+            .expect("debate scenario");
+    let participant_names = ["alice", "bob", "carol"];
+    let participants = participant_names
+        .iter()
+        .map(|participant| {
+            let mut steps = Vec::new();
+            for turn_number in 1..=scenario.maximum_turns() {
+                let speaker = participant_names[(turn_number - 1) % participant_names.len()];
+                if speaker == *participant {
+                    steps.extend(posted_message_steps("I continue the debate.", "I go."));
+                } else {
+                    steps.extend(listener_steps("The speaker goes."));
+                }
+            }
+            let model = ScriptedModel::new(participant, steps);
+            if *participant == "alice" {
+                model.with_malformed_tool_calls(vec![new!(MalformedToolCall {
+                    tool_name: "submit_lojban".to_owned(),
+                    arguments: "{\"text\": \"mi klama\",".to_owned(),
+                    message: "invalid call to tool `submit_lojban`: EOF while parsing an object"
+                        .to_owned(),
+                })])
+            } else {
+                model
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let run_config = new!(RunConfig {
+        participants: participant_names
+            .into_iter()
+            .map(|name| new!(ParticipantConfig {
+                name: name.to_owned(),
+                model: format!("example/{name}"),
+                provider: None,
+                prompt_caching: xarsnu::PromptCaching::Auto,
+                tool_choice: ToolChoice::Required,
+                reasoning: None,
+                temperature: 0.7,
+                system_prompt: "Use the gated protocol.".to_owned(),
+            }))
+            .collect(),
+        scenario: "debate-consciousness-1.toml".to_owned(),
+        caps: caps(3, 2, 12),
+        client: xarsnu::ClientConfig::default(),
+        tersmu_format: TersmuFormat::Smusni,
+        listener_mode: ListenerMode::BlindThenReveal,
+        allow_degraded_search: false,
+    });
+    let header = RunHeader::new(run_config.clone(), &scenario).expect("transcript header");
+    let transcript_path = temp_path("malformed-tool-call");
+    let mut runner = ProtocolRunner::new_with_scenario(
+        participants,
+        run_config.caps.clone(),
+        run_config.listener_mode,
+        TersmuFormat::Smusni,
+        ReferenceToolDispatcher,
+        scenario,
+    )
+    .expect("debate runner");
+    runner
+        .attach_transcript(&transcript_path, header)
+        .expect("attach debate transcript");
+
+    runner.run().expect("debate protocol run");
+
+    let malformed_events = runner
+        .events()
+        .iter()
+        .filter(|event| matches!(
+            event.as_data(),
+            bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
+        ))
+        .collect::<Vec<_>>();
+    assert_eq!(malformed_events.len(), 1);
+    let bityzba::data!(ProtocolEvent::ToolCallMalformed {
+        turn_number,
+        participant,
+        tool_name,
+        arguments,
+        message,
+    }) = malformed_events[0].as_data()
+    else {
+        unreachable!("filtered to malformed-call events");
+    };
+    assert_eq!(*turn_number, 1);
+    assert_eq!(participant, "alice");
+    assert_eq!(tool_name, "submit_lojban");
+    assert_eq!(arguments, "{\"text\": \"mi klama\",");
+    assert!(message.contains("invalid call to tool `submit_lojban`"));
+
+    let records = read_transcript(&transcript_path).expect("debate transcript validates");
+    assert_eq!(records.len(), runner.events().len());
+    assert!(records.iter().any(|record| matches!(
+        record.event.as_data(),
+        bityzba::data!(ProtocolEvent::ToolCallMalformed { arguments, .. })
+            if arguments == "{\"text\": \"mi klama\","
+    )));
+    let report = report_file(&transcript_path).expect("debate report renders");
+    assert!(report.contains("### Malformed tool call — `alice` / `submit_lojban`"));
+    assert!(report.contains("{\"text\": \"mi klama\","));
+    assert!(report.contains("- Malformed tool calls: 1"));
     fs::remove_file(transcript_path).expect("remove debate transcript");
 }
 

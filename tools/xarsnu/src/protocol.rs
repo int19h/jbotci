@@ -12,12 +12,12 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::model_capabilities::ParticipantModelPolicy;
-use crate::openrouter::REQUIRED_TOOL_CORRECTION;
+use crate::openrouter::{MalformedToolCallData, REQUIRED_TOOL_CORRECTION};
 use crate::transcript::TranscriptWriter;
 use crate::{
-    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, OpenRouterClient, ParticipantConfig,
-    ParticipantConversation, ProviderCallObservation, ProviderToolChoice, ReferenceTools,
-    RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
+    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, OpenRouterClient,
+    ParticipantConfig, ParticipantConversation, ProviderCallObservation, ProviderToolChoice,
+    ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
     ToolDefinitionError, ToolDispatchError, ToolDispatcher, TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
@@ -675,6 +675,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::ReferenceResearchNudge { participant, consecutive_calls, message, .. } => !participant.trim().is_empty() && *consecutive_calls > 0 && !message.trim().is_empty())]
 #[invariant(::EmbeddingSearchDegraded { message } => !message.trim().is_empty())]
 #[invariant(::ProseRejected { turn_number, participant, attempt, maximum_attempts, .. } => *turn_number > 0 && !participant.trim().is_empty() && *attempt > 0 && *maximum_attempts > 0 && attempt <= maximum_attempts)]
+#[invariant(::ToolCallMalformed { turn_number, participant, tool_name, arguments, message } => *turn_number > 0 && !participant.trim().is_empty() && !tool_name.trim().is_empty() && !arguments.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::ListenerFlowAbandoned { turn_number, listener, .. } => *turn_number > 0 && !listener.trim().is_empty())]
 #[invariant(::ProtocolError { participant, tool_name, message, .. } => !participant.trim().is_empty() && !tool_name.trim().is_empty() && !message.trim().is_empty())]
 #[invariant(::TurnForfeited { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]
@@ -807,6 +808,18 @@ pub enum ProtocolEvent {
         attempt: usize,
         maximum_attempts: usize,
     },
+    /// A model-produced tool call whose arguments were not a valid JSON object.
+    ///
+    /// `arguments` is the raw payload exactly as the model emitted it (the same
+    /// lossless capture the model's own history view wraps), so malformed-call
+    /// failures are diagnosable from the transcript alone (issue #720).
+    ToolCallMalformed {
+        turn_number: usize,
+        participant: String,
+        tool_name: String,
+        arguments: String,
+        message: String,
+    },
     ListenerFlowAbandoned {
         turn_number: usize,
         listener: String,
@@ -908,6 +921,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::TersmuRevealed { turn_number, .. })
             | bityzba::data!(ProtocolEvent::Acknowledged { turn_number, .. })
             | bityzba::data!(ProtocolEvent::ProseRejected { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ToolCallMalformed { turn_number, .. })
             | bityzba::data!(ProtocolEvent::ListenerFlowAbandoned { turn_number, .. })
             | bityzba::data!(ProtocolEvent::TurnForfeited { turn_number, .. })
             | bityzba::data!(ProtocolEvent::DialogClosedForAnswers { turn_number, .. })
@@ -952,6 +966,7 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::ReferenceCallBudgetExhausted { participant, .. })
             | bityzba::data!(ProtocolEvent::ReferenceResearchNudge { participant, .. })
             | bityzba::data!(ProtocolEvent::ProseRejected { participant, .. })
+            | bityzba::data!(ProtocolEvent::ToolCallMalformed { participant, .. })
             | bityzba::data!(ProtocolEvent::ProtocolError { participant, .. })
             | bityzba::data!(ProtocolEvent::AnswerSubmitted { participant, .. })
             | bityzba::data!(ProtocolEvent::UsageRecorded { participant, .. })
@@ -1223,6 +1238,13 @@ pub trait ProtocolModel {
         Vec::new()
     }
 
+    /// Drain lossless records of malformed tool calls made by the last request.
+    #[requires(true)]
+    #[ensures(true)]
+    fn take_malformed_tool_calls(&mut self) -> Vec<MalformedToolCall> {
+        Vec::new()
+    }
+
     /// Thread one result back to the originating tool call.
     #[requires(!call.id.trim().is_empty())]
     #[requires(!call.function.name.trim().is_empty())]
@@ -1329,6 +1351,10 @@ impl ProtocolModel for OpenRouterParticipant<'_> {
 
     fn take_observations(&mut self) -> Vec<ProviderCallObservation> {
         self.conversation.take_pending_observations()
+    }
+
+    fn take_malformed_tool_calls(&mut self) -> Vec<MalformedToolCall> {
+        self.conversation.take_pending_malformed_tool_calls()
     }
 
     fn push_tool_result(&mut self, call: &ToolCall, content: String) {
@@ -2268,6 +2294,20 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 turn_number,
                 participant: participant.to_owned(),
                 usage: observation.usage,
+            }));
+        }
+        for malformed in self.participants[participant_index].take_malformed_tool_calls() {
+            let bityzba::data!(MalformedToolCall {
+                tool_name,
+                arguments,
+                message,
+            }) = malformed.into_data();
+            self.events.push(new!(ProtocolEvent::ToolCallMalformed {
+                turn_number,
+                participant: participant.to_owned(),
+                tool_name,
+                arguments,
+                message,
             }));
         }
     }

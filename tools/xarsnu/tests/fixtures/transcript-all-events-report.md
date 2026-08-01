@@ -250,6 +250,14 @@ Reasoning field present: true; reasoning tokens: 20
 
 Protocol action attempt **1** of **3** returned prose instead of a tool call.
 
+### Malformed tool call — `alice` / `submit_lojban`
+
+The model's arguments were not a valid JSON object: invalid call to tool `submit_lojban`: EOF while parsing an object at line 1 column 21
+
+Raw arguments:
+
+> {"text": "mi klama",
+
 ### Listener flow abandoned — `bob`
 
 Reason: automatic tool-call attempts exhausted (3)
@@ -300,6 +308,7 @@ Aggregate: **partial**
 ### Protocol stops
 
 - Auto-mode prose rejections: 1
+- Malformed tool calls: 1
 - Listener flows abandoned: 1
 - Protocol errors: 1
 - Forfeits: 1
