@@ -22,120 +22,45 @@ use crate::notation::xml_words::words_section;
 
 const SCOPE_DEPENDENCE_TEACHING: &str = "Scope-dependence markers compare a referent's scopeDependence with the semantic graph derivation's authoritative first-visit binder universe, which is not a lexical-enclosure set. Silence means that the referent may depend on the full first-visit universe. SAME-FOR-ALL means that it is fixed despite a nonempty first-visit universe.";
 
-const KEY_RULES_BEFORE_SORTS: &[(&str, &str)] = &[
-    (
-        "ids",
-        "ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).",
-    ),
-    (
-        "lexical-categories",
-        "UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.",
-    ),
+const KEY_RULES_BEFORE_SORTS: &[&str] = &[
+    "ID= marks the definition of a shared graph node except a speech-situation referent; DEICTIC-GROUND SPEAKER-REF=/AUDIENCE-REF=/TIME-REF=/PLACE-REF= values are the sole definition sites for those referent ids. REF= and named *-REF= attributes point to discourse referents. GROUND= points to a deictic-ground unit and is the sole suffix exception. Later REF= occurrences are exact-node reuse. Graph-node ids are opaque and JSON-aligned; distinct ids assert neither identity (=) nor non-identity (≠).",
+    "UPPERCASE = structural keywords (element and attribute names); PascalCase = sorts; lowercase = content words as data values only; quoted attribute strings = names.",
 ];
 
-const KEY_RULES_AFTER_SORTS: &[(&str, &str)] = &[
-    (
-        "embedded-questions",
-        "EMBEDDED-QUESTIONS preserves typed QUESTION metadata attached to the abstraction formula named by QUESTION/BODY. KIND, MODE, and DOMAIN classify the question; ASKER, RESPONDENT, SLOTS, FOCUS, and PRESUPPOSED-ANSWER preserve its participants. SLOT parameters bind only the question BODY.",
-    ),
-    (
-        "kind-composition",
-        "KIND-COMPOSITION is first-class predication content: MODIFIER A of KIND B denotes an A-modified kind of B while retaining B's place structure. The exact modifier-to-kind relation remains unspecified; nesting preserves the semantic graph's grouping. RELATION-LABEL is derivational provenance and appears only in provenance mode.",
-    ),
-    (
-        "warnings",
-        "Each semantic diagnostic is one repeatable WARNING text element; its character content is the diagnostic message.",
-    ),
-    (
-        "some",
-        "REF=\"SOME\" denotes a distinct elided node per occurrence; distinct nodes assert neither identity (=) nor non-identity (≠).",
-    ),
-    (
-        "ground",
-        "DEICTIC-GROUND is the shared speech-situation unit selected by UTTERANCE GROUND=. Its g-prefixed ID is a notation-level rendering id because the JSON has no ground object id; if the graph gains context ids, the rendering must align. Ground units share one definition ⇔ their SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF graph referents are pairwise identical.",
-    ),
-    (
-        "quantifiers",
-        "EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS writes RESTRICTION exactly when the graph supplies one; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.",
-    ),
-    ("scope-dependence", SCOPE_DEPENDENCE_TEACHING),
-    (
-        "scope-dependence-subsets",
-        "POSSIBLY-DIFFERENT-PER= is a space-separated strict nonempty subset of the first-visit quantifier-variable or abstraction/question-parameter ids on which a referent may depend.",
-    ),
-    (
-        "number-neutrality",
-        "References are number-neutral: a reference may denote one or several individuals; the only number commitments are explicit quantities on descriptions, cardinality binders, or mass restrictions.",
-    ),
-    (
-        "personal-reference",
-        "PERSONAL-MASS-MEMBERSHIP states whether SPEAKER and AUDIENCE are INCLUDED or EXCLUDED and points to any additional included OTHERS. DEICTIC-REFERENCE states PROXIMITY to a discourse-referent GROUND-REF. These structures carry the semantics; no pro-sumti label is implied.",
-    ),
-    (
-        "speaker-anchor",
-        "A description is anchored to its enclosing utterance's speaker. SPEAKER-REF= on a description, or BY inside NAMED, appears only when the anchor differs from that enclosing speaker.",
-    ),
-    (
-        "facet-silence",
-        "Absent facet attribute ⇒ UNSPECIFIED (no commitment). Facet attributes: TIME, ACTUALITY, ASPECT, RECURRENCE, SPACE, SPATIAL-ASPECT, SPATIAL-RECURRENCE, DETAILS.",
-    ),
-    (
-        "event-field",
-        "EVENT is the reserved first child of a PREDICATION, its Eventuality referent, never a numbered ARG.",
-    ),
-    (
-        "adjuncts",
-        "ADJUNCT introduces a predicate-keyed optional participant of the host predication; PREDICATE= with flat ARG children is the compact single-lexical-predicate place map; without PREDICATE=, BODY carries the composite predicate subtree; ARG FILL=\"true\" marks the unique explicit non-host filled place; a non-unique graph stays complete and carries FILL-STATUS; APPLIES-TO links the host component.",
-    ),
-    (
-        "pro-sumti",
-        "UNRESOLVED-REFERENT WORD= is a word-only stopgap only for referents that remain unresolved after the jbotci#690 KOhA audit; the quoted WORD value is the stopgap's whole content. Bound-variable surface words are provenance-only.",
-    ),
-    (
-        "mode",
-        "MODE vocabulary: ASSERTED=main claim; RESTRICTIVE=restriction; INCIDENTAL=side claim; INERT=embedded nonclaim; DEFINITIONAL=identity definition; PERFORMATIVE=speech act. MODE is a required attribute on PREDICATION.",
-    ),
-    (
-        "defs",
-        "Every non-binder graph-node definition and every DEICTIC-GROUND definition sits in DEFS in the smallest graph scope strictly containing all uses; an attribute reference on element X is a use at X's position. Quantifier VARIABLE precedes its scope's DEFS; all graph-node uses outside their definition site are references.",
-    ),
-    (
-        "atomic-lists",
-        "A list of simple ids or numbers is a space-separated NMTOKENS attribute, never a sequence of child elements; semantic structure remains element-valued.",
-    ),
-    (
-        "order",
-        "Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.",
-    ),
+const KEY_RULES_AFTER_SORTS: &[&str] = &[
+    "EMBEDDED-QUESTIONS preserves typed QUESTION metadata attached to the abstraction formula named by QUESTION/BODY. KIND, MODE, and DOMAIN classify the question; ASKER, RESPONDENT, SLOTS, FOCUS, and PRESUPPOSED-ANSWER preserve its participants. SLOT parameters bind only the question BODY.",
+    "KIND-COMPOSITION in the relation slot of a PREDICATION is the predication's composed predicate, replacing PREDICATE= exactly when the predicate is composite (the same compact/composite dichotomy as ADJUNCT, one level up): MODIFIER A of KIND B denotes an A-modified kind of B while retaining B's place structure and eventuality. Predicating the composition entails the KIND predication of the enclosing PREDICATION's EVENT and ARGs together with an underspecified modification connection between KIND's exposed place-1 participant and the relation denoted by MODIFIER; it does not by itself entail that the participant satisfies MODIFIER. Silence is the underspecification, not intersection: when a speaker makes the stronger claim, it appears as its own conjunct. CONNECTION= is reserved for a future resolved-connection marker and is never emitted; its absence means UNSPECIFIED.",
+    "PREDICATE= on KIND, MODIFIER, or a relation-expression RELATION leaf is the compact lexical form: PARTICIPANT-PLACE= marks the lexical place the composition participant fills and defaults to 1, each omitted unfilled lexical place elaborates to a distinct ordinary elided-place node, and the operand's own eventuality is fresh and locally existentially bound. BODY wraps a composite operand instead: a nested KIND-COMPOSITION, a CONNECTIVE conjoining co-modifiers of the same head participant, or a RELATION lambda or abstraction subtree.",
+    "GROUPING= on KIND-COMPOSITION states the basis of the displayed composition tree; silence means ASSUMED-LEFT, the deterministic grammar default. EXPLICIT appears only where the text itself encodes the grouping: at the tree root when every edge is explicit, per node when one tree mixes explicit and default edges. CONNECTION= and GROUPING= defaults are semantic defaults of this notation, not a generic rule for arbitrary absent attributes.",
+    "CONNECTIVE carries OPERATOR= and, only when the graph records a truth table that OPERATOR= does not already determine, TRUTH-TABLE=. A connective question's bound parameter appears as the PARAMETER= attribute of its connective formula. The surface connective word and its grammatical locus are derivational provenance and never appear in default output.",
+    "Each semantic diagnostic is one repeatable WARNING text element; its character content is the diagnostic message.",
+    "REF=\"SOME\" denotes a distinct elided node per occurrence; distinct nodes assert neither identity (=) nor non-identity (≠).",
+    "DEICTIC-GROUND is the shared speech-situation unit selected by UTTERANCE GROUND=. Its g-prefixed ID is a notation-level rendering id because the JSON has no ground object id; if the graph gains context ids, the rendering must align. Ground units share one definition ⇔ their SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF graph referents are pairwise identical.",
+    "EXISTS, FORALL, and CARDINALITY are binder elements; VARIABLE defines its variable ID=/SORT= at the binder site; use sites carry REF=. RESTRICTION and BODY are loud sibling elements; EXISTS writes RESTRICTION exactly when the graph supplies one; FORALL and CARDINALITY always write RESTRICTION explicitly, empty as RESTRICTION/.",
+    SCOPE_DEPENDENCE_TEACHING,
+    "POSSIBLY-DIFFERENT-PER= is a space-separated strict nonempty subset of the first-visit quantifier-variable or abstraction/question-parameter ids on which a referent may depend.",
+    "References are number-neutral: a reference may denote one or several individuals; the only number commitments are explicit quantities on descriptions, cardinality binders, or mass restrictions.",
+    "PERSONAL-MASS-MEMBERSHIP states whether SPEAKER and AUDIENCE are INCLUDED or EXCLUDED and points to any additional included OTHERS. DEICTIC-REFERENCE states PROXIMITY to a discourse-referent GROUND-REF. These structures carry the semantics; no pro-sumti label is implied.",
+    "A description is anchored to its enclosing utterance's speaker. SPEAKER-REF= on a description, or BY inside NAMED, appears only when the anchor differs from that enclosing speaker.",
+    "Absent facet attribute ⇒ UNSPECIFIED (no commitment). Facet attributes: TIME, ACTUALITY, ASPECT, RECURRENCE, SPACE, SPATIAL-ASPECT, SPATIAL-RECURRENCE, DETAILS.",
+    "EVENT is the reserved first child of a PREDICATION, its Eventuality referent, never a numbered ARG.",
+    "ADJUNCT introduces a predicate-keyed optional participant of the host predication; PREDICATE= with flat ARG children is the compact single-lexical-predicate place map; without PREDICATE=, BODY carries the composite predicate subtree; ARG FILL=\"true\" marks the unique explicit non-host filled place; a non-unique graph stays complete and carries FILL-STATUS; APPLIES-TO links the host component.",
+    "UNRESOLVED-REFERENT WORD= is a word-only stopgap only for referents that remain unresolved after the jbotci#690 KOhA audit; the quoted WORD value is the stopgap's whole content. Bound-variable surface words are provenance-only.",
+    "MODE vocabulary: ASSERTED=main claim; RESTRICTIVE=restriction; INCIDENTAL=side claim; INERT=embedded nonclaim; DEFINITIONAL=identity definition; PERFORMATIVE=speech act. MODE is a required attribute on PREDICATION.",
+    "Every non-binder graph-node definition and every DEICTIC-GROUND definition sits in DEFS in the smallest graph scope strictly containing all uses; an attribute reference on element X is a use at X's position. Quantifier VARIABLE precedes its scope's DEFS; all graph-node uses outside their definition site are references.",
+    "A list of simple ids or numbers is a space-separated NMTOKENS attribute, never a sequence of child elements; semantic structure remains element-valued.",
+    "Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.",
 ];
 
-/// KEY rules appended exactly when the document carries a WORDS word-card
+/// KEY paragraphs appended exactly when the document carries a WORDS word-card
 /// section (#709): documents without cards stay byte-identical.
-const KEY_RULES_WORD_CARDS: &[(&str, &str)] = &[
-    (
-        "word-cards",
-        "WORDS lists one WORD card per content word of the text; ID= is the card key. GLOSS, DEF, and NOTES are dictionary prose; inside DEF and NOTES, ARG INDEX=\"n\" marks the word's nth place — the same argument vocabulary as predications, so a place in a definition matches ARG INDEX on the word's predications. KNOWN=\"false\" marks a word with no dictionary definition; the default true is omitted.",
-    ),
-    (
-        "compound-approximation",
-        "COMPOSITE-APPROX shows the mechanical composition of a dictionary-absent compound through the same KIND-COMPOSITION idiom as the body; it is suggestive, not definitional. COMPONENT WORD= references the component's own WORD card.",
-    ),
-    (
-        "compound-places",
-        "PLACES=\"UNKNOWN\" means the composition tree determines no place structure. The actual meaning and places were chosen by the coiner. Places of COMPONENT cards are not inherited by the compound, and operators or grouping the coiner omitted leave no recoverable trace.",
-    ),
-    (
-        "compound-assumptions",
-        "GROUPING= and SCOPE= describe the basis of the displayed tree, not the coiner's guaranteed intent: ASSUMED-LEFT = CLL default left grouping, ASSUMED-SHORT = CLL-12.12 narrow operator scope, EXPLICIT = the word itself encodes the boundary. The attributes are tree-level; they appear per-node only when one tree mixes explicit and assumed edges.",
-    ),
-    (
-        "context-placeholders",
-        "VARIABLE-CONTEXT denotes the abstract role an utterance context would supply for a context-dependent word used inside a definition. These are roles, not referents; they define no ids.",
-    ),
-    (
-        "word-card-ids",
-        "WORD ID values are surface-spelling card keys: the canonical spelling for one-token words; multiword (zei) compounds join their parts with hyphens (mi-zei-do). Hyphens never occur inside a single Lojban word, so the two namespaces cannot collide.",
-    ),
+const KEY_RULES_WORD_CARDS: &[&str] = &[
+    "WORDS lists one WORD card per content word of the text; ID= is the card key. GLOSS, DEF, and NOTES are dictionary prose; inside DEF and NOTES, ARG INDEX=\"n\" marks the word's nth place — the same argument vocabulary as predications, so a place in a definition matches ARG INDEX on the word's predications. KNOWN=\"false\" marks a word with no dictionary definition; the default true is omitted.",
+    "COMPOSITE-APPROX shows the mechanical composition of a dictionary-absent compound through the same KIND-COMPOSITION idiom as the body; it is suggestive, not definitional. COMPONENT WORD= references the component's own WORD card.",
+    "PLACES=\"UNKNOWN\" means the composition tree determines no place structure. The actual meaning and places were chosen by the coiner. Places of COMPONENT cards are not inherited by the compound, and operators or grouping the coiner omitted leave no recoverable trace.",
+    "On word cards, GROUPING= and SCOPE= describe the basis of the displayed tree, not the coiner's guaranteed intent: ASSUMED-LEFT = CLL default left grouping, ASSUMED-SHORT = CLL-12.12 narrow operator scope, EXPLICIT = the word itself encodes the boundary. The attributes are tree-level; they appear per-node only when one tree mixes explicit and assumed edges. Unlike the body scope, cards state ASSUMED-LEFT because a card tree is an approximation of an undefined word, not the deterministic grammar default.",
+    "VARIABLE-CONTEXT denotes the abstract role an utterance context would supply for a context-dependent word used inside a definition. These are roles, not referents; they define no ids.",
+    "WORD ID values are surface-spelling card keys: the canonical spelling for one-token words; multiword (zei) compounds join their parts with hyphens (mi-zei-do). Hyphens never occur inside a single Lojban word, so the two namespaces cannot collide.",
 ];
 
 const FACET_FIELDS: &[&str] = &[
@@ -197,6 +122,7 @@ const DESCRIPTOR_KINDS: &[&str] = &[
 #[invariant(::QuantityText => true)]
 #[invariant(::BoundVariableWord => true)]
 #[invariant(::CompositionRelationLabel => true)]
+#[invariant(::ConnectorProvenance => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum XmlWaiverFamily {
     SourceRecord,
@@ -206,6 +132,11 @@ pub enum XmlWaiverFamily {
     QuantityText,
     BoundVariableWord,
     CompositionRelationLabel,
+    /// Connector surface words and grammatical loci: provenance-class data that
+    /// no semantic consumer reads (jbotci#719). Truth-conditional connector
+    /// content (the operator, and a truth table the operator does not already
+    /// determine) stays in default output.
+    ConnectorProvenance,
 }
 
 /// One typed object or field occurrence in canonical semantic-graph JSON.
@@ -265,6 +196,7 @@ pub const XML_DECLARED_WAIVERS: &[XmlWaiverFamily] = &[
     XmlWaiverFamily::QuantityText,
     XmlWaiverFamily::BoundVariableWord,
     XmlWaiverFamily::CompositionRelationLabel,
+    XmlWaiverFamily::ConnectorProvenance,
 ];
 
 #[requires(path.starts_with("/objects/"))]
@@ -536,10 +468,19 @@ fn serialize_element_inline(node: &XmlElement, output: &mut String) {
     output.push('>');
 }
 
-#[requires(true)]
+/// Serialize the document, optionally preceded by one `<!-- ... -->` prolog
+/// comment. The comment carries the KEY teaching prose (jbotci#719: the former
+/// structured `<KEY><RULE TOPIC=...>` block is a single comment now). The text
+/// must be comment-safe: XML comments forbid `--` and a trailing `-`.
+#[requires(comment.is_none_or(|comment| !comment.contains("--") && !comment.ends_with('-')))]
 #[ensures(ret.ends_with('\n'))]
-pub(crate) fn serialize(root: &XmlElement) -> String {
+pub(crate) fn serialize(root: &XmlElement, comment: Option<&str>) -> String {
     let mut output = String::new();
+    if let Some(comment) = comment {
+        output.push_str("<!--\n");
+        output.push_str(comment);
+        output.push_str("\n-->\n");
+    }
     serialize_element(root, 0, &mut output);
     output.push('\n');
     output
@@ -634,6 +575,22 @@ fn enum_token(value: &Value) -> String {
 #[ensures(!ret.is_empty())]
 fn enum_string(value: &str) -> String {
     enum_token(&Value::String(value.to_owned()))
+}
+
+/// The truth table a binary logical formula operator already determines, in
+/// the builder's row order (TT, TF, FT, FF), mirroring
+/// `generated_truth_table_for_formula_operator`. `None` for operators with no
+/// truth-functional reading: their recorded tables always render (jbotci#719).
+#[requires(true)]
+#[ensures(ret.is_none_or(|table| table.len() == 4))]
+fn canonical_truth_table(operator: &str) -> Option<&'static str> {
+    match operator {
+        "and" => Some("TFFF"),
+        "or" => Some("TTTF"),
+        "iff" => Some("TFFT"),
+        "whetherOrNot" => Some("TTFF"),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -1035,6 +992,11 @@ struct GraphData {
     subtype_pairs: Vec<(String, String)>,
     value_paths: HashMap<usize, String>,
     surface_paths: BTreeSet<XmlSurface>,
+    /// The tanru-projection report (jbotci#719): which objects the recognition
+    /// boundary consumed and their original JSON, so omission accounting can
+    /// classify every removed surface (projected structure vs waived
+    /// provenance). Empty when the graph has no tanru patterns.
+    projection: crate::notation::relation_expression::TanruProjection,
 }
 
 impl GraphData {
@@ -1055,6 +1017,14 @@ impl GraphData {
             _ => panic!("graph must contain an object map"),
         };
         assert!(objects.contains_key(&root), "missing root object: {root:?}");
+
+        // jbotci#719: the recognition boundary. Proven tanru patterns become
+        // typed relation expressions on their head predications; the consumed
+        // head/link scaffolding is removed here so declaration planning,
+        // reference counting, and rendering all see the projected graph. The
+        // consumed objects' original JSON is kept for omission accounting.
+        let (objects, projection) =
+            crate::notation::relation_expression::project_tanru_compositions(&objects);
 
         let object_keys: HashSet<String> = objects.keys().cloned().collect();
         let order: HashMap<String, usize> = objects
@@ -1264,10 +1234,16 @@ impl GraphData {
         let scope_dependence_binder_universes: HashMap<String, BTreeSet<String>> = graph_object
             .remove("scopeDependenceBinderUniverses")
             .map(|value| {
-                serde_json::from_value(value)
+                serde_json::from_value::<HashMap<String, BTreeSet<String>>>(value)
                     .expect("scope-dependence binder universes must be string-set records")
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
+            .into_iter()
+            // The universes are computed over the unprojected graph; tanru
+            // projection consumes exactly the objects it reports, so pruning to
+            // survivors keeps the exact-domain invariant below.
+            .filter(|(key, _)| objects.contains_key(key))
+            .collect();
         assert!(
             scope_dependence_binder_universes
                 .keys()
@@ -1288,6 +1264,36 @@ impl GraphData {
                 &mut surface_paths,
             );
         }
+        // Consumed tanru-scaffolding objects keep their surfaces in the
+        // inventory so omission accounting must classify each one explicitly
+        // (waived provenance or rendered-by-projection) instead of silently
+        // dropping them. Rewritten anchors keep only their vanished
+        // children/connector subtrees: the surviving fields dedupe against
+        // the rewritten formula's own surfaces.
+        let mut consumed_value_paths = HashMap::new();
+        for (key, value) in &projection.consumed_objects {
+            index_value_paths(
+                value,
+                &format!("/objects/{}", json_pointer_escape(key)),
+                &mut consumed_value_paths,
+                &mut surface_paths,
+            );
+        }
+        for (key, value) in &projection.rewritten_anchors {
+            let object = json_object(value);
+            for field in ["children", "connector"] {
+                if let Some(field_value) = object.get(field) {
+                    let field_path = format!("/objects/{}/{}", json_pointer_escape(key), field);
+                    surface_paths.insert(field_surface(field_path.clone()));
+                    index_value_paths(
+                        field_value,
+                        &field_path,
+                        &mut consumed_value_paths,
+                        &mut surface_paths,
+                    );
+                }
+            }
+        }
         Self::from_data(data!(GraphData {
             root,
             objects,
@@ -1307,6 +1313,7 @@ impl GraphData {
             subtype_pairs,
             value_paths,
             surface_paths,
+            projection,
         }))
     }
 
@@ -2293,10 +2300,126 @@ impl RenderState {
     }
 
     #[requires(true)]
-    #[ensures(self.unaccounted_surfaces == graph.surface_paths)]
+    #[ensures(graph.projection.consumed_objects.keys().all(|key| !self.unaccounted_surfaces.contains(&object_surface(format!("/objects/{key}")))))]
     fn start_omission_accounting(&mut self, graph: &GraphData) {
         assert!(!self.planning, "accounting cannot begin during planning");
         self.unaccounted_surfaces.clone_from(&graph.surface_paths);
+        self.account_projected_consumption(graph);
+    }
+
+    /// Classify every surface the tanru projection consumed (jbotci#719):
+    /// provenance fields keep their waiver families (the omissions API is
+    /// unchanged — a consumed source record is still a source-record omission),
+    /// and everything else is rendered-by-projection, so it leaves the
+    /// unaccounted set with no omission at all.
+    #[requires(true)]
+    #[ensures(true)]
+    fn account_projected_consumption(&mut self, graph: &GraphData) {
+        if self.planning {
+            return;
+        }
+        for (key, value) in &graph.projection.consumed_objects {
+            let base = format!("/objects/{}", json_pointer_escape(key));
+            self.waive_consumed_provenance(&base, json_object(value));
+            assert!(
+                remove_surface_subtree(&mut self.unaccounted_surfaces, &object_surface(base.clone())),
+                "projected tanru object was already accounted: {base}"
+            );
+        }
+        // Rewritten anchors survive as the head atom, so their own surfaces
+        // render normally; only the vanished `children`/`connector` subtrees
+        // need classification (connector source/locus is waived provenance,
+        // the children list is rendered-by-projection).
+        for (key, value) in &graph.projection.rewritten_anchors {
+            let base = format!("/objects/{}", json_pointer_escape(key));
+            let object = json_object(value);
+            if let Some(connector) = object.get("connector").and_then(Value::as_object) {
+                for connector_field in ["source", "locus"] {
+                    if connector.contains_key(connector_field) {
+                        self.record_omission(
+                            XmlWaiverFamily::ConnectorProvenance,
+                            field_surface(format!("{base}/connector/{connector_field}")),
+                        );
+                    }
+                }
+            }
+            for field in ["children", "connector"] {
+                if object.contains_key(field) {
+                    let surface = field_surface(format!("{base}/{field}"));
+                    assert!(
+                        remove_surface_subtree(&mut self.unaccounted_surfaces, &surface),
+                        "rewritten tanru anchor field was already accounted: {base}/{field}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Record waiver-family omissions for the provenance fields of one consumed
+    /// object; the caller sweeps the remaining (projected) surfaces afterwards.
+    #[requires(true)]
+    #[ensures(true)]
+    fn waive_consumed_provenance(&mut self, base: &str, object: &Map<String, Value>) {
+        for (field_name, value) in object {
+            let field_path = format!("{base}/{}", json_pointer_escape(field_name));
+            match field_name.as_str() {
+                "source" if is_source_record(value) => {
+                    self.record_omission(XmlWaiverFamily::SourceRecord, field_surface(field_path));
+                }
+                "introducedBy" => {
+                    self.record_omission(XmlWaiverFamily::IntroducedBy, field_surface(field_path));
+                }
+                "connector" => {
+                    for connector_field in json_object(value).keys() {
+                        if matches!(connector_field.as_str(), "source" | "locus") {
+                            self.record_omission(
+                                XmlWaiverFamily::ConnectorProvenance,
+                                field_surface(format!(
+                                    "{field_path}/{}",
+                                    json_pointer_escape(connector_field)
+                                )),
+                            );
+                        }
+                    }
+                }
+                "tanruLink" => {
+                    if json_object(value).contains_key("relationLabel") {
+                        self.record_omission(
+                            XmlWaiverFamily::CompositionRelationLabel,
+                            field_surface(format!("{field_path}/relationLabel")),
+                        );
+                    }
+                }
+                "arguments" => {
+                    for (place, argument) in json_object(value) {
+                        if json_object(argument).contains_key("introducedBy") {
+                            self.record_omission(
+                                XmlWaiverFamily::IntroducedBy,
+                                field_surface(format!(
+                                    "{field_path}/{}/introducedBy",
+                                    json_pointer_escape(place)
+                                )),
+                            );
+                        }
+                    }
+                }
+                "descriptor" => {
+                    // Mirror the renderer's descriptor rule: only the exact
+                    // elided-zo'e word is a mechanical omission; any other
+                    // descriptor word stays in the descriptor-word family.
+                    let descriptor = json_object(value);
+                    let mechanical = optional_string(descriptor, "kind") == Some("elided")
+                        && optional_string(descriptor, "word") == Some("zo'e");
+                    if !mechanical && descriptor.contains_key("word") {
+                        self.record_omission(
+                            XmlWaiverFamily::DescriptorWord,
+                            field_surface(format!("{field_path}/word")),
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     #[requires(true)]
@@ -3490,7 +3613,12 @@ impl RenderState {
                     .and_then(Value::as_object)
                     .unwrap_or_else(|| panic!("nonlogical connection lacks connector"));
                 state.account_field(graph, connection, "connector");
-                rendered.push(state.render_connector(graph, connector));
+                let operator = string_field(connection, "operator");
+                let (attributes, children) = state.account_connector(graph, connector, operator);
+                for (name, value) in attributes {
+                    rendered.set(name, value);
+                }
+                rendered.extend(children);
                 rendered.extend(state.extras(graph, connection, &["operator", "connector"]));
                 semantic_entries.push(rendered);
                 handled.push("nonlogicalConnection");
@@ -3737,74 +3865,6 @@ impl RenderState {
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn counted(count: usize, noun: &str) -> String {
-    format!("{count} {noun}{}", if count == 1 { "" } else { "s" })
-}
-
-#[requires(true)]
-#[ensures(ret.iter().all(|message| !message.is_empty()))]
-fn waiver_messages(omissions: &[XmlOmission]) -> Vec<String> {
-    let count = |kind| {
-        omissions
-            .iter()
-            .filter(|omission| omission.waiver == Some(kind))
-            .count()
-    };
-    let mut messages = Vec::new();
-    let source = count(XmlWaiverFamily::SourceRecord);
-    if source > 0 {
-        messages.push(format!(
-            "*.source provenance ({}: spans, witness text, construct labels)",
-            counted(source, "record")
-        ));
-    }
-    let assigned = count(XmlWaiverFamily::AssignedNameRecord);
-    if assigned > 0 {
-        messages.push(format!(
-            "*.assignedNames provenance ({})",
-            counted(assigned, "record")
-        ));
-    }
-    let descriptor = count(XmlWaiverFamily::DescriptorWord);
-    if descriptor > 0 {
-        messages.push(format!(
-            "descriptor *.word provenance ({})",
-            counted(descriptor, "field")
-        ));
-    }
-    let introduced = count(XmlWaiverFamily::IntroducedBy);
-    if introduced > 0 {
-        messages.push(format!(
-            "*.introducedBy provenance ({})",
-            counted(introduced, "field")
-        ));
-    }
-    let quantity = count(XmlWaiverFamily::QuantityText);
-    if quantity > 0 {
-        messages.push(format!(
-            "quantity value text provenance ({})",
-            counted(quantity, "field")
-        ));
-    }
-    let bound = count(XmlWaiverFamily::BoundVariableWord);
-    if bound > 0 {
-        messages.push(format!(
-            "bound-variable surface word provenance ({})",
-            counted(bound, "field")
-        ));
-    }
-    let relation_labels = count(XmlWaiverFamily::CompositionRelationLabel);
-    if relation_labels > 0 {
-        messages.push(format!(
-            "kind-composition relation-label provenance ({})",
-            counted(relation_labels, "field")
-        ));
-    }
-    messages
-}
-
-#[requires(true)]
 #[ensures(ret.name == "INCOMPATIBILITY")]
 fn render_compact_incompatibility(reason: &CompactIncompatibility) -> XmlElement {
     let mut result = XmlElement::with_attributes("INCOMPATIBILITY", [("KIND", reason.kind())]);
@@ -3935,18 +3995,6 @@ impl RenderState {
         }
         let unreachable = (!unreachable.children.is_empty()).then_some(unreachable);
         (graph_root, unreachable)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.name == "WAIVERS")]
-    fn waivers_element(&self) -> XmlElement {
-        let mut waivers = XmlElement::new("WAIVERS");
-        for message in waiver_messages(&self.omissions) {
-            let mut waiver = XmlElement::new("WAIVER");
-            waiver.text = Some(message);
-            waivers.push(waiver);
-        }
-        waivers
     }
 
     #[requires(true)]
@@ -4163,38 +4211,21 @@ impl RenderState {
                 ("FORM", "TYPED-GRAPH"),
             ],
         );
-        let mut key = XmlElement::new("KEY");
-        for (topic, prose) in [
-            (
-                "form",
-                "FORM=TYPED-GRAPH is selected exactly when the semantic graph cannot be represented truthfully by the compact SFN prototype vocabulary. It is a typed XML projection of the semantic graph, not a reinterpretation.",
-            ),
-            (
-                "objects",
-                "Each OBJECT is defined once by its canonical graph KEY= and XML ID=. ROOT-REF=/ROOT-KEY= identify the graph root. REFERENCE points to the exact shared object and never clones it.",
-            ),
-            (
-                "fields",
-                "Every non-waived semantic object and field occurrence is represented as typed OBJECT, FIELD, RECORD, LIST, ITEM, REFERENCE, STRING, NUMBER, BOOLEAN, or NULL structure. Child order follows canonical semantic JSON order.",
-            ),
-            (
-                "elided-zohe",
-                "A descriptor word is mechanically omitted only when descriptor KIND is elided and the value is exactly zo'e; every other descriptor word omission is reported by the existing descriptor-word waiver family.",
-            ),
-        ] {
-            let mut rule = XmlElement::with_attributes("RULE", [("TOPIC", topic)]);
-            rule.text = Some(prose.to_owned());
-            key.push(rule);
-        }
+        let comment = [
+            "SFN KEY (notation version 0): teaching text for this document. Defaults stated here are commitments, not omissions.",
+            "FORM=TYPED-GRAPH is selected exactly when the semantic graph cannot be represented truthfully by the compact SFN prototype vocabulary. It is a typed XML projection of the semantic graph, not a reinterpretation.",
+            "Each OBJECT is defined once by its canonical graph KEY= and XML ID=. ROOT-REF=/ROOT-KEY= identify the graph root. REFERENCE points to the exact shared object and never clones it.",
+            "Every non-waived semantic object and field occurrence is represented as typed OBJECT, FIELD, RECORD, LIST, ITEM, REFERENCE, STRING, NUMBER, BOOLEAN, or NULL structure. Child order follows canonical semantic JSON order.",
+            "A descriptor word is mechanically omitted only when descriptor KIND is elided and the value is exactly zo'e; every other descriptor word omission is reported by the existing descriptor-word waiver family.",
+        ]
+        .join("\n\n");
         let mut reasons = XmlElement::new("COMPACT-INCOMPATIBILITIES");
         for reason in incompatibilities {
             reasons.push(render_compact_incompatibility(reason));
         }
-        key.push(reasons);
-        root.push(key);
-        root.push(self.waivers_element());
+        root.push(reasons);
         root.push(typed_graph);
-        serialize(&root)
+        serialize(&root, Some(&comment))
     }
 
     #[requires(true)]
@@ -4223,12 +4254,6 @@ impl RenderState {
 
         let mut root =
             XmlElement::with_attributes("SFN", [("VERSION", "0"), ("DOC", document_name)]);
-        let mut key = XmlElement::new("KEY");
-        for (topic, prose) in KEY_RULES_BEFORE_SORTS {
-            let mut rule = XmlElement::with_attributes("RULE", [("TOPIC", *topic)]);
-            rule.text = Some((*prose).to_owned());
-            key.push(rule);
-        }
         let facts = if graph.subtype_pairs.is_empty() {
             "none".to_owned()
         } else {
@@ -4239,34 +4264,28 @@ impl RenderState {
                 .collect::<Vec<_>>()
                 .join("; ")
         };
-        let mut sorts = XmlElement::with_attributes("RULE", [("TOPIC", "sorts")]);
-        sorts.text = Some(format!(
+        let sorts = format!(
             "SORT= values are flat PascalCase sort names. Subtype facts derived from encountered JSON sort paths: {facts}. LOCUTION implies sort Locution and therefore omits SORT=."
-        ));
-        key.push(sorts);
-        for (topic, prose) in KEY_RULES_AFTER_SORTS {
-            let mut rule = XmlElement::with_attributes("RULE", [("TOPIC", *topic)]);
-            rule.text = Some((*prose).to_owned());
-            key.push(rule);
-        }
+        );
+        let mut paragraphs: Vec<&str> = vec![
+            "SFN KEY (notation version 0): teaching text for this document. Defaults stated here are commitments, not omissions.",
+        ];
+        paragraphs.extend(KEY_RULES_BEFORE_SORTS);
+        paragraphs.push(&sorts);
+        paragraphs.extend(KEY_RULES_AFTER_SORTS);
         if word_cards.is_some() {
-            for (topic, prose) in KEY_RULES_WORD_CARDS {
-                let mut rule = XmlElement::with_attributes("RULE", [("TOPIC", *topic)]);
-                rule.text = Some((*prose).to_owned());
-                key.push(rule);
-            }
+            paragraphs.extend(KEY_RULES_WORD_CARDS);
         }
-        root.push(key);
+        let comment = paragraphs.join("\n\n");
         if let Some(cards) = word_cards {
             root.push(words_section(cards));
         }
-        root.push(self.waivers_element());
         Self::append_defs(&mut root, document_declarations);
         root.push(graph_root);
         if let Some(rendered) = unreachable {
             root.push(rendered);
         }
-        serialize(&root)
+        serialize(&root, Some(&comment))
     }
 }
 
@@ -4404,6 +4423,18 @@ fn render_xml_value_with_test_suppression(
 #[ensures(ret.output.ends_with('\n'))]
 pub fn render_xml(graph: &SemanticGraph, document_name: &str) -> XmlRender {
     render_xml_graph_with_state(graph, document_name, RenderState::new(), None)
+}
+
+/// Tooling seam for corpus regeneration after an intentional output-shape
+/// change (jbotci#719): render an already-serialized canonical graph `Value`
+/// exactly as the in-crate corpus tests do (the corpus pins the canonical
+/// JSON directly, so no `SemanticGraph` roundtrip exists for it). Not
+/// product API.
+#[doc(hidden)]
+#[requires(!document_name.is_empty())]
+#[ensures(ret.output.ends_with('\n'))]
+pub fn render_xml_value_for_tooling(graph: Value, document_name: &str) -> XmlRender {
+    render_xml_value(graph, document_name)
 }
 
 /// Render a semantic graph as canonical SFN-XML with a structured `<WORDS>`
@@ -5308,6 +5339,20 @@ mod tests {
                             surface: field_surface(field_path.clone()),
                         }));
                     }
+                    if field == "connector"
+                        && let Some(connector) = item.as_object()
+                    {
+                        for connector_field in ["source", "locus"] {
+                            if connector.contains_key(connector_field) {
+                                output.insert(new!(XmlOmission {
+                                    waiver: Some(XmlWaiverFamily::ConnectorProvenance),
+                                    surface: field_surface(format!(
+                                        "{field_path}/{connector_field}"
+                                    )),
+                                }));
+                            }
+                        }
+                    }
                     if composition_link && field == "relationLabel" {
                         output.insert(new!(XmlOmission {
                             waiver: Some(XmlWaiverFamily::CompositionRelationLabel),
@@ -5362,32 +5407,33 @@ mod tests {
         let with_cards = with_cards.output.as_str();
         let without_cards = without_cards.output.as_str();
 
-        // Placement: WORDS sits between KEY and WAIVERS.
+        // #719: the KEY is a single comment before the root element; WORDS is
+        // the first child of the root when cards are present.
         assert!(
-            with_cards.contains("</KEY>\n  <WORDS>\n"),
-            "WORDS must immediately follow KEY: {}",
-            &with_cards[..with_cards.find("<WAIVERS").expect("WAIVERS")]
+            with_cards.starts_with("<!--\n"),
+            "document must open with the KEY comment"
         );
         assert!(
-            with_cards.contains("</WORDS>\n  <WAIVERS"),
-            "WAIVERS must immediately follow WORDS"
+            with_cards.contains("\n<SFN VERSION=\"0\" DOC=\"b13\">\n  <WORDS>\n"),
+            "WORDS must be the first child of the root"
         );
-        // The word-card KEY rules exist exactly when the section does.
-        for topic in [
-            "word-cards",
-            "compound-approximation",
-            "compound-places",
-            "compound-assumptions",
-            "context-placeholders",
-            "word-card-ids",
+        assert!(!with_cards.contains("<KEY>") && !with_cards.contains("<WAIVERS>"));
+        // The word-card KEY paragraphs exist exactly when the section does.
+        for paragraph_marker in [
+            "WORDS lists one WORD card per content word",
+            "COMPOSITE-APPROX shows the mechanical composition",
+            "PLACES=\"UNKNOWN\" means the composition tree",
+            "cards state ASSUMED-LEFT",
+            "VARIABLE-CONTEXT denotes the abstract role",
+            "WORD ID values are surface-spelling card keys",
         ] {
             assert!(
-                with_cards.contains(&format!("<RULE TOPIC=\"{topic}\">")),
-                "missing KEY rule {topic}"
+                with_cards.contains(paragraph_marker),
+                "missing KEY comment paragraph: {paragraph_marker}"
             );
             assert!(
-                !without_cards.contains(&format!("<RULE TOPIC=\"{topic}\">")),
-                "card-less document must not carry KEY rule {topic}"
+                !without_cards.contains(paragraph_marker),
+                "card-less document must not carry the paragraph: {paragraph_marker}"
             );
         }
         assert!(!without_cards.contains("<WORDS>"));
@@ -5396,8 +5442,10 @@ mod tests {
             .split_once("</WORDS>")
             .expect("WORDS section")
             .1;
-        let without_body = without_cards.split_once("</KEY>").expect("KEY").1;
-        assert_eq!(with_body, without_body);
+        let without_body = without_cards
+            .split_once("\n  <DEFS>")
+            .expect("DEFS after comment");
+        assert_eq!(with_body, format!("\n  <DEFS>{}", without_body.1));
     }
 
     #[test]
@@ -5430,11 +5478,11 @@ mod tests {
         assert_eq!(actual, expected);
         assert_eq!(
             aggregate_hash("frozen.json"),
-            "69ea08a65aba19049f65070b9eb045361834ddfbd2773da972c047be325381b3"
+            "6f3d951a76b0b363ff3fc8a0763a0dbb34fe7fb16a23fccbe86a32fecbbfdfe7"
         );
         assert_eq!(
             aggregate_hash("xml.txt"),
-            "8054b126268d07532363b576a1a5e27c5c4eb446aa4370b0a020284b159e5220"
+            "a10e826952ced297d3da81c76705c81042d02d19f8a7fc72bf28c39801ec5bd9"
         );
         let binder_universe_bytes = include_bytes!("../../tests/xml_corpus/BINDER_UNIVERSES.json");
         assert_eq!(
@@ -5628,7 +5676,7 @@ mod tests {
         assert!(content_abstraction.contains("<EMBEDDED-QUESTIONS>"));
         assert_eq!(
             format!("{:x}", Sha256::digest(content_abstraction.as_bytes())),
-            "0865509d9b4344749b7d99024915839d4f3c609bcde4b6772919f72372cb8b75"
+            "6080365adb356f04598f6ca705d67da4b2f8ae4d338de20abdb1f034cf5109e3"
         );
 
         let mut direct_question = graph("b58");
@@ -5650,7 +5698,7 @@ mod tests {
         assert_no_compact_generic_fallback(&direct_question, "<direct-question-witness>");
         assert_eq!(
             format!("{:x}", Sha256::digest(direct_question.as_bytes())),
-            "cabd9f5c468c4d4645f76099b0ad10e5f7cc56d00c81ee99432bd0809a5431a5"
+            "fb17cdc0c93972c82b1e641e528545af881ff5f3f9995a01bafecfa34f40d99c"
         );
 
         let mut shared = graph("b58");
@@ -5676,7 +5724,7 @@ mod tests {
         assert_eq!(shared.matches("<EMBEDDED-QUESTIONS>").count(), 1);
         assert_eq!(
             format!("{:x}", Sha256::digest(shared.as_bytes())),
-            "bbeef899f72757dc5a012eadaf4e5d4c791fc2e23c38babb9787d36ea3e8c71e"
+            "5aeb6ad72a98c5cb2c6558b1a71e90a5bdc7306321e9886d9e81bc5bfd53a8e7"
         );
         let content = shared
             .split_once("<CONTENT>")
@@ -5752,7 +5800,7 @@ mod tests {
         assert_no_compact_generic_fallback(&orphan, "<orphan>");
         assert_eq!(
             format!("{:x}", Sha256::digest(orphan.as_bytes())),
-            "c028d711d3b6d636ca8905d9161e59b3b89809f897a986fa2672bc38b85bbb8a"
+            "ab0ba51a6930df1f4a7bf548471a241fdc9df4d36d29e4376d3690fd10f408fd"
         );
     }
 
@@ -5762,13 +5810,17 @@ mod tests {
     fn kind_composition_is_first_class_nested_and_provenance_free() {
         let rendered = render_xml_value(graph("b39"), "b39");
         assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        // jbotci#719: the tanru projects as one predication with a nested
+        // KIND-COMPOSITION relation expression in the relation slot.
         assert_eq!(rendered.output.matches("<KIND-COMPOSITION>").count(), 2);
         assert!(rendered.output.contains(
-            "<KIND-COMPOSITION>\n                                              <KIND REF=\"p15\"/>\n                                              <MODIFIER REF=\"r22\"/>"
+            "<KIND-COMPOSITION>\n                        <KIND PREDICATE=\"prenu\"/>\n                        <MODIFIER>"
         ));
         assert!(rendered.output.contains(
-            "<KIND-COMPOSITION>\n                              <KIND REF=\"p8\"/>\n                              <MODIFIER REF=\"r26\"/>"
+            "<KIND-COMPOSITION>\n                              <KIND PREDICATE=\"bajra\"/>\n                              <MODIFIER PREDICATE=\"sutra\"/>"
         ));
+        assert!(!rendered.output.contains("PREDICATE=\"tanru\""));
+        assert!(!rendered.output.contains("<CONNECTOR"));
         assert!(!rendered.output.contains("TANRU-LINK"));
         assert!(!rendered.output.contains("<RELATION-LABEL"));
         assert!(!rendered.output.contains("FIELD NAME=\"tanruLink\""));
@@ -5840,6 +5892,7 @@ mod tests {
                 XmlWaiverFamily::QuantityText,
                 XmlWaiverFamily::BoundVariableWord,
                 XmlWaiverFamily::CompositionRelationLabel,
+                XmlWaiverFamily::ConnectorProvenance,
             ]
         );
         let mut counts: BTreeMap<XmlWaiverFamily, usize> = BTreeMap::new();
@@ -5849,10 +5902,13 @@ mod tests {
             let expected = declared_waiver_occurrences(&graph);
             let rendered = render_xml_value(graph, document);
             let actual: BTreeSet<XmlOmission> = rendered.omissions.iter().cloned().collect();
-            assert_eq!(
-                actual, expected,
-                "{document}: observed omissions differ from independently expanded waivers"
-            );
+            if actual != expected {
+                let missing: Vec<_> = expected.difference(&actual).collect();
+                let extra: Vec<_> = actual.difference(&expected).collect();
+                panic!(
+                    "{document}: observed omissions differ from independently expanded waivers:\nmissing: {missing:#?}\nextra: {extra:#?}"
+                );
+            }
             assert_eq!(
                 actual.len(),
                 rendered.omissions.len(),
@@ -5884,9 +5940,10 @@ mod tests {
                 (XmlWaiverFamily::QuantityText, 11),
                 (XmlWaiverFamily::BoundVariableWord, 9),
                 (XmlWaiverFamily::CompositionRelationLabel, 5),
+                (XmlWaiverFamily::ConnectorProvenance, 16),
             ])
         );
-        assert_eq!(counts.values().sum::<usize>(), 941);
+        assert_eq!(counts.values().sum::<usize>(), 957);
         assert_eq!(
             documents
                 .into_iter()
@@ -5900,6 +5957,7 @@ mod tests {
                 (XmlWaiverFamily::QuantityText, 7),
                 (XmlWaiverFamily::BoundVariableWord, 6),
                 (XmlWaiverFamily::CompositionRelationLabel, 3),
+                (XmlWaiverFamily::ConnectorProvenance, 6),
             ])
         );
     }
@@ -7402,33 +7460,55 @@ impl RenderState {
         result
     }
 
+    /// Account one connector record without rendering a CONNECTOR element
+    /// (jbotci#719): the surface word and the grammatical locus are
+    /// provenance-class and join the connector-provenance waiver family; a
+    /// truth table the parent operator does not already determine renders as a
+    /// TRUTH-TABLE= attribute; a connective question's bound parameter renders
+    /// as a PARAMETER child. Returns the attributes and children to attach to
+    /// the parent element where the CONNECTOR element used to sit.
     #[requires(true)]
-    #[ensures(ret.name == "CONNECTOR")]
-    fn render_connector(&mut self, graph: &GraphData, value: &Map<String, Value>) -> XmlElement {
-        let mut result = XmlElement::new("CONNECTOR");
-        let mut handled = Vec::new();
-        if let Some(source) = value.get("source") {
-            self.account_field(graph, value, "source");
-            result.set("SOURCE-WORD", scalar_string(source));
-            handled.push("source");
-        }
-        for field in ["locus", "truthTable"] {
-            if let Some(field_value) = value.get(field) {
-                self.account_field(graph, value, field);
-                result.push(Self::scalar(
-                    &enum_string(field).replace('_', "-"),
-                    field_value,
-                ));
-                handled.push(field);
+    #[ensures(true)]
+    fn account_connector(
+        &mut self,
+        graph: &GraphData,
+        connector: &Map<String, Value>,
+        operator: &str,
+    ) -> (Vec<(String, String)>, Vec<XmlElement>) {
+        self.account_object(graph, connector);
+        for field in ["source", "locus"] {
+            if connector.contains_key(field) {
+                self.record_field_omission(
+                    graph,
+                    connector,
+                    field,
+                    XmlWaiverFamily::ConnectorProvenance,
+                );
             }
         }
-        if let Some(parameter) = optional_string(value, "parameter") {
-            self.account_field(graph, value, "parameter");
-            result.push(self.wrap_pointer(graph, "PARAMETER", parameter, Vec::new()));
-            handled.push("parameter");
+        let mut attributes = Vec::new();
+        if let Some(truth_table) = optional_string(connector, "truthTable") {
+            self.account_field(graph, connector, "truthTable");
+            if canonical_truth_table(operator) != Some(truth_table) {
+                attributes.push(("TRUTH-TABLE".to_owned(), truth_table.to_owned()));
+            }
         }
-        result.extend(self.extras(graph, value, &handled));
-        result
+        if let Some(parameter) = optional_string(connector, "parameter") {
+            self.account_field(graph, connector, "parameter");
+            // A connective question's bound parameter is an attribute use of
+            // an already-defined parameter object (jbotci#719: the PARAMETER
+            // element spelling would collide with the parameter object
+            // element in the schema's content models).
+            let id = self.pointer_id(graph, parameter, "connective question parameter");
+            attributes.push(("PARAMETER".to_owned(), id));
+        }
+        let mut children = Vec::new();
+        children.extend(self.extras(
+            graph,
+            connector,
+            &["source", "locus", "truthTable", "parameter"],
+        ));
+        (attributes, children)
     }
 
     #[requires(true)]
@@ -8361,6 +8441,207 @@ impl RenderState {
         result
     }
 
+    /// Render the tanru-link sidecar of an unprojected tanru-link predication
+    /// (the loud fallback form): a KIND-COMPOSITION of pointer wrappers to the
+    /// head predication and the modifier relation, occupying the predication's
+    /// relation slot (jbotci#719).
+    #[requires(object.contains_key("tanruLink"))]
+    #[ensures(ret.name == "KIND-COMPOSITION")]
+    fn render_tanru_link_sidecar(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+    ) -> XmlElement {
+        let link = json_object(&object["tanruLink"]);
+        self.account_field(graph, object, "tanruLink");
+        let mut composition = XmlElement::new("KIND-COMPOSITION");
+        let head = string_field(link, "head");
+        self.account_field(graph, link, "head");
+        composition.push(self.wrap_pointer(graph, "KIND", head, Vec::new()));
+        let modifier = string_field(link, "modifier");
+        self.account_field(graph, link, "modifier");
+        composition.push(self.wrap_pointer(graph, "MODIFIER", modifier, Vec::new()));
+        if link.contains_key("relationLabel") {
+            self.record_field_omission(
+                graph,
+                link,
+                "relationLabel",
+                XmlWaiverFamily::CompositionRelationLabel,
+            );
+        }
+        composition.extend(self.extras(graph, link, &["head", "modifier", "relationLabel"]));
+        composition
+    }
+
+    /// Render the typed relation-expression view of a projected tanru
+    /// predication (jbotci#719): a KIND-COMPOSITION in the relation slot.
+    /// `host_predicate` is the enclosing predication's own relation, rendered
+    /// as the PREDICATE= of `host` operands.
+    #[requires(view.contains_key("kind") && view.contains_key("modifier"))]
+    #[ensures(ret.name == "KIND-COMPOSITION")]
+    fn render_relation_composition(
+        &mut self,
+        graph: &GraphData,
+        view: &Map<String, Value>,
+        host_predicate: &str,
+    ) -> XmlElement {
+        let mut result = XmlElement::new("KIND-COMPOSITION");
+        if view.get("grouping").and_then(Value::as_str) == Some("explicit") {
+            result.set("GROUPING", "EXPLICIT");
+        }
+        result.push(self.render_relation_operand(
+            graph,
+            "KIND",
+            json_object(&view["kind"]),
+            Some(host_predicate),
+        ));
+        result.push(self.render_relation_operand(
+            graph,
+            "MODIFIER",
+            json_object(&view["modifier"]),
+            None,
+        ));
+        result
+    }
+
+    /// Render one operand of a relation composition under `tag` (KIND,
+    /// MODIFIER, or RELATION inside a relation-level CONNECTIVE).
+    #[requires(true)]
+    #[ensures(ret.name == tag)]
+    fn render_relation_operand(
+        &mut self,
+        graph: &GraphData,
+        tag: &str,
+        operand: &Map<String, Value>,
+        host_predicate: Option<&str>,
+    ) -> XmlElement {
+        match optional_string(operand, "type") {
+            Some("host") => {
+                let mut result = XmlElement::new(tag);
+                result.set(
+                    "PREDICATE",
+                    predicate_symbol(
+                        host_predicate.expect("host operand requires the predication relation"),
+                    ),
+                );
+                Self::set_participant_place(&mut result, operand);
+                result
+            }
+            Some("lexical") => self.render_relation_lexical(graph, tag, operand),
+            Some("kindComposition") => {
+                let mut result = XmlElement::new(tag);
+                let mut body = XmlElement::new("BODY");
+                body.push(self.render_relation_composition(
+                    graph,
+                    operand,
+                    host_predicate.unwrap_or_default(),
+                ));
+                result.push(body);
+                result
+            }
+            Some("connective") => {
+                let operator = optional_string(operand, "operator")
+                    .unwrap_or_else(|| panic!("relation connective lacks an operator"));
+                let mut connective =
+                    XmlElement::with_attributes("CONNECTIVE", [("OPERATOR", enum_string(operator))]);
+                for leaf in operand
+                    .get("operands")
+                    .and_then(Value::as_array)
+                    .unwrap_or_else(|| panic!("relation connective lacks operands"))
+                {
+                    connective.push(self.render_relation_operand(
+                        graph,
+                        "RELATION",
+                        json_object(leaf),
+                        None,
+                    ));
+                }
+                let mut result = XmlElement::new(tag);
+                let mut body = XmlElement::new("BODY");
+                body.push(connective);
+                result.push(body);
+                result
+            }
+            Some("reference") => {
+                let relation = optional_string(operand, "relation")
+                    .unwrap_or_else(|| panic!("relation reference operand lacks a target"));
+                let rendered = self.render_pointer(graph, relation);
+                let mut result = XmlElement::new(tag);
+                if Self::is_reference(&rendered) {
+                    result.set("REF", rendered.attributes[0].1.clone());
+                } else {
+                    let mut body = XmlElement::new("BODY");
+                    body.push(rendered);
+                    result.push(body);
+                }
+                result
+            }
+            other => panic!("unknown relation operand kind: {other:?}"),
+        }
+    }
+
+    /// Render a compact lexical relation leaf: PREDICATE= plus an optional
+    /// PARTICIPANT-PLACE= (default 1) and fixed non-participant ARGs.
+    #[requires(true)]
+    #[ensures(ret.name == tag)]
+    fn render_relation_lexical(
+        &mut self,
+        graph: &GraphData,
+        tag: &str,
+        operand: &Map<String, Value>,
+    ) -> XmlElement {
+        let mut result = XmlElement::new(tag);
+        result.set(
+            "PREDICATE",
+            predicate_symbol(
+                optional_string(operand, "predicate")
+                    .unwrap_or_else(|| panic!("lexical relation leaf lacks a predicate")),
+            ),
+        );
+        Self::set_participant_place(&mut result, operand);
+        if let Some(fixed) = operand.get("fixedArguments").and_then(Value::as_object) {
+            let mut places: Vec<(&String, &str)> = fixed
+                .iter()
+                .map(|(place, target)| {
+                    (
+                        place,
+                        target.as_str().unwrap_or_else(|| {
+                            panic!("fixed relation argument target must be an id")
+                        }),
+                    )
+                })
+                .collect();
+            places.sort_by_key(|(place, _)| {
+                place
+                    .parse::<usize>()
+                    .unwrap_or_else(|_| panic!("fixed relation argument place must be numeric"))
+            });
+            for (place, target) in places {
+                result.push(self.wrap_pointer(
+                    graph,
+                    "ARG",
+                    target,
+                    vec![("INDEX", place.clone())],
+                ));
+            }
+        }
+        result
+    }
+
+    /// PARTICIPANT-PLACE= is stated exactly when the composition participant
+    /// fills a lexical place other than the first.
+    #[requires(true)]
+    #[ensures(true)]
+    fn set_participant_place(result: &mut XmlElement, operand: &Map<String, Value>) {
+        let place = operand
+            .get("participantPlace")
+            .and_then(Value::as_u64)
+            .unwrap_or(1);
+        if place != 1 {
+            result.set("PARTICIPANT-PLACE", place.to_string());
+        }
+    }
+
     #[requires(true)]
     #[ensures(ret.name == "PREDICATION")]
     fn render_predication(
@@ -8379,13 +8660,31 @@ impl RenderState {
             "mode",
         ]);
         let mut result = XmlElement::new("PREDICATION");
-        let relation_value = if let Some(relation) = optional_string(object, "relation") {
+        let relation_value = if let Some(view) =
+            object.get("relationExpression").and_then(Value::as_object)
+        {
+            // A projected tanru (#719): the relation slot carries the composite
+            // predicate expression; the predication's own `relation` renders as
+            // the host KIND leaf's PREDICATE= rather than on the element.
+            self.account_field_tree(graph, object, "relationExpression");
+            handled.push("relationExpression");
+            let host_predicate = optional_string(object, "relation")
+                .unwrap_or_else(|| panic!("projected predication lacks its host relation"));
+            self.account_field(graph, object, "relation");
+            Some(self.render_relation_composition(graph, view, host_predicate))
+        } else if let Some(relation) = optional_string(object, "relation") {
             self.account_field(graph, object, "relation");
             result.set("PREDICATE", predicate_symbol(relation));
             None
         } else if let Some(parameter) = optional_string(object, "relationParameter") {
             self.account_field(graph, object, "relationParameter");
             Some(self.wrap_pointer(graph, "RELATION", parameter, Vec::new()))
+        } else if object.contains_key("tanruLink") {
+            // An unprojected tanru-link predication (the recognition guards
+            // rejected the compact form): no PREDICATE= — the KIND-COMPOSITION
+            // sidecar occupies the relation slot and carries the meaning.
+            handled.push("tanruLink");
+            Some(self.render_tanru_link_sidecar(graph, object))
         } else {
             Some(XmlElement::new("MISSING-RELATION"))
         };
@@ -8446,28 +8745,6 @@ impl RenderState {
             }
             result.push(rendered);
             handled.push("placeQuestions");
-        }
-
-        if let Some(link) = object.get("tanruLink").and_then(Value::as_object) {
-            self.account_field(graph, object, "tanruLink");
-            let mut composition = XmlElement::new("KIND-COMPOSITION");
-            let head = string_field(link, "head");
-            self.account_field(graph, link, "head");
-            composition.push(self.wrap_pointer(graph, "KIND", head, Vec::new()));
-            let modifier = string_field(link, "modifier");
-            self.account_field(graph, link, "modifier");
-            composition.push(self.wrap_pointer(graph, "MODIFIER", modifier, Vec::new()));
-            if link.contains_key("relationLabel") {
-                self.record_field_omission(
-                    graph,
-                    link,
-                    "relationLabel",
-                    XmlWaiverFamily::CompositionRelationLabel,
-                );
-            }
-            composition.extend(self.extras(graph, link, &["head", "modifier", "relationLabel"]));
-            result.push(composition);
-            handled.push("tanruLink");
         }
 
         let mut metadata = XmlElement::new("META");
@@ -8603,6 +8880,7 @@ impl RenderState {
         );
         self.bound_variable_stack.push(variable.to_owned());
         let scope = vec!["quantifier-body".to_owned(), key.to_owned()];
+        let mut connector_parts = None;
         let (declarations, content) = self.scoped_parts(graph, scope, |state, graph| {
             let mut handled = Vec::from(["type", "operator", "boundEventualities", "variable"]);
             let mut content: HashMap<&str, XmlElement> = HashMap::new();
@@ -8645,7 +8923,7 @@ impl RenderState {
             }
             if let Some(connector) = object.get("connector").and_then(Value::as_object) {
                 state.account_field(graph, object, "connector");
-                content.insert("connector", state.render_connector(graph, connector));
+                connector_parts = Some(state.account_connector(graph, connector, operator));
                 handled.push("connector");
             }
             let mut extras = XmlElement::new("EXTRAS");
@@ -8688,10 +8966,14 @@ impl RenderState {
         {
             result.push(quantity);
         }
-        for field in ["domainImport", "connector"] {
-            if let Some(value) = content.remove(field) {
-                result.push(value);
+        if let Some(value) = content.remove("domainImport") {
+            result.push(value);
+        }
+        if let Some((attributes, children)) = connector_parts {
+            for (name, value) in attributes {
+                result.set(name, value);
             }
+            result.extend(children);
         }
         if let Some(extras) = content.remove("extras") {
             result.extend(extras.children);
@@ -8772,17 +9054,24 @@ impl RenderState {
                     handled.push("domainImport");
                 }
             }
-            let mut post = Vec::new();
+            let mut connector_parts = None;
             if let Some(connector) = object.get("connector").and_then(Value::as_object) {
                 state.account_field(graph, object, "connector");
-                post.push(state.render_connector(graph, connector));
+                connector_parts = Some(state.account_connector(graph, connector, operator));
                 handled.push("connector");
             }
             let extras = state.extras(graph, object, &handled);
-            (operands, post, extras)
+            (operands, connector_parts, extras)
         });
-        let (operands, post, extras) = parts;
-        if operator == "atom" && declarations.is_empty() && post.is_empty() && extras.is_empty() {
+        let (operands, connector_parts, extras) = parts;
+        let (connector_attributes, connector_children) =
+            connector_parts.unwrap_or_default();
+        let connector_rendered = !connector_attributes.is_empty() || !connector_children.is_empty();
+        if operator == "atom"
+            && declarations.is_empty()
+            && !connector_rendered
+            && extras.is_empty()
+        {
             assert_eq!(operands.len(), 1, "atom formula has invalid operand count");
             return operands.into_iter().next().expect("one operand");
         }
@@ -8796,17 +9085,22 @@ impl RenderState {
         };
         Self::append_defs(&mut core, declarations);
         core.extend(operands);
-        if post.is_empty() && extras.is_empty() {
+        // Connector content attaches to the connective element itself now that
+        // the CONNECTOR wrapper is gone (#719): TRUTH-TABLE= and PARAMETER=
+        // attributes; only unknown extra fields still force a FORMULA wrapper.
+        for (name, value) in connector_attributes {
+            core.set(name, value);
+        }
+        core.extend(connector_children);
+        if extras.is_empty() {
             return core;
         }
         if core.name == "FORMULA" {
-            core.extend(post);
             core.extend(extras);
             return core;
         }
         let mut wrapper = XmlElement::new("FORMULA");
         wrapper.push(core);
-        wrapper.extend(post);
         wrapper.extend(extras);
         wrapper
     }

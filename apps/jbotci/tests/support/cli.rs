@@ -906,9 +906,12 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
 fn tersmu_xml_cli_output_is_one_canonical_document() {
     let run = run_cli_capture(&["jbotci", "tersmu", "--format", "xml", "mi klama"], false);
     assert_eq!(run.status, CliStatus::Success);
+    // jbotci#719: the document opens with the KEY teaching comment.
+    assert!(run.stdout.starts_with("<!--
+"));
     assert!(
         run.stdout
-            .starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
+            .contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
     );
     assert!(
         run.stdout
@@ -933,19 +936,20 @@ fn tersmu_show_defs_embeds_a_words_section_in_the_xml_document() {
         "cu",
         "barda",
     ]);
-    // One well-formed document: no prepended text cards.
+    // One well-formed document: no prepended text cards; the KEY teaching
+    // text is a single comment before the root element (jbotci#719).
     assert!(
-        output.starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"),
-        "output must be a single SFN document: {}",
+        output.starts_with("<!--\n"),
+        "output must open with the KEY comment: {}",
         &output[..output.len().min(200)]
     );
     assert!(!output.contains("1. barda | by: officialdata"));
     assert!(!output.contains("cmavo:"));
-    // The WORDS section follows the KEY and carries the barda card with
-    // glosses and place markup inside DEF.
+    // The WORDS section is the first child of the root and carries the barda
+    // card with glosses and place markup inside DEF.
     assert!(
-        output.contains("</KEY>\n  <WORDS>\n"),
-        "WORDS must immediately follow KEY: {output}"
+        output.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">\n  <WORDS>\n"),
+        "WORDS must be the first child of the root: {output}"
     );
     assert!(output.contains("<WORD ID=\"barda\">"), "{output}");
     assert!(output.contains("<GLOSS>big</GLOSS>"), "{output}");

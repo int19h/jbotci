@@ -184,11 +184,11 @@ fn preexisting_fixture_bytes_are_unchanged() {
         .filter(|doc| !doc.starts_with("modal-"));
     assert_eq!(
         aggregate_fixture_hash_for(preexisting.clone(), "smusni.txt"),
-        "ba79402c74d7160e761c034759979215582bd86fc31dac00160d9a734673f254"
+        "b80e0b08a0a0af8cc1d8ea1c2a7fab11e9c7df4d2bb13ca91f5cb9ef8e674f3d"
     );
     assert_eq!(
         aggregate_fixture_hash_for(preexisting, "smusni-prov.txt"),
-        "e3d1933cefd5915bcea4ed1ba996704b47badb7210de5f535d2b19ae3df54b88"
+        "717029799bd7c7137197b22c6624d097d01dd44eac22e716527cf53e7a88ec23"
     );
 }
 
@@ -203,12 +203,12 @@ fn preexisting_fixture_bytes_are_unchanged() {
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "2fe83e771edd04c23f51f5c5d41e7aafff551670e624364517cf58acb49ddce8",
+        "09247420555931f775dae72254852cfc5e013a5f61fe5eb498ef81b2cf58ea75",
         "smusni.txt fixture set drifted from the pinned oracle output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "897cc4ee3a06011d4d5f665dbe8411389ada9f005f577abf68afc0012af3e9e7",
+        "dc95ef3d805b7d057d6814e8ae3ffe0a48d067aabc5d9762cc5a5019eee97551",
         "smusni-prov.txt fixture set drifted from the pinned oracle output"
     );
 }

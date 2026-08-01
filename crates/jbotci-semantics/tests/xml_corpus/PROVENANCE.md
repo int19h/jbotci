@@ -87,8 +87,31 @@ rendered-via-card (the nonce word's WORD card carries the decomposition), with
 no omission entries. This frozen 48-document corpus is rendered without cards,
 so it deliberately retains the interim body `RELATION-METADATA` preservation
 form: with no card section to carry the decomposition, the omissions/waiver
-discipline does not allow silently dropping it. `PREDICATE="tanru"` remains
-frozen JSON data rather than structural vocabulary.
+discipline does not allow silently dropping it.
+
+jbotci#719 (owner ruling 2026-08-01) reworked the document surface in one
+migration pass, deliberately diverging from the pinned research prototype:
+the structured `<KEY><RULE TOPIC=...>` block became a single teaching
+comment before the root element; the `<WAIVERS>` block left model-facing
+output (the omissions API is unchanged and tests reconcile against it); the
+`<CONNECTOR>` element left default output (connector surface words and loci
+are provenance-class and join a new closed `ConnectorProvenance` waiver
+family; TRUTH-TABLE=/PARAMETER= survive on the connective parent when not
+derivable); `Connector.source`/`Connector.locus` became typed enums (a
+surface word vs an implicit juxtaposition; English locus names), killing
+the `SOURCE-WORD="tanru"` sentinel and the `LOCUS="SELBRI"` jargon; and
+tanru predications project as one PREDICATION with a KIND-COMPOSITION
+relation expression in the relation slot (the fake `PREDICATE="tanru"`
+relation name is gone from both the notation and the frozen JSON; the loud
+head-and-link form remains as the guarded fallback). The frozen JSON graphs
+were migrated mechanically by `scripts/migrate_issue_719_json.py` (typed
+connector source, English locus, fake relation dropped — every file
+rebuilds byte-exactly from its source text through the product pipeline),
+and the goldens were regenerated with `examples/regen_goldens.rs` under the
+mechanical-diff proof of `scripts/verify_issue_719_output_migration.py`;
+the tanru regions' semantic preservation is enforced by the re-expansion
+equivalence acceptance test in `notation::relation_expression`.
+
 The prototype's pre-existing rejection of the Phase-B multiple-domain question
 remains outside the 48-document parity contract. The paired research README at
 the pinned commit records these follow-ups in full.
@@ -109,16 +132,17 @@ prototype outputs, and the four focused XML files compare byte-for-byte with
 their paired research goldens after the intentional `DOC=` substitution. All
 48 product JSON files also compare byte-for-byte with the pinned research
 sources. Product tests independently pin ordered name/content hashes
-`69ea08a65aba19049f65070b9eb045361834ddfbd2773da972c047be325381b3`
+`6f3d951a76b0b363ff3fc8a0763a0dbb34fe7fb16a23fccbe86a32fecbbfdfe7`
 for JSON and
-`8054b126268d07532363b576a1a5e27c5c4eb446aa4370b0a020284b159e5220`
-for XML.
+`a10e826952ced297d3da81c76705c81042d02d19f8a7fc72bf28c39801ec5bd9`
+for XML (both updated in the jbotci#719 migration above).
 
 Across the 48 comparable product documents, observed omissions equal the
 independently expanded waiver set exactly: source records 624, assigned-name
 records 3, descriptor words 55, `introducedBy` fields 234, quantity text
-fields 11, bound-variable words 9, and composition relation labels 5, for 941
-occurrences total. There are no unwaived or duplicate omissions.
+fields 11, bound-variable words 9, composition relation labels 5, and
+connector provenance fields 16 (new in jbotci#719), for 957 occurrences
+total. There are no unwaived or duplicate omissions.
 
 The files are frozen evidence. Update them only after a separately reviewed
 notation decision and a fresh, pinned-oracle parity proof.

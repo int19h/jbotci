@@ -55,6 +55,7 @@
 
 pub mod coverage;
 mod render;
+pub(crate) mod relation_expression;
 pub mod word_cards;
 mod writer;
 mod xml;
@@ -67,7 +68,7 @@ use bityzba::{ensures, invariant, requires};
 pub use render::SmusniConfig;
 pub use xml::{
     XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface, XmlWaiverFamily, render_xml,
-    render_xml_with_word_cards,
+    render_xml_value_for_tooling, render_xml_with_word_cards,
 };
 
 use crate::model::SemanticGraph;
