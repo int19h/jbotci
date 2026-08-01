@@ -3,6 +3,8 @@
 #[cfg(feature = "import")]
 pub mod import;
 
+pub mod places;
+
 use std::collections::BTreeMap;
 
 use bityzba::{invariant, requires};

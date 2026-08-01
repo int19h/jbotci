@@ -52,6 +52,7 @@
 
 pub mod coverage;
 mod render;
+pub mod word_cards;
 mod writer;
 mod xml;
 pub mod xml_coverage;
