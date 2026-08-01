@@ -1527,6 +1527,328 @@ fn invalid_arguments_history_is_valid_json_and_reprompt_answers_every_tool_call_
     }));
 }
 
+#[requires(true)]
+#[ensures(ret.status == 200)]
+fn malformed_call_response(name: &str, arguments: &str, cost: f64) -> MockResponse {
+    MockResponse {
+        status: 200,
+        body: json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": format!("call-malformed-{name}"),
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": arguments
+                        }
+                    }]
+                }
+            }],
+            "usage": {
+                "prompt_tokens": 3,
+                "completion_tokens": 2,
+                "total_tokens": 5,
+                "cost": cost
+            }
+        }),
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn mixed_batch_processes_valid_calls_and_records_malformed_payload_without_reprompt() {
+    let mut mixed = tool_call_response("alpha", 0.01);
+    mixed.body["choices"][0]["message"]["tool_calls"][0]["id"] = json!("call-valid");
+    mixed.body["choices"][0]["message"]["tool_calls"]
+        .as_array_mut()
+        .expect("mixed batch tool calls")
+        .push(json!({
+            "id": "call-malformed",
+            "type": "function",
+            "function": {
+                "name": "beta",
+                "arguments": "{"
+            }
+        }));
+    let server = MockServer::start(vec![mixed, tool_call_response("alpha", 0.01)]);
+    // Zero reprompt budget: a mixed batch must not consume a reprompt, so the
+    // valid call is returned even though any reprompt would exhaust instantly.
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let tools = [tool("alpha").expect("alpha"), tool("beta").expect("beta")];
+    let turn = conversation
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("mixed batch returns its valid calls");
+
+    let calls = turn.tool_calls().expect("valid calls are processed");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].id, "call-valid");
+    assert_eq!(calls[0].function.name, "alpha");
+
+    let malformed = conversation.take_pending_malformed_tool_calls();
+    assert_eq!(malformed.len(), 1);
+    assert_eq!(malformed[0].tool_name, "beta");
+    assert_eq!(malformed[0].arguments, "{");
+    assert!(malformed[0].message.contains("invalid call to tool `beta`"));
+    assert!(conversation.take_pending_malformed_tool_calls().is_empty());
+
+    let mut dispatcher = ExactDispatcher;
+    conversation
+        .dispatch_tool_calls(calls, &mut dispatcher)
+        .expect("valid sibling call dispatches");
+    conversation
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("answered call ids leave the conversation reusable");
+
+    // Assert against the second request body received by the server: both call
+    // ids must be answered, the malformed one by its error result and the valid
+    // one by the dispatched payload, with no reprompt correction in between.
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2);
+    let messages = captured[1].body["messages"]
+        .as_array()
+        .expect("second request messages");
+    let assistant_tool_calls = messages
+        .iter()
+        .find(|message| message["role"] == "assistant")
+        .expect("assistant tool-call history")["tool_calls"]
+        .as_array()
+        .expect("assistant tool calls");
+    assert_eq!(assistant_tool_calls.len(), 2);
+    let malformed_history = assistant_tool_calls
+        .iter()
+        .find(|call| call["id"] == "call-malformed")
+        .expect("malformed call history")["function"]["arguments"]
+        .as_str()
+        .expect("malformed history arguments string");
+    assert_eq!(
+        serde_json::from_str::<Value>(malformed_history)
+            .expect("history arguments must be valid JSON"),
+        json!({ "malformed_arguments": "{" })
+    );
+    let tool_messages = messages
+        .iter()
+        .filter(|message| message["role"] == "tool")
+        .collect::<Vec<_>>();
+    let malformed_result = tool_messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "call-malformed")
+        .expect("malformed call result");
+    assert!(
+        malformed_result["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("invalid call to tool `beta`"))
+    );
+    let valid_result = tool_messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "call-valid")
+        .expect("valid call result");
+    assert_eq!(valid_result["content"], "  exact tool payload\n");
+    assert!(!messages.iter().any(|message| {
+        message["role"] == "user"
+            && message["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("must respond by calling"))
+    }));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn mixed_batch_with_empty_arguments_first_processes_the_valid_call_without_reprompt() {
+    // The empty-string payload is itself a legitimate malformed capture: it
+    // must survive response deserialization, record losslessly, and not poison
+    // the valid sibling behind it (issue #720 review).
+    let server = MockServer::start(vec![
+        MockResponse {
+            status: 200,
+            body: json!({
+                "choices": [{
+                    "message": {
+                        "role": "assistant",
+                        "content": null,
+                        "tool_calls": [
+                            {
+                                "id": "call-malformed",
+                                "type": "function",
+                                "function": {
+                                    "name": "beta",
+                                    "arguments": ""
+                                }
+                            },
+                            {
+                                "id": "call-valid",
+                                "type": "function",
+                                "function": {
+                                    "name": "alpha",
+                                    "arguments": "{\"value\":1}"
+                                }
+                            }
+                        ]
+                    }
+                }],
+                "usage": {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 2,
+                    "total_tokens": 5,
+                    "cost": 0.01
+                }
+            }),
+        },
+        tool_call_response("alpha", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let tools = [tool("alpha").expect("alpha"), tool("beta").expect("beta")];
+    let turn = conversation
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("empty-payload sibling must not discard the valid call");
+
+    let calls = turn.tool_calls().expect("valid call is processed");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].id, "call-valid");
+    assert_eq!(calls[0].function.name, "alpha");
+
+    let malformed = conversation.take_pending_malformed_tool_calls();
+    assert_eq!(malformed.len(), 1);
+    assert_eq!(malformed[0].tool_name, "beta");
+    assert_eq!(malformed[0].arguments, "", "empty payload is recorded verbatim");
+    assert!(malformed[0].message.contains("invalid call to tool `beta`"));
+
+    let mut dispatcher = ExactDispatcher;
+    conversation
+        .dispatch_tool_calls(calls, &mut dispatcher)
+        .expect("valid sibling call dispatches");
+    conversation
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("answered call ids leave the conversation reusable");
+
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2, "zero reprompts are consumed");
+    let messages = captured[1].body["messages"]
+        .as_array()
+        .expect("second request messages");
+    let malformed_history = messages
+        .iter()
+        .find(|message| message["role"] == "assistant")
+        .expect("assistant tool-call history")["tool_calls"]
+        .as_array()
+        .expect("assistant tool calls")
+        .iter()
+        .find(|call| call["id"] == "call-malformed")
+        .expect("malformed call history")["function"]["arguments"]
+        .as_str()
+        .expect("malformed history arguments string");
+    assert_eq!(
+        serde_json::from_str::<Value>(malformed_history)
+            .expect("history arguments must be valid JSON"),
+        json!({ "malformed_arguments": "" })
+    );
+    let tool_messages = messages
+        .iter()
+        .filter(|message| message["role"] == "tool")
+        .collect::<Vec<_>>();
+    let malformed_result = tool_messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "call-malformed")
+        .expect("malformed call result");
+    assert!(
+        malformed_result["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("invalid call to tool `beta`"))
+    );
+    let valid_result = tool_messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "call-valid")
+        .expect("valid call result");
+    assert_eq!(valid_result["content"], "  exact tool payload\n");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn all_malformed_batches_consume_the_reprompt_budget() {
+    let server = MockServer::start(vec![
+        malformed_call_response("alpha", "{", 0.01),
+        malformed_call_response("beta", "[1,]", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let tools = [tool("alpha").expect("alpha"), tool("beta").expect("beta")];
+
+    let error = conversation
+        .request(
+            &client,
+            &tools,
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect_err("all-malformed batches must exhaust the reprompt budget");
+
+    assert_eq!(
+        error,
+        OpenRouterError::RequiredToolCallExhausted { attempts: 2 }
+    );
+    let malformed = conversation.take_pending_malformed_tool_calls();
+    assert_eq!(malformed.len(), 2);
+    assert_eq!(malformed[0].tool_name, "alpha");
+    assert_eq!(malformed[0].arguments, "{");
+    assert_eq!(malformed[1].tool_name, "beta");
+    assert_eq!(malformed[1].arguments, "[1,]");
+
+    // Each malformed call id is answered with its error tool result, not with a
+    // prose correction.
+    let captured = server.finish();
+    assert_eq!(captured.len(), 2);
+    let messages = captured[1].body["messages"]
+        .as_array()
+        .expect("reprompt messages");
+    let tool_messages = messages
+        .iter()
+        .filter(|message| message["role"] == "tool")
+        .collect::<Vec<_>>();
+    assert_eq!(tool_messages.len(), 1);
+    assert_eq!(tool_messages[0]["tool_call_id"], "call-malformed-alpha");
+    assert!(
+        tool_messages[0]["content"]
+            .as_str()
+            .is_some_and(|content| content.contains("invalid call to tool `alpha`"))
+    );
+    assert!(!messages.iter().any(|message| {
+        message["role"] == "user"
+            && message["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("must respond by calling"))
+    }));
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]

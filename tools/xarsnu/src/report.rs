@@ -1124,6 +1124,23 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 .expect("writing to String cannot fail");
                 summary.prose_rejections += 1;
             }
+            bityzba::data!(ProtocolEvent::ToolCallMalformed {
+                participant,
+                tool_name,
+                arguments,
+                message,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Malformed tool call — `{participant}` / `{tool_name}`\n\nThe model's arguments were not a valid JSON object: {}\n\nRaw arguments:\n",
+                    first_nonempty_line(message)
+                )
+                .expect("writing to String cannot fail");
+                quote(&mut report, arguments);
+                report.push('\n');
+                summary.malformed_tool_calls += 1;
+            }
             bityzba::data!(ProtocolEvent::ListenerFlowAbandoned {
                 listener,
                 reason,
@@ -1323,6 +1340,7 @@ struct ReportSummary {
     reference_budgets_exhausted: usize,
     reference_nudges: usize,
     prose_rejections: usize,
+    malformed_tool_calls: usize,
     listener_flows_abandoned: usize,
     protocol_errors: usize,
     forfeits: usize,
@@ -1416,8 +1434,9 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
 
     writeln!(
         report,
-        "\n### Protocol stops\n\n- Auto-mode prose rejections: {}\n- Listener flows abandoned: {}\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}\n- Runtime failures: {}",
+        "\n### Protocol stops\n\n- Auto-mode prose rejections: {}\n- Malformed tool calls: {}\n- Listener flows abandoned: {}\n- Protocol errors: {}\n- Forfeits: {}\n- Budget aborts: {}\n- Runtime failures: {}",
         summary.prose_rejections,
+        summary.malformed_tool_calls,
         summary.listener_flows_abandoned,
         summary.protocol_errors,
         summary.forfeits,

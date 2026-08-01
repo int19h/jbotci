@@ -25,7 +25,6 @@ const COMPLETION_MAX_TOKENS: u32 = 16_384;
 pub(crate) const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
 const EMPTY_RESPONSE_CORRECTION: &str = "Your previous response supplied no visible content or tool call. Private reasoning, if any, is not received as a reply. Respond with visible content or call one of the provided tools.";
-const SKIPPED_INVALID_BATCH_CALL: &str = "This tool call was not executed because another tool call in the same response had invalid arguments.";
 
 #[requires(true)]
 #[ensures(ret == !*value)]
@@ -144,9 +143,14 @@ enum ToolKind {
     Function,
 }
 
-/// The model-selected function and its JSON-encoded arguments.
+/// The model-selected function and its raw argument payload.
+///
+/// `arguments` is whatever the provider emitted, including empty or otherwise
+/// malformed text: a malformed payload is itself data the runtime must process
+/// and record losslessly (issue #720), so it cannot be rejected here.
+/// Object-shape validation belongs to [`ToolCall::arguments`].
 #[invariant(!name.trim().is_empty(), "tool-call function names cannot be empty")]
-#[invariant(!arguments.trim().is_empty(), "tool-call arguments cannot be empty")]
+#[invariant(true, "raw argument payloads may be empty or malformed on the wire")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionCall {
     pub name: String,
@@ -352,6 +356,21 @@ impl ThinkingTrace {
 pub struct ProviderCallObservation {
     pub usage: Usage,
     pub thinking: Option<ThinkingTrace>,
+}
+
+/// Lossless record of one tool call whose arguments were not a valid JSON object.
+///
+/// The payload is kept verbatim, exactly as the model emitted it, so the
+/// transcript layer can record what was actually malformed instead of only the
+/// fact that something was (issue #720).
+#[invariant(!tool_name.trim().is_empty(), "malformed-call tool names cannot be empty")]
+#[invariant(!message.trim().is_empty(), "malformed-call validation messages cannot be empty")]
+#[invariant(true, "an empty payload is itself a legitimate lossless malformed capture")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MalformedToolCall {
+    pub tool_name: String,
+    pub arguments: String,
+    pub message: String,
 }
 
 /// Request-scoped reasoning details attached to their originating assistant message.
@@ -1233,6 +1252,7 @@ pub struct ParticipantConversation {
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
     pending_observations: Vec<ProviderCallObservation>,
+    pending_malformed_tool_calls: Vec<MalformedToolCall>,
     reasoning_details_replay: Vec<ReasoningDetailsReplay>,
 }
 
@@ -1285,6 +1305,7 @@ impl ParticipantConversation {
             messages: vec![ChatMessage::system(system_prompt)],
             usage: UsageTotals::default(),
             pending_observations: Vec::new(),
+            pending_malformed_tool_calls: Vec::new(),
             reasoning_details_replay: Vec::new(),
         }
     }
@@ -1319,6 +1340,7 @@ impl ParticipantConversation {
             ],
             usage: UsageTotals::default(),
             pending_observations: Vec::new(),
+            pending_malformed_tool_calls: Vec::new(),
             reasoning_details_replay: Vec::new(),
         }
     }
@@ -1349,6 +1371,17 @@ impl ParticipantConversation {
     #[ensures(self.pending_observations.is_empty())]
     pub fn take_pending_observations(&mut self) -> Vec<ProviderCallObservation> {
         std::mem::take(&mut self.pending_observations)
+    }
+
+    /// Drain malformed-tool-call records accumulated since the previous drain.
+    ///
+    /// Each drained record carries the raw argument payload exactly as the
+    /// model emitted it, mirroring the lossless [`ToolCall::history_copy`]
+    /// wrapping so the transcript alone can diagnose the failure (issue #720).
+    #[requires(true)]
+    #[ensures(self.pending_malformed_tool_calls.is_empty())]
+    pub fn take_pending_malformed_tool_calls(&mut self) -> Vec<MalformedToolCall> {
+        std::mem::take(&mut self.pending_malformed_tool_calls)
     }
 
     /// Start a distinct provider tool loop without carrying stale details into it.
@@ -1466,29 +1499,47 @@ impl ParticipantConversation {
             if let Some(record) = abort {
                 return Ok(new!(ModelTurn::Aborted { record }));
             }
-            let invalid_call = tool_calls.iter().find_map(|call| call.arguments().err());
-            if invalid_call.is_some() {
-                for call in &tool_calls {
-                    let content = call.arguments().map_or_else(
-                        |error| error.to_string(),
-                        |_| SKIPPED_INVALID_BATCH_CALL.to_owned(),
-                    );
-                    self.messages.push(ChatMessage::tool(
-                        call.id.clone(),
-                        call.function.name.clone(),
-                        content,
-                    ));
+            let had_tool_calls = !tool_calls.is_empty();
+            let mut valid_calls = Vec::new();
+            let mut first_invalid = None;
+            for call in tool_calls {
+                match call.arguments() {
+                    Ok(_) => valid_calls.push(call),
+                    Err(error) => {
+                        let message = error.to_string();
+                        // Keep the raw payload verbatim so the transcript layer
+                        // can record what the model actually sent (issue #720).
+                        self.pending_malformed_tool_calls
+                            .push(new!(MalformedToolCall {
+                                tool_name: call.function.name.clone(),
+                                arguments: call.function.arguments.clone(),
+                                message: message.clone(),
+                            }));
+                        self.messages.push(ChatMessage::tool(
+                            call.id.clone(),
+                            call.function.name.clone(),
+                            message,
+                        ));
+                        if first_invalid.is_none() {
+                            first_invalid = Some(error);
+                        }
+                    }
                 }
             }
-            if !tool_calls.is_empty() && invalid_call.is_none() {
-                return Ok(new!(ModelTurn::ToolCalls { calls: tool_calls }));
+            // A mixed batch still advances the turn: process the valid calls and
+            // answer only the malformed siblings with the error results pushed
+            // above, instead of discarding the whole batch. Such a batch does
+            // not consume a required-tool reprompt; only an all-malformed (or
+            // empty) response reaches the reprompt accounting below (issue #720).
+            if !valid_calls.is_empty() {
+                return Ok(new!(ModelTurn::ToolCalls { calls: valid_calls }));
             }
             if tool_choice == ProviderToolChoice::Auto {
                 if let Some(content) = content {
                     return Ok(new!(ModelTurn::Message { content }));
                 }
                 return Err(
-                    invalid_call.unwrap_or_else(|| OpenRouterError::InvalidResponse {
+                    first_invalid.unwrap_or_else(|| OpenRouterError::InvalidResponse {
                         message: "automatic tool call response was unusable".to_owned(),
                     }),
                 );
@@ -1498,7 +1549,7 @@ impl ParticipantConversation {
                     attempts: reprompts + 1,
                 });
             }
-            if tool_calls.is_empty() {
+            if !had_tool_calls {
                 self.messages
                     .push(ChatMessage::user(REQUIRED_TOOL_CORRECTION.to_owned()));
             }
