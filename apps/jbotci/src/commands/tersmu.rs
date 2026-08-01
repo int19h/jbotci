@@ -19,10 +19,46 @@ pub(crate) fn run_tersmu<WOut: Write, WErr: Write>(
         glyphs,
         diagnostic_terminal_width,
         stdin_text,
+        false,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(&rendered.stdout)?;
     Ok(rendered.status)
+}
+
+/// The tool-facing tersmu path (jbotci#723): identical rendering, plus the
+/// declared compact-representation incompatibility records of the candidate's
+/// semantic graph, each in its exact `<INCOMPATIBILITY .../>` declaration
+/// form. Records exist only for candidates that reach a semantic graph.
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn run_tersmu_with_incompatibilities<WOut: Write, WErr: Write>(
+    input: TersmuInput,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    stdin_text: Option<&str>,
+) -> Result<(CliStatus, Vec<String>)> {
+    let rendered = render_tersmu(
+        input,
+        color_policy,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+        stdin_text,
+        true,
+    )?;
+    stderr.write_all(rendered.stderr.as_bytes())?;
+    stdout.write_all(&rendered.stdout)?;
+    let data!(TersmuRendered {
+        status,
+        compact_incompatibilities,
+        ..
+    }) = rendered.into_data();
+    Ok((status, compact_incompatibilities))
 }
 
 #[requires(diagnostic_terminal_width > 0)]
@@ -34,6 +70,7 @@ fn render_tersmu(
     glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
     stdin_text: Option<&str>,
+    collect_incompatibilities: bool,
 ) -> Result<TersmuRendered> {
     validate_tersmu_options(&input)?;
     let morphology_trace_options =
@@ -85,6 +122,7 @@ fn render_tersmu(
             status: CliStatus::Failure,
             stdout: Vec::new(),
             stderr,
+            compact_incompatibilities: Vec::new(),
         }));
     }
     let words = morphology.words;
@@ -129,6 +167,7 @@ fn render_tersmu(
                     status: CliStatus::Failure,
                     stdout: Vec::new(),
                     stderr,
+                    compact_incompatibilities: Vec::new(),
                 }));
             }
         };
@@ -165,6 +204,7 @@ fn render_tersmu(
                 status: CliStatus::Failure,
                 stdout: Vec::new(),
                 stderr,
+                compact_incompatibilities: Vec::new(),
             }));
         }
     };
@@ -179,6 +219,25 @@ fn render_tersmu(
             glyphs,
         ));
     }
+    // The XML word-card list is built exactly when the document embeds a WORDS
+    // section. The declared-incompatibility analysis below must see the same
+    // card-presence decision as the render (jbotci#723).
+    let word_cards = if input.show_defs && input.format == TersmuFormat::Xml {
+        jbotci_semantics::notation::word_cards::build_xml_word_cards(
+            jbotci_dictionary_data::english(),
+            words.as_slice(),
+        )
+    } else {
+        Vec::new()
+    };
+    let compact_incompatibilities = if collect_incompatibilities {
+        jbotci_semantics::analyze_compact_incompatibilities(&graph, !word_cards.is_empty())
+            .iter()
+            .map(jbotci_semantics::CompactIncompatibility::declaration)
+            .collect()
+    } else {
+        Vec::new()
+    };
     let rendered = match input.format {
         TersmuFormat::Json => json_string_with_options(
             &graph,
@@ -204,18 +263,12 @@ fn render_tersmu(
         TersmuFormat::Xml => {
             // The command's input label is the document identity used by the
             // canonical XML root. As with smusni, normalize the renderer's
-            // trailing newline before the shared output terminator below.
-            let mut rendered = if input.show_defs {
-                let word_cards = jbotci_semantics::notation::word_cards::build_xml_word_cards(
-                    jbotci_dictionary_data::english(),
-                    words.as_slice(),
-                );
-                render_xml_with_word_cards(&graph, &source_label, &word_cards)
-                    .into_data()
-                    .output
-            } else {
-                render_xml(&graph, &source_label).into_data().output
-            };
+            // trailing newline before the shared output terminator below. An
+            // empty card list renders exactly like `render_xml`, so the
+            // show-defs distinction is already folded into `word_cards`.
+            let mut rendered = render_xml_with_word_cards(&graph, &source_label, &word_cards)
+                .into_data()
+                .output;
             if rendered.ends_with('\n') {
                 rendered.pop();
             }
@@ -228,5 +281,6 @@ fn render_tersmu(
         status: CliStatus::Success,
         stdout: stdout.into_bytes(),
         stderr,
+        compact_incompatibilities,
     }))
 }

@@ -2579,3 +2579,110 @@ fn adversarial_review_reject_feedback_revise_approve_flow_posts() {
     assert!(second_review.contains("REVISED candidate under the SAME registered intent"));
     assert!(second_review.contains("The destination place is elided"));
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
+    // Issue #721/#723 handoff, end to end over mocked transport: the witness
+    // class from the frontier debate produces REAL declared records at the
+    // gate; they are auto-quoted into the reviewer brief on the wire and
+    // preserved losslessly in the review-requested transcript event.
+    let witness = "lo nenri be lo menli be'o poi no da ka'e zgana ke'a";
+    let gate = xarsnu::gate_lojban(witness.to_owned(), Some(TersmuFormat::Smusni), None)
+        .expect("witness gates successfully");
+    let declared = gate
+        .renderer_incompatibilities()
+        .expect("accepted gate outcome carries the records");
+    assert_eq!(declared.len(), 3, "the witness declares three records");
+    assert!(
+        declared
+            .iter()
+            .all(|record| record.starts_with("<INCOMPATIBILITY KIND=\"")),
+        "records are exact declaration lines: {declared:?}"
+    );
+
+    let server = MockServer::start(vec![
+        protocol_tool_response(
+            "register_intent",
+            json!({ "meaning_en": "Nothing can observe the inside of the mind." }),
+            0.0001,
+        ),
+        protocol_tool_response("submit_lojban", json!({ "text": witness }), 0.0001),
+        verdict_response(
+            false,
+            "The quoted renderer-declared scope incompatibilities are real: the relative clause's quantifier scope does not match the intent.",
+            0.0002,
+        ),
+        protocol_tool_response("submit_lojban", json!({ "text": "mi klama" }), 0.0001),
+        verdict_response(true, "The revised candidate is compact and precise.", 0.0001),
+        protocol_tool_response(
+            "acknowledge",
+            json!({ "final_understanding_en": "You go." }),
+            0.0001,
+        ),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let configs = vec![
+        review_participant("alice", "mock/model"),
+        review_participant("bob", "mock/model"),
+    ];
+    let participants = configs
+        .iter()
+        .map(|config| OpenRouterParticipant::new(config, &client))
+        .collect::<Vec<_>>();
+    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client);
+    let mut runner = ProtocolRunner::new_with_review(
+        participants,
+        new!(CapsConfig {
+            max_parse_attempts_per_turn: 3,
+            max_intent_revisions_per_turn: 2,
+            max_turns: 1,
+            max_cost_usd: 10.0,
+            max_reference_calls_per_phase: 16,
+            reference_dedupe: true,
+            reference_nudge_after: 6,
+        }),
+        ListenerMode::Informed,
+        TersmuFormat::Smusni,
+        ReferenceToolDispatcher,
+        reviewer,
+    )
+    .expect("runner builds");
+    let outcome = runner.run().expect("run completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ProtocolRunOutcome::Completed { turns: 1 })
+    ));
+
+    // The transcript payload preserves the real records losslessly, byte for
+    // byte as the gate declared them.
+    let briefs = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ReviewRequested { brief, .. }) => Some(brief),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(briefs.len(), 2);
+    assert_eq!(
+        briefs[0].renderer_incompatibilities, declared,
+        "review-requested must carry the exact gate-declared records"
+    );
+    assert!(briefs[1].renderer_incompatibilities.is_empty());
+
+    // On the wire, the reviewer's user message quotes the records in their
+    // dedicated brief section.
+    let requests = server.finish();
+    assert_eq!(requests.len(), 6);
+    let first_review = requests[2].body.to_string();
+    assert!(first_review.contains("Renderer-declared incompatibility records"));
+    for record in declared {
+        let escaped = record.replace('\\', "\\\\").replace('"', "\\\"");
+        assert!(
+            first_review.contains(&escaped),
+            "reviewer brief must quote {record}"
+        );
+    }
+}

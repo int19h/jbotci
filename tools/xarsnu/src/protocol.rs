@@ -447,9 +447,10 @@ pub struct ReviewBrief {
     /// The gate-accepted candidate and its production tersmu rendering.
     pub candidate: VisibleMessage,
     /// Renderer-declared scope incompatibility records, auto-quoted into the
-    /// brief when the gate reports them. The gate does not surface these
-    /// records yet (that is issue #721, whose hard-reject policy question also
-    /// stays open), so current runs always pass an empty list.
+    /// brief: the exact `<INCOMPATIBILITY .../>` declarations the SFN-XML
+    /// representation planner produces for the candidate's semantic graph,
+    /// extracted at the gate boundary (issues #721/#723). Whether they also
+    /// hard-reject stays #721's open question; here they are reviewer evidence.
     pub renderer_incompatibilities: Vec<String>,
 }
 
@@ -3510,6 +3511,10 @@ impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, 
                         }))
                     }
                 } else if let Some(tersmu_rendering) = outcome.tersmu_rendering() {
+                    let renderer_incompatibilities = outcome
+                        .renderer_incompatibilities()
+                        .expect("accepted gate outcomes carry the declared records")
+                        .to_vec();
                     let message = VisibleMessage::try_from_data(bityzba::data!(VisibleMessage {
                         text,
                         tersmu_rendering: tersmu_rendering.to_vec(),
@@ -3533,6 +3538,7 @@ impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, 
                             intent_revisions,
                             attempt,
                             message,
+                            renderer_incompatibilities,
                         );
                     }
                     let content = std::str::from_utf8(&message.tersmu_rendering)
@@ -3672,15 +3678,15 @@ impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, 
         intent_revisions: usize,
         parse_attempts: usize,
         candidate: VisibleMessage,
+        renderer_incompatibilities: Vec<String>,
     ) -> Result<SpeakerAction, ProtocolRunError> {
         let brief = new!(ReviewBrief {
             meaning_en: meaning_en.clone(),
             candidate: candidate.clone(),
-            // The gate does not yet surface renderer-declared scope
-            // incompatibility records (issue #721); once it does they are
-            // auto-quoted into the brief here. Whether they also hard-reject
+            // Renderer-declared scope incompatibility records are auto-quoted
+            // into the brief (issues #721/#723); whether they also hard-reject
             // stays #721's open question and is deliberately not decided here.
-            renderer_incompatibilities: Vec::new(),
+            renderer_incompatibilities,
         });
         self.events.push(new!(ProtocolEvent::ReviewRequested {
             turn_number,

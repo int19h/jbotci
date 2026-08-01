@@ -196,7 +196,7 @@ use jbotci_search::vlacku::{
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    render_smusni, render_xml, render_xml_with_word_cards,
+    render_smusni, render_xml_with_word_cards,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -856,10 +856,16 @@ struct GentufaRendered {
 }
 
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
+#[invariant(compact_incompatibilities.iter().all(|record| !record.trim().is_empty()), "declared incompatibility records cannot be empty")]
 struct TersmuRendered {
     status: CliStatus,
     stdout: Vec<u8>,
     stderr: String,
+    /// The declared compact-representation incompatibility records of the
+    /// candidate's semantic graph (jbotci#723), each in its exact
+    /// `<INCOMPATIBILITY .../>` declaration form. Empty unless the caller
+    /// requested collection.
+    compact_incompatibilities: Vec<String>,
 }
 
 impl GentufaInput {

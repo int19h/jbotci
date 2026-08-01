@@ -125,9 +125,11 @@ usage counts into the run's cost budget, and the transcript records
 `review-requested`, `review-report` (the complete report text, losslessly),
 and `review-verdict` events, which the full report renders and summarizes
 under "Revisions and mismatches". Renderer-declared scope incompatibility
-records are auto-quoted into the reviewer's brief when the gate reports them;
-whether they also hard-reject stays issue #721's question and is not decided
-here.
+records (the exact `<INCOMPATIBILITY .../>` declarations of the candidate's
+semantic graph, extracted at the gate boundary) are auto-quoted into the
+reviewer's brief in a dedicated section and preserved losslessly in the
+`review-requested` payload; whether they also hard-reject stays issue #721's
+question and is not decided here.
 
 `tool-choice` is also per participant and defaults to `metadata`. The vendored
 OpenRouter capability snapshot selects `required` for models known to support
